@@ -26,48 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-common-sql",
         "name": "Common SQL",
         "description": "`Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734529664,
-        "versions": [
-            "1.21.0",
-            "1.20.0",
-            "1.19.0",
-            "1.18.0",
-            "1.17.1",
-            "1.17.0",
-            "1.16.0",
-            "1.15.0",
-            "1.14.2",
-            "1.14.1",
-            "1.14.0",
-            "1.13.0",
-            "1.12.0",
-            "1.11.1",
-            "1.11.0",
-            "1.10.1",
-            "1.10.0",
-            "1.9.0",
-            "1.8.1",
-            "1.8.0",
-            "1.7.2",
-            "1.7.1",
-            "1.7.0",
-            "1.6.2",
-            "1.6.1",
-            "1.6.0",
-            "1.5.2",
-            "1.5.1",
-            "1.5.0",
-            "1.4.0",
-            "1.3.4",
-            "1.3.3",
-            "1.3.2",
-            "1.3.1",
-            "1.3.0",
-            "1.2.0",
-            "1.1.0",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Common SQL",
@@ -80,7 +38,10 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Common SQL",
-                "python-modules": ["airflow.providers.common.sql.operators.sql"],
+                "python-modules": [
+                    "airflow.providers.common.sql.operators.sql",
+                    "airflow.providers.common.sql.operators.generic_transfer",
+                ],
             }
         ],
         "dialects": [
@@ -98,12 +59,13 @@ def get_provider_info():
                 ],
             }
         ],
+        "triggers": [
+            {
+                "integration-name": "Common SQL",
+                "python-modules": ["airflow.providers.common.sql.triggers.sql"],
+            }
+        ],
         "sensors": [
             {"integration-name": "Common SQL", "python-modules": ["airflow.providers.common.sql.sensors.sql"]}
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "sqlparse>=0.5.1", "more-itertools>=9.0.0"],
-        "optional-dependencies": {
-            "pandas": ["pandas>=2.1.2,<2.2"],
-            "openlineage": ["apache-airflow-providers-openlineage"],
-        },
     }

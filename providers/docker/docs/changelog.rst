@@ -27,6 +27,88 @@
 Changelog
 ---------
 
+
+4.3.1
+.....
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``make docker swarm service name customizable (#47957)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+4.2.1
+.....
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+4.2.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Feat: support docker operator arg 'labels' (#46643)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix f-string ruff static check (#46813)``
+* ``Using quotes for file path in find command (#46795)``
+* ``Update DockerSwarmOperator auto_remove to align with DockerOperator (#45745)``
+
+Misc
+~~~~
+
+* ``Using env for file path in find command (#46809)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Move Literal alias into TYPE_CHECKING block (#45345)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Move Docker Provider to the New Structure (#46097)``
+
 4.0.0
 .....
 
@@ -285,7 +367,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
 3.8.1

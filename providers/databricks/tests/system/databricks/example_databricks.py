@@ -41,6 +41,7 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
+    DatabricksSQLStatementsOperator,
     DatabricksSubmitRunOperator,
     DatabricksTaskOperator,
 )
@@ -152,6 +153,16 @@ with DAG(
     # [END howto_operator_databricks_named]
     notebook_task >> spark_jar_task
 
+    # [START howto_operator_sql_statements]
+    sql_statement = DatabricksSQLStatementsOperator(
+        task_id="sql_statement",
+        databricks_conn_id="databricks_default",
+        statement="select * from default.my_airflow_table",
+        warehouse_id=WAREHOUSE_ID,
+        # deferrable=True, # For using the operator in deferrable mode
+    )
+    # [END howto_operator_sql_statements]
+
     # [START howto_operator_databricks_notebook_new_cluster]
     new_cluster_spec = {
         "cluster_name": "",
@@ -237,29 +248,6 @@ with DAG(
         },
     )
     # [END howto_operator_databricks_task_sql]
-
-    # [START howto_operator_databricks_task_python]
-    environments = [
-        {
-            "environment_key": "default_environment",
-            "spec": {
-                "client": "1",
-                "dependencies": ["library1"],
-            },
-        }
-    ]
-    task_operator_python_query = DatabricksTaskOperator(
-        task_id="python_task",
-        databricks_conn_id="databricks_conn",
-        task_config={
-            "spark_python_task": {
-                "python_file": "/Users/jsmith@example.com/example_file.py",
-            },
-            "environment_key": "default_environment",
-        },
-        environments=environments,
-    )
-    # [END howto_operator_databricks_task_python]
 
     from tests_common.test_utils.watcher import watcher
 

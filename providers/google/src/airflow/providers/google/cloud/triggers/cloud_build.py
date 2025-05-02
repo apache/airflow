@@ -20,9 +20,10 @@ import asyncio
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
+from google.cloud.devtools.cloudbuild_v1.types import Build
+
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.devtools.cloudbuild_v1.types import Build
 
 
 class CloudBuildCreateBuildTrigger(BaseTrigger):

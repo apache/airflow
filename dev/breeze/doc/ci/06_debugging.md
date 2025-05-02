@@ -21,11 +21,11 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [Debugging CI Jobs in Github Actions and changing their behaviour](#debugging-ci-jobs-in-github-actions-and-changing-their-behaviour)
+- [Debugging CI Jobs in GitHub Actions and changing their behaviour](#debugging-ci-jobs-in-github-actions-and-changing-their-behaviour)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Debugging CI Jobs in Github Actions and changing their behaviour
+# Debugging CI Jobs in GitHub Actions and changing their behaviour
 
 The CI jobs are notoriously difficult to test, because you can only
 really see results of it when you run them in CI environment, and the

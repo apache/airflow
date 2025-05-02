@@ -23,13 +23,6 @@ from collections import namedtuple
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from msrestazure.azure_exceptions import CloudError
-
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
-from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
-from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
@@ -44,6 +37,13 @@ from azure.mgmt.containerinstance.models import (
     Volume as _AzureVolume,
     VolumeMount,
 )
+from msrestazure.azure_exceptions import CloudError
+
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
+from airflow.models import BaseOperator
+from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
+from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
+from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -120,7 +120,13 @@ class AzureContainerInstancesOperator(BaseOperator):
             },
             secured_variables=["POSTGRES_PASSWORD"],
             volumes=[
-                ("azure_container_instance_conn_id", "my_storage_container", "my_fileshare", "/input-data", True),
+                (
+                    "azure_container_instance_conn_id",
+                    "my_storage_container",
+                    "my_fileshare",
+                    "/input-data",
+                    True,
+                ),
             ],
             memory_in_gb=14.0,
             cpu=4.0,
@@ -382,6 +388,10 @@ class AzureContainerInstancesOperator(BaseOperator):
                     self.log.info("Container exited with detail_status %s", detail_status)
                     return exit_code
 
+                if state == "Unhealthy":
+                    self.log.error("Azure provision unhealthy")
+                    return 1
+
                 if state == "Failed":
                     self.log.error("Azure provision failure")
                     return 1
@@ -396,8 +406,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                         "(make sure that the name is unique)."
                     )
                     return 1
-                else:
-                    self.log.exception("Exception while getting container groups")
+                self.log.exception("Exception while getting container groups")
             except Exception:
                 self.log.exception("Exception while getting container groups")
 

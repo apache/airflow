@@ -88,10 +88,8 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
     :param max_concurrent_runs: The maximum number of concurrent runs for the workflow.
     :param notebook_params: A dictionary of notebook parameters to pass to the workflow. These parameters
         will be passed to all notebooks in the workflow.
-    :param tasks_to_convert: A list of tasks to convert to a Databricks workflow. This list can also be
+    :param tasks_to_convert: A dict of tasks to convert to a Databricks workflow. This list can also be
         populated after instantiation using the `add_task` method.
-    :param environments: An optional list of task execution environment specifications
-        that can be referenced by serverless tasks of this job.
     """
 
     operator_extra_links = (WorkflowJobRunLink(), WorkflowJobRepairAllFailedLink())
@@ -107,8 +105,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         job_clusters: list[dict[str, object]] | None = None,
         max_concurrent_runs: int = 1,
         notebook_params: dict | None = None,
-        tasks_to_convert: list[BaseOperator] | None = None,
-        environments: list[dict] | None = None,
+        tasks_to_convert: dict[str, BaseOperator] | None = None,
         **kwargs,
     ):
         self.databricks_conn_id = databricks_conn_id
@@ -117,10 +114,9 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         self.job_clusters = job_clusters or []
         self.max_concurrent_runs = max_concurrent_runs
         self.notebook_params = notebook_params or {}
-        self.tasks_to_convert = tasks_to_convert or []
+        self.tasks_to_convert = tasks_to_convert or {}
         self.relevant_upstreams = [task_id]
         self.workflow_run_metadata: WorkflowRunMetadata | None = None
-        self.environments = environments
         super().__init__(task_id=task_id, **kwargs)
 
     def _get_hook(self, caller: str) -> DatabricksHook:
@@ -133,9 +129,9 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
     def _hook(self) -> DatabricksHook:
         return self._get_hook(caller=self.caller)
 
-    def add_task(self, task: BaseOperator) -> None:
-        """Add a task to the list of tasks to convert to a Databricks workflow."""
-        self.tasks_to_convert.append(task)
+    def add_task(self, task_id, task: BaseOperator) -> None:
+        """Add a task to the dict of tasks to convert to a Databricks workflow."""
+        self.tasks_to_convert[task_id] = task
 
     @property
     def job_name(self) -> str:
@@ -147,9 +143,9 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         """Create a workflow json to be used in the Databricks API."""
         task_json = [
             task._convert_to_databricks_workflow_task(  # type: ignore[attr-defined]
-                relevant_upstreams=self.relevant_upstreams, context=context
+                relevant_upstreams=self.relevant_upstreams, task_dict=self.tasks_to_convert, context=context
             )
-            for task in self.tasks_to_convert
+            for task_id, task in self.tasks_to_convert.items()
         ]
 
         default_json = {
@@ -160,7 +156,6 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
             "format": "MULTI_TASK",
             "job_clusters": self.job_clusters,
             "max_concurrent_runs": self.max_concurrent_runs,
-            "environments": self.environments,
         }
         return merge(default_json, self.extra_job_params)
 
@@ -279,8 +274,6 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         all python tasks in the workflow.
     :param spark_submit_params: A list of spark submit parameters to pass to the workflow. These parameters
         will be passed to all spark submit tasks.
-    :param environments: An optional list of task execution environment specifications
-        that can be referenced by serverless tasks of this job.
     """
 
     is_databricks = True
@@ -297,7 +290,6 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         notebook_params: dict | None = None,
         python_params: list | None = None,
         spark_submit_params: list | None = None,
-        environments: list[dict] | None = None,
         **kwargs,
     ):
         self.databricks_conn_id = databricks_conn_id
@@ -310,7 +302,6 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         self.notebook_params = notebook_params or {}
         self.python_params = python_params or []
         self.spark_submit_params = spark_submit_params or []
-        self.environments = environments or []
         super().__init__(**kwargs)
 
     def __exit__(
@@ -330,7 +321,6 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
             job_clusters=self.job_clusters,
             max_concurrent_runs=self.max_concurrent_runs,
             notebook_params=self.notebook_params,
-            environments=self.environments,
         )
 
         for task in tasks:
@@ -344,7 +334,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
 
             task.workflow_run_metadata = create_databricks_workflow_task.output
             create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
-            create_databricks_workflow_task.add_task(task)
+            create_databricks_workflow_task.add_task(task.task_id, task)
 
         for root_task in roots:
             root_task.set_upstream(create_databricks_workflow_task)

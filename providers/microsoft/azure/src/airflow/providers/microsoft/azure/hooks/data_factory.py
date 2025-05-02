@@ -39,6 +39,13 @@ from functools import wraps
 from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, Union, cast
 
 from asgiref.sync import sync_to_async
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity.aio import (
+    ClientSecretCredential as AsyncClientSecretCredential,
+    DefaultAzureCredential as AsyncDefaultAzureCredential,
+)
+from azure.mgmt.datafactory import DataFactoryManagementClient
+from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -47,13 +54,6 @@ from airflow.providers.microsoft.azure.utils import (
     get_async_default_azure_credential,
     get_sync_default_azure_credential,
 )
-from azure.identity import ClientSecretCredential, DefaultAzureCredential
-from azure.identity.aio import (
-    ClientSecretCredential as AsyncClientSecretCredential,
-    DefaultAzureCredential as AsyncDefaultAzureCredential,
-)
-from azure.mgmt.datafactory import DataFactoryManagementClient
-from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
@@ -1104,7 +1104,7 @@ def provide_targeted_factory_async(func: T) -> T:
 
         return await func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)
 
 
 class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
@@ -1193,7 +1193,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param factory_name: The factory name.
         """
         pipeline_run = await self.get_pipeline_run(run_id, resource_group_name, factory_name)
-        status: str = cast(str, pipeline_run.status)
+        status: str = cast("str", pipeline_run.status)
         return status
 
     @provide_targeted_factory_async

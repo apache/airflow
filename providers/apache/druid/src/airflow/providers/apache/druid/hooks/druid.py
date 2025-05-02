@@ -79,23 +79,42 @@ class DruidHook(BaseHook):
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
 
+        self.status_endpoint = "druid/indexer/v1/task"
+
     @cached_property
     def conn(self) -> Connection:
         return self.get_connection(self.druid_ingest_conn_id)
+
+    @property
+    def get_connection_type(self) -> str:
+        if self.conn.schema:
+            conn_type = self.conn.schema
+        else:
+            conn_type = self.conn.conn_type or "http"
+        return conn_type
 
     def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH) -> str:
         """Get Druid connection url."""
         host = self.conn.host
         port = self.conn.port
-        if self.conn.schema:
-            conn_type = self.conn.schema
-        else:
-            conn_type = self.conn.conn_type or "http"
+        conn_type = self.get_connection_type
         if ingestion_type == IngestionType.BATCH:
             endpoint = self.conn.extra_dejson.get("endpoint", "")
         else:
             endpoint = self.conn.extra_dejson.get("msq_endpoint", "")
         return f"{conn_type}://{host}:{port}/{endpoint}"
+
+    def get_status_url(self, ingestion_type):
+        """Return Druid status url."""
+        if ingestion_type == IngestionType.MSQ:
+            if self.get_connection_type == "druid":
+                conn_type = self.conn.extra_dejson.get("schema", "http")
+            else:
+                conn_type = self.get_connection_type
+
+            status_endpoint = self.conn.extra_dejson.get("status_endpoint", self.status_endpoint)
+            return f"{conn_type}://{self.conn.host}:{self.conn.port}/{status_endpoint}"
+        return self.get_conn_url(ingestion_type)
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
         """
@@ -107,8 +126,7 @@ class DruidHook(BaseHook):
         password = self.conn.password
         if user is not None and password is not None:
             return requests.auth.HTTPBasicAuth(user, password)
-        else:
-            return None
+        return None
 
     def get_verify(self) -> bool | str:
         ca_bundle_path: str | None = self.conn.extra_dejson.get("ca_bundle_path", None)
@@ -141,7 +159,7 @@ class DruidHook(BaseHook):
             druid_task_id = req_json["task"]
         else:
             druid_task_id = req_json["taskId"]
-        druid_task_status_url = f"{self.get_conn_url()}/{druid_task_id}/status"
+        druid_task_status_url = self.get_status_url(ingestion_type) + f"/{druid_task_id}/status"
         self.log.info("Druid indexing task-id: %s", druid_task_id)
 
         running = True

@@ -29,10 +29,6 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.automl_v1beta1 import (
     AutoMlClient,
@@ -46,6 +42,12 @@ from google.cloud.automl_v1beta1 import (
     PredictionServiceClient,
     PredictResponse,
 )
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -64,7 +66,7 @@ if TYPE_CHECKING:
     "airflow.providers.google.cloud.hooks.translate.TranslateHook",
     category=AirflowProviderDeprecationWarning,
 )
-class CloudAutoMLHook(GoogleBaseHook):
+class CloudAutoMLHook(GoogleBaseHook, OperationHelper):
     """
     Google Cloud AutoML hook.
 
@@ -99,14 +101,6 @@ class CloudAutoMLHook(GoogleBaseHook):
         if self._client is None:
             self._client = AutoMlClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     @cached_property
     def prediction_client(self) -> PredictionServiceClient:

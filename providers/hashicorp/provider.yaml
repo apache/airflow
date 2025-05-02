@@ -22,9 +22,11 @@ description: |
     Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 state: ready
-source-date-epoch: 1734534790
+source-date-epoch: 1744792137
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.1.1
+  - 4.1.0
   - 4.0.0
   - 3.8.0
   - 3.7.1

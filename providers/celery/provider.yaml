@@ -22,9 +22,14 @@ description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 state: ready
-source-date-epoch: 1737575943
+source-date-epoch: 1744281145
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.10.6
+  - 3.10.5
+  - 3.10.4
+  - 3.10.3
+  - 3.10.2
   - 3.10.0
   - 3.9.0
   - 3.8.5
@@ -307,13 +312,6 @@ config:
         type: integer
         example: ~
         default: "3"
-      worker_precheck:
-        description: |
-          Worker initialisation check to validate Metadata Database connection
-        version_added: ~
-        type: string
-        example: ~
-        default: "False"
       extra_celery_config:
         description: |
           Extra celery configs to include in the celery worker.

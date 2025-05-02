@@ -24,10 +24,12 @@ description: |
     `Cohere <https://docs.cohere.com/docs>`__
 
 state: ready
-source-date-epoch: 1734529299
+source-date-epoch: 1743477799
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.4.3
+  - 1.4.2
   - 1.4.0
   - 1.3.0
   - 1.2.1

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from attrs import define
-
 from openlineage.client.facet_v2 import JobFacet, RunFacet
 from openlineage.client.utils import RedactMixin
 

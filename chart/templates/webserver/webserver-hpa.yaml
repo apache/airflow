@@ -20,7 +20,8 @@
 ################################
 ## Airflow Webserver HPA
 #################################
-{{- if and (.Values.webserver.enabled) (.Values.webserver.hpa.enabled) }}
+{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
+{{- if and .Values.webserver.enabled .Values.webserver.hpa.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -46,4 +47,5 @@ spec:
   {{- with .Values.webserver.hpa.behavior }}
   behavior: {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
 {{- end }}

@@ -31,7 +31,6 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from airflow.decorators import task
 from airflow.models import Connection
@@ -51,6 +50,8 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
+from system.openlineage.operator import OpenLineageTestOperator
 
 try:
     from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
@@ -95,6 +96,7 @@ GCE_INSTANCE_BODY = {
     "disks": [
         {
             "boot": True,
+            "auto_delete": True,
             "device_name": GCE_INSTANCE_NAME,
             "initialize_params": {
                 "disk_size_gb": "10",

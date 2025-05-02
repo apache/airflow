@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
+from common_precommit_utils import AIRFLOW_ROOT_PATH
+
 docker_files = [f"/root/{name}" for name in sys.argv[1:]]
 
 print(sys.argv)
@@ -30,7 +30,7 @@ cmd = [
     "docker",
     "run",
     "-v",
-    f"{AIRFLOW_SOURCES}:/root",
+    f"{AIRFLOW_ROOT_PATH}:/root",
     "-w",
     "/root",
     "--rm",

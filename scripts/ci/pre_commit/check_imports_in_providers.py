@@ -25,7 +25,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_precommit_utils import (
-    AIRFLOW_SOURCES_ROOT_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
     console,
     get_provider_base_dir_from_path,
     get_provider_id_from_path,
@@ -61,10 +62,6 @@ def check_imports(folders_to_check: list[Path]):
         console.print(importing_file_path)
         imported_files_array = import_tree.get(importing_file, None)
         if imported_files_array is None:
-            if importing_file != "providers/src/airflow/providers/__init__.py":
-                # providers/__init__.py should be ignored
-                console.print(f"[red]The file {importing_file} is not discovered by ruff analyze!")
-                errors_found = True
             continue
         imported_file_paths = [Path(file) for file in imported_files_array]
         for imported_file_path in imported_file_paths:
@@ -94,9 +91,9 @@ def check_imports(folders_to_check: list[Path]):
                     errors_found = True
 
 
-find_all_source_providers = AIRFLOW_SOURCES_ROOT_PATH.rglob("**/src/")
+find_all_source_providers = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("**/src/")
 
-check_imports([*find_all_source_providers, AIRFLOW_SOURCES_ROOT_PATH / "tests_common"])
+check_imports([*find_all_source_providers, AIRFLOW_ROOT_PATH / "tests_common"])
 
 if errors_found:
     console.print("\n[red]Errors found in imports![/]\n")

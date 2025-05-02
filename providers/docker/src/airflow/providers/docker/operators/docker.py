@@ -29,6 +29,9 @@ from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
+from docker.errors import APIError
+from docker.types import LogConfig, Mount, Ulimit
 from dotenv import dotenv_values
 from typing_extensions import Literal
 
@@ -38,9 +41,6 @@ from airflow.providers.docker.exceptions import (
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
-from docker.constants import DEFAULT_TIMEOUT_SECONDS
-from docker.errors import APIError
-from docker.types import LogConfig, Mount, Ulimit
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -60,8 +60,7 @@ def stringify(line: str | bytes):
     decode_method = getattr(line, "decode", None)
     if decode_method:
         return decode_method(encoding="utf-8", errors="surrogateescape")
-    else:
-        return line
+    return line
 
 
 def fetch_logs(log_stream, log: Logger):
@@ -192,6 +191,8 @@ class DockerOperator(BaseOperator):
         Incompatible with ``"host"`` in ``network_mode``.
     :param ulimits: List of ulimit options to set for the container. Each item should
         be a :py:class:`docker.types.Ulimit` instance.
+    :param labels: A dictionary of name-value labels (e.g. ``{"label1": "value1", "label2": "value2"}``)
+        or a list of names of labels to set with empty values (e.g. ``["label1", "label2"]``)
     """
 
     # !!! Changes in DockerOperator's arguments should be also reflected in !!!
@@ -255,6 +256,7 @@ class DockerOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
+        labels: dict[str, str] | list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -301,6 +303,7 @@ class DockerOperator(BaseOperator):
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
         self.ulimits = ulimits or []
+        self.labels = labels
 
         self.container: dict = None  # type: ignore[assignment]
         self.retrieve_output = retrieve_output
@@ -407,6 +410,7 @@ class DockerOperator(BaseOperator):
             working_dir=self.working_dir,
             tty=self.tty,
             hostname=self.hostname,
+            labels=self.labels,
         )
         log_stream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
@@ -419,19 +423,18 @@ class DockerOperator(BaseOperator):
                 raise DockerContainerFailedSkipException(
                     f"Docker container returned exit code {self.skip_on_exit_code}. Skipping.", logs=log_lines
                 )
-            elif result["StatusCode"] != 0:
+            if result["StatusCode"] != 0:
                 raise DockerContainerFailedException(f"Docker container failed: {result!r}", logs=log_lines)
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
-            elif self.do_xcom_push:
+            if self.do_xcom_push:
                 if not log_lines:
                     return None
                 try:
                     if self.xcom_all:
                         return log_lines
-                    else:
-                        return log_lines[-1]
+                    return log_lines[-1]
                 except StopIteration:
                     # handle the case when there is not a single line to iterate on
                     return None

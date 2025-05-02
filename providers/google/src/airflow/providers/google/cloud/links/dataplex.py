@@ -43,6 +43,7 @@ DATAPLEX_CATALOG_ASPECT_TYPE_LINK = (
     "/dataplex/projects/{project_id}/locations/{location}/aspectTypes/{aspect_type_id}?project={project_id}"
 )
 DATAPLEX_CATALOG_ASPECT_TYPES_LINK = "/dataplex/catalog/aspect-types?project={project_id}"
+DATAPLEX_CATALOG_ENTRY_LINK = "/dataplex/dp-entries/projects/{project_id}/locations/{location}/entryGroups/{entry_group_id}/entries/{entry_id}?project={project_id}"
 
 
 class DataplexTaskLink(BaseGoogleLink):
@@ -244,6 +245,30 @@ class DataplexCatalogAspectTypesLink(BaseGoogleLink):
             context=context,
             key=DataplexCatalogAspectTypesLink.key,
             value={
+                "location": task_instance.location,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class DataplexCatalogEntryLink(BaseGoogleLink):
+    """Helper class for constructing Dataplex Catalog Entry link."""
+
+    name = "Dataplex Catalog Entry"
+    key = "dataplex_catalog_entry_key"
+    format_str = DATAPLEX_CATALOG_ENTRY_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataplexCatalogEntryLink.key,
+            value={
+                "entry_id": task_instance.entry_id,
+                "entry_group_id": task_instance.entry_group_id,
                 "location": task_instance.location,
                 "project_id": task_instance.project_id,
             },

@@ -28,15 +28,11 @@ on:  # yamllint disable-line rule:truthy
         description: "The default branch for the repository"
         required: true
         type: string
-      test-groups:
-        description: "The json representing list of test test groups to run"
-        required: true
-        type: string
-      core-test-types-list-as-string:
+      core-test-types-list-as-strings-in-json:
         description: "The list of core test types to run separated by spaces"
         required: true
         type: string
-      providers-test-types-list-as-string:
+      providers-test-types-list-as-strings-in-json:
         description: "The list of providers test types to run separated by spaces"
         required: true
         type: string
@@ -76,6 +72,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
+      skip-providers-tests:
+        description: "Whether to skip providers tests or not (true/false)"
+        required: true
+        type: string
       use-uv:
         description: "Whether to use uv or not (true/false)"
         required: true
@@ -84,149 +84,263 @@ permissions:
   contents: read
 jobs:
   tests-min-sqlalchemy:
-    name: "Min SQLAlchemy test"
+    name: "Min SQLAlchemy test: core"
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
       test-scope: "DB"
-      test-groups: ${{ inputs.test-groups }}
+      test-group: "core"
       backend: "postgres"
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
 
-  tests-boto:
-    name: "Latest Boto test"
+  tests-min-sqlalchemy-providers:
+    name: "Min SQLAlchemy test: providers"
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
       contents: read
       packages: read
-    secrets: inherit
+    with:
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      downgrade-sqlalchemy: "true"
+      test-name: "MinSQLAlchemy-Postgres"
+      test-scope: "DB"
+      test-group: "providers"
+      backend: "postgres"
+      python-versions: "['${{ inputs.default-python-version }}']"
+      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
+      excludes: "[]"
+      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
+      use-uv: ${{ inputs.use-uv }}
+
+  tests-boto-core:
+    name: "Latest Boto test: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
       test-scope: "All"
-      test-groups: ${{ inputs.test-groups }}
+      test-group: "core"
       backend: "postgres"
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
 
-  tests-pendulum-2:
-    name: "Pendulum2 test"
+  tests-boto-providers:
+    name: "Latest Boto test: providers"
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
       contents: read
       packages: read
-    secrets: inherit
+    with:
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      upgrade-boto: "true"
+      test-name: "LatestBoto-Postgres"
+      test-scope: "All"
+      test-group: "providers"
+      backend: "postgres"
+      python-versions: "['${{ inputs.default-python-version }}']"
+      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
+      excludes: "[]"
+      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
+      use-uv: ${{ inputs.use-uv }}
+
+
+  tests-pendulum-2-core:
+    name: "Pendulum2 test: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
       test-scope: "All"
-      test-groups: ${{ inputs.test-groups }}
+      test-group: "core"
       backend: "postgres"
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
 
-  tests-quarantined:
-    name: "Quarantined test"
+  tests-pendulum-2-providers:
+    name: "Pendulum2 test: providers"
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
       contents: read
       packages: read
-    secrets: inherit
+    with:
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      downgrade-pendulum: "true"
+      test-name: "Pendulum2-Postgres"
+      test-scope: "All"
+      test-group: "providers"
+      backend: "postgres"
+      python-versions: "['${{ inputs.default-python-version }}']"
+      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
+      excludes: "[]"
+      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
+      use-uv: ${{ inputs.use-uv }}
+
+  tests-quarantined-core:
+    name: "Quarantined test: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "Postgres"
       test-scope: "Quarantined"
-      test-groups: ${{ inputs.test-groups }}
+      test-group: "core"
       backend: "postgres"
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
 
-  tests-arm-collection:
-    name: "ARM Collection test"
+  tests-quarantined-providers:
+    name: "Quarantined test: providers"
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "Postgres"
-      test-scope: "ARM collection"
-      test-groups: ${{ inputs.test-groups }}
+      test-scope: "Quarantined"
+      test-group: "providers"
       backend: "postgres"
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
+      use-uv: ${{ inputs.use-uv }}
+
+
+  tests-arm-collection-core:
+    name: "ARM Collection test: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      test-name: "Postgres"
+      test-scope: "ARM collection"
+      test-group: "core"
+      backend: "postgres"
+      python-versions: "['${{ inputs.default-python-version }}']"
+      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
+      excludes: "[]"
+      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
     if: ${{ inputs.default-branch == 'main' }}
 
-  # matrix.test-group comes from run-unit-tests.yml
-  tests-system:
+  tests-arm-collection-providers:
+    name: "ARM Collection test: providers"
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      test-name: "Postgres"
+      test-scope: "ARM collection"
+      test-group: "providers"
+      backend: "postgres"
+      python-versions: "['${{ inputs.default-python-version }}']"
+      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
+      excludes: "[]"
+      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
+      use-uv: ${{ inputs.use-uv }}
+    if: ${{ inputs.default-branch == 'main' }}
+
+
+  tests-system-core:
     name: "System test: ${{ matrix.test-group }}"
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "SystemTest"
       test-scope: "System"
-      test-groups: ${{ inputs.test-groups }}
+      test-group: "core"
       backend: "postgres"
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}

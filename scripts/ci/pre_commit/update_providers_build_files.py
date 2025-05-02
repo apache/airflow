@@ -32,33 +32,7 @@ file_list = sys.argv[1:]
 console.print(f"[bright_blue]Determining providers to regenerate from: {file_list}\n")
 
 
-# TODO: remove it when we move all providers to the new structure
-def _find_old_providers_structure() -> None:
-    console.print(f"[bright_blue]Looking at {examined_file} for old structure provider.yaml")
-    # find the folder where provider.yaml is
-    for parent in Path(examined_file).parents:
-        console.print(f"[bright_blue]Checking {parent}")
-        if (parent / "provider.yaml").exists():
-            provider_folder = parent
-            break
-    else:
-        console.print(f"[yellow]\nCould not find `provider.yaml` in any parent of {examined_file}[/]")
-        return
-    # find base for the provider sources
-    for parent in provider_folder.parents:
-        if parent.name == "providers":
-            base_folder = parent
-            console.print(f"[bright_blue]Found base folder {base_folder}")
-            break
-    else:
-        console.print(f"[red]\nCould not find old structure base folder for {provider_folder}")
-        sys.exit(1)
-    provider_name = ".".join(provider_folder.relative_to(base_folder).as_posix().split("/"))
-    providers.add(provider_name)
-
-
-# TODO(potiuk) - rename when all providers are new-style
-def _find_new_providers_structure() -> None:
+def _find_all_providers(examined_file: Path) -> None:
     console.print(f"[bright_blue]Looking at {examined_file} for new structure provider.yaml")
     # find the folder where provider.yaml is
     for parent in Path(examined_file).parents:
@@ -85,10 +59,7 @@ def _find_new_providers_structure() -> None:
 
 # get all folders from arguments
 for examined_file in file_list:
-    if not examined_file.startswith("providers/src"):
-        _find_new_providers_structure()
-    else:
-        _find_old_providers_structure()
+    _find_all_providers(Path(examined_file))
 
 console.print(f"[bright_blue]Regenerating build files for providers: {providers}[/]")
 
@@ -96,16 +67,20 @@ if not providers:
     console.print("[red]\nThe found providers list cannot be empty[/]")
     sys.exit(1)
 
+cmd = [
+    "breeze",
+    "release-management",
+    "prepare-provider-documentation",
+    "--reapply-templates-only",
+    "--skip-git-fetch",
+    "--only-min-version-update",
+    "--skip-changelog",
+    "--skip-readme",
+]
+
+cmd.extend(providers)
 res = subprocess.run(
-    [
-        "breeze",
-        "release-management",
-        "prepare-provider-documentation",
-        "--reapply-templates-only",
-        "--skip-git-fetch",
-        "--only-min-version-update",
-        *list(providers),
-    ],
+    cmd,
     check=False,
 )
 if res.returncode != 0:

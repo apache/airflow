@@ -16,21 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import traceback
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
 import yaml
-
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
-from airflow.providers.openlineage.utils.utils import (
-    OpenLineageRedactor,
-    get_airflow_debug_facet,
-    get_airflow_state_run_facet,
-    get_processing_engine_facet,
-)
-from airflow.stats import Stats
-from airflow.utils.log.logging_mixin import LoggingMixin
 from openlineage.client import OpenLineageClient, set_producer
 from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
 from openlineage.client.facet_v2 import (
@@ -45,6 +36,17 @@ from openlineage.client.facet_v2 import (
     source_code_location_job,
 )
 from openlineage.client.uuid import generate_static_uuid
+
+from airflow.configuration import conf as airflow_conf
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
+from airflow.providers.openlineage.utils.utils import (
+    OpenLineageRedactor,
+    get_airflow_debug_facet,
+    get_airflow_state_run_facet,
+    get_processing_engine_facet,
+)
+from airflow.stats import Stats
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -81,11 +83,16 @@ class OpenLineageAdapter(LoggingMixin):
 
     def get_or_create_openlineage_client(self) -> OpenLineageClient:
         if not self._client:
+            # If not already set explicitly - propagate airflow logging level to OpenLineage client
+            airflow_core_log_level = airflow_conf.get("logging", "logging_level", fallback="INFO")
+            if not os.getenv("OPENLINEAGE_CLIENT_LOGGING") and airflow_core_log_level != "INFO":
+                os.environ["OPENLINEAGE_CLIENT_LOGGING"] = airflow_core_log_level
+
             config = self.get_openlineage_config()
             if config:
                 self.log.debug(
                     "OpenLineage configuration found. Transport type: `%s`",
-                    config.get("type", "no type provided"),
+                    config.get("transport", {}).get("type", "no type provided"),
                 )
                 self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
             else:
@@ -102,8 +109,7 @@ class OpenLineageAdapter(LoggingMixin):
         if openlineage_config_path:
             config = self._read_yaml_config(openlineage_config_path)
             return config
-        else:
-            self.log.debug("OpenLineage config_path configuration not found.")
+        self.log.debug("OpenLineage config_path configuration not found.")
 
         # Second, try to get transport config
         transport_config = conf.transport()
@@ -159,11 +165,20 @@ class OpenLineageAdapter(LoggingMixin):
                 stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
                 stack.enter_context(Stats.timer("ol.emit.attempts"))
                 self._client.emit(redacted_event)
-                self.log.debug("Successfully emitted OpenLineage event of id %s", event.run.runId)
-        except Exception:
+                self.log.info(
+                    "Successfully emitted OpenLineage `%s` event of id `%s`",
+                    event_type.upper(),
+                    event.run.runId,
+                )
+        except Exception as e:
             Stats.incr("ol.emit.failed")
-            self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
-            self.log.debug("OpenLineage emission failure: %s", exc_info=True)
+            self.log.warning(
+                "Failed to emit OpenLineage `%s` event of id `%s` with the following exception: `%s`",
+                event_type.upper(),
+                event.run.runId,
+                e,
+            )
+            self.log.debug("OpenLineage emission failure details:", exc_info=True)
 
         return redacted_event
 
@@ -371,7 +386,7 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG started event: \n %s", traceback.format_exc())
+            self.log.warning("Failed to emit OpenLineage DAG started event: \n %s", traceback.format_exc())
 
     def dag_success(
         self,
@@ -409,7 +424,7 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG success event: \n %s", traceback.format_exc())
+            self.log.warning("Failed to emit OpenLineage DAG success event: \n %s", traceback.format_exc())
 
     def dag_failed(
         self,
@@ -453,7 +468,7 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG failed event: \n %s", traceback.format_exc())
+            self.log.warning("Failed to emit OpenLineage DAG failed event: \n %s", traceback.format_exc())
 
     @staticmethod
     def _build_run(

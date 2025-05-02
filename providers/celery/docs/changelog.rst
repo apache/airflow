@@ -27,6 +27,116 @@
 Changelog
 ---------
 
+3.10.6
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bring back serve_logs to be in the core (#49031)``
+
+Misc
+~~~~
+
+* ``Remove fab from preinstalled providers (#48457)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Improve documentation building iteration (#48760)``
+
+3.10.5
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery Executor on Airflow 2.x again. (#48806)``
+
+Misc
+~~~~
+
+* ``Remove change_sensor_mode_to_reschedule from base executor (#48649)``
+* ``Update min version of Celery library to 5.5.0 (#43777)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+
+3.10.4
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Scheduler shouldn't crash when 'executor_config' is passed for executors using task SDK (#47548)``
+
+Misc
+~~~~
+
+ * ``AIP-81: Flatten core CLI commands (#48224)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+3.10.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid scheduler crash with passing executor_config with CeleryExecutor (#47375)``
+* ``bugfix: cannot import name 'workloads' for Airflow v2 (#47152)``
+
+Misc
+~~~~
+
+* ``Get rid of google-re2 as dependency (#47493)``
+* ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
+* ``Disable ORM access from Tasks, DAG processing and Triggers (#47320)``
+* ``Implement stale dag bundle cleanup (#46503)``
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+* ``Move execution_api_server_url config to the core section (#46969)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+3.10.2
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing log typos in Local & Celery Executors (#46866)``
+
+Misc
+~~~~
+
+* ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
+* ``AIP-66: Make DAG callbacks bundle aware (#45860)``
+* ``Swap CeleryExecutor over to use TaskSDK for execution. (#46265)``
+* ``Remove 2.8 version check from CeleryExecutor CLI (#46910)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+
 3.10.0
 ......
 
@@ -307,7 +417,7 @@ Misc
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
    * ``Update information about links into the provider.yaml files (#35837)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``

@@ -19,10 +19,12 @@ from __future__ import annotations
 
 from functools import cached_property
 
-from airflow.notifications.basenotifier import BaseNotifier
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 
-ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
+ICON_URL: str = (
+    "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/src/airflow/ui/public/pin_100.png"
+)
 
 
 class DiscordNotifier(BaseNotifier):

@@ -563,10 +563,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
                     f"Kubernetes spark exit code is: {self._spark_exit_code}"
                 )
-            else:
-                raise AirflowException(
-                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
-                )
+            raise AirflowException(
+                f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
+            )
 
         self.log.debug("Should track driver: %s", self._should_track_driver_status)
 
@@ -625,9 +624,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self.log.info("Identified spark application id: %s", self._kubernetes_application_id)
 
                 # Store the Spark Exit code
-                match_exit_code = re.search(r"\s*[eE]xit code: (\d+)", line)
-                if match_exit_code:
-                    self._spark_exit_code = int(match_exit_code.group(1))
+                # Cluster mode requires the Exit code to determine the program status
+                if self._connection.get("deploy_mode") == "cluster":
+                    match_exit_code = re.search(r"\s*[eE]xit code: (\d+)", line)
+                    if match_exit_code:
+                        self._spark_exit_code = int(match_exit_code.group(1))
+                else:
+                    self._spark_exit_code = 0
 
             # if we run in standalone cluster mode and we want to track the driver status
             # we need to extract the driver id from the logs. This allows us to poll for

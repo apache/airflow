@@ -24,6 +24,15 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, cast
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.automl_v1beta1 import (
+    ColumnSpec,
+    Dataset,
+    Model,
+    PredictResponse,
+    TableSpec,
+)
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
@@ -37,18 +46,11 @@ from airflow.providers.google.cloud.links.translate import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.automl_v1beta1 import (
-    ColumnSpec,
-    Dataset,
-    Model,
-    PredictResponse,
-    TableSpec,
-)
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 MetaData = Sequence[tuple[str, str]]
 
@@ -257,16 +259,16 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
-        else:  # endpoint_id defined
-            return PredictionServiceHook(
-                gcp_conn_id=self.gcp_conn_id,
-                impersonation_chain=self.impersonation_chain,
-            )
+        # endpoint_id defined
+        return PredictionServiceHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
     @cached_property
     def model(self) -> Model | None:
         if self.model_id:
-            hook = cast(CloudAutoMLHook, self.hook)
+            hook = cast("CloudAutoMLHook", self.hook)
             return hook.get_model(
                 model_id=self.model_id,
                 location=self.location,

@@ -33,7 +33,7 @@ Connect your project to Gitpod
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow click on ``Code`` and copy the clone link.
+2. Goto your github account's fork of airflow, click on ``Code``, and copy the clone link.
 
    .. raw:: html
 
@@ -48,7 +48,7 @@ Connect your project to Gitpod
 
       <div align="center" style="padding-bottom:10px">
         <img src="images/airflow_gitpod_url.png"
-             alt="Open personal airflow clone with Gitpod">
+             alt="Open personal Airflow clone with Gitpod">
       </div>
 
 
@@ -94,13 +94,16 @@ Before running the webserver, you need to initialize the database:
          --firstname foo \
          --lastname bar
 
+.. note::
+    ``airflow users`` command is only available when `FAB auth manager <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/index.html>`_ is enabled.
+
 Starting Airflow
 --------------
 
 To start Airflow using Breeze:
 
 .. image:: images/airflow-gitpod.png
-   :alt: Open personal airflow clone with Gitpod
+   :alt: Open personal Airflow clone with Gitpod
    :align: center
    :width: 600px
 

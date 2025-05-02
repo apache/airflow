@@ -19,34 +19,57 @@ from __future__ import annotations
 
 import contextlib
 import os
-import pathlib
 import shutil
 from functools import cached_property
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import attrs
 
 from airflow.configuration import conf
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+if TYPE_CHECKING:
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
+    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
-class OSSTaskHandler(FileTaskHandler, LoggingMixin):
-    """
-    OSSTaskHandler is a python log handler that handles and reads task instance logs.
 
-    Extends airflow FileTaskHandler and uploads to and reads from OSS remote storage.
-    """
+@attrs.define(kw_only=True)
+class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
+    base_log_folder: Path = attrs.field(converter=Path)
+    remote_base: str = ""
+    delete_local_copy: bool = True
 
-    def __init__(self, base_log_folder, oss_log_folder, **kwargs):
-        self.log.info("Using oss_task_handler for remote logging...")
-        super().__init__(base_log_folder)
-        (self.bucket_name, self.base_folder) = OSSHook.parse_oss_url(oss_log_folder)
-        self.log_relative_path = ""
-        self._hook = None
-        self.closed = False
-        self.upload_on_close = True
-        self.delete_local_copy = kwargs.get(
-            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
-        )
+    processors = ()
+
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+        """Upload the given log path to the remote storage."""
+        path = Path(path)
+        if path.is_absolute():
+            local_loc = path
+            remote_loc = os.path.join(self.remote_base, path.relative_to(self.base_log_folder))
+        else:
+            local_loc = self.base_log_folder.joinpath(path)
+            remote_loc = os.path.join(self.remote_base, path)
+
+        if local_loc.is_file():
+            # read log and remove old logs to get just the latest additions
+            log = local_loc.read_text()
+            has_uploaded = self.oss_write(log, remote_loc)
+            if has_uploaded and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
+
+    @cached_property
+    def base_folder(self):
+        (_, base_folder) = OSSHook.parse_oss_url(self.remote_base)
+        return base_folder
+
+    @cached_property
+    def bucket_name(self):
+        (bucket_name, _) = OSSHook.parse_oss_url(self.remote_base)
+        return bucket_name
 
     @cached_property
     def hook(self):
@@ -63,71 +86,14 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
                 remote_conn_id,
             )
 
-    def set_context(self, ti):
-        """Set the context of the handler."""
-        super().set_context(ti)
-        # Local location and remote location is needed to open and
-        # upload local log file to OSS remote storage.
-        self.log_relative_path = self._render_filename(ti, ti.try_number)
-        self.upload_on_close = not ti.raw
+    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
+        logs: list[str] = []
+        messages = [relative_path]
 
-        # Clear the file first so that duplicate data is not uploaded
-        # when re-using the same path (e.g. with rescheduled sensors)
-        if self.upload_on_close:
-            with open(self.handler.baseFilename, "w"):
-                pass
-
-    def close(self):
-        """Close and upload local log file to remote storage OSS."""
-        # When application exit, system shuts down all handlers by
-        # calling close method. Here we check if logger is already
-        # closed to prevent uploading the log to remote storage multiple
-        # times when `logging.shutdown` is called.
-        if self.closed:
-            return
-
-        super().close()
-
-        if not self.upload_on_close:
-            return
-
-        local_loc = os.path.join(self.local_base, self.log_relative_path)
-        remote_loc = self.log_relative_path
-        if os.path.exists(local_loc):
-            # read log and remove old logs to get just the latest additions
-            log = pathlib.Path(local_loc).read_text()
-            oss_write = self.oss_write(log, remote_loc)
-            if oss_write and self.delete_local_copy:
-                shutil.rmtree(os.path.dirname(local_loc))
-
-        # Mark closed so we don't double write if close is called twice
-        self.closed = True
-
-    def _read(self, ti, try_number, metadata=None):
-        """
-        Read logs of given task instance and try_number from OSS remote storage.
-
-        If failed, read the log from task instance host machine.
-
-        :param ti: task instance object
-        :param try_number: task instance try_number to read logs from
-        :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
-        """
-        # Explicitly getting log relative path is necessary as the given
-        # task instance might be different from task instance passed in
-        # set_context method.
-        log_relative_path = self._render_filename(ti, try_number)
-        remote_loc = log_relative_path
-
-        if not self.oss_log_exists(remote_loc):
-            return super()._read(ti, try_number, metadata)
-        # If OSS remote file exists, we do not fetch logs from task instance
-        # local machine even if there are errors reading remote logs, as
-        # returned remote_log will contain error messages.
-        remote_log = self.oss_read(remote_loc, return_error=True)
-        log = f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
-        return log, {"end_of_log": True}
+        if self.oss_log_exists(relative_path):
+            logs.append(self.oss_read(relative_path, return_error=True))
+            return messages, logs
+        return messages, None
 
     def oss_log_exists(self, remote_log_location):
         """
@@ -149,8 +115,8 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         :param return_error: if True, returns a string error message if an
             error occurs. Otherwise, returns '' when an error occurs.
         """
+        oss_remote_log_location = f"{self.base_folder}/{remote_log_location}"
         try:
-            oss_remote_log_location = f"{self.base_folder}/{remote_log_location}"
             self.log.info("read remote log: %s", oss_remote_log_location)
             return self.hook.read_key(self.bucket_name, oss_remote_log_location)
         except Exception:
@@ -188,3 +154,91 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return False
         return True
+
+
+class OSSTaskHandler(FileTaskHandler, LoggingMixin):
+    """
+    OSSTaskHandler is a python log handler that handles and reads task instance logs.
+
+    Extends airflow FileTaskHandler and uploads to and reads from OSS remote storage.
+    """
+
+    def __init__(self, base_log_folder, oss_log_folder, **kwargs):
+        self.log.info("Using oss_task_handler for remote logging...")
+        super().__init__(base_log_folder)
+        self.log_relative_path = ""
+        self._hook = None
+        self.closed = False
+        self.upload_on_close = True
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+        )
+
+        self.io = OSSRemoteLogIO(
+            remote_base=oss_log_folder,
+            base_log_folder=base_log_folder,
+            delete_local_copy=kwargs.get(
+                "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+            ),
+        )
+
+    def set_context(self, ti):
+        """Set the context of the handler."""
+        super().set_context(ti)
+        # Local location and remote location is needed to open and
+        # upload local log file to OSS remote storage.
+        self.log_relative_path = self._render_filename(ti, ti.try_number)
+        self.upload_on_close = not ti.raw
+
+        self.ti = ti
+        # Clear the file first so that duplicate data is not uploaded
+        # when reusing the same path (e.g. with rescheduled sensors)
+        if self.upload_on_close:
+            with open(self.handler.baseFilename, "w"):
+                pass
+
+    def close(self):
+        """Close and upload local log file to remote storage OSS."""
+        # When application exit, system shuts down all handlers by
+        # calling close method. Here we check if logger is already
+        # closed to prevent uploading the log to remote storage multiple
+        # times when `logging.shutdown` is called.
+        if self.closed:
+            return
+
+        super().close()
+
+        if not self.upload_on_close:
+            return
+
+        if hasattr(self, "ti"):
+            self.io.upload(self.log_relative_path, self.ti)
+
+        # Mark closed so we don't double write if close is called twice
+        self.closed = True
+
+    def _read(self, ti, try_number, metadata=None):
+        """
+        Read logs of given task instance and try_number from OSS remote storage.
+
+        If failed, read the log from task instance host machine.
+
+        :param ti: task instance object
+        :param try_number: task instance try_number to read logs from
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
+        """
+        # Explicitly getting log relative path is necessary as the given
+        # task instance might be different from task instance passed in
+        # set_context method.
+        log_relative_path = self._render_filename(ti, try_number)
+        remote_loc = log_relative_path
+
+        if not self.oss_log_exists(remote_loc):
+            return super()._read(ti, try_number, metadata)
+        # If OSS remote file exists, we do not fetch logs from task instance
+        # local machine even if there are errors reading remote logs, as
+        # returned remote_log will contain error messages.
+        remote_log = self.oss_read(remote_loc, return_error=True)
+        log = f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
+        return log, {"end_of_log": True}

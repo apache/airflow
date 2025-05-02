@@ -26,23 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-weaviate",
         "name": "Weaviate",
         "description": "`Weaviate <https://weaviate.io/developers/weaviate>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734537462,
-        "versions": [
-            "3.0.0",
-            "2.1.0",
-            "2.0.0",
-            "1.4.1",
-            "1.4.0",
-            "1.3.4",
-            "1.3.3",
-            "1.3.2",
-            "1.3.1",
-            "1.3.0",
-            "1.2.0",
-            "1.1.0",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Weaviate",
@@ -65,11 +48,5 @@ def get_provider_info():
                 "integration-name": "Weaviate",
                 "python-modules": ["airflow.providers.weaviate.operators.weaviate"],
             }
-        ],
-        "dependencies": [
-            "apache-airflow>=2.9.0",
-            "httpx>=0.25.0",
-            "weaviate-client>=4.4.0",
-            "pandas>=2.1.2,<2.2",
         ],
     }

@@ -63,7 +63,7 @@ to see the output of the test as it happens (it can be also set via
 ``WAIT_FOR_CONTAINERS_TIMEOUT`` environment variable)
 
 The test can be also run manually with ``pytest docker_tests/test_docker_compose_quick_start.py``
-command, provided that you have a local airflow venv with ``dev`` extra set and the
+command, provided that you have a local Airflow venv with ``dev`` extra set and the
 ``DOCKER_IMAGE`` environment variable is set to the image you want to test. The variable defaults
 to ``ghcr.io/apache/airflow/main/prod/python3.9:latest`` which is built by default
 when you run ``breeze prod-image build --python 3.9``. also the switches ``--skip-docker-compose-deletion``

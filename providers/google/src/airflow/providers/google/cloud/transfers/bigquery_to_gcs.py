@@ -22,6 +22,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import Conflict
+from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -30,12 +33,11 @@ from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import merge_dicts
-from google.api_core.exceptions import Conflict
-from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 class BigQueryToGCSOperator(BaseOperator):
@@ -239,14 +241,13 @@ class BigQueryToGCSOperator(BaseOperator):
                     f"want to force rerun it consider setting `force_rerun=True`."
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
-            else:
-                # Job already reached state DONE
-                if job.state == "DONE":
-                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+            # Job already reached state DONE
+            if job.state == "DONE":
+                raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
 
-                # We are reattaching to a job
-                self.log.info("Reattaching to existing Job in state %s", job.state)
-                self._handle_job_error(job)
+            # We are reattaching to a job
+            self.log.info("Reattaching to existing Job in state %s", job.state)
+            self._handle_job_error(job)
 
         self.job_id = job.job_id
         conf = job.to_api_repr()["configuration"]["extract"]["sourceTable"]

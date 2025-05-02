@@ -7,7 +7,7 @@ body:
     attributes:
       # yamllint disable rule:line-length
       value: "
-        <img src='https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='80' height='80'>
+        <img src='https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='80' height='80'>
         Thank you for finding the time to report a problem!
 
         We really appreciate the community's efforts to improve Airflow.
@@ -41,6 +41,7 @@ body:
         - apache-pig
         - apache-pinot
         - apache-spark
+        - apache-tinkerpop
         - apprise
         - arangodb
         - asana
@@ -51,6 +52,7 @@ body:
         - cohere
         - common-compat
         - common-io
+        - common-messaging
         - common-sql
         - databricks
         - datadog
@@ -58,12 +60,13 @@ body:
         - dingding
         - discord
         - docker
-        - edge
+        - edge3
         - elasticsearch
         - exasol
         - fab
         - facebook
         - ftp
+        - git
         - github
         - google
         - grpc

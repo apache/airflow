@@ -21,13 +21,11 @@ import ast
 import warnings
 from collections.abc import Sequence
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
     EmrClusterLink,
@@ -38,6 +36,7 @@ from airflow.providers.amazon.aws.links.emr import (
     EmrServerlessS3LogsLink,
     get_log_uri,
 )
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
@@ -51,6 +50,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter import (
     WAITER_POLICY_NAME_MAPPING,
     WaitPolicy,
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class EmrAddStepsOperator(BaseOperator):
+class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
     """
     An operator that adds steps to an existing EMR job_flow.
 
@@ -79,10 +79,13 @@ class EmrAddStepsOperator(BaseOperator):
     :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
         (templated)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
@@ -94,7 +97,8 @@ class EmrAddStepsOperator(BaseOperator):
         (default: False)
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EmrHook
+    template_fields: Sequence[str] = aws_template_fields(
         "job_flow_id",
         "job_flow_name",
         "cluster_states",
@@ -115,7 +119,6 @@ class EmrAddStepsOperator(BaseOperator):
         job_flow_id: str | None = None,
         job_flow_name: str | None = None,
         cluster_states: list[str] | None = None,
-        aws_conn_id: str | None = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
         waiter_delay: int = 30,
@@ -129,7 +132,6 @@ class EmrAddStepsOperator(BaseOperator):
         super().__init__(**kwargs)
         cluster_states = cluster_states or []
         steps = steps or []
-        self.aws_conn_id = aws_conn_id
         self.job_flow_id = job_flow_id
         self.job_flow_name = job_flow_name
         self.cluster_states = cluster_states
@@ -141,9 +143,7 @@ class EmrAddStepsOperator(BaseOperator):
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> list[str]:
-        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-
-        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
+        job_flow_id = self.job_flow_id or self.hook.get_cluster_id_by_name(
             str(self.job_flow_name), self.cluster_states
         )
 
@@ -156,17 +156,17 @@ class EmrAddStepsOperator(BaseOperator):
         EmrClusterLink.persist(
             context=context,
             operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=job_flow_id,
         )
         EmrLogsLink.persist(
             context=context,
             operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=self.job_flow_id,
-            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=job_flow_id),
+            log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=job_flow_id),
         )
 
         self.log.info("Adding steps to %s", job_flow_id)
@@ -176,7 +176,7 @@ class EmrAddStepsOperator(BaseOperator):
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
-        step_ids = emr_hook.add_job_flow_steps(
+        step_ids = self.hook.add_job_flow_steps(
             job_flow_id=job_flow_id,
             steps=steps,
             wait_for_completion=self.wait_for_completion,
@@ -208,7 +208,7 @@ class EmrAddStepsOperator(BaseOperator):
         return validated_event["value"]
 
 
-class EmrStartNotebookExecutionOperator(BaseOperator):
+class EmrStartNotebookExecutionOperator(AwsBaseOperator[EmrHook]):
     """
     An operator that starts an EMR notebook execution.
 
@@ -232,9 +232,18 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
     :param tags: Optional list of key value pair to associate with the notebook execution.
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EmrHook
+    template_fields: Sequence[str] = aws_template_fields(
         "editor_id",
         "cluster_id",
         "relative_path",
@@ -260,7 +269,6 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         master_instance_security_group_id: str | None = None,
         tags: list | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str | None = "aws_default",
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
         **kwargs: Any,
@@ -275,7 +283,6 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         self.tags = tags or []
         self.wait_for_completion = wait_for_completion
         self.cluster_id = cluster_id
-        self.aws_conn_id = aws_conn_id
         self.waiter_max_attempts = waiter_max_attempts or 25
         self.waiter_delay = waiter_delay or 60
         self.master_instance_security_group_id = master_instance_security_group_id
@@ -286,9 +293,8 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
             "Type": "EMR",
             "MasterInstanceSecurityGroupId": self.master_instance_security_group_id or "",
         }
-        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
-        response = emr_hook.conn.start_notebook_execution(
+        response = self.hook.conn.start_notebook_execution(
             EditorId=self.editor_id,
             RelativePath=self.relative_path,
             NotebookExecutionName=self.notebook_execution_name,
@@ -305,7 +311,7 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         self.log.info("Notebook execution started: %s", response["NotebookExecutionId"])
         notebook_execution_id = response["NotebookExecutionId"]
         if self.wait_for_completion:
-            emr_hook.get_waiter("notebook_running").wait(
+            self.hook.get_waiter("notebook_running").wait(
                 NotebookExecutionId=notebook_execution_id,
                 WaiterConfig=prune_dict(
                     {
@@ -319,7 +325,7 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
             # failed, adding that here.  This could maybe be deprecated
             # later to bring it in line with how other waiters behave.
             failure_states = {"FAILED"}
-            final_status = emr_hook.conn.describe_notebook_execution(
+            final_status = self.hook.conn.describe_notebook_execution(
                 NotebookExecutionId=notebook_execution_id
             )["NotebookExecution"]["Status"]
             if final_status in failure_states:
@@ -328,7 +334,7 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         return notebook_execution_id
 
 
-class EmrStopNotebookExecutionOperator(BaseOperator):
+class EmrStopNotebookExecutionOperator(AwsBaseOperator[EmrHook]):
     """
     An operator that stops a running EMR notebook execution.
 
@@ -339,16 +345,20 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
     :param notebook_execution_id: The unique identifier of the notebook execution.
     :param wait_for_completion: If True, the operator will wait for the notebook.
         to be in a STOPPED or FINISHED state. Defaults to False.
-    :param aws_conn_id: aws connection to use.
-        If this is None or empty then the default boto3 behaviour is used. If
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EmrHook
+    template_fields: Sequence[str] = aws_template_fields(
         "notebook_execution_id",
         "waiter_delay",
         "waiter_max_attempts",
@@ -358,7 +368,6 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         self,
         notebook_execution_id: str,
         wait_for_completion: bool = False,
-        aws_conn_id: str | None = "aws_default",
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
         **kwargs: Any,
@@ -366,16 +375,14 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         super().__init__(**kwargs)
         self.notebook_execution_id = notebook_execution_id
         self.wait_for_completion = wait_for_completion
-        self.aws_conn_id = aws_conn_id
         self.waiter_max_attempts = waiter_max_attempts or 25
         self.waiter_delay = waiter_delay or 60
 
     def execute(self, context: Context) -> None:
-        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-        emr_hook.conn.stop_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
+        self.hook.conn.stop_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
 
         if self.wait_for_completion:
-            emr_hook.get_waiter("notebook_stopped").wait(
+            self.hook.get_waiter("notebook_stopped").wait(
                 NotebookExecutionId=self.notebook_execution_id,
                 WaiterConfig=prune_dict(
                     {
@@ -386,7 +393,7 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
             )
 
 
-class EmrEksCreateClusterOperator(BaseOperator):
+class EmrEksCreateClusterOperator(AwsBaseOperator[EmrContainerHook]):
     """
     An operator that creates EMR on EKS virtual clusters.
 
@@ -399,11 +406,19 @@ class EmrEksCreateClusterOperator(BaseOperator):
     :param eks_namespace: namespace used by the EKS cluster.
     :param virtual_cluster_id: The EMR on EKS virtual cluster id.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param tags: The tags assigned to created cluster.
         Defaults to None
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EmrContainerHook
+    template_fields: Sequence[str] = aws_template_fields(
         "virtual_cluster_name",
         "eks_cluster_name",
         "eks_namespace",
@@ -417,7 +432,6 @@ class EmrEksCreateClusterOperator(BaseOperator):
         eks_cluster_name: str,
         eks_namespace: str,
         virtual_cluster_id: str = "",
-        aws_conn_id: str | None = "aws_default",
         tags: dict | None = None,
         **kwargs: Any,
     ) -> None:
@@ -426,13 +440,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         self.eks_cluster_name = eks_cluster_name
         self.eks_namespace = eks_namespace
         self.virtual_cluster_id = virtual_cluster_id
-        self.aws_conn_id = aws_conn_id
         self.tags = tags
-
-    @cached_property
-    def hook(self) -> EmrContainerHook:
-        """Create and return an EmrContainerHook."""
-        return EmrContainerHook(self.aws_conn_id)
 
     def execute(self, context: Context) -> str | None:
         """Create EMR on EKS virtual Cluster."""
@@ -442,7 +450,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         return self.virtual_cluster_id
 
 
-class EmrContainerOperator(BaseOperator):
+class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
     """
     An operator that submits jobs to EMR on EKS virtual clusters.
 
@@ -461,6 +469,13 @@ class EmrContainerOperator(BaseOperator):
         Use this if you want to specify a unique ID to prevent two jobs from getting started.
         If no token is provided, a UUIDv4 token will be generated for you.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param wait_for_completion: Whether or not to wait in the operator for the job to complete.
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check query status on EMR
     :param max_polling_attempts: Maximum number of times to wait for the job run to finish.
@@ -472,7 +487,8 @@ class EmrContainerOperator(BaseOperator):
     :param deferrable: Run operator in the deferrable mode.
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EmrContainerHook
+    template_fields: Sequence[str] = aws_template_fields(
         "name",
         "virtual_cluster_id",
         "execution_role_arn",
@@ -492,7 +508,6 @@ class EmrContainerOperator(BaseOperator):
         job_driver: dict,
         configuration_overrides: dict | None = None,
         client_request_token: str | None = None,
-        aws_conn_id: str | None = "aws_default",
         wait_for_completion: bool = True,
         poll_interval: int = 30,
         tags: dict | None = None,
@@ -508,7 +523,6 @@ class EmrContainerOperator(BaseOperator):
         self.release_label = release_label
         self.job_driver = job_driver
         self.configuration_overrides = configuration_overrides or {}
-        self.aws_conn_id = aws_conn_id
         self.client_request_token = client_request_token or str(uuid4())
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
@@ -518,13 +532,9 @@ class EmrContainerOperator(BaseOperator):
         self.job_id: str | None = None
         self.deferrable = deferrable
 
-    @cached_property
-    def hook(self) -> EmrContainerHook:
-        """Create and return an EmrContainerHook."""
-        return EmrContainerHook(
-            self.aws_conn_id,
-            virtual_cluster_id=self.virtual_cluster_id,
-        )
+    @property
+    def _hook_parameters(self):
+        return {**super()._hook_parameters, "virtual_cluster_id": self.virtual_cluster_id}
 
     def execute(self, context: Context) -> str | None:
         """Run job on EMR Containers."""
@@ -619,7 +629,7 @@ class EmrContainerOperator(BaseOperator):
                     self.hook.poll_query_status(self.job_id)
 
 
-class EmrCreateJobFlowOperator(BaseOperator):
+class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
     """
     Creates an EMR JobFlow, reading the config from the EMR connection.
 
@@ -629,11 +639,6 @@ class EmrCreateJobFlowOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EmrCreateJobFlowOperator`
 
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node)
     :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
         Use to receive an initial Amazon EMR cluster configuration:
         ``boto3.client('emr').run_job_flow`` request body.
@@ -641,7 +646,14 @@ class EmrCreateJobFlowOperator(BaseOperator):
         then an empty initial configuration is used.
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
         (must be '.json') to override specific ``emr_conn_id`` extra parameters. (templated)
-    :param region_name: Region named passed to EmrHook
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param wait_for_completion: Deprecated - use `wait_policy` instead.
         Whether to finish task immediately after creation (False) or wait for jobflow
         completion (True)
@@ -657,7 +669,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
         (default: False)
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EmrHook
+    template_fields: Sequence[str] = aws_template_fields(
         "job_flow_overrides",
         "waiter_delay",
         "waiter_max_attempts",
@@ -673,10 +686,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str | None = "aws_default",
         emr_conn_id: str | None = "emr_default",
         job_flow_overrides: str | dict[str, Any] | None = None,
-        region_name: str | None = None,
         wait_for_completion: bool | None = None,
         wait_policy: WaitPolicy | None = None,
         waiter_max_attempts: int | None = None,
@@ -685,10 +696,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
         self.job_flow_overrides = job_flow_overrides or {}
-        self.region_name = region_name
         self.wait_policy = wait_policy
         self.waiter_max_attempts = waiter_max_attempts or 60
         self.waiter_delay = waiter_delay or 60
@@ -703,12 +712,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
             # preserve previous behaviour
             self.wait_policy = WaitPolicy.WAIT_FOR_COMPLETION if wait_for_completion else None
 
-    @cached_property
-    def _emr_hook(self) -> EmrHook:
-        """Create and return an EmrHook."""
-        return EmrHook(
-            aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id, region_name=self.region_name
-        )
+    @property
+    def _hook_parameters(self):
+        return {**super()._hook_parameters, "emr_conn_id": self.emr_conn_id}
 
     def execute(self, context: Context) -> str | None:
         self.log.info(
@@ -719,7 +725,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             self.job_flow_overrides = job_flow_overrides
         else:
             job_flow_overrides = self.job_flow_overrides
-        response = self._emr_hook.create_job_flow(job_flow_overrides)
+        response = self.hook.create_job_flow(job_flow_overrides)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Job flow creation failed: {response}")
@@ -729,18 +735,18 @@ class EmrCreateJobFlowOperator(BaseOperator):
         EmrClusterLink.persist(
             context=context,
             operator=self,
-            region_name=self._emr_hook.conn_region_name,
-            aws_partition=self._emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=self._job_flow_id,
         )
         if self._job_flow_id:
             EmrLogsLink.persist(
                 context=context,
                 operator=self,
-                region_name=self._emr_hook.conn_region_name,
-                aws_partition=self._emr_hook.conn_partition,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
                 job_flow_id=self._job_flow_id,
-                log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
+                log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
             )
         if self.deferrable:
             self.defer(
@@ -757,7 +763,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             )
         if self.wait_policy:
             waiter_name = WAITER_POLICY_NAME_MAPPING[self.wait_policy]
-            self._emr_hook.get_waiter(waiter_name).wait(
+            self.hook.get_waiter(waiter_name).wait(
                 ClusterId=self._job_flow_id,
                 WaiterConfig=prune_dict(
                     {
@@ -781,10 +787,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
         """Terminate the EMR cluster (job flow) unless TerminationProtected is enabled on the cluster."""
         if self._job_flow_id:
             self.log.info("Terminating job flow %s", self._job_flow_id)
-            self._emr_hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
+            self.hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
 
 
-class EmrModifyClusterOperator(BaseOperator):
+class EmrModifyClusterOperator(AwsBaseOperator[EmrHook]):
     """
     An operator that modifies an existing EMR cluster.
 
@@ -794,12 +800,19 @@ class EmrModifyClusterOperator(BaseOperator):
 
     :param cluster_id: cluster identifier
     :param step_concurrency_level: Concurrency of the cluster
-    :param aws_conn_id: aws connection to uses
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
     """
 
-    template_fields: Sequence[str] = ("cluster_id", "step_concurrency_level")
+    aws_hook_class = EmrHook
+    template_fields: Sequence[str] = aws_template_fields("cluster_id", "step_concurrency_level")
     template_ext: Sequence[str] = ()
     ui_color = "#f9c915"
     operator_extra_links = (
@@ -812,50 +825,44 @@ class EmrModifyClusterOperator(BaseOperator):
         *,
         cluster_id: str,
         step_concurrency_level: int,
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.cluster_id = cluster_id
         self.step_concurrency_level = step_concurrency_level
 
     def execute(self, context: Context) -> int:
-        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-        emr = emr_hook.get_conn()
-
         if self.do_xcom_push:
             context["ti"].xcom_push(key="cluster_id", value=self.cluster_id)
 
         EmrClusterLink.persist(
             context=context,
             operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=self.cluster_id,
         )
         EmrLogsLink.persist(
             context=context,
             operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=self.cluster_id,
-            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.cluster_id),
+            log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self.cluster_id),
         )
 
         self.log.info("Modifying cluster %s", self.cluster_id)
-        response = emr.modify_cluster(
+        response = self.hook.conn.modify_cluster(
             ClusterId=self.cluster_id, StepConcurrencyLevel=self.step_concurrency_level
         )
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Modify cluster failed: {response}")
-        else:
-            self.log.info("Steps concurrency level %d", response["StepConcurrencyLevel"])
-            return response["StepConcurrencyLevel"]
+        self.log.info("Steps concurrency level %d", response["StepConcurrencyLevel"])
+        return response["StepConcurrencyLevel"]
 
 
-class EmrTerminateJobFlowOperator(BaseOperator):
+class EmrTerminateJobFlowOperator(AwsBaseOperator[EmrHook]):
     """
     Operator to terminate EMR JobFlows.
 
@@ -865,10 +872,13 @@ class EmrTerminateJobFlowOperator(BaseOperator):
 
     :param job_flow_id: id of the JobFlow to terminate. (templated)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check JobFlow status
     :param waiter_max_attempts: The maximum number of times to poll for JobFlow status.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
@@ -876,7 +886,10 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         (default: False)
     """
 
-    template_fields: Sequence[str] = ("job_flow_id",)
+    aws_hook_class = EmrHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_flow_id",
+    )
     template_ext: Sequence[str] = ()
     ui_color = "#f9c915"
     operator_extra_links = (
@@ -888,7 +901,6 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self,
         *,
         job_flow_id: str,
-        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -896,33 +908,29 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
-        self.aws_conn_id = aws_conn_id
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> None:
-        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-        emr = emr_hook.get_conn()
-
         EmrClusterLink.persist(
             context=context,
             operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=self.job_flow_id,
         )
         EmrLogsLink.persist(
             context=context,
             operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=self.job_flow_id,
-            log_uri=get_log_uri(emr_client=emr, job_flow_id=self.job_flow_id),
+            log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self.job_flow_id),
         )
 
         self.log.info("Terminating JobFlow %s", self.job_flow_id)
-        response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
+        response = self.hook.conn.terminate_job_flows(JobFlowIds=[self.job_flow_id])
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"JobFlow termination failed: {response}")
@@ -952,7 +960,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.log.info("Jobflow terminated successfully.")
 
 
-class EmrServerlessCreateApplicationOperator(BaseOperator):
+class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
     """
     Operator to create Serverless EMR Application.
 
@@ -969,10 +977,13 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         If not set, the waiter will use its default value.
     :param waiter_delay: Number of seconds between polling the state of the application.
@@ -981,6 +992,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
+    aws_hook_class = EmrServerlessHook
+
     def __init__(
         self,
         release_label: str,
@@ -988,7 +1001,6 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str | None = "aws_default",
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -997,7 +1009,6 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
         waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
 
-        self.aws_conn_id = aws_conn_id
         self.release_label = release_label
         self.job_type = job_type
         self.wait_for_completion = wait_for_completion
@@ -1009,11 +1020,6 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
-
-    @cached_property
-    def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook."""
-        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context) -> str | None:
         response = self.hook.conn.create_application(
@@ -1070,7 +1076,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         if event is None:
             self.log.error("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        elif event["status"] != "success":
+        if event["status"] != "success":
             raise AirflowException(f"Application {event['application_id']} failed to create")
         self.log.info("Starting application %s", event["application_id"])
         self.hook.conn.start_application(applicationId=event["application_id"])
@@ -1095,7 +1101,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         return validated_event["application_id"]
 
 
-class EmrServerlessStartJobOperator(BaseOperator):
+class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
     """
     Operator to start EMR Serverless job.
 
@@ -1114,10 +1120,13 @@ class EmrServerlessStartJobOperator(BaseOperator):
         If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied
         when waiting for the application be to in the ``STARTED`` state.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         If not set, the waiter will use its default value.
@@ -1130,14 +1139,14 @@ class EmrServerlessStartJobOperator(BaseOperator):
         Tez UI or Spark stdout logs. Defaults to False.
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EmrServerlessHook
+    template_fields: Sequence[str] = aws_template_fields(
         "application_id",
         "config",
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
         "name",
-        "aws_conn_id",
     )
 
     template_fields_renderers = {
@@ -1161,7 +1170,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
         client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str | None = "aws_default",
         name: str | None = None,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
@@ -1172,7 +1180,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
         waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
         waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
 
-        self.aws_conn_id = aws_conn_id
         self.application_id = application_id
         self.execution_role_arn = execution_role_arn
         self.job_driver = job_driver
@@ -1188,11 +1195,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
-
-    @cached_property
-    def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook."""
-        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
@@ -1414,7 +1416,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             self.log.info("CloudWatch logs available at: %s", emrs_cloudwatch_url)
 
 
-class EmrServerlessStopApplicationOperator(BaseOperator):
+class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
     """
     Operator to stop an EMR Serverless application.
 
@@ -1425,10 +1427,13 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
     :param application_id: ID of the EMR Serverless application to stop.
     :param wait_for_completion: If true, wait for the Application to stop before returning. Default to True
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to stop an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
@@ -1442,13 +1447,15 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
-    template_fields: Sequence[str] = ("application_id",)
+    aws_hook_class = EmrServerlessHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "application_id",
+    )
 
     def __init__(
         self,
         application_id: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str | None = "aws_default",
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         force_stop: bool = False,
@@ -1458,7 +1465,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
         waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
 
-        self.aws_conn_id = aws_conn_id
         self.application_id = application_id
         self.wait_for_completion = False if deferrable else wait_for_completion
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
@@ -1466,11 +1472,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         self.force_stop = force_stop
         self.deferrable = deferrable
         super().__init__(**kwargs)
-
-    @cached_property
-    def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook."""
-        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context) -> None:
         self.log.info("Stopping application: %s", self.application_id)
@@ -1533,7 +1534,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         if event is None:
             self.log.error("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "success":
+        if event["status"] == "success":
             self.hook.conn.stop_application(applicationId=self.application_id)
             self.defer(
                 trigger=EmrServerlessStopApplicationTrigger(
@@ -1565,10 +1566,13 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param wait_for_completion: If true, wait for the Application to be deleted before returning.
         Defaults to True. Note that this operator will always wait for the application to be STOPPED first.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         Defaults to 25.
     :param waiter_delay: Number of seconds between polling the state of the application.
@@ -1582,13 +1586,14 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
     """
 
-    template_fields: Sequence[str] = ("application_id",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "application_id",
+    )
 
     def __init__(
         self,
         application_id: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str | None = "aws_default",
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         force_stop: bool = False,
@@ -1604,7 +1609,6 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             application_id=application_id,
             # when deleting an app, we always need to wait for it to stop before we can call delete()
             wait_for_completion=True,
-            aws_conn_id=aws_conn_id,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             force_stop=force_stop,

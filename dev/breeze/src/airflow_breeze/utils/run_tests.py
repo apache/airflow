@@ -20,14 +20,13 @@ import os
 import re
 import sys
 from itertools import chain
+from pathlib import Path
 from subprocess import DEVNULL
 
 from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     NONE_TEST_TYPE,
-    PIP_VERSION,
-    UV_VERSION,
     GroupOfTests,
     SelectiveCoreTestType,
     all_helm_test_packages,
@@ -35,15 +34,14 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_DIR,
-    AIRFLOW_SOURCES_ROOT,
-    OLD_TESTS_PROVIDERS_ROOT,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
 )
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
-DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
-DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
+DOCKER_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "docker-tests"
+DOCKER_TESTS_TESTS_MODULE_PATH = DOCKER_TESTS_ROOT_PATH / "tests" / "docker_tests"
+DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT_PATH / "requirements.txt"
 
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
@@ -76,22 +74,20 @@ def verify_an_image(
         return command_result.returncode, f"Testing {image_type} python {image_name}"
     pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
     if image_type == "PROD":
-        test_path = DOCKER_TESTS_ROOT / "test_prod_image.py"
+        test_path = DOCKER_TESTS_TESTS_MODULE_PATH / "test_prod_image.py"
     else:
-        test_path = DOCKER_TESTS_ROOT / "test_ci_image.py"
+        test_path = DOCKER_TESTS_TESTS_MODULE_PATH / "test_ci_image.py"
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
-    with create_temp_venv(
-        pip_version=PIP_VERSION, uv_version=UV_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS
-    ) as py_exe:
-        command_result = run_command(
-            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-            env=env,
-            output=output,
-            check=False,
-        )
+    command_result = run_command(
+        ["uv", "run", "pytest", test_path.as_posix(), *pytest_args, *extra_pytest_args],
+        env=env,
+        output=output,
+        check=False,
+        cwd=DOCKER_TESTS_ROOT_PATH,
+    )
     return command_result.returncode, f"Testing {image_type} python {image_name}"
 
 
@@ -99,25 +95,27 @@ def run_docker_compose_tests(
     image_name: str,
     extra_pytest_args: tuple,
     skip_docker_compose_deletion: bool,
+    include_success_outputs: bool,
 ) -> tuple[int, str]:
     command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
     if command_result.returncode != 0:
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
         return command_result.returncode, f"Testing docker-compose python with {image_name}"
     pytest_args = ("--color=yes",)
-    test_path = DOCKER_TESTS_ROOT / "test_docker_compose_quick_start.py"
+    test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
-    with create_temp_venv(
-        pip_version=PIP_VERSION, uv_version=UV_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS
-    ) as py_exe:
-        command_result = run_command(
-            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-            env=env,
-            check=False,
-        )
+    if include_success_outputs:
+        env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
+    # since we are only running one test, we can print output directly with pytest -s
+    command_result = run_command(
+        ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],
+        env=env,
+        check=False,
+        cwd=DOCKER_TESTS_ROOT_PATH.as_posix(),
+    )
     return command_result.returncode, f"Testing docker-compose python with {image_name}"
 
 
@@ -138,18 +136,7 @@ def test_paths(test_type: str, backend: str) -> tuple[str, str, str]:
 def get_ignore_switches_for_provider(provider_folders: list[str]) -> list[str]:
     args = []
     for providers in provider_folders:
-        args.extend(
-            [
-                # TODO(potiuk): remove the old ways once we migrate all providers to the new structure
-                f"--ignore=providers/tests/{providers}",
-                f"--ignore=providers/tests/system/{providers}",
-                f"--ignore=providers/tests/integration/{providers}",
-                # New structure
-                f"--ignore=providers/{providers}/tests/",
-                f"--ignore=providers/{providers}/tests/system",
-                f"--ignore=providers/{providers}/tests/integration",
-            ]
-        )
+        args.append(f"--ignore=providers/{providers}/tests/")
     return args
 
 
@@ -164,59 +151,63 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
-    "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
-    "CLI": ["tests/cli"],
+    "Always": ["airflow-core/tests/unit/always"],
+    "API": ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
+    "CLI": ["airflow-core/tests/unit/cli"],
     "Core": [
-        "tests/core",
-        "tests/executors",
-        "tests/jobs",
-        "tests/models",
-        "tests/ti_deps",
-        "tests/utils",
+        "airflow-core/tests/unit/core",
+        "airflow-core/tests/unit/executors",
+        "airflow-core/tests/unit/jobs",
+        "airflow-core/tests/unit/models",
+        "airflow-core/tests/unit/ti_deps",
+        "airflow-core/tests/unit/utils",
     ],
-    "Integration": ["tests/integration"],
-    "Operators": ["tests/operators"],
+    "Integration": ["airflow-core/tests/integration"],
     "Serialization": [
-        "tests/serialization",
+        "airflow-core/tests/unit/serialization",
     ],
-    "TaskSDK": ["task_sdk/tests"],
-    "WWW": [
-        "tests/www",
-    ],
+    "TaskSDK": ["task-sdk/tests"],
+    "CTL": ["airflow-ctl/tests"],
     "OpenAPI": ["clients/python"],
 }
 
-# TODO(potiuk) - rename when all providers are new-style
-ALL_NEW_PROVIDER_TEST_FOLDERS: list[str] = sorted(
+ALL_PROVIDER_TEST_FOLDERS: list[str] = sorted(
+    [path.relative_to(AIRFLOW_ROOT_PATH).as_posix() for path in AIRFLOW_ROOT_PATH.glob("providers/*/tests/")]
+    + [
+        path.relative_to(AIRFLOW_ROOT_PATH).as_posix()
+        for path in AIRFLOW_ROOT_PATH.glob("providers/*/*/tests/")
+    ]
+)
+ALL_PROVIDER_INTEGRATION_TEST_FOLDERS: list[str] = sorted(
     [
-        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
-        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/")
+        path.relative_to(AIRFLOW_ROOT_PATH).as_posix()
+        for path in AIRFLOW_ROOT_PATH.glob("providers/*/tests/integration/")
     ]
     + [
-        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
-        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/tests/")
+        path.relative_to(AIRFLOW_ROOT_PATH).as_posix()
+        for path in AIRFLOW_ROOT_PATH.glob("providers/*/*/tests/integration/")
     ]
 )
 
+
 TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
-    GroupOfTests.CORE: ["tests"],
-    # TODO(potiuk): remove me when we migrate all providers to new structure
-    GroupOfTests.PROVIDERS: [*ALL_NEW_PROVIDER_TEST_FOLDERS, "providers/tests"],
-    GroupOfTests.TASK_SDK: ["task_sdk/tests"],
-    GroupOfTests.HELM: ["helm_tests"],
-    GroupOfTests.INTEGRATION_CORE: ["tests/integration"],
-    GroupOfTests.INTEGRATION_PROVIDERS: ["providers/tests/integration"],
+    GroupOfTests.CORE: ["airflow-core/tests/unit/"],
+    GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
+    GroupOfTests.TASK_SDK: ["task-sdk/tests"],
+    GroupOfTests.CTL: ["airflow-ctl/tests"],
+    GroupOfTests.HELM: ["helm-tests"],
+    GroupOfTests.INTEGRATION_CORE: ["airflow-core/tests/integration"],
+    GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
     GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
 }
 
 
-# Those directories are already ignored vu pyproject.toml. We want to exclude them here as well.
+# Those directories are already ignored in pyproject.toml. We want to exclude them here as well.
 NO_RECURSE_DIRS = [
-    "tests/_internals",
-    "tests/dags_with_system_exit",
-    "tests/dags_corrupted",
-    "tests/dags",
+    "airflow-core/tests/unit/_internals",
+    "airflow-core/tests/unit/dags_with_system_exit",
+    "airflow-core/tests/unit/dags_corrupted",
+    "airflow-core/tests/unit/dags",
     "providers/google/tests/system/google/cloud/dataproc/resources",
     "providers/google/tests/system/google/cloud/gcs/resources",
 ]
@@ -226,16 +217,17 @@ def find_all_other_tests() -> list[str]:
     all_named_test_folders = list(chain.from_iterable(TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS.values()))
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.PROVIDERS])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.TASK_SDK])
+    all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.CTL])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.HELM])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_CORE])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_PROVIDERS])
-    all_named_test_folders.append("tests/system")
+    all_named_test_folders.append("airflow-core/tests/system")
     all_named_test_folders.append("providers/tests/system")
     all_named_test_folders.extend(NO_RECURSE_DIRS)
 
     all_current_test_folders = [
-        str(path.relative_to(AIRFLOW_SOURCES_ROOT))
-        for path in AIRFLOW_SOURCES_ROOT.glob("tests/*")
+        str(path.relative_to(AIRFLOW_ROOT_PATH))
+        for path in AIRFLOW_ROOT_PATH.glob("airflow-core/tests/unit/*")
         if path.is_dir() and path.name != "__pycache__"
     ]
     for named_test_folder in all_named_test_folders:
@@ -270,9 +262,8 @@ def convert_test_type_to_pytest_args(
             sys.exit(1)
         helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
-            return [f"{helm_folder}/{test_type}"]
-        else:
-            return [helm_folder]
+            return [f"{helm_folder}/tests/helm_tests/{test_type}"]
+        return [helm_folder]
     if test_type == SelectiveCoreTestType.OTHER.value and test_group == GroupOfTests.CORE:
         return find_all_other_tests()
     if test_group in [
@@ -293,41 +284,26 @@ def convert_test_type_to_pytest_args(
                         f"[info]Removing {provider_test_to_exclude} from {providers_with_exclusions}[/]"
                     )
                     providers_with_exclusions.remove(provider_test_to_exclude)
-                else:
-                    # TODO(potiuk): remove me when all providers are migrated
-                    get_console().print(f"[info]Adding {provider_test_to_exclude} to pytest ignores[/]")
-                    providers_with_exclusions.append(
-                        "--ignore=providers/tests/" + excluded_provider.replace(".", "/")
-                    )
             return providers_with_exclusions
         if test_type.startswith(PROVIDERS_LIST_PREFIX):
             provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
             providers_to_test = []
             for provider in provider_list:
-                # TODO(potiuk) - remove when all providers are new-style
-                provider_path = OLD_TESTS_PROVIDERS_ROOT.joinpath(provider.replace(".", "/")).relative_to(
-                    AIRFLOW_SOURCES_ROOT
+                provider_path = (
+                    AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(provider.replace(".", "/")).relative_to(
+                        AIRFLOW_ROOT_PATH
+                    )
+                    / "tests"
                 )
                 if provider_path.is_dir():
                     providers_to_test.append(provider_path.as_posix())
                 else:
-                    # TODO(potiuk) - remove when all providers are new-style
-                    old_provider_path = provider_path
-                    provider_path = (
-                        AIRFLOW_PROVIDERS_DIR.joinpath(provider.replace(".", "/")).relative_to(
-                            AIRFLOW_SOURCES_ROOT
-                        )
-                        / "tests"
+                    get_console().print(
+                        f"[error] {provider_path} does not exist for {provider} "
+                        "- which means that this provider has no tests. This is bad idea. "
+                        "Please add it (all providers should have at least a package in tests)."
                     )
-                    if provider_path.is_dir():
-                        providers_to_test.append(provider_path.as_posix())
-                    else:
-                        get_console().print(
-                            f"[error]Neither {old_provider_path} nor {provider_path} exist for {provider} "
-                            "- which means that provider has no tests. This is bad idea. "
-                            "Please add it (all providers should have a package in tests)"
-                        )
-                        sys.exit(1)
+                    sys.exit(1)
             return providers_to_test
         if not test_type.startswith(PROVIDERS_PREFIX):
             get_console().print(f"[error]Unknown test type for {GroupOfTests.PROVIDERS}: {test_type}[/]")
@@ -418,6 +394,9 @@ def generate_args_for_pytest(
             args.append(f"--ignore={group_folder}")
     if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
+    if test_group == GroupOfTests.SYSTEM:
+        # System tests will be inited when the api server is started
+        args.append("--without-db-init")
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
         args.append("--ignore-glob=clients/python/tmp/*")
     args.extend(get_suspended_provider_args())
@@ -468,12 +447,4 @@ def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_ty
     for group_folders in TEST_GROUP_TO_TEST_FOLDERS.values():
         for group_folder in group_folders:
             all_test_prefixes.append(group_folder)
-    folders = [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]
-    # remove specific provider sub-folders if "providers/tests" is already in the list
-    # This workarounds pytest issues where it will only run tests from specific subfolders
-    # if both parent and child folders are in the list
-    # The issue in Pytest (changed behaviour in Pytest 8.2 is tracked here
-    # https://github.com/pytest-dev/pytest/issues/12605
-    if "providers/tests" in folders:
-        folders = [folder for folder in folders if not folder.startswith("providers/tests/")]
-    return folders
+    return [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]

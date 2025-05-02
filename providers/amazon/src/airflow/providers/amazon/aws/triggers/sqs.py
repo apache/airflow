@@ -23,14 +23,22 @@ from typing import TYPE_CHECKING, Any
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.utils.sqs import process_response
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+else:
+    from airflow.triggers.base import (  # type: ignore
+        BaseTrigger as BaseEventTrigger,
+        TriggerEvent,
+    )
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
     from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType
 
 
-class SqsSensorTrigger(BaseTrigger):
+class SqsSensorTrigger(BaseEventTrigger):
     """
     Asynchronously get messages from an Amazon SQS queue and then delete the messages from the queue.
 
@@ -176,7 +184,7 @@ class SqsSensorTrigger(BaseTrigger):
         while True:
             # This loop will run indefinitely until the timeout, which is set in the self.defer
             # method, is reached.
-            async with self.hook.async_conn as client:
+            async with await self.hook.get_async_conn() as client:
                 result = await self.poke(client=client)
                 if result:
                     yield TriggerEvent({"status": "success", "message_batch": result})

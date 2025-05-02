@@ -23,9 +23,11 @@ from collections.abc import Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
-from json_merge_patch import merge
+from google.api_core import exceptions
+from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google._vendor.json_merge_patch import merge
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.links.compute import (
     ComputeInstanceDetailsLink,
@@ -36,12 +38,11 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from google.api_core import exceptions
-from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 class ComputeEngineBaseOperator(GoogleCloudBaseOperator):
@@ -1401,16 +1402,15 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                 request_id=self.request_id,
                 project_id=self.project_id,
             )
-        else:
-            # Idempotence achieved
-            ComputeInstanceGroupManagerDetailsLink.persist(
-                context=context,
-                task_instance=self,
-                location_id=self.zone,
-                resource_id=self.resource_id,
-                project_id=self.project_id or hook.project_id,
-            )
-            return True
+        # Idempotence achieved
+        ComputeInstanceGroupManagerDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
+            project_id=self.project_id or hook.project_id,
+        )
+        return True
 
 
 class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator):

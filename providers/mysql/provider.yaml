@@ -22,9 +22,13 @@ description: |
     `MySQL <https://www.mysql.com/>`__
 
 state: ready
-source-date-epoch: 1734535570
+source-date-epoch: 1744792269
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 6.2.2
+  - 6.2.1
+  - 6.2.0
+  - 6.1.0
   - 6.0.0
   - 5.7.4
   - 5.7.3

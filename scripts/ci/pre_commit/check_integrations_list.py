@@ -35,14 +35,14 @@ import yaml
 # make sure common_precommit_utils is imported
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_precommit_utils import (
-    AIRFLOW_SOURCES_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
     console,
     insert_documentation,
 )
 from tabulate import tabulate
 
-DOCUMENTATION_PATH = AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst"
-INTEGRATION_TESTS_PATH = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose"
+DOCUMENTATION_PATH = AIRFLOW_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst"
+INTEGRATION_TESTS_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "docker-compose"
 INTEGRATION_TEST_PREFIX = "integration-*.yml"
 DOCS_MARKER_START = ".. BEGIN AUTO-GENERATED INTEGRATION LIST"
 DOCS_MARKER_END = ".. END AUTO-GENERATED INTEGRATION LIST"
@@ -110,10 +110,9 @@ def get_docs_integrations(docs_path: Path = DOCUMENTATION_PATH):
         """Filter callable to exclude header and empty cells."""
         if len(j) == 0:
             return False
-        elif j in ["Description", "Identifier"]:
+        if j in ["Description", "Identifier"]:
             return False
-        else:
-            return True
+        return True
 
     table_cells = list(filter(_list_matcher, table_cells))
     return table_cells
@@ -130,7 +129,7 @@ def update_integration_tests_array(contents: dict[str, list[str]]):
         rows.append((integration, formatted_hook_description))
     formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("Identifier", "Description")) + "\n\n"
     insert_documentation(
-        file_path=AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst",
+        file_path=AIRFLOW_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst",
         content=formatted_table.splitlines(keepends=True),
         header=DOCS_MARKER_START,
         footer=DOCS_MARKER_END,
@@ -156,7 +155,7 @@ def _get_breeze_description(parsed_compose: dict[str, Any], label_key: str = "br
                 if _label_name == label_key:
                     image_label_map[_img_name] = label
         except KeyError:
-            # service has no 'lables' entry
+            # service has no 'labels' entry
             continue
     return image_label_map
 

@@ -23,6 +23,9 @@ from pathlib import Path
 import pytest
 
 from airflow_breeze.prepare_providers.provider_documentation import (
+    VERSION_MAJOR_INDEX,
+    VERSION_MINOR_INDEX,
+    VERSION_PATCHLEVEL_INDEX,
     Change,
     TypeOfChange,
     _convert_git_changes_to_table,
@@ -191,13 +194,13 @@ LONG_HASH_123144 SHORT_HASH 2023-01-01 Description `with` pr (#12346)
 
 Latest change: 2023-01-01
 
-============================================  ===========  ==================================
-Commit                                        Committed    Subject
-============================================  ===========  ==================================
-`SHORT_HASH <https://url/LONG_HASH_123144>`_  2023-01-01   ``Description 'with' no pr``
-`SHORT_HASH <https://url/LONG_HASH_123144>`_  2023-01-01   ``Description 'with' pr (#12345)``
-`SHORT_HASH <https://url/LONG_HASH_123144>`_  2023-01-01   ``Description 'with' pr (#12346)``
-============================================  ===========  ==================================""",
+=============================================  ===========  ==================================
+Commit                                         Committed    Subject
+=============================================  ===========  ==================================
+`SHORT_HASH <https://url/LONG_HASH_123144>`__  2023-01-01   ``Description 'with' no pr``
+`SHORT_HASH <https://url/LONG_HASH_123144>`__  2023-01-01   ``Description 'with' pr (#12345)``
+`SHORT_HASH <https://url/LONG_HASH_123144>`__  2023-01-01   ``Description 'with' pr (#12346)``
+=============================================  ===========  ==================================""",
             False,
             3,
         ),
@@ -299,3 +302,18 @@ def test_classify_changes_automatically(
     assert len(classified_changes.other) == other_count
     assert len(classified_changes.other) == other_count
     assert len(classified_changes.misc) == misc_count
+
+
+@pytest.mark.parametrize(
+    "initial_version, bump_index, expected_version",
+    [
+        ("4.2.1", VERSION_MAJOR_INDEX, "5.0.0"),
+        ("3.5.9", VERSION_MINOR_INDEX, "3.6.0"),
+        ("2.0.0", VERSION_PATCHLEVEL_INDEX, "2.0.1"),
+    ],
+)
+def test_version_bump_for_provider_documentation(initial_version, bump_index, expected_version):
+    from airflow_breeze.prepare_providers.provider_documentation import Version, bump_version
+
+    result = bump_version(Version(initial_version), bump_index)
+    assert str(result) == expected_version

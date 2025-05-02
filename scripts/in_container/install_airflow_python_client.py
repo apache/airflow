@@ -21,15 +21,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from in_container_utils import click, console, run_command
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from in_container_utils import AIRFLOW_DIST_PATH, click, console, run_command
 
-AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[1]
-DIST_FOLDER = Path("/dist")
-ALLOWED_PACKAGE_FORMAT = ["wheel", "sdist", "both"]
+ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
 
 
 def find_airflow_python_client(extension: str):
-    packages = [f.as_posix() for f in DIST_FOLDER.glob(f"apache_airflow_client-[0-9]*.{extension}")]
+    packages = [f.as_posix() for f in AIRFLOW_DIST_PATH.glob(f"apache_airflow_client-[0-9]*.{extension}")]
     if len(packages) > 1:
         console.print(f"\n[red]Found multiple airflow client packages: {packages}\n")
         sys.exit(1)
@@ -45,20 +44,20 @@ def find_airflow_python_client(extension: str):
 
 @click.command()
 @click.option(
-    "--package-format",
-    default=ALLOWED_PACKAGE_FORMAT[0],
-    envvar="PACKAGE_FORMAT",
+    "--distribution-format",
+    default=ALLOWED_DISTRIBUTION_FORMAT[0],
+    envvar="DISTRIBUTION_FORMAT",
     show_default=True,
-    type=click.Choice(ALLOWED_PACKAGE_FORMAT),
+    type=click.Choice(ALLOWED_DISTRIBUTION_FORMAT),
     help="Package format to use",
 )
 @click.option(
-    "--use-packages-from-dist",
+    "--use-distributions-from-dist",
     is_flag=True,
     default=True,
     show_default=True,
-    envvar="USE_PACKAGES_FROM_DIST",
-    help="Should install packages from dist folder if set.",
+    envvar="USE_DISTRIBUTIONS_FROM_DIST",
+    help="Should install distributions from dist folder if set.",
 )
 @click.option(
     "--github-actions",
@@ -68,19 +67,21 @@ def find_airflow_python_client(extension: str):
     envvar="GITHUB_ACTIONS",
     help="Running in GitHub Actions",
 )
-def install_airflow_python_client(package_format: str, use_packages_from_dist: bool, github_actions: bool):
-    if use_packages_from_dist and package_format not in ["wheel", "sdist"]:
-        console.print(f"[red]PACKAGE_FORMAT must be one of 'wheel' or 'sdist' and not {package_format}")
+def install_airflow_python_client(
+    distribution_format: str, use_distributions_from_dist: bool, github_actions: bool
+):
+    if use_distributions_from_dist and distribution_format not in ["wheel", "sdist"]:
+        console.print(
+            f"[red]DISTRIBUTION_FORMAT must be one of 'wheel' or 'sdist' and not {distribution_format}"
+        )
         sys.exit(1)
 
-    extension = "whl" if package_format == "wheel" else "tar.gz"
+    extension = "whl" if distribution_format == "wheel" else "tar.gz"
 
     install_airflow_python_client_cmd = [
         "/usr/local/bin/uv",
         "pip",
         "install",
-        "--python",
-        "/usr/local/bin/python",
         find_airflow_python_client(extension),
     ]
     console.print("\n[bright_blue]Installing airflow python client\n")

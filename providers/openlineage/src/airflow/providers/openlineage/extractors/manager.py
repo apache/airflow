@@ -24,7 +24,11 @@ from airflow.providers.common.compat.openlineage.utils.utils import (
 )
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
-from airflow.providers.openlineage.extractors.base import DefaultExtractor
+from airflow.providers.openlineage.extractors.base import (
+    OL_METHOD_NAME_COMPLETE,
+    OL_METHOD_NAME_START,
+    DefaultExtractor,
+)
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 from airflow.providers.openlineage.utils.utils import (
@@ -32,11 +36,13 @@ from airflow.providers.openlineage.utils.utils import (
     try_import_from_string,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+
     from airflow.models import Operator
     from airflow.providers.common.compat.lineage.entities import Table
-    from openlineage.client.event_v2 import Dataset
 
 
 def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
@@ -86,7 +92,9 @@ class ExtractorManager(LoggingMixin):
     def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):
         self.extractors[operator_class] = extractor
 
-    def extract_metadata(self, dagrun, task, complete: bool = False, task_instance=None) -> OperatorLineage:
+    def extract_metadata(
+        self, dagrun, task, task_instance_state: TaskInstanceState, task_instance=None
+    ) -> OperatorLineage:
         extractor = self._get_extractor(task)
         task_info = (
             f"task_type={task.task_type} "
@@ -103,10 +111,15 @@ class ExtractorManager(LoggingMixin):
                     extractor.__class__.__name__,
                     str(task_info),
                 )
-                if complete:
-                    task_metadata = extractor.extract_on_complete(task_instance)
-                else:
+                if task_instance_state == TaskInstanceState.RUNNING:
                     task_metadata = extractor.extract()
+                elif task_instance_state == TaskInstanceState.FAILED:
+                    if callable(getattr(extractor, "extract_on_failure", None)):
+                        task_metadata = extractor.extract_on_failure(task_instance)
+                    else:
+                        task_metadata = extractor.extract_on_complete(task_instance)
+                else:
+                    task_metadata = extractor.extract_on_complete(task_instance)
 
                 self.log.debug(
                     "Found task metadata for operation %s: %s",
@@ -121,7 +134,7 @@ class ExtractorManager(LoggingMixin):
                             task_metadata.inputs = inputs
                             task_metadata.outputs = outputs
                         else:
-                            self.extract_inlets_and_outlets(task_metadata, task.inlets, task.outlets)
+                            self.extract_inlets_and_outlets(task_metadata, task)
                     return task_metadata
 
             except Exception as e:
@@ -131,6 +144,7 @@ class ExtractorManager(LoggingMixin):
                     e,
                     task_info,
                 )
+                self.log.debug("OpenLineage extraction failure details:", exc_info=True)
         elif (hook_lineage := self.get_hook_lineage()) is not None:
             inputs, outputs = hook_lineage
             task_metadata = OperatorLineage(inputs=inputs, outputs=outputs)
@@ -142,9 +156,7 @@ class ExtractorManager(LoggingMixin):
             task_metadata = OperatorLineage(
                 run_facets=get_unknown_source_attribute_run_facet(task=task),
             )
-            inlets = task.get_inlet_defs()
-            outlets = task.get_outlet_defs()
-            self.extract_inlets_and_outlets(task_metadata, inlets, outlets)
+            self.extract_inlets_and_outlets(task_metadata, task)
             return task_metadata
 
         return OperatorLineage()
@@ -154,13 +166,9 @@ class ExtractorManager(LoggingMixin):
             return self.extractors[task.task_type]
 
         def method_exists(method_name):
-            method = getattr(task, method_name, None)
-            if method:
-                return callable(method)
+            return callable(getattr(task, method_name, None))
 
-        if method_exists("get_openlineage_facets_on_start") or method_exists(
-            "get_openlineage_facets_on_complete"
-        ):
+        if method_exists(OL_METHOD_NAME_START) or method_exists(OL_METHOD_NAME_COMPLETE):
             return self.default_extractor
         return None
 
@@ -173,28 +181,21 @@ class ExtractorManager(LoggingMixin):
             return extractor(task)
         return None
 
-    def extract_inlets_and_outlets(
-        self,
-        task_metadata: OperatorLineage,
-        inlets: list,
-        outlets: list,
-    ):
-        if inlets or outlets:
+    def extract_inlets_and_outlets(self, task_metadata: OperatorLineage, task) -> None:
+        if task.inlets or task.outlets:
             self.log.debug("Manually extracting lineage metadata from inlets and outlets")
-        for i in inlets:
+        for i in task.inlets:
             d = self.convert_to_ol_dataset(i)
             if d:
                 task_metadata.inputs.append(d)
-        for o in outlets:
+        for o in task.outlets:
             d = self.convert_to_ol_dataset(o)
             if d:
                 task_metadata.outputs.append(d)
 
     def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
         try:
-            from airflow.providers.common.compat.lineage.hook import (
-                get_hook_lineage_collector,
-            )
+            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
         except ImportError:
             return None
 
@@ -203,6 +204,7 @@ class ExtractorManager(LoggingMixin):
         if not get_hook_lineage_collector().has_collected:
             return None
 
+        self.log.debug("OpenLineage will extract lineage from Hook Lineage Collector.")
         return (
             [
                 asset
@@ -290,17 +292,17 @@ class ExtractorManager(LoggingMixin):
 
     @staticmethod
     def convert_to_ol_dataset(obj) -> Dataset | None:
-        from airflow.providers.common.compat.lineage.entities import File, Table
         from openlineage.client.event_v2 import Dataset
+
+        from airflow.providers.common.compat.lineage.entities import File, Table
 
         if isinstance(obj, Dataset):
             return obj
-        elif isinstance(obj, Table):
+        if isinstance(obj, Table):
             return ExtractorManager.convert_to_ol_dataset_from_table(obj)
-        elif isinstance(obj, File):
+        if isinstance(obj, File):
             return ExtractorManager.convert_to_ol_dataset_from_object_storage_uri(obj.url)
-        else:
-            return None
+        return None
 
     def validate_task_metadata(self, task_metadata) -> OperatorLineage | None:
         try:
@@ -311,5 +313,5 @@ class ExtractorManager(LoggingMixin):
                 job_facets=task_metadata.job_facets,
             )
         except AttributeError:
-            self.log.warning("Extractor returns non-valid metadata: %s", task_metadata)
+            self.log.warning("OpenLineage extractor returns non-valid metadata: `%s`", task_metadata)
             return None

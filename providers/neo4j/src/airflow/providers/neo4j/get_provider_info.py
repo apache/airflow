@@ -26,33 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-neo4j",
         "name": "Neo4j",
         "description": "`Neo4j <https://neo4j.com/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734535610,
-        "versions": [
-            "3.8.0",
-            "3.7.0",
-            "3.6.1",
-            "3.6.0",
-            "3.5.0",
-            "3.4.0",
-            "3.3.3",
-            "3.3.2",
-            "3.3.1",
-            "3.3.0",
-            "3.2.1",
-            "3.2.0",
-            "3.1.0",
-            "3.0.0",
-            "2.1.3",
-            "2.1.2",
-            "2.1.1",
-            "2.1.0",
-            "2.0.2",
-            "2.0.1",
-            "2.0.0",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Neo4j",
@@ -68,5 +41,4 @@ def get_provider_info():
         "connection-types": [
             {"hook-class-name": "airflow.providers.neo4j.hooks.neo4j.Neo4jHook", "connection-type": "neo4j"}
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "neo4j>=4.2.1"],
     }

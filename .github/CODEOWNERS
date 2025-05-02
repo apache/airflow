@@ -1,13 +1,13 @@
 # Core
-/airflow/executors/ @XD-DENG @ashb @o-nikolas @pierrejeambrun @hussein-awala
-/airflow/jobs/ @ashb @XD-DENG
-/airflow/models/ @XD-DENG @ashb
+/airflow-core/src/airflow/executors/ @XD-DENG @ashb @o-nikolas @pierrejeambrun @hussein-awala
+/airflow-core/src/airflow/jobs/ @ashb @XD-DENG
+/airflow-core/src/airflow/models/ @XD-DENG @ashb
 
 # DAG Serialization
-/airflow/serialization/ @ashb @bolkedebruin
+/airflow-core/src/airflow/serialization/ @ashb @bolkedebruin
 
 # DAG Parsing
-/airflow/dag_processing @jedcunningham @ephraimbuddy
+/airflow-core/src/airflow/dag_processing @jedcunningham @ephraimbuddy
 
 # Kubernetes
 /providers/cncf/kubernetes/ @dstandish @jedcunningham
@@ -22,50 +22,52 @@
 /docs/helm-chart @dstandish @jedcunningham
 
 # API
-/airflow/api/ @ephraimbuddy @pierrejeambrun
-/airflow/api_connexion/ @ephraimbuddy @pierrejeambrun
-/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun
+/airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
+/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496 @bugraoz93 @shubhamraj-git
+/airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
-# WWW
-/airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun @jscheffl
+# Airflow CTL
+/airflow-ctl/ @bugraoz93 @kaxil @potiuk
+
+# Auth manager
+/airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
 
 # UI
-/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
+/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
 
 # Security/Permissions
-/airflow/api_connexion/security.py @vincbeck
-/airflow/security/permissions.py @vincbeck
-/airflow/www/security.py @vincbeck
+/airflow-core/src/airflow/security/permissions.py @vincbeck
 
 # Calendar/Timetables
-/airflow/timetables/ @uranusjr
+/airflow-core/src/airflow/timetables/ @uranusjr
 /docs/apache-airflow/concepts/timetable.rst @uranusjr
 
 # Task expansion, scheduling, and rendering
-/airflow/models/abstractoperator.py @uranusjr
-/airflow/models/baseoperator.py @uranusjr
-/airflow/models/expandinput.py @uranusjr
-/airflow/models/mappedoperator.py @uranusjr
-/airflow/models/operator.py @uranusjr
-/airflow/models/xcom_arg.py @uranusjr
+/airflow-core/src/airflow/models/abstractoperator.py @uranusjr
+/airflow-core/src/airflow/models/baseoperator.py @uranusjr
+/airflow-core/src/airflow/models/expandinput.py @uranusjr
+/airflow-core/src/airflow/models/mappedoperator.py @uranusjr
+/airflow-core/src/airflow/models/operator.py @uranusjr
+/airflow-core/src/airflow/models/xcom_arg.py @uranusjr
 /docs/apache-airflow/concepts/dynamic-task-mapping.rst @uranusjr
 
 # Async Operators & Triggerer
-/airflow/cli/commands/local_commands/triggerer_command.py @dstandish @hussein-awala
-/airflow/jobs/triggerer_job.py @dstandish @hussein-awala
-/airflow/jobs/triggerer_job_runner.py @dstandish @hussein-awala
+/airflow-core/src/airflow/cli/commands/triggerer_command.py @dstandish @hussein-awala
+/airflow-core/src/airflow/jobs/triggerer_job_runner.py @dstandish @hussein-awala
 /docs/apache-airflow/authoring-and-scheduling/deferring.rst @dstandish @hussein-awala
 
 # Secrets Backends
-/airflow/secrets @dstandish @potiuk @ashb
+/airflow-core/src/airflow/secrets @dstandish @potiuk @ashb
 
 # Providers
 /providers/amazon/ @eladkal @o-nikolas
 /providers/celery/ @hussein-awala
 /providers/cncf/kubernetes @jedcunningham @hussein-awala
+/providers/common/messaging/ @vincbeck
 /providers/common/sql/ @eladkal
 /providers/dbt/cloud/ @josh-fell
-/providers/edge/ @jscheffl
+/providers/edge3/ @jscheffl
+/providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
 /providers/openlineage/ @mobuchowski
 /providers/slack/ @eladkal
@@ -74,32 +76,37 @@
 /providers/apache/iceberg/ @Fokko
 
 # Dev tools
-/.github/workflows/ @potiuk @ashb
-/dev/ @potiuk @ashb @jedcunningham
-/docker_tests/ @potiuk @ashb
-/scripts/ @potiuk @ashb
-Dockerfile @potiuk @ashb
-Dockerfile.ci @potiuk @ashb
+/.github/workflows/ @potiuk @ashb @gopidesupavan
+/dev/ @potiuk @ashb @jedcunningham @gopidesupavan @amoghrajesh
+/docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
+/kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496
+/helm-tests/ @dstandish @jedcunningham
+/scripts/ @potiuk @ashb @gopidesupavan
+Dockerfile @potiuk @ashb @gopidesupavan
+Dockerfile.ci @potiuk @ashb @gopidesupavan
 
 # Releasing Guides & Project Guidelines
 /dev/PROJECT_GUIDELINES.md @kaxil
-/dev/PROVIDER_PACKAGE_DETAILS.md @eladkal
+/dev/PROVIDER_DISTRIBUTIONS_DETAILS.md @eladkal
 /dev/README.md  @kaxil
 /dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
-/dev/README_RELEASE_PROVIDER_PACKAGES.md  @eladkal
+/dev/README_RELEASE_PROVIDERS.md  @eladkal
 ISSUE_TRIAGE_PROCESS.rst @eladkal
 
 # AIP-52 - Setup and Teardown
-/airflow/decorators/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
-/airflow/example_dags/example_setup_teardown*.py @jedcunningham @ephraimbuddy @dstandish
-/airflow/utils/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
+/airflow-core/src/airflow/decorators/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
+/airflow-core/src/airflow/example_dags/example_setup_teardown*.py @jedcunningham @ephraimbuddy @dstandish
+/airflow-core/src/airflow/utils/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
 
 # AIP-58 - Object Storage
-/airflow/io/ @bolkedebruin
+/airflow-core/src/airflow/io/ @bolkedebruin
 /providers/**/fs/ @bolkedebruin
 /providers/common/io/ @bolkedebruin
 /docs/apache-airflow/core-concepts/objectstorage.rst @bolkedebruin
 
 # Migrations
-/airflow/migrations/ @ephraimbuddy
-/providers/fab/src/airflow/providers/fab/migrations/ @ephraimbuddy
+/airflow-core/src/airflow/migrations/ @ephraimbuddy
+/providers/fab/src/airflow-core/src/airflow/providers/fab/migrations/ @ephraimbuddy
+
+# AIP-72 - Task SDK
+/task-sdk/ @ashb @kaxil @amoghrajesh

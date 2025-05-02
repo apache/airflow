@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import urllib.parse
+from pathlib import PosixPath
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
@@ -32,8 +33,18 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
-def create_asset(*, path: str, extra=None) -> Asset:
-    # We assume that we get absolute path starting with /
+def create_asset(*, path: str | PosixPath, extra=None) -> Asset:
+    if isinstance(path, PosixPath):
+        path = str(path)
+
+    if path.startswith("file://"):
+        path = path[len("file://") :]
+    elif path.startswith("file:"):
+        path = path[5:]
+        while path.startswith("/"):
+            path = path[1:]
+        path = "/" + path
+
     return Asset(uri=f"file://{path}", extra=extra)
 
 
@@ -52,6 +63,13 @@ def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDa
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
     parsed = urllib.parse.urlsplit(asset.uri)
+
+    # Non-remote path
+    if parsed.path == "/":
+        netloc = parsed.netloc
+        if not netloc.startswith("/"):
+            netloc = "/" + netloc
+        return OpenLineageDataset(namespace="file", name=netloc)
     return OpenLineageDataset(
         namespace=f"file://{parsed.netloc}" if parsed.netloc else "file", name=parsed.path
     )

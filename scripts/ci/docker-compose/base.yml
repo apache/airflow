@@ -26,6 +26,7 @@ services:
     env_file:
       - _generated_docker_compose.env
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      # Required to get non-blocking entropy source
+      - /dev/urandom:/dev/random
     cap_add:
       - SYS_PTRACE

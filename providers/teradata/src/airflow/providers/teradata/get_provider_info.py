@@ -26,20 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-teradata",
         "name": "Teradata",
         "description": "`Teradata <https://www.teradata.com/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734537340,
-        "versions": [
-            "3.0.0",
-            "2.6.1",
-            "2.6.0",
-            "2.5.0",
-            "2.4.0",
-            "2.3.0",
-            "2.2.0",
-            "2.1.1",
-            "2.1.0",
-            "2.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Teradata",
@@ -96,14 +82,4 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.teradata.triggers.teradata_compute_cluster"],
             }
         ],
-        "dependencies": [
-            "apache-airflow>=2.9.0",
-            "apache-airflow-providers-common-sql>=1.20.0",
-            "teradatasqlalchemy>=17.20.0.0",
-            "teradatasql>=17.20.0.28",
-        ],
-        "optional-dependencies": {
-            "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
-            "amazon": ["apache-airflow-providers-amazon"],
-        },
     }

@@ -22,14 +22,17 @@ from __future__ import annotations
 
 import hashlib
 import os
-import sys
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow_breeze.global_constants import ALL_PROVIDER_YAML_FILES, FILES_FOR_REBUILD_CHECK
+from airflow_breeze.global_constants import (
+    ALL_PYPROJECT_TOML_FILES,
+    FILES_FOR_REBUILD_CHECK,
+    UPDATE_PROVIDER_DEPENDENCIES_SCRIPT,
+)
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_verbose
 
 if TYPE_CHECKING:
@@ -69,7 +72,7 @@ def generate_md5(filename, file_size: int = 65536):
 
 
 def check_md5_sum_for_file(file_to_check: str, md5sum_cache_dir: Path, update: bool):
-    file_to_get_md5 = AIRFLOW_SOURCES_ROOT / file_to_check
+    file_to_get_md5 = AIRFLOW_ROOT_PATH / file_to_check
     md5_checksum = generate_md5(file_to_get_md5)
     sub_dir_name = file_to_get_md5.parts[-2]
     actual_file_name = file_to_get_md5.parts[-1]
@@ -94,42 +97,23 @@ def calculate_md5_checksum_for_files(
     not_modified_files = []
     modified_files = []
     if not skip_provider_dependencies_check:
-        modified_provider_yaml_files = []
-        for file in ALL_PROVIDER_YAML_FILES:
+        modified_pyproject_toml_files = []
+        for file in ALL_PYPROJECT_TOML_FILES:
             # Only check provider yaml files once and save the result immediately.
             # If we need to regenerate the dependencies and they are not modified then
             # all is fine and we can save checksums for the new files
             if check_md5_sum_for_file(file, md5sum_cache_dir, True):
-                modified_provider_yaml_files.append(file)
-        if modified_provider_yaml_files:
+                modified_pyproject_toml_files.append(file)
+        if modified_pyproject_toml_files:
             get_console().print(
                 "[info]Attempting to generate provider dependencies. "
-                f"{len(modified_provider_yaml_files)} provider.yaml file(s) changed since last check."
+                f"{len(modified_pyproject_toml_files)} pyproject.toml file(s) changed since last check."
             )
             if get_verbose():
                 get_console().print(
-                    [
-                        os.fspath(file.relative_to(AIRFLOW_SOURCES_ROOT))
-                        for file in modified_provider_yaml_files
-                    ]
+                    [os.fspath(file.relative_to(AIRFLOW_ROOT_PATH)) for file in modified_pyproject_toml_files]
                 )
-            # Regenerate provider_dependencies.json
-            result = run_command(
-                [
-                    sys.executable,
-                    os.fspath(
-                        AIRFLOW_SOURCES_ROOT
-                        / "scripts"
-                        / "ci"
-                        / "pre_commit"
-                        / "update_providers_dependencies.py"
-                    ),
-                ],
-                cwd=AIRFLOW_SOURCES_ROOT,
-                check=False,
-            )
-            if result.returncode != 0:
-                sys.exit(result.returncode)
+            subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
     for file in FILES_FOR_REBUILD_CHECK:
         is_modified = check_md5_sum_for_file(file, md5sum_cache_dir, update)
         if is_modified:
@@ -162,25 +146,24 @@ def md5sum_check_if_build_is_needed(
                     "This might lead to out-dated results of the check![/]"
                 )
                 get_console().print(
-                    f"[info]Consider running `breeze ci-image build --python {build_ci_params.python} "
+                    f"[info]Consider running `breeze ci-image build --python {build_ci_params.python}` "
                     f"at earliest convenience![/]\n"
                 )
             return False
         get_console().print(
-            f"[warning]The following important files are modified in {AIRFLOW_SOURCES_ROOT} "
+            f"[warning]The following important files are modified in {AIRFLOW_ROOT_PATH} "
             f"since last time image was built: [/]\n\n"
         )
         for file in modified_files:
             get_console().print(f" * [info]{file}[/]")
         get_console().print("\n[warning]Likely CI image needs rebuild[/]\n")
         return True
-    else:
-        if build_ci_params.skip_image_upgrade_check:
-            return False
-        get_console().print(
-            "[info]Docker image build is not needed for CI build as no important files are changed! "
-            "You can add --force-build to force it[/]"
-        )
+    if build_ci_params.skip_image_upgrade_check:
+        return False
+    get_console().print(
+        "[info]Docker image build is not needed for CI build as no important files are changed! "
+        "You can add --force-build to force it[/]"
+    )
     return False
 
 

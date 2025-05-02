@@ -21,6 +21,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
+
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
@@ -30,7 +32,6 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.helpers import prune_dict
-from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
 if TYPE_CHECKING:
     import jinja2
@@ -191,7 +192,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         if not context:
             return {}
 
-        context_dict = cast(dict, context)
+        context_dict = cast("dict", context)
         ti = context_dict["ti"]
         run_id = context_dict["run_id"]
 
@@ -244,7 +245,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         pod = None
         if len(pod_list) > 1:  # and self.reattach_on_restart:
             raise AirflowException(f"More than one pod running with labels: {label_selector}")
-        elif len(pod_list) == 1:
+        if len(pod_list) == 1:
             pod = pod_list[0]
             self.log.info(
                 "Found matching driver pod %s with labels %s", pod.metadata.name, pod.metadata.labels

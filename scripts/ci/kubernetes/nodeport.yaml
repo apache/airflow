@@ -18,11 +18,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: airflow-webserver-node-port
+  name: airflow-api-server-node-port
 spec:
   type: NodePort
   selector:
-    component: webserver
+    component: api-server
     release: airflow
     tier: airflow
   ports:

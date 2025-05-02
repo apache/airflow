@@ -27,8 +27,6 @@ from collections.abc import Iterable
 from typing import Union
 
 import sendgrid
-from airflow.hooks.base import BaseHook
-from airflow.utils.email import get_email_address_list
 from sendgrid.helpers.mail import (
     Attachment,
     Category,
@@ -40,6 +38,9 @@ from sendgrid.helpers.mail import (
     Personalization,
     SandBoxMode,
 )
+
+from airflow.hooks.base import BaseHook
+from airflow.utils.email import get_email_address_list
 
 log = logging.getLogger(__name__)
 

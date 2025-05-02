@@ -25,10 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-common-compat",
         "name": "Common Compat",
-        "description": "``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``\n",
-        "state": "ready",
-        "source-date-epoch": 1731569875,
-        "versions": ["1.4.0", "1.3.0", "1.2.2", "1.2.1", "1.2.0", "1.1.0", "1.0.0"],
+        "description": "Common Compatibility Provider - providing compatibility code for previous Airflow versions\n",
         "integrations": [
             {
                 "integration-name": "Common Compat",
@@ -36,9 +33,4 @@ def get_provider_info():
                 "tags": ["software"],
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0"],
-        "optional-dependencies": {
-            "openlineage": ["apache-airflow-providers-openlineage"],
-            "standard": ["apache-airflow-providers-standard"],
-        },
     }

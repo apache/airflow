@@ -21,18 +21,20 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import google.cloud.exceptions
+from google.api_core.exceptions import AlreadyExists
+from google.cloud.run_v2 import Job, Service
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
-from google.api_core.exceptions import AlreadyExists
-from google.cloud.run_v2 import Job, Service
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core import operation
     from google.cloud.run_v2.types import Execution
+
+    from airflow.utils.context import Context
 
 
 class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
@@ -263,7 +265,16 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Run the operator in deferrable mode.
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "overrides")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+        "overrides",
+        "polling_period_seconds",
+        "timeout_seconds",
+    )
 
     def __init__(
         self,
@@ -306,19 +317,18 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             self._fail_if_execution_failed(result)
             job = hook.get_job(job_name=result.job, region=self.region, project_id=self.project_id)
             return Job.to_dict(job)
-        else:
-            self.defer(
-                trigger=CloudRunJobFinishedTrigger(
-                    operation_name=self.operation.operation.name,
-                    job_name=self.job_name,
-                    project_id=self.project_id,
-                    location=self.region,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    polling_period_seconds=self.polling_period_seconds,
-                ),
-                method_name="execute_complete",
-            )
+        self.defer(
+            trigger=CloudRunJobFinishedTrigger(
+                operation_name=self.operation.operation.name,
+                job_name=self.job_name,
+                project_id=self.project_id,
+                location=self.region,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                polling_period_seconds=self.polling_period_seconds,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict):
         status = event["status"]

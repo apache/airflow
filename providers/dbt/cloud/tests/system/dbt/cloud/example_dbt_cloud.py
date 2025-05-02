@@ -26,7 +26,7 @@ from airflow.providers.dbt.cloud.operators.dbt import (
 )
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.edgemodifier import Label
+from airflow.sdk import Label
 
 from tests_common.test_utils.system_tests import get_test_env_id
 

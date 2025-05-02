@@ -35,6 +35,202 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add fail_when_dag_is_paused param to TriggerDagRunOperator (#48214)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make LatestOnlyOperator work for default data-interval-less DAGs (#49554)``
+
+Misc
+~~~~
+
+* ``Move DagIsPaused exception to standard provider (#49500)``
+* ``Fix static check re removing unnecessary else condition (#49415)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update standard provider doc operators in core operators-and-hooks-ref.rst (#49401)``
+* ``Update standard provider docs with correct imports (#49395)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix wrong link in standard provider yaml file (#49660)``
+   * ``Add extra-links section to standard provider (#49447)``
+   * ``Use unused pytest params in standard provider tests (#49422)``
+   * ``Move test_sensor_helper.py to standard provider tests (#49396)``
+
+1.0.0
+.....
+
+.. note::
+  Stable release of the provider.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove dag_version as a create_dagrun argument (#49148)``
+* ``Fix ExternalTaskSensor task_group_id check condition (#49027)``
+* ``Ensure that TI.id is unique per try. (#48749)``
+* ``Conditionally add session related imports in standard provider (#49218)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make default as time.now() for TriggerDagRunOperator (#48969)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix WorkflowTrigger to work with TaskSDK (#48819)``
+* ``Get 'LatestOnlyOperator' working with Task SDK (#48945)``
+* ``Fix dagstate trigger to work with TaskSDK (#48747)``
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix default base value (#49013)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+0.3.0
+.....
+
+* ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``
+* ``Make datetime objects in Context as Pendulum objects (#48592)``
+* ``Fix _get_count in sensor_helper.py (#40795)``
+* ``Fix logical_date error in BranchDateTimeOperator and BranchDayOfWeekOperator (#48486)``
+* ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+* ``Migrate standard decorators to standard provider (#48683)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Bump standard provider to 0.3.0 (#48763)``
+
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-72: Implement short circuit and branch operators (#46584)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle null logical date in TimeDeltaSensorAsync (#47652)``
+* ``Fix deprecation warning for 'BranchMixIn' (#47856)``
+* ``Fix DayOfWeekSensor use_task_logical_date condition (#47825)``
+* ``Fix python operators errors when initialising plugins in virtualenv jinja script (#48035)``
+
+Misc
+~~~~
+
+* ``AIP-72: Get 'TriggerDagRunOperator' working with Task SDK (#47882)``
+* ``Relocate utils/weekday.py to standard provider (#47892)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``Rewrite asset event registration (#47677)``
+* ``Implement pre- and post-execute hooks in sdk (#48230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Support '@task.bash' with Task SDK (#48060)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``Remove fixed comments (#47823)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Fix comment typo in PythonOperator (#47558)``
+
+0.1.1
+.....
+
+Misc
+~~~~
+
+* ``Relocate SmoothOperator to standard provider and add tests (#47530)``
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Move tests_common package to devel-common project (#47281)``
+* ``Remove old UI and webserver (#46942)``
+* ``Add deferred pagination mode to GenericTransfer (#44809)``
+* ``Replace 'external_trigger' check with DagRunType (#45961)``
+* ``Runtime context shouldn't have start_date as a key (#46961)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix codespell issues detected by new codespell (#47259)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+0.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-82 Introduce 'BaseEventTrigger' as base class for triggers used with event driven scheduling (#46391)``
+* ``AIP-83 amendment: Add logic for generating run_id when logical date is None. (#46616)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``TriggerDagRunOperator by defaults set logical date as null (#46633)``
+* ``Use run_id for ExternalDag and TriggerDagRun links (#46546)``
+
+Misc
+~~~~
+
+* ``change listener API, add basic support for task instance listeners in TaskSDK, make OpenLineage provider support Airflow 3's listener interface (#45294)``
+* ``Remove AirflowContextDeprecationWarning as all context should be clean for Airflow 3 (#46601)``
+* ``refactor(utils/decorators): rewrite remove task decorator to use cst (#43383)``
+* ``Add dynamic task mapping into TaskSDK runtime (#46032)``
+* ``Moving EmptyOperator to standard provider (#46231)``
+* ``Add run_after column to DagRun model (#45732)``
+* ``Removing feature: send context in venv operators (using 'use_airflow_context') (#46306)``
+* ``Remove import from MySQL provider tests in generic transfer test (#46274)``
+* ``Fix failures on main related to DagRun validation (#45917)``
+* ``Start porting mapped task to SDK (#45627)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove code for deprecation of Context keys (#45585)``
+* ``AIP-72: Move non-user facing code to '_internal' (#45515)``
+* ``AIP-72: Add support for 'get_current_context' in Task SDK (#45486)``
+* ``Move Literal alias into TYPE_CHECKING block (#45345)``
+* ``AIP-72: Add Taskflow API support & template rendering in Task SDK (#45444)``
+* ``Remove tuple_in_condition helpers (#45201)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+
 0.0.3
 .....
 

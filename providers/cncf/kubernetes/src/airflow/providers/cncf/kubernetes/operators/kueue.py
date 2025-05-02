@@ -22,11 +22,12 @@ import json
 from collections.abc import Sequence
 from functools import cached_property
 
+from kubernetes.utils import FailToCreateError
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
-from kubernetes.utils import FailToCreateError
 
 
 class KubernetesInstallKueueOperator(BaseOperator):
@@ -100,7 +101,7 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
                 "The `suspend` parameter can't be False. If you want to use Kueue for running Job"
                 " in a Kubernetes cluster, set the `suspend` parameter to True.",
             )
-        elif self.suspend is None:
+        if self.suspend is None:
             self.log.info(
                 "You have not set parameter `suspend` in class %s. "
                 "For running a Job in Kueue the `suspend` parameter has been set to True.",

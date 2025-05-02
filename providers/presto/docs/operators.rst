@@ -54,7 +54,7 @@ the connection metadata is structured as follows:
 
 An example usage of the SQLExecuteQueryOperator to connect to Presto is as follows:
 
-.. exampleinclude:: /../../providers/presto/tests/system/presto/example_presto.py
+.. exampleinclude:: /../../presto/tests/system/presto/example_presto.py
     :language: python
     :start-after: [START howto_operator_presto]
     :end-before: [END howto_operator_presto]

@@ -30,22 +30,21 @@ from typing import Any
 
 from airflow_breeze import global_constants
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
 
 
 def check_if_cache_exists(param_name: str) -> bool:
-    return (Path(BUILD_CACHE_DIR) / f".{param_name}").exists()
+    return (Path(BUILD_CACHE_PATH) / f".{param_name}").exists()
 
 
 def read_from_cache_file(param_name: str) -> str | None:
     cache_exists = check_if_cache_exists(param_name)
     if cache_exists:
-        return (Path(BUILD_CACHE_DIR) / f".{param_name}").read_text().strip()
-    else:
-        return None
+        return (Path(BUILD_CACHE_PATH) / f".{param_name}").read_text().strip()
+    return None
 
 
-def touch_cache_file(param_name: str, root_dir: Path = BUILD_CACHE_DIR):
+def touch_cache_file(param_name: str, root_dir: Path = BUILD_CACHE_PATH):
     (Path(root_dir) / f".{param_name}").touch()
 
 
@@ -62,7 +61,7 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
     if check_allowed_values:
         allowed, allowed_values = check_if_values_allowed(param_name, param_value)
     if allowed or not check_allowed_values:
-        cache_path = Path(BUILD_CACHE_DIR, f".{param_name}")
+        cache_path = Path(BUILD_CACHE_PATH, f".{param_name}")
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(param_value)
     else:
@@ -113,6 +112,6 @@ def delete_cache(param_name: str) -> bool:
     """Deletes value from cache. Returns true if the delete operation happened (i.e. cache was present)."""
     deleted = False
     if check_if_cache_exists(param_name):
-        (Path(BUILD_CACHE_DIR) / f".{param_name}").unlink()
+        (Path(BUILD_CACHE_PATH) / f".{param_name}").unlink()
         deleted = True
     return deleted

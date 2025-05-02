@@ -26,11 +26,12 @@ from collections.abc import Sequence
 from typing import Any
 from urllib.parse import quote, urlencode, urljoin
 
+import google.auth
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
+from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
 
-import google.auth
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.common.hooks.base_google import (
@@ -38,7 +39,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from google.api_core.retry import exponential_sleep_generator
 
 Operation = dict[str, Any]
 
@@ -137,8 +137,7 @@ class DataFusionHook(GoogleBaseHook):
 
         # Time is up!
         raise AirflowException(
-            f"Pipeline {pipeline_name} state {current_state} is not "
-            f"one of {success_states} after {timeout}s"
+            f"Pipeline {pipeline_name} state {current_state} is not one of {success_states} after {timeout}s"
         )
 
     @staticmethod
@@ -171,9 +170,9 @@ class DataFusionHook(GoogleBaseHook):
     def _check_response_status_and_data(response, message: str) -> None:
         if response.status == 404:
             raise AirflowNotFoundException(message)
-        elif response.status == 409:
+        if response.status == 409:
             raise ConflictException("Conflict: Resource is still in use.")
-        elif response.status != 200:
+        if response.status != 200:
             raise AirflowException(message)
         if response.data is None:
             raise AirflowException(
@@ -573,8 +572,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                         raise
         if pipeline:
             return pipeline
-        else:
-            raise AirflowException("Could not retrieve pipeline. Aborting.")
+        raise AirflowException("Could not retrieve pipeline. Aborting.")
 
     async def get_pipeline(
         self,

@@ -29,6 +29,11 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Generic Parameters
+------------------
+
+.. include:: ../_partials/generic_parameters.rst
+
 Operators
 ---------
 
@@ -40,7 +45,7 @@ Submit a new AWS Batch job
 To submit a new AWS Batch job and monitor it until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.operators.batch.BatchOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_batch.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_batch]
@@ -54,7 +59,7 @@ Create an AWS Batch compute environment
 To create a new AWS Batch compute environment you can
 use :class:`~airflow.providers.amazon.aws.operators.batch.BatchCreateComputeEnvironmentOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_batch.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_batch_create_compute_environment]
@@ -71,7 +76,7 @@ Wait on an AWS Batch job state
 To wait on the state of an AWS Batch Job until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.sensors.batch.BatchSensor`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_batch.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_batch]
@@ -94,7 +99,7 @@ Wait on an AWS Batch compute environment status
 To wait on the status of an AWS Batch compute environment until it reaches a terminal status you can
 use :class:`~airflow.providers.amazon.aws.sensors.batch.BatchComputeEnvironmentSensor`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_batch.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_batch_compute_environment]
@@ -108,7 +113,7 @@ Wait on an AWS Batch job queue status
 To wait on the status of an AWS Batch job queue until it reaches a terminal status you can
 use :class:`~airflow.providers.amazon.aws.sensors.batch.BatchJobQueueSensor`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_batch.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_batch_job_queue]

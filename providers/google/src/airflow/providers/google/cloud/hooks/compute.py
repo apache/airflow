@@ -23,13 +23,14 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from googleapiclient.discovery import build
-
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
 from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
 from google.cloud.compute_v1.services.instances import InstancesClient
+from googleapiclient.discovery import build
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -85,15 +86,15 @@ class ComputeEngineHook(GoogleBaseHook):
 
     def get_compute_instance_template_client(self):
         """Return Compute Engine Instance Template Client."""
-        return InstanceTemplatesClient(credentials=self.get_credentials(), client_info=self.client_info)
+        return InstanceTemplatesClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     def get_compute_instance_client(self):
         """Return Compute Engine Instance Client."""
-        return InstancesClient(credentials=self.get_credentials(), client_info=self.client_info)
+        return InstancesClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     def get_compute_instance_group_managers_client(self):
         """Return Compute Engine Instance Group Managers Client."""
-        return InstanceGroupManagersClient(credentials=self.get_credentials(), client_info=self.client_info)
+        return InstanceGroupManagersClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance_template(

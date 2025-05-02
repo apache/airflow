@@ -22,7 +22,6 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 import requests
-
 from google.auth.exceptions import RefreshError
 from google.auth.identity_pool import SubjectTokenSupplier
 

@@ -22,16 +22,25 @@ import os
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.parse import quote_plus, urlencode
 
 import trino
+from trino.exceptions import DatabaseError
+from trino.transaction import IsolationLevel
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.trino.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.helpers import exactly_one
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
-from trino.exceptions import DatabaseError
-from trino.transaction import IsolationLevel
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+else:
+    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
+        AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+        DEFAULT_FORMAT_PREFIX,
+    )
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -69,7 +78,7 @@ def _boolify(value):
     if isinstance(value, str):
         if value.lower() == "false":
             return False
-        elif value.lower() == "true":
+        if value.lower() == "true":
             return True
     return value
 
@@ -92,6 +101,40 @@ class TrinoHook(DbApiHook):
     query_id = ""
     _test_connection_sql = "select 1"
 
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": [],
+            "relabeling": {},
+            "placeholders": {
+                "extra": json.dumps(
+                    {
+                        "auth": "authentication type",
+                        "impersonate_as_owner": "allow impersonate as owner",
+                        "jwt__token": "JWT token",
+                        "jwt__file": "JWT file path",
+                        "certs__client_cert_path": "Client certificate path",
+                        "certs__client_key_path": "Client key path",
+                        "kerberos__config": "Kerberos config",
+                        "kerberos__service_name": "Kerberos service name",
+                        "kerberos__mutual_authentication": "Kerberos mutual authentication",
+                        "kerberos__force_preemptive": "Kerberos force preemptive",
+                        "kerberos__hostname_override": "Kerberos hostname override",
+                        "kerberos__sanitize_mutual_error_response": "Kerberos sanitize mutual error response",
+                        "kerberos__principal": "Kerberos principal",
+                        "kerberos__delegate": "Kerberos delegate",
+                        "kerberos__ca_bundle": "Kerberos CA bundle",
+                        "session_properties": "session properties",
+                        "client_tags": "Trino client tags. Example ['sales','cluster1']",
+                        "timezone": "Trino timezone",
+                    },
+                    indent=1,
+                ),
+                "login": "Effective user for connection",
+            },
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._placeholder: str = "?"
@@ -104,7 +147,7 @@ class TrinoHook(DbApiHook):
         user = db.login
         if db.password and extra.get("auth") in ("kerberos", "certs"):
             raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
-        elif db.password:
+        if db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
@@ -117,7 +160,7 @@ class TrinoHook(DbApiHook):
                 else:
                     msg += "none of them provided."
                 raise ValueError(msg)
-            elif jwt_file:
+            if jwt_file:
                 token = Path(extra["jwt__file"]).read_text()
             else:
                 token = extra["jwt__token"]
@@ -280,3 +323,38 @@ class TrinoHook(DbApiHook):
     def get_openlineage_default_schema(self):
         """Return Trino default schema."""
         return trino.constants.DEFAULT_SCHEMA
+
+    def get_uri(self) -> str:
+        """Return the Trino URI for the connection."""
+        conn = self.connection
+        uri = "trino://"
+
+        auth_part = ""
+        if conn.login:
+            auth_part = quote_plus(conn.login)
+            if conn.password:
+                auth_part = f"{auth_part}:{quote_plus(conn.password)}"
+            auth_part = f"{auth_part}@"
+
+        host_part = conn.host or "localhost"
+        if conn.port:
+            host_part = f"{host_part}:{conn.port}"
+
+        schema_part = ""
+        if conn.schema:
+            schema_part = f"/{quote_plus(conn.schema)}"
+            extra_schema = conn.extra_dejson.get("schema")
+            if extra_schema:
+                schema_part = f"{schema_part}/{quote_plus(extra_schema)}"
+
+        uri = f"{uri}{auth_part}{host_part}{schema_part}"
+
+        extra = conn.extra_dejson.copy()
+        if "schema" in extra:
+            extra.pop("schema")
+
+        query_params = {k: str(v) for k, v in extra.items() if v is not None}
+        if query_params:
+            uri = f"{uri}?{urlencode(query_params)}"
+
+        return uri

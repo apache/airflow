@@ -68,7 +68,7 @@ permissions:
   contents: read
 jobs:
   tests-core-integration:
-    timeout-minutes: 130
+    timeout-minutes: 30
     if: inputs.testable-core-integrations != '[]'
     name: "Integration core ${{ matrix.integration }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
@@ -117,7 +117,7 @@ jobs:
         if: failure()
 
   tests-providers-integration:
-    timeout-minutes: 130
+    timeout-minutes: 30
     if: inputs.testable-providers-integrations != '[]' && inputs.skip-providers-tests != 'true'
     name: "Integration: providers ${{ matrix.integration }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
@@ -165,7 +165,7 @@ jobs:
         if: failure()
 
   tests-system:
-    timeout-minutes: 130
+    timeout-minutes: 30
     if: inputs.run-system-tests == 'true'
     name: "System Tests"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
@@ -197,8 +197,7 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
       - name: "System Tests"
         run: >
-          ./scripts/ci/testing/run_system_tests.sh
-          tests/system/example_empty.py providers/tests/system/example_empty.py
+          ./scripts/ci/testing/run_system_tests.sh airflow-core/tests/system/example_empty.py
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
         with:

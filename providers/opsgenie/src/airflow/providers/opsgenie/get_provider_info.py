@@ -26,32 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-opsgenie",
         "name": "Opsgenie",
         "description": "`Opsgenie <https://www.atlassian.com/software/opsgenie>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734536073,
-        "versions": [
-            "5.8.0",
-            "5.7.0",
-            "5.6.1",
-            "5.6.0",
-            "5.5.0",
-            "5.4.0",
-            "5.3.0",
-            "5.2.0",
-            "5.1.1",
-            "5.1.0",
-            "5.0.0",
-            "4.0.0",
-            "3.1.0",
-            "3.0.3",
-            "3.0.2",
-            "3.0.1",
-            "3.0.0",
-            "2.0.1",
-            "2.0.0",
-            "1.0.2",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Opsgenie",
@@ -77,5 +51,4 @@ def get_provider_info():
             }
         ],
         "notifications": ["airflow.providers.opsgenie.notifications.opsgenie.OpsgenieNotifier"],
-        "dependencies": ["apache-airflow>=2.9.0", "opsgenie-sdk>=2.1.5"],
     }

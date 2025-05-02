@@ -57,7 +57,7 @@ releasing new versions of the providers. This means that the code changes in the
 reviewed by Airflow committers and merged when they are accepted by them. Also we must have sufficient
 test coverage and documentation that allow us to maintain the providers, and our users to use them.
 
-The providers - their latest version in "main" branch of airflow repository - are installed and tested together
+The providers - their latest version in "main" branch of Airflow repository - are installed and tested together
 with other community providers and one of the key properties of the community providers is that the latest
 version of providers contribute their dependencies to constraints of Airflow, published when Airflow Core is
 released. This means that when users are using constraints published by Airflow, they can install all
@@ -85,14 +85,14 @@ Airflow main branch to being decommissioned and removed from the main branch in 
 
    Technical details on how to manage lifecycle of providers are described in the document:
 
-   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
+   `Managing provider's lifecycle <https://github.com/apache/airflow/blob/main/providers/MANAGING_PROVIDERS_LIFECYCLE.rst>`_
 
 
 Accepting new community providers
 ---------------------------------
 
 Accepting new community providers should be a deliberate process that requires ``[DISCUSSION]``
-followed by ``[VOTE]`` thread at the airflow `devlist <https://airflow.apache.org/community/#mailing-list>`_.
+followed by ``[VOTE]`` thread at the Airflow `devlist <https://airflow.apache.org/community/#mailing-list>`_.
 
 In case the provider is integration with an open-source software rather than service we can relax the vote
 procedure a bit. Particularly if the open-source software is an Apache Software Foundation,
@@ -145,6 +145,10 @@ classification, whether there are breaking changes, new features or just bugs co
 Upgrading Minimum supported version of Airflow
 ----------------------------------------------
 
+.. note::
+
+   The following policy applies for Airflow 2. It has not yet been finalized for Airflow 3 and is subject to changes.
+
 One of the important limitations of the Providers released by the community is that we introduce the limit
 of a minimum supported version of Airflow. The minimum version of Airflow is the ``MINOR`` version (2.4, 2.5 etc.)
 indicating that the providers might use features that appeared in this release. The default support timespan
@@ -153,8 +157,8 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.9.0 in the first Provider's release after 8th of April 2025. 8th of April 2024 is the date when the
-first ``PATCHLEVEL`` of 2.9 (2.9.0) has been released.
+to 3.0.0 in the first Provider's release after 22nd of April 2026. 22nd of April 2025 is the date when the
+first ``PATCHLEVEL``  version of 3.0 (3.0.0) was released.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use
@@ -314,7 +318,7 @@ There are the following consequences (or lack of them) of removing the provider:
   longer maintained by the Apache Airflow community - linking to this page. This information should also
   find its way to the package documentation and consequently - to the description of the package in PyPI.
 * An ``[ANNOUNCE]`` thread is sent to the devlist and user list announcing removal of the provider
-* The released provider packages remain available on PyPI and in the
+* The released providers remain available on PyPI and in the
    `Archives <https://archive.apache.org/dist/airflow/providers/>`_ of the Apache
    Software Foundation, while they are removed from the
    `Downloads <https://downloads.apache.org/airflow/providers/>`_ .

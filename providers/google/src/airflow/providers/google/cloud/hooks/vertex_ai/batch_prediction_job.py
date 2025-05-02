@@ -23,13 +23,15 @@ import asyncio
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import BatchPredictionJob, Model, explain
 from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState, types
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -37,7 +39,7 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform_v1.services.job_service.pagers import ListBatchPredictionJobsPager
 
 
-class BatchPredictionJobHook(GoogleBaseHook):
+class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Vertex AI Batch Prediction Job APIs."""
 
     def __init__(
@@ -61,16 +63,8 @@ class BatchPredictionJobHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     @staticmethod
     def extract_batch_prediction_job_id(obj: dict) -> str:

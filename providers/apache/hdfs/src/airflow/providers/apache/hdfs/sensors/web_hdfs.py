@@ -23,9 +23,10 @@ from typing import TYPE_CHECKING, Any
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from hdfs import InsecureClient
     from hdfs.ext.kerberos import KerberosClient
+
+    from airflow.utils.context import Context
 
 
 class WebHdfsSensor(BaseSensorOperator):

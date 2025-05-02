@@ -23,7 +23,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.aiplatform import datasets
+from google.cloud.aiplatform.models import Model
+from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
+
 from airflow.providers.google.cloud.hooks.vertex_ai.auto_ml import AutoMLHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
@@ -31,16 +36,11 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAITrainingPipelinesLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.common.deprecated import deprecated
-from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform import datasets
-from google.cloud.aiplatform.models import Model
-from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
@@ -572,16 +572,6 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-
-    @property
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="training_pipeline_id",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def training_pipeline(self):
-        """Alias for ``training_pipeline_id``, used for compatibility (deprecated)."""
-        return self.training_pipeline_id
 
     def execute(self, context: Context):
         hook = AutoMLHook(

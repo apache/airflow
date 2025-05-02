@@ -30,6 +30,7 @@ from airflow.sensors.base import BaseSensorOperator
 if TYPE_CHECKING:
     try:
         from airflow.sdk.definitions.context import Context
+        from airflow.sensors.base import PokeReturnValue
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
@@ -102,7 +103,7 @@ class HttpSensor(BaseSensorOperator):
         request_kwargs: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
         response_error_codes_allowlist: list[str] | None = None,
-        response_check: Callable[..., bool] | None = None,
+        response_check: Callable[..., bool | PokeReturnValue] | None = None,
         extra_options: dict[str, Any] | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
@@ -129,7 +130,7 @@ class HttpSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.request_kwargs = request_kwargs or {}
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context) -> bool | PokeReturnValue:
         from airflow.utils.operator_helpers import determine_kwargs
 
         hook = HttpHook(
@@ -163,10 +164,10 @@ class HttpSensor(BaseSensorOperator):
 
         return True
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> Any:
         if not self.deferrable or self.response_check:
-            super().execute(context=context)
-        elif not self.poke(context):
+            return super().execute(context=context)
+        if not self.poke(context):
             self.defer(
                 timeout=timedelta(seconds=self.timeout),
                 trigger=HttpSensorTrigger(

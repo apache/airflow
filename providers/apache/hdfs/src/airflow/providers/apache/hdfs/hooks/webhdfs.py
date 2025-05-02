@@ -24,11 +24,11 @@ import socket
 from typing import Any
 
 import requests
+from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from hdfs import HdfsError, InsecureClient
 
 log = logging.getLogger(__name__)
 
@@ -96,8 +96,7 @@ class WebHDFSHook(BaseHook):
                     self.log.info("Using namenode %s for hook", namenode)
                     host_socket.close()
                     return client
-                else:
-                    self.log.warning("Could not connect to %s:%s", namenode, connection.port)
+                self.log.warning("Could not connect to %s:%s", namenode, connection.port)
             except HdfsError as hdfs_error:
                 self.log.info("Read operation on namenode %s failed with error: %s", namenode, hdfs_error)
         return None

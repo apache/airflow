@@ -83,11 +83,10 @@ class EmrHook(AwsBaseHook):
             cluster_id = matching_clusters[0]["Id"]
             self.log.info("Found cluster name = %s id = %s", emr_cluster_name, cluster_id)
             return cluster_id
-        elif len(matching_clusters) > 1:
+        if len(matching_clusters) > 1:
             raise AirflowException(f"More than one cluster found for name {emr_cluster_name}")
-        else:
-            self.log.info("No cluster found for name %s", emr_cluster_name)
-            return None
+        self.log.info("No cluster found for name %s", emr_cluster_name)
+        return None
 
     def create_job_flow(self, job_flow_overrides: dict[str, Any]) -> dict[str, Any]:
         """
@@ -387,12 +386,11 @@ class EmrContainerHook(AwsBaseHook):
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Create EMR EKS Cluster failed: {response}")
-        else:
-            self.log.info(
-                "Create EMR EKS Cluster success - virtual cluster id %s",
-                response["id"],
-            )
-            return response["id"]
+        self.log.info(
+            "Create EMR EKS Cluster success - virtual cluster id %s",
+            response["id"],
+        )
+        return response["id"]
 
     def submit_job(
         self,
@@ -446,13 +444,12 @@ class EmrContainerHook(AwsBaseHook):
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Start Job Run failed: {response}")
-        else:
-            self.log.info(
-                "Start Job Run success - Job Id %s and virtual cluster id %s",
-                response["id"],
-                response["virtualClusterId"],
-            )
-            return response["id"]
+        self.log.info(
+            "Start Job Run success - Job Id %s and virtual cluster id %s",
+            response["id"],
+            response["virtualClusterId"],
+        )
+        return response["id"]
 
     def get_job_failure_reason(self, job_id: str) -> str | None:
         """

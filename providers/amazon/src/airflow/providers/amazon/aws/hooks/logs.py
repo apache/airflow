@@ -152,7 +152,7 @@ class AwsLogsHook(AwsBaseHook):
          If the value is LastEventTime , the results are ordered by the event time. The default value is LogStreamName.
         :param count: The maximum number of items returned
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             try:
                 response: dict[str, Any] = await client.describe_log_streams(
                     logGroupName=log_group,
@@ -194,7 +194,7 @@ class AwsLogsHook(AwsBaseHook):
             else:
                 token_arg = {}
 
-            async with self.async_conn as client:
+            async with await self.get_async_conn() as client:
                 response = await client.get_log_events(
                     logGroupName=log_group,
                     logStreamName=log_stream_name,

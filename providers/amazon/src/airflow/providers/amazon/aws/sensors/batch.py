@@ -18,20 +18,20 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class BatchSensor(BaseSensorOperator):
+class BatchSensor(AwsBaseSensor[BatchClientHook]):
     """
     Poll the state of the Batch Job until it reaches a terminal state; fails if the job fails.
 
@@ -40,19 +40,24 @@ class BatchSensor(BaseSensorOperator):
         :ref:`howto/sensor:BatchSensor`
 
     :param job_id: Batch job_id to check the state for
-    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-        If this is None or empty then the default boto3 behaviour is used. If
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: aws region name associated with the client
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param deferrable: Run sensor in the deferrable mode.
     :param poke_interval: polling period in seconds to check for the status of the job.
     :param max_retries: Number of times to poll for job state before
         returning the current state.
     """
 
-    template_fields: Sequence[str] = ("job_id",)
+    aws_hook_class = BatchClientHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_id",
+    )
     template_ext: Sequence[str] = ()
     ui_color = "#66c3ff"
 
@@ -60,8 +65,6 @@ class BatchSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poke_interval: float = 30,
         max_retries: int = 4200,
@@ -69,8 +72,6 @@ class BatchSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
         self.job_id = job_id
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.deferrable = deferrable
         self.poke_interval = poke_interval
         self.max_retries = max_retries
@@ -119,15 +120,8 @@ class BatchSensor(BaseSensorOperator):
         job_id = event["job_id"]
         self.log.info("Batch Job %s complete", job_id)
 
-    @cached_property
-    def hook(self) -> BatchClientHook:
-        return BatchClientHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name,
-        )
 
-
-class BatchComputeEnvironmentSensor(BaseSensorOperator):
+class BatchComputeEnvironmentSensor(AwsBaseSensor[BatchClientHook]):
     """
     Poll the state of the Batch environment until it reaches a terminal state; fails if the environment fails.
 
@@ -137,38 +131,31 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
 
     :param compute_environment: Batch compute environment name
 
-    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-        If this is None or empty then the default boto3 behaviour is used. If
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
 
-    :param region_name: aws region name associated with the client
     """
 
-    template_fields: Sequence[str] = ("compute_environment",)
+    aws_hook_class = BatchClientHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "compute_environment",
+    )
     template_ext: Sequence[str] = ()
     ui_color = "#66c3ff"
 
     def __init__(
         self,
         compute_environment: str,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.compute_environment = compute_environment
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-
-    @cached_property
-    def hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook."""
-        return BatchClientHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name,
-        )
 
     def poke(self, context: Context) -> bool:
         response = self.hook.client.describe_compute_environments(  # type: ignore[union-attr]
@@ -191,7 +178,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         )
 
 
-class BatchJobQueueSensor(BaseSensorOperator):
+class BatchJobQueueSensor(AwsBaseSensor[BatchClientHook]):
     """
     Poll the state of the Batch job queue until it reaches a terminal state; fails if the queue fails.
 
@@ -204,16 +191,20 @@ class BatchJobQueueSensor(BaseSensorOperator):
     :param treat_non_existing_as_deleted: If True, a non-existing Batch job queue is considered as a deleted
         queue and as such a valid case.
 
-    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-        If this is None or empty then the default boto3 behaviour is used. If
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-
-    :param region_name: aws region name associated with the client
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = ("job_queue",)
+    aws_hook_class = BatchClientHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_queue",
+    )
     template_ext: Sequence[str] = ()
     ui_color = "#66c3ff"
 
@@ -221,23 +212,11 @@ class BatchJobQueueSensor(BaseSensorOperator):
         self,
         job_queue: str,
         treat_non_existing_as_deleted: bool = False,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_queue = job_queue
         self.treat_non_existing_as_deleted = treat_non_existing_as_deleted
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-
-    @cached_property
-    def hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook."""
-        return BatchClientHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name,
-        )
 
     def poke(self, context: Context) -> bool:
         response = self.hook.client.describe_job_queues(  # type: ignore[union-attr]
@@ -247,8 +226,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
         if not response["jobQueues"]:
             if self.treat_non_existing_as_deleted:
                 return True
-            else:
-                raise AirflowException(f"AWS Batch job queue {self.job_queue} not found")
+            raise AirflowException(f"AWS Batch job queue {self.job_queue} not found")
 
         status = response["jobQueues"][0]["status"]
 

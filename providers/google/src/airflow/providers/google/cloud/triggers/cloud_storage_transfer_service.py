@@ -21,6 +21,9 @@ import asyncio
 from collections.abc import AsyncIterator, Iterable, Sequence
 from typing import Any
 
+from google.api_core.exceptions import GoogleAPIError
+from google.cloud.storage_transfer_v1.types import TransferOperation
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
@@ -28,8 +31,6 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.api_core.exceptions import GoogleAPIError
-from google.cloud.storage_transfer_v1.types import TransferOperation
 
 
 class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
@@ -58,7 +59,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize StorageTransferJobsTrigger arguments and classpath."""
         return (
-            f"{self.__class__.__module__ }.{self.__class__.__qualname__}",
+            f"{self.__class__.__module__}.{self.__class__.__qualname__}",
             {
                 "project_id": self.project_id,
                 "job_names": self.job_names,
@@ -175,7 +176,7 @@ class CloudStorageTransferServiceCheckJobStatusTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize CloudStorageTransferServiceCheckJobStatusTrigger arguments and classpath."""
         return (
-            f"{self.__class__.__module__ }.{self.__class__.__qualname__}",
+            f"{self.__class__.__module__}.{self.__class__.__qualname__}",
             {
                 "job_name": self.job_name,
                 "expected_statuses": self.expected_statuses,

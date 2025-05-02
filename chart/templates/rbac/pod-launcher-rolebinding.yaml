@@ -58,20 +58,22 @@ roleRef:
   name: {{ include "airflow.fullname" . }}-pod-launcher-role
   {{- end }}
 subjects:
+  {{- $schedulerAdded := false }}
   {{- range $executor := $executors }}
-  {{- if has $executor $schedulerLaunchExecutors }}
+  {{- if and (has $executor $schedulerLaunchExecutors) (not $schedulerAdded) }}
+  {{- $schedulerAdded = true }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
-    {{- break -}}
   {{- end }}
   {{- end }}
+  {{- $workerAdded := false }}
   {{- range $executor := $executors }}
-  {{- if has $executor $workerLaunchExecutors }}
+  {{- if and (has $executor $workerLaunchExecutors) (not $workerAdded) }}
+  {{- $workerAdded = true }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
-    {{- break -}}
   {{- end }}
   {{- end }}
 {{- end }}

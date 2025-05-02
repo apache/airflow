@@ -21,11 +21,12 @@ from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlparse
 
 import aiohttp
-import requests
 import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
+from requests import PreparedRequest, Request, Response, Session
 from requests.auth import HTTPBasicAuth
+from requests.exceptions import ConnectionError, HTTPError
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
@@ -45,6 +46,39 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
         return f"{base_url}/{endpoint}"
     return (base_url or "") + (endpoint or "")
+
+
+def _process_extra_options_from_connection(conn: Connection, extra_options: dict[str, Any]) -> dict:
+    extra = conn.extra_dejson
+    stream = extra.pop("stream", None)
+    cert = extra.pop("cert", None)
+    proxies = extra.pop("proxies", extra.pop("proxy", None))
+    timeout = extra.pop("timeout", None)
+    verify_ssl = extra.pop("verify", extra.pop("verify_ssl", None))
+    allow_redirects = extra.pop("allow_redirects", None)
+    max_redirects = extra.pop("max_redirects", None)
+    trust_env = extra.pop("trust_env", None)
+    check_response = extra.pop("check_response", None)
+
+    if stream is not None and "stream" not in extra_options:
+        extra_options["stream"] = stream
+    if cert is not None and "cert" not in extra_options:
+        extra_options["cert"] = cert
+    if proxies is not None and "proxy" not in extra_options:
+        extra_options["proxy"] = proxies
+    if timeout is not None and "timeout" not in extra_options:
+        extra_options["timeout"] = timeout
+    if verify_ssl is not None and "verify_ssl" not in extra_options:
+        extra_options["verify_ssl"] = verify_ssl
+    if allow_redirects is not None and "allow_redirects" not in extra_options:
+        extra_options["allow_redirects"] = allow_redirects
+    if max_redirects is not None and "max_redirects" not in extra_options:
+        extra_options["max_redirects"] = max_redirects
+    if trust_env is not None and "trust_env" not in extra_options:
+        extra_options["trust_env"] = trust_env
+    if check_response is not None and "check_response" not in extra_options:
+        extra_options["check_response"] = check_response
+    return extra
 
 
 class HttpHook(BaseHook):
@@ -69,6 +103,8 @@ class HttpHook(BaseHook):
     default_conn_name = "http_default"
     conn_type = "http"
     hook_name = "HTTP"
+    default_host = ""
+    default_headers: dict[str, str] = {}
 
     def __init__(
         self,
@@ -109,70 +145,73 @@ class HttpHook(BaseHook):
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
-    def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
+    def get_conn(
+        self, headers: dict[Any, Any] | None = None, extra_options: dict[str, Any] | None = None
+    ) -> Session:
         """
         Create a Requests HTTP session.
 
         :param headers: Additional headers to be passed through as a dictionary.
+        :param extra_options: additional options to be used when executing the request
         :return: A configured requests.Session object.
         """
-        session = requests.Session()
+        session = Session()
         connection = self.get_connection(self.http_conn_id)
         self._set_base_url(connection)
         session = self._configure_session_from_auth(session, connection)
         if connection.extra:
-            session = self._configure_session_from_extra(session, connection)
+            session = self._configure_session_from_extra(session, connection, extra_options)
         session = self._configure_session_from_mount_adapters(session)
+        if self.default_headers:
+            session.headers.update(self.default_headers)
         if headers:
             session.headers.update(headers)
         return session
 
     def _set_base_url(self, connection: Connection) -> None:
-        host = connection.host or ""
+        host = connection.host or self.default_host
         schema = connection.schema or "http"
         # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
         if "://" in host:
             self.base_url = host
         else:
             self.base_url = f"{schema}://{host}" if host else f"{schema}://"
-            if connection.port:
-                self.base_url = f"{self.base_url}:{connection.port}"
+        if connection.port:
+            self.base_url = f"{self.base_url}:{connection.port}"
         parsed = urlparse(self.base_url)
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
 
-    def _configure_session_from_auth(
-        self, session: requests.Session, connection: Connection
-    ) -> requests.Session:
+    def _configure_session_from_auth(self, session: Session, connection: Connection) -> Session:
         session.auth = self._extract_auth(connection)
         return session
 
     def _extract_auth(self, connection: Connection) -> Any | None:
         if connection.login:
             return self.auth_type(connection.login, connection.password)
-        elif self._auth_type:
+        if self._auth_type:
             return self.auth_type()
         return None
 
     def _configure_session_from_extra(
-        self, session: requests.Session, connection: Connection
-    ) -> requests.Session:
-        extra = connection.extra_dejson
-        extra.pop("timeout", None)
-        extra.pop("allow_redirects", None)
-        session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
-        session.stream = extra.pop("stream", False)
-        session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
-        session.cert = extra.pop("cert", None)
-        session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
-        session.trust_env = extra.pop("trust_env", True)
+        self, session: Session, connection: Connection, extra_options: dict[str, Any] | None = None
+    ) -> Session:
+        if extra_options is None:
+            extra_options = {}
+        headers = _process_extra_options_from_connection(connection, extra_options)
+        session.proxies = extra_options.pop("proxies", extra_options.pop("proxy", {}))
+        session.stream = extra_options.pop("stream", False)
+        session.verify = extra_options.pop("verify", extra_options.pop("verify_ssl", True))
+        session.cert = extra_options.pop("cert", None)
+        session.max_redirects = extra_options.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.trust_env = extra_options.pop("trust_env", True)
         try:
-            session.headers.update(extra)
+            session.headers.update(headers)
         except TypeError:
             self.log.warning("Connection to %s has invalid extra field.", connection.host)
         return session
 
-    def _configure_session_from_mount_adapters(self, session: requests.Session) -> requests.Session:
+    def _configure_session_from_mount_adapters(self, session: Session) -> Session:
         scheme = urlparse(self.base_url).scheme
         if not scheme:
             raise ValueError(
@@ -207,25 +246,25 @@ class HttpHook(BaseHook):
         """
         extra_options = extra_options or {}
 
-        session = self.get_conn(headers)
+        session = self.get_conn(headers, extra_options)
 
         url = self.url_from_endpoint(endpoint)
 
         if self.method == "GET":
             # GET uses params
-            req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
+            req = Request(self.method, url, params=data, headers=headers, **request_kwargs)
         elif self.method == "HEAD":
             # HEAD doesn't use params
-            req = requests.Request(self.method, url, headers=headers, **request_kwargs)
+            req = Request(self.method, url, headers=headers, **request_kwargs)
         else:
             # Others use data
-            req = requests.Request(self.method, url, data=data, headers=headers, **request_kwargs)
+            req = Request(self.method, url, data=data, headers=headers, **request_kwargs)
 
         prepped_request = session.prepare_request(req)
         self.log.debug("Sending '%s' to url: %s", self.method, url)
         return self.run_and_check(session, prepped_request, extra_options)
 
-    def check_response(self, response: requests.Response) -> None:
+    def check_response(self, response: Response) -> None:
         """
         Check the status code and raise on failure.
 
@@ -235,15 +274,15 @@ class HttpHook(BaseHook):
         """
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError:
+        except HTTPError:
             self.log.error("HTTP error: %s", response.reason)
             self.log.error(response.text)
             raise AirflowException(str(response.status_code) + ":" + response.reason)
 
     def run_and_check(
         self,
-        session: requests.Session,
-        prepped_request: requests.PreparedRequest,
+        session: Session,
+        prepped_request: PreparedRequest,
         extra_options: dict[Any, Any],
     ) -> Any:
         """
@@ -279,7 +318,7 @@ class HttpHook(BaseHook):
                 self.check_response(response)
             return response
 
-        except requests.exceptions.ConnectionError as ex:
+        except ConnectionError as ex:
             self.log.warning("%s Tenacity will retry to execute the operation", ex)
             raise ex
 
@@ -400,7 +439,7 @@ class HttpAsyncHook(BaseHook):
             if conn.login:
                 auth = self.auth_type(conn.login, conn.password)
             if conn.extra:
-                extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+                extra = _process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 
                 try:
                     _headers.update(extra)
@@ -456,32 +495,6 @@ class HttpAsyncHook(BaseHook):
                 return response
 
         raise NotImplementedError  # should not reach this, but makes mypy happy
-
-    @classmethod
-    def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:
-        extra = conn.extra_dejson
-        extra.pop("stream", None)
-        extra.pop("cert", None)
-        proxies = extra.pop("proxies", extra.pop("proxy", None))
-        timeout = extra.pop("timeout", None)
-        verify_ssl = extra.pop("verify", extra.pop("verify_ssl", None))
-        allow_redirects = extra.pop("allow_redirects", None)
-        max_redirects = extra.pop("max_redirects", None)
-        trust_env = extra.pop("trust_env", None)
-
-        if proxies is not None and "proxy" not in extra_options:
-            extra_options["proxy"] = proxies
-        if timeout is not None and "timeout" not in extra_options:
-            extra_options["timeout"] = timeout
-        if verify_ssl is not None and "verify_ssl" not in extra_options:
-            extra_options["verify_ssl"] = verify_ssl
-        if allow_redirects is not None and "allow_redirects" not in extra_options:
-            extra_options["allow_redirects"] = allow_redirects
-        if max_redirects is not None and "max_redirects" not in extra_options:
-            extra_options["max_redirects"] = max_redirects
-        if trust_env is not None and "trust_env" not in extra_options:
-            extra_options["trust_env"] = trust_env
-        return extra
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
         """

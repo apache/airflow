@@ -26,6 +26,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.aiplatform import schema
+from google.protobuf.json_format import ParseDict
+from google.protobuf.struct_pb2 import Value
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
@@ -42,9 +46,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     RunPipelineJobOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from google.cloud.aiplatform import schema
-from google.protobuf.json_format import ParseDict
-from google.protobuf.struct_pb2 import Value
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -122,8 +123,7 @@ with DAG(
         task_id="get_pipeline_job",
         project_id=PROJECT_ID,
         region=REGION,
-        pipeline_job_id="{{ task_instance.xcom_pull("
-        "task_ids='run_pipeline_job', key='pipeline_job_id') }}",
+        pipeline_job_id="{{ task_instance.xcom_pull(task_ids='run_pipeline_job', key='pipeline_job_id') }}",
     )
     # [END how_to_cloud_vertex_ai_get_pipeline_job_operator]
 
@@ -132,8 +132,7 @@ with DAG(
         task_id="delete_pipeline_job",
         project_id=PROJECT_ID,
         region=REGION,
-        pipeline_job_id="{{ task_instance.xcom_pull("
-        "task_ids='run_pipeline_job', key='pipeline_job_id') }}",
+        pipeline_job_id="{{ task_instance.xcom_pull(task_ids='run_pipeline_job', key='pipeline_job_id') }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_pipeline_job_operator]

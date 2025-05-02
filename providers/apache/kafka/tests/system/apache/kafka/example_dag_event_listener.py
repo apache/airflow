@@ -101,11 +101,10 @@ with DAG(
     def wait_for_event(message, **context):
         if message % 15 == 0:
             return f"encountered {message}!"
-        else:
-            if message % 3 == 0:
-                print(f"encountered {message} FIZZ !")
-            if message % 5 == 0:
-                print(f"encountered {message} BUZZ !")
+        if message % 3 == 0:
+            print(f"encountered {message} FIZZ !")
+        if message % 5 == 0:
+            print(f"encountered {message} BUZZ !")
 
     # [START howto_sensor_await_message_trigger_function]
     listen_for_message = AwaitMessageTriggerFunctionSensor(

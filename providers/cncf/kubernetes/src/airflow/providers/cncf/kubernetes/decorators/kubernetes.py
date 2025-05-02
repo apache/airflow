@@ -25,13 +25,23 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Callable
 
 import dill
+from kubernetes.client import models as k8s
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
+else:
+    from airflow.decorators.base import (  # type: ignore[no-redef]
+        DecoratedOperator,
+        TaskDecorator,
+        task_decorator_factory,
+    )
+
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
 )
-from kubernetes.client import models as k8s
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -143,7 +153,7 @@ def kubernetes_task(
     Kubernetes operator decorator.
 
     This wraps a function to be executed in K8s using KubernetesPodOperator.
-    Also accepts any argument that DockerOperator will via ``kwargs``. Can be
+    Also accepts any argument that KubernetesPodOperator will via ``kwargs``. Can be
     reused in a single DAG.
 
     :param python_callable: Function to decorate

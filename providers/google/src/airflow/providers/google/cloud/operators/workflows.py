@@ -23,6 +23,11 @@ import uuid
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import AlreadyExists
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.workflows.executions_v1beta import Execution
+from google.cloud.workflows_v1beta import Workflow
+
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
 from airflow.providers.google.cloud.links.workflows import (
     WorkflowsExecutionLink,
@@ -31,15 +36,12 @@ from airflow.providers.google.cloud.links.workflows import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from google.api_core.exceptions import AlreadyExists
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.workflows.executions_v1beta import Execution
-from google.cloud.workflows_v1beta import Workflow
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 from airflow.utils.hashlib_wrapper import md5
 

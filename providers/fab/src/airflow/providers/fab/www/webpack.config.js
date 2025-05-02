@@ -58,6 +58,7 @@ Foundation (http://www.apache.org/).
 const config = {
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
+    flash: `${CSS_DIR}/flash.css`,
     loadingDots: `${CSS_DIR}/loading-dots.css`,
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
     materialIcons: `${CSS_DIR}/material-icons.css`,
@@ -76,19 +77,16 @@ const config = {
       // Be sure to update aliases in jest.config.js and tsconfig.json
       src: path.resolve(__dirname, "static/js"),
     },
-    extensions: [".js", ".jsx", ".ts", ".tsx", ".css"],
+    extensions: [".js", ".css"],
   },
   module: {
     rules: [
       {
-        test: /\.(js|jsx|tsx|ts)$/,
+        test: /\.(js)$/,
         exclude: /node_modules/,
         use: [
           {
             loader: "babel-loader",
-            options: {
-              presets: ["@babel/preset-react", "@babel/preset-typescript"],
-            },
           },
         ],
       },
@@ -177,45 +175,12 @@ const config = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: "node_modules/d3/d3.min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/dagre-d3/dist/*.min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/d3-shape/dist/*.min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/d3-tip/dist/index.js",
-          to: "d3-tip.js",
-          flatten: true,
-        },
-        {
           from: "node_modules/jquery-ui/dist/jquery-ui.min.js",
-          flatten: true,
+          to: "jquery-ui.min.js",
         },
         {
           from: "node_modules/jquery-ui/dist/themes/base/jquery-ui.min.css",
-          flatten: true,
-        },
-        {
-          from: "node_modules/codemirror/lib/codemirror.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/codemirror/addon/lint/**.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/codemirror/mode/javascript/javascript.js",
-          flatten: true,
-        },
-        {
-          from: "node_modules/jshint/dist/jshint.js",
-          flatten: true,
+          to: "jquery-ui.min.css",
         },
       ],
     }),

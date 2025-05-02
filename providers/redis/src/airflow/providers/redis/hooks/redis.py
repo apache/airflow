@@ -21,8 +21,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from airflow.hooks.base import BaseHook
 from redis import Redis
+
+from airflow.hooks.base import BaseHook
 
 DEFAULT_SSL_CERT_REQS = "required"
 ALLOWED_SSL_CERT_REQS = [DEFAULT_SSL_CERT_REQS, "optional", "none"]
@@ -42,7 +43,7 @@ class RedisHook(BaseHook):
     conn_type = "redis"
     hook_name = "Redis"
 
-    def __init__(self, redis_conn_id: str = default_conn_name) -> None:
+    def __init__(self, redis_conn_id: str = default_conn_name, **kwargs) -> None:
         """
         Prepare hook to connect to a Redis database.
 
@@ -52,11 +53,11 @@ class RedisHook(BaseHook):
         super().__init__()
         self.redis_conn_id = redis_conn_id
         self.redis = None
-        self.host = None
-        self.port = None
-        self.username = None
-        self.password = None
-        self.db = None
+        self.host = kwargs.get("host", None)
+        self.port = kwargs.get("port", None)
+        self.username = kwargs.get("username", None)
+        self.password = kwargs.get("password", None)
+        self.db = kwargs.get("db", None)
 
     def get_conn(self):
         """Return a Redis connection."""

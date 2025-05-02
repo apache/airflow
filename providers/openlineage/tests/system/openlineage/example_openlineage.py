@@ -19,22 +19,19 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
+
+from system.openlineage.operator import OpenLineageTestOperator
 
 
 def do_nothing():
     pass
 
 
-default_args = {"start_date": datetime(2021, 1, 1), "retries": 1}
-
 # Instantiate the DAG
 with DAG(
     "openlineage_basic_dag",
-    default_args=default_args,
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,

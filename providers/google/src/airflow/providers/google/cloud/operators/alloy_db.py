@@ -23,6 +23,10 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud import alloydb_v1
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.alloy_db import AlloyDbHook
 from airflow.providers.google.cloud.links.alloy_db import (
@@ -31,17 +35,14 @@ from airflow.providers.google.cloud.links.alloy_db import (
     AlloyDBUsersLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud import alloydb_v1
 
 if TYPE_CHECKING:
     import proto
-
-    from airflow.utils.context import Context
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 
 class AlloyDBBaseOperator(GoogleCloudBaseOperator):
@@ -144,8 +145,7 @@ class AlloyDBWriteBaseOperator(AlloyDBBaseOperator):
         if self.validate_request:
             # Validation requests are only validated and aren't executed, thus no operation result is expected
             return None
-        else:
-            return self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        return self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
 
 
 class AlloyDBCreateClusterOperator(AlloyDBWriteBaseOperator):

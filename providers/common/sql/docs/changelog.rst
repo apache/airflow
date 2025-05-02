@@ -25,6 +25,126 @@
 Changelog
 ---------
 
+1.26.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: integrate 'polars' in 'get_df', 'get_df_by_chunks' (#48875)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``feat(secrets_masker): add minimum secret length and skip masking for common terms (#48791)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+1.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add requires_result_fetch Configuration to SQLExecuteQueryOperator (#46997)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+
+1.24.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix get_hook() got an unexpected keyword argument 'hook_params' in SQLExecuteQueryTrigger (#47728)``
+* ``Do not allow semicolon in partition_clause (#48098)``
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``AIP-72: Implement short circuit and branch operators (#46584)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+1.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add deferred pagination mode to GenericTransfer (#44809)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fIx deprecation warnings in common.sql (#47169)``
+* ``Add  missing 'methodtools' dependency of the 'common-sql' provider (#47148)``
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+1.23.0
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+1.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Introduce notion of dialects in DbApiHook (#41327)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DbApiHook.insert_rows logging incorrect number of rows commited (#45789)``
+* ``Fix escaping of special characters or reserved words as column names in dialects of common sql provider (#45640)``
+
+Misc
+~~~~
+
+* ``Add run_after column to DagRun model (#45732)``
+* ``Adding type ignore to sql hook (#46163)``
+* ``Added ADR document describing why the notion of dialects is introduced (#45456)``
+* ``Bring back mypy checks for new-structure providers (#45815)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Moving EmptyOperator to standard provider (#46231)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+
 1.21.0
 ......
 
@@ -359,7 +479,7 @@ Misc
 * ``Remove backcompat inheritance for DbApiHook (#35754)``
 
 .. Review and move the new changes to one of the sections above:
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Work around typing issue in examples and providers (#35494)``

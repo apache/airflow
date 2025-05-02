@@ -48,9 +48,7 @@ IMPORTANT_WARNING_SIGN = {
     "pydantic.warnings.PydanticDeprecatedSince20": "!!",
     "celery.exceptions.CPendingDeprecationWarning": "!!",
     "pytest.PytestWarning": "!!",
-    "airflow.exceptions.RemovedInAirflow3Warning": "!",
     "airflow.exceptions.AirflowProviderDeprecationWarning": "!",
-    "airflow.utils.context.AirflowContextDeprecationWarning": "!",
 }
 # Always print messages for these warning categories
 ALWAYS_SHOW_WARNINGS = {
@@ -151,7 +149,7 @@ def merge_files(files: Iterator[tuple[Path, str]], output_directory: Path) -> Pa
                         record = json.loads(line)
                         if not isinstance(record, dict):
                             raise TypeError
-                        elif not all(field in record for field in REQUIRED_FIELDS):
+                        if not all(field in record for field in REQUIRED_FIELDS):
                             raise ValueError
                     except Exception:
                         bad_records += 1
@@ -248,6 +246,9 @@ def main(_input: str, _output: str | None, pattern: str | None) -> int | str:
 
     try:
         input_path = Path(os.path.expanduser(os.path.expandvars(_input))).resolve(strict=True)
+    except FileNotFoundError:
+        print(f"The path {_input!r} does not exist. Skipping it.")
+        return 0
     except OSError as ex:
         return f"Unable to resolve {_input!r} path. {type(ex).__name__}: {ex}"
 

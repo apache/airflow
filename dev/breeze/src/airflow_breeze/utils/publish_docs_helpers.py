@@ -21,26 +21,16 @@ import os
 from pathlib import Path
 
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
-    OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
+    AIRFLOW_ROOT_PATH,
 )
 
 CONSOLE_WIDTH = 180
 
-# TODO(potiuk): remove it when we move all providers to the new structure
-OLD_PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider.yaml.schema.json"
-# TODO(potiuk) - rename when all providers are new-style
-NEW_PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "new_provider.yaml.schema.json"
+PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_ROOT_PATH / "airflow" / "provider.yaml.schema.json"
 
 
 def _filepath_to_module(filepath: str):
-    # TODO: handle relative to providers project
-    return str(Path(filepath).relative_to(AIRFLOW_SOURCES_ROOT)).replace("/", ".")
-
-
-def _filepath_to_system_tests(filepath: str):
-    return str(OLD_SYSTEM_TESTS_PROVIDERS_ROOT / Path(filepath).relative_to(OLD_AIRFLOW_PROVIDERS_NS_PACKAGE))
+    return str(Path(filepath).relative_to(AIRFLOW_ROOT_PATH)).replace("/", ".")
 
 
 def pretty_format_path(path: str, start: str) -> str:

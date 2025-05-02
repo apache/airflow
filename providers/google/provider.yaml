@@ -29,9 +29,14 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1732429547
+source-date-epoch: 1744792091
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 15.1.0
+  - 15.0.1
+  - 15.0.0
+  - 14.1.0
+  - 14.0.0
   - 12.0.0
   - 11.0.0
   - 10.26.0
@@ -198,6 +203,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst
     logo: /docs/integration-logos/Google-Cloud-Life-Sciences.png
+    tags: [gcp]
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    external-doc-url: https://cloud.google.com/managed-service-for-apache-kafka/docs/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/managed_kafka.rst
     tags: [gcp]
   - integration-name: Google Cloud Memorystore
     external-doc-url: https://cloud.google.com/memorystore/
@@ -590,6 +600,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
       - airflow.providers.google.cloud.operators.vertex_ai.feature_store
+      - airflow.providers.google.cloud.operators.vertex_ai.ray
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -599,6 +610,9 @@ operators:
   - integration-name: Google Cloud Batch
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_batch
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    python-modules:
+      - airflow.providers.google.cloud.operators.managed_kafka
 
 sensors:
   - integration-name: Google BigQuery
@@ -825,6 +839,7 @@ hooks:
   - integration-name: Google
     python-modules:
       - airflow.providers.google.common.hooks.base_google
+      - airflow.providers.google.common.hooks.operation_helpers
   - integration-name: Google Discovery API
     python-modules:
       - airflow.providers.google.common.hooks.discovery_api
@@ -868,6 +883,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
       - airflow.providers.google.cloud.hooks.vertex_ai.feature_store
+      - airflow.providers.google.cloud.hooks.vertex_ai.ray
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
@@ -877,6 +893,9 @@ hooks:
   - integration-name: Google Cloud Batch
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_batch
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    python-modules:
+      - airflow.providers.google.cloud.hooks.managed_kafka
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
@@ -1100,6 +1119,7 @@ extra-links:
   - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
   - airflow.providers.google.cloud.links.dataplex.DataplexLakeLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypeLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypesLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupsLink
@@ -1143,6 +1163,8 @@ extra-links:
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterListLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink
@@ -1215,6 +1237,10 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationModelsListLink
   - airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink
   - airflow.providers.google.cloud.links.translate.TranslationGlossariesListLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink
 
 
 secrets-backends:

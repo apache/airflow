@@ -20,9 +20,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
-from airflow.utils.weekday import WeekDay
 
 if TYPE_CHECKING:
     try:
@@ -54,7 +54,7 @@ class DayOfWeekSensor(BaseSensorOperator):
     **Example** (with :class:`~airflow.utils.weekday.WeekDay` enum): ::
 
         # import WeekDay Enum
-        from airflow.utils.weekday import WeekDay
+        from airflow.providers.standard.utils.weekday import WeekDay
 
         weekend_check = DayOfWeekSensor(
             task_id="weekend_check",
@@ -103,7 +103,20 @@ class DayOfWeekSensor(BaseSensorOperator):
             self.week_day,
             WeekDay(timezone.utcnow().isoweekday()).name,
         )
+
         if self.use_task_logical_date:
-            return context["logical_date"].isoweekday() in self._week_day_num
-        else:
-            return timezone.utcnow().isoweekday() in self._week_day_num
+            logical_date = context.get("logical_date")
+            dag_run = context.get("dag_run")
+
+            if not (logical_date or (dag_run and dag_run.run_after)):
+                raise ValueError(
+                    "Either `logical_date` or `run_after` should be provided in the task context when "
+                    "`use_task_logical_date` is True"
+                )
+
+            determined_weekday_num = (
+                logical_date.isoweekday() if logical_date else dag_run.run_after.isoweekday()  # type: ignore[union-attr]
+            )
+
+            return determined_weekday_num in self._week_day_num
+        return timezone.utcnow().isoweekday() in self._week_day_num

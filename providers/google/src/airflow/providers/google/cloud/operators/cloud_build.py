@@ -26,6 +26,9 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
@@ -41,12 +44,11 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import yaml
 from airflow.utils.helpers import exactly_one
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 REGEX_REPO_PATH = re.compile(r"^/(?P<project_id>[^/]+)/(?P<repo_name>[^/]+)[\+/]*(?P<branch_name>[^:]+)?")
@@ -273,8 +275,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
                     build_id=event["id_"],
                 )
             return event["instance"]
-        else:
-            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+        raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
 
 class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):

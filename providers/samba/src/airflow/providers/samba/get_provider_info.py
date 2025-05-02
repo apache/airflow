@@ -26,31 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-samba",
         "name": "Samba",
         "description": "`Samba <https://www.samba.org/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734536458,
-        "versions": [
-            "4.9.0",
-            "4.8.0",
-            "4.7.1",
-            "4.7.0",
-            "4.6.0",
-            "4.5.0",
-            "4.4.0",
-            "4.3.0",
-            "4.2.2",
-            "4.2.1",
-            "4.2.0",
-            "4.1.0",
-            "4.0.0",
-            "3.0.4",
-            "3.0.3",
-            "3.0.2",
-            "3.0.1",
-            "3.0.0",
-            "2.0.0",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Samba",
@@ -71,6 +46,4 @@ def get_provider_info():
         "connection-types": [
             {"hook-class-name": "airflow.providers.samba.hooks.samba.SambaHook", "connection-type": "samba"}
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "smbprotocol>=1.5.0"],
-        "optional-dependencies": {"google": ["apache-airflow-providers-google"]},
     }

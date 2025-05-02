@@ -24,23 +24,21 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import requests
-from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
-
 import weaviate
 import weaviate.exceptions
-from airflow.hooks.base import BaseHook
+from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import WeaviateClient
 from weaviate.auth import Auth
 from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
+from airflow.hooks.base import BaseHook
+
 if TYPE_CHECKING:
     from typing import Callable, Literal
 
     import pandas as pd
-
-    from airflow.models.connection import Connection
     from weaviate.auth import AuthCredentials
     from weaviate.collections import Collection
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
@@ -52,6 +50,8 @@ if TYPE_CHECKING:
     )
     from weaviate.collections.classes.types import Properties
     from weaviate.types import UUID
+
+    from airflow.models.connection import Connection
 
     ExitingSchemaOptions = Literal["replace", "fail", "ignore"]
 
@@ -266,7 +266,7 @@ class WeaviateHook(BaseHook):
 
             if isinstance(data, pandas.DataFrame):
                 data = json.loads(data.to_json(orient="records"))
-        return cast(list[dict[str, Any]], data)
+        return cast("list[dict[str, Any]]", data)
 
     def batch_data(
         self,
@@ -571,8 +571,7 @@ class WeaviateHook(BaseHook):
                 raise ValueError(
                     "Property 'id' already in dataset. Consider renaming or specify 'uuid_column'."
                 )
-            else:
-                uuid_column = "id"
+            uuid_column = "id"
 
         if uuid_column in column_names:
             raise ValueError(
@@ -787,12 +786,12 @@ class WeaviateHook(BaseHook):
 
         if isinstance(data, Sequence) and isinstance(data[0], dict):
             # This is done to narrow the type to list[dict[str, Any].
-            data = pd.json_normalize(cast(list[dict[str, Any]], data))
+            data = pd.json_normalize(cast("list[dict[str, Any]]", data))
         elif isinstance(data, Sequence) and isinstance(data[0], pd.DataFrame):
             # This is done to narrow the type to list[pd.DataFrame].
-            data = pd.concat(cast(list[pd.DataFrame], data), ignore_index=True)
+            data = pd.concat(cast("list[pd.DataFrame]", data), ignore_index=True)
         else:
-            data = cast(pd.DataFrame, data)
+            data = cast("pd.DataFrame", data)
 
         unique_columns = sorted(data.columns.to_list())
 
@@ -847,7 +846,7 @@ class WeaviateHook(BaseHook):
                 f"Documents {', '.join(changed_documents)} already exists. You can either skip or replace"
                 f" them by passing 'existing=skip' or 'existing=replace' respectively."
             )
-        elif existing == "skip":
+        if existing == "skip":
             data = data[data[document_column].isin(new_documents)]
             if verbose:
                 self.log.info(

@@ -21,18 +21,18 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from jinja2 import BaseLoader, Environment
 from rich.console import Console
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common utils are importable
 
 from common_precommit_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
-    AIRFLOW_SOURCES_ROOT_PATH,
-    get_all_new_provider_info_dicts,
+    AIRFLOW_ROOT_PATH,
+    get_all_provider_info_dicts,
 )
 
-sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
+sys.path.insert(0, str(AIRFLOW_CORE_SOURCES_PATH))  # make sure setup is imported from Airflow
 
 console = Console(color_system="standard", width=200)
 
@@ -65,21 +65,14 @@ LICENCE_CONTENT_RST = """
     under the License.
 """
 
-CONFIGURATION_CONTENT_RST = """
-.. include:: ../exts/includes/providers-configurations-ref.rst
-"""
-
 SECURITY_CONTENT_RST = """
-.. include:: ../exts/includes/security.rst
+.. include:: /devel-common/src/sphinx_exts/includes/security.rst
 """
 
 INSTALLING_PROVIDERS_FROM_SOURCES_CONTENT_RST = """
-.. include:: ../exts/includes/installing-providers-from-sources.rst
+.. include:: .. include:: /../../../devel-common/src/sphinx_exts/includes/installing-providers-from-sources.rst
 """
 
-CHANGELOG_CONTENT_RST = """
-.. include:: ../../airflow/providers/{{provider_id | replace ('.', '/')}}/CHANGELOG.rst
-"""
 
 COMMIT_CONTENT_RST = """
  .. THIS FILE IS UPDATED AUTOMATICALLY_AT_RELEASE_TIME
@@ -178,18 +171,17 @@ def check_documentation_link_exists(link: str, docs_file: Path):
 
 
 def has_executor_package_defined(provider_id: str) -> bool:
-    provider_package_path = (AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split(".")) / "src").joinpath(
-        *provider_id.split(".")
-    )
-    for executors_folder in provider_package_path.rglob("executors"):
+    provider_distribution_path = (
+        AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split(".")) / "src"
+    ).joinpath(*provider_id.split("."))
+    for executors_folder in provider_distribution_path.rglob("executors"):
         if executors_folder.is_dir() and (executors_folder / "__init__.py").is_file():
             return True
     return False
 
 
 def run_all_checks():
-    jinja_loader = Environment(loader=BaseLoader(), autoescape=True)
-    all_providers = get_all_new_provider_info_dicts()
+    all_providers = get_all_provider_info_dicts()
     status: list[bool] = []
 
     for provider_id, provider_info in all_providers.items():
@@ -218,13 +210,6 @@ def run_all_checks():
             file_name="installing-providers-from-sources.rst",
             generated_content=LICENCE_CONTENT_RST + INSTALLING_PROVIDERS_FROM_SOURCES_CONTENT_RST,
         )
-        check_provider_doc_exists_and_in_index(
-            provider_id=provider_id,
-            index_link="Changelog <changelog>",
-            file_name="changelog.rst",
-            generated_content=LICENCE_CONTENT_RST
-            + jinja_loader.from_string(CHANGELOG_CONTENT_RST).render(provider_id=provider_id),
-        )
         if has_executor_package_defined(provider_id) and not provider_info.get("executors"):
             provider_yaml = AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split(".")) / "provider.yaml"
             console.print()
@@ -246,18 +231,8 @@ def run_all_checks():
             if (get_provider_doc_folder(provider_id) / "cli-ref.rst").exists():
                 check_documentation_link_exists(
                     link=f"and related CLI commands: :doc:`apache-airflow-providers-{provider_id.replace('.', '-')}:cli-ref`",
-                    docs_file=AIRFLOW_SOURCES_ROOT_PATH
-                    / "docs"
-                    / "apache-airflow"
-                    / "cli-and-env-variables-ref.rst",
+                    docs_file=AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "cli-and-env-variables-ref.rst",
                 )
-        if provider_info.get("config"):
-            check_provider_doc_exists_and_in_index(
-                provider_id=provider_id,
-                index_link="Configuration <configurations-ref>",
-                file_name="configurations-ref.rst",
-                generated_content=LICENCE_CONTENT_RST + CONFIGURATION_CONTENT_RST,
-            )
     print(failed)
     if any(failed):
         sys.exit(1)

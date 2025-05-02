@@ -66,5 +66,4 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         }
     ],
     "breeze ci resource-check": [],
-    "breeze ci find-backtracking-candidates": [],
 }

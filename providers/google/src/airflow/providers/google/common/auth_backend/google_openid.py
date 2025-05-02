@@ -23,21 +23,33 @@ import logging
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
-from flask import Response, current_app, request as flask_request  # type: ignore
-
 import google
 import google.auth.transport.requests
 import google.oauth2.id_token
-from airflow.configuration import conf
-from airflow.providers.google.common.utils.id_token_credentials import get_default_id_token_credentials
+
+try:
+    from flask import Response, current_app, request as flask_request  # type: ignore
+except ImportError:
+    raise ImportError(
+        "Google requires FAB provider to be installed in order to use this auth backend. "
+        "Please install the FAB provider by running: "
+        "pip install apache-airflow-providers-google[fab]"
+    )
 from google.auth import exceptions
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.utils.id_token_credentials import get_default_id_token_credentials
+
 log = logging.getLogger(__name__)
 
 _GOOGLE_ISSUERS = ("accounts.google.com", "https://accounts.google.com")
-AUDIENCE = conf.get("api", "google_oauth2_audience")
+AUDIENCE = conf.get(
+    "api", "google_oauth2_audience", fallback="project-id-random-value.apps.googleusercontent.com"
+)
 
 
 def create_client_session():
@@ -52,6 +64,11 @@ def create_client_session():
     return AuthorizedSession(credentials=id_token_credentials)
 
 
+@deprecated(
+    planned_removal_release="apache-airflow-providers-google==15.0.0",
+    reason="Auth backends are not supported on Airflow 3, and this entire module will be removed",
+    category=AirflowProviderDeprecationWarning,
+)
 def init_app(_):
     """Initialize authentication."""
 
@@ -137,4 +154,4 @@ def requires_authentication(function: T):
 
         return function(*args, **kwargs)
 
-    return cast(T, decorated)
+    return cast("T", decorated)

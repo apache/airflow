@@ -29,6 +29,10 @@ from urllib.parse import urlencode
 
 import google.auth
 import google.oauth2.service_account
+from google.auth import impersonated_credentials  # type: ignore[attr-defined]
+from google.auth.credentials import AnonymousCredentials, Credentials
+from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.external_token_supplier import (
@@ -36,9 +40,6 @@ from airflow.providers.google.cloud.utils.external_token_supplier import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import patch_environ
-from google.auth import impersonated_credentials  # type: ignore[attr-defined]
-from google.auth.credentials import AnonymousCredentials, Credentials
-from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 log = logging.getLogger(__name__)
 

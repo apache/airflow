@@ -26,33 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-telegram",
         "name": "Telegram",
         "description": "`Telegram <https://telegram.org/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734537315,
-        "versions": [
-            "4.7.0",
-            "4.6.0",
-            "4.5.2",
-            "4.5.1",
-            "4.5.0",
-            "4.4.0",
-            "4.3.1",
-            "4.3.0",
-            "4.2.0",
-            "4.1.1",
-            "4.1.0",
-            "4.0.0",
-            "3.1.1",
-            "3.1.0",
-            "3.0.0",
-            "2.0.4",
-            "2.0.3",
-            "2.0.2",
-            "2.0.1",
-            "2.0.0",
-            "1.0.2",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Telegram",
@@ -77,5 +50,4 @@ def get_provider_info():
         "hooks": [
             {"integration-name": "Telegram", "python-modules": ["airflow.providers.telegram.hooks.telegram"]}
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "python-telegram-bot>=20.2"],
     }

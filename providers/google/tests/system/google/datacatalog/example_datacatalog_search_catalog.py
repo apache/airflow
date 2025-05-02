@@ -21,7 +21,7 @@ import os
 from datetime import datetime
 from typing import cast
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from google.cloud.datacatalog import TagField, TagTemplateField
 
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
@@ -39,7 +39,8 @@ from airflow.providers.google.cloud.operators.datacatalog import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
-from google.cloud.datacatalog import TagField, TagTemplateField
+
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -113,7 +114,7 @@ with DAG(
     )
     # [END howto_operator_gcp_datacatalog_create_tag]
 
-    tag_id = cast(str, XComArg(create_tag, key="tag_id"))
+    tag_id = cast("str", XComArg(create_tag, key="tag_id"))
 
     # [START howto_operator_gcp_datacatalog_create_tag_result]
     create_tag_result = BashOperator(

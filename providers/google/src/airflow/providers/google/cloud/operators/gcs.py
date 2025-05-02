@@ -35,13 +35,14 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+from google.api_core.exceptions import Conflict
+from google.cloud.exceptions import GoogleCloudError
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
-from google.api_core.exceptions import Conflict
-from google.cloud.exceptions import GoogleCloudError
 
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
@@ -184,7 +185,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string
-        (e.g, ``'**/*/.json'``)
+        (e.g, ``'**/*.json'``)
 
     **Example**:
         The following Operator would list all the Avro files from ``sales/sales-2017``
@@ -194,7 +195,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
                 task_id="GCS_Files",
                 bucket="data",
                 prefix="sales/sales-2017/",
-                match_glob="**/*/.avro",
+                match_glob="**/*.avro",
                 gcp_conn_id=google_cloud_conn_id,
             )
     """

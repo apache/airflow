@@ -18,8 +18,8 @@
 # /// script
 # dependencies = [
 #   "docutils>=0.20.0",
-#   "Pygments>=2.19.1",
-#   "Jinja2>=3.1.5"
+#   "pygments>=2.19.1",
+#   "jinja2>=3.1.5"
 # ]
 # ///
 
@@ -45,7 +45,7 @@ UNDONE_LIST_TEMPLATE = """
     {% endfor %}
     {%- endfor %}
 {%- endif -%}
-{% if undone_config_rules -%}
+{%- if undone_config_rules %}
 ======airflow config lint rules======
 {% for rule in undone_config_rules %}* {{ rule }}
 {% endfor %}
@@ -148,6 +148,10 @@ class SignificantNewsFragmentVisitor(docutils.nodes.NodeVisitor):
             raise ValueError(f"Incorrect format {node.astext()}")
 
         text = node.astext()
+        if text[0] != "[" or text[2] != "]":
+            raise ValueError(
+                f"{text} should be a checklist (e.g., * [ ] ``logging.dag_processor_manager_log_location``)"
+            )
         return text[:3] == "[x]", text[4:]
 
     @property
@@ -226,11 +230,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     newsfragment_details: list[dict] = []
-    for filename in glob.glob("newsfragments/*.significant.rst"):
-        if filename == "newsfragments/template.significant.rst":
+    for filename in glob.glob("airflow-core/newsfragments/*.significant.rst"):
+        if filename == "airflow-core/newsfragments/template.significant.rst":
             continue
 
-        match = re.search(r"newsfragments/(.*)\.significant\.rst", filename)
+        match = re.search(r"airflow-core/newsfragments/(.*)\.significant\.rst", filename)
         if not match:
             raise ValueError()
         aip_pr_name = match.group(1)

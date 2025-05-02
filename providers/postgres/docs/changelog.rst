@@ -27,6 +27,86 @@
 Changelog
 ---------
 
+6.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PostgresHook Json serialization (#49120)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+6.1.2
+.....
+
+Misc
+~~~~
+
+* ``Update minimum version of common.sql provider to 1.23.0 (#48416)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+6.1.1
+.....
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Introduce notion of dialects in DbApiHook (#41327)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix escaping of special characters or reserved words as column names in dialects of common sql provider (#45640)``
+
+Misc
+~~~~
+
+* ``Bump psycopg2 to 2.9.9 to possibly avoid crash on Python 3.12 (#46431)``
+* ``Added ADR document describing why the notion of dialects is introduced (#45456)``
+* ``Bump minimum version of psycopg2-binary to 2.9.7 (#45635)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Revert "Improve example docs around SQLExecuteQueryOperator in Postgres/Oracle/Presto/Vertica/ODBC (#46352)" (#46368)``
+   * ``Improve example docs around SQLExecuteQueryOperator in Postgres/Oracle/Presto/Vertica/ODBC (#46352)``
+   * ``Move PGVECTOR provider to new structure (#46051)``
+
 6.0.0
 .....
 
@@ -262,7 +342,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 5.8.0
 .....

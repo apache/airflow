@@ -21,7 +21,11 @@ Example Airflow DAG for Apache Beam operators
 
 from __future__ import annotations
 
-from providers.apache.beam.tests.system.apache.beam.utils import (
+from airflow import models
+from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
+from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
+
+from system.apache.beam.utils import (
     DEFAULT_ARGS,
     GCP_PROJECT_ID,
     GCS_OUTPUT,
@@ -30,10 +34,6 @@ from providers.apache.beam.tests.system.apache.beam.utils import (
     GCS_TMP,
     START_DATE,
 )
-
-from airflow import models
-from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
-from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
 
 with models.DAG(
     dag_id="dataflow_native_python_async",

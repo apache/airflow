@@ -24,15 +24,15 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from googleapiclient.errors import HttpError
-
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 from google.protobuf.field_mask_pb2 import FieldMask
+from googleapiclient.errors import HttpError
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -121,10 +121,9 @@ class StackdriverHook(GoogleBaseHook):
         )
         if format_ == "dict":
             return [AlertPolicy.to_dict(policy) for policy in policies_]
-        elif format_ == "json":
+        if format_ == "json":
             return [AlertPolicy.to_jsoon(policy) for policy in policies_]
-        else:
-            return policies_
+        return policies_
 
     @GoogleBaseHook.fallback_to_default_project_id
     def _toggle_policy_status(
@@ -395,10 +394,9 @@ class StackdriverHook(GoogleBaseHook):
         )
         if format_ == "dict":
             return [NotificationChannel.to_dict(channel) for channel in channels]
-        elif format_ == "json":
+        if format_ == "json":
             return [NotificationChannel.to_json(channel) for channel in channels]
-        else:
-            return channels
+        return channels
 
     @GoogleBaseHook.fallback_to_default_project_id
     def _toggle_channel_status(

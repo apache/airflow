@@ -20,7 +20,6 @@ import json
 from datetime import datetime
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -40,6 +39,8 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerEndpointSensor
 from airflow.utils.trigger_rule import TriggerRule
 
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
+
 DAG_ID = "example_sagemaker_endpoint"
 
 # Externally fetched variables:
@@ -58,7 +59,7 @@ KNN_IMAGES_BY_REGION = {
 }
 
 # For an example of how to obtain the following train and test data, please see
-# https://github.com/apache/airflow/blob/main/providers/tests/system/amazon/aws/example_sagemaker.py
+# https://github.com/apache/airflow/blob/main/providers/amazon/tests/system/amazon/aws/example_sagemaker.py
 TRAIN_DATA = "0,4.9,2.5,4.5,1.7\n1,7.0,3.2,4.7,1.4\n0,7.3,2.9,6.3,1.8\n2,5.1,3.5,1.4,0.2\n"
 SAMPLE_TEST_DATA = "6.4,3.2,4.5,1.5"
 
@@ -210,7 +211,7 @@ with DAG(
     upload_data = S3CreateObjectOperator(
         task_id="upload_data",
         s3_bucket=test_setup["bucket_name"],
-        s3_key=f'{test_setup["input_data_s3_key"]}/train.csv',
+        s3_key=f"{test_setup['input_data_s3_key']}/train.csv",
         data=TRAIN_DATA,
     )
 

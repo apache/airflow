@@ -20,11 +20,13 @@ package-name: apache-airflow-providers-apache-kafka
 name: Apache Kafka
 
 state: ready
-source-date-epoch: 1734528285
+source-date-epoch: 1744788833
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.8.1
+  - 1.8.0
   - 1.7.0
   - 1.6.1
   - 1.6.0

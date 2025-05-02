@@ -44,4 +44,4 @@ def requires_authentication(function: T):
             return Response("Unauthorized", 401, {})
         return function(*args, **kwargs)
 
-    return cast(T, decorated)
+    return cast("T", decorated)

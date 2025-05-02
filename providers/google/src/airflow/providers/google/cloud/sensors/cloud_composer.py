@@ -26,6 +26,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from dateutil import parser
+from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -34,7 +35,6 @@ from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposer
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.state import TaskInstanceState
-from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -108,14 +108,12 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         if isinstance(self.execution_range, timedelta):
             if self.execution_range < timedelta(0):
                 return context["logical_date"], context["logical_date"] - self.execution_range
-            else:
-                return context["logical_date"] - self.execution_range, context["logical_date"]
-        elif isinstance(self.execution_range, list) and len(self.execution_range) > 0:
+            return context["logical_date"] - self.execution_range, context["logical_date"]
+        if isinstance(self.execution_range, list) and len(self.execution_range) > 0:
             return self.execution_range[0], self.execution_range[1] if len(
                 self.execution_range
             ) > 1 else context["logical_date"]
-        else:
-            return context["logical_date"] - timedelta(1), context["logical_date"]
+        return context["logical_date"] - timedelta(1), context["logical_date"]
 
     def poke(self, context: Context) -> bool:
         start_date, end_date = self._get_logical_dates(context)

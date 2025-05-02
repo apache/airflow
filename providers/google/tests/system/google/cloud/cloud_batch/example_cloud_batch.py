@@ -24,9 +24,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from google.cloud import batch_v1
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchDeleteJobOperator,
     CloudBatchListJobsOperator,
@@ -35,7 +36,8 @@ from airflow.providers.google.cloud.operators.cloud_batch import (
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
-from google.cloud import batch_v1
+
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -50,21 +52,30 @@ list_jobs_task_name = "list-jobs"
 list_tasks_task_name = "list-tasks"
 
 
+def _unwrap_xcom(result):
+    if AIRFLOW_V_3_0_PLUS:
+        return result
+    return result[0]
+
+
 def _assert_jobs(ti):
-    job_names = ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value")
+    job_list = _unwrap_xcom(ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value"))
     job_names_str = ""
-    if job_names and len(job_names) > 0:
-        for job in job_names[0]:
+
+    if job_list:
+        for job in job_list:
             job_names_str += job["name"].split("/")[-1] + " "
+
     assert job1_name in job_names_str
     assert job2_name in job_names_str
 
 
 def _assert_tasks(ti):
-    tasks_names = ti.xcom_pull(task_ids=[list_tasks_task_name], key="return_value")
-    assert len(tasks_names[0]) == 2
-    assert "tasks/0" in tasks_names[0][0]["name"]
-    assert "tasks/1" in tasks_names[0][1]["name"]
+    task_list = _unwrap_xcom(ti.xcom_pull(task_ids=[list_tasks_task_name], key="return_value"))
+
+    assert len(task_list) == 2
+    assert "tasks/0" in task_list[0]["name"]
+    assert "tasks/1" in task_list[1]["name"]
 
 
 # [START howto_operator_batch_job_creation]

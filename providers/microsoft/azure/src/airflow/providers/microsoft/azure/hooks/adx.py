@@ -30,14 +30,15 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
+from azure.kusto.data.exceptions import KustoServiceError
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_sync_default_azure_credential,
 )
-from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
-from azure.kusto.data.exceptions import KustoServiceError
 
 if TYPE_CHECKING:
     from azure.kusto.data.response import KustoResponseDataSet

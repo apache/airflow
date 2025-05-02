@@ -20,12 +20,13 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
-from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
+
+from airflow.exceptions import AirflowException
+from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 
 if TYPE_CHECKING:
     from azure.mgmt.containerinstance.models import (
@@ -84,7 +85,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         if all([conn.login, conn.password, tenant]):
             self.log.info("Getting connection using specific credentials and subscription_id.")
             credential = ClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=cast(str, tenant)
+                client_id=conn.login, client_secret=conn.password, tenant_id=cast("str", tenant)
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
@@ -95,7 +96,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
-        subscription_id = cast(str, conn.extra_dejson.get("subscriptionId"))
+        subscription_id = cast("str", conn.extra_dejson.get("subscriptionId"))
         return ContainerInstanceManagementClient(
             credential=credential,
             subscription_id=subscription_id,

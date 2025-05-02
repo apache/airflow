@@ -22,17 +22,19 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from google.protobuf.json_format import MessageToDict
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.common.links.storage import FileDetailsLink
-from google.protobuf.json_format import MessageToDict
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
+
+    from airflow.utils.context import Context
 
 
 class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
