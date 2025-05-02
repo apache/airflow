@@ -285,29 +285,28 @@ class PowerBIWorkspaceListTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the list of workspace IDs."""
-        if not self.workspace_ids:
-            # Trigger the API to get the workspace list
-            workspace_ids = await self.hook.get_workspace_list()
+        # Trigger the API to get the workspace list
+        workspace_ids = await self.hook.get_workspace_list()
 
-            if workspace_ids:
-                self.log.info("Triggered request to get workspace list.")
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": "The workspace list get request has been successful.",
-                        "workspace_ids": workspace_ids,
-                    }
-                )
-                return
-
+        if workspace_ids:
+            self.log.info("Triggered request to get workspace list.")
             yield TriggerEvent(
                 {
-                    "status": "error",
-                    "message": "Error grabbing the workspace list.",
-                    "workspace_ids": None,
+                    "status": "success",
+                    "message": "The workspace list get request has been successful.",
+                    "workspace_ids": workspace_ids,
                 }
             )
             return
+
+        yield TriggerEvent(
+            {
+                "status": "error",
+                "message": "Error grabbing the workspace list.",
+                "workspace_ids": None,
+            }
+        )
+        return
 
 
 class PowerBIDatasetListTrigger(BaseTrigger):
@@ -367,28 +366,27 @@ class PowerBIDatasetListTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the list of dataset IDs."""
-        if not self.dataset_ids:
-            # Trigger the API to get the dataset list
-            dataset_ids = await self.hook.get_dataset_list(
-                group_id=self.group_id,
-            )
+        # Trigger the API to get the dataset list
+        dataset_ids = await self.hook.get_dataset_list(
+            group_id=self.group_id,
+        )
 
-            if dataset_ids:
-                self.log.info("Triggered request to get dataset list.")
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": f"The dataset list get request from workspace {self.group_id} has been successful.",
-                        "dataset_ids": dataset_ids,
-                    }
-                )
-                return
-
+        if dataset_ids:
+            self.log.info("Triggered request to get dataset list.")
             yield TriggerEvent(
                 {
-                    "status": "error",
-                    "message": "Error grabbing the dataset list.",
-                    "dataset_ids": None,
+                    "status": "success",
+                    "message": f"The dataset list get request from workspace {self.group_id} has been successful.",
+                    "dataset_ids": dataset_ids,
                 }
             )
             return
+
+        yield TriggerEvent(
+            {
+                "status": "error",
+                "message": "Error grabbing the dataset list.",
+                "dataset_ids": None,
+            }
+        )
+        return
