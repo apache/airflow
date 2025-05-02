@@ -29,9 +29,14 @@ describe("Test Time and TimezoneProvider", () => {
   it("Displays a UTC time correctly", () => {
     const now = new Date();
 
-    render(<Time datetime={now.toISOString()} />, {
-      wrapper: Wrapper,
-    });
+    render(
+      <TimezoneContext.Provider value={{ selectedTimezone: "UTC", setSelectedTimezone: vi.fn() }}>
+        <Time datetime={now.toISOString()} />
+      </TimezoneContext.Provider>,
+      {
+        wrapper: Wrapper,
+      },
+    );
 
     const utcTime = screen.getByText(dayjs.utc(now).format(defaultFormat));
 
