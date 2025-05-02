@@ -99,8 +99,8 @@ See :doc:`apache-airflow:administration-and-deployment/modules_management` for d
 
 .. _deployment:maintenance:
 
-Worker maintenance
-------------------
+Worker Maintenance Mode
+-----------------------
 
 Sometimes infrastructure needs to be maintained. The Edge Worker provides a
 maintenance mode to
@@ -117,37 +117,56 @@ Worker status can be checked via the web UI in the "Admin" - "Edge Worker Hosts"
 
 .. note::
 
-    As of time of writing the web UI to see edge jobs and manage workers is not ported to Airflow 3.0
+    As of time of writing the web UI to see edge jobs and manage workers is not ported to Airflow 3.0.
+    Until this is available you can use the CLI commands as described in :ref:`deployment:maintenance-mgmt-cli`.
 
 
-Worker maintenance can also be triggered via the CLI command
+Worker maintenance can also be triggered via the CLI command on the machine that runs the worker.
 
 .. code-block:: bash
 
     airflow edge maintenance --comments "Some comments for the maintenance" on
 
-This will stop the worker from accepting new tasks and will complete running tasks.
+This will stop the local worker instance from accepting new tasks and will complete running tasks.
 If you add the command argument ``--wait`` the CLI will wait until all
 running tasks are completed before return.
 
-If you want to know the status of a worker while waiting on maintenance you can
+If you want to know the status of you local worker while waiting on maintenance you can
 use the command
 
 .. code-block:: bash
 
     airflow edge status
 
-This will show the status of the worker as JSON and the tasks running on it.
+This will show the status of the local worker instance as JSON and the tasks running on it.
 
 The status and maintenance comments will also be shown in the web UI
 in the "Admin" - "Edge Worker Hosts" page.
 
 .. image:: img/worker_maintenance.png
 
-The worker can be started to fetch new tasks via the command
+The local worker instance can be started to fetch new tasks via the command
 
 .. code-block:: bash
 
     airflow edge maintenance off
 
 This will start the worker again and it will start accepting tasks again.
+
+.. _deployment:maintenance-mgmt-cli:
+
+Worker Maintenance Management CLI
+---------------------------------
+
+Besides the CLI command to trigger maintenance on the local worker instance, there is also a command to
+manage the maintenance of all workers in the cluster. This command can be used to trigger maintenance
+on all workers in the cluster or to check the status of all workers in the cluster.
+
+This set commands need database access, such can only be called on the central Airflow
+instance. The commands are:
+
+- ``airflow edge list-workers``: List all workers in the cluster
+- ``airflow edge remote-edge-worker-request-maintenance``: Request a remote edge worker to enter maintenance mode
+- ``airflow edge remote-edge-worker-update-maintenance-comment``: Updates the maintenance comment for a remote edge worker
+- ``airflow edge remote-edge-worker-exit-maintenance``: Request a remote edge worker to exit maintenance mode
+- ``airflow edge remove-remote-edge-worker``: Remove a worker instance from the cluster

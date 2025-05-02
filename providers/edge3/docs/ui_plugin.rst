@@ -41,6 +41,11 @@ the sub-path ``/edge_worker/v1/docs`` (Airflow 3.0) or ``/edge_worker/v1/ui`` (A
 Web UI Plugin (Airflow 2.10 only)
 ---------------------------------
 
+.. note::
+
+    As of time of writing the web UI to see edge jobs and manage workers is not ported to Airflow 3.0.
+    Until this is available you can use the CLI commands as described in :ref:`deployment:maintenance-mgmt-cli`.
+
 The Edge provider adds a web UI plugin to the Airflow web UI. The plugin is
 made to be able to see job queue and Edge Worker status.
 
