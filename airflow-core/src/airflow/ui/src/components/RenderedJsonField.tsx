@@ -46,9 +46,11 @@ const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
         theme={theme === "dark" ? "monokai" : "rjv-default"}
         {...jsonProps}
       />
-      <ClipboardRoot value={contentFormatted}>
-        <ClipboardIconButton />
-      </ClipboardRoot>
+      {jsonProps?.collapsed === true ? undefined : (
+        <ClipboardRoot value={contentFormatted}>
+          <ClipboardIconButton />
+        </ClipboardRoot>
+      )}
     </Flex>
   );
 };
