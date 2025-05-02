@@ -116,6 +116,7 @@ def get_pools(
     )
 
     pools = session.scalars(pools_select)
+    total_entries = len(list(pools))
 
     return PoolCollectionResponse(
         pools=pools,
