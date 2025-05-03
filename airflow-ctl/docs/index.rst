@@ -17,7 +17,7 @@
 
 What is Airflow CTL®?
 =====================
-Airflow CTL® is a command line tool that helps you manage and deploy Apache Airflow environments.
+Airflow CTL is a command line tool that helps you manage and deploy Apache Airflow environments.
 
 .. toctree::
     :hidden:
@@ -25,6 +25,7 @@ Airflow CTL® is a command line tool that helps you manage and deploy Apache Air
 
     installation/index
     howto/index
+    Security <security>
     Changelog <changelog>
 
 .. toctree::
@@ -32,4 +33,4 @@ Airflow CTL® is a command line tool that helps you manage and deploy Apache Air
     :caption: Usage
 
     Quick Start <start>
-    CTL <cli-and-env-variables-ref>
+    cli-and-env-variables-ref
