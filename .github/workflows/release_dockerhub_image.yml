@@ -58,7 +58,6 @@ jobs:
           echo "Input parameters summary"
           echo "========================="
           echo "Airflow version: '${AIRFLOW_VERSION}'"
-          echo "Skip latest: '${SKIP_LATEST}'"
           echo "AMD only: '${AMD_ONLY}'"
       - name: "Cleanup repo"
         shell: bash
@@ -146,6 +145,8 @@ jobs:
           sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
           sudo apt-get update
           sudo apt install docker-buildx-plugin
+      - name: "Install emulation support"
+        run: docker run --privileged --rm tonistiigi/binfmt --install all
       - name: "Install regctl"
         # yamllint disable rule:line-length
         run: |
@@ -153,40 +154,20 @@ jobs:
           curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >${HOME}/bin/regctl
           chmod 755 ${HOME}/bin/regctl
           echo "${HOME}/bin" >>${GITHUB_PATH}
-      - name: "Install emulation support"
-        run: docker run --privileged --rm tonistiigi/binfmt --install all
       - name: "Create airflow_cache builder"
         run: docker buildx create --name airflow_cache
       - name: >
-          Release regular images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
+          Release regular images AMD64 first: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         env:
           COMMIT_SHA: ${{ github.sha }}
           REPOSITORY: ${{ github.repository }}
           PYTHON_VERSION: ${{ matrix.python-version }}
           AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
           SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest == 'true' && '--skip-latest' || '' }}
-          LIMIT_PLATFORM: >
-            ${{ (github.repository == 'apache/airflow' || github.event.inputs.amdOnly == 'true')
-            && '--limit-platform linux/amd64' || '' }}
         run: >
           breeze release-management release-prod-images --dockerhub-repo "${REPOSITORY}"
-          --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST} ${LIMIT_PLATFORM}
-          --limit-python ${PYTHON_VERSION}
-      - name: >
-          Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
-        env:
-          COMMIT_SHA: ${{ github.sha }}
-          REPOSITORY: ${{ github.repository }}
-          PYTHON_VERSION: ${{ matrix.python-version }}
-          AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
-          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest == 'true' && '--skip-latest' || '' }}
-          LIMIT_PLATFORM: >
-            ${{ (github.repository == 'apache/airflow' || github.event.inputs.amdOnly == 'true')
-            && '--limit-platform linux/amd64' || '' }}
-        run: >
-          breeze release-management release-prod-images --dockerhub-repo "${REPOSITORY}"
-          --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST} ${LIMIT_PLATFORM}
-          --limit-python ${PYTHON_VERSION} --slim-images
+          --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST}
+          --limit-python ${PYTHON_VERSION} --limit-platform linux/amd64
       - name: >
           Verify regular AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         env:
@@ -199,6 +180,18 @@ jobs:
           --image-name
           ${REPOSITORY}:${AIRFLOW_VERSION}-python${PYTHON_VERSION}
       - name: >
+          Release slim images AMD64 first: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest == 'true' && '--skip-latest' || '' }}
+        run: >
+          breeze release-management release-prod-images --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST}
+          --limit-python ${PYTHON_VERSION} --slim-images --limit-platform linux/amd64
+      - name: >
           Verify slim AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         env:
           PYTHON_VERSION: ${{ matrix.python-version }}
@@ -210,6 +203,32 @@ jobs:
           --slim-image
           --image-name
           ${REPOSITORY}:slim-${AIRFLOW_VERSION}-python${PYTHON_VERSION}
+      - name: >
+          Release regular images for both AMD / ARM: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest == 'true' && '--skip-latest' || '' }}
+        run: >
+          breeze release-management release-prod-images --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST}
+          --limit-python ${PYTHON_VERSION}
+        if: github.event.inputs.amdOnly != 'true'
+      - name: >
+          Release slim images for both AMD / ARM: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest == 'true' && '--skip-latest' || '' }}
+        run: >
+          breeze release-management release-prod-images --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST}
+          --limit-python ${PYTHON_VERSION} --slim-images
+        if: github.event.inputs.amdOnly != 'true'
       - name: "Docker logout"
         run: docker logout
         if: always()
