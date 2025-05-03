@@ -669,7 +669,7 @@ workers:
   # podManagementPolicy: Parallel
 
   # When not set, the values defined in the global securityContext will
-  # be used in Airflow Celery workers and pod-template-file
+  # be used in Airflow Celery workers and pod-template-file (deprecated, use `workers.securityContexts` instead)
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
