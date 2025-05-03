@@ -8478,11 +8478,15 @@ components:
           - type: integer
           - type: 'null'
           title: Version Number
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - content
       - dag_id
       - version_number
+      - dag_display_name
       title: DAGSourceResponse
       description: DAG Source serializer for responses.
     DAGTagCollectionResponse:
@@ -8894,6 +8898,11 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
       type: object
       required:
       - event_log_id
