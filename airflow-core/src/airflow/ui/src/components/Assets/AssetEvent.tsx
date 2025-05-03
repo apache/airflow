@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, HStack, Code } from "@chakra-ui/react";
+import { Box, Text, HStack } from "@chakra-ui/react";
 import { FiDatabase } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
@@ -24,29 +24,25 @@ import type { AssetEventResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 
+import RenderedJsonField from "../RenderedJsonField";
 import { TriggeredRuns } from "./TriggeredRuns";
 
 export const AssetEvent = ({
   assetId,
   event,
-  showExtra,
 }: {
   readonly assetId?: number;
   readonly event: AssetEventResponse;
-  readonly showExtra?: boolean;
 }) => {
   let source = "";
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  const { from_rest_api, from_trigger, ...extra } = event.extra ?? {};
+  const { from_rest_api: fromRestAPI, from_trigger: fromTrigger, ...extra } = event.extra ?? {};
 
-  if (from_rest_api === true) {
+  if (fromRestAPI === true) {
     source = "API";
-  } else if (from_trigger === true) {
+  } else if (fromTrigger === true) {
     source = "Trigger";
   }
-
-  const extraString = JSON.stringify(extra);
 
   return (
     <Box borderBottomWidth={1} fontSize={13} mt={1} p={2}>
@@ -86,7 +82,9 @@ export const AssetEvent = ({
       <HStack>
         <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
-      {showExtra && extraString !== "{}" ? <Code>{extraString}</Code> : undefined}
+      {Object.keys(extra).length >= 1 ? (
+        <RenderedJsonField content={extra} jsonProps={{ collapsed: true }} />
+      ) : undefined}
     </Box>
   );
 };

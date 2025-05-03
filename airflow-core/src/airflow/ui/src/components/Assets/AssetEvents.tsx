@@ -29,8 +29,8 @@ import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
 import { AssetEvent } from "./AssetEvent";
 
-const cardDef = (assetId?: number, showExtra?: boolean): CardDef<AssetEventResponse> => ({
-  card: ({ row }) => <AssetEvent assetId={assetId} event={row} showExtra={showExtra} />,
+const cardDef = (assetId?: number): CardDef<AssetEventResponse> => ({
+  card: ({ row }) => <AssetEvent assetId={assetId} event={row} />,
   meta: {
     customSkeleton: <Skeleton height="120px" width="100%" />,
   },
@@ -42,7 +42,6 @@ type AssetEventProps = {
   readonly isLoading?: boolean;
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;
-  readonly showExtra?: boolean;
   readonly tableUrlState?: TableState;
   readonly title?: string;
 };
@@ -53,7 +52,6 @@ export const AssetEvents = ({
   isLoading,
   setOrderBy,
   setTableUrlState,
-  showExtra,
   tableUrlState,
   title,
 }: AssetEventProps) => {
@@ -100,7 +98,7 @@ export const AssetEvents = ({
         )}
       </Flex>
       <DataTable
-        cardDef={cardDef(assetId, showExtra)}
+        cardDef={cardDef(assetId)}
         columns={[]}
         data={data?.asset_events ?? []}
         displayMode="card"

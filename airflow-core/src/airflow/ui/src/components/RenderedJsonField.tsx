@@ -47,7 +47,7 @@ const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
         {...jsonProps}
       />
       <ClipboardRoot value={contentFormatted}>
-        <ClipboardIconButton />
+        <ClipboardIconButton h={7} minW={7} />
       </ClipboardRoot>
     </Flex>
   );
