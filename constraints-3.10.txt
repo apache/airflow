@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-03T07:54:31.425734
+# This constraints file was automatically generated on 2025-05-03T19:52:09.423672
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -102,7 +102,6 @@ ansicolors==1.1.8
 anyio==4.9.0
 apache-airflow-providers-airbyte==5.0.2
 apache-airflow-providers-alibaba==3.0.3
-apache-airflow-providers-amazon==9.7.0
 apache-airflow-providers-apache-beam==6.0.4
 apache-airflow-providers-apache-cassandra==3.7.2
 apache-airflow-providers-apache-drill==3.0.1
@@ -118,7 +117,6 @@ apache-airflow-providers-apache-livy==4.3.2
 apache-airflow-providers-apache-pig==4.6.1
 apache-airflow-providers-apache-pinot==4.7.0
 apache-airflow-providers-apache-spark==5.2.1
-apache-airflow-providers-apache-tinkerpop==1.0.0
 apache-airflow-providers-apprise==2.0.2
 apache-airflow-providers-arangodb==2.7.4
 apache-airflow-providers-asana==2.9.1
@@ -129,7 +127,6 @@ apache-airflow-providers-cncf-kubernetes==10.4.3
 apache-airflow-providers-cohere==1.4.3
 apache-airflow-providers-common-compat==1.6.1
 apache-airflow-providers-common-io==1.5.4
-apache-airflow-providers-common-messaging==1.0.1
 apache-airflow-providers-common-sql==1.26.0
 apache-airflow-providers-databricks==7.3.2
 apache-airflow-providers-datadog==3.8.3
@@ -207,7 +204,7 @@ astroid==3.3.9
 asttokens==3.0.0
 async-timeout==5.0.1
 asyncpg==0.30.0
-asyncssh==2.20.0
+asyncssh==2.21.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.3
 attrs==25.3.0

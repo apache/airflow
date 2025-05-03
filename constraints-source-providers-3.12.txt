@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-03T07:47:34.809027
+# This constraints file was automatically generated on 2025-05-03T19:45:14.266898
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -89,7 +89,7 @@ astroid==3.3.9
 asttokens==3.0.0
 async-timeout==4.0.3
 asyncpg==0.30.0
-asyncssh==2.20.0
+asyncssh==2.21.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.3
 attrs==25.3.0
