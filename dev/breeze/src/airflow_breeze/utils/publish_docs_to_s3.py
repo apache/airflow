@@ -207,6 +207,13 @@ class S3DocsPublish:
         # Now generate the packages-metadata.json
         self.generate_packages_metadata()
 
+        # Add redirects to package folders
+        [
+            self.add_redirect(destination)
+            for _, destination in self.source_dest_mapping
+            if destination.endswith("stable/")
+        ]
+
     def generate_packages_metadata(self):
         get_console().print("[info]Generating packages-metadata.json file\n")
 
@@ -274,3 +281,28 @@ class S3DocsPublish:
         bucket = parts[0]
         key = parts[1]
         return bucket, key
+
+    def add_redirect(self, path: str):
+        """
+        Add redirects for the docs to the S3 bucket
+        ex: The redirect will be placed in the docs/{package}/index.html
+        """
+        bucket, key = self.get_bucket_key(path)
+
+        redirect_path = f"/{key}index.html"
+        s3_key = key.replace("stable/", "") + "index.html"
+
+        get_console().print(f"[info]Adding redirect {redirect_path} in {s3_key}\n")
+
+        html_body = f"""<!DOCTYPE html>
+<html>
+   <head><meta http-equiv="refresh" content="1; url={redirect_path}" /></head>
+   <body></body>
+</html>"""
+
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=s3_key,
+            Body=html_body,
+            ContentType="text/html",
+        )
