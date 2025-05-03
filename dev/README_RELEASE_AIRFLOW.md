@@ -344,11 +344,9 @@ to have an environment prepared to build multi-platform images. You can achieve 
 Building the image is triggered by running the
 [Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
 
-When you trigger it you need to pass Airflow Version (including the right rc suffix). Make sure to use the
-``v2-*-stable`` branch for the workflow.
-
-You can leave the "skip latest" field empty.
-
+When you trigger it you need to pass Airflow Version (including the right `rc` suffix). The workflow will
+normalize and verify version passed. When you are testing or want to release image faster you can also
+select the check-box to limit the build to only AMD platform. This will speed up the build significantly.
 
 ![Release prod image](images/release_prod_image_rc.png)
 

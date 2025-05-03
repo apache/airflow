@@ -1,0 +1,90 @@
+#! /usr/bin/env python
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#   "packaging>=23.2",
+#   "requests>=2.28.1",
+#   "rich>=13.3.5",
+# ]
+# ///
+from __future__ import annotations
+
+import sys
+
+import requests
+from packaging.version import Version
+from rich.console import Console
+
+console = Console(color_system="standard", stderr=True, width=400)
+
+
+def check_airflow_version(airflow_version: Version) -> tuple[str, bool]:
+    """
+    Check if the given version is a valid Airflow version and latest.
+
+    airflow_version: The Airflow version to check.
+    returns: tuple containing the version and a boolean indicating if it's latest.
+    """
+    latest = False
+    url = "https://pypi.org/pypi/apache-airflow/json"
+    max_versions_shown = 30
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        latest_version = Version(data["info"]["version"])
+        valid_versions = list(reversed(data["releases"].keys()))[:max_versions_shown]
+        if str(airflow_version) not in valid_versions:
+            console.print(f"[red]Version {airflow_version} is not a valid Airflow version")
+            console.print(
+                f"Available versions: (first available {max_versions_shown} versions):", valid_versions
+            )
+            sys.exit(1)
+        if airflow_version == latest_version:
+            latest = True
+        return str(airflow_version), latest
+    except Exception as e:
+        console.print(f"[red]Error fetching latest version: {e}")
+        sys.exit(1)
+
+
+def normalize_version(version: str) -> Version:
+    try:
+        return Version(version)
+    except Exception as e:
+        console.print(f"[red]Error normalizing version: {e}")
+        sys.exit(1)
+
+
+def print_both_outputs(output: str):
+    print(output)
+    console.print(output)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        console.print("[yellow]Usage: python normalize_airflow_version.py <version>")
+        sys.exit(1)
+    version = sys.argv[1]
+    parsed_version = normalize_version(version)
+    actual_version, is_latest = check_airflow_version(parsed_version)
+    print_both_outputs(f"airflow_version={actual_version}")
+    skip_latest = "false" if is_latest else "true"
+    print_both_outputs(f"skip_latest={skip_latest}")

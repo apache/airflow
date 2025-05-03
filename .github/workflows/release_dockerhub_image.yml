@@ -21,12 +21,12 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
       airflowVersion:
-        description: 'Airflow version'
+        description: 'Airflow version (e.g. 3.0.1, 3.0.1rc1, 3.0.1b1)'
         required: true
-      skipLatest:
-        description: 'Skip Latest: Set to true if not latest.'
-        default: ''
-        required: false
+      amdOnly:
+        type: boolean
+        description: 'Limit to amd64 only (faster testing)'
+        default: false
 permissions:
   contents: read
   packages: read
@@ -40,17 +40,26 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-24.04"]
     outputs:
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
-      skipLatest: ${{ github.event.inputs.skipLatest == '' && ' ' || '--skip-latest' }}
-      limitPlatform: ${{ github.repository == 'apache/airflow' && ' ' || '--limit-platform linux/amd64' }}
+      skipLatest: ${{ steps.selective-checks.outputs.skip-latest }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
+      AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+      AMD_ONLY: ${{ github.event.inputs.amdOnly }}
     steps:
+      - name: "Input parameters summary"
+        shell: bash
+        run: |
+          echo "Input parameters summary"
+          echo "========================="
+          echo "Airflow version: '${AIRFLOW_VERSION}'"
+          echo "Skip latest: '${SKIP_LATEST}'"
+          echo "AMD only: '${AMD_ONLY}'"
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -60,10 +69,15 @@ jobs:
           persist-credentials: false
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: "Check airflow version"
+        shell: bash
+        run: uv run scripts/ci/airflow_version_check.py "${AIRFLOW_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
-          use-uv: "false"
+          use-uv: "true"
       - name: Selective checks
         id: selective-checks
         env:
@@ -150,8 +164,10 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PYTHON_VERSION: ${{ matrix.python-version }}
           AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
-          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest }}
-          LIMIT_PLATFORM: ${{ needs.build-info.outputs.limitPlatform }}
+          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest == 'true' && '--skip-latest' || '' }}
+          LIMIT_PLATFORM: >
+            ${{ (github.repository == 'apache/airflow' || github.event.inputs.amdOnly == 'true')
+            && '--limit-platform linux/amd64' || '' }}
         run: >
           breeze release-management release-prod-images --dockerhub-repo "${REPOSITORY}"
           --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST} ${LIMIT_PLATFORM}
@@ -163,14 +179,13 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PYTHON_VERSION: ${{ matrix.python-version }}
           AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
-          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest }}
-          LIMIT_PLATFORM: ${{ needs.build-info.outputs.limitPlatform }}
+          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest == 'true' && '--skip-latest' || '' }}
+          LIMIT_PLATFORM: >
+            ${{ (github.repository == 'apache/airflow' || github.event.inputs.amdOnly == 'true')
+            && '--limit-platform linux/amd64' || '' }}
         run: >
-          breeze release-management release-prod-images
-          --dockerhub-repo "${REPOSITORY}"
-          --airflow-version "${AIRFLOW_VERSION}"
-          ${SKIP_LATEST}
-          ${LIMIT_PLATFORM}
+          breeze release-management release-prod-images --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST} ${LIMIT_PLATFORM}
           --limit-python ${PYTHON_VERSION} --slim-images
       - name: >
           Verify regular AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
