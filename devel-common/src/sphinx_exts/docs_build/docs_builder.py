@@ -119,11 +119,10 @@ class AirflowDocsBuilder:
         if self.package_name.startswith("apache-airflow-providers-"):
             package_paths = self.package_name[len("apache-airflow-providers-") :].split("-")
             return (AIRFLOW_CONTENT_ROOT_PATH / "providers").joinpath(*package_paths) / "docs"
-        elif self.package_name == "apache-airflow-ctl":
+        if self.package_name == "apache-airflow-ctl":
             return AIRFLOW_CONTENT_ROOT_PATH / "airflow-ctl" / "docs"
-        else:
-            console.print(f"[red]Unknown package name: {self.package_name}")
-            sys.exit(1)
+        console.print(f"[red]Unknown package name: {self.package_name}")
+        sys.exit(1)
 
     @property
     def pythonpath(self) -> list[Path]:
