@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.providers.apache.kafka.queues.kafka import KafkaMessageQueueProvider
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
-from airflow.providers.common.messaging.providers.kafka import KafkaMessageQueueProvider
 
 MOCK_KAFKA_TRIGGER_APPLY_FUNCTION = "mock_kafka_trigger_apply_function"
 
