@@ -237,6 +237,8 @@ class CommandFactory:
         self.commands_map = {}
         self.group_commands_list = []
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
+        # Exclude parameters that are not needed for CLI from datamodels
+        self.excluded_parameters = ["schema_"]
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -344,6 +346,8 @@ class CommandFactory:
         if parameter_type_map not in self.datamodels_extended_map.keys():
             self.datamodels_extended_map[parameter_type] = []
         for field, field_type in parameter_type_map.__fields__.items():
+            if field in self.excluded_parameters:
+                continue
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
                 commands.append(
@@ -410,8 +414,6 @@ class CommandFactory:
             operation_class = operation_class_object(client=api_client)
             operation_method_object = getattr(operation_class, api_operation["name"])
 
-            # TODO (bugraoz93) some fields shouldn't be updated or filled, handle this in a generic way
-            excluded_parameters = ["schema_"]
             # Walk through all args and create a dictionary such as args.abc -> {"abc": "value"}
             method_params = {}
             datamodel = None
@@ -425,7 +427,7 @@ class CommandFactory:
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:
-                            if expanded_parameter in excluded_parameters:
+                            if expanded_parameter in self.excluded_parameters:
                                 continue
                             if expanded_parameter in args_dict.keys():
                                 method_params[self._sanitize_method_param_key(expanded_parameter)] = (
