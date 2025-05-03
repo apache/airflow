@@ -444,7 +444,7 @@ def get_asset(
         select(AssetEvent.asset_id, AssetEvent.id, AssetEvent.timestamp).where(
             AssetEvent.asset_id == asset_id, AssetEvent.timestamp == last_asset_event
         )
-    )
+    ).one_or_none()
 
     # Retrieve the Asset; there should only be one for that asset_id
     asset = session.scalar(
@@ -453,12 +453,8 @@ def get_asset(
         .options(joinedload(AssetModel.consuming_dags), joinedload(AssetModel.producing_tasks))
     )
 
-    last_asset_event_id, last_asset_event_timestamp = None, None
-
-    # Pull the event ID and timestamp from the asset_event_query
-    for row in asset_event_rows:
-        _, last_asset_event_id, last_asset_event_timestamp = row
-        break  # There should only be one record, but be proactive
+    last_asset_event_id = asset_event_rows[1] if asset_event_rows else None
+    last_asset_event_timestamp = asset_event_rows[2] if asset_event_rows else None
 
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
