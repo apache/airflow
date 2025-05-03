@@ -18,26 +18,25 @@
 Quick Start
 -----------
 
-Airflow CTL® is a command line tool that helps you manage your Airflow deployments.
+Airflow CTL is a command line tool that helps you manage your Airflow deployments.
 It is designed to be easy to use and provides a simple interface for managing your Airflow environment.
 
 To get started, you can use the following command to create a new Airflow CTL environment:
 
 .. code-block:: bash
 
-  airflow-ctl auth login --username <username> --password <password> --env <env_name>
+  airflowctl auth login --username <username> --password <password> --api-url <api_url> --env <env_name>
+
+OR
+
+.. code-block:: bash
+
+  export AIRFLOW_CLI_TOKEN=<token>
+  airflowctl auth login --api-url <api_url> --env <env_name>
 
 This command will create a new Airflow CTL environment with the specified username and password.
 You can then use the following command to start the Airflow CTL environment:
 
 .. code-block:: bash
 
-  airflow-ctl --help
-
-This command will display a list of available commands and options for Airflow CTL.
-
-You can also use the following command to view the current status of your Airflow CTL environment:
-
-.. code-block:: bash
-
-    airflow-ctl status
+  airflowctl --help

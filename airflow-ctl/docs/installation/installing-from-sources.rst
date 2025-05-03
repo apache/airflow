@@ -41,7 +41,7 @@ dependencies. In case of ``pip`` it means that at least version 22.1.0 is needed
 2022) to build or install Airflow from sources. This does not affect the ability of installing Airflow from
 released wheel packages.
 
-The |version| downloads of Airflow CTL® are available at:
+The |version| downloads of Airflow CTL are available at:
 
 .. jinja:: official_download_page
 

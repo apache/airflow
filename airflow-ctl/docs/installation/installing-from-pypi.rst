@@ -68,7 +68,7 @@ Constraints files
 Why we need constraints
 =======================
 
-Airflow CTL® installation can be tricky because Airflow CTL is both a library and an application.
+Airflow CTL installation can be tricky because Airflow CTL is both a library and an application.
 
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible

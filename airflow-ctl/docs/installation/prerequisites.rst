@@ -18,8 +18,56 @@
 Prerequisites
 -------------
 
-Airflow CTL® is tested with:
+Airflow CTL is tested with:
 
 
 The minimum memory required we recommend Airflow CTL to run with is 4GB, but the actual requirements depend
-wildly on the deployment options you have
+wildly on the deployment options you have.
+The Keyring backend needs to be installed separately into your operating system. This will enhance security. See :doc:`/security` for more information.
+
+Keyring Backend
+'''''''''''''''
+Airflow CTL uses keyring to store the API token securely. This ensures that the token is not stored in plain text and is only accessible to authorized users.
+
+Recommended keyring backends are:
+* macOS `Keychain
+  <https://en.wikipedia.org/wiki/Keychain_%28software%29>`_
+* Freedesktop `Secret Service
+  <http://standards.freedesktop.org/secret-service/>`_ supports many DE including
+  GNOME (requires `secretstorage <https://pypi.python.org/pypi/secretstorage>`_)
+* KDE4 & KDE5 `KWallet <https://en.wikipedia.org/wiki/KWallet>`_
+  (requires `dbus <https://pypi.python.org/pypi/dbus-python>`_)
+* `Windows Credential Locker
+  <https://docs.microsoft.com/en-us/windows/uwp/security/credential-locker>`_
+
+Third-Party Backends
+====================
+
+In addition to the backends provided by the core keyring package for
+the most common and secure use cases, there
+are additional keyring backend implementations available for other
+use cases. Simply install them to make them available:
+
+- `keyrings.cryptfile <https://pypi.org/project/keyrings.cryptfile>`_
+  - Encrypted text file storage.
+- `keyrings.alt <https://pypi.org/project/keyrings.alt>`_ - "alternate",
+  possibly-insecure backends, originally part of the core package, but
+  available for opt-in.
+- `gsheet-keyring <https://pypi.org/project/gsheet-keyring>`_
+  - a backend that stores secrets in a Google Sheet. For use with
+  `ipython-secrets <https://pypi.org/project/ipython-secrets>`_.
+- `bitwarden-keyring <https://pypi.org/project/bitwarden-keyring/>`_
+  - a backend that stores secrets in the `BitWarden <https://bitwarden.com/>`_
+  password manager.
+- `onepassword-keyring <https://pypi.org/project/onepassword-keyring/>`_
+  - a backend that stores secrets in the `1Password <https://1password.com/>`_ password manager.
+- `sagecipher <https://pypi.org/project/sagecipher>`_ - an encryption
+  backend which uses the ssh agent protocol's signature operation to
+  derive the cipher key.
+- `keyrings.osx_keychain_keys <https://pypi.org/project/keyrings.osx-keychain-keys>`_
+  - OSX keychain key-management, for private, public, and symmetric keys.
+- `keyring_pass.PasswordStoreBackend <https://github.com/nazarewk/keyring_pass>`_
+   - Password Store (pass) backend for python's keyring
+- `keyring_jeepney <https://pypi.org/project/keyring_jeepney>`__ - a
+  pure Python backend using the secret service DBus API for desktop
+  Linux (requires ``keyring<24``).

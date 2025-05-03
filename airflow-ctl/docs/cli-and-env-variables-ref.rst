@@ -21,9 +21,16 @@ Command Line Interface and Environment Variables Reference
 Command Line Interface
 ''''''''''''''''''''''
 
-Airflow has a very rich command line interface that allows for
+Airflow CTL has a very rich command line interface that allows for
 many types of operation on a DAG, starting services, and supporting
 development and testing.
+
+.. note::
+    For more information on usage CLI, see :doc:`/howto/usage-cli`
+
+.. contents:: Content
+    :local:
+    :depth: 2
 
 .. argparse::
    :module: airflowctl.ctl.cli_parser

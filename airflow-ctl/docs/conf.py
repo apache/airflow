@@ -108,6 +108,14 @@ exclude_patterns = [
     "_api/airflowctl/api/datamodels/generated/index.rst",
     "_api/airflowctl/api/index.rst",
     "_api/airflowctl/ctl/index.rst",
+    "_api/airflow-ctl/docs/_api/airflowctl/api/client/index.rst",
+    "_api/airflow-ctl/docs/_api/airflowctl/api/datamodels/index.rst",
+    "_api/airflow-ctl/docs/_api/airflowctl/api/operations/index.rst",
+    "_api/airflow-ctl/docs/_api/airflowctl/ctl/cli_config/index.rst",
+    "_api/airflow-ctl/docs/_api/airflowctl/ctl/cli_parser/index.rst",
+    "_api/airflow-ctl/docs/_api/airflowctl/ctl/commands/index.rst",
+    "_api/airflow-ctl/docs/_api/airflowctl/exceptions/index.rst",
+    "_api/airflow-ctl/docs/_api/airflowctl/utils/index.rst",
     "README.rst",
 ]
 
@@ -147,7 +155,7 @@ keep_warnings = True
 # a list of builtin themes.
 html_theme = "sphinx_airflow_theme"
 
-html_title = "Airflow Documentation"
+html_title = "Airflow CTL Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = ""
