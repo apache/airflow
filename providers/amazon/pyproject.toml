@@ -66,8 +66,8 @@ dependencies = [
     # in the `devel-dependencies` section to be the same minimum version.
     # Apparently latest boto is causing OOM (143) issues in our CI
     # we limit it for now - see https://github.com/apache/airflow/issues/49937
-    "boto3>=1.37.0,<1.38.3",
-    "botocore>=1.37.0,<1.38.3",
+    "boto3>=1.37.0",
+    "botocore>=1.37.0",
     "inflection>=0.5.1",
     # Allow a wider range of watchtower versions for flexibility among users
     "watchtower>=3.3.1,<4",
