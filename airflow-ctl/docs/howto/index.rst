@@ -56,6 +56,7 @@ There are two ways to authenticate with the Airflow API:
   airflowctl auth login --api-url <api_url> --username <username> --password <password> --env <env_name:production>
 
 3. (optional) Using a token acquired from the Airflow API and username and password
+
 .. code-block:: bash
 
   export AIRFLOW_CLI_TOKEN=<token>

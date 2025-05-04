@@ -104,18 +104,11 @@ extensions.extend(
 exclude_patterns = [
     # We only link to selected subpackages.
     "_api/airflowctl/index.rst",
-    "_api/airflowctl/api/datamodels/auth_generated/index.rst",
-    "_api/airflowctl/api/datamodels/generated/index.rst",
-    "_api/airflowctl/api/index.rst",
-    "_api/airflowctl/ctl/index.rst",
-    "_api/airflow-ctl/docs/_api/airflowctl/api/client/index.rst",
-    "_api/airflow-ctl/docs/_api/airflowctl/api/datamodels/index.rst",
-    "_api/airflow-ctl/docs/_api/airflowctl/api/operations/index.rst",
-    "_api/airflow-ctl/docs/_api/airflowctl/ctl/cli_config/index.rst",
-    "_api/airflow-ctl/docs/_api/airflowctl/ctl/cli_parser/index.rst",
-    "_api/airflow-ctl/docs/_api/airflowctl/ctl/commands/index.rst",
-    "_api/airflow-ctl/docs/_api/airflowctl/exceptions/index.rst",
-    "_api/airflow-ctl/docs/_api/airflowctl/utils/index.rst",
+    "_api/airflowctl/api/*",
+    "_api/airflowctl/api/datamodels/*",
+    "_api/airflowctl/ctl/*",
+    "_api/airflowctl/exceptions/index.rst",
+    "_api/airflowctl/utils/*",
     "README.rst",
 ]
 
@@ -141,6 +134,7 @@ def add_airflow_ctl_exclude_patterns_to_sphinx(exclude_patterns: list[str]):
     for path in root.iterdir():
         if path.is_file() and path.name not in ALLOWED_TOP_LEVEL_FILES:
             exclude_patterns.append(get_rst_filepath_from_path(path, root.parent))
+            print(f"Excluding {path} from Sphinx docs")
 
 
 add_airflow_ctl_exclude_patterns_to_sphinx(exclude_patterns)

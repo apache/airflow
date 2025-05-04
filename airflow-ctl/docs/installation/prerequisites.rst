@@ -30,15 +30,13 @@ Keyring Backend
 Airflow CTL uses keyring to store the API token securely. This ensures that the token is not stored in plain text and is only accessible to authorized users.
 
 Recommended keyring backends are:
-* macOS `Keychain
-  <https://en.wikipedia.org/wiki/Keychain_%28software%29>`_
-* Freedesktop `Secret Service
-  <http://standards.freedesktop.org/secret-service/>`_ supports many DE including
-  GNOME (requires `secretstorage <https://pypi.python.org/pypi/secretstorage>`_)
+* macOS `Keychain <https://en.wikipedia.org/wiki/Keychain_%28software%29>`_
+* Freedesktop `Secret Service <http://standards.freedesktop.org/secret-service/>`_ supports many DE including
+GNOME (requires `secretstorage <https://pypi.python.org/pypi/secretstorage>`_)
 * KDE4 & KDE5 `KWallet <https://en.wikipedia.org/wiki/KWallet>`_
-  (requires `dbus <https://pypi.python.org/pypi/dbus-python>`_)
+(requires `dbus <https://pypi.python.org/pypi/dbus-python>`_)
 * `Windows Credential Locker
-  <https://docs.microsoft.com/en-us/windows/uwp/security/credential-locker>`_
+<https://docs.microsoft.com/en-us/windows/uwp/security/credential-locker>`_
 
 Third-Party Backends
 ====================

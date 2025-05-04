@@ -39,6 +39,8 @@ A command-line tool for interacting with Apache Airflow instances through the Ai
 
 Access the tool from your terminal:
 
+### Command Line
+
 ```bash
 airflowctl --help
 ```
@@ -46,3 +48,22 @@ airflowctl --help
 ## Contributing
 
 Want to help improve Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst).
+
+### Additional Contribution Guidelines
+
+- Please ensure API is running while doing development testing.
+- There are two ways to have a CLI command,
+  - Auto Generated Commands
+  - Implemented Commands
+
+#### Auto Generated Commands
+
+Auto generation of commands directly from operations methods under `airflow-ctl/src/airflowctl/api/operations.py`.
+Whenever operation is mapped with proper datamodel and response model, it will be automatically added to the command.
+
+You can check each command with `airflowctl <command> --help` to see the available options.
+
+#### Implemented Commands
+
+Implemented commands are the ones which are not auto generated and need to be implemented manually.
+You can check the implemented commands under `airflow-ctl/src/airflowctl/clt/commands/`.
