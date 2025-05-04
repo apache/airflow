@@ -59,7 +59,6 @@ jobs:
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
-      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       core-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.core-test-types-list-as-strings-in-json }}
@@ -257,7 +256,6 @@ jobs:
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
@@ -282,7 +280,6 @@ jobs:
       basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -304,7 +301,8 @@ jobs:
       packages: read
     if: >
       needs.build-info.outputs.skip-providers-tests != 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
+      needs.build-info.outputs.latest-versions-only != 'true' &&
+      needs.build-info.outputs.run-tests == 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -691,9 +689,7 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-      build-provider-distributions: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
@@ -708,7 +704,6 @@ jobs:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
@@ -785,19 +780,30 @@ jobs:
     # This will fire when all the jobs from "needs" are either successful or skipped
     if: always() && !failure() && !cancelled()
     needs:
+      - additional-ci-image-checks
+      - additional-prod-image-tests
+      - basic-tests
       - build-info
-      - generate-constraints
+      - build-prod-images
       - ci-image-checks
-      - tests-sqlite-core
-      - tests-sqlite-providers
+      - generate-constraints
+      - providers
+      - tests-helm
+      - tests-integration-system
+      - tests-kubernetes
       - tests-mysql-core
       - tests-mysql-providers
-      - tests-postgres-core
-      - tests-postgres-providers
       - tests-non-db-core
       - tests-non-db-providers
-      - tests-integration-system
-      - build-prod-images
+      - tests-postgres-core
+      - tests-postgres-providers
+      # - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-airflow-ctl
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
@@ -818,17 +824,6 @@ jobs:
   notify-slack-failure:
     name: "Notify Slack on Failure"
     needs:
-      - basic-tests
-      - additional-ci-image-checks
-      - providers
-      - tests-helm
-      - tests-special
-      - tests-with-lowest-direct-resolution-core
-      - tests-with-lowest-direct-resolution-providers
-      - additional-prod-image-tests
-      - tests-kubernetes
-      - tests-task-sdk
-      - tests-airflow-ctl
       - finalize-tests
     if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]

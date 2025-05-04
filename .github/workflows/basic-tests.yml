@@ -353,6 +353,8 @@ jobs:
           git remote add apache https://github.com/apache/airflow.git
           git fetch apache --tags
           breeze release-management generate-providers-metadata --refresh-constraints
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Fetch all git tags for origin"
         run: git fetch --tags >/dev/null 2>&1 || true
       - name: "Test airflow core issue generation automatically"

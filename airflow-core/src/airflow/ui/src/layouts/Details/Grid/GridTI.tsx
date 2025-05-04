@@ -19,7 +19,7 @@
 import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
@@ -36,7 +36,7 @@ type Props = {
 };
 
 const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#name-${event.currentTarget.id}`);
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
   tasks.forEach((task) => {
     task.style.backgroundColor = "var(--chakra-colors-blue-subtle)";
@@ -44,56 +44,32 @@ const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
 };
 
 const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#name-${event.currentTarget.id}`);
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
   tasks.forEach((task) => {
     task.style.backgroundColor = "";
   });
 };
 
-const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => (
-  <Flex
-    alignItems="center"
-    height="20px"
-    id={taskId.replaceAll(".", "-")}
-    justifyContent="center"
-    key={taskId}
-    onMouseEnter={onMouseEnter}
-    onMouseLeave={onMouseLeave}
-    px="2px"
-    py={0}
-    transition="background-color 0.2s"
-    zIndex={1}
-  >
-    {isGroup ? (
-      <Badge
-        borderRadius={4}
-        colorPalette={state === null ? "none" : state}
-        height="14px"
-        minH={0}
-        opacity={state === "success" ? 0.6 : 1}
-        p={0}
-        variant="solid"
-        width="14px"
-      >
-        {state === undefined ? undefined : (
-          <StateIcon
-            size={10}
-            state={state}
-            style={{
-              marginLeft: "2px",
-            }}
-          />
-        )}
-      </Badge>
-    ) : (
-      <Link
-        replace
-        to={{
-          pathname: `/dags/${dagId}/runs/${runId}/tasks/${taskId}${isMapped ? "/mapped" : ""}`,
-          search,
-        }}
-      >
+const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => {
+  const { taskId: selectedTaskId } = useParams();
+
+  return (
+    <Flex
+      alignItems="center"
+      bg={selectedTaskId === taskId ? "blue.muted" : undefined}
+      height="20px"
+      id={taskId.replaceAll(".", "-")}
+      justifyContent="center"
+      key={taskId}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      px="2px"
+      py={0}
+      transition="background-color 0.2s"
+      zIndex={1}
+    >
+      {isGroup ? (
         <Badge
           borderRadius={4}
           colorPalette={state === null ? "none" : state}
@@ -114,9 +90,38 @@ const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Pr
             />
           )}
         </Badge>
-      </Link>
-    )}
-  </Flex>
-);
+      ) : (
+        <Link
+          replace
+          to={{
+            pathname: `/dags/${dagId}/runs/${runId}/tasks/${taskId}${isMapped ? "/mapped" : ""}`,
+            search,
+          }}
+        >
+          <Badge
+            borderRadius={4}
+            colorPalette={state === null ? "none" : state}
+            height="14px"
+            minH={0}
+            opacity={state === "success" ? 0.6 : 1}
+            p={0}
+            variant="solid"
+            width="14px"
+          >
+            {state === undefined ? undefined : (
+              <StateIcon
+                size={10}
+                state={state}
+                style={{
+                  marginLeft: "2px",
+                }}
+              />
+            )}
+          </Badge>
+        </Link>
+      )}
+    </Flex>
+  );
+};
 
 export const GridTI = React.memo(Instance);

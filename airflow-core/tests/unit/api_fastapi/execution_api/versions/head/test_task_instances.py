@@ -1447,6 +1447,156 @@ class TestGetCount:
         assert response.status_code == 200
         assert response.json() == 2
 
+    def test_get_count_with_map_index_less_than_zero(self, client, session, create_task_instance):
+        create_task_instance(task_id="task1", state=State.SUCCESS, run_id="runid1", dag_id="map_index_test")
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": "map_index_test", "states": [State.SUCCESS], "map_index": -1},
+        )
+        assert response.status_code == 200
+        assert response.json() == 1
+
+    def test_get_count_with_multiple_tasks_and_map_index_less_than_zero(
+        self, dag_maker, client, session, create_task_instance
+    ):
+        with dag_maker("test_get_count_with_multiple_tasks_and_map_index_less_than_zero"):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+            EmptyOperator(task_id="task3")
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances()
+
+        # Set different states for the task instances
+        for ti, state in zip(tis, [State.SUCCESS, State.FAILED, State.SKIPPED]):
+            ti.state = state
+            session.merge(ti)
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={
+                "dag_id": "test_get_count_with_multiple_tasks_and_map_index_less_than_zero",
+                "map_index": -1,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == 3
+
+    @pytest.mark.parametrize(
+        ["map_index", "dynamic_task_args", "expected_count"],
+        (
+            pytest.param(None, [1, 2, 3], 4, id="use-default-map-index"),
+            pytest.param(-1, [1, 2, 3], 1, id="map-index-(-1)"),
+            pytest.param(0, [1, 2, 3], 1, id="map-index-0"),
+            pytest.param(1, [1, 2, 3], 1, id="map-index-1"),
+            pytest.param(2, [1, 2, 3], 1, id="map-index-2"),
+        ),
+    )
+    def test_get_count_for_dynamic_task_mapping(
+        self, dag_maker, client, session, map_index, dynamic_task_args, expected_count
+    ):
+        """
+        case 1: map_index is None, it should fetch all the tasks
+        other cases: when map index is provided, it should return the count of tasks that falls under the map index
+        """
+        with dag_maker(session=session) as dag:
+            EmptyOperator(task_id="op1")
+
+            @dag.task()
+            def add_one(x):
+                return [x + 1]
+
+            add_one.expand(x=dynamic_task_args)
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances()
+
+        for ti in tis:
+            ti.state = State.SUCCESS
+            session.merge(ti)
+        session.commit()
+
+        map_index = {} if map_index is None else {"map_index": map_index}
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": dr.dag_id, "run_ids": [dr.run_id], **map_index},
+        )
+        assert response.status_code == 200
+        assert response.json() == expected_count
+
+    @pytest.mark.parametrize(
+        [
+            "map_index",
+            "dynamic_task_args",
+            "task_ids",
+            "task_group_name",
+            "expected_count",
+        ],
+        (
+            pytest.param(None, [1, 2, 3], None, None, 5, id="use-default-map-index-None"),
+            pytest.param(-1, [1, 2, 3], ["task1"], None, 1, id="with-task-ids-and-map-index-(-1)"),
+            pytest.param(None, [1, 2, 3], None, "group1", 4, id="with-task-group-id-and-map-index-None"),
+            pytest.param(0, [1, 2, 3], None, "group1", 1, id="with-task-group-id-and-map-index-0"),
+            pytest.param(-1, [1, 2, 3], None, "group1", 1, id="with-task-group-id-and-map-index-(-1)"),
+        ),
+    )
+    def test_get_count_mix_of_task_and_task_group_dynamic_task_mapping(
+        self,
+        dag_maker,
+        client,
+        session,
+        map_index,
+        dynamic_task_args,
+        task_ids,
+        task_group_name,
+        expected_count,
+    ):
+        """
+        case 1: map_index is None, task_ids is None, task_group_name is None, it should fetch all the tasks
+        case 2: when map index -1 and provided task_ids, it should return the count of task_ids
+        case 3: when map index is None and provided task_group_id, it should return the count of tasks under the task group
+        case 4: when map index is 0 and provided task_group_id, it should return the count of tasks under the task group that falls map index =0
+        case 5: when map index is -1 and provided task_group_id, it should return the count of tasks under the task group that falls map index =-1 i.e this task is not mapped
+        """
+
+        with dag_maker(session=session, serialized=True) as dag:
+            EmptyOperator(task_id="task1")
+
+            with TaskGroup("group1"):
+
+                @dag.task()
+                def add_one(x):
+                    return [x + 1]
+
+                add_one.expand(x=dynamic_task_args)
+
+                EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun(session=session)
+
+        session.commit()
+        params = {}
+
+        if task_ids:
+            params["task_ids"] = task_ids
+        if task_group_name:
+            params["task_group_id"] = task_group_name
+        if map_index is not None:
+            params["map_index"] = map_index
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": dr.dag_id, "run_ids": [dr.run_id], **params},
+        )
+        assert response.status_code == 200
+        assert response.json() == expected_count
+
 
 class TestGetTaskStates:
     def setup_method(self):
@@ -1512,7 +1662,6 @@ class TestGetTaskStates:
             "task_states": {
                 "test": {
                     "group1.task1": "success",
-                    "task2": "failed",
                 },
             },
         }
@@ -1644,3 +1793,180 @@ class TestGetTaskStates:
             "reason": "not_found",
             "message": "DAG non_existent_dag not found",
         }
+
+    @pytest.mark.parametrize(
+        ["map_index", "dynamic_task_args", "states", "expected"],
+        (
+            pytest.param(
+                None,
+                [1, 2, 3],
+                {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
+                {"task1": "success", "add_one_0": "success", "add_one_1": "success", "add_one_2": "success"},
+                id="with-default-map-index-None",
+            ),
+            pytest.param(
+                0,
+                [1, 2, 3],
+                {"-1": State.SUCCESS, "0": State.FAILED, "1": State.SUCCESS, "2": State.SUCCESS},
+                {"add_one_0": "failed"},
+                id="with-map-index-0",
+            ),
+            pytest.param(
+                1,
+                [1, 2, 3],
+                {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.FAILED, "2": State.SUCCESS},
+                {"add_one_1": "failed"},
+                id="with-map-index-1",
+            ),
+        ),
+    )
+    def test_get_task_states_for_dynamic_task_mapping(
+        self, dag_maker, client, session, map_index, dynamic_task_args, states, expected
+    ):
+        """
+        case 1: map_index is None, it should fetch all the tasks
+        other cases: when map index is provided, it should return the count of tasks that falls under the map index
+        """
+        with dag_maker(session=session, serialized=True) as dag:
+            EmptyOperator(task_id="task1")
+
+            @dag.task()
+            def add_one(x):
+                return [x + 1]
+
+            add_one.expand(x=dynamic_task_args)
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            ti.state = states.get(str(ti.map_index))
+            session.merge(ti)
+        session.commit()
+
+        map_index = {} if map_index is None else {"map_index": map_index}
+
+        response = client.get("/execution/task-instances/states", params={"dag_id": dr.dag_id, **map_index})
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {dr.run_id: expected}}
+
+    @pytest.mark.parametrize(
+        [
+            "map_index",
+            "dynamic_task_args",
+            "task_ids",
+            "task_group_name",
+            "states",
+            "expected",
+        ],
+        (
+            pytest.param(
+                None,
+                [1, 2, 3],
+                None,
+                None,
+                {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
+                {
+                    "group1.add_one_0": "success",
+                    "group1.add_one_1": "success",
+                    "group1.add_one_2": "success",
+                    "group1.task2": "success",
+                    "task1": "success",
+                },
+                id="with-default-map-index-None",
+            ),
+            pytest.param(
+                -1,
+                [1, 2, 3],
+                ["task1"],
+                None,
+                {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
+                {"task1": "success"},
+                id="with-task-ids-map-index-(-1)",
+            ),
+            pytest.param(
+                None,
+                [1, 2, 3],
+                None,
+                "group1",
+                {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
+                {
+                    "group1.task2": "success",
+                    "group1.add_one_0": "success",
+                    "group1.add_one_1": "success",
+                    "group1.add_one_2": "success",
+                },
+                id="with-task-group-id-and-map-index-None",
+            ),
+            pytest.param(
+                0,
+                [1, 2, 3],
+                None,
+                "group1",
+                {"-1": State.SUCCESS, "0": State.FAILED, "1": State.SUCCESS, "2": State.SUCCESS},
+                {"group1.add_one_0": "failed"},
+                id="with-task-group-id-and-map-index-0",
+            ),
+            pytest.param(
+                -1,
+                [1, 2, 3],
+                ["task1"],
+                "group1",
+                {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
+                {"task1": "success", "group1.task2": "success"},
+                id="with-task-id-and-task-group-map-index-(-1)",
+            ),
+        ),
+    )
+    def test_get_task_states_mix_of_task_and_task_group_dynamic_task_mapping(
+        self,
+        dag_maker,
+        client,
+        session,
+        map_index,
+        dynamic_task_args,
+        task_ids,
+        task_group_name,
+        states,
+        expected,
+    ):
+        """
+        case1: map_index is None, task_ids is None, task_group_name is None, it should fetch all the task states
+        case2: when map index -1 and provided task_ids, it should return the task states of task_ids
+        case3: when map index is None and provided task_group_id, it should return the task states of tasks under the task group and normal task states under task group
+        case4: when map index is 0 and provided task_group_id, it should return the task states of tasks under the task group that falls under map index = 0
+        case5: when map index is -1 and provided both task_id and task_group_id, it should return the task states of tasks under the task group that falls under map index = -1 and normal task_ids states
+        """
+
+        with dag_maker(session=session, serialized=True) as dag:
+            EmptyOperator(task_id="task1")
+
+            with TaskGroup("group1"):
+
+                @dag.task()
+                def add_one(x):
+                    return [x + 1]
+
+                add_one.expand(x=dynamic_task_args)
+
+                EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun(session=session)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            ti.state = states.get(str(ti.map_index))
+            session.merge(ti)
+        session.commit()
+        params = {}
+
+        if task_ids:
+            params["task_ids"] = task_ids
+        if task_group_name:
+            params["task_group_id"] = task_group_name
+        if map_index is not None:
+            params["map_index"] = map_index
+
+        response = client.get("/execution/task-instances/states", params={"dag_id": dr.dag_id, **params})
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {dr.run_id: expected}}

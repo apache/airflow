@@ -54,11 +54,11 @@ from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
-    IntermediateTIState,
     TaskInstance,
+    TaskInstanceState,
     TaskStatesResponse,
-    TerminalTIState,
     VariableResponse,
+    XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -84,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComCount,
+    GetXComSequenceItem,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -128,10 +129,10 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
 STATES_SENT_DIRECTLY = [
-    IntermediateTIState.DEFERRED,
-    IntermediateTIState.UP_FOR_RESCHEDULE,
-    IntermediateTIState.UP_FOR_RETRY,
-    TerminalTIState.SUCCESS,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.SUCCESS,
     SERVER_TERMINATED,
 ]
 
@@ -428,6 +429,9 @@ class WatchedSubprocess:
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
 
+    start_time: float = attrs.field(factory=time.monotonic)
+    """The start time of the child process."""
+
     @classmethod
     def start(
         cls,
@@ -481,6 +485,7 @@ class WatchedSubprocess:
             process=psutil.Process(pid),
             requests_fd=requests_fd,
             process_log=logger,
+            start_time=time.monotonic(),
             **constructor_kwargs,
         )
 
@@ -971,10 +976,10 @@ class ActivitySubprocess(WatchedSubprocess):
         Not valid before the process has finished.
         """
         if self._exit_code == 0:
-            return self._terminal_state or TerminalTIState.SUCCESS
+            return self._terminal_state or TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
-        return TerminalTIState.FAILED
+        return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
         log.debug("Received message from task runner", msg=msg)
@@ -1030,11 +1035,19 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetXComCount):
             len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
             resp = XComCountResponse(len=len)
+        elif isinstance(msg, GetXComSequenceItem):
+            xcom = self.client.xcoms.get_sequence_item(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
+            )
+            if isinstance(xcom, XComResponse):
+                resp = XComResult.from_xcom_response(xcom)
+            else:
+                resp = xcom
         elif isinstance(msg, DeferTask):
-            self._terminal_state = IntermediateTIState.DEFERRED
+            self._terminal_state = TaskInstanceState.DEFERRED
             self.client.task_instances.defer(self.id, msg)
         elif isinstance(msg, RescheduleTask):
-            self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
+            self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
@@ -1095,6 +1108,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTICount):
             resp = self.client.task_instances.get_count(
                 dag_id=msg.dag_id,
+                map_index=msg.map_index,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,
@@ -1104,6 +1118,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTaskStates):
             task_states_map = self.client.task_instances.get_task_states(
                 dag_id=msg.dag_id,
+                map_index=msg.map_index,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,

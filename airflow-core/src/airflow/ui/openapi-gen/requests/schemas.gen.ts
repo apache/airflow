@@ -482,6 +482,10 @@ export const $BackfillResponse = {
       format: "date-time",
       title: "Updated At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -496,6 +500,7 @@ export const $BackfillResponse = {
     "created_at",
     "completed_at",
     "updated_at",
+    "dag_display_name",
   ],
   title: "BackfillResponse",
   description: "Base serializer for Backfill.",
@@ -1715,6 +1720,18 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Parsed",
     },
+    default_args: {
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Default Args",
+    },
     file_token: {
       type: "string",
       title: "File Token",
@@ -1778,6 +1795,7 @@ export const $DAGDetailsResponse = {
     "template_search_path",
     "timezone",
     "last_parsed",
+    "default_args",
     "file_token",
     "concurrency",
     "latest_dag_version",
@@ -2266,6 +2284,10 @@ export const $DAGRunResponse = {
       ],
       title: "Bundle Version",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -2286,6 +2308,7 @@ export const $DAGRunResponse = {
     "note",
     "dag_versions",
     "bundle_version",
+    "dag_display_name",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",
@@ -3405,6 +3428,8 @@ export const $JobResponse = {
   description: "Job serializer for responses.",
 } as const;
 
+export const $JsonValue = {} as const;
+
 export const $PatchTaskInstanceBody = {
   properties: {
     new_state: {
@@ -4098,6 +4123,10 @@ export const $TaskInstanceHistoryResponse = {
       type: "string",
       title: "Task Display Name",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     hostname: {
       anyOf: [
         {
@@ -4235,6 +4264,7 @@ export const $TaskInstanceHistoryResponse = {
     "try_number",
     "max_tries",
     "task_display_name",
+    "dag_display_name",
     "hostname",
     "unixname",
     "pool",
@@ -4348,6 +4378,10 @@ export const $TaskInstanceResponse = {
     task_display_name: {
       type: "string",
       title: "Task Display Name",
+    },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
     },
     hostname: {
       anyOf: [
@@ -4536,6 +4570,7 @@ export const $TaskInstanceResponse = {
     "try_number",
     "max_tries",
     "task_display_name",
+    "dag_display_name",
     "hostname",
     "unixname",
     "pool",
@@ -5436,8 +5471,7 @@ export const $VariableBody = {
       title: "Key",
     },
     value: {
-      type: "string",
-      title: "Value",
+      $ref: "#/components/schemas/JsonValue",
     },
     description: {
       anyOf: [
@@ -6379,6 +6413,31 @@ export const $DAGWithLatestDagRunsResponse = {
   ],
   title: "DAGWithLatestDagRunsResponse",
   description: "DAG with latest dag runs response serializer.",
+} as const;
+
+export const $DashboardDagStatsResponse = {
+  properties: {
+    active_dag_count: {
+      type: "integer",
+      title: "Active Dag Count",
+    },
+    failed_dag_count: {
+      type: "integer",
+      title: "Failed Dag Count",
+    },
+    running_dag_count: {
+      type: "integer",
+      title: "Running Dag Count",
+    },
+    queued_dag_count: {
+      type: "integer",
+      title: "Queued Dag Count",
+    },
+  },
+  type: "object",
+  required: ["active_dag_count", "failed_dag_count", "running_dag_count", "queued_dag_count"],
+  title: "DashboardDagStatsResponse",
+  description: "Dashboard DAG Stats serializer for responses.",
 } as const;
 
 export const $EdgeResponse = {

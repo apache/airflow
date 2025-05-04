@@ -110,14 +110,16 @@ class TypeOfChange(Enum):
     BREAKING_CHANGE = "x"
     SKIP = "s"
     MISC = "m"
+    MIN_AIRFLOW_VERSION_BUMP = "v"
 
 
 # defines the precedence order for provider version bumps
-# BREAKING_CHANGE > FEATURE > BUGFIX > MISC > DOCUMENTATION > SKIP
+# BREAKING_CHANGE > FEATURE > BUGFIX > MIN_AIRFLOW_VERSION_BUMP > MISC > DOCUMENTATION > SKIP
 precedence_order = {
     TypeOfChange.SKIP: 0,
     TypeOfChange.DOCUMENTATION: 1,
     TypeOfChange.MISC: 2,
+    TypeOfChange.MIN_AIRFLOW_VERSION_BUMP: 2.5,
     TypeOfChange.BUGFIX: 3,
     TypeOfChange.FEATURE: 4,
     TypeOfChange.BREAKING_CHANGE: 5,
@@ -187,6 +189,7 @@ TYPE_OF_CHANGE_DESCRIPTION = {
     TypeOfChange.FEATURE: "Feature changes - bump in MINOR version needed",
     TypeOfChange.BREAKING_CHANGE: "Breaking changes - bump in MAJOR version needed",
     TypeOfChange.MISC: "Miscellaneous changes - bump in PATCHLEVEL version needed",
+    TypeOfChange.MIN_AIRFLOW_VERSION_BUMP: "Airflow version bump change - bump in MINOR version needed",
 }
 
 
@@ -322,9 +325,7 @@ def _get_all_changes_for_package(
     )
     providers_folder_paths_for_git_commit_retrieval = [
         provider_details.root_provider_path,
-        provider_details.previous_source_provider_distribution_path,
-        provider_details.previous_documentation_provider_distribution_path,
-        provider_details.original_source_provider_distribution_path,
+        *provider_details.possible_old_provider_paths,
     ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
@@ -451,7 +452,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     while True:
         get_console().print(
             "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
-            f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
+            f"change, (m)misc, (s)kip,(v)airflow_min_version_bump (q)uit [{display_answers}]?[/] ",
             end="",
         )
         try:
@@ -506,13 +507,13 @@ def bump_version(v: Version, index: int) -> Version:
 
 
 def _update_version_in_provider_yaml(
-    provider_id: str,
-    type_of_change: TypeOfChange,
+    provider_id: str, type_of_change: TypeOfChange, min_airflow_version_bump: bool = False
 ) -> tuple[bool, bool, str]:
     """
     Updates provider version based on the type of change selected by the user
     :param type_of_change: type of change selected
     :param provider_id: provider package
+    :param min_airflow_version_bump: if set, ensure that the version bump is at least feature version.
     :return: tuple of two bools: (with_breaking_change, maybe_with_new_features, original_text)
     """
     provider_details = get_provider_details(provider_id)
@@ -533,6 +534,8 @@ def _update_version_in_provider_yaml(
         v = bump_version(v, VERSION_PATCHLEVEL_INDEX)
     elif type_of_change == TypeOfChange.MISC:
         v = bump_version(v, VERSION_PATCHLEVEL_INDEX)
+        if min_airflow_version_bump:
+            v = bump_version(v, VERSION_MINOR_INDEX)
     provider_yaml_path = get_provider_yaml(provider_id)
     original_provider_yaml_content = provider_yaml_path.read_text()
     updated_provider_yaml_content = re.sub(
@@ -668,7 +671,6 @@ def _update_file(
             f"[info]Please fix them by replacing with double backticks (``).[/]\n"
         )
         raise PrepareReleaseDocsErrorOccurredException()
-
     get_console().print(f"Linting: {target_file_path}")
     import restructuredtext_lint
 
@@ -681,6 +683,8 @@ def _update_file(
                 'No role entry for "doc"' in error.message
                 or 'Unknown interpreted text role "doc"' in error.message
             ):
+                continue
+            if "airflow-providers-commits" in error.message:
                 continue
             real_errors = True
             get_console().print(f"* [red] {error.message}")
@@ -797,6 +801,10 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             get_console().print()
+            bump = False
+            if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
+                bump = True
+                type_of_change = TypeOfChange.MISC
             if type_of_change in [
                 TypeOfChange.BUGFIX,
                 TypeOfChange.FEATURE,
@@ -804,7 +812,9 @@ def update_release_notes(
                 TypeOfChange.MISC,
             ]:
                 with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
-                    _update_version_in_provider_yaml(provider_id=provider_id, type_of_change=type_of_change)
+                    _update_version_in_provider_yaml(
+                        provider_id=provider_id, type_of_change=type_of_change, min_airflow_version_bump=bump
+                    )
                 )
                 if not reapply_templates_only:
                     _update_source_date_epoch_in_provider_yaml(provider_id)
@@ -851,9 +861,14 @@ def update_release_notes(
             TypeOfChange.BREAKING_CHANGE,
             TypeOfChange.MISC,
         ]:
+            bump = False
+            if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
+                bump = True
+                type_of_change = TypeOfChange.MISC
             with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
                 provider_id=provider_id,
                 type_of_change=type_of_change,
+                min_airflow_version_bump=bump,
             )
             if not reapply_templates_only:
                 _update_source_date_epoch_in_provider_yaml(provider_id)
@@ -933,7 +948,7 @@ def _get_changes_classified(
 
         if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
-        elif type_of_change == TypeOfChange.MISC:
+        elif type_of_change == TypeOfChange.MISC or type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
             classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)

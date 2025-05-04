@@ -49,7 +49,7 @@ function common::get_packaging_tool() {
         UV_CONCURRENT_DOWNLOADS=$(nproc --all)
         export UV_CONCURRENT_DOWNLOADS
         if [[ ${INCLUDE_PRE_RELEASE=} == "true" ]]; then
-            EXTRA_INSTALL_FLAGS="${EXTRA_INSTALL_FLAGS} --prerelease allow"
+            EXTRA_INSTALL_FLAGS="${EXTRA_INSTALL_FLAGS} --prerelease if-necessary"
         fi
     else
         echo
@@ -78,7 +78,7 @@ function common::get_airflow_version_specification() {
 function common::get_constraints_location() {
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
-        if  [[ ${AIRFLOW_VERSION} =~ v?2.* && ! ${AIRFLOW_VERSION} =~ .*dev.* ]]; then
+        if  [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
             AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}
         else
             AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}

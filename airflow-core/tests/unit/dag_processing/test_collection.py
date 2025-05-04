@@ -568,6 +568,36 @@ class TestUpdateDagParsingResults:
 
         assert import_errors == {("def.py", bundle_name)}
 
+    def test_remove_error_updates_loaded_dag_model(self, testing_dag_bundle, session):
+        bundle_name = "testing"
+        filename = "abc.py"
+        session.add(
+            ParseImportError(
+                filename=filename,
+                bundle_name=bundle_name,
+                timestamp=tz.utcnow(),
+                stacktrace="Some error",
+            )
+        )
+        session.add(
+            ParseImportError(
+                filename="def.py",
+                bundle_name=bundle_name,
+                timestamp=tz.utcnow(),
+                stacktrace="Some error",
+            )
+        )
+        session.flush()
+        dag = DAG(dag_id="test")
+        dag.fileloc = filename
+        import_errors = {filename: "Some error"}
+        update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
+        dag_model = session.get(DagModel, (dag.dag_id,))
+        assert dag_model.has_import_errors is True
+        import_errors = {}
+        update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
+        assert dag_model.has_import_errors is False
+
     @pytest.mark.parametrize(
         ("attrs", "expected"),
         [

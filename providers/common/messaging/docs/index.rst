@@ -43,6 +43,7 @@
     :caption: References
 
     Python API <_api/airflow/providers/common/messaging/index>
+    Base Provider <_api/airflow/providers/common/messaging/providers/base_provider/index>
 
 .. toctree::
     :hidden:
