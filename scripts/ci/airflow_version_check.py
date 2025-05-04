@@ -26,7 +26,9 @@
 # ///
 from __future__ import annotations
 
+import re
 import sys
+from pathlib import Path
 
 import requests
 from packaging.version import Version
@@ -59,6 +61,28 @@ def check_airflow_version(airflow_version: Version) -> tuple[str, bool]:
             sys.exit(1)
         if airflow_version == latest_version:
             latest = True
+        # find requires-python = "~=VERSION" in pyproject.toml file of airflow
+        pyproject_toml_conntent = (Path(__file__).parents[2] / "pyproject.toml").read_text()
+        matched_version = re.search('requires-python = "~=([0-9]+.[0-9]+)', pyproject_toml_conntent)
+        if matched_version:
+            min_version = matched_version.group(1)
+        else:
+            console.print("[red]Error: requires-python version not found in pyproject.toml")
+            sys.exit(1)
+        constraints_url = (
+            f"https://raw.githubusercontent.com/apache/airflow/"
+            f"constraints-{airflow_version}/constraints-{min_version}.txt"
+        )
+        console.print(f"[bright_blue]Checking constraints file: {constraints_url}")
+        response = requests.head(constraints_url)
+        if response.status_code == 404:
+            console.print(
+                f"[red]Error: Constraints file not found for version {airflow_version}. "
+                f"Please set appropriate tag."
+            )
+            sys.exit(1)
+        response.raise_for_status()
+        console.print(f"[green]Constraints file found for version {airflow_version}, Python {min_version}")
         return str(airflow_version), latest
     except Exception as e:
         console.print(f"[red]Error fetching latest version: {e}")
