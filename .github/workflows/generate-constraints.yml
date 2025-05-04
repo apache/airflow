@@ -20,8 +20,8 @@ name: Generate constraints
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      amd-runners:
+        description: "The array of labels (in json form) determining public AMD runners."
         required: true
         type: string
       python-versions-list-as-string:
@@ -46,7 +46,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: Generate constraints ${{ inputs.python-versions-list-as-string }}
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     env:
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
       GITHUB_REPOSITORY: ${{ github.repository }}
