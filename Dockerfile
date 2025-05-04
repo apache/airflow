@@ -111,6 +111,8 @@ else
     exit 1
 fi
 
+PYTHON_MAJOR_MINOR_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}', end='')")
+
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
@@ -182,6 +184,12 @@ function install_debian_dev_dependencies() {
     echo
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
+    # TODO(potiuk) remove me: until we got pendulum released with Python 3.13 support, we have to
+    # install latest cargo to support let..else statement from pendulum
+    if [[ "${PYTHON_MAJOR_MINOR_VERSION}" == "3.13" ]]; then
+        echo "Installing cargo"
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
+    fi
 }
 
 function install_debian_runtime_dependencies() {
@@ -202,6 +210,12 @@ function install_debian_runtime_dependencies() {
     apt-get autoremove -yqq --purge
     apt-get clean
     rm -rf /var/lib/apt/lists/* /var/log/*
+    # TODO(potiuk) remove me: until we got pendulum released with Python 3.13 support, we have to
+    # install latest cargo to support let..else statement from pendulum
+    if [[ "${PYTHON_MAJOR_MINOR_VERSION}" == "3.13" ]]; then
+        echo "Installing cargo"
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
+    fi
 }
 
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
@@ -1470,7 +1484,7 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 RUN bash /scripts/docker/install_mysql.sh dev && \
     bash /scripts/docker/install_mssql.sh dev && \
     bash /scripts/docker/install_postgres.sh dev
-ENV PATH=${PATH}:/opt/mssql-tools/bin
+ENV PATH=${HOME}/.cargo/bin:${PATH}:/opt/mssql-tools/bin
 
 # By default we do not install from docker context files but if we decide to install from docker context
 # files, we should override those variables to "docker-context-files"

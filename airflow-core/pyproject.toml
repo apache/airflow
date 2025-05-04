@@ -35,7 +35,7 @@ name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
-requires-python = "~=3.9,<3.13"
+requires-python = "~=3.9,<3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -105,6 +105,7 @@ dependencies = [
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    'pendulum>=3.1.0 ; python_version>="3.13"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
     "pydantic>=2.11.0",
@@ -193,7 +194,6 @@ LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
-
 
 [tool.hatch.version]
 path = "src/airflow/__init__.py"
