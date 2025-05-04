@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.apache.kafka.queues.kafka import KafkaMessageQueueProvider
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
+
+pytest.importorskip("airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider")
 
 MOCK_KAFKA_TRIGGER_APPLY_FUNCTION = "mock_kafka_trigger_apply_function"
 
@@ -29,7 +30,15 @@ class TestKafkaMessageQueueProvider:
 
     def setup_method(self):
         """Set up the test environment."""
+        from airflow.providers.apache.kafka.queues.kafka import KafkaMessageQueueProvider
+
         self.provider = KafkaMessageQueueProvider()
+
+    def test_queue_create(self):
+        """Test the creation of the KafkaMessageQueueProvider."""
+        from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
+
+        assert isinstance(self.provider, BaseMessageQueueProvider)
 
     @pytest.mark.parametrize(
         "queue_uri, expected_result",

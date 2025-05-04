@@ -140,5 +140,5 @@ class TestMessageQueueTrigger:
     queue = "kafka://localhost:9092/topic1"
     from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
-    trigger = MessageQueueTrigger(queue=queue)
+    trigger = MessageQueueTrigger(queue=queue, apply_function="mock_kafka_trigger_apply_function")
     assert isinstance(trigger.trigger, AwaitMessageTrigger)
