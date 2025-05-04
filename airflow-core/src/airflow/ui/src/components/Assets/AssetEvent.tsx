@@ -51,7 +51,9 @@ export const AssetEvent = ({
       </Text>
       {Boolean(assetId) ? undefined : (
         <HStack>
-          <FiDatabase />
+          <Box>
+            <FiDatabase />
+          </Box>
           <Tooltip
             content={
               <div>
@@ -62,18 +64,22 @@ export const AssetEvent = ({
             showArrow
           >
             <Link to={`/assets/${event.asset_id}`}>
-              <Text color="fg.info"> {event.name ?? ""} </Text>
+              <Box color="fg.info" overflowWrap="anywhere" padding={0} wordWrap="break-word">
+                {event.name ?? ""}
+              </Box>
             </Link>
           </Tooltip>
         </HStack>
       )}
       <HStack>
-        <Text>Source: </Text>
+        <Box>Source: </Box>
         {source === "" ? (
           <Link
             to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
           >
-            <Text color="fg.info"> {event.source_dag_id} </Text>
+            <Box color="fg.info" overflowWrap="anywhere" padding={0} wordWrap="break-word">
+              {event.source_dag_id}
+            </Box>
           </Link>
         ) : (
           source
