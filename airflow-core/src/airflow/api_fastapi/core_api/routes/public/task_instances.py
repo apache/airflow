@@ -928,3 +928,37 @@ def patch_task_instance(
                 session.commit()
 
     return TaskInstanceResponse.model_validate(ti)
+
+
+@task_instances_router.delete(
+    task_instances_prefix + "/{task_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def delete_task_instance(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
+    map_index: int = -1,
+) -> None:
+    """Delete a task instance."""
+    query = select(TI).where(
+        TI.dag_id == dag_id,
+        TI.run_id == dag_run_id,
+        TI.task_id == task_id,
+    )
+
+    if map_index >= 0:
+        query = query.where(TI.map_index == map_index)
+    else:
+        query = query.where(TI.map_index == -1)
+
+    task_instance = session.scalar(query)
+    if task_instance is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Task Instance id {task_id} not found in dag {dag_id} run {dag_run_id}",
+        )
+
+    session.delete(task_instance)
