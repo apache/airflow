@@ -127,9 +127,7 @@ jobs:
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
         if: inputs.canary-run == 'true'
       - name: "Push changes"
-        if: >
-          inputs.canary-run == 'true' &&
-          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        if: inputs.canary-run == 'true' && github.event_name != 'pull_request'
         working-directory: "constraints"
         run:
           git push

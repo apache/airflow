@@ -27,13 +27,17 @@ from collections.abc import Iterable, Mapping
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any
 
+from deprecated import deprecated
+from typing_extensions import Literal
+
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
 import csv
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -1031,30 +1035,13 @@ class HiveServer2Hook(DbApiHook):
         schema = kwargs["schema"] if "schema" in kwargs else "default"
         return self.get_results(sql, schema=schema, hive_conf=parameters)["data"]
 
-    def get_pandas_df(  # type: ignore
+    def _get_pandas_df(  # type: ignore
         self,
         sql: str,
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
     ) -> pd.DataFrame:
-        """
-        Get a pandas dataframe from a Hive query.
-
-        :param sql: hql to be executed.
-        :param schema: target schema, default to 'default'.
-        :param hive_conf: hive_conf to execute alone with the hql.
-        :param kwargs: (optional) passed into pandas.DataFrame constructor
-        :return: result of hive execution
-
-        >>> hh = HiveServer2Hook()
-        >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
-        >>> df = hh.get_pandas_df(sql)
-        >>> len(df.index)
-        100
-
-        :return: pandas.DateFrame
-        """
         try:
             import pandas as pd
         except ImportError as e:
@@ -1065,3 +1052,67 @@ class HiveServer2Hook(DbApiHook):
         res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
         df = pd.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
         return df
+
+    def _get_polars_df(  # type: ignore
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        **kwargs,
+    ) -> pl.DataFrame:
+        try:
+            import polars as pl
+        except ImportError as e:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+
+        res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
+        df = pl.DataFrame(res["data"], schema=[c[0] for c in res["header"]], orient="row", **kwargs)
+        return df
+
+    def get_df(  # type: ignore
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        *,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> pd.DataFrame | pl.DataFrame:
+        """
+        Get a pandas / polars dataframe from a Hive query.
+
+        :param sql: hql to be executed.
+        :param schema: target schema, default to 'default'.
+        :param hive_conf: hive_conf to execute alone with the hql.
+        :param df_type: type of dataframe to return, either 'pandas' or 'polars'
+        :param kwargs: (optional) passed into pandas.DataFrame constructor
+        :return: result of hive execution
+
+        >>> hh = HiveServer2Hook()
+        >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
+        >>> df = hh.get_df(sql, df_type="pandas")
+        >>> len(df.index)
+        100
+
+        :return: pandas.DateFrame | polars.DataFrame
+        """
+        if df_type == "pandas":
+            return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+        if df_type == "polars":
+            return self._get_polars_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(  # type: ignore
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)

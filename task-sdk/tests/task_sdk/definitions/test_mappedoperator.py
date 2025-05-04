@@ -24,7 +24,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk.api.datamodels._generated import TerminalTIState
+from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -405,7 +405,7 @@ def test_nested_mapped_task_groups():
             g1.expand(x=t())
 
 
-RunTI = Callable[[DAG, str, int], TerminalTIState]
+RunTI = Callable[[DAG, str, int], TaskInstanceState]
 
 
 def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
@@ -439,7 +439,7 @@ def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
     mock_supervisor_comms.get_message.side_effect = xcom_get
 
     states = [run_ti(dag, "show", map_index) for map_index in range(6)]
-    assert states == [TerminalTIState.SUCCESS] * 6
+    assert states == [TaskInstanceState.SUCCESS] * 6
     assert outputs == [
         (1, ("a", "x")),
         (1, ("b", "y")),
@@ -479,7 +479,7 @@ def test_map_product_same(run_ti: RunTI, mock_supervisor_comms):
     mock_supervisor_comms.get_message.side_effect = xcom_get
 
     states = [run_ti(dag, "show", map_index) for map_index in range(4)]
-    assert states == [TerminalTIState.SUCCESS] * 4
+    assert states == [TaskInstanceState.SUCCESS] * 4
     assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
 
 

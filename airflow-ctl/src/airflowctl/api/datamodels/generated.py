@@ -1012,6 +1012,7 @@ class BackfillResponse(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
     completed_at: Annotated[datetime | None, Field(title="Completed At")] = None
     updated_at: Annotated[datetime, Field(title="Updated At")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class BulkCreateActionConnectionBody(BaseModel):
@@ -1145,6 +1146,7 @@ class DAGDetailsResponse(BaseModel):
     template_search_path: Annotated[list[str] | None, Field(title="Template Search Path")] = None
     timezone: Annotated[str | None, Field(title="Timezone")] = None
     last_parsed: Annotated[datetime | None, Field(title="Last Parsed")] = None
+    default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int, Field(description="Return max_active_tasks as concurrency.", title="Concurrency")

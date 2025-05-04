@@ -63,8 +63,8 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstance,
+    TaskInstanceState,
     TaskStatesResponse,
-    TerminalTIState,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
@@ -370,9 +370,9 @@ class TaskState(BaseModel):
     """
 
     state: Literal[
-        TerminalTIState.FAILED,
-        TerminalTIState.SKIPPED,
-        TerminalTIState.REMOVED,
+        TaskInstanceState.FAILED,
+        TaskInstanceState.SKIPPED,
+        TaskInstanceState.REMOVED,
     ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
@@ -439,6 +439,15 @@ class GetXComCount(BaseModel):
     run_id: str
     task_id: str
     type: Literal["GetNumberXComs"] = "GetNumberXComs"
+
+
+class GetXComSequenceItem(BaseModel):
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    offset: int
+    type: Literal["GetXComSequenceItem"] = "GetXComSequenceItem"
 
 
 class SetXCom(BaseModel):
@@ -605,6 +614,7 @@ ToSupervisor = Annotated[
         GetVariable,
         GetXCom,
         GetXComCount,
+        GetXComSequenceItem,
         PutVariable,
         RescheduleTask,
         RetryTask,

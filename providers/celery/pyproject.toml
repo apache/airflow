@@ -62,10 +62,7 @@ dependencies = [
     # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
     # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).
     # Updating min version to 5.5.0 to avoid redis import bug https://github.com/apache/airflow/issues/41359
-    # The 5.5.2 version released 25 April 2025 introduced some stability issues that cause our
-    # integration tests to fail occasionally and latest boto tests hanging frequently
-    # tracked in https://github.com/apache/airflow/issues/49937
-    "celery[redis]>=5.5.0,<6,!=5.5.2",
+    "celery[redis]>=5.5.0,<6",
     "flower>=1.0.0",
 ]
 

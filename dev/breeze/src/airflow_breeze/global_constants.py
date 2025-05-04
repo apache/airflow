@@ -199,8 +199,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.1"
-UV_VERSION = "0.6.17"
+PIP_VERSION = "25.1.1"
+UV_VERSION = "0.7.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -696,7 +696,8 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "3.0.0",
-        "remove-providers": "cloudant",
+        # TODO: bring back common-messaging when we bump airflow to 3.0.1
+        "remove-providers": "cloudant common.messaging",
         "run-tests": "true",
     },
 ]

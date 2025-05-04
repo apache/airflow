@@ -132,6 +132,7 @@ export type BackfillResponse = {
   created_at: string;
   completed_at: string | null;
   updated_at: string;
+  dag_display_name: string;
 };
 
 /**
@@ -471,6 +472,9 @@ export type DAGDetailsResponse = {
   template_search_path: Array<string> | null;
   timezone: string | null;
   last_parsed: string | null;
+  default_args: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Return file token.
    */
