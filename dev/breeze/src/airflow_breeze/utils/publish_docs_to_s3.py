@@ -128,33 +128,41 @@ class S3DocsPublish:
         """
 
         for doc in self.get_all_eligible_docs:
-            stable_file_path = f"{self.source_dir_path}/{doc}/stable.txt"
-            if os.path.exists(stable_file_path):
-                with open(stable_file_path) as stable_file:
-                    stable_version = stable_file.read()
-                    get_console().print(f"[info]Stable version: {stable_version} for {doc}\n")
-            else:
-                get_console().print(
-                    f"[info]Skipping, stable version file not found for {doc} in {stable_file_path}\n"
-                )
-                continue
-
-            dest_doc_versioned_folder = f"{self.destination_location}/{doc}/{stable_version}/"
-            dest_doc_stable_folder = f"{self.destination_location}/{doc}/stable/"
-
-            if self.doc_exists(dest_doc_versioned_folder):
-                if self.overwrite:
-                    get_console().print(f"[info]Overwriting existing version {stable_version} for {doc}\n")
+            # PACKAGES_METADATA_EXCLUDE_NAMES has no stable versions so we copy them directly
+            if doc not in PACKAGES_METADATA_EXCLUDE_NAMES:
+                stable_file_path = f"{self.source_dir_path}/{doc}/stable.txt"
+                if os.path.exists(stable_file_path):
+                    with open(stable_file_path) as stable_file:
+                        stable_version = stable_file.read()
+                        get_console().print(f"[info]Stable version: {stable_version} for {doc}\n")
                 else:
                     get_console().print(
-                        f"[info]Skipping doc publish for {doc} as version {stable_version} already exists\n"
+                        f"[info]Skipping, stable version file not found for {doc} in {stable_file_path}\n"
                     )
                     continue
 
-            source_dir_doc_path = f"{self.source_dir_path}/{doc}/{stable_version}/"
+                dest_doc_versioned_folder = f"{self.destination_location}/{doc}/{stable_version}/"
+                dest_doc_stable_folder = f"{self.destination_location}/{doc}/stable/"
 
-            self.source_dest_mapping.append((source_dir_doc_path, dest_doc_versioned_folder))
-            self.source_dest_mapping.append((source_dir_doc_path, dest_doc_stable_folder))
+                if self.doc_exists(dest_doc_versioned_folder):
+                    if self.overwrite:
+                        get_console().print(
+                            f"[info]Overwriting existing version {stable_version} for {doc}\n"
+                        )
+                    else:
+                        get_console().print(
+                            f"[info]Skipping doc publish for {doc} as version {stable_version} already exists\n"
+                        )
+                        continue
+
+                source_dir_doc_path = f"{self.source_dir_path}/{doc}/{stable_version}/"
+
+                self.source_dest_mapping.append((source_dir_doc_path, dest_doc_versioned_folder))
+                self.source_dest_mapping.append((source_dir_doc_path, dest_doc_stable_folder))
+            else:
+                source_dir_doc_path = f"{self.source_dir_path}/{doc}/"
+                dest_doc_versioned_folder = f"{self.destination_location}/{doc}/"
+                self.source_dest_mapping.append((source_dir_doc_path, dest_doc_versioned_folder))
 
         if self.source_dest_mapping:
             self.run_publish()

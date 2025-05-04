@@ -35,7 +35,7 @@ on:  # yamllint disable-line rule:truthy
         default: "s3://staging-docs-airflow-apache-org/docs"
         type: string
       docs-list-as-string:
-        description: "Comma separated list of docs to build"
+        description: "Space separated list of docs to build"
         required: false
         default: ""
         type: string
