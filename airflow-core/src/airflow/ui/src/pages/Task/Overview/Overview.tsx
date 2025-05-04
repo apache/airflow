@@ -54,7 +54,7 @@ export const Overview = () => {
       dagId,
       dagRunId: "~",
       limit: 14,
-      orderBy: "-run_after",
+      orderBy: ["-run_after"],
       taskId,
     },
     undefined,

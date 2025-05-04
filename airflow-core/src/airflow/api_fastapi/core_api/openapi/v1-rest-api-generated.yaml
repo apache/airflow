@@ -2731,8 +2731,9 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: dag_id
+          type: array
+          items:
+            type: string
           title: Order By
       responses:
         '200':

@@ -49,7 +49,7 @@ export const Overview = () => {
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
-    orderBy: "-run_after",
+    orderBy: ["-run_after"],
     runAfterGte: startDate,
     runAfterLte: endDate,
     state: ["failed"],
@@ -66,7 +66,7 @@ export const Overview = () => {
     {
       dagId: dagId ?? "",
       limit: 14,
-      orderBy: "-run_after",
+      orderBy: ["-run_after"],
     },
     undefined,
     {
@@ -77,7 +77,7 @@ export const Overview = () => {
 
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
     limit: 6,
-    orderBy: assetSortBy,
+    orderBy: [assetSortBy],
     sourceDagId: dagId,
     timestampGte: startDate,
     timestampLte: endDate,

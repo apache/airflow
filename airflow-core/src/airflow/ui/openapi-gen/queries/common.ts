@@ -58,7 +58,7 @@ export const UseAssetServiceGetAssetsKeyFn = (
     namePattern?: string;
     offset?: number;
     onlyActive?: boolean;
-    orderBy?: string;
+    orderBy?: string[];
     uriPattern?: string;
   } = {},
   queryKey?: Array<unknown>,
@@ -84,7 +84,7 @@ export const UseAssetServiceGetAssetAliasesKeyFn = (
     limit?: number;
     namePattern?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
   queryKey?: Array<unknown>,
 ) => [useAssetServiceGetAssetAliasesKey, ...(queryKey ?? [{ limit, namePattern, offset, orderBy }])];
@@ -126,7 +126,7 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     assetId?: number;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     sourceDagId?: string;
     sourceMapIndex?: number;
     sourceRunId?: string;
@@ -254,7 +254,7 @@ export const UseBackfillServiceListBackfillsKeyFn = (
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   },
   queryKey?: Array<unknown>,
 ) => [useBackfillServiceListBackfillsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy }])];
@@ -332,7 +332,7 @@ export const UseConnectionServiceGetConnectionsKeyFn = (
     connectionIdPattern?: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -417,7 +417,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     runAfterGte?: string;
     runAfterLte?: string;
     runType?: string[];
@@ -612,7 +612,7 @@ export const UseDagServiceGetDagsKeyFn = (
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -740,7 +740,7 @@ export const UseEventLogServiceGetEventLogsKeyFn = (
     limit?: number;
     mapIndex?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     owner?: string;
     runId?: string;
     taskId?: string;
@@ -1095,7 +1095,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     pool?: string[];
     queue?: string[];
     runAfterGte?: string;
@@ -1400,7 +1400,7 @@ export const UsePoolServiceGetPoolsKeyFn = (
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     poolNamePattern?: string;
   } = {},
   queryKey?: Array<unknown>,
@@ -1546,7 +1546,7 @@ export const UseVariableServiceGetVariablesKeyFn = (
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     variableKeyPattern?: string;
   } = {},
   queryKey?: Array<unknown>,
