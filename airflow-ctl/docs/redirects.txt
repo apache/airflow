@@ -17,8 +17,11 @@
 
 # References
 cli-ref.rst cli-and-env-variables-ref.rst
-start.rst start.rst
+Quick Start start.rst
 changelog.rst changelog.rst
 
 # Installation.rst
 installation/index.rst
+
+# How to
+howto/index.rst
