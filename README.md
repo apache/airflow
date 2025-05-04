@@ -188,6 +188,69 @@ pip install 'apache-airflow[postgres,google]==3.0.0' \
 For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
+3. Setting up Apache Airflow on Mac M1 or above (Apple Silicon) users
+
+- **Create and Activate a Virtual Environment**: Since Apache Airflow requires multiple dependencies, it's a good practice to isolate these dependencies in a virtual environment.
+
+- Create a virtual environment:
+
+```bash
+python3 -m venv airflow_venv
+```
+
+- Activate the virtual environment:
+
+```bash
+source airflow_venv/bin/activate
+```
+
+- **Install Python 3.9 or later**:Airflow requires Python 3.9 or higher, which is supported on M1 Macs or above. You can check your Python version with:
+
+```bash
+python3 --version
+```
+
+- If Python is not installed or you need to install a different version, I recommend using Homebrew to manage Python installations.
+
+```bash
+brew install python@3.9
+```
+
+- **Install Homebrew (if not already installed)**: If you haven’t installed Homebrew on your Mac yet, you can install it with the following command:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+- **Install Apache Airflow**: Apache Airflow is available on PyPI. To install it, you can use the following command in your terminal:
+
+```bash
+pip install apache-airflow
+```
+
+- **Set the AIRFLOW_HOME Environment Variable**: Apache Airflow requires a directory to store configuration files, logs, and other data. Set the AIRFLOW_HOME variable to specify this directory.
+
+- Set the Airflow home directory:
+
+```bash
+export AIRFLOW_HOME=~/airflow
+```
+
+- **Start the Airflow Components**: Apache Airflow runs several components, like the scheduler, web server, and API server, to manage workflows and show the UI.
+
+- To run Airflow in standalone mode (which will automatically start the required components):
+
+```bash
+airflow standalone
+```
+
+- **Access the Airflow Web UI**: Once the components are up and running, you can access the Airflow UI through your browser:
+
+- Open your browser and go to:
+
+```arduino
+http://localhost:8080
+```
 <!-- END Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Official source code, please keep comment here to allow auto update of PyPI readme.md -->
 ## Official source code
