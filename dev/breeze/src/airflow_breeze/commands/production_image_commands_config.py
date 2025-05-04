@@ -155,6 +155,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--python",
                 "--slim-image",
                 "--pull",
+                "--manifest-file",
             ],
         },
         {

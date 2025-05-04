@@ -331,6 +331,14 @@ option_python = click.option(
     help="Python major/minor version used in Airflow image for images.",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
 )
+option_python_no_default = click.option(
+    "-p",
+    "--python",
+    type=BetterChoice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
+    help="Python major/minor version used in Airflow image for images "
+    "(if not specified - all python versions are used).",
+    envvar="PYTHON_MAJOR_MINOR_VERSION",
+)
 option_python_versions = click.option(
     "--python-versions",
     help="Space separated list of python versions used for build with multiple versions.",

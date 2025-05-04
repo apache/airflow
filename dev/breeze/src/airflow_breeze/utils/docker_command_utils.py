@@ -904,3 +904,56 @@ def is_docker_rootless() -> bool:
         # we ignore if docker is missing
         pass
     return False
+
+
+def check_airflow_cache_builder_configured():
+    result_inspect_builder = run_command(["docker", "buildx", "inspect", "airflow_cache"], check=False)
+    if result_inspect_builder.returncode != 0:
+        get_console().print(
+            "[error]Airflow Cache builder must be configured to "
+            "build multi-platform images with multiple builders[/]"
+        )
+        get_console().print()
+        get_console().print(
+            "See https://github.com/apache/airflow/blob/main/dev/MANUALLY_BUILDING_IMAGES.md"
+            " for instructions on setting it up."
+        )
+        sys.exit(1)
+
+
+def check_regctl_installed():
+    result_regctl = run_command(["regctl", "version"], check=False)
+    if result_regctl.returncode != 0:
+        get_console().print("[error]Regctl must be installed and on PATH to release the images[/]")
+        get_console().print()
+        get_console().print(
+            "See https://github.com/regclient/regclient/blob/main/docs/regctl.md for installation info."
+        )
+        sys.exit(1)
+
+
+def check_docker_buildx_plugin():
+    result_docker_buildx = run_command(
+        ["docker", "buildx", "version"],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result_docker_buildx.returncode != 0:
+        get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
+        get_console().print()
+        get_console().print("See https://docs.docker.com/buildx/working-with-buildx/ for installation info.")
+        sys.exit(1)
+    from packaging.version import Version
+
+    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v")
+    packaging_version = Version(version)
+    if packaging_version < Version("0.13.0"):
+        get_console().print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")
+        get_console().print()
+        get_console().print(
+            "See https://github.com/docker/buildx?tab=readme-ov-file#installing for installation info."
+        )
+        sys.exit(1)
+    else:
+        get_console().print(f"[success]Docker buildx plugin is installed and in good version: {version}[/]")
