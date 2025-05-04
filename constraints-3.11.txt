@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-03T19:55:16.988609
+# This constraints file was automatically generated on 2025-05-04T02:36:43.309994
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -442,7 +442,7 @@ jedi==0.19.2
 jeepney==0.9.0
 jiter==0.9.0
 jmespath==0.10.0
-joblib==1.4.2
+joblib==1.5.0
 joserfc==1.0.4
 jpype1==1.5.2
 jsonpatch==1.33
