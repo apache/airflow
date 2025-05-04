@@ -109,6 +109,6 @@ if __name__ == "__main__":
     version = sys.argv[1]
     parsed_version = normalize_version(version)
     actual_version, is_latest = check_airflow_version(parsed_version)
-    print_both_outputs(f"airflow_version={actual_version}")
+    print_both_outputs(f"airflowVersion={actual_version}")
     skip_latest = "false" if is_latest else "true"
-    print_both_outputs(f"skip_latest={skip_latest}")
+    print_both_outputs(f"skipLatest={skip_latest}")
