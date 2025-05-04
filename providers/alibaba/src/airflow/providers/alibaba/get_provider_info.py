@@ -70,6 +70,14 @@ def get_provider_info():
                 "integration-name": "Alibaba Cloud AnalyticDB Spark",
                 "python-modules": ["airflow.providers.alibaba.cloud.hooks.analyticdb_spark"],
             },
+            {
+                "integration-name": "Alibaba Cloud",
+                "python-modules": ["airflow.providers.alibaba.cloud.hooks.base_alibaba"],
+            },
+            {
+                "integration-name": "Alibaba Cloud MaxCompute",
+                "python-modules": ["airflow.providers.alibaba.cloud.hooks.maxcompute"],
+            },
         ],
         "connection-types": [
             {
@@ -79,6 +87,14 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.alibaba.cloud.hooks.analyticdb_spark.AnalyticDBSparkHook",
                 "connection-type": "adb_spark",
+            },
+            {
+                "hook-class-name": "airflow.providers.alibaba.cloud.hooks.base_alibaba.AlibabaBaseHook",
+                "connection-type": "alibaba_cloud",
+            },
+            {
+                "hook-class-name": "airflow.providers.alibaba.cloud.hooks.maxcompute.MaxComputeHook",
+                "connection-type": "maxcompute",
             },
         ],
         "logging": ["airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler"],
