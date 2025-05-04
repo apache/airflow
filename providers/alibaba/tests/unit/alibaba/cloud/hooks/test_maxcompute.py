@@ -43,7 +43,7 @@ class TestMaxComputeHook:
             }
 
             mock_get_connection.return_value = mock_conn
-            self.hook = MaxComputeHook(maxcompute_conn_id=MOCK_MAXCOMPUTE_CONN_ID)
+            self.hook = MaxComputeHook(alibabacloud_conn_id=MOCK_MAXCOMPUTE_CONN_ID)
 
     @mock.patch(MAXCOMPUTE_HOOK_MODULE.format("MaxComputeHook.get_client"))
     def test_run_sql(self, mock_get_client):
