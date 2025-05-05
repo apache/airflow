@@ -167,6 +167,7 @@ html_js_files = ["gh-jira-links.js", "redirects.js"]
 manual_substitutions_in_generated_html = [
     "installation/installing-from-pypi.html",
     "installation/installing-from-sources.html",
+    "installation/prerequisites.html",
 ]
 
 html_css_files = ["custom.css"]
