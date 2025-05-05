@@ -1220,6 +1220,7 @@ objectstorage
 observability
 od
 odbc
+odps
 ok
 Okta
 okta
