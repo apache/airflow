@@ -230,3 +230,163 @@ class PowerBITrigger(BaseTrigger):
                     "dataset_refresh_id": self.dataset_refresh_id,
                 }
             )
+
+
+class PowerBIWorkspaceListTrigger(BaseTrigger):
+    """
+    Triggers a call to the API to request the available workspace IDs.
+
+    :param conn_id: The connection Id to connect to PowerBI.
+    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter`. Default is 1 week (60s * 60m * 24h * 7d).
+        When no timeout is specified or set to None then there is no HTTP timeout on each request.
+    :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+        You can pass an enum named APIVersion which has 2 possible members v1 and beta,
+        or you can pass a string as `v1.0` or `beta`.
+    """
+
+    def __init__(
+        self,
+        conn_id: str,
+        workspace_ids: list[str] | None = None,
+        timeout: float = 60 * 60 * 24 * 7,
+        proxies: dict | None = None,
+        api_version: APIVersion | str | None = None,
+    ):
+        super().__init__()
+        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
+        self.timeout = timeout
+        self.workspace_ids = workspace_ids
+
+    def serialize(self):
+        """Serialize the trigger instance."""
+        return (
+            "airflow.providers.microsoft.azure.triggers.powerbi.PowerBIWorkspaceListTrigger",
+            {
+                "conn_id": self.conn_id,
+                "proxies": self.proxies,
+                "api_version": self.api_version,
+                "timeout": self.timeout,
+                "workspace_ids": self.workspace_ids,
+            },
+        )
+
+    @property
+    def conn_id(self) -> str:
+        return self.hook.conn_id
+
+    @property
+    def proxies(self) -> dict | None:
+        return self.hook.proxies
+
+    @property
+    def api_version(self) -> APIVersion | str:
+        return self.hook.api_version
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Make async connection to the PowerBI and polls for the list of workspace IDs."""
+        # Trigger the API to get the workspace list
+        workspace_ids = await self.hook.get_workspace_list()
+
+        if workspace_ids:
+            self.log.info("Triggered request to get workspace list.")
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "message": "The workspace list get request has been successful.",
+                    "workspace_ids": workspace_ids,
+                }
+            )
+            return
+
+        yield TriggerEvent(
+            {
+                "status": "error",
+                "message": "Error grabbing the workspace list.",
+                "workspace_ids": None,
+            }
+        )
+        return
+
+
+class PowerBIDatasetListTrigger(BaseTrigger):
+    """
+    Triggers a call to the API to request the available dataset IDs.
+
+    :param conn_id: The connection Id to connect to PowerBI.
+    :param group_id: The group Id to list discoverable datasets.
+    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter`. Default is 1 week (60s * 60m * 24h * 7d).
+        When no timeout is specified or set to None then there is no HTTP timeout on each request.
+    :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+        You can pass an enum named APIVersion which has 2 possible members v1 and beta,
+        or you can pass a string as `v1.0` or `beta`.
+    """
+
+    def __init__(
+        self,
+        conn_id: str,
+        group_id: str,
+        dataset_ids: list[str] | None = None,
+        timeout: float = 60 * 60 * 24 * 7,
+        proxies: dict | None = None,
+        api_version: APIVersion | str | None = None,
+    ):
+        super().__init__()
+        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
+        self.timeout = timeout
+        self.group_id = group_id
+        self.dataset_ids = dataset_ids
+
+    def serialize(self):
+        """Serialize the trigger instance."""
+        return (
+            "airflow.providers.microsoft.azure.triggers.powerbi.PowerBIDatasetListTrigger",
+            {
+                "conn_id": self.conn_id,
+                "proxies": self.proxies,
+                "api_version": self.api_version,
+                "timeout": self.timeout,
+                "group_id": self.group_id,
+                "dataset_ids": self.dataset_ids,
+            },
+        )
+
+    @property
+    def conn_id(self) -> str:
+        return self.hook.conn_id
+
+    @property
+    def proxies(self) -> dict | None:
+        return self.hook.proxies
+
+    @property
+    def api_version(self) -> APIVersion | str:
+        return self.hook.api_version
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Make async connection to the PowerBI and polls for the list of dataset IDs."""
+        # Trigger the API to get the dataset list
+        dataset_ids = await self.hook.get_dataset_list(
+            group_id=self.group_id,
+        )
+
+        if dataset_ids:
+            self.log.info("Triggered request to get dataset list.")
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "message": f"The dataset list get request from workspace {self.group_id} has been successful.",
+                    "dataset_ids": dataset_ids,
+                }
+            )
+            return
+
+        yield TriggerEvent(
+            {
+                "status": "error",
+                "message": "Error grabbing the dataset list.",
+                "dataset_ids": None,
+            }
+        )
+        return

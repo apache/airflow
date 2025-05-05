@@ -37,7 +37,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--upgrade-to-newer-dependencies",
                 "--upgrade-on-failure",
                 "--docker-cache",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--build-progress",
                 "--docker-host",
             ],

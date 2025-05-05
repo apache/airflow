@@ -60,8 +60,8 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
-from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace
 from airflow.utils import timezone
@@ -992,7 +992,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
-        now = time.time()
+        now = time.monotonic()
         processors_to_remove = []
         for file, processor in self._processors.items():
             duration = now - processor.start_time

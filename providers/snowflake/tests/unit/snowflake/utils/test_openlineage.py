@@ -44,8 +44,6 @@ from airflow.providers.snowflake.utils.openlineage import (
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
-
 
 @pytest.mark.parametrize(
     "source,target",
@@ -118,7 +116,7 @@ def test_get_ol_run_id_ti_success():
         dag_id="dag_id",
         task_id="task_id",
         map_index=1,
-        try_number=1 if AIRFLOW_V_2_10_PLUS else 2,
+        try_number=1,
         logical_date=logical_date,
         state=TaskInstanceState.SUCCESS,
     )
@@ -150,7 +148,7 @@ def test_get_parent_run_facet():
         dag_id="dag_id",
         task_id="task_id",
         map_index=1,
-        try_number=1 if AIRFLOW_V_2_10_PLUS else 2,
+        try_number=1,
         logical_date=logical_date,
         state=TaskInstanceState.SUCCESS,
     )
@@ -553,7 +551,7 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(mock_now, mo
         dag_id="dag_id",
         task_id="task_id",
         map_index=1,
-        try_number=1 if AIRFLOW_V_2_10_PLUS else 2,
+        try_number=1,
         logical_date=logical_date,
         state=TaskInstanceState.SUCCESS,  # This will be query default state if no metadata found
     )

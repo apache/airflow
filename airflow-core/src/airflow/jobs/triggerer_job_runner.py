@@ -430,6 +430,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetTICount):
             resp = self.client.task_instances.get_count(
                 dag_id=msg.dag_id,
+                map_index=msg.map_index,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,
@@ -440,6 +441,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetTaskStates):
             run_id_task_state_map = self.client.task_instances.get_task_states(
                 dag_id=msg.dag_id,
+                map_index=msg.map_index,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,

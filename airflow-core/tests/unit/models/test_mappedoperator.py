@@ -32,7 +32,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import setup, task, task_group, teardown
-from airflow.sdk.execution_time.comms import XComCountResponse
+from airflow.sdk.execution_time.comms import XComCountResponse, XComResult
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -1270,8 +1270,16 @@ class TestMappedSetupTeardown:
         ) as supervisor_comms:
             # TODO: TaskSDK: this is a bit of a hack that we need to stub this at all. `dag.test()` should
             # really work without this!
-            supervisor_comms.get_message.return_value = XComCountResponse(len=3)
+            supervisor_comms.get_message.side_effect = [
+                XComCountResponse(len=3),
+                XComResult(key="return_value", value=1),
+                XComCountResponse(len=3),
+                XComResult(key="return_value", value=2),
+                XComCountResponse(len=3),
+                XComResult(key="return_value", value=3),
+            ]
             dr = dag.test()
+            assert supervisor_comms.get_message.call_count == 6
         states = self.get_states(dr)
         expected = {
             "tg_1.my_pre_setup": "success",

@@ -30,14 +30,12 @@ from airflow.providers.smtp.notifications.smtp import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
-
 pytestmark = pytest.mark.db_test
 
 SMTP_API_DEFAULT_CONN_ID = SmtpHook.default_conn_name
 
 
-NUM_TRY = 0 if AIRFLOW_V_2_10_PLUS else 1
+NUM_TRY = 0
 
 
 class TestSmtpNotifier:

@@ -17,12 +17,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from pathlib import Path
 
 import pytest
 
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
 from airflow_breeze.utils.packages import (
     PipRequirements,
+    apply_version_suffix_to_non_provider_pyproject_tomls,
+    apply_version_suffix_to_provider_pyproject_toml,
     convert_cross_package_dependencies_to_table,
     convert_pip_requirements_to_table,
     expand_all_provider_distributions,
@@ -33,8 +36,7 @@ from airflow_breeze.utils.packages import (
     get_long_package_name,
     get_min_airflow_version,
     get_pip_package_name,
-    get_previous_documentation_distribution_path,
-    get_previous_source_providers_distribution_path,
+    get_provider_details,
     get_provider_info_dict,
     get_provider_requirements,
     get_removed_provider_ids,
@@ -43,25 +45,12 @@ from airflow_breeze.utils.packages import (
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, DOCS_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 
 def test_get_available_packages():
     assert len(get_available_distributions()) > 70
     assert all(package not in REGULAR_DOC_PACKAGES for package in get_available_distributions())
-
-
-def test_get_source_package_path():
-    assert get_previous_source_providers_distribution_path("apache.hdfs") == AIRFLOW_ROOT_PATH.joinpath(
-        "providers", "src", "airflow", "providers", "apache", "hdfs"
-    )
-
-
-def test_get_old_documentation_package_path():
-    assert (
-        get_previous_documentation_distribution_path("apache.hdfs")
-        == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
-    )
 
 
 def test_expand_all_provider_distributions():
@@ -113,7 +102,7 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.9.0", "asana>=5.0.0"]
+    assert get_provider_requirements("asana") == ["apache-airflow>=2.10.0", "asana>=5.0.0"]
 
 
 def test_get_removed_providers():
@@ -260,7 +249,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.9.0"),
+        ("amazon", "2.10.0"),
         ("fab", "3.0.0"),
     ],
 )
@@ -304,3 +293,157 @@ def test_get_provider_info_dict():
     assert len(provider_info_dict["dataset-uris"]) > 0
     assert len(provider_info_dict["dataset-uris"]) > 0
     assert len(provider_info_dict["asset-uris"]) > 0
+
+
+def _check_dependency_modified_properly(
+    dependency: str,
+    modified_dependency: str,
+    version_suffix: str,
+    floored_version_suffix: str,
+):
+    should_airflow_dependencies_be_modified = floored_version_suffix != ".post1"
+    if dependency.startswith("apache-airflow"):
+        if should_airflow_dependencies_be_modified:
+            if ">=" in dependency:
+                assert modified_dependency == f"{dependency}{floored_version_suffix}"
+            elif "==" in dependency:
+                assert modified_dependency == f"{dependency}{version_suffix}"
+            else:
+                assert modified_dependency == dependency
+    else:
+        assert modified_dependency == dependency
+
+
+def _check_dependencies_modified_properly(
+    original_toml: dict, modified_toml: dict, version_suffix: str, floored_version_suffix: str
+):
+    original_dependencies = original_toml["project"]["dependencies"]
+    modified_dependencies = modified_toml["project"]["dependencies"]
+    for i, dependency in enumerate(original_dependencies):
+        modified_dependency = modified_dependencies[i]
+        _check_dependency_modified_properly(
+            dependency, modified_dependency, version_suffix, floored_version_suffix
+        )
+    if "optional-dependencies" not in original_toml["project"]:
+        return
+    original_optional_dependencies = original_toml["project"]["optional-dependencies"]
+    modified_optional_dependencies = modified_toml["project"]["optional-dependencies"]
+    for key in original_optional_dependencies.keys():
+        for i, dependency in enumerate(original_optional_dependencies[key]):
+            modified_dependency = modified_optional_dependencies[key][i]
+            _check_dependency_modified_properly(
+                dependency, modified_dependency, version_suffix, floored_version_suffix
+            )
+
+
+@pytest.mark.parametrize(
+    "provider_id, version_suffix, floored_version_suffix",
+    [
+        ("google", ".dev0", ".dev0"),
+        ("google", ".dev1", ".dev0"),
+        ("google", ".dev1+testversion", ".dev0"),
+        ("google", "rc1", "rc1"),
+        ("google", "rc3+localversion34", "rc1"),
+        ("google", "rc2", "rc1"),
+        ("google", "a1", "a1"),
+        ("google", "b3", "b1"),
+        ("google", ".post1", ".post1"),
+        ("google", ".post2", ".post1"),
+        ("amazon", ".dev0", ".dev0"),
+        ("amazon", ".dev10", ".dev0"),
+        ("amazon", "rc10", "rc1"),
+        ("amazon", "rc23", "rc1"),
+        ("amazon", "a4", "a1"),
+        ("amazon", "b8", "b1"),
+        ("amazon", ".post1", ".post1"),
+        ("standard", ".dev1", ".dev0"),
+        ("standard", "rc1", "rc1"),
+        ("standard", "rc2", "rc1"),
+        ("standard", "a1", "a1"),
+        ("standard", "b3", "b1"),
+        ("standard", ".post1", ".post1"),
+    ],
+)
+def test_apply_version_suffix_to_provider_pyproject_toml(provider_id, version_suffix, floored_version_suffix):
+    """
+    Test the apply_version_suffix function with different version suffixes for pyproject.toml of provider.
+    """
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+    provider_details = get_provider_details(provider_id)
+    original_content = (provider_details.root_provider_path / "pyproject.toml").read_text()
+    with apply_version_suffix_to_provider_pyproject_toml(provider_id, version_suffix) as pyproject_toml_path:
+        modified_content = pyproject_toml_path.read_text()
+    original_toml = tomllib.loads(original_content)
+    modified_toml = tomllib.loads(modified_content)
+    assert original_toml["project"]["version"] != modified_toml["project"]["version"]
+    assert modified_toml["project"]["version"].endswith(version_suffix)
+    _check_dependencies_modified_properly(
+        original_toml, modified_toml, version_suffix, floored_version_suffix
+    )
+
+
+AIRFLOW_CORE_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "__init__.py"
+TASK_SDK_INIT_PY = AIRFLOW_ROOT_PATH / "task-sdk" / "src" / "airflow" / "sdk" / "__init__.py"
+AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "__init__.py"
+
+
+@pytest.mark.parametrize(
+    "distributions,  init_file_path, version_suffix, floored_version_suffix",
+    [
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".dev0", ".dev0"),
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".dev1+testversion34", ".dev0"),
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, "rc2", "rc1"),
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, "rc2.dev0+localversion35", "rc1.dev0"),
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, "rc1", "rc1"),
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, "a2", "a1"),
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, "b1", "b1"),
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, "b1+testversion34", "b1"),
+        (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".post1", ".post1"),
+        (("task-sdk",), TASK_SDK_INIT_PY, ".dev0", ".dev0"),
+        (("task-sdk",), TASK_SDK_INIT_PY, "rc2", "rc1"),
+        (("task-sdk",), TASK_SDK_INIT_PY, "rc13", "rc1"),
+        (("task-sdk",), TASK_SDK_INIT_PY, "a1", "a1"),
+        (("task-sdk",), TASK_SDK_INIT_PY, "b3", "b1"),
+        (("task-sdk",), TASK_SDK_INIT_PY, ".post1", ".post1"),
+        (("airflow-ctl",), AIRFLOWCTL_INIT_PY, ".dev0", ".dev0"),
+        (("airflow-ctl",), AIRFLOWCTL_INIT_PY, "rc2", "rc1"),
+        (("airflow-ctl",), AIRFLOWCTL_INIT_PY, "rc13", "rc1"),
+        (("airflow-ctl",), AIRFLOWCTL_INIT_PY, "a1", "a1"),
+        (("airflow-ctl",), AIRFLOWCTL_INIT_PY, "b3", "b1"),
+        (("airflow-ctl",), AIRFLOWCTL_INIT_PY, ".post1", ".post1"),
+    ],
+)
+def test_apply_version_suffix_to_non_provider_pyproject_tomls(
+    distributions: tuple[str, ...], init_file_path: Path, version_suffix: str, floored_version_suffix: str
+):
+    """
+    Test the apply_version_suffix function with different version suffixes for pyproject.toml of non-provider.
+    """
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+    distribution_paths = [AIRFLOW_ROOT_PATH / distribution for distribution in distributions]
+    original_pyproject_toml_paths = [path / "pyproject.toml" for path in distribution_paths]
+    original_contents = [path.read_text() for path in original_pyproject_toml_paths]
+    original_init_py = init_file_path.read_text()
+    with apply_version_suffix_to_non_provider_pyproject_tomls(
+        version_suffix, init_file_path, original_pyproject_toml_paths
+    ) as modified_pyproject_toml_paths:
+        modified_contents = [path.read_text() for path in modified_pyproject_toml_paths]
+
+        original_tomls = [tomllib.loads(content) for content in original_contents]
+        modified_tomls = [tomllib.loads(content) for content in modified_contents]
+        modified_init_py = init_file_path.read_text()
+
+    assert original_init_py != modified_init_py
+    assert version_suffix in modified_init_py
+
+    for i, original_toml in enumerate(original_tomls):
+        modified_toml = modified_tomls[i]
+        _check_dependencies_modified_properly(
+            original_toml, modified_toml, version_suffix, floored_version_suffix
+        )

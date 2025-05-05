@@ -18,8 +18,10 @@
  */
 import { Flex, Heading, Button } from "@chakra-ui/react";
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
+import { Tooltip } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
 import { TaskLogPreview } from "./TaskLogPreview";
@@ -36,6 +38,8 @@ const FailedLogs = ({
 
   const toggleWrap = () => setWrap(!wrap);
 
+  useHotkeys("w", toggleWrap);
+
   if (taskLogs === undefined || taskLogs.length <= 0) {
     return undefined;
   }
@@ -44,16 +48,18 @@ const FailedLogs = ({
     <Flex flexDirection="column" gap={3}>
       <Flex alignItems="center" justifyContent="space-between">
         <Heading size="md">Recent Failed Task Logs</Heading>
-        <Button
-          aria-label={wrap ? "Unwrap" : "Wrap"}
-          bg="bg.panel"
-          fontSize="sm"
-          onClick={toggleWrap}
-          size="sm"
-          variant="outline"
-        >
-          {wrap ? "Unwrap" : "Wrap"}
-        </Button>
+        <Tooltip closeDelay={100} content="Press w to toggle wrap" openDelay={100}>
+          <Button
+            aria-label={wrap ? "Unwrap" : "Wrap"}
+            bg="bg.panel"
+            fontSize="sm"
+            onClick={toggleWrap}
+            size="sm"
+            variant="outline"
+          >
+            {wrap ? "Unwrap" : "Wrap"}
+          </Button>
+        </Tooltip>
       </Flex>
       {taskLogs.map((taskInstance) => (
         <TaskLogPreview key={taskInstance.id} taskInstance={taskInstance} wrap={wrap} />

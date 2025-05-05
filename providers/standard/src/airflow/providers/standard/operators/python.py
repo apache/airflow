@@ -44,19 +44,19 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
-from airflow.utils.process_utils import execute_in_subprocess, execute_in_subprocess_with_kwargs
+from airflow.utils.process_utils import execute_in_subprocess
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.operators.branch import BranchMixIn
+    from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
     from airflow.models.skipmixin import SkipMixin
-    from airflow.operators.branch import BranchMixIn  # type: ignore[no-redef]
+    from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
 
 
 log = logging.getLogger(__name__)
@@ -200,12 +200,10 @@ class PythonOperator(BaseOperator):
                 from airflow.sdk.execution_time.context import context_get_outlet_events
 
                 return create_executable_runner, context_get_outlet_events(context)
-            if AIRFLOW_V_2_10_PLUS:
-                from airflow.utils.context import context_get_outlet_events  # type: ignore
-                from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
+            from airflow.utils.context import context_get_outlet_events  # type: ignore
+            from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
 
-                return ExecutionCallableRunner, context_get_outlet_events(context)
-            return None
+            return ExecutionCallableRunner, context_get_outlet_events(context)
 
         self.__prepare_execution = __prepare_execution
 
@@ -235,7 +233,7 @@ class PythonOperator(BaseOperator):
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
-class BranchPythonOperator(PythonOperator, BranchMixIn):
+class BranchPythonOperator(BaseBranchOperator, PythonOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -249,10 +247,8 @@ class BranchPythonOperator(PythonOperator, BranchMixIn):
     the DAG run's state to be inferred.
     """
 
-    inherits_from_skipmixin = True
-
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return PythonOperator.execute(self, context)
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -560,16 +556,10 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(termination_log_path),
                     os.fspath(airflow_context_path),
                 ]
-                if AIRFLOW_V_2_10_PLUS:
-                    execute_in_subprocess(
-                        cmd=cmd,
-                        env=env_vars,
-                    )
-                else:
-                    execute_in_subprocess_with_kwargs(
-                        cmd=cmd,
-                        env=env_vars,
-                    )
+                execute_in_subprocess(
+                    cmd=cmd,
+                    env=env_vars,
+                )
             except subprocess.CalledProcessError as e:
                 if e.returncode in self.skip_on_exit_code:
                     raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
@@ -863,7 +853,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
 
-class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
+class BranchPythonVirtualenvOperator(BaseBranchOperator, PythonVirtualenvOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task in a virtual environment.
 
@@ -881,10 +871,8 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
         :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
 
-    inherits_from_skipmixin = True
-
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return PythonVirtualenvOperator.execute(self, context)
 
 
 class ExternalPythonOperator(_BasePythonVirtualenvOperator):
@@ -1080,7 +1068,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
-class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
+class BranchExternalPythonOperator(BaseBranchOperator, ExternalPythonOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -1093,8 +1081,8 @@ class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
         :ref:`howto/operator:BranchExternalPythonOperator`
     """
 
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return ExternalPythonOperator.execute(self, context)
 
 
 def get_current_context() -> Mapping[str, Any]:

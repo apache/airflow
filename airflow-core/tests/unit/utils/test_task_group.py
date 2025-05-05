@@ -66,6 +66,16 @@ EXPECTED_JSON_LEGACY = {
     },
     "children": [
         {
+            "id": "task1",
+            "value": {
+                "label": "task1",
+                "labelStyle": "fill:#000;",
+                "style": "fill:#e8f7e4;",
+                "rx": 5,
+                "ry": 5,
+            },
+        },
+        {
             "id": "group234",
             "value": {
                 "label": "group234",
@@ -78,6 +88,16 @@ EXPECTED_JSON_LEGACY = {
                 "isMapped": False,
             },
             "children": [
+                {
+                    "id": "group234.task2",
+                    "value": {
+                        "label": "task2",
+                        "labelStyle": "fill:#000;",
+                        "style": "fill:#e8f7e4;",
+                        "rx": 5,
+                        "ry": 5,
+                    },
+                },
                 {
                     "id": "group234.group34",
                     "value": {
@@ -123,16 +143,6 @@ EXPECTED_JSON_LEGACY = {
                     ],
                 },
                 {
-                    "id": "group234.task2",
-                    "value": {
-                        "label": "task2",
-                        "labelStyle": "fill:#000;",
-                        "style": "fill:#e8f7e4;",
-                        "rx": 5,
-                        "ry": 5,
-                    },
-                },
-                {
                     "id": "group234.upstream_join_id",
                     "value": {
                         "label": "",
@@ -142,16 +152,6 @@ EXPECTED_JSON_LEGACY = {
                     },
                 },
             ],
-        },
-        {
-            "id": "task1",
-            "value": {
-                "label": "task1",
-                "labelStyle": "fill:#000;",
-                "style": "fill:#e8f7e4;",
-                "rx": 5,
-                "ry": 5,
-            },
         },
         {
             "id": "task5",
@@ -172,12 +172,14 @@ EXPECTED_JSON = {
     "tooltip": "",
     "is_mapped": False,
     "children": [
+        {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task"},
         {
             "id": "group234",
             "label": "group234",
             "tooltip": "",
             "is_mapped": False,
             "children": [
+                {"id": "group234.task2", "label": "task2", "operator": "EmptyOperator", "type": "task"},
                 {
                     "id": "group234.group34",
                     "label": "group34",
@@ -200,12 +202,10 @@ EXPECTED_JSON = {
                     ],
                     "type": "task",
                 },
-                {"id": "group234.task2", "label": "task2", "operator": "EmptyOperator", "type": "task"},
                 {"id": "group234.upstream_join_id", "label": "", "type": "join"},
             ],
             "type": "task",
         },
-        {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task"},
         {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task"},
     ],
     "type": "task",
@@ -314,28 +314,28 @@ def test_build_task_group_with_prefix():
         "id": None,
         "label": None,
         "children": [
+            {"id": "task1", "label": "task1"},
             {
                 "id": "group234",
                 "label": "group234",
                 "children": [
+                    {"id": "task2", "label": "task2"},
                     {
                         "id": "group34",
                         "label": "group34",
                         "children": [
+                            {"id": "group34.task3", "label": "task3"},
                             {
                                 "id": "group34.group4",
                                 "label": "group4",
                                 "children": [{"id": "task4", "label": "task4"}],
                             },
-                            {"id": "group34.task3", "label": "task3"},
                             {"id": "group34.downstream_join_id", "label": ""},
                         ],
                     },
-                    {"id": "task2", "label": "task2"},
                     {"id": "group234.upstream_join_id", "label": ""},
                 ],
             },
-            {"id": "task1", "label": "task1"},
             {"id": "task5", "label": "task5"},
         ],
     }
@@ -389,6 +389,7 @@ def test_build_task_group_with_task_decorator():
     expected_node_id = {
         "id": None,
         "children": [
+            {"id": "task_1"},
             {
                 "id": "group234",
                 "children": [
@@ -399,7 +400,6 @@ def test_build_task_group_with_task_decorator():
                     {"id": "group234.downstream_join_id"},
                 ],
             },
-            {"id": "task_1"},
             {"id": "task_5"},
         ],
     }
@@ -448,6 +448,7 @@ def test_sub_dag_task_group():
     expected_node_id = {
         "id": None,
         "children": [
+            {"id": "task1"},
             {
                 "id": "group234",
                 "children": [
@@ -462,7 +463,6 @@ def test_sub_dag_task_group():
                     {"id": "group234.upstream_join_id"},
                 ],
             },
-            {"id": "task1"},
             {"id": "task5"},
         ],
     }
@@ -540,6 +540,7 @@ def test_dag_edges():
     expected_node_id = {
         "id": None,
         "children": [
+            {"id": "task1"},
             {
                 "id": "group_a",
                 "children": [
@@ -567,6 +568,8 @@ def test_dag_edges():
                     {"id": "group_c.downstream_join_id"},
                 ],
             },
+            {"id": "task9"},
+            {"id": "task10"},
             {
                 "id": "group_d",
                 "children": [
@@ -575,9 +578,6 @@ def test_dag_edges():
                     {"id": "group_d.upstream_join_id"},
                 ],
             },
-            {"id": "task1"},
-            {"id": "task10"},
-            {"id": "task9"},
         ],
     }
 
@@ -818,9 +818,12 @@ def test_build_task_group_deco_context_manager():
     node_ids = {
         "id": None,
         "children": [
+            {"id": "task_start"},
             {
                 "id": "section_1",
                 "children": [
+                    {"id": "section_1.task_1"},
+                    {"id": "section_1.task_2"},
                     {
                         "id": "section_1.section_2",
                         "children": [
@@ -828,12 +831,9 @@ def test_build_task_group_deco_context_manager():
                             {"id": "section_1.section_2.task_4"},
                         ],
                     },
-                    {"id": "section_1.task_1"},
-                    {"id": "section_1.task_2"},
                 ],
             },
             {"id": "task_end"},
-            {"id": "task_start"},
         ],
     }
 
@@ -992,6 +992,7 @@ def test_task_group_context_mix():
     node_ids = {
         "id": None,
         "children": [
+            {"id": "task_start"},
             {
                 "id": "section_1",
                 "children": [
@@ -1011,7 +1012,6 @@ def test_task_group_context_mix():
                 ],
             },
             {"id": "task_end"},
-            {"id": "task_start"},
         ],
     }
 
@@ -1153,17 +1153,17 @@ def test_call_taskgroup_twice():
             {
                 "id": "task_group1",
                 "children": [
-                    {"id": "task_group1.end_task"},
                     {"id": "task_group1.start_task"},
                     {"id": "task_group1.task"},
+                    {"id": "task_group1.end_task"},
                 ],
             },
             {
                 "id": "task_group1__1",
                 "children": [
-                    {"id": "task_group1__1.end_task"},
                     {"id": "task_group1__1.start_task"},
                     {"id": "task_group1__1.task"},
+                    {"id": "task_group1__1.end_task"},
                 ],
             },
         ],

@@ -25,6 +25,7 @@ import { useAssetServiceGetAssetEvents, useDashboardServiceHistoricalMetrics } f
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
+import { useAutoRefresh } from "src/utils";
 
 import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
@@ -38,9 +39,17 @@ export const HistoricalMetrics = () => {
   const [endDate, setEndDate] = useState(now.toISOString());
   const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
-  const { data, error, isLoading } = useDashboardServiceHistoricalMetrics({
-    startDate,
-  });
+  const refetchInterval = useAutoRefresh({});
+
+  const { data, error, isLoading } = useDashboardServiceHistoricalMetrics(
+    {
+      startDate,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
 
   const dagRunTotal = data
     ? Object.values(data.dag_run_states).reduce((partialSum, value) => partialSum + value, 0)

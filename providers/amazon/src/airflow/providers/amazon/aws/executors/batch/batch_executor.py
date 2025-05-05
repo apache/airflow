@@ -324,11 +324,7 @@ class AwsBatchExecutor(BaseExecutor):
                     exec_config=exec_config,
                     attempt_number=attempt_number,
                 )
-                with suppress(AttributeError):
-                    # TODO: Remove this when min_airflow_version is 2.10.0 or higher in Amazon provider.
-                    # running_state is added in Airflow 2.10 and only needed to support task adoption
-                    # (an optional executor feature).
-                    self.running_state(key, job_id)
+                self.running_state(key, job_id)
 
     def _describe_jobs(self, job_ids) -> list[BatchJob]:
         all_jobs = []

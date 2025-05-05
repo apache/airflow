@@ -129,6 +129,7 @@ def group_for_testing():
     is_flag=True,
 )
 @option_github_repository
+@option_include_success_outputs
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
@@ -137,6 +138,7 @@ def docker_compose_tests(
     image_name: str,
     skip_docker_compose_deletion: bool,
     github_repository: str,
+    include_success_outputs: bool,
     extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
@@ -147,6 +149,7 @@ def docker_compose_tests(
     get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
     )
@@ -254,6 +257,7 @@ def _run_test(
                 check=False,
                 env=env,
                 verbose_override=False,
+                quiet=True,
             )
             remove_docker_networks(networks=[f"{compose_project_name}_default"])
     return result.returncode, f"Test: {shell_params.test_type}"
@@ -984,6 +988,13 @@ def integration_providers_tests(
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
+@option_use_airflow_version
+@option_airflow_constraints_reference
+@option_clean_airflow_installation
+@option_force_lowest_dependencies
+@option_install_airflow_with_constraints
+@option_distribution_format
+@option_use_distributions_from_dist
 @option_postgres_version
 @option_python
 @option_skip_docker_compose_down
@@ -1007,6 +1018,13 @@ def system_tests(
     python: str,
     skip_docker_compose_down: bool,
     test_timeout: int,
+    use_airflow_version: str,
+    airflow_constraints_reference: str,
+    clean_airflow_installation: bool,
+    force_lowest_dependencies: bool,
+    install_airflow_with_constraints: bool,
+    distribution_format: str,
+    use_distributions_from_dist: bool,
 ):
     shell_params = ShellParams(
         test_group=GroupOfTests.SYSTEM,
@@ -1027,6 +1045,13 @@ def system_tests(
         force_sa_warnings=force_sa_warnings,
         run_tests=True,
         db_reset=db_reset,
+        use_airflow_version=use_airflow_version,
+        airflow_constraints_reference=airflow_constraints_reference,
+        clean_airflow_installation=clean_airflow_installation,
+        force_lowest_dependencies=force_lowest_dependencies,
+        install_airflow_with_constraints=install_airflow_with_constraints,
+        distribution_format=distribution_format,
+        use_distributions_from_dist=use_distributions_from_dist,
     )
     fix_ownership_using_docker()
     cleanup_python_generated_files()

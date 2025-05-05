@@ -144,6 +144,7 @@ extensions.extend(
     [
         "extra_provider_files_with_substitutions",
         "providers_extensions",
+        "providers_commits",
         "sphinx_jinja",
     ]
 )
@@ -155,15 +156,8 @@ exclude_patterns = [
     "operators/_partials",
     "_api/airflow/index.rst",
     "_api/airflow/providers/index.rst",
-    "_api/airflow/providers/apache/index.rst",
-    "_api/airflow/providers/atlassian/index.rst",
-    "_api/airflow/providers/cncf/index.rst",
-    "_api/airflow/providers/common/index.rst",
-    "_api/airflow/providers/common/messaging/providers/base_provider/index.rst",
-    "_api/airflow/providers/common/messaging/providers/sqs/index.rst",
-    "_api/airflow/providers/dbt/index.rst",
-    "_api/airflow/providers/microsoft/index.rst",
     "_api/docs/conf",
+    *[f"_api/airflow/providers/{subpackage}/index.rst" for subpackage in empty_subpackages],
     *[f"_api/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
     *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
 ]

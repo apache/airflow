@@ -37,7 +37,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -68,9 +68,7 @@ def has_value_in_events(events, chain, value):
 with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
     listener_path = Path(tmp_dir) / "event"
 
-    @pytest.mark.skipif(
-        not AIRFLOW_V_2_10_PLUS or AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow>=2.10<3.0"
-    )
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow<3.0")
     @pytest.mark.usefixtures("reset_logging_config")
     class TestOpenLineageExecution:
         def teardown_method(self):

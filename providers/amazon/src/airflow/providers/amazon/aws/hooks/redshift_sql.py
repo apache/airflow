@@ -26,7 +26,6 @@ from sqlalchemy.engine.url import URL
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_2_10_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -260,6 +259,4 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_openlineage_default_schema(self) -> str | None:
         """Return current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
-        if AIRFLOW_V_2_10_PLUS:
-            return self.get_first("SELECT CURRENT_SCHEMA();")[0]
-        return super().get_openlineage_default_schema()
+        return self.get_first("SELECT CURRENT_SCHEMA();")[0]

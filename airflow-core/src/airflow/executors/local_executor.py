@@ -110,6 +110,9 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
     setproctitle(f"airflow worker -- LocalExecutor: {workload.ti.id}")
 
     base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
     # This will return the exit code of the task process, but we don't care about that, just if the
