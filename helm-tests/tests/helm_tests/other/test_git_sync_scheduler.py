@@ -428,6 +428,7 @@ class TestGitSyncSchedulerTest:
         }
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
