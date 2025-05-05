@@ -17,12 +17,24 @@
 
 from __future__ import annotations
 
-from cadwyn import HeadVersion, Version, VersionBundle
+from cadwyn import VersionChange, schema
 
-from airflow.api_fastapi.execution_api.versions.v2025_04_28 import AddRenderedMapIndexField
-
-bundle = VersionBundle(
-    HeadVersion(),
-    Version("2025-04-28", AddRenderedMapIndexField),
-    Version("2025-04-11"),
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    TIDeferredStatePayload,
+    TIRetryStatePayload,
+    TISuccessStatePayload,
+    TITerminalStatePayload,
 )
+
+
+class AddRenderedMapIndexField(VersionChange):
+    """Add the `rendered_map_index` field to payload models."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TITerminalStatePayload).field("rendered_map_index").didnt_exist,
+        schema(TISuccessStatePayload).field("rendered_map_index").didnt_exist,
+        schema(TIDeferredStatePayload).field("rendered_map_index").didnt_exist,
+        schema(TIRetryStatePayload).field("rendered_map_index").didnt_exist,
+    )
