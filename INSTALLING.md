@@ -1,3 +1,38 @@
+1. Installing just Airflow:
+
+> Note: Only `pip` installation is currently officially supported.
+
+While it is possible to install Airflow with tools like [Poetry](https://python-poetry.org) or
+[pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
+`pip` - especially when it comes to constraint vs. requirements management.
+Installing via `Poetry` or `pip-tools` is not currently supported.
+
+There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+newer versions of ``bazel`` will handle it.
+
+If you wish to install Airflow using those tools, you should use the constraint files and convert
+them to the appropriate format and workflow that your tool requires.
+
+
+```bash
+pip install 'apache-airflow==3.0.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
+```
+
+2. Installing with extras (i.e., postgres, google)
+
+```bash
+pip install 'apache-airflow[postgres,google]==3.0.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
+```
+
+For information on installing provider distributions, check
+[providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
+
+## Setting up Apache Airflow on Apple Silicon (Mac M1/M2/M3/M4)
+
 > ⚠️ Avoid using either system-installed Python or Python from Homebrew, as these versions are often labeled `--externally-managed` resulting in restricted dependency installation.
 
 You can use other ways to install Python and airflow. Airflow development setup requires `uv` and if you want to setup environment for development, `uv` is the only supported local development environment setup, because we are using `uv workspace` extensively. See [local virtualenv setup in contributing docs](https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst) for details.
