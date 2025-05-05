@@ -355,6 +355,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "ssl_key"): ("webserver", "web_server_ssl_key", "3.0"),
         ("api", "access_logfile"): ("webserver", "access_logfile", "3.0"),
         ("triggerer", "capacity"): ("triggerer", "default_capacity", "3.0"),
+        ("api", "expose_config"): ("webserver", "expose_config", "3.0.1"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -1294,7 +1295,7 @@ class AirflowConfigParser(ConfigParser):
 
     def read(
         self,
-        filenames: (str | bytes | os.PathLike | Iterable[str | bytes | os.PathLike]),
+        filenames: str | bytes | os.PathLike | Iterable[str | bytes | os.PathLike],
         encoding=None,
     ):
         super().read(filenames=filenames, encoding=encoding)
