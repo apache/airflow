@@ -280,7 +280,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset import AssetAlias
+    from airflow.sdk import AssetAlias
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])
@@ -292,7 +292,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset.metadata import Metadata
+    from airflow.sdk import Metadata
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])
@@ -304,7 +304,7 @@ Only one asset event is emitted for an added asset, even if it is added to the a
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset import AssetAlias
+    from airflow.sdk import AssetAlias
 
 
     @task(
