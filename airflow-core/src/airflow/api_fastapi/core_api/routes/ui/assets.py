@@ -20,10 +20,11 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import and_, func, select
 
+from airflow.api.common.utils import get_dag_from_dag_bag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
-from airflow.models import DagModel
+from airflow.models import DAG, DagModel
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 
 assets_router = AirflowRouter(tags=["Asset"])
@@ -38,7 +39,7 @@ def next_run_assets(
     request: Request,
     session: SessionDep,
 ) -> dict:
-    dag = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
 
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find dag {dag_id}")

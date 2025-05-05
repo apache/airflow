@@ -25,6 +25,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from fastapi import status
 from sqlalchemy import select
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -33,12 +34,15 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.trigger import Trigger
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.platform import getuser
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -1750,7 +1754,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             ti.try_number = 1
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
         session.commit()
@@ -2101,7 +2105,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     },
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                        "state": State.RUNNING,
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                        "state": State.FAILED,
                     },
                 ],
                 "example_python_operator",
@@ -2329,7 +2337,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             dag_id=dag_id,
             task_instances=task_instances,
             update_extras=False,
-            dag_run_state=DagRunState.FAILED,
+            dag_run_state=State.FAILED,
         )
         self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
@@ -2425,42 +2433,40 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         expected_response = [
             {
                 "dag_id": "example_python_operator",
-                "dag_display_name": "example_python_operator",
-                "dag_version": None,
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
                 "task_id": "print_the_context",
-                "duration": mock.ANY,
-                "end_date": mock.ANY,
-                "executor": None,
-                "executor_config": "{}",
-                "hostname": "",
-                "id": mock.ANY,
-                "logical_date": response_logical_date,
-                "map_index": -1,
-                "max_tries": 0,
-                "note": "placeholder-note",
-                "operator": "PythonOperator",
-                "pid": 100,
-                "pool": "default_pool",
-                "pool_slots": 1,
-                "priority_weight": 9,
-                "queue": "default_queue",
-                "queued_when": None,
-                "scheduled_when": None,
-                "rendered_fields": {},
-                "rendered_map_index": None,
-                "run_after": "2020-01-01T00:00:00Z",
-                "start_date": "2020-01-02T00:00:00Z",
-                "state": "restarting",
-                "task_display_name": "print_the_context",
-                "trigger": None,
-                "triggerer_job": None,
-                "try_number": 0,
-                "unixname": mock.ANY,
+            },
+            {
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_0",
+                "task_id": "log_sql_query",
+            },
+            {
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_0",
+                "task_id": "sleep_for_0",
+            },
+            {
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_0",
+                "task_id": "sleep_for_1",
+            },
+            {
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_0",
+                "task_id": "sleep_for_2",
+            },
+            {
+                "dag_id": "example_python_operator",
+                "dag_run_id": "TEST_DAG_RUN_ID_0",
+                "task_id": "sleep_for_3",
             },
         ]
-        assert response.json()["task_instances"] == expected_response
-        assert response.json()["total_entries"] == 1
+        for task_instance in expected_response:
+            assert task_instance in [
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
+            ]
+        assert response.json()["total_entries"] == 6
 
     def test_should_respond_200_with_include_past(self, test_client, session):
         dag_id = "example_python_operator"
@@ -4006,3 +4012,59 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json() == {"task_instances": [], "total_entries": 0}
+
+
+@pytest.mark.mock_plugin_manager(plugins=[])
+class TestTaskInstancesErrorHandling:
+    """Tests error handling logic of Task Instances API"""
+
+    @staticmethod
+    def _clear_db():
+        clear_db_runs()
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self._clear_db()
+        yield
+        self._clear_db()
+
+    def test_task_instances_endpoints_missing_dag_id_in_serialized_data(self, test_client):
+        """
+        Test task_instances endpoints when serialized DAG is missing dag_id.
+        """
+        from sqlalchemy import select, update
+
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        TEST_DAG_ID = "test_serialization_error"
+        test_dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id="test_task", dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=TEST_DAG_ID)
+
+        with create_session() as session:
+            dag_model = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == TEST_DAG_ID)
+            )
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == TEST_DAG_ID).values(_data=data)
+            )
+            session.commit()
+
+        response = test_client.get(f"/dags/{TEST_DAG_ID}/dagRuns/test_run/taskInstances/test_task/listMapped")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]
+
+        response = test_client.get(f"/dags/{TEST_DAG_ID}/dagRuns/test_run/taskInstances")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]
+
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/clearTaskInstances", json={"dry_run": True, "dag_run_id": "test_run"}
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.sql import select
 
+from airflow.api.common.utils import get_dag_from_dag_bag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
@@ -55,7 +56,7 @@ def get_extra_links(
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
 

@@ -25,6 +25,7 @@ from pydantic import ValidationError
 from sqlalchemy import select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
+from airflow.api.common.utils import get_dag_from_dag_bag
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -160,14 +161,12 @@ def get_dags(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
-    """Get basic information about a DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
@@ -194,7 +193,8 @@ def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
 )
 def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDetailsResponse:
     """Get details of DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
+
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 

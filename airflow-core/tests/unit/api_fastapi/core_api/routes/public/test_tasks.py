@@ -21,12 +21,15 @@ import unittest
 from datetime import datetime
 
 import pytest
+from fastapi import status
+from sqlalchemy import select, update
 
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -556,3 +559,72 @@ class TestGetTasks(TestTaskEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks")
         assert response.status_code == 403
+
+
+@pytest.mark.mock_plugin_manager(plugins=[])
+class TestTasksErrorHandling:
+    """Tests error handling logic of Tasks API"""
+
+    dag_id = "test_serialization_error"
+    task_id = "test_task"
+
+    @staticmethod
+    def _clear_db():
+        clear_db_dags()
+        clear_db_runs()
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self._clear_db()
+        yield
+        self._clear_db()
+
+    def test_get_task_missing_dag_id_in_serialized_data(self, test_client):
+        """Test that a 400 error is returned when the dag_id is missing from serialized data when getting a task"""
+        test_dag = DAG(dag_id=self.dag_id, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id=self.task_id, dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=self.dag_id)
+
+        with create_session() as session:
+            dag_model = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == self.dag_id)
+            )
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == self.dag_id).values(_data=data)
+            )
+            session.commit()
+
+        response = test_client.get(f"/dags/{self.dag_id}/tasks/{self.task_id}")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]
+
+    def test_get_tasks_missing_dag_id_in_serialized_data(self, test_client):
+        """Test that a 400 error is returned when the dag_id is missing from serialized data when getting all tasks"""
+        test_dag = DAG(dag_id=self.dag_id, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id=self.task_id, dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=self.dag_id)
+
+        with create_session() as session:
+            dag_model = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == self.dag_id)
+            )
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == self.dag_id).values(_data=data)
+            )
+            session.commit()
+
+        response = test_client.get(f"/dags/{self.dag_id}/tasks")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]

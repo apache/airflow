@@ -31,6 +31,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_queued,
     set_dag_run_state_to_success,
 )
+from airflow.api.common.utils import get_dag_from_dag_bag
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -161,7 +162,7 @@ def patch_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
 
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
@@ -267,7 +268,7 @@ def clear_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
 
     if body.dry_run:
         task_instances = dag.clear(
@@ -341,9 +342,10 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
+
         if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
@@ -404,8 +406,11 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+
     try:
-        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(

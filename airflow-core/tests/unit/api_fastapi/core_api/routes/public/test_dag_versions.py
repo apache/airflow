@@ -16,12 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from unittest import mock
 
 import pytest
+from fastapi import status
+from sqlalchemy import select, update
 
+from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
 
@@ -218,6 +223,28 @@ class TestGetDagVersions(TestDagVersionEndpoint):
         response = test_client.get(f"/dags/{dag_id}/dagVersions")
         assert response.status_code == 200
         assert response.json() == expected_response
+
+    def test_get_dag_versions_missing_dag_id_in_serialized_data(self, test_client):
+        DAG1_ID = "test_dag_missing_dag_id"
+        test_dag = DAG(dag_id=DAG1_ID, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id="test_task", dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=DAG1_ID)
+
+        with create_session() as session:
+            dag_model = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == DAG1_ID))
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == DAG1_ID).values(_data=data)
+            )
+            session.commit()
+
+        response = test_client.get(f"/dags/{DAG1_ID}/dagVersions")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]
 
     @pytest.mark.parametrize(
         "params, expected_versions, expected_total_entries",

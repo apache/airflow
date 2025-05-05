@@ -17,15 +17,22 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 
 import pytest
+from fastapi import status
+from sqlalchemy import select, update
 
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom import XComModel as XCom
+from airflow.operators.empty import EmptyOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -310,3 +317,48 @@ class TestGetExtraLinks:
         )
         assert response.status_code == 404
         assert response.json() == {"detail": "Task with ID = TEST_MAPPED_TASK not found"}
+
+
+@pytest.mark.mock_plugin_manager(plugins=[])
+class TestExtraLinksErrorHandling:
+    """專門測試 Extra Links API 的錯誤處理邏輯"""
+
+    @staticmethod
+    def _clear_db():
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_xcom()
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self._clear_db()
+        yield
+        self._clear_db()
+
+    def test_get_extra_links_with_serialization_error(self, test_client):
+        dag_id = "test_serialization_error"
+        task_id = "test_task"
+        run_id = "test_run_id"
+
+        test_dag = DAG(dag_id=dag_id, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id=task_id, dag=test_dag)
+        test_dag.sync_to_db()
+
+        SerializedDagModel.write_dag(test_dag, bundle_name=dag_id)
+        with create_session() as session:
+            dag_model = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id).values(_data=data)
+            )
+            session.commit()
+
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/links",
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]

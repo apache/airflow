@@ -20,17 +20,20 @@ import json
 from unittest import mock
 
 import pytest
+from fastapi import status
+from sqlalchemy import select, update
 
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
-from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -47,6 +50,7 @@ TEST_XCOM_KEY_2 = "test_xcom_key_non_existing"
 TEST_DAG_ID = "test-dag-id"
 TEST_TASK_ID = "test-task-id"
 TEST_EXECUTION_DATE = "2005-04-02T00:00:00+00:00"
+TEST_RUN_ID = "test-run-id"
 
 TEST_DAG_ID_2 = "test-dag-id-2"
 TEST_TASK_ID_2 = "test-task-id-2"
@@ -670,3 +674,62 @@ class TestPatchXComEntry(TestXComEndpoint):
             json={},
         )
         assert response.status_code == 403
+
+
+@pytest.mark.mock_plugin_manager(plugins=[])
+class TestXComErrorHandling:
+    """Tests error handling logic of XCom API"""
+
+    @staticmethod
+    def clear_db():
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_xcom()
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.clear_db()
+        yield
+        self.clear_db()
+
+    def test_create_xcom_entry_missing_dag_id_in_serialized_data(self, test_client):
+        """
+        Test /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries endpoint
+        when serialized DAG is missing dag_id (should return 400 error).
+        """
+
+        test_dag = DAG(dag_id=TEST_DAG_ID, start_date=timezone.datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id=TEST_TASK_ID, dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=TEST_DAG_ID)
+
+        with create_session() as session:
+            dag_model = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == TEST_DAG_ID)
+            )
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+
+            dag_run = DagRun(
+                dag_id=TEST_DAG_ID,
+                run_id=TEST_RUN_ID,
+                state="queued",
+                run_type=DagRunType.MANUAL,
+            )
+            session.add(dag_run)
+            session.commit()
+
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == TEST_DAG_ID).values(_data=data)
+            )
+            session.commit()
+
+        request_body = {"key": TEST_XCOM_KEY, "value": TEST_XCOM_VALUE}
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{TEST_RUN_ID}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json=request_body,
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]

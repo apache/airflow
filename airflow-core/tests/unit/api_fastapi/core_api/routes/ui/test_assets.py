@@ -19,13 +19,27 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from fastapi import status
+from sqlalchemy import select, update
 
+from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.utils.session import create_session
+from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
+
+TEST_DAG_ID = "test_dag_missing_dag_id_in_db"
+TEST_DAG_RUN_ID = "test_dag_run_missing_dag_id_in_db"
+TEST_DAG_ID = "test_dag_missing_dag_id"
+TEST_TASK_ID = "test_task"
+TEST_RUN_ID = "test_run"
+TEST_XCOM_KEY = "test_xcom_key"
+TEST_XCOM_VALUE = {"foo": "bar"}
 
 
 @pytest.fixture(autouse=True)
@@ -74,3 +88,31 @@ class TestNextRunAssets:
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/next_run_assets/upstream")
         assert response.status_code == 403
+
+    def test_next_run_assets_missing_dag_id_in_serialized_data(self, test_client):
+        """
+        Test /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries endpoint
+        when serialized DAG is missing dag_id (should return 400 error).
+        """
+
+        test_dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id=TEST_TASK_ID, dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=TEST_DAG_ID)
+        with create_session() as session:
+            dag_model = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == TEST_DAG_ID)
+            )
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == TEST_DAG_ID).values(_data=data)
+            )
+            session.commit()
+        response = test_client.get(
+            f"/next_run_assets/{TEST_DAG_ID}",
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]
