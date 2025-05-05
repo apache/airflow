@@ -179,6 +179,7 @@ class TestTIRunState:
                 "consumed_asset_events": [],
             },
             "task_reschedule_count": 0,
+            "upstream_map_indexes": None,
             "max_tries": max_tries,
             "should_retry": should_retry,
             "variables": [],
@@ -257,6 +258,7 @@ class TestTIRunState:
         assert response.json() == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
+            "upstream_map_indexes": None,
             "max_tries": 0,
             "should_retry": False,
             "variables": [],
@@ -318,6 +320,7 @@ class TestTIRunState:
         assert response.json() == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
+            "upstream_map_indexes": None,
             "max_tries": 0,
             "should_retry": False,
             "variables": [],
