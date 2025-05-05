@@ -630,15 +630,19 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Number of Airflow Celery workers
+  # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
   # Max number of old Airflow Celery workers ReplicaSets to retain
+  # (deprecated, use `workers.celery.revisionHistoryLimit` instead)
   revisionHistoryLimit: ~
 
   # Command to use when running Airflow Celery workers and using pod-template-file (templated)
+  # (deprecated, use `workers.celery.command` or `workers.kubernetes.command` instead)
   command: ~
+
   # Args to use when running Airflow Celery workers (templated)
+  # (deprecated, use `workers.celery.args` instead)
   args:
     - "bash"
     - "-c"
@@ -649,27 +653,42 @@ workers:
 
   # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
   # kill the worker and let Kubernetes restart it
+  # (deprecated, use `workers.celery.livenessProbe` instead)
   livenessProbe:
+    # (deprecated, use `workers.celery.livenessProbe.enabled` instead)
     enabled: true
+    # (deprecated, use `workers.celery.livenessProbe.initialDelaySeconds` instead)
     initialDelaySeconds: 10
+    # (deprecated, use `workers.celery.livenessProbe.timeoutSeconds` instead)
     timeoutSeconds: 20
+    # (deprecated, use `workers.celery.livenessProbe.failureThreshold` instead)
     failureThreshold: 5
+    # (deprecated, use `workers.celery.livenessProbe.periodSeconds` instead)
     periodSeconds: 60
+    # (deprecated, use `workers.celery.livenessProbe.command` instead)
     command: ~
 
   # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+  # (deprecated, use `workers.celery.updateStrategy` instead)
   updateStrategy: ~
   # Update Strategy when Airflow Celery worker is deployed as a Deployment
+  # (deprecated, use `workers.celery.strategy` instead)
   strategy:
     rollingUpdate:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
   # Allow relaxing ordering guarantees for Airflow Celery worker while preserving its uniqueness and identity
+  # (deprecated, use `workers.celery.podManagementPolicy` instead)
   # podManagementPolicy: Parallel
 
   # When not set, the values defined in the global securityContext will
-  # be used in Airflow Celery workers and pod-template-file (deprecated, use `workers.securityContexts` instead)
+  # be used in Airflow Celery workers and pod-template-file
+  # (deprecated, use
+  #   `workers.securityContexts` or
+  #   `workers.celery.securityContexts` or
+  #   `workers.kubernetes.securityContexts`
+  # instead)
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
@@ -677,49 +696,89 @@ workers:
 
   # Detailed default security context for the
   # Airflow Celery workers and pod-template-file on container and pod level
+  # (deprecated, use `workers.celery.securityContexts` or `workers.kubernetes.securityContexts` instead)
   securityContexts:
+    # (deprecated, use
+    #   `workers.celery.securityContexts.pod` or
+    #   `workers.kubernetes.securityContexts.pod`
+    # instead)
     pod: {}
+    # (deprecated, use
+    #   `workers.celery.securityContexts.container` or
+    #   `workers.kubernetes.securityContexts.container`
+    # instead)
     container: {}
 
   # Container level Lifecycle Hooks definition for
   # Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use
+  #   `workers.celery.containerLifecycleHooks` or
+  #   `workers.kubernetes.containerLifecycleHooks`
+  # instead)
   containerLifecycleHooks: {}
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.serviceAccount` or `workers.kubernetes.serviceAccount` instead)
   serviceAccount:
-    # default value is true
+    # Auto mount service account token into the pod. Default value is true.
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.automountServiceAccountToken` or
+    #   `workers.kubernetes.serviceAccount.automountServiceAccountToken`
+    # instead)
     automountServiceAccountToken: true
+
     # Specifies whether a ServiceAccount should be created
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.create` or
+    #   `workers.kubernetes.serviceAccount.create`
+    # instead)
     create: true
+
     # The name of the ServiceAccount to use.
-    # If not set and create is true, a name is generated using the release name
+    # If not set and create is true, a name is generated using the release name.
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.name` or
+    #   `workers.kubernetes.serviceAccount.name`
+    # instead)
     name: ~
 
-    # Annotations to add to worker kubernetes service account.
+    # Annotations to add to worker kubernetes service account
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.annotations` or
+    #   `workers.kubernetes.serviceAccount.annotations`
+    # instead).
     annotations: {}
 
-  # Allow KEDA autoscaling for Airflow Celery workers
+  # Allow KEDA autoscaling for Airflow Celery workers (deprecated, use `workers.celery.keda` instead)
   keda:
+    # (deprecated, use `workers.celery.keda.enabled` instead)
     enabled: false
+    # (deprecated, use `workers.celery.keda.namespaceLabels` instead)
     namespaceLabels: {}
 
     # How often KEDA polls the airflow DB to report new scale requests to the HPA
+    # (deprecated, use `workers.celery.keda.pollingInterval` instead)
     pollingInterval: 5
 
     # How many seconds KEDA will wait before scaling to zero.
     # Note that HPA has a separate cooldown period for scale-downs
+    # (deprecated, use `workers.celery.keda.cooldownPeriod` instead)
     cooldownPeriod: 30
 
     # Minimum number of Airflow Celery workers created by keda
+    # (deprecated, use `workers.celery.keda.minReplicaCount` instead)
     minReplicaCount: 0
 
     # Maximum number of Airflow Celery workers created by keda
+    # (deprecated, use `workers.celery.keda.maxReplicaCount` instead)
     maxReplicaCount: 10
 
-    # Specify HPA related options
+    # Specify HPA related options (deprecated, use `workers.celery.keda.advanced` instead)
     advanced: {}
+    # (deprecated, use `workers.celery.keda.advanced.horizontalPodAutoscalerConfig` instead)
     # horizontalPodAutoscalerConfig:
+    #   (deprecated, use `workers.celery.keda.advanced.horizontalPodAutoscalerConfig.behavior` instead)
     #   behavior:
     #     scaleDown:
     #       stabilizationWindowSeconds: 300
@@ -729,6 +788,7 @@ workers:
     #           periodSeconds: 15
 
     # Query to use for KEDA autoscaling. Must return a single integer.
+    # (deprecated, use `workers.celery.keda.query` instead)
     query: >-
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
@@ -740,20 +800,26 @@ workers:
       {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
+    # (deprecated, use `workers.celery.keda.usePgbouncer` instead)
     # This configuration will be ignored if PGBouncer is not enabled
     usePgbouncer: true
 
   # Allow HPA for Airflow Celery workers (KEDA must be disabled)
+  # (deprecated, use `workers.celery.hpa` instead)
   hpa:
+    # (deprecated, use `workers.celery.hpa.enabled` instead)
     enabled: false
 
     # Minimum number of Airflow Celery workers created by HPA
+    # (deprecated, use `workers.celery.hpa.minReplicaCount` instead)
     minReplicaCount: 0
 
     # Maximum number of Airflow Celery workers created by HPA
+    # (deprecated, use `workers.celery.hpa.maxReplicaCount` instead)
     maxReplicaCount: 5
 
     # Specifications for which to use to calculate the desired replica count
+    # (deprecated, use `workers.celery.hpa.metrics` instead)
     metrics:
       - type: Resource
         resource:
@@ -763,45 +829,63 @@ workers:
             averageUtilization: 80
 
     # Scaling behavior of the target in both Up and Down directions
+    # (deprecated, use `workers.celery.hpa.behavior` instead)
     behavior: {}
 
   # Persistence volume configuration for Airflow Celery workers
+  # (deprecated, use `workers.celery.persistence` instead)
   persistence:
-    # Enable persistent volumes
+    # Enable persistent volumes (deprecated, use `workers.celery.persistence.enabled` instead)
     enabled: true
 
     # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+    # (deprecated, use `workers.celery.persistence.persistentVolumeClaimRetentionPolicy` instead)
     persistentVolumeClaimRetentionPolicy: ~
     # persistentVolumeClaimRetentionPolicy:
     #   whenDeleted: Delete
     #   whenScaled: Delete
 
     # Volume size for Airflow Celery worker StatefulSet
+    # (deprecated, use `workers.celery.persistence.size` instead)
     size: 100Gi
 
     # If using a custom storageClass, pass name ref to all StatefulSets here
+    # (deprecated, use `workers.celery.persistence.storageClassName` instead)
     storageClassName:
 
     # Execute init container to chown log directory.
-    # This is currently only needed in kind, due to usage
-    # of local-path provisioner.
+    # This is currently only needed in kind, due to usage of local-path provisioner.
+    # (deprecated, use `workers.celery.persistence.fixPermissions` instead)
     fixPermissions: false
 
     # Annotations to add to Airflow Celery worker volumes
+    # (deprecated, use `workers.celery.persistence.annotations` instead)
     annotations: {}
 
     # Detailed default security context for persistence on container level
+    # (deprecated, use `workers.celery.persistence.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.persistence.securityContexts.container` instead)
       container: {}
 
     # Container level lifecycle hooks
+    # (deprecated, use `workers.celery.persistence.containerLifecycleHooks` instead)
     containerLifecycleHooks: {}
 
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.kerberosSidecar` or `workers.kubernetes.kerberosSidecar` instead)
   kerberosSidecar:
     # Enable kerberos sidecar
+    # (deprecated, use
+    #   `workers.celery.kerberosSidecar.enabled` or
+    #   `workers.kubernetes.kerberosSidecar.enabled`
+    # instead)
     enabled: false
 
+    # (deprecated, use
+    #   `workers.celery.kerberosSidecar.resources` or
+    #   `workers.kubernetes.kerberosSidecar.resources`
+    # instead)
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -811,16 +895,40 @@ workers:
     #   memory: 128Mi
 
     # Detailed default security context for kerberos sidecar on container level
+    # (deprecated, use
+    #   `workers.celery.kerberosSidecar.securityContexts` or
+    #   `workers.kubernetes.kerberosSidecar.securityContexts`
+    # instead)
     securityContexts:
+      # (deprecated, use
+      #   `workers.celery.kerberosSidecar.securityContexts.container` or
+      #   `workers.kubernetes.kerberosSidecar.securityContexts.container
+      # instead)
       container: {}
 
     # Container level lifecycle hooks
+    # (deprecated, use
+    #   `workers.celery.kerberosSidecar.containerLifecycleHooks` or
+    #   `workers.kubernetes.kerberosSidecar.containerLifecycleHooks`
+    # instead)
     containerLifecycleHooks: {}
 
   # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use
+  #   `workers.celery.kerberosInitContainer` or
+  #   `workers.kubernetes.kerberosInitContainer`
+  # instead)
   kerberosInitContainer:
     # Enable kerberos init container
+    # (deprecated, use
+    #   `workers.celery.kerberosInitContainer.enabled` or
+    #   `workers.kubernetes.kerberosInitContainer.enabled`
+    # instead)
     enabled: false
+    # (deprecated, use
+    #   `workers.celery.kerberosInitContainer.resources` or
+    #   `workers.kubernetes.kerberosInitContainer.resources`
+    # instead)
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -837,6 +945,7 @@ workers:
     containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.resources` or `workers.kubernetes.resources` instead)
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -847,25 +956,34 @@ workers:
 
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes.
   # It is used by Airflow Celery workers and pod-template-file.
+  # (deprecated, use
+  #   `workers.celery.terminationGracePeriodSeconds` or
+  #   `workers.kubernetes.terminationGracePeriodSeconds`
+  # instead)
   terminationGracePeriodSeconds: 600
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
   # It is used by Airflow Celery workers and pod-template-file.
+  # (deprecated, use `workers.celery.safeToEvict` or `workers.kubernetes.safeToEvict` instead)
   safeToEvict: false
 
-  # Launch additional containers into Airflow Celery worker
-  # and pods created with pod-template-file (templated).
+  # Launch additional containers into
+  # Airflow Celery worker and pods created with pod-template-file (templated)
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
   # container finishes so Airflow can continue the worker shutdown process!
+  # (deprecated, use `workers.celery.extraContainers` or `workers.kubernetes.extraContainers` instead)
   extraContainers: []
   # Add additional init containers into Airflow Celery workers
-  # and pods created with pod-template-file (templated).
+  # and pods created with pod-template-file (templated)
+  # (deprecated, use
+  #   `workers.celery.extraInitContainers` or
+  #   `workers.kubernetes.extraInitContainers`
+  # instead)
   extraInitContainers: []
 
-  # Additional volumes and volume mounts attached to the
-  # Airflow Celery workers and pods created with pod-template-file
+  # Additional volumes attached to the Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.extraVolumes` or `workers.kubernetes.extraVolumes` instead)
   extraVolumes: []
-  extraVolumeMounts: []
   # Mount additional volumes into workers pods. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -873,19 +991,31 @@ workers:
   #          secretName: '{{ include "my_secret_template" . }}'
   #          defaultMode: 0640
   #          optional: true
-  #
+
+  # Additional volume mounts attached to the Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.extraVolumeMounts` or `workers.kubernetes.extraVolumeMounts` instead)
+  extraVolumeMounts: []
+  # Mount additional volume mounts. It can be templated like in the following example:
   #   extraVolumeMounts:
   #     - name: my-templated-extra-volume
   #       mountPath: "{{ .Values.my_custom_path }}"
   #       readOnly: true
 
   # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
+  # (deprecated, use `workers.celery.extraPorts` instead)
   extraPorts: []
 
   # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
+  # (deprecated, use `workers.celery.nodeSelector` or `workers.kubernetes.nodeSelector` instead)
   nodeSelector: {}
+
+  # (deprecated, use `workers.celery.runtimeClassName` or `workers.kubernetes.runtimeClassName` instead)
   runtimeClassName: ~
+
+  # (deprecated, use `workers.celery.priorityClassName` or `workers.kubernetes.priorityClassName` instead)
   priorityClassName: ~
+
+  # (deprecated, use `workers.celery.affinity` or `workers.kubernetes.affinity` instead)
   affinity: {}
   # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
@@ -896,11 +1026,20 @@ workers:
   #            component: worker
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
+
+  # (deprecated, use `workers.celery.tolerations` or `workers.kubernetes.tolerations` instead)
   tolerations: []
+
+  # (deprecated, use
+  #   `workers.celery.topologySpreadConstraints` or
+  #   `workers.kubernetes.topologySpreadConstraints`
+  # instead)
   topologySpreadConstraints: []
+
   # hostAliases to use in Airflow Celery worker pods and pods created with pod-template-file
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+  # (deprecated, use `workers.celery.hostAliases` or `workers.kubernetes.hostAliases` instead)
   hostAliases: []
   # - ip: "127.0.0.2"
   #   hostnames:
@@ -909,32 +1048,40 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
-  # Annotations for the Airflow Celery worker resource
+  # Annotations for the Airflow Celery worker resource (deprecated, use `workers.celery.annotations` instead)
   annotations: {}
 
-  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file
+  # Annotations for the Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.podAnnotations` or `workers.kubernetes.podAnnotations` instead)
   podAnnotations: {}
 
-  # Labels specific to Airflow Celery workers objects and pods created with pod-template-file
+  # Labels to add to Airflow Celery workers objects and pods created with pod-template-file
+  # (deprecated, use `workers.celery.labels` or `workers.kubernetes.labels` instead)
   labels: {}
 
   # Log groomer configuration for Airflow Celery workers
+  # (deprecated, use `workers.celery.logGroomerSidecar` instead)
   logGroomerSidecar:
     # Whether to deploy the Airflow Celery worker log groomer sidecar
+    # (deprecated, use `workers.celery.logGroomerSidecar.enabled` instead)
     enabled: true
 
     # Command to use when running the Airflow Celery worker log groomer sidecar (templated)
+    # (deprecated, use `workers.celery.logGroomerSidecar.command` instead)
     command: ~
 
     # Args to use when running the Airflow Celery worker log groomer sidecar (templated)
+    # (deprecated, use `workers.celery.logGroomerSidecar.args` instead)
     args: ["bash", "/clean-logs"]
 
-    # Number of days to retain logs
+    # Number of days to retain logs (deprecated, use `workers.celery.logGroomerSidecar.retentionDays` instead)
     retentionDays: 15
 
     # Frequency to attempt to groom logs (in minutes)
+    # (deprecated, use `workers.celery.logGroomerSidecar.frequencyMinutes` instead)
     frequencyMinutes: 15
 
+    # (deprecated, use `workers.celery.logGroomerSidecar.resources` instead)
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -944,26 +1091,36 @@ workers:
     #   memory: 128Mi
 
     # Detailed default security context for logGroomerSidecar for container level
+    # (deprecated, use `workers.celery.logGroomerSidecar.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.logGroomerSidecar.container` instead)
       container: {}
 
+    # (deprecated, use `workers.celery.logGroomerSidecar.env` instead)
     env: []
 
   # Configuration of wait-for-airflow-migration init container for Airflow Celery workers
+  # (deprecated, use `workers.celery.waitForMigrations` instead)
   waitForMigrations:
     # Whether to create init container to wait for db migrations
+    # (deprecated, use `workers.celery.waitForMigrations.enabled` instead)
     enabled: true
 
+    # (deprecated, use `workers.celery.waitForMigrations.env` instead)
     env: []
 
     # Detailed default security context for wait-for-airflow-migrations container
+    # (deprecated, use `workers.celery.waitForMigrations.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.waitForMigrations.securityContexts.container` instead)
       container: {}
 
   # Additional env variable configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.env` or `workers.kubernetes.env` instead)
   env: []
 
   # Additional volume claim templates for Airflow Celery workers
+  # (deprecated, use `workers.celery.volumeClaimTemplates` instead)
   volumeClaimTemplates: []
   # Comment out the above and uncomment the section below to enable it.
   # Make sure to mount it under extraVolumeMounts.
