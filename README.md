@@ -139,23 +139,8 @@ Documentation for dependent projects like provider distributions, Docker image, 
 
 <!-- END Getting started, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
-## Installing from PyPI
 
-We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
-because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open, and
-applications usually pin them, but we should do neither and both simultaneously. We decided to keep
-our dependencies as open as possible (in `pyproject.toml`) so users can install different versions of libraries
-if needed. This means that `pip install apache-airflow` will not work from time to time or will
-produce unusable Airflow installation.
-
-To have repeatable installation, however, we keep a set of "known-to-be-working" constraint
-files in the orphan `constraints-main` and `constraints-2-0` branches. We keep those "known-to-be-working"
-constraints files separately per major/minor Python version.
-You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
-correct Airflow tag/version/branch and Python versions in the URL.
-
-
-1. Installation Guide
+## Installation Guide
 
 See [INSTALLING.md](./INSTALLING.md) for setup instructions across all platforms, including Apple Silicon Macs.
 
