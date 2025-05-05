@@ -368,8 +368,10 @@ rbac:
   createSCCRoleBinding: false
 
 # Airflow executor
-# One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
-# Specify executors in a prioritized list to leverage multiple execution environments as needed.
+# One or multiple of: LocalExecutor, CeleryExecutor, KubernetesExecutor
+# For Airflow <3.0, LocalKubernetesExecutor and CeleryKubernetesExecutor are also supported.
+# Specify executors in a prioritized list to leverage multiple execution environments as needed:
+# https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
