@@ -1693,13 +1693,6 @@ operators:
 webserver:
   description: ~
   options:
-    access_denied_message:
-      description: |
-        The message displayed when a user attempts to execute actions beyond their authorised privileges.
-      version_added: 2.7.0
-      type: string
-      example: ~
-      default: "Access is Denied"
     secret_key:
       description: |
         Secret key used to run your api server. It should be as random as possible. However, when running
