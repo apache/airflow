@@ -192,8 +192,10 @@ def get_assets(
             {
                 **asset.__dict__,
                 "aliases": asset.aliases,
-                "last_asset_event_id": last_asset_event_id,
-                "last_asset_event_timestamp": last_asset_event_timestamp,
+                "last_asset_event": {
+                    "id": last_asset_event_id,
+                    "timestamp": last_asset_event_timestamp,
+                },
             }
         )
         assets.append(asset_response)
@@ -463,8 +465,10 @@ def get_asset(
         {
             **asset.__dict__,
             "aliases": asset.aliases,
-            "last_asset_event_id": last_asset_event_id,
-            "last_asset_event_timestamp": last_asset_event_timestamp,
+            "last_asset_event": {
+                "id": last_asset_event_id,
+                "timestamp": last_asset_event_timestamp,
+            },
         }
     )
 

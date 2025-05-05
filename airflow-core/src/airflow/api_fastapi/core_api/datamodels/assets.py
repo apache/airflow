@@ -42,6 +42,13 @@ class TaskOutletAssetReference(StrictBaseModel):
     updated_at: datetime
 
 
+class LastAssetEventResponse(BaseModel):
+    """Last asset event response serializer."""
+
+    id: int | None = None
+    timestamp: datetime | None = None
+
+
 class AssetResponse(BaseModel):
     """Asset serializer for responses."""
 
@@ -55,8 +62,7 @@ class AssetResponse(BaseModel):
     consuming_dags: list[DagScheduleAssetReference]
     producing_tasks: list[TaskOutletAssetReference]
     aliases: list[AssetAliasResponse]
-    last_asset_event_id: int | None = None
-    last_asset_event_timestamp: datetime | None = None
+    last_asset_event: LastAssetEventResponse | None = None
 
     @field_validator("extra", mode="after")
     @classmethod

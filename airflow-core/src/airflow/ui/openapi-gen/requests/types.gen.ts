@@ -90,8 +90,7 @@ export type AssetResponse = {
   consuming_dags: Array<DagScheduleAssetReference>;
   producing_tasks: Array<TaskOutletAssetReference>;
   aliases: Array<AssetAliasResponse>;
-  last_asset_event_id?: number | null;
-  last_asset_event_timestamp?: string | null;
+  last_asset_event?: LastAssetEventResponse | null;
 };
 
 /**
@@ -905,6 +904,14 @@ export type JobResponse = {
 };
 
 export type JsonValue = unknown;
+
+/**
+ * Last asset event response serializer.
+ */
+export type LastAssetEventResponse = {
+  id?: number | null;
+  timestamp?: string | null;
+};
 
 /**
  * Request body for Clear Task Instances endpoint.

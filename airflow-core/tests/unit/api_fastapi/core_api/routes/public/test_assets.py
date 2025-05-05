@@ -260,8 +260,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "aliases": [],
                     # No AssetEvent, so no data!
-                    "last_asset_event_id": None,
-                    "last_asset_event_timestamp": None,
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
                     "id": asset2.id,
@@ -274,8 +273,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
-                    "last_asset_event_id": None,
-                    "last_asset_event_timestamp": None,
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
             "total_entries": 2,
@@ -315,8 +313,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
-                    "last_asset_event_id": None,
-                    "last_asset_event_timestamp": None,
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
                     "id": asset2.id,
@@ -329,8 +326,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
-                    "last_asset_event_id": None,
-                    "last_asset_event_timestamp": None,
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
                     "id": asset3.id,
@@ -343,8 +339,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
-                    "last_asset_event_id": None,
-                    "last_asset_event_timestamp": None,
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
             "total_entries": 3,
@@ -908,8 +903,7 @@ class TestGetAssetEndpoint(TestAssets):
             "consuming_dags": [],
             "producing_tasks": [],
             "aliases": [],
-            "last_asset_event_id": None,
-            "last_asset_event_timestamp": None,
+            "last_asset_event": {"id": None, "timestamp": None},
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -943,8 +937,7 @@ class TestGetAssetEndpoint(TestAssets):
             "consuming_dags": [],
             "producing_tasks": [],
             "aliases": [],
-            "last_asset_event_id": None,
-            "last_asset_event_timestamp": None,
+            "last_asset_event": {"id": None, "timestamp": None},
         }
 
 
@@ -1137,8 +1130,10 @@ class TestPostAssetEvents(TestAssets):
         asset_event_response = test_client.post("/assets/events", json=event_payload)
         asset_response = test_client.get(f"/assets/{asset.id}")
 
-        assert asset_response.json()["last_asset_event_id"] == asset_event_response.json()["id"]
-        assert asset_response.json()["last_asset_event_timestamp"] == asset_event_response.json()["timestamp"]
+        assert asset_response.json()["last_asset_event"]["id"] == asset_event_response.json()["id"]
+        assert (
+            asset_response.json()["last_asset_event"]["timestamp"] == asset_event_response.json()["timestamp"]
+        )
 
     def test_should_update_assets_endpoint(self, test_client, session):
         """Test for multiple Assets."""
@@ -1154,12 +1149,12 @@ class TestPostAssetEvents(TestAssets):
         for asset in assets_response.json()["assets"]:
             # We should expect to see AssetEvents for the first Asset
             if asset["id"] == asset1.id:
-                assert asset["last_asset_event_id"] == asset_event_response.json()["id"]
-                assert asset["last_asset_event_timestamp"] == asset_event_response.json()["timestamp"]
+                assert asset["last_asset_event"]["id"] == asset_event_response.json()["id"]
+                assert asset["last_asset_event"]["timestamp"] == asset_event_response.json()["timestamp"]
 
             elif asset["id"] == asset2.id:
-                assert asset["last_asset_event_id"] is None
-                assert asset["last_asset_event_timestamp"] is None
+                assert asset["last_asset_event"]["id"] is None
+                assert asset["last_asset_event"]["timestamp"] is None
 
 
 @pytest.mark.need_serialized_dag

@@ -566,6 +566,15 @@ class JsonValue(RootModel[Any]):
     root: Any
 
 
+class LastAssetEventResponse(BaseModel):
+    """
+    Last asset event response serializer.
+    """
+
+    id: Annotated[int | None, Field(title="Id")] = None
+    timestamp: Annotated[datetime | None, Field(title="Timestamp")] = None
+
+
 class PluginImportErrorResponse(BaseModel):
     """
     Plugin Import Error serializer for responses.
@@ -977,8 +986,7 @@ class AssetResponse(BaseModel):
     consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
-    last_asset_event_id: Annotated[int | None, Field(title="Last Asset Event Id")] = None
-    last_asset_event_timestamp: Annotated[datetime | None, Field(title="Last Asset Event Timestamp")] = None
+    last_asset_event: LastAssetEventResponse | None = None
 
 
 class BackfillPostBody(BaseModel):

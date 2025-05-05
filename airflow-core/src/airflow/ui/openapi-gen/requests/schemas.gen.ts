@@ -342,28 +342,15 @@ export const $AssetResponse = {
       type: "array",
       title: "Aliases",
     },
-    last_asset_event_id: {
+    last_asset_event: {
       anyOf: [
         {
-          type: "integer",
+          $ref: "#/components/schemas/LastAssetEventResponse",
         },
         {
           type: "null",
         },
       ],
-      title: "Last Asset Event Id",
-    },
-    last_asset_event_timestamp: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Asset Event Timestamp",
     },
   },
   type: "object",
@@ -3452,6 +3439,37 @@ export const $JobResponse = {
 } as const;
 
 export const $JsonValue = {} as const;
+
+export const $LastAssetEventResponse = {
+  properties: {
+    id: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Id",
+    },
+    timestamp: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  title: "LastAssetEventResponse",
+  description: "Last asset event response serializer.",
+} as const;
 
 export const $PatchTaskInstanceBody = {
   properties: {
