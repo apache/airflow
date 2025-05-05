@@ -112,6 +112,7 @@ def get_log(
         )
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
+        .options(joinedload(TaskInstance.dag_model))
     )
     ti = session.scalar(query)
     if ti is None:
@@ -173,11 +174,15 @@ def get_external_log_url(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Task log handler does not support external logs.")
 
     # Fetch the task instance
-    query = select(TaskInstance).where(
-        TaskInstance.task_id == task_id,
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.run_id == dag_run_id,
-        TaskInstance.map_index == map_index,
+    query = (
+        select(TaskInstance)
+        .where(
+            TaskInstance.task_id == task_id,
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == dag_run_id,
+            TaskInstance.map_index == map_index,
+        )
+        .options(joinedload(TaskInstance.dag_model))
     )
     ti = session.scalar(query)
 

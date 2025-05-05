@@ -319,6 +319,7 @@ class DAGSourceResponse(BaseModel):
     content: Annotated[str | None, Field(title="Content")] = None
     dag_id: Annotated[str, Field(title="Dag Id")]
     version_number: Annotated[int | None, Field(title="Version Number")] = None
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DAGTagCollectionResponse(BaseModel):
@@ -481,6 +482,7 @@ class EventLogResponse(BaseModel):
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
     owner: Annotated[str | None, Field(title="Owner")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+    dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
 
 
 class ExternalLogUrlResponse(BaseModel):

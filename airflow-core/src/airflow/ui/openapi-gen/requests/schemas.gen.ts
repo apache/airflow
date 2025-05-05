@@ -2505,9 +2505,13 @@ export const $DAGSourceResponse = {
       ],
       title: "Version Number",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["content", "dag_id", "version_number"],
+  required: ["content", "dag_id", "version_number", "dag_display_name"],
   title: "DAGSourceResponse",
   description: "DAG Source serializer for responses.",
 } as const;
@@ -3062,6 +3066,17 @@ export const $EventLogResponse = {
         },
       ],
       title: "Extra",
+    },
+    dag_display_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Display Name",
     },
   },
   type: "object",

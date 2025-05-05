@@ -611,6 +611,7 @@ export type DAGSourceResponse = {
   content: string | null;
   dag_id: string;
   version_number: number | null;
+  dag_display_name: string;
 };
 
 /**
@@ -796,6 +797,7 @@ export type EventLogResponse = {
   logical_date: string | null;
   owner: string | null;
   extra: string | null;
+  dag_display_name?: string | null;
 };
 
 /**
