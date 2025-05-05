@@ -9201,6 +9201,11 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
       type: object
       required:
       - id
@@ -10624,6 +10629,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - key
@@ -10633,6 +10641,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -10662,6 +10671,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         value:
           title: Value
       type: object
@@ -10673,6 +10685,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -10703,6 +10716,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         value:
           anyOf:
           - type: string
@@ -10717,6 +10733,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

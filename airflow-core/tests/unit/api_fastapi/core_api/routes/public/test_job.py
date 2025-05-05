@@ -152,6 +152,7 @@ class TestGetJobs(TestJobEndpoint):
         for idx, resp_job in enumerate(response_json["jobs"]):
             expected_job = {
                 "id": self.scheduler_jobs[idx].id,
+                "dag_display_name": None,
                 "dag_id": None,
                 "state": "running",
                 "job_type": "SchedulerJob",
