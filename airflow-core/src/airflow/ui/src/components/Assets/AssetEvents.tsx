@@ -63,7 +63,7 @@ export const AssetEvents = ({
   });
 
   return (
-    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2}>
+    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1}>
       <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
         <HStack>
           <StateBadge colorPalette="blue" fontSize="md" variant="solid">
