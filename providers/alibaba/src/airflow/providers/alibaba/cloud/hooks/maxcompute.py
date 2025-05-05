@@ -156,7 +156,7 @@ class MaxComputeHook(AlibabaBaseHook):
         endpoint: str | None = None,
         priority: int | None = None,
         running_cluster: str | None = None,
-        hints: dict[str, str] | None = None,
+        hints: dict[str, Any] | None = None,
         aliases: dict[str, str] | None = None,
         default_schema: str | None = None,
         quota_name: str | None = None,
@@ -174,7 +174,7 @@ class MaxComputeHook(AlibabaBaseHook):
         :param endpoint: The endpoint to use.
         :param priority: The priority of the SQL statement ranges from 0 to 9,
             applicable to projects with the job priority feature enabled.
-            Takes precedence over the  'odps.instance.priority' setting from `hints`.
+            Takes precedence over the  `odps.instance.priority` setting from `hints`.
             Defaults to 9.
             See https://www.alibabacloud.com/help/en/maxcompute/user-guide/job-priority
             for details.
@@ -190,6 +190,9 @@ class MaxComputeHook(AlibabaBaseHook):
         :return: The MaxCompute task instance.
         """
         client = self.get_client(project=project, endpoint=endpoint)
+
+        if priority is None and hints is not None:
+            priority = hints.get("odps.instance.priority")
 
         return client.run_sql(
             sql=sql,
