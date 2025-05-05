@@ -26,6 +26,10 @@ from airflow.providers.common.messaging.providers.base_provider import BaseMessa
 if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
 
+# [START queue_regexp]
+QUEUE_REGEXP = r"^kafka://"
+# [END queue_regexp]
+
 
 class KafkaMessageQueueProvider(BaseMessageQueueProvider):
     """
@@ -70,7 +74,7 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
     """
 
     def queue_matches(self, queue: str) -> bool:
-        return bool(re.match(r"^kafka://", queue))
+        return bool(re.match(QUEUE_REGEXP, queue))
 
     def trigger_class(self) -> type[BaseEventTrigger]:
         return AwaitMessageTrigger  # type: ignore[return-value]
@@ -79,12 +83,14 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
         if "apply_function" not in kwargs:
             raise ValueError("apply_function is required in KafkaMessageQueueProvider kwargs")
 
+        # [START extract_topics]
         # Parse the queue URI
         parsed = urlparse(queue)
         # Extract topics (after host list)
         # parsed.path starts with a '/', so strip it
         raw_topics = parsed.path.lstrip("/")
         topics = raw_topics.split(",") if raw_topics else []
+        # [END extract_topics]
 
         if not topics and "topics" not in kwargs:
             raise ValueError(
