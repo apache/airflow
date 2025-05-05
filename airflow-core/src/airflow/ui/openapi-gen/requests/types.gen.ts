@@ -902,6 +902,7 @@ export type JobResponse = {
   executor_class: string | null;
   hostname: string | null;
   unixname: string | null;
+  dag_display_name?: string | null;
 };
 
 export type JsonValue = unknown;
@@ -1389,6 +1390,7 @@ export type XComResponse = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
 };
 
 /**
@@ -1402,6 +1404,7 @@ export type XComResponseNative = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
   value: unknown;
 };
 
@@ -1416,6 +1419,7 @@ export type XComResponseString = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
   value: string | null;
 };
 
