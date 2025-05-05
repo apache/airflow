@@ -24,7 +24,7 @@ from pathlib import Path
 
 import rich
 
-from airflowctl.api.client import Client, ClientKind, provide_api_client
+from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
     BulkAction,
     BulkActionOnExistence,
@@ -35,11 +35,11 @@ from airflowctl.api.datamodels.generated import (
 
 
 @provide_api_client(kind=ClientKind.CLI)
-def import_(api_client: Client, file: str | Path, **kwargs):
+def import_(args, api_client: Client = NEW_API_CLIENT):
     """Import pools from file."""
-    filepath = Path(file)
+    filepath = Path(args.file)
     if not filepath.exists():
-        raise SystemExit(f"Missing pools file {file}")
+        raise SystemExit(f"Missing pools file {args.file}")
 
     pools, failed = _import_helper(api_client, filepath)
     if failed:
@@ -48,7 +48,7 @@ def import_(api_client: Client, file: str | Path, **kwargs):
 
 
 @provide_api_client(kind=ClientKind.CLI)
-def export(api_client: Client, file: str | Path, output: str = "json", **kwargs):
+def export(args, api_client: Client = NEW_API_CLIENT):
     """
     Export all pools.
 
@@ -65,11 +65,11 @@ def export(api_client: Client, file: str | Path, output: str = "json", **kwargs)
             for pool in pools
         }
 
-        if output == "json":
-            file_path = Path(file)
+        if args.output == "json":
+            file_path = Path(args.file)
             with open(file_path, "w") as f:
                 json.dump(pools_dict, f, indent=4, sort_keys=True)
-            rich.print(f"Exported {len(pools)} pool(s) to {file}")
+            rich.print(f"Exported {len(pools)} pool(s) to {args.file}")
         else:
             # For non-json formats, print the pools directly to console
             rich.print(pools_dict)

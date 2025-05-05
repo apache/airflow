@@ -49,21 +49,21 @@ class TestPoolImportCommand:
         """Test import with missing file."""
         non_existent = tmp_path / "non_existent.json"
         with pytest.raises(SystemExit, match=f"Missing pools file {non_existent}"):
-            pool_command.import_(file=non_existent)
+            pool_command.import_(args=mock.MagicMock(file=non_existent))
 
     def test_import_invalid_json(self, mock_client, tmp_path):
         """Test import with invalid JSON file."""
         invalid_json = tmp_path / "invalid.json"
         invalid_json.write_text("invalid json")
         with pytest.raises(SystemExit, match="Invalid json file"):
-            pool_command.import_(file=invalid_json)
+            pool_command.import_(args=mock.MagicMock(file=invalid_json))
 
     def test_import_invalid_pool_config(self, mock_client, tmp_path):
         """Test import with invalid pool configuration."""
         invalid_pool = tmp_path / "invalid_pool.json"
         invalid_pool.write_text(json.dumps({"test_pool": {"invalid": "config"}}))
         with pytest.raises(SystemExit, match="Invalid pool configuration for test_pool"):
-            pool_command.import_(file=invalid_pool)
+            pool_command.import_(args=mock.MagicMock(file=invalid_pool))
 
     def test_import_success(self, mock_client, tmp_path, capsys):
         """Test successful pool import."""
@@ -83,7 +83,7 @@ class TestPoolImportCommand:
         mock_response.failed = []
         mock_client.pools.bulk.return_value = mock_response
 
-        pool_command.import_(file=pools_file)
+        pool_command.import_(args=mock.MagicMock(file=pools_file))
 
         # Verify bulk operation was called with correct parameters
         mock_client.pools.bulk.assert_called_once()
@@ -123,7 +123,7 @@ class TestPoolImportCommand:
         mock_client.pools.bulk.return_value = mock_response
 
         with pytest.raises(SystemExit, match="Failed to update pool\\(s\\): test_pool"):
-            pool_command.import_(file=pools_file)
+            pool_command.import_(args=mock.MagicMock(file=pools_file))
 
 
 class TestPoolExportCommand:
@@ -142,7 +142,7 @@ class TestPoolExportCommand:
         ]
         mock_client.pools.list.return_value = mock_pools
 
-        pool_command.export(file=export_file, output="json")
+        pool_command.export(args=mock.MagicMock(file=export_file, output="json"))
 
         # Verify the exported file content
         exported_data = json.loads(export_file.read_text())
@@ -168,7 +168,7 @@ class TestPoolExportCommand:
         ]
         mock_client.pools.list.return_value = mock_pools
 
-        pool_command.export(file=tmp_path / "unused.json", output="table")
+        pool_command.export(args=mock.MagicMock(file=tmp_path / "unused.json", output="table"))
 
         # Verify console output contains the raw dict
         captured = capsys.readouterr()
@@ -183,4 +183,4 @@ class TestPoolExportCommand:
         mock_client.pools.list.side_effect = Exception("API Error")
 
         with pytest.raises(SystemExit, match="Failed to export pools: API Error"):
-            pool_command.export(file=export_file, output="json")
+            pool_command.export(args=mock.MagicMock(file=export_file, output="json"))
