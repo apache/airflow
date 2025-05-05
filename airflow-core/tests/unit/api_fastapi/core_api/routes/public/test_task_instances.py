@@ -3215,10 +3215,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         "error, code, payload",
         [
             [
-                (
-                    "Task Instance not found for dag_id=example_python_operator"
-                    ", run_id=TEST_DAG_RUN_ID, task_id=print_the_context"
-                ),
+                [
+                    "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found",
+                ],
                 404,
                 {
                     "new_state": "failed",
@@ -3784,10 +3783,9 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         "error, code, payload",
         [
             [
-                (
-                    "Task Instance not found for dag_id=example_python_operator"
-                    ", run_id=TEST_DAG_RUN_ID, task_id=print_the_context"
-                ),
+                [
+                    "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found"
+                ],
                 404,
                 {
                     "new_state": "failed",
@@ -4009,10 +4007,10 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
 
 
 class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
-    ENDPOINT_URL = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
     DAG_ID = "example_python_operator"
     TASK_ID = "print_the_context"
     RUN_ID = "TEST_DAG_RUN_ID"
+    ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}"
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(self.ENDPOINT_URL)
@@ -4026,19 +4024,19 @@ class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
         "test_url, setup_needed, expected_error",
         [
             (
-                "/dags/non_existent_dag/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+                f"/dags/non_existent_dag/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}",
                 False,
-                "Task Instance id print_the_context not found in dag non_existent_dag run TEST_DAG_RUN_ID",
+                "The Task Instance with dag_id: `non_existent_dag`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found",
             ),
             (
-                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/non_existent_task",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/non_existent_task",
                 True,
-                "Task Instance id non_existent_task not found in dag example_python_operator run TEST_DAG_RUN_ID",
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `-1` was not found",
             ),
             (
-                "/dags/example_python_operator/dagRuns/NON_EXISTENT_DAG_RUN/taskInstances/print_the_context",
+                f"/dags/{DAG_ID}/dagRuns/NON_EXISTENT_DAG_RUN/taskInstances/{TASK_ID}",
                 True,
-                "Task Instance id print_the_context not found in dag example_python_operator run NON_EXISTENT_DAG_RUN",
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `NON_EXISTENT_DAG_RUN`, task_id: `print_the_context` and map_index: `-1` was not found",
             ),
         ],
     )
@@ -4133,7 +4131,7 @@ class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
         if expected_status_code == 404:
             assert (
                 response.json()["detail"]
-                == f"Task Instance id {self.TASK_ID} not found in dag {self.DAG_ID} run {self.RUN_ID}"
+                == f"The Task Instance with dag_id: `{self.DAG_ID}`, run_id: `{self.RUN_ID}`, task_id: `{self.TASK_ID}` and map_index: `{map_index}` was not found"
             )
         else:
             if map_index == -1:
