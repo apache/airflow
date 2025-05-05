@@ -32,11 +32,10 @@ RT = TypeVar("RT")
 
 def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..., RT]:
     """
-    Provide fallback for MaxCompute project and endpoint. To be used as a decorator.
+    Provide fallback for MaxCompute project and endpoint to be used as a decorator.
 
     If the project or endpoint is None it will be replaced with the project from the
-    connection extra definition. Project id can be specified
-    either via project_id kwarg or via first parameter in positional args.
+    connection extra definition.
 
     :param func: function to wrap
     :return: result of the function call
@@ -152,16 +151,44 @@ class MaxComputeHook(AlibabaBaseHook):
     @fallback_to_default_project_endpoint
     def run_sql(
         self,
-        sql,
-        project=None,
-        endpoint=None,
-        priority=None,
-        running_cluster=None,
-        hints=None,
-        aliases=None,
-        default_schema=None,
-        quota_name=None,
+        sql: str,
+        project: str | None = None,
+        endpoint: str | None = None,
+        priority: int | None = None,
+        running_cluster: str | None = None,
+        hints: dict[str, str] | None = None,
+        aliases: dict[str, str] | None = None,
+        default_schema: str | None = None,
+        quota_name: str | None = None,
     ) -> Instance:
+        """
+        Run a given SQL statement in MaxCompute.
+
+        The method will submit your SQL statement to MaxCompute
+        and return the corresponding task Instance object.
+
+        .. seealso:: https://pyodps.readthedocs.io/en/latest/base-sql.html#execute-sql
+
+        :param sql: The SQL statement to run.
+        :param project: The project ID to use.
+        :param endpoint: The endpoint to use.
+        :param priority: The priority of the SQL statement ranges from 0 to 9,
+            applicable to projects with the job priority feature enabled.
+            Takes precedence over the  'odps.instance.priority' setting from `hints`.
+            Defaults to 9.
+            See https://www.alibabacloud.com/help/en/maxcompute/user-guide/job-priority
+            for details.
+        :param running_cluster: The cluster to run the SQL statement on.
+        :param hints: Hints for setting runtime parameters. See
+            https://pyodps.readthedocs.io/en/latest/base-sql.html#id4 and
+            https://www.alibabacloud.com/help/en/maxcompute/user-guide/flag-parameters
+            for details.
+        :param aliases: Aliases for the SQL statement.
+        :param default_schema: The default schema to use.
+        :param quota_name: The quota name to use.
+            Defaults to project default quota if not specified.
+        :return: The MaxCompute task instance.
+        """
         client = self.get_client(project=project, endpoint=endpoint)
 
         return client.run_sql(
@@ -175,7 +202,23 @@ class MaxComputeHook(AlibabaBaseHook):
         )
 
     @fallback_to_default_project_endpoint
-    def get_instance(self, instance_id, project=None, endpoint=None) -> Instance:
+    def get_instance(
+        self,
+        instance_id: str,
+        project: str | None = None,
+        endpoint: str | None = None,
+    ) -> Instance:
+        """
+        Get a MaxCompute task instance.
+
+        .. seealso:: https://pyodps.readthedocs.io/en/latest/base-instances.html#instances
+
+        :param instance_id: The ID of the instance to get.
+        :param project: The project ID to use.
+        :param endpoint: The endpoint to use.
+        :return: The MaxCompute task instance.
+        :raises ValueError: If the instance does not exist.
+        """
         client = self.get_client(project=project, endpoint=endpoint)
 
         if client.exist_instance(id_=instance_id, project=project):

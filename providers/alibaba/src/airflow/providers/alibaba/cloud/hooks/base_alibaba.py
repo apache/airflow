@@ -84,7 +84,11 @@ class AlibabaBaseHook(BaseHook):
         return value if value is not None else default
 
     def get_access_key_credential(self) -> AccessKeyCredentials:
-        """Fetch Access Key Credential for authentication."""
+        """
+        Fetch Access Key Credential for authentication.
+
+        :return: AccessKeyCredentials object containing access_key_id and access_key_secret.
+        """
         access_key_id = self._get_field("access_key_id", None)
         access_key_secret = self._get_field("access_key_secret", None)
         if not access_key_id:
