@@ -59,7 +59,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-sql>=1.26.0",
-    "pydruid>=0.4.1",
+    "pydruid>=0.6.6",
 ]
 
 # The optional dependencies should be modified in place in the generated file
