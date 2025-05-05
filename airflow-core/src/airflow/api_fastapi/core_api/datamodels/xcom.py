@@ -34,7 +34,7 @@ class XComResponse(BaseModel):
     task_id: str
     dag_id: str
     run_id: str
-    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
 
 
 class XComResponseNative(XComResponse):
