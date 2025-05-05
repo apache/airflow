@@ -97,7 +97,22 @@ def fix_snowflake_sqlalchemy_uri(uri: str) -> str:
     return urlunparse((parts.scheme, hostname, parts.path, parts.params, parts.query, parts.fragment))
 
 
-# todo: move this run_id logic into OpenLineage's listener to avoid differences
+def _get_logical_date(task_instance):
+    # todo: remove when min airflow version >= 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun = task_instance.get_template_context()["dag_run"]
+        return dagrun.logical_date or dagrun.run_after
+
+    if hasattr(task_instance, "logical_date"):
+        date = task_instance.logical_date
+    else:
+        date = task_instance.execution_date
+
+    return date
+
+    # todo: move this run_id logic into OpenLineage's listener to avoid differences
+
+
 def _get_ol_run_id(task_instance) -> str:
     """
     Get OpenLineage run_id from TaskInstance.
@@ -108,26 +123,24 @@ def _get_ol_run_id(task_instance) -> str:
     """
     from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
-    def _get_logical_date():
-        # todo: remove when min airflow version >= 3.0
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun = task_instance.get_template_context()["dag_run"]
-            return dagrun.logical_date or dagrun.run_after
-
-        if hasattr(task_instance, "logical_date"):
-            date = task_instance.logical_date
-        else:
-            date = task_instance.execution_date
-
-        return date
-
     # Generate same OL run id as is generated for current task instance
     return OpenLineageAdapter.build_task_instance_run_id(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
-        logical_date=_get_logical_date(),
+        logical_date=_get_logical_date(task_instance),
         try_number=task_instance.try_number,
         map_index=task_instance.map_index,
+    )
+
+
+# todo: move this run_id logic into OpenLineage's listener to avoid differences
+def _get_ol_dag_run_id(task_instance) -> str:
+    from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+
+    return OpenLineageAdapter.build_dag_run_id(
+        dag_id=task_instance.dag_id,
+        logical_date=_get_logical_date(task_instance),
+        clear_number=task_instance.dag_run.clear_number,
     )
 
 
@@ -144,12 +157,20 @@ def _get_parent_run_facet(task_instance):
     from airflow.providers.openlineage.conf import namespace
 
     parent_run_id = _get_ol_run_id(task_instance)
+    root_parent_run_id = _get_ol_dag_run_id(task_instance)
 
     return parent_run.ParentRunFacet(
         run=parent_run.Run(runId=parent_run_id),
         job=parent_run.Job(
             namespace=namespace(),
             name=f"{task_instance.dag_id}.{task_instance.task_id}",
+        ),
+        root=parent_run.Root(
+            run=parent_run.RootRun(runId=root_parent_run_id),
+            job=parent_run.RootJob(
+                name=task_instance.dag_id,
+                namespace=namespace(),
+            ),
         ),
     )
 
@@ -218,7 +239,7 @@ def _create_snowflake_event_pair(
     return start, end
 
 
-@require_openlineage_version(provider_min_version="2.0.0")
+@require_openlineage_version(provider_min_version="2.3.0")
 def emit_openlineage_events_for_snowflake_queries(
     query_ids: list[str],
     query_source_namespace: str,

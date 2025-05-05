@@ -40,6 +40,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
     get_job_name,
+    get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_operator_disabled,
     is_selective_lineage_enabled,
@@ -201,14 +202,13 @@ class OpenLineageListener:
                 job_name=get_job_name(task),
                 job_description=dag.description,
                 event_time=start_date.isoformat(),
-                parent_job_name=dag.dag_id,
-                parent_run_id=parent_run_id,
                 code_location=None,
                 nominal_start_time=data_interval_start,
                 nominal_end_time=data_interval_end,
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
+                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
                     **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
@@ -314,11 +314,10 @@ class OpenLineageListener:
             redacted_event = self.adapter.complete_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
-                parent_job_name=dag.dag_id,
-                parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
                 run_facets={
+                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
@@ -434,12 +433,11 @@ class OpenLineageListener:
             redacted_event = self.adapter.fail_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
-                parent_job_name=dag.dag_id,
-                parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
                 error=error,
                 run_facets={
+                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
@@ -482,11 +480,12 @@ class OpenLineageListener:
             adapter_kwargs = {
                 "run_id": task_uuid,
                 "job_name": get_job_name(ti),
-                "parent_job_name": dagrun.dag_id,
-                "parent_run_id": parent_run_id,
                 "end_time": end_date.isoformat(),
                 "task": OperatorLineage(),
-                "run_facets": get_airflow_debug_facet(),
+                "run_facets": {
+                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=ti.dag_id),
+                    **get_airflow_debug_facet(),
+                },
             }
 
             if ti_state == TaskInstanceState.FAILED:

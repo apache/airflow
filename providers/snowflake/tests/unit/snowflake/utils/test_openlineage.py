@@ -304,9 +304,10 @@ def test_create_snowflake_event_pair_success(mock_generate_uuid, is_successful):
     assert start_event.job == end_event.job
 
 
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
 @mock.patch("airflow.utils.timezone.utcnow")
-def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_generate_uuid):
+def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_generate_uuid, mock_version):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
     mock_generate_uuid.return_value = fake_uuid
 
@@ -323,6 +324,7 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
         try_number=1,
         logical_date=logical_date,
         state=TaskInstanceState.FAILED,  # This will be query default state if no metadata found
+        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
     )
     mock_ti.get_template_context.return_value = {"dag_run": mock.MagicMock(logical_date=logical_date)}
 
@@ -387,6 +389,10 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
                 job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
+                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
+                ),
             ),
             "custom_run": "value_run",
         }
@@ -535,9 +541,12 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
         assert fake_client.emit.call_args_list == expected_calls
 
 
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
 @mock.patch("airflow.utils.timezone.utcnow")
-def test_emit_openlineage_events_for_snowflake_queries_without_hook(mock_now, mock_generate_uuid):
+def test_emit_openlineage_events_for_snowflake_queries_without_hook(
+    mock_now, mock_generate_uuid, mock_version
+):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
     mock_generate_uuid.return_value = fake_uuid
 
@@ -554,8 +563,11 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(mock_now, mo
         try_number=1,
         logical_date=logical_date,
         state=TaskInstanceState.SUCCESS,  # This will be query default state if no metadata found
+        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
     )
-    mock_ti.get_template_context.return_value = {"dag_run": mock.MagicMock(logical_date=logical_date)}
+    mock_ti.get_template_context.return_value = {
+        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
+    }
 
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
@@ -593,6 +605,10 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(mock_now, mo
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
                 job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
+                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
+                ),
             ),
             "custom_run": "value_run",
         }
@@ -643,7 +659,8 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(mock_now, mo
         assert fake_client.emit.call_args_list == expected_calls
 
 
-def test_emit_openlineage_events_for_snowflake_queries_without_query_ids():
+@mock.patch("importlib.metadata.version", return_value="2.3.0")
+def test_emit_openlineage_events_for_snowflake_queries_without_query_ids(mock_version):
     query_ids = []
     original_query_ids = copy.deepcopy(query_ids)
 
@@ -666,7 +683,7 @@ def test_emit_openlineage_events_for_snowflake_queries_without_query_ids():
         fake_client.emit.assert_not_called()  # No events should be emitted
 
 
-# emit_openlineage_events_for_snowflake_queries requires OL provider 2.0.0
+# emit_openlineage_events_for_snowflake_queries requires OL provider 2.3.0
 @mock.patch("importlib.metadata.version", return_value="1.99.0")
 def test_emit_openlineage_events_with_old_openlineage_provider(mock_version):
     query_ids = ["q1", "q2"]
@@ -682,7 +699,7 @@ def test_emit_openlineage_events_with_old_openlineage_provider(mock_version):
         return_value=fake_listener,
     ):
         expected_err = (
-            "OpenLineage provider version `1.99.0` is lower than required `2.0.0`, "
+            "OpenLineage provider version `1.99.0` is lower than required `2.3.0`, "
             "skipping function `emit_openlineage_events_for_snowflake_queries` execution"
         )
 

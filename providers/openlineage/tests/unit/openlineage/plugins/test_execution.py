@@ -39,12 +39,8 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
-
-TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
+TEST_DAG_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dags")
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +84,8 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 shutil.rmtree(dirpath)
             dirpath.mkdir(exist_ok=True, parents=True)
             lm = get_listener_manager()
-            lm.add_listener(OpenLineageListener())
+            listener = OpenLineageListener()
+            lm.add_listener(listener)
 
             dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
@@ -97,22 +94,15 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             dag = dagbag.dags.get("test_openlineage_execution")
             task = dag.get_task(task_name)
 
-            if AIRFLOW_V_3_0_PLUS:
-                dagrun_kwargs = {
-                    "logical_date": DEFAULT_DATE,
-                    "run_after": DEFAULT_DATE,
-                    "triggered_by": DagRunTriggeredByType.TEST,
-                }
-            else:
-                dagrun_kwargs = {"execution_date": DEFAULT_DATE}
             dag.create_dagrun(
                 run_id=run_id,
                 run_type=DagRunType.MANUAL,
                 data_interval=(DEFAULT_DATE, DEFAULT_DATE),
                 state=State.RUNNING,
                 start_date=DEFAULT_DATE,
-                **dagrun_kwargs,
+                execution_date=DEFAULT_DATE,
             )
+
             ti = TaskInstance(task=task, run_id=run_id)
             job = Job(id=random.randint(0, 23478197), dag_id=ti.dag_id)
             job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
@@ -207,22 +197,15 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             dag = dagbag.dags.get("test_openlineage_execution")
             task = dag.get_task("execute_long_stall")
 
-            if AIRFLOW_V_3_0_PLUS:
-                dagrun_kwargs = {
-                    "logical_date": DEFAULT_DATE,
-                    "run_after": DEFAULT_DATE,
-                    "triggered_by": DagRunTriggeredByType.TEST,
-                }
-            else:
-                dagrun_kwargs = {"execution_date": DEFAULT_DATE}
             dag.create_dagrun(
                 run_id="test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough",
                 run_type=DagRunType.MANUAL,
                 data_interval=(DEFAULT_DATE, DEFAULT_DATE),
                 state=State.RUNNING,
                 start_date=DEFAULT_DATE,
-                **dagrun_kwargs,
+                execution_date=DEFAULT_DATE,
             )
+
             ti = TaskInstance(
                 task=task,
                 run_id="test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough",

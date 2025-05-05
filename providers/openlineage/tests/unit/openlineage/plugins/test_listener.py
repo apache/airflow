@@ -269,6 +269,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
@@ -282,6 +283,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_mode,
     ):
@@ -298,6 +300,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
         mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_disabled.return_value = False
 
         listener.on_task_instance_running(None, task_instance, None)
@@ -306,14 +309,13 @@ class TestOpenLineageListenerAirflow2:
             job_name="job_name",
             job_description="Test DAG Description",
             event_time="2023-01-01T13:01:01+00:00",
-            parent_job_name="dag_id",
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
             code_location=None,
             nominal_start_time=None,
             nominal_end_time=None,
             owners=["Test Owner"],
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
+                "parent": 4,
                 "mapped_facet": 1,
                 "custom_user_facet": 2,
                 "airflow_run_facet": 3,
@@ -323,6 +325,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
@@ -336,6 +339,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_job_name,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_mode,
     ):
@@ -352,6 +356,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_job_name.return_value = "job_name"
         mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_disabled.return_value = False
 
         err = ValueError("test")
@@ -364,11 +369,10 @@ class TestOpenLineageListenerAirflow2:
         listener.adapter.fail_task.assert_called_once_with(
             end_time="2023-01-03T13:01:01+00:00",
             job_name="job_name",
-            parent_job_name="dag_id",
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
+                "parent": 4,
                 "custom_user_facet": 2,
                 "airflow": {"task": "..."},
                 "debug": AirflowDebugRunFacet(packages=ANY),
@@ -378,6 +382,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
@@ -391,6 +396,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_job_name,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_mode,
     ):
@@ -407,6 +413,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_job_name.return_value = "job_name"
         mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_disabled.return_value = False
 
         listener.on_task_instance_success(None, task_instance, None)
@@ -417,11 +424,10 @@ class TestOpenLineageListenerAirflow2:
         assert calls[0][1] == dict(
             end_time="2023-01-03T13:01:01+00:00",
             job_name="job_name",
-            parent_job_name="dag_id",
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
             run_id=f"2020-01-01T01:01:01+00:00.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}.-1",
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
+                "parent": 4,
                 "custom_user_facet": 2,
                 "airflow": {"task": "..."},
                 "debug": AirflowDebugRunFacet(packages=ANY),
@@ -924,6 +930,7 @@ class TestOpenLineageListenerAirflow3:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
@@ -937,6 +944,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_mode,
     ):
@@ -953,6 +961,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
         mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_disabled.return_value = False
 
         listener.on_task_instance_running(None, task_instance)
@@ -961,8 +970,6 @@ class TestOpenLineageListenerAirflow3:
             job_name="job_name",
             job_description="Test DAG Description",
             event_time="2023-01-01T13:01:01+00:00",
-            parent_job_name="dag_id",
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
             code_location=None,
             nominal_start_time=None,
             nominal_end_time=None,
@@ -972,12 +979,14 @@ class TestOpenLineageListenerAirflow3:
                 "mapped_facet": 1,
                 "custom_user_facet": 2,
                 "airflow_run_facet": 3,
+                "parent": 4,
                 "debug": AirflowDebugRunFacet(packages=ANY),
             },
         )
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
@@ -991,6 +1000,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_job_name,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_mode,
     ):
@@ -1007,6 +1017,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_job_name.return_value = "job_name"
         mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_disabled.return_value = False
 
         err = ValueError("test")
@@ -1019,11 +1030,10 @@ class TestOpenLineageListenerAirflow3:
         listener.adapter.fail_task.assert_called_once_with(
             end_time="2023-01-03T13:01:01+00:00",
             job_name="job_name",
-            parent_job_name="dag_id",
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
+                "parent": 4,
                 "custom_user_facet": 2,
                 "airflow": {"task": "..."},
                 "debug": AirflowDebugRunFacet(packages=ANY),
@@ -1032,6 +1042,7 @@ class TestOpenLineageListenerAirflow3:
         )
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
@@ -1041,6 +1052,7 @@ class TestOpenLineageListenerAirflow3:
         self,
         mock_utcnow,
         mock_get_job_name,
+        mock_get_task_parent_run_facet,
         mock_debug_mode,
     ):
         """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
@@ -1051,6 +1063,7 @@ class TestOpenLineageListenerAirflow3:
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
         mock_get_job_name.return_value = "job_name"
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
 
         err = ValueError("test")
         on_task_failed_listener_kwargs = {"error": err}
@@ -1059,19 +1072,24 @@ class TestOpenLineageListenerAirflow3:
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_listener_kwargs
         )
+        mock_get_task_parent_run_facet.assert_called_once_with(
+            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0", parent_job_name=task_instance.dag_id
+        )
         listener.adapter.fail_task.assert_called_once_with(
             end_time="2023-01-03T13:01:01+00:00",
             job_name="job_name",
-            parent_job_name="dag_id",
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=OperatorLineage(),
-            run_facets={"debug": AirflowDebugRunFacet(packages=ANY)},
+            run_facets={
+                "parent": 4,
+                "debug": AirflowDebugRunFacet(packages=ANY),
+            },
             **expected_err_kwargs,
         )
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
@@ -1085,6 +1103,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_job_name,
         mock_get_user_provided_run_facets,
         mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
         mock_disabled,
         mock_debug_mode,
     ):
@@ -1101,6 +1120,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_job_name.return_value = "job_name"
         mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_disabled.return_value = False
 
         listener.on_task_instance_success(None, task_instance)
@@ -1109,11 +1129,10 @@ class TestOpenLineageListenerAirflow3:
         assert calls[0][1] == dict(
             end_time="2023-01-03T13:01:01+00:00",
             job_name="job_name",
-            parent_job_name="dag_id",
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
+                "parent": 4,
                 "custom_user_facet": 2,
                 "airflow": {"task": "..."},
                 "debug": AirflowDebugRunFacet(packages=ANY),
@@ -1121,6 +1140,7 @@ class TestOpenLineageListenerAirflow3:
         )
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
@@ -1130,6 +1150,7 @@ class TestOpenLineageListenerAirflow3:
         self,
         mock_utcnow,
         mock_get_job_name,
+        mock_get_task_parent_run_facet,
         mock_debug_mode,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
@@ -1139,18 +1160,23 @@ class TestOpenLineageListenerAirflow3:
         """
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
         mock_get_job_name.return_value = "job_name"
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
 
         listener.on_task_instance_success(None, task_instance)
         calls = listener.adapter.complete_task.call_args_list
         assert len(calls) == 1
+        mock_get_task_parent_run_facet.assert_called_once_with(
+            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0", parent_job_name=task_instance.dag_id
+        )
         assert calls[0][1] == dict(
             end_time="2023-01-03T13:01:01+00:00",
             job_name="job_name",
-            parent_job_name="dag_id",
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=OperatorLineage(),
-            run_facets={"debug": AirflowDebugRunFacet(packages=ANY)},
+            run_facets={
+                "parent": 4,
+                "debug": AirflowDebugRunFacet(packages=ANY),
+            },
         )
 
     @mock.patch(

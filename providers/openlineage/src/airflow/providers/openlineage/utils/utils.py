@@ -26,6 +26,7 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
+from openlineage.client.facet_v2 import parent_run
 from openlineage.client.utils import RedactMixin
 
 from airflow import __version__ as AIRFLOW_VERSION
@@ -124,6 +125,27 @@ def get_operator_class(task: BaseOperator | SdkBaseOperator) -> type:
 
 def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
+
+
+def get_task_parent_run_facet(
+    parent_run_id: str, parent_job_name: str, parent_job_namespace: str = conf.namespace()
+) -> dict[str, Any]:
+    """
+    Retrieve the parent run facet for task-level events.
+
+    This facet currently always points to the DAG-level run ID and name,
+    as external events for DAG runs are not yet handled.
+    """
+    return {
+        "parent": parent_run.ParentRunFacet(
+            run=parent_run.Run(runId=parent_run_id),
+            job=parent_run.Job(namespace=parent_job_namespace, name=parent_job_name),
+            root=parent_run.Root(
+                run=parent_run.RootRun(runId=parent_run_id),
+                job=parent_run.RootJob(namespace=parent_job_namespace, name=parent_job_name),
+            ),
+        )
+    }
 
 
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:

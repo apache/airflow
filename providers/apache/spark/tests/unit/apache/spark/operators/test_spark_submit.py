@@ -368,6 +368,7 @@ class TestSparkSubmitOperator:
         mock_ti.try_number = 1
         mock_ti.dag_run.logical_date = DEFAULT_DATE
         mock_ti.dag_run.run_after = DEFAULT_DATE
+        mock_ti.dag_run.clear_number = 0
         mock_ti.logical_date = DEFAULT_DATE
         mock_ti.map_index = -1
 
@@ -386,6 +387,9 @@ class TestSparkSubmitOperator:
             "spark.openlineage.parentJobName": "test_dag_id.spark_submit_job",
             "spark.openlineage.parentJobNamespace": "default",
             "spark.openlineage.parentRunId": "01595753-6400-710b-8a12-9e978335a56d",
+            "spark.openlineage.rootParentJobName": "test_dag_id",
+            "spark.openlineage.rootParentJobNamespace": "default",
+            "spark.openlineage.rootParentRunId": "01595753-6400-71fe-a08c-aaed126ab6fb",
             "spark.openlineage.transport.type": "composite",
             "spark.openlineage.transport.continueOnFailure": "True",
             "spark.openlineage.transport.transports.test1.type": "http",
