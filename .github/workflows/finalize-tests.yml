@@ -20,12 +20,12 @@ name: Finalize tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      amd-runners:
+        description: "The array of labels (in json form) determining public AMD runners."
         required: true
         type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      arm-runners:
+        description: "The array of labels (in json form) determining public ARM runners."
         required: true
         type: string
       python-versions:
@@ -80,7 +80,7 @@ permissions:
   contents: read
 jobs:
   update-constraints:
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     timeout-minutes: 80
     name: "Update constraints"
     permissions:
@@ -142,8 +142,8 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ inputs.amd-runners }}
+      arm-runners: ${{ inputs.arm-runners }}
       cache-type: "Regular AMD"
       include-prod-images: "true"
       push-latest-images: "true"
@@ -159,34 +159,34 @@ jobs:
       inputs.canary-run == 'true' &&
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
-  #  push-buildx-cache-to-github-registry-arm:
-  #    name: Push Regular ARM Image Cache
-  #    needs: [update-constraints]
-  #    uses: ./.github/workflows/push-image-cache.yml
-  #    permissions:
-  #      contents: read
-  #      packages: write
-  #    with:
-  #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-  #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
-  #      cache-type: "Regular ARM"
-  #      include-prod-images: "true"
-  #      push-latest-images: "true"
-  #      platform: "linux/arm64"
-  #      python-versions: ${{ inputs.python-versions }}
-  #      branch: ${{ inputs.branch }}
-  #      constraints-branch: ${{ inputs.constraints-branch }}
-  #      use-uv: "true"
-  #      include-success-outputs: ${{ inputs.include-success-outputs }}
-  #      docker-cache: ${{ inputs.docker-cache }}
-  #    if: >
-  #      inputs.canary-run == 'true' &&
-  #      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+  #    push-buildx-cache-to-github-registry-arm:
+  #      name: Push Regular ARM Image Cache
+  #      needs: [update-constraints]
+  #      uses: ./.github/workflows/push-image-cache.yml
+  #      permissions:
+  #        contents: read
+  #        packages: write
+  #      with:
+  #        amd-runners: ${{ inputs.amd-runners }}
+  #        arm-runners: ${{ inputs.arm-runners }}
+  #        cache-type: "Regular ARM"
+  #        include-prod-images: "true"
+  #        push-latest-images: "true"
+  #        platform: "linux/arm64"
+  #        python-versions: ${{ inputs.python-versions }}
+  #        branch: ${{ inputs.branch }}
+  #        constraints-branch: ${{ inputs.constraints-branch }}
+  #        use-uv: "true"
+  #        include-success-outputs: ${{ inputs.include-success-outputs }}
+  #        docker-cache: ${{ inputs.docker-cache }}
+  #      if: >
+  #        inputs.canary-run == 'true' &&
+  #        (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     steps:
       - name: "Cleanup repo"
         shell: bash

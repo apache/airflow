@@ -44,17 +44,73 @@ env:
 permissions:
   contents: read
 jobs:
+  build-info:
+    timeout-minutes: 10
+    name: "Build Info"
+    runs-on: ["ubuntu-24.04"]
+    outputs:
+      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
+      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
+    env:
+      GITHUB_CONTEXT: ${{ toJson(github) }}
+      VERBOSE: true
+      REF: ${{ inputs.ref }}
+      EXCLUDE_DOCS: ${{ inputs.exclude-docs }}
+      DESTINATION_LOCATION: ${{ inputs.destination-location }}
+      DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+    if: contains(fromJSON('[
+      "ashb",
+      "eladkal",
+      "ephraimbuddy",
+      "jedcunningham",
+      "kaxil",
+      "pierrejeambrun",
+      "potiuk",
+      "utkarsharma2"
+      ]'), github.event.sender.login)
+    steps:
+      - name: "Input parameters summary"
+        shell: bash
+        run: |
+          echo "Input parameters summary"
+          echo "========================="
+          echo "Ref: '${REF}'"
+          echo "Exclude docs: '${EXCLUDE_DOCS}'"
+          echo "Destination location: '${DESTINATION_LOCATION}'"
+          echo "Docs list as string: '${DOCS_LIST_AS_STRING}'"
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          use-uv: "true"
+      - name: Selective checks
+        id: selective-checks
+        env:
+          VERBOSE: "false"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+
   build-ci-images:
     name: Build CI images
     uses: ./.github/workflows/ci-image-build.yml
+    needs: [build-info]
     permissions:
       contents: read
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runs-on-as-json-public: '["ubuntu-22.04"]'
-      runs-on-as-json-self-hosted: '["ubuntu-22.04"]'
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
       platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"

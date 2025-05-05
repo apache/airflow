@@ -24,8 +24,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      amd-runners:
+        description: "The array of labels (in json form) determining public AMD runners."
         required: true
         type: string
       python-versions-list-as-string:
@@ -54,7 +54,7 @@ jobs:
   tests-kubernetes:
     timeout-minutes: 60
     name: "K8S System:${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-${{ matrix.use-standard-naming }}"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]

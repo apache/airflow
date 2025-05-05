@@ -83,12 +83,6 @@ jobs:
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       individual-providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.individual-providers-test-types-list-as-strings-in-json }}
-      is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
-      is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
-      is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
-      is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
-      is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
-      is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
       kubernetes-combos: ${{ steps.selective-checks.outputs.kubernetes-combos }}
       kubernetes-combos-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-combos-list-as-string }}
@@ -123,11 +117,8 @@ jobs:
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
-      runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
-      runs-on-as-json-docs-build: ${{ steps.selective-checks.outputs.runs-on-as-json-docs-build }}
-      runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted-asf: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted-asf }}
-      runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
+      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
@@ -182,7 +173,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/basic-tests.yml
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
@@ -203,17 +194,17 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
       platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"
       upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
     if: needs.build-info.outputs.ci-image-build == 'true'
@@ -228,9 +219,8 @@ jobs:
       id-token: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -251,7 +241,7 @@ jobs:
     uses: ./.github/workflows/generate-constraints.yml
     if: needs.build-info.outputs.ci-image-build == 'true'
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
@@ -267,8 +257,7 @@ jobs:
       id-token: write
       contents: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
       mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -304,7 +293,7 @@ jobs:
       needs.build-info.outputs.latest-versions-only != 'true' &&
       needs.build-info.outputs.run-tests == 'true'
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -326,8 +315,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -344,7 +332,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -371,7 +359,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -398,7 +386,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "mysql"
       test-name: "MySQL"
       test-scope: "DB"
@@ -425,7 +413,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "mysql"
       test-name: "MySQL"
       test-scope: "DB"
@@ -453,7 +441,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -482,7 +470,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -512,7 +500,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -540,7 +528,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -574,7 +562,7 @@ jobs:
        needs.build-info.outputs.full-tests-needed == 'true')
     with:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       core-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       providers-test-types-list-as-strings-in-json: >
@@ -599,7 +587,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
       run-system-tests: ${{ needs.build-info.outputs.run-tests }}
@@ -622,7 +610,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-tests == 'true'
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
@@ -650,7 +638,7 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-tests == 'true'
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
@@ -679,7 +667,7 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       build-type: "Regular"
       platform: "linux/amd64"
       push-image: "false"
@@ -700,7 +688,7 @@ jobs:
     needs: [build-info, build-prod-images, generate-constraints]
     uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -720,7 +708,7 @@ jobs:
       packages: read
     with:
       platform: "linux/amd64"
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -738,7 +726,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -759,7 +747,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -806,8 +794,8 @@ jobs:
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}

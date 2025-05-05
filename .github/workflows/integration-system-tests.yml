@@ -20,7 +20,7 @@ name: Integration and system tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
+      amd-runners:
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
@@ -71,7 +71,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-core-integrations != '[]'
     name: "Integration core ${{ matrix.integration }}"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -120,7 +120,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-providers-integrations != '[]' && inputs.skip-providers-tests != 'true'
     name: "Integration: providers ${{ matrix.integration }}"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -168,7 +168,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.run-system-tests == 'true'
     name: "System Tests"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}"

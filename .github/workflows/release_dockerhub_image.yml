@@ -48,6 +48,8 @@ jobs:
       platformMatrix: ${{ steps.determine-matrix.outputs.platformMatrix }}
       airflowVersion: ${{ steps.check-airflow-version.outputs.airflowVersion }}
       skipLatest: ${{ steps.selective-checks.outputs.skipLatest }}
+      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
+      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
@@ -109,7 +111,7 @@ jobs:
     timeout-minutes: 50
     # yamllint disable rule:line-length
     name: "Build: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}, ${{ matrix.platform }}"
-    runs-on: ${{ matrix.platform == 'linux/amd64' && fromJSON('["ubuntu-22.04"]') || fromJSON('["ubuntu-22.04-arm"]') }}
+    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(needs.build-info.outputs.amd-runners) || fromJSON(needs.build-info.outputs.arm-runners) }}
     needs: [build-info]
     strategy:
       fail-fast: false

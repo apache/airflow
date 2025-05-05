@@ -20,16 +20,12 @@ name: Additional CI image checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      amd-runners:
+        description: "The array of labels (in json form) determining AMD public runners."
         required: true
         type: string
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
-        required: true
-        type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      arm-runners:
+        description: "The array of labels (in json form) determining ARM public runners."
         required: true
         type: string
       python-versions:
@@ -103,8 +99,8 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ inputs.amd-runners }}
+      arm-runners: ${{ inputs.arm-runners }}
       cache-type: "Early"
       include-prod-images: "false"
       push-latest-images: "false"
@@ -124,7 +120,7 @@ jobs:
   check-that-image-builds-quickly:
     timeout-minutes: 11
     name: Check that image builds quickly
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     env:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
       PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
@@ -156,10 +152,10 @@ jobs:
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 600 --platform "linux/amd64"
 
-#  # This is only a check if ARM images are successfully building when committer runs PR from
-#  # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
-#  # There is no point in running this one in "canary" run, because the above step is doing the
-#  # same build anyway.
+# This is only a check if ARM images are successfully building when committer runs PR from
+# Apache repository. This is needed in case you want to fix failing cache job in "canary" run
+# There is no point in running this one in "canary" run, because the above step is doing the
+# same build anyway.
 #  build-ci-arm-images:
 #    name: Build CI ARM images
 #    uses: ./.github/workflows/ci-image-build.yml
@@ -167,17 +163,16 @@ jobs:
 #      contents: read
 #      packages: write
 #    with:
+#      amd-runners: ${{ inputs.amd-runners }}
+#      arm-runners: ${{ inputs.arm-runners }}
 #      platform: "linux/arm64"
 #      push-image: "false"
 #      upload-image-artifact: "true"
-#      upload-mount-cache-artifact:  ${{ inputs.canary-run }}
-#      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-#      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+#      upload-mount-cache-artifact: ${{ inputs.canary-run }}
 #      python-versions: ${{ inputs.python-versions }}
 #      branch: ${{ inputs.branch }}
 #      constraints-branch: ${{ inputs.constraints-branch }}
 #      use-uv: ${{ inputs.use-uv }}
 #      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
 #      docker-cache: ${{ inputs.docker-cache }}
-#      disable-airflow-repo-cache:  ${{ inputs.disable-airflow-repo-cache }}
-#
+#      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
