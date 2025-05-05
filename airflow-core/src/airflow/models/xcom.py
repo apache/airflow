@@ -106,6 +106,13 @@ class XComModel(TaskInstanceDependencies):
         lazy="joined",
         passive_deletes="all",
     )
+
+    dag_model = relationship(
+        "DagModel",
+        primaryjoin="XComModel.dag_id == DagModel.dag_id",
+        viewonly=True,
+        foreign_keys=[dag_id],
+    )
     logical_date = association_proxy("dag_run", "logical_date")
 
     @classmethod

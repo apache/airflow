@@ -344,6 +344,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "kwargs": "{}",
             },
             "triggerer_job": {
+                "dag_display_name": None,
                 "dag_id": None,
                 "end_date": None,
                 "job_type": "TriggererJob",
