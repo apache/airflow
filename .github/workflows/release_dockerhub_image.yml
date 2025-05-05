@@ -111,7 +111,7 @@ jobs:
     timeout-minutes: 50
     # yamllint disable rule:line-length
     name: "Build: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}, ${{ matrix.platform }}"
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(needs.build-info.outputs.amd-runners) || fromJSON(needs.build-info.outputs.arm-runners) }}
+    runs-on: ${{ (matrix.platform == 'linux/amd64') && fromJSON(needs.build-info.outputs.amd-runners) || fromJSON(needs.build-info.outputs.arm-runners) }}
     needs: [build-info]
     strategy:
       fail-fast: false
