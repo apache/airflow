@@ -73,6 +73,7 @@ def get_dag_source(
         dag_id=dag_id,
         content=dag_version.dag_code.source_code,
         version_number=dag_version.version_number,
+        dag_display_name=dag_version.dag_model.dag_display_name,
     )
 
     if accept == Mimetype.TEXT:
