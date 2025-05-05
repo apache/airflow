@@ -50,8 +50,11 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetAliasModel,
     DagScheduleAssetReference,
+    DagScheduleAssetAliasReference,
     TaskOutletAssetReference,
+    asset_alias_asset_event_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
@@ -1591,7 +1594,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
                 )
             ).all()
-
+            alias_events = session.scalars(
+                select(AssetEvent)
+                .join(
+                    asset_alias_asset_event_association_table,
+                    asset_alias_asset_event_association_table.c.event_id == AssetEvent.id,
+                )
+                .join(
+                    AssetAliasModel,
+                    asset_alias_asset_event_association_table.c.alias_id == AssetAliasModel.id,
+                )
+                .join(
+                    DagScheduleAssetAliasReference,
+                    DagScheduleAssetAliasReference.alias_id == AssetAliasModel.id,
+                )
+                .where(
+                    DagScheduleAssetAliasReference.dag_id == dag.dag_id,
+                    AssetEvent.timestamp <= triggered_date,
+                    AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                )
+            ).all()
+            
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
@@ -1607,6 +1630,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
+            dag_run.consumed_asset_events.extend(alias_events)
             session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
 
     def _should_update_dag_next_dagruns(
