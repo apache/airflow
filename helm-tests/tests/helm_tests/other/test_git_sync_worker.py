@@ -201,6 +201,7 @@ class TestGitSyncWorker:
             },
             "preStop": {"exec": {"command": ["/bin/sh", "-c", "echo preStop handler > /git/message_start"]}},
         }
+
     def test_liveliness_and_readiness_probes_are_configurable(self):
         livenessProbe = {
             "failureThreshold": 10,
