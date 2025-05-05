@@ -992,11 +992,11 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
-            self._rendered_map_index = getattr(msg, "rendered_map_index", None)
+            self._rendered_map_index = msg.rendered_map_index
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
-            self._rendered_map_index = getattr(msg, "rendered_map_index", None)
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.succeed(
                 id=self.id,
                 when=msg.end_date,
@@ -1007,7 +1007,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, RetryTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
-            self._rendered_map_index = getattr(msg, "rendered_map_index", None)
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.retry(
                 id=self.id,
                 end_date=msg.end_date,
@@ -1054,10 +1054,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = xcom
         elif isinstance(msg, DeferTask):
             self._terminal_state = TaskInstanceState.DEFERRED
-            self._rendered_map_index = getattr(msg, "rendered_map_index", None)
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.defer(self.id, msg)
         elif isinstance(msg, RescheduleTask):
-            self._rendered_map_index = getattr(msg, "rendered_map_index", None)
             self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
         elif isinstance(msg, SkipDownstreamTasks):
