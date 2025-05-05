@@ -32,7 +32,7 @@ RT = TypeVar("RT")
 
 def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..., RT]:
     """
-    Provide fallback for Maxcompute project and endpoint. To be used as a decorator.
+    Provide fallback for MaxCompute project and endpoint. To be used as a decorator.
 
     If the project or endpoint is None it will be replaced with the project from the
     connection extra definition. Project id can be specified
