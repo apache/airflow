@@ -24,9 +24,9 @@ Released packages
 .. jinja:: official_download_page
 
     This page describes downloading and verifying Airflow® version
-    ``{{ airflowctl_version }}`` using officially released packages.
+    ``{{ airflow_version }}`` using officially released packages.
     You can also install ``Apache Airflow CTL`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
-    You can choose different version of Airflow by selecting different version from the drop-down at
+    You can choose different version of Airflow by selecting a different version from the drop-down at
     the top-left of the page.
 
 The ``source``, ``sdist`` and ``whl`` packages released are the "official" sources of installation that you
