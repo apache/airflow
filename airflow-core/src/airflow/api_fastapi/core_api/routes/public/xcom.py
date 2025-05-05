@@ -139,7 +139,7 @@ def get_xcom_entries(
     if dag_id != "~":
         query = query.where(XComModel.dag_id == dag_id)
     query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id)).options(
-        joinedload(XComModel.dag_model)
+        joinedload(XComModel.dag_run).joinedload(DR.dag_model)
     )
 
     if task_id != "~":
