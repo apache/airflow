@@ -139,6 +139,7 @@ export const Overview = () => {
             data={assetEventsData}
             isLoading={isLoadingAssetEvents}
             setOrderBy={setAssetSortBy}
+            sx={{ ml: 0 }} // Override margin left
             title="Created Asset Event"
           />
         ) : undefined}
