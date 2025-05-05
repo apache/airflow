@@ -938,10 +938,22 @@ workers:
     #   memory: 128Mi
 
     # Detailed default security context for kerberos init container on container level
+    # (deprecated, use
+    #   `workers.celery.kerberosInitContainer.securityContexts` or
+    #   `workers.kubernetes.kerberosInitContainer.securityContexts`
+    # instead)
     securityContexts:
+      # (deprecated, use
+      #   `workers.celery.kerberosInitContainer.securityContexts.container` or
+      #   `workers.kubernetes.kerberosInitContainer.securityContexts.container`
+      # instead)
       container: {}
 
     # Container level lifecycle hooks
+    # (deprecated, use
+    #   `workers.celery.kerberosInitContainer.containerLifecycleHooks` or
+    #   `workers.kubernetes.kerberosInitContainer.containerLifecycleHooks`
+    # instead)
     containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
