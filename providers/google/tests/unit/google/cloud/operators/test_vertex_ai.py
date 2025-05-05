@@ -1216,6 +1216,10 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
             region="{{ 'region' }}",
             project_id="{{ 'project_id' }}",
             impersonation_chain="{{ 'impersonation-chain' }}",
+            template_path="{{ 'template-path' }}",
+            pipeline_root="{{ 'pipeline-root' }}",
+            service_account="{{ 'service-account' }}",
+            parameter_values={"{{ 'parameter-key' }}": "{{ 'parameter-value' }}"},
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
@@ -1229,6 +1233,10 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
         assert task.region == "region"
         assert task.project_id == "project_id"
         assert task.impersonation_chain == "impersonation-chain"
+        assert task.template_path == "template-path"
+        assert task.pipeline_root == "pipeline-root"
+        assert task.service_account == "service-account"
+        assert task.parameter_values == {"parameter-key": "parameter-value"}
         assert task.training_pipeline_id == "training-pipeline-id"
         assert task.custom_job_id == "custom_job_id"
 
