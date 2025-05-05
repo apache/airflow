@@ -224,7 +224,7 @@ class TestGitSyncWebserver:
                         "livenessProbe": livenessProbe,
                         "readinessProbe": readinessProbe,
                     },
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )

@@ -435,7 +435,7 @@ class TestGitSyncSchedulerTest:
                         "livenessProbe": livenessProbe,
                         "readinessProbe": readinessProbe,
                     },
-                }
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
