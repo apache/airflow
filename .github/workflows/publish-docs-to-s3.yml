@@ -74,7 +74,7 @@ jobs:
         run: |
           echo "Input parameters summary"
           echo "========================="
-          echo "Ref: '${AIRFLOW_VERSION}'"
+          echo "Ref: '${REF}'"
           echo "Exclude docs: '${EXCLUDE_DOCS}'"
           echo "Destination location: '${DESTINATION_LOCATION}'"
           echo "Docs list as string: '${DOCS_LIST_AS_STRING}'"
