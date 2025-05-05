@@ -214,8 +214,10 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         start_dates, end_dates = [], []
         for event in events:
             if event.source_dag_run is not None:
-                start_dates.append(event.source_dag_run.data_interval_start)
-                end_dates.append(event.source_dag_run.data_interval_end)
+                if event.source_dag_run.data_interval_start is not None:
+                    start_dates.append(event.source_dag_run.data_interval_start)
+                if event.source_dag_run.data_interval_end is not None:
+                    end_dates.append(event.source_dag_run.data_interval_end)
             else:
                 start_dates.append(event.timestamp)
                 end_dates.append(event.timestamp)
