@@ -202,10 +202,8 @@ ARG_AUTH_PASSWORD = Arg(
 ARG_OUTPUT = Arg(
     flags=("-o", "--output"),
     type=str,
-    default="table",
-    choices=("table", "json", "yaml", "plain"),
-    metavar="(table, json, yaml, plain)",
-    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    default="json",
+    help="Output format. Only json format is supported (default: json)",
 )
 
 # Pool Commands Args
@@ -629,7 +627,7 @@ core_commands: list[CLICommand] = [
         subcommands=AUTH_COMMANDS,
     ),
     GroupCommand(
-        name="pool",
+        name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
     ),
