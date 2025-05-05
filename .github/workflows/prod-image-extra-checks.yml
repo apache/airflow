@@ -20,8 +20,8 @@ name: PROD images extra checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      amd-runners:
+        description: "The array of labels (in json form) determining public AMD runners."
         required: true
         type: string
       python-versions:
@@ -62,7 +62,7 @@ jobs:
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      amd-runners: ${{ inputs.amd-runners }}
       build-type: "MySQL Client"
       upload-image-artifact: "false"
       upload-package-artifact: "false"
@@ -83,7 +83,7 @@ jobs:
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      amd-runners: ${{ inputs.amd-runners }}
       build-type: "pip"
       upload-image-artifact: "false"
       upload-package-artifact: "false"
