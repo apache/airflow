@@ -3215,10 +3215,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         "error, code, payload",
         [
             [
-                (
-                    "Task Instance not found for dag_id=example_python_operator"
-                    ", run_id=TEST_DAG_RUN_ID, task_id=print_the_context"
-                ),
+                [
+                    "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found",
+                ],
                 404,
                 {
                     "new_state": "failed",
@@ -3784,10 +3783,9 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         "error, code, payload",
         [
             [
-                (
-                    "Task Instance not found for dag_id=example_python_operator"
-                    ", run_id=TEST_DAG_RUN_ID, task_id=print_the_context"
-                ),
+                [
+                    "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found"
+                ],
                 404,
                 {
                     "new_state": "failed",
@@ -4006,3 +4004,140 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json() == {"task_instances": [], "total_entries": 0}
+
+
+class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
+    DAG_ID = "example_python_operator"
+    TASK_ID = "print_the_context"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}"
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(self.ENDPOINT_URL)
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete(self.ENDPOINT_URL)
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "test_url, setup_needed, expected_error",
+        [
+            (
+                f"/dags/non_existent_dag/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}",
+                False,
+                "The Task Instance with dag_id: `non_existent_dag`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found",
+            ),
+            (
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/non_existent_task",
+                True,
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `-1` was not found",
+            ),
+            (
+                f"/dags/{DAG_ID}/dagRuns/NON_EXISTENT_DAG_RUN/taskInstances/{TASK_ID}",
+                True,
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `NON_EXISTENT_DAG_RUN`, task_id: `print_the_context` and map_index: `-1` was not found",
+            ),
+        ],
+    )
+    def test_should_respond_404_for_non_existent_resources(
+        self, test_client, session, test_url, setup_needed, expected_error
+    ):
+        if setup_needed:
+            self.create_task_instances(session)
+        response = test_client.delete(test_url)
+        assert response.status_code == 404
+        assert response.json()["detail"] == expected_error
+
+    @pytest.mark.parametrize(
+        "task_instances, map_index, expected_status_code, expected_remaining",
+        [
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                -1,
+                200,
+                None,
+                id="normal-success-state",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.RUNNING}],
+                -1,
+                200,
+                None,
+                id="normal-running-state",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.FAILED}],
+                -1,
+                200,
+                None,
+                id="normal-failed-state",
+            ),
+            pytest.param(
+                [
+                    {"task_id": TASK_ID, "map_index": 1},
+                    {"task_id": TASK_ID, "map_index": 2},
+                    {"task_id": TASK_ID, "map_index": 3},
+                ],
+                2,
+                200,
+                {1, 3},
+                id="mapped-task-deletion",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID}],
+                1,
+                404,
+                set(),
+                id="non-mapped-task-with-map-index",
+            ),
+        ],
+    )
+    def test_should_handle_task_instance_deletion(
+        self,
+        test_client,
+        session,
+        task_instances,
+        map_index,
+        expected_status_code,
+        expected_remaining,
+    ):
+        self.create_task_instances(session, task_instances=task_instances)
+
+        base_query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.DAG_ID,
+            TaskInstance.task_id == self.TASK_ID,
+            TaskInstance.run_id == self.RUN_ID,
+        )
+
+        if map_index == -1:
+            initial_ti = base_query.filter(TaskInstance.map_index == -1).first()
+            assert initial_ti is not None
+        else:
+            initial_tis = base_query.filter(TaskInstance.map_index != -1).all()
+            if any(isinstance(ti, dict) and "map_index" in ti for ti in task_instances):
+                expected_map_indexes = {ti["map_index"] for ti in task_instances if "map_index" in ti}
+                actual_map_indexes = {ti.map_index for ti in initial_tis}
+                assert actual_map_indexes == expected_map_indexes
+            else:
+                assert len(initial_tis) == 0
+
+        response = test_client.delete(
+            self.ENDPOINT_URL,
+            params={"map_index": map_index} if map_index != -1 else None,
+        )
+        assert response.status_code == expected_status_code
+
+        if expected_status_code == 404:
+            assert (
+                response.json()["detail"]
+                == f"The Task Instance with dag_id: `{self.DAG_ID}`, run_id: `{self.RUN_ID}`, task_id: `{self.TASK_ID}` and map_index: `{map_index}` was not found"
+            )
+        else:
+            if map_index == -1:
+                deleted_ti = base_query.filter(TaskInstance.map_index == -1).first()
+                assert deleted_ti is None
+            else:
+                remaining_tis = base_query.filter(TaskInstance.map_index != -1).all()
+                if expected_remaining is not None:
+                    assert set(ti.map_index for ti in remaining_tis) == expected_remaining

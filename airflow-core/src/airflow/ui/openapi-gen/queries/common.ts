@@ -1943,6 +1943,9 @@ export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
 >;
 export type DagRunServiceDeleteDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.deleteDagRun>>;
 export type DagServiceDeleteDagMutationResult = Awaited<ReturnType<typeof DagService.deleteDag>>;
+export type TaskInstanceServiceDeleteTaskInstanceMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.deleteTaskInstance>
+>;
 export type PoolServiceDeletePoolMutationResult = Awaited<ReturnType<typeof PoolService.deletePool>>;
 export type VariableServiceDeleteVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.deleteVariable>
