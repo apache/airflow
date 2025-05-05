@@ -164,6 +164,26 @@ function install_from_external_spec() {
             ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
             set +x
         fi
+        if [[ ${INCLUDE_PRE_RELEASE=} == "true" && ${AIRFLOW_USE_UV} != "true" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Additionally upgrading with highest resolution for pre-release builds.${COLOR_RESET}"
+            echo
+            # With pre-release and pip we need to run additional upgrade step with --upgrade-strategy eager
+            # because by default `pip` will only resolve non-pre releases when it does not have to only eager
+            # upgrade after the initial install will actually install potentially pre-released RC candidates for providers
+            if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} \
+               ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
+                set +x
+                echo
+                echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
+                echo
+                echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+                echo
+                set -x
+                ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
+                set +x
+            fi
+         fi
     fi
 }
 
