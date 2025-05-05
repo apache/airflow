@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Misc
+~~~~
+
+* ``Move SQS message queue to Amazon provider (#50057)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix version of common.messaging to 1.0.1 (#50099)``
+   * ``Add back missing '[sources]' link in generated documentation's includes (#49978)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Prepare docs for Apr 3rd wave of providers (#49338)``
+   * ``Move SQS message queue code example from core to provider docs (#49208)``
+
 1.0.0
 .....
 
