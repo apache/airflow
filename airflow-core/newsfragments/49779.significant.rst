@@ -17,4 +17,4 @@ SecretCache class has been moved to ``airflow.sdk.execution_time.cache`` from ``
 
     * AIR301
 
-      * [ ] ``airflow.secrets.cache`` → ``airflow.sdk.execution_time.cache``
+      * [ ] ``airflow.secrets.cache.SecretCache`` → ``airflow.sdk.execution_time.cache.SecretCache``
