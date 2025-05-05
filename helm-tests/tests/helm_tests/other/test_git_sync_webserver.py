@@ -198,6 +198,7 @@ class TestGitSyncWebserver:
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
     def test_liveliness_and_readiness_probes_are_configurable(self):
+        """If Airflow < 2.0.0 - test git sync related containers, volume mounts & volumes are created."""
         livenessProbe = {
             "failureThreshold": 10,
             "exec": {"command": ["/bin/true"]},
@@ -216,6 +217,7 @@ class TestGitSyncWebserver:
         }
         docs = render_chart(
             values={
+                "airflowVersion": "1.10.14",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
