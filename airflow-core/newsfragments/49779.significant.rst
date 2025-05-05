@@ -1,4 +1,4 @@
-SecretCache class has been moved to ``airflow.sdk.execution_time.cache``
+SecretCache class has been moved to ``airflow.sdk.execution_time.cache`` from ``airflow.secrets.cache``
 
 * Types of change
 
@@ -15,6 +15,6 @@ SecretCache class has been moved to ``airflow.sdk.execution_time.cache``
 
   * ruff
 
-    * AIR302
+    * AIR301
 
-      * [x] ``airflow.secrets.cache`` → ``airflow.sdk.execution_time.cache``
+      * [ ] ``airflow.secrets.cache`` → ``airflow.sdk.execution_time.cache``
