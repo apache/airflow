@@ -133,7 +133,7 @@ class TestDagFileProcessorManager:
         clear_db_import_errors()
         clear_db_dag_bundles()
 
-    def mock_processor(self) -> tuple[DagFileProcessorProcess, socket]:
+    def mock_processor(self, start_time: float | None = None) -> tuple[DagFileProcessorProcess, socket]:
         proc = MagicMock()
         logger_filehandle = MagicMock()
         proc.create_time.return_value = time.time()
@@ -148,6 +148,8 @@ class TestDagFileProcessorManager:
             requests_fd=123,
             logger_filehandle=logger_filehandle,
         )
+        if start_time:
+            ret.start_time = start_time
         ret._num_open_sockets = 0
         return ret, read_end
 
@@ -518,9 +520,7 @@ class TestDagFileProcessorManager:
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
-
-        processor, _ = self.mock_processor()
-        processor._process.create_time.return_value = timezone.make_aware(datetime.min).timestamp()
+        processor, _ = self.mock_processor(start_time=16000)
         manager._processors = {
             DagFileInfo(
                 bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER

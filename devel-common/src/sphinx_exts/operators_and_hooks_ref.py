@@ -481,6 +481,17 @@ class ExecutorsDirective(BaseJinjaReferenceDirective):
         )
 
 
+class QueuesDirective(BaseJinjaReferenceDirective):
+    """Generate list of queues"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator, resource_type="queues", template="queues.rst.jinja2"
+        )
+
+
 class DeferrableOperatorDirective(BaseJinjaReferenceDirective):
     """Generate list of deferrable operators"""
 
@@ -521,6 +532,7 @@ def setup(app):
     app.add_directive("airflow-extra-links", ExtraLinksDirective)
     app.add_directive("airflow-notifications", NotificationsDirective)
     app.add_directive("airflow-executors", ExecutorsDirective)
+    app.add_directive("airflow-queues", QueuesDirective)
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
     app.add_directive("airflow-deprecations", DeprecationsDirective)
     app.add_directive("airflow-dataset-schemes", AssetSchemeDirective)

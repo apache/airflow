@@ -366,7 +366,6 @@ redoc = [
         "spec": main_openapi_path.as_posix(),
         "opts": {
             "hide-hostname": True,
-            "no-auto-auth": True,
         },
     },
 ]

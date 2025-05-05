@@ -19,15 +19,27 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from functools import cache
+from operator import methodcaller
+from typing import TYPE_CHECKING, Callable
 
 import airflow.sdk.definitions.taskgroup
+from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.typing_compat import TypeAlias
 
 TaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.TaskGroup
 MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup
+
+
+@cache
+def get_task_group_children_getter() -> Callable:
+    """Get the Task Group Children Getter for the DAG."""
+    sort_order = conf.get("webserver", "grid_view_sorting_order")
+    if sort_order == "topological":
+        return methodcaller("topological_sort")
+    return methodcaller("hierarchical_alphabetical_sort")
 
 
 def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
@@ -63,7 +75,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     is_mapped = isinstance(task_group, MappedTaskGroup)
     children = [
         task_group_to_dict(child, parent_group_is_mapped=parent_group_is_mapped or is_mapped)
-        for child in sorted(task_group.children.values(), key=lambda t: t.label)
+        for child in get_task_group_children_getter()(task_group)
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:

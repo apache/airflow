@@ -20,12 +20,8 @@ name: Helm tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
-        required: true
-        type: string
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      amd-runners:
+        description: "The array of labels (in json form) determining public AMD runners."
         required: true
         type: string
       helm-test-packages:
@@ -46,7 +42,7 @@ jobs:
   tests-helm:
     timeout-minutes: 80
     name: "Unit tests Helm: ${{ matrix.helm-test-package }}"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -85,7 +81,7 @@ jobs:
   tests-helm-release:
     timeout-minutes: 80
     name: "Release Helm"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
     steps:

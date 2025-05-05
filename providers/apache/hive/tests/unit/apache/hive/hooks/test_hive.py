@@ -715,7 +715,8 @@ class TestHiveServer2Hook:
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
 
-    def test_get_pandas_df(self):
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_get_df(self, df_type):
         hook = MockHiveServer2Hook()
         query = f"SELECT * FROM {self.table}"
 
@@ -731,10 +732,13 @@ class TestHiveServer2Hook:
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
-            df = hook.get_pandas_df(query, schema=self.database)
+            df = hook.get_df(query, schema=self.database, df_type=df_type)
 
         assert len(df) == 2
-        assert df["hive_server_hook.a"].values.tolist() == [1, 2]
+        if df_type == "pandas":
+            assert df["hive_server_hook.a"].values.tolist() == [1, 2]
+        elif df_type == "polars":
+            assert df["hive_server_hook.a"].to_list() == [1, 2]
         date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
@@ -747,7 +751,7 @@ class TestHiveServer2Hook:
         hook = MockHiveServer2Hook(connection_cursor=EmptyMockConnectionCursor())
         query = f"SELECT * FROM {self.table}"
 
-        df = hook.get_pandas_df(query, schema=self.database)
+        df = hook.get_df(query, schema=self.database, df_type=df_type)
 
         assert len(df) == 0
 

@@ -467,27 +467,33 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_for"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_for"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_proto"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_proto"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_host"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_host"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_port"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_port"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_prefix"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_prefix"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_secure"),

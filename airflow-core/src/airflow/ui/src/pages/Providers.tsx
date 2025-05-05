@@ -22,6 +22,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useProviderServiceGetProviders } from "openapi/queries";
 import type { ProviderResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { urlRegex } from "src/constants/urlRegex";
 
@@ -70,7 +71,14 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
 ];
 
 export const Providers = () => {
-  const { data, error } = useProviderServiceGetProviders();
+  const { setTableURLState, tableURLState } = useTableURLState();
+
+  const { pagination } = tableURLState;
+
+  const { data, error } = useProviderServiceGetProviders({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+  });
 
   return (
     <Box p={2}>
@@ -79,7 +87,9 @@ export const Providers = () => {
         columns={columns}
         data={data?.providers ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
         modelName="Provider"
+        onStateChange={setTableURLState}
         total={data?.total_entries}
       />
     </Box>

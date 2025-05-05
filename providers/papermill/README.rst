@@ -53,7 +53,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
+``apache-airflow``  ``>=2.10.0``
 ``papermill[all]``  ``>=2.6.0``
 ``scrapbook[all]``  ``>=0.5.0``
 ``ipykernel``       ``>=6.29.4``

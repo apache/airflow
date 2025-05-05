@@ -51,7 +51,6 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
-from airflow.providers_manager import ProvidersManager
 from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import (
@@ -117,26 +116,6 @@ if TYPE_CHECKING:
         pass
 
 log = logging.getLogger(__name__)
-
-_OPERATOR_EXTRA_LINKS: set[str] = {
-    "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
-    "airflow.providers.standard.sensors.external_task.ExternalDagLink",
-    # Deprecated names, so that existing serialized dags load straight away.
-    "airflow.providers.standard.sensors.external_task.ExternalTaskSensorLink",
-    "airflow.operators.dagrun_operator.TriggerDagRunLink",
-    "airflow.providers.standard.sensors.external_task_sensor.ExternalTaskSensorLink",
-}
-
-
-@cache
-def get_operator_extra_links() -> set[str]:
-    """
-    Get the operator extra links.
-
-    This includes both the built-in ones, and those come from the providers.
-    """
-    _OPERATOR_EXTRA_LINKS.update(ProvidersManager().extra_links_class_names)
-    return _OPERATOR_EXTRA_LINKS
 
 
 @cache

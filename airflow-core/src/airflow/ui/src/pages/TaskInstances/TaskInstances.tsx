@@ -140,7 +140,7 @@ const taskInstanceColumns = (
   },
   {
     cell: ({ row: { original } }) =>
-      Boolean(original.start_date) ? `${getDuration(original.start_date, original.end_date)}s` : "",
+      Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
     header: "Duration",
   },
   {

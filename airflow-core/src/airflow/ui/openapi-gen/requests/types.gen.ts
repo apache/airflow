@@ -132,6 +132,7 @@ export type BackfillResponse = {
   created_at: string;
   completed_at: string | null;
   updated_at: string;
+  dag_display_name: string;
 };
 
 /**
@@ -471,6 +472,9 @@ export type DAGDetailsResponse = {
   template_search_path: Array<string> | null;
   timezone: string | null;
   last_parsed: string | null;
+  default_args: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Return file token.
    */
@@ -577,6 +581,8 @@ export type DAGRunResponse = {
   };
   note: string | null;
   dag_versions: Array<DagVersionResponse>;
+  bundle_version: string | null;
+  dag_display_name: string;
 };
 
 /**
@@ -605,6 +611,7 @@ export type DAGSourceResponse = {
   content: string | null;
   dag_id: string;
   version_number: number | null;
+  dag_display_name: string;
 };
 
 /**
@@ -790,6 +797,7 @@ export type EventLogResponse = {
   logical_date: string | null;
   owner: string | null;
   extra: string | null;
+  dag_display_name?: string | null;
 };
 
 /**
@@ -895,6 +903,8 @@ export type JobResponse = {
   hostname: string | null;
   unixname: string | null;
 };
+
+export type JsonValue = unknown;
 
 /**
  * Request body for Clear Task Instances endpoint.
@@ -1106,6 +1116,7 @@ export type TaskInstanceHistoryResponse = {
   try_number: number;
   max_tries: number;
   task_display_name: string;
+  dag_display_name: string;
   hostname: string | null;
   unixname: string | null;
   pool: string;
@@ -1139,6 +1150,7 @@ export type TaskInstanceResponse = {
   try_number: number;
   max_tries: number;
   task_display_name: string;
+  dag_display_name: string;
   hostname: string | null;
   unixname: string | null;
   pool: string;
@@ -1319,7 +1331,7 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  value: string;
+  value: JsonValue;
   description?: string | null;
 };
 
@@ -1586,6 +1598,16 @@ export type DAGWithLatestDagRunsResponse = {
    * Return file token.
    */
   readonly file_token: string;
+};
+
+/**
+ * Dashboard DAG Stats serializer for responses.
+ */
+export type DashboardDagStatsResponse = {
+  active_dag_count: number;
+  failed_dag_count: number;
+  running_dag_count: number;
+  queued_dag_count: number;
 };
 
 /**
@@ -2668,6 +2690,8 @@ export type HistoricalMetricsData = {
 };
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
+
+export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type StructureDataData = {
   dagId: string;
@@ -5528,6 +5552,16 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dashboard/dag_stats": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DashboardDagStatsResponse;
       };
     };
   };

@@ -1550,6 +1550,8 @@ class DAG(TaskSDKDag, LoggingMixin):
     ):
         all_tis = []
         for dag in dags:
+            if not isinstance(dag, DAG):
+                dag = DAG.from_sdk_dag(dag)
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
@@ -1576,6 +1578,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if do_it:
             for dag in dags:
+                if not isinstance(dag, DAG):
+                    dag = DAG.from_sdk_dag(dag)
                 dag.clear(
                     start_date=start_date,
                     end_date=end_date,
@@ -2042,16 +2046,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             if not field.init or field.name in ["edge_info"]:
                 continue
 
-            value = getattr(dag, field.name)
-
-            # Handle special cases where values need conversion
-            if field.name == "max_consecutive_failed_dag_runs":
-                # SchedulerDAG requires this to be >= 0, while TaskSDKDag allows -1
-                if value == -1:
-                    # If it is -1, we get the default value from the DAG
-                    continue
-
-            kwargs[field.name] = value
+            kwargs[field.name] = getattr(dag, field.name)
 
         new_dag = cls(**kwargs)
 

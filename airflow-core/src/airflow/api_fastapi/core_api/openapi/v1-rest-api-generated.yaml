@@ -7191,6 +7191,9 @@ components:
           type: string
           format: date-time
           title: Updated At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - id
@@ -7204,6 +7207,7 @@ components:
       - created_at
       - completed_at
       - updated_at
+      - dag_display_name
       title: BackfillResponse
       description: Base serializer for Backfill.
     BaseInfoResponse:
@@ -7993,6 +7997,12 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed
+        default_args:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Default Args
         file_token:
           type: string
           title: File Token
@@ -8047,6 +8057,7 @@ components:
       - template_search_path
       - timezone
       - last_parsed
+      - default_args
       - file_token
       - concurrency
       - latest_dag_version
@@ -8337,6 +8348,14 @@ components:
             $ref: '#/components/schemas/DagVersionResponse'
           type: array
           title: Dag Versions
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - dag_run_id
@@ -8355,6 +8374,8 @@ components:
       - conf
       - note
       - dag_versions
+      - bundle_version
+      - dag_display_name
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunsBatchBody:
@@ -8457,11 +8478,15 @@ components:
           - type: integer
           - type: 'null'
           title: Version Number
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - content
       - dag_id
       - version_number
+      - dag_display_name
       title: DAGSourceResponse
       description: DAG Source serializer for responses.
     DAGTagCollectionResponse:
@@ -8873,6 +8898,11 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
       type: object
       required:
       - event_log_id
@@ -9119,6 +9149,7 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    JsonValue: {}
     PatchTaskInstanceBody:
       properties:
         new_state:
@@ -9617,6 +9648,9 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         hostname:
           anyOf:
           - type: string
@@ -9690,6 +9724,7 @@ components:
       - try_number
       - max_tries
       - task_display_name
+      - dag_display_name
       - hostname
       - unixname
       - pool
@@ -9762,6 +9797,9 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         hostname:
           anyOf:
           - type: string
@@ -9860,6 +9898,7 @@ components:
       - try_number
       - max_tries
       - task_display_name
+      - dag_display_name
       - hostname
       - unixname
       - pool
@@ -10389,8 +10428,7 @@ components:
           maxLength: 250
           title: Key
         value:
-          type: string
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
         description:
           anyOf:
           - type: string

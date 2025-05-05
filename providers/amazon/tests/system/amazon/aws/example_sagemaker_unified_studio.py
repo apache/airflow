@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -28,7 +26,6 @@ from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
 )
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 """
 Prerequisites: The account which runs this test must manually have the following:
@@ -41,8 +38,6 @@ This test will emulate a DAG run in the shared MWAA environment inside a SageMak
 The setup tasks will set up the project and configure the test runner to emulate an MWAA instance.
 Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
 """
-
-pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
 
 DAG_ID = "example_sagemaker_unified_studio"
 

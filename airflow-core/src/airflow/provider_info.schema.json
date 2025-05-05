@@ -416,6 +416,18 @@
                     "description": "Class to instantiate the plugin"
                 }
             }
+        },
+        "queues": {
+            "type": "array",
+            "description": "Message Queues exposed by the provider",
+            "items": {
+                "name": {
+                    "type": "string"
+                },
+                "message-queue-class": {
+                    "type": "string"
+                }
+            }
         }
     },
     "definitions": {

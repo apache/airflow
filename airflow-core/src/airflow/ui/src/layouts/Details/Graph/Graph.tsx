@@ -144,7 +144,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId,
+        isSelected: node.id === taskId || node.id === `dag:${dagId}`,
         taskInstance,
       },
     };
@@ -198,7 +198,7 @@ export const Graph = () => {
         style={{ height: 150, width: 200 }}
         zoomable
       />
-      <DownloadButton dagId={dagId} />
+      <DownloadButton name={dagId} />
     </ReactFlow>
   );
 };

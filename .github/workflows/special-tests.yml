@@ -20,8 +20,8 @@ name: Special tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      amd-runners:
+        description: "The array of labels (in json form) determining public AMD runners."
         required: true
         type: string
       default-branch:
@@ -90,7 +90,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
       test-scope: "DB"
@@ -113,7 +113,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
       test-scope: "DB"
@@ -136,7 +136,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
       test-scope: "All"
@@ -160,7 +160,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
       test-scope: "All"
@@ -185,7 +185,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
       test-scope: "All"
@@ -209,7 +209,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
       test-scope: "All"
@@ -233,7 +233,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       test-name: "Postgres"
       test-scope: "Quarantined"
       test-group: "core"
@@ -256,7 +256,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       test-name: "Postgres"
       test-scope: "Quarantined"
       test-group: "providers"
@@ -280,7 +280,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       test-name: "Postgres"
       test-scope: "ARM collection"
       test-group: "core"
@@ -304,7 +304,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       test-name: "Postgres"
       test-scope: "ARM collection"
       test-group: "providers"
@@ -329,7 +329,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      amd-runners: ${{ inputs.amd-runners }}
       test-name: "SystemTest"
       test-scope: "System"
       test-group: "core"

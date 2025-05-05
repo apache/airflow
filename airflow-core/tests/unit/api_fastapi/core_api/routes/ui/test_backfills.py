@@ -104,6 +104,7 @@ class TestListBackfills(TestBackfillEndpoint):
             "backfill1": {
                 "completed_at": from_datetime_to_zulu(completed_at),
                 "created_at": mock.ANY,
+                "dag_display_name": "TEST_DAG_1",
                 "dag_id": "TEST_DAG_1",
                 "dag_run_conf": {},
                 "from_date": from_datetime_to_zulu(from_date),
@@ -117,6 +118,7 @@ class TestListBackfills(TestBackfillEndpoint):
             "backfill2": {
                 "completed_at": None,
                 "created_at": mock.ANY,
+                "dag_display_name": "TEST_DAG_2",
                 "dag_id": "TEST_DAG_2",
                 "dag_run_conf": {},
                 "from_date": from_datetime_to_zulu(from_date),
@@ -130,6 +132,7 @@ class TestListBackfills(TestBackfillEndpoint):
             "backfill3": {
                 "completed_at": None,
                 "created_at": mock.ANY,
+                "dag_display_name": "TEST_DAG_3",
                 "dag_id": "TEST_DAG_3",
                 "dag_run_conf": {},
                 "from_date": from_datetime_to_zulu(from_date),

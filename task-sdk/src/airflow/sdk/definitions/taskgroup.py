@@ -655,7 +655,7 @@ class MappedTaskGroup(TaskGroup):
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op

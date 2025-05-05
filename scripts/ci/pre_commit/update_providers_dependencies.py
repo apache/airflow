@@ -183,12 +183,11 @@ if __name__ == "__main__":
     find_all_providers_and_provider_files()
     num_files = len(ALL_PROVIDER_FILES)
     num_providers = len(ALL_PROVIDERS)
-    console.print(f"Found {num_providers} providers with {num_files} Python files.")
+    console.print(f"Refreshed {num_providers} providers with {num_files} Python files.")
     for file in ALL_PROVIDER_FILES:
         check_if_different_provider_used(file)
     for provider in sorted(ALL_PROVIDERS.keys()):
         provider_yaml_content = ALL_PROVIDERS[provider]
-        console.print(f"Reading dependencies for provider: {provider}")
         if provider in PROVIDERS:
             ALL_DEPENDENCIES[provider]["deps"].extend(
                 PYPROJECT_TOML_CONTENT[provider]["project"]["dependencies"]

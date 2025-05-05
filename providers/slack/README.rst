@@ -56,8 +56,8 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.9.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.0``
+``apache-airflow``                          ``>=2.10.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.1``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``slack_sdk``                               ``>=3.19.0``
 ==========================================  ==================

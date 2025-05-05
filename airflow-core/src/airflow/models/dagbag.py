@@ -586,6 +586,14 @@ class DagBag(LoggingMixin):
             example_dag_folder = next(iter(example_dags.__path__))
 
             files_to_parse.extend(list_py_file_paths(example_dag_folder, safe_mode=safe_mode))
+            try:
+                from system import standard
+
+                example_dag_folder_standard = next(iter(standard.__path__))
+                files_to_parse.extend(list_py_file_paths(example_dag_folder_standard, safe_mode=safe_mode))
+            except ImportError:
+                # Nothing happens - this should only work during tests
+                pass
 
         for filepath in files_to_parse:
             try:

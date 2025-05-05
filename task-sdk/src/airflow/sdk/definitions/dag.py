@@ -399,9 +399,7 @@ class DAG:
     user_defined_filters: dict | None = None
     max_active_tasks: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
     max_active_runs: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
-    max_consecutive_failed_dag_runs: int = attrs.field(
-        default=-1, validator=attrs.validators.instance_of(int)
-    )
+    max_consecutive_failed_dag_runs: int = attrs.field(default=0, validator=attrs.validators.instance_of(int))
     dagrun_timeout: timedelta | None = attrs.field(
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),

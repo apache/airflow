@@ -269,7 +269,7 @@ system-level packages. TaskFlow supports multiple execution environments to isol
 Creates a temporary virtualenv at task runtime. Great for experimental or dynamic tasks, but may have cold start
 overhead.
 
-.. exampleinclude:: /../src/airflow/example_dags/example_python_decorator.py
+.. exampleinclude:: /../../providers/standard/tests/system/standard/example_python_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_python_venv]
@@ -283,7 +283,7 @@ overhead.
 
 Executes the task using a pre-installed Python interpreter — ideal for consistent environments or shared virtualenvs.
 
-.. exampleinclude:: /../src/airflow/example_dags/example_python_decorator.py
+.. exampleinclude:: /../../providers/standard/tests/system/standard/example_python_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_python]
@@ -333,7 +333,7 @@ Using Sensors
 Use ``@task.sensor`` to build lightweight, reusable sensors using Python functions. These support both poke and reschedule
 modes.
 
-.. exampleinclude:: /../src/airflow/example_dags/example_sensor_decorator.py
+.. exampleinclude:: /../../providers/standard/tests/system/standard/example_sensor_decorator.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]

@@ -108,6 +108,13 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
     from airflow.sdk.execution_time.supervisor import supervise
 
     setproctitle(f"airflow worker -- LocalExecutor: {workload.ti.id}")
+
+    base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+
     # This will return the exit code of the task process, but we don't care about that, just if the
     # _supervisor_ had an error reporting the state back (which will result in an exception.)
     supervise(
@@ -116,7 +123,7 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("core", "execution_api_server_url"),
+        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
     )
 

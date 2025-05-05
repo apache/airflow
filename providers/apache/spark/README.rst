@@ -53,7 +53,7 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.9.0``
+``apache-airflow``                          ``>=2.10.0``
 ``apache-airflow-providers-common-compat``  ``>=1.5.0``
 ``pyspark``                                 ``>=3.1.3``
 ``grpcio-status``                           ``>=1.59.0``
