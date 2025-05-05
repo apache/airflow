@@ -137,8 +137,8 @@ class TestMessageQueueTrigger:
         if get_base_airflow_version_tuple() < (3, 0, 1):
             pytest.skip("This test is only for Airflow 3.0.1+")
 
-    queue = "kafka://localhost:9092/topic1"
-    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+        queue = "kafka://localhost:9092/topic1"
+        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
-    trigger = MessageQueueTrigger(queue=queue, apply_function="mock_kafka_trigger_apply_function")
-    assert isinstance(trigger.trigger, AwaitMessageTrigger)
+        trigger = MessageQueueTrigger(queue=queue, apply_function="mock_kafka_trigger_apply_function")
+        assert isinstance(trigger.trigger, AwaitMessageTrigger)
