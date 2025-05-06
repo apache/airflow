@@ -44,10 +44,7 @@ export const ErrorAlert = ({ error: err }: Props) => {
     if (typeof details === "string") {
       detailMessage = details;
     } else if (Array.isArray(details)) {
-      detailMessage = details.map(
-        (detail) => `
-          ${detail.loc.join(".")} ${detail.msg}`,
-      );
+      detailMessage = details.map((detail) => `${detail.loc.join(".")} ${detail.msg}`);
     } else {
       detailMessage = Object.keys(details).map((key) => `${key}: ${details[key] as string}`);
     }
