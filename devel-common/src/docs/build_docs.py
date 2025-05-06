@@ -623,7 +623,7 @@ def build_docs(
 
     if len(packages_to_build) == 1:
         console.print(
-            "[yellow]Building one package. Forcing --one-pass-oly and --jobs to 1 as only one pass is needed."
+            "[yellow]Building one package. Forcing --one-pass-only and --jobs to 1 as only one pass is needed."
         )
         one_pass_only = True
         jobs = 1
