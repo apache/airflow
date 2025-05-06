@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import sys
 from datetime import datetime, timedelta
 from enum import Enum
@@ -35,8 +34,6 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
-log = logging.getLogger(__name__)
 
 
 class Deadline(Base, LoggingMixin):
