@@ -45,7 +45,7 @@ class TaskOutletAssetReference(StrictBaseModel):
 class LastAssetEventResponse(BaseModel):
     """Last asset event response serializer."""
 
-    id: int | None = None
+    id: NonNegativeInt | None = None
     timestamp: datetime | None = None
 
 
