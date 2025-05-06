@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Box, Heading, Flex, HStack, Skeleton } from "@chakra-ui/react";
-import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { FiDatabase } from "react-icons/fi";
 
@@ -41,9 +40,9 @@ type AssetEventProps = {
   readonly assetId?: number;
   readonly data?: AssetEventCollectionResponse;
   readonly isLoading?: boolean;
+  readonly [key: string]: unknown;
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;
-  readonly sx?: BoxProps;
   readonly tableUrlState?: TableState;
   readonly title?: string;
 };
@@ -54,9 +53,9 @@ export const AssetEvents = ({
   isLoading,
   setOrderBy,
   setTableUrlState,
-  sx,
   tableUrlState,
   title,
+  ...rest
 }: AssetEventProps) => {
   const assetSortOptions = createListCollection({
     items: [
@@ -66,7 +65,7 @@ export const AssetEvents = ({
   });
 
   return (
-    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2} {...sx}>
+    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2} {...rest}>
       <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
         <HStack>
           <StateBadge colorPalette="blue" fontSize="md" variant="solid">
