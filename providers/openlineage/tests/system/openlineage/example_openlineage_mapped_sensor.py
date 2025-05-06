@@ -24,6 +24,7 @@ from airflow import DAG
 from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
+
 from system.openlineage.operator import OpenLineageTestOperator
 
 

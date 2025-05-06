@@ -98,6 +98,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
+        ti = context["ti"]
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -113,13 +114,12 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
             operations=operations, expected_statuses=self.expected_statuses
         )
         if check:
-            self.xcom_push(key="sensed_operations", value=operations, context=context)
+            ti.xcom_push(key="sensed_operations", value=operations)
 
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudStorageTransferJobLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
                 job_name=self.job_name,
             )
@@ -154,4 +154,5 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
 
-        self.xcom_push(key="sensed_operations", value=event["operations"], context=context)
+        ti = context["ti"]
+        ti.xcom_push(key="sensed_operations", value=event["operations"])

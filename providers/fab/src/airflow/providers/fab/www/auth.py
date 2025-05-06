@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     )
     from airflow.models import DagRun, Pool, TaskInstance, Variable
     from airflow.models.connection import Connection
-    from airflow.models.xcom import BaseXCom
+    from airflow.models.xcom import XComModel
 
 T = TypeVar("T", bound=Callable)
 
@@ -91,9 +91,8 @@ def has_access_with_pk(f):
             resource_pk=kwargs.get("pk"),
         ):
             return f(self, *args, **kwargs)
-        else:
-            log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
-            flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
+        log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
+        flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
         return redirect(get_auth_manager().get_url_login(next_url=request.url))
 
     f._permission_name = permission_str
@@ -121,7 +120,7 @@ def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callab
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -139,7 +138,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
     """
     if is_authorized:
         return func(*args, **kwargs)
-    elif get_fab_auth_manager().is_logged_in() and not get_auth_manager().is_authorized_view(
+    if get_fab_auth_manager().is_logged_in() and not get_auth_manager().is_authorized_view(
         access_view=AccessView.WEBSITE,
         user=get_fab_auth_manager().get_user(),
     ):
@@ -151,11 +150,10 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
             ),
             403,
         )
-    elif not get_fab_auth_manager().is_logged_in():
+    if not get_fab_auth_manager().is_logged_in():
         return redirect(get_auth_manager().get_url_login(next_url=request.url))
-    else:
-        access_denied = get_access_denied_message()
-        flash(access_denied, "danger")
+    access_denied = get_access_denied_message()
+    flash(access_denied, "danger")
     return redirect(url_for("FabIndexView.index"))
 
 
@@ -189,7 +187,7 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -240,7 +238,7 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -249,7 +247,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            items: set[BaseXCom | DagRun | TaskInstance] = set(args[1])
+            items: set[XComModel | DagRun | TaskInstance] = set(args[1])
             requests: Sequence[IsAuthorizedDagRequest] = [
                 {
                     "method": method,
@@ -269,7 +267,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -303,7 +301,7 @@ def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -336,7 +334,7 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 

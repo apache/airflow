@@ -50,14 +50,14 @@ class TestLogin:
         get_auth_manager.return_value = self.dummy_auth_manager
         self.dummy_auth_manager.security_manager = self.dummy_security_manager
         self.dummy_security_manager.find_user.return_value = self.dummy_user
-        self.dummy_auth_manager.get_jwt_token.return_value = self.dummy_token
+        self.dummy_auth_manager.generate_jwt.return_value = self.dummy_token
         self.dummy_security_manager.check_password.return_value = True
 
         login_response: LoginResponse = FABAuthManagerLogin.create_token(
             body=self.dummy_login_body,
-            expiration_time_in_sec=1,
+            expiration_time_in_seconds=1,
         )
-        assert login_response.jwt_token == self.dummy_token
+        assert login_response.access_token == self.dummy_token
 
     def test_create_token_invalid_username(self, get_auth_manager):
         get_auth_manager.return_value = self.dummy_auth_manager
@@ -68,7 +68,7 @@ class TestLogin:
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerLogin.create_token(
                 body=self.dummy_login_body,
-                expiration_time_in_sec=1,
+                expiration_time_in_seconds=1,
             )
         assert ex.value.status_code == 401
         assert ex.value.detail == "Invalid username"
@@ -83,7 +83,7 @@ class TestLogin:
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerLogin.create_token(
                 body=self.dummy_login_body,
-                expiration_time_in_sec=1,
+                expiration_time_in_seconds=1,
             )
         assert ex.value.status_code == 401
         assert ex.value.detail == "Invalid password"
@@ -99,7 +99,7 @@ class TestLogin:
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerLogin.create_token(
                 body=self.dummy_login_body,
-                expiration_time_in_sec=1,
+                expiration_time_in_seconds=1,
             )
         assert ex.value.status_code == 400
         assert ex.value.detail == "Username and password must be provided"

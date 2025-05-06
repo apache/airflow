@@ -68,7 +68,7 @@ To run the whole test class:
 You can re-run the tests interactively, add extra parameters to pytest  and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
-in the `testing doc <../../../contributing-docs/testing.rst>`_ where all the test types and information on how to run them are explained.
+in the `testing doc </contributing-docs/09_testing.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
@@ -177,6 +177,26 @@ Here is the detailed set of options for the ``breeze testing task-sdk-tests`` co
   :alt: Breeze testing task-sdk-tests
 
 
+Using ``breeze testing airflow-ctl-tests`` command
+...............................................
+
+The ``breeze testing airflow-ctl-tests`` command allows you to run tests for Airflow CTL without
+initializing database. Airflow CTL should not require a database to start, so this acts as a
+good check to see if the Airflow CTL tests are working properly.
+
+Run all Airflow CTL tests:
+
+.. code-block:: bash
+
+   breeze testing airflow-ctl-tests
+
+Here is the detailed set of options for the ``breeze testing airflow-ctl-tests`` command.
+
+.. image:: ./images/output_testing_airflow-ctl-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_airflow-ctl-tests.svg
+  :width: 100%
+  :alt: Breeze testing airflow-ctl-tests
+
 Running integration core tests
 ...............................
 
@@ -221,13 +241,13 @@ Here is the detailed set of options for the ``breeze testing providers-integrati
 Running Python API client tests
 ...............................
 
-To run Python API client tests, you need to have airflow python client packaged in dist folder.
+To run Python API client tests, you need to have Airflow python client packaged in dist folder.
 To package the client, clone the airflow-python-client repository and run the following command:
 
 .. code-block:: bash
 
-   breeze release-management prepare-python-client --package-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+   breeze release-management prepare-python-client --distribution-format both
+          --python-client-repo ./airflow-client-python
 
 .. code-block:: bash
 
@@ -253,7 +273,7 @@ For example this will only run example_external_task_child_deferrable tests:
 
 .. code-block:: bash
 
-   breeze testing system-tests tests/system/example_empty.py
+   breeze testing system-tests airflow-core/tests/system/example_empty.py
 
 Here is the detailed set of options for the ``breeze testing system-tests`` command.
 
@@ -307,7 +327,7 @@ automatically to run the tests.
 You can:
 
 * Setup environment for k8s tests with ``breeze k8s setup-env``
-* Build airflow k8S images with ``breeze k8s build-k8s-image``
+* Build Airflow k8S images with ``breeze k8s build-k8s-image``
 * Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
   ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
@@ -319,7 +339,7 @@ You can:
   ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
   via ``breeze k8s dump-logs`` command
 
-This is described in detail in `Testing Kubernetes <../../../contributing-docs/testing/k8s_tests.rst>`_.
+This is described in detail in `Testing Kubernetes </contributing-docs/testing/k8s_tests.rst>`_.
 
 You can read more about KinD that we use in `The documentation <https://kind.sigs.k8s.io/>`_
 
@@ -338,7 +358,7 @@ Kubernetes environment can be set with the ``breeze k8s setup-env`` command.
 It will create appropriate virtualenv to run tests and download the right set of tools to run
 the tests: ``kind``, ``kubectl`` and ``helm`` in the right versions. You can re-run the command
 when you want to make sure the expected versions of the tools are installed properly in the
-virtualenv. The Virtualenv is available in ``.build/k8s-env/bin`` subdirectory of your Airflow
+virtualenv. The Virtualenv is available in ``kubernetes-tests/.venv/bin`` subdirectory of your Airflow
 installation.
 
 .. image:: ./images/output_k8s_setup-env.svg
@@ -378,7 +398,7 @@ Building Airflow K8s images
 ...........................
 
 Before deploying Airflow Helm Chart, you need to make sure the appropriate Airflow image is build (it has
-embedded test dags, pod templates and webserver is configured to refresh immediately. This can
+embedded test dags, pod templates and api-server is configured to refresh immediately. This can
 be done via ``breeze k8s build-k8s-image`` command. It can also be done in parallel for all images via
 ``--run-in-parallel`` flag.
 
@@ -392,7 +412,7 @@ All parameters of the command are here:
 Uploading Airflow K8s images
 ............................
 
-The K8S airflow images need to be uploaded to the KinD cluster. This can be done via
+The K8S Airflow images need to be uploaded to the KinD cluster. This can be done via
 ``breeze k8s upload-k8s-image`` command. It can also be done in parallel for all images via
 ``--run-in-parallel`` flag.
 
@@ -422,7 +442,7 @@ Deploying Airflow to the Cluster
 
 Airflow can be deployed to the Cluster with ``breeze k8s deploy-airflow``. This step will automatically
 (unless disabled by switches) will rebuild the image to be deployed. It also uses the latest version
-of the Airflow Helm Chart to deploy it. You can also choose to upgrade existing airflow deployment
+of the Airflow Helm Chart to deploy it. You can also choose to upgrade existing Airflow deployment
 and pass extra arguments to ``helm install`` or ``helm upgrade`` commands that are used to
 deploy airflow. By passing ``--run-in-parallel`` the deployment can be run
 for all clusters in parallel.
@@ -437,7 +457,7 @@ All parameters of the command are here:
 Checking status of the K8S cluster
 ..................................
 
-You can delete kubernetes cluster and airflow deployed in the current cluster
+You can delete kubernetes cluster and Airflow deployed in the current cluster
 via ``breeze k8s status`` command. It can be also checked for all clusters created so far by passing
 ``--all`` flag.
 
@@ -452,7 +472,7 @@ Running k8s tests
 .................
 
 You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those tests are placed
-in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
+in ``kubernetes-tests/`` and you can either specify the tests to run as parameter of the tests command or
 you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
 for all clusters in parallel.
 
@@ -497,7 +517,7 @@ Running k8s complete tests
 ..........................
 
 You can run ``breeze k8s run-complete-tests`` command to combine all previous steps in one command. That
-command will create cluster, deploy airflow and run tests and finally delete cluster. It is used in CI
+command will create cluster, deploy Airflow and run tests and finally delete cluster. It is used in CI
 to run the whole chains in parallel.
 
 Run all tests:
@@ -555,13 +575,13 @@ as executor you use, similar to:
 
 The shell automatically activates the virtual environment that has all appropriate dependencies
 installed and you can interactively run all k8s tests with pytest command (of course the cluster need to
-be created and airflow deployed to it before running the tests):
+be created and Airflow deployed to it before running the tests):
 
 .. code-block:: bash
 
     (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
-    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/k8s-env/bin/python
+    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
     cachedir: .pytest_cache
     rootdir: /home/jarek/code/airflow, configfile: pytest.ini
     plugins: anyio-3.6.1
@@ -571,8 +591,8 @@ be created and airflow deployed to it before running the tests):
     test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
 
     ================================================== warnings summary ===================================================
-    .build/k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
-      /home/jarek/code/airflow/.build/k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
+    kubernetes-tests/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
+      /home/jarek/code/airflow/kubernetes-tests/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
 
         self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 

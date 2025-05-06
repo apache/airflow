@@ -110,6 +110,9 @@ EXAMPLE_CONTEXT = {
         try_number=1,
         map_index=1,
         logical_date=dt.datetime(2024, 11, 11),
+        dag_run=MagicMock(
+            run_after=dt.datetime(2024, 11, 11), logical_date=dt.datetime(2024, 11, 11), clear_number=0
+        ),
     )
 }
 OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG = {
@@ -141,6 +144,9 @@ OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
     "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.rootParentJobName": "dag_id",
+    "spark.openlineage.rootParentJobNamespace": "default",
+    "spark.openlineage.rootParentRunId": "01931885-2800-799d-8041-88a263ffa0d8",
 }
 
 
@@ -574,7 +580,8 @@ def test_replace_dataproc_job_properties_key_error():
 def test_inject_openlineage_properties_into_dataproc_job_provider_not_accessible(mock_is_accessible):
     mock_is_accessible.return_value = False
     job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, True, True)
+
+    result = inject_openlineage_properties_into_dataproc_job(job, EXAMPLE_CONTEXT, True, True)
     assert result == job
 
 
@@ -586,7 +593,7 @@ def test_inject_openlineage_properties_into_dataproc_job_unsupported_job_type(
     mock_is_accessible.return_value = True
     mock_extract_job_type.return_value = None
     job = {"unsupportedJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, True, True)
+    result = inject_openlineage_properties_into_dataproc_job(job, EXAMPLE_CONTEXT, True, True)
     assert result == job
 
 
@@ -599,7 +606,9 @@ def test_inject_openlineage_properties_into_dataproc_job_no_injection(
     mock_extract_job_type.return_value = "sparkJob"
     inject_parent_job_info = False
     job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, inject_parent_job_info, False)
+    result = inject_openlineage_properties_into_dataproc_job(
+        job, EXAMPLE_CONTEXT, inject_parent_job_info, False
+    )
     assert result == job
 
 
@@ -1030,6 +1039,9 @@ def test_inject_openlineage_properties_into_dataproc_workflow_template_parent_in
                         "spark.openlineage.parentJobName": "dag_id.task_id",
                         "spark.openlineage.parentJobNamespace": "default",
                         "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                        "spark.openlineage.rootParentJobName": "dag_id",
+                        "spark.openlineage.rootParentJobNamespace": "default",
+                        "spark.openlineage.rootParentRunId": "01931885-2800-799d-8041-88a263ffa0d8",
                     },
                 },
             },

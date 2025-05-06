@@ -75,7 +75,7 @@ from airflow_breeze.commands.common_options import (
     option_use_uv_default_disabled,
     option_uv_http_timeout,
     option_verbose,
-    option_version_suffix_for_pypi,
+    option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -108,7 +108,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, DOCKER_CONTEXT_PATH
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import fix_group_permissions, run_command
@@ -156,7 +156,7 @@ def prepare_for_building_prod_image(params: BuildProdParams):
     make_sure_builder_configured(params=params)
     if params.cleanup_context:
         clean_docker_context_files()
-    check_docker_context_files(params.install_packages_from_context)
+    check_docker_context_files(params.install_distributions_from_context)
 
 
 option_prod_image_file_to_save = click.option(
@@ -194,21 +194,23 @@ def prod_image():
     show_default=True,
 )
 @click.option(
-    "--install-packages-from-context",
-    help="Install wheels from local docker-context-files when building image. "
-    "Implies --disable-airflow-repo-cache.",
+    "--install-distributions-from-context",
+    help="Install distributions from local docker-context-files when building image. "
+    "Implies --disable-airflow-repo-cache",
     is_flag=True,
+    envvar="INSTALL_DISTRIBUTIONS_FROM_CONTEXT",
 )
 @click.option(
-    "--use-constraints-for-context-packages",
-    help="Uses constraints for context packages installation - "
+    "--use-constraints-for-context-distributions",
+    help="Uses constraints for context distributions installation - "
     "either from constraints store in docker-context-files or from github.",
     is_flag=True,
+    envvar="USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS",
 )
 @click.option(
     "--cleanup-context",
     help="Clean up docker context files before running build (cannot be used together"
-    " with --install-packages-from-context).",
+    " with --install-distributions-from-context).",
     is_flag=True,
 )
 @click.option(
@@ -267,7 +269,7 @@ def prod_image():
 @option_use_uv_default_disabled
 @option_uv_http_timeout
 @option_verbose
-@option_version_suffix_for_pypi
+@option_version_suffix
 def build(
     additional_airflow_extras: str | None,
     additional_dev_apt_command: str | None,
@@ -302,7 +304,7 @@ def build(
     install_airflow_reference: str | None,
     install_airflow_version: str | None,
     install_mysql_client_type: str,
-    install_packages_from_context: bool,
+    install_distributions_from_context: bool,
     installation_method: str,
     parallelism: int,
     platform: str | None,
@@ -315,10 +317,10 @@ def build(
     runtime_apt_command: str | None,
     runtime_apt_deps: str | None,
     skip_cleanup: bool,
-    use_constraints_for_context_packages: bool,
+    use_constraints_for_context_distributions: bool,
     use_uv: bool,
     uv_http_timeout: int,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
 ):
     """
     Build Production image. Include building multiple images for all or selected Python versions sequentially.
@@ -372,7 +374,7 @@ def build(
         install_airflow_reference=install_airflow_reference,
         install_airflow_version=install_airflow_version,
         install_mysql_client_type=install_mysql_client_type,
-        install_packages_from_context=install_packages_from_context,
+        install_distributions_from_context=install_distributions_from_context,
         installation_method=installation_method,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,
@@ -380,10 +382,10 @@ def build(
         python_image=python_image,
         runtime_apt_command=runtime_apt_command,
         runtime_apt_deps=runtime_apt_deps,
-        use_constraints_for_context_packages=use_constraints_for_context_packages,
+        use_constraints_for_context_distributions=use_constraints_for_context_distributions,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
-        version_suffix_for_pypi=version_suffix_for_pypi,
+        version_suffix=version_suffix,
     )
     if platform:
         base_build_params.platform = platform
@@ -544,6 +546,11 @@ def run_verify_in_parallel(
     help="The image to verify is slim and non-slim tests should be skipped.",
     is_flag=True,
 )
+@click.option(
+    "--manifest-file",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, path_type=Path),
+    help="Read digest of the image from the manifest file instead of using name and pulling it.",
+)
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 @option_python
 @option_python_versions
@@ -563,6 +570,7 @@ def verify(
     python_versions: str,
     github_repository: str,
     image_name: str,
+    manifest_file: Path | None,
     pull: bool,
     slim_image: bool,
     github_token: str,
@@ -576,9 +584,15 @@ def verify(
     """Verify Production image."""
     perform_environment_checks()
     check_remote_ghcr_io_commands()
-    if (pull or image_name) and run_in_parallel:
+    if image_name and manifest_file:
         get_console().print(
-            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. Exiting[/]"
+            "[error]You cannot use --image-name and --manifest-file at the same time. Exiting[/"
+        )
+        sys.exit(1)
+    if (pull or image_name or manifest_file) and run_in_parallel:
+        get_console().print(
+            "[error]You cannot use --pull,--image-name,--manifest-file and "
+            "--run-in-parallel at the same time. Exiting[/]"
         )
         sys.exit(1)
     if run_in_parallel:
@@ -603,12 +617,20 @@ def verify(
         )
     else:
         if image_name is None:
-            build_params = BuildProdParams(
-                python=python,
-                github_repository=github_repository,
-                github_token=github_token,
-            )
-            image_name = build_params.airflow_image_name
+            if manifest_file:
+                import json
+
+                manifest_dict = json.loads(manifest_file.read_text())
+                name = manifest_dict["image.name"]
+                digest = manifest_dict["containerimage.descriptor"]["digest"]
+                image_name = f"{name}@{digest}"
+            else:
+                build_params = BuildProdParams(
+                    python=python,
+                    github_repository=github_repository,
+                    github_token=github_token,
+                )
+                image_name = build_params.airflow_image_name
         if pull:
             check_remote_ghcr_io_commands()
             command_to_run = ["docker", "pull", image_name]
@@ -735,37 +757,37 @@ def clean_docker_context_files():
         get_console().print("[info]Cleaning docker-context-files[/]")
     if get_dry_run():
         return
-    context_files_to_delete = DOCKER_CONTEXT_DIR.rglob("*")
+    context_files_to_delete = DOCKER_CONTEXT_PATH.rglob("*")
     for file_to_delete in context_files_to_delete:
         if file_to_delete.name != ".README.md":
             file_to_delete.unlink(missing_ok=True)
 
 
-def check_docker_context_files(install_packages_from_context: bool):
+def check_docker_context_files(install_distributions_from_context: bool):
     """
     Quick check - if we want to install from docker-context-files we expect some packages there but if
     we don't - we don't expect them, and they might invalidate Docker cache.
 
     This method exits with an error if what we see is unexpected for given operation.
 
-    :param install_packages_from_context: whether we want to install from docker-context-files
+    :param install_distributions_from_context: whether we want to install from docker-context-files
     """
-    context_file = DOCKER_CONTEXT_DIR.rglob("*")
+    context_file = DOCKER_CONTEXT_PATH.rglob("*")
     any_context_files = any(
         context.is_file()
         and context.name not in (".README.md", ".DS_Store")
         and not context.parent.name.startswith("constraints")
         for context in context_file
     )
-    if not any_context_files and install_packages_from_context:
+    if not any_context_files and install_distributions_from_context:
         get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
         get_console().print("[warning]\n but there are no packages to install in this folder.")
         sys.exit(1)
-    elif any_context_files and not install_packages_from_context:
+    elif any_context_files and not install_distributions_from_context:
         get_console().print(
             "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
         )
-        get_console().print("[warning]\nAnd you did not choose --install-packages-from-context flag")
+        get_console().print("[warning]\nAnd you did not choose --install-distributions-from-context flag")
         get_console().print(
             "[warning]\nThis might result in unnecessary cache invalidation and long build times"
         )
@@ -816,7 +838,7 @@ def run_build_production_image(
             prepare_docker_build_command(
                 image_params=prod_image_params,
             ),
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             check=False,
             env=env,
             text=True,

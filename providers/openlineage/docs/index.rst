@@ -81,7 +81,7 @@ apache-airflow-providers-openlineage package
 `OpenLineage <https://openlineage.io/>`__
 
 
-Release: 2.1.0
+Release: 2.2.0
 
 Provider package
 ----------------
@@ -99,7 +99,7 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
 
 ==========================================  ==================
 PIP package                                 Version required
@@ -108,16 +108,15 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``apache-airflow-providers-common-compat``  ``>=1.4.0``
 ``attrs``                                   ``>=22.2``
-``openlineage-integration-common``          ``>=1.24.2``
-``openlineage-python``                      ``>=1.24.2``
-``uuid6``                                   ``>=2024.7.10``
+``openlineage-integration-common``          ``>=1.31.0``
+``openlineage-python``                      ``>=1.31.0``
 ==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -139,5 +138,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-openlineage 2.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-openlineage 2.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-openlineage 2.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-openlineage 2.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.2.0-py3-none-any.whl.sha512>`__)

@@ -22,7 +22,7 @@ import os
 import re
 import shutil
 
-from docs.exts.provider_yaml_utils import load_package_data
+from sphinx_exts.provider_yaml_utils import load_package_data
 
 AIRFLOW_SITE_DIR = os.environ.get("AIRFLOW_SITE_DIRECTORY")
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
@@ -53,7 +53,7 @@ for provider_info in ALL_PROVIDER_YAMLS:
         doc_url = integration.get("how-to-guide")
         if doc_url:
             doc_url = doc_url[0].strip()
-            doc_url = re.sub(f'/{provider_info["package-name"]}/', r"\g<0>stable/", doc_url)
+            doc_url = re.sub(f"/{provider_info['package-name']}/", r"\g<0>stable/", doc_url)
             doc_url = re.sub(r"\.rst", ".html", doc_url)
         else:
             doc_url = f"/docs/{provider_info['package-name'].lower()}/stable/index.html"

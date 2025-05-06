@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
 from unittest import mock
 
@@ -124,7 +125,6 @@ class TestDockerSwarmOperator:
         assert len(csargs) == 1, "create_service called with different number of arguments than expected"
         assert csargs == (mock_obj,)
         assert cskwargs["labels"] == {"name": "airflow__adhoc_airflow__unittest"}
-        assert cskwargs["name"].startswith("airflow-")
         assert cskwargs["mode"] == types.ServiceMode(mode="replicated", replicas=3)
         assert client_mock.tasks.call_count == 8
         client_mock.remove_service.assert_called_once_with("some_id")
@@ -181,10 +181,8 @@ class TestDockerSwarmOperator:
         operator = DockerSwarmOperator(
             image="", auto_remove=auto_remove, task_id="unittest", enable_logging=False
         )
-        try:
+        with contextlib.suppress(AirflowException):
             operator.execute(None)
-        except AirflowException:
-            pass
 
         assert (client_mock.remove_service.call_count > 0) == expected_remove_call
 
@@ -211,9 +209,9 @@ class TestDockerSwarmOperator:
         )
         operator.execute(None)
 
-        assert (
-            client_mock.remove_service.call_count == 0
-        ), "Docker service being removed even when `auto_remove` set to `never`"
+        assert client_mock.remove_service.call_count == 0, (
+            "Docker service being removed even when `auto_remove` set to `never`"
+        )
 
     @pytest.mark.parametrize("status", ["failed", "shutdown", "rejected", "orphaned", "remove"])
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
@@ -439,3 +437,47 @@ class TestDockerSwarmOperator:
             # Exception is raised in __init__()
             DockerSwarmOperator(image="", logging_driver="json", task_id="unittest", enable_logging=False)
         assert str(e.value) == msg
+
+    @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
+    @pytest.mark.parametrize(
+        "service_prefix,expected_prefix",
+        [
+            (None, "airflow-"),  # Default case
+            ("airflow", "airflow-"),
+            ("custom-prefix", "custom-prefix-"),
+            ("prefix_with_underscores", "prefix_with_underscores-"),
+        ],
+    )
+    def test_service_prefix(self, types_mock, docker_api_client_patcher, service_prefix, expected_prefix):
+        """Test that service prefix is correctly applied in service creation."""
+        mock_obj = mock.Mock()
+
+        client_mock = mock.Mock(spec=APIClient)
+        client_mock.create_service.return_value = {"ID": "some_id"}
+        client_mock.images.return_value = []
+        client_mock.pull.return_value = [b'{"status":"pull log"}']
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
+        types_mock.TaskTemplate.return_value = mock_obj
+        types_mock.ContainerSpec.return_value = mock_obj
+        types_mock.RestartPolicy.return_value = mock_obj
+        types_mock.Resources.return_value = mock_obj
+
+        docker_api_client_patcher.return_value = client_mock
+
+        operator_kwargs = {}
+        if service_prefix:
+            operator_kwargs["service_prefix"] = service_prefix
+
+        operator = DockerSwarmOperator(
+            image="ubuntu:latest",
+            task_id="unittest",
+            auto_remove="success",
+            enable_logging=False,
+            **operator_kwargs,
+        )
+        operator.execute(None)
+
+        _, cskwargs = client_mock.create_service.call_args_list[0]
+        assert cskwargs["name"].startswith(expected_prefix)

@@ -82,7 +82,7 @@ def env_var(var: str, default: str | None = None) -> str:
     """
     if var in os.environ:
         return os.environ[var]
-    elif default is not None:
+    if default is not None:
         return default
     raise ValueError(f"Env var required but not provided: '{var}'")
 
@@ -166,7 +166,7 @@ def match(expected, result, env: Environment) -> bool:
                 return True
             log.error("Rendered value %s does not equal 'true' or %s", rendered, result)
             return False
-        elif expected != result:
+        if expected != result:
             log.error("Expected value %s does not equal result %s", expected, result)
             return False
     elif expected != result:
@@ -217,11 +217,11 @@ class OpenLineageTestOperator(BaseOperator):
                 self.event_templates[key] = event
         for key, template in self.event_templates.items():  # type: ignore[union-attr]
             send_event = Variable.get(key=key, deserialize_json=True)
+            self.log.info("Events: %s, %s, %s", send_event, len(send_event), type(send_event))
             if len(send_event) == 0:
                 raise ValueError(f"No event for key {key}")
             if len(send_event) != 1 and not self.multiple_events:
                 raise ValueError(f"Expected one event for key {key}, got {len(send_event)}")
-            self.log.info("Events: %s, %s, %s", send_event, len(send_event), type(send_event))
             if not match(template, json.loads(send_event[0]), self.env):
                 raise ValueError("Event received does not match one specified in test")
         if self.delete:

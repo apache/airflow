@@ -247,7 +247,6 @@ The text of each license is also included at licenses/LICENSE-[project].txt.
 
     (BSD 3 License) d3 v5.16.0 (https://d3js.org)
     (BSD 3 License) d3-shape v2.1.0 (https://github.com/d3/d3-shape)
-    (BSD 3 License) cgroupspy 0.2.1 (https://github.com/cloudsigma/cgroupspy)
 
 ========================================================================
 See licenses/LICENSES-ui.txt for packages used in `/airflow/www`

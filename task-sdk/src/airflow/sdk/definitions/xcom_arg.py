@@ -34,9 +34,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
-    from airflow.utils.edgemodifier import EdgeModifier
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
@@ -337,24 +337,19 @@ class PlainXComArg(XComArg):
         task_id = self.operator.task_id
 
         if self.operator.is_mapped:
-            return LazyXComSequence[Any](xcom_arg=self, ti=ti)
-        tg = ti.task.get_closest_mapped_task_group()
-        result = None
+            return LazyXComSequence(xcom_arg=self, ti=ti)
+        tg = self.operator.get_closest_mapped_task_group()
         if tg is None:
-            # regular task
-            result = ti.xcom_pull(
-                task_ids=task_id,
-                key=self.key,
-                default=NOTSET,
-                map_indexes=None,
-            )
+            map_indexes = None
         else:
-            # task from a task group
-            result = ti.xcom_pull(
-                task_ids=task_id,
-                key=self.key,
-                default=NOTSET,
-            )
+            upstream_map_indexes = getattr(ti, "_upstream_map_indexes", {})
+            map_indexes = upstream_map_indexes.get(task_id, None)
+        result = ti.xcom_pull(
+            task_ids=task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=map_indexes,
+        )
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
@@ -516,7 +511,7 @@ class _ConcatResult(Sequence):
         for value in self.values:
             if i < 0:
                 break
-            elif i >= (curlen := len(value)):
+            if i >= (curlen := len(value)):
                 i -= curlen
             elif isinstance(value, Sequence):
                 return value[i]

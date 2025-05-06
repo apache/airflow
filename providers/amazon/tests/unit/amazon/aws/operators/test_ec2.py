@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.ec2 import (
     EC2StopInstanceOperator,
     EC2TerminateInstanceOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.google.cloud.hooks.vertex_ai.feature_store import FeatureStoreHook
+
 from unit.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
 )

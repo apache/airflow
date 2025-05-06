@@ -22,7 +22,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_SOURCES_ROOT_PATH, console
+from common_precommit_utils import (
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    KNOWN_SECOND_LEVEL_PATHS,
+    console,
+)
 
 ACCEPTED_NON_INIT_DIRS = [
     "adr",
@@ -33,12 +38,10 @@ ACCEPTED_NON_INIT_DIRS = [
     "static",
     "dist",
     "node_modules",
+    "non_python_src",
 ]
 
 PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore'
-
-# Here we should add the second level paths that we want to have sub-packages in
-KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
 
 ALLOWED_SUB_FOLDERS_OF_TESTS = ["unit", "system", "integration"]
 
@@ -122,9 +125,10 @@ def check_dir_init_src_folders(folders: list[Path]) -> None:
             relative_root_path = root_path.relative_to(providers_base_folder)
             need_path_extension = (
                 root_path == providers_base_folder
+                or len(relative_root_path.parts) == 1
                 or len(relative_root_path.parts) == 2
-                and relative_root_path.parts[0] in KNOWN_SECOND_LEVEL_PATHS
-                and relative_root_path.parts[1] == "providers"
+                and relative_root_path.parts[1] in KNOWN_SECOND_LEVEL_PATHS
+                and relative_root_path.parts[0] == "providers"
             )
             print("Needs path extension: ", need_path_extension)
             _determine_init_py_action(need_path_extension, root_path)
@@ -138,7 +142,7 @@ if __name__ == "__main__":
     check_dir_init_src_folders(providers_distributions)
 
     if missing_init_dirs:
-        with AIRFLOW_SOURCES_ROOT_PATH.joinpath("scripts/ci/license-templates/LICENSE.txt").open() as license:
+        with AIRFLOW_ROOT_PATH.joinpath("scripts/ci/license-templates/LICENSE.txt").open() as license:
             license_txt = license.readlines()
         prefixed_licensed_txt = [f"# {line}" if line != "\n" else "#\n" for line in license_txt]
         for missing_init_dir in missing_init_dirs:

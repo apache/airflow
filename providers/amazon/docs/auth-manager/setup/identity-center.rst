@@ -63,11 +63,11 @@ Please follow the instructions below to create the AWS IAM Identity Center appli
 10. Under **Application metadata**, choose **Manually type your metadata values**. Then, provide the **Application ACS URL** and **Application SAML audience** as follows.
 
     .. important::
-      Replace ``<base_url>`` by the base URL of your Airflow UI. It should be defined in ``AIRFLOW__WEBSERVER__BASE_URL``
+      Replace ``<base_url>`` by the base URL of your Airflow UI. It should be defined in ``AIRFLOW__API__BASE_URL``
       (e.g. ``localhost:8080`` if Airflow is running locally).
 
    * **Application ACS URL**: ``<base_url>/login_callback``
-   * **Application SAML audience**: ``<base_url>/login_metadata``
+   * **Application SAML audience**: ``aws-auth-manager-saml-client``
 
 11. Choose **Submit**. The application is now created.
 
@@ -101,9 +101,15 @@ Once the application is created, you need to configure the attribute mappings.
 Configure Airflow
 =================
 
-You need to set in Airflow configuration the IAM Identity Center SAML metadata file created previously.
+You need to set in Airflow configuration:
+
+* The ``<base_url>`` specified in AWS IAM Identity Center configuration previously
+* The IAM Identity Center SAML metadata file copied previously
 
 .. code-block:: ini
+
+    [api]
+    base_url = <base_url>
 
     [aws_auth_manager]
     saml_metadata_url = <saml_metadata_file_url>
@@ -112,4 +118,5 @@ or
 
 .. code-block:: bash
 
-   export AIRFLOW__AWS_AUTH_MANAGER__SAML_METADATA_URL='<saml_metadata_file_url>'
+    export AIRFLOW__API__BASE_URL='<base_url>'
+    export AIRFLOW__AWS_AUTH_MANAGER__SAML_METADATA_URL='<saml_metadata_file_url>'

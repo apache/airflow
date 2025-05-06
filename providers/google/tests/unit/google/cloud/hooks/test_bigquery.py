@@ -52,8 +52,6 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     split_tablename,
 )
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
-
 pytestmark = pytest.mark.filterwarnings("error::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 PROJECT_ID = "bq-project"
@@ -198,13 +196,13 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         src_fmt_configs = _validate_src_fmt_configs(
             source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
         )
-        assert (
-            "test_config_known" in src_fmt_configs
-        ), "src_fmt_configs should contain al known src_fmt_configs"
+        assert "test_config_known" in src_fmt_configs, (
+            "src_fmt_configs should contain al known src_fmt_configs"
+        )
 
-        assert (
-            "compatibility_val" in src_fmt_configs
-        ), "_validate_src_fmt_configs should add backward_compatibility config"
+        assert "compatibility_val" in src_fmt_configs, (
+            "_validate_src_fmt_configs should add backward_compatibility config"
+        )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.SchemaField")
@@ -1933,7 +1931,6 @@ class TestBigQueryAsyncHookMethods:
         assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 @pytest.mark.db_test
 class TestHookLevelLineage(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")

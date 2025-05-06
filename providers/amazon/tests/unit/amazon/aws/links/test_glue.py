@@ -17,13 +17,29 @@
 from __future__ import annotations
 
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
 
 
 class TestGlueJobRunDetailsLink(BaseAwsLinksTestCase):
     link_class = GlueJobRunDetailsLink
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=self.link_class.key,
+                value={
+                    "region_name": "ap-southeast-2",
+                    "aws_domain": self.link_class.get_aws_domain("aws"),
+                    "aws_partition": "aws",
+                    "job_run_id": "11111",
+                    "job_name": "test_job_name",
+                },
+            )
         self.assert_extra_link_url(
             expected_url=(
                 "https://console.aws.amazon.com/gluestudio/home"

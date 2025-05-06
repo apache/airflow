@@ -59,10 +59,9 @@ jobs:
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
-      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
-      core-test-types-list-as-string: >-
-        ${{ steps.selective-checks.outputs.core-test-types-list-as-string }}
+      core-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.core-test-types-list-as-strings-in-json }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
@@ -82,14 +81,8 @@ jobs:
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
-      individual-providers-test-types-list-as-string: >-
-        ${{ steps.selective-checks.outputs.individual-providers-test-types-list-as-string }}
-      is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
-      is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
-      is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
-      is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
-      is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
-      is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
+      individual-providers-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.individual-providers-test-types-list-as-strings-in-json }}
       kubernetes-combos: ${{ steps.selective-checks.outputs.kubernetes-combos }}
       kubernetes-combos-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-combos-list-as-string }}
@@ -108,13 +101,15 @@ jobs:
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       # yamllint disable rule:line-length
-      providers-compatibility-tests-matrix: ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
-      providers-test-types-list-as-string: >-
-        ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
+      providers-compatibility-tests-matrix: >
+        ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
+      providers-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-test-types-list-as-strings-in-json }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+      run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
@@ -122,18 +117,14 @@ jobs:
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
-      runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
-      runs-on-as-json-docs-build: ${{ steps.selective-checks.outputs.runs-on-as-json-docs-build }}
-      runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted-asf: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted-asf }}
-      runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
+      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
-      test-groups: ${{ steps.selective-checks.outputs.test-groups }}
       testable-core-integrations: ${{ steps.selective-checks.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ steps.selective-checks.outputs.testable-providers-integrations }}
       use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
@@ -182,7 +173,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/basic-tests.yml
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
@@ -203,17 +194,17 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
       platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"
       upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
     if: needs.build-info.outputs.ci-image-build == 'true'
@@ -225,11 +216,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -250,12 +241,11 @@ jobs:
     uses: ./.github/workflows/generate-constraints.yml
     if: needs.build-info.outputs.ci-image-build == 'true'
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
@@ -267,8 +257,7 @@ jobs:
       id-token: write
       contents: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
       mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -280,7 +269,6 @@ jobs:
       basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -294,26 +282,29 @@ jobs:
       DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
 
   providers:
-    name: "Provider packages tests"
-    uses: ./.github/workflows/test-provider-packages.yml
+    name: "provider distributions tests"
+    uses: ./.github/workflows/test-providers.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
       packages: read
     if: >
       needs.build-info.outputs.skip-providers-tests != 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
+      needs.build-info.outputs.latest-versions-only != 'true' &&
+      needs.build-info.outputs.run-tests == 'true'
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       selected-providers-list-as-string: ${{ needs.build-info.outputs.selected-providers-list-as-string }}
       # yamllint disable rule:line-length
-      providers-compatibility-tests-matrix: ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
+      providers-compatibility-tests-matrix: >
+        ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
+      providers-test-types-list-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   tests-helm:
@@ -324,8 +315,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -334,110 +324,227 @@ jobs:
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
-  tests-postgres:
-    name: "Postgres tests"
+  tests-postgres-core:
+    name: "Postgres tests: core"
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-group: "core"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.postgres-exclude }}
-      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
-  tests-mysql:
-    name: "MySQL tests"
+  tests-postgres-providers:
+    name: "Postgres tests: providers"
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      backend: "postgres"
+      test-name: "Postgres"
+      test-scope: "DB"
+      test-group: "providers"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excludes: ${{ needs.build-info.outputs.postgres-exclude }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-migration-tests: "true"
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+    if: needs.build-info.outputs.run-tests == 'true'
+
+  tests-mysql-core:
+    name: "MySQL tests: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "mysql"
       test-name: "MySQL"
       test-scope: "DB"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-group: "core"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.mysql-exclude }}
-      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
-  tests-sqlite:
-    name: "Sqlite tests"
+  tests-mysql-providers:
+    name: "MySQL tests: providers"
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      backend: "mysql"
+      test-name: "MySQL"
+      test-scope: "DB"
+      test-group: "providers"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excludes: ${{ needs.build-info.outputs.mysql-exclude }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      run-migration-tests: "true"
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+    if: needs.build-info.outputs.run-tests == 'true'
+
+
+  tests-sqlite-core:
+    name: "Sqlite tests: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
       test-scope: "DB"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-group: "core"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       # No versions for sqlite
       backend-versions: "['']"
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
-      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
-  tests-non-db:
-    name: "Non-DB tests"
+  tests-sqlite-providers:
+    name: "Sqlite tests: providers"
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      backend: "sqlite"
+      test-name: "Sqlite"
+      test-name-separator: ""
+      test-scope: "DB"
+      test-group: "providers"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      # No versions for sqlite
+      backend-versions: "['']"
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      run-migration-tests: "true"
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+    if: needs.build-info.outputs.run-tests == 'true'
+
+
+  tests-non-db-core:
+    name: "Non-DB tests: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
       test-scope: "Non-DB"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-group: "core"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       # No versions for non-db
       backend-versions: "['']"
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
-      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+    if: needs.build-info.outputs.run-tests == 'true'
+
+  tests-non-db-providers:
+    name: "Non-DB tests: providers"
+    uses: ./.github/workflows/run-unit-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      backend: "sqlite"
+      test-name: ""
+      test-name-separator: ""
+      test-scope: "Non-DB"
+      test-group: "providers"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      # No versions for non-db
+      backend-versions: "['']"
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
@@ -454,11 +561,12 @@ jobs:
        needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
        needs.build-info.outputs.full-tests-needed == 'true')
     with:
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      core-test-types-list-as-strings-in-json: >
+        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
+      providers-test-types-list-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -467,6 +575,7 @@ jobs:
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
@@ -478,21 +587,21 @@ jobs:
       contents: read
       packages: read
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
       run-system-tests: ${{ needs.build-info.outputs.run-tests }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
-  tests-with-lowest-direct-resolution:
-    name: "Lowest direct dependency providers tests"
+  tests-with-lowest-direct-resolution-core:
+    name: "Low dep tests:core"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
@@ -501,23 +610,51 @@ jobs:
     if: >
       needs.build-info.outputs.run-tests == 'true'
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      test-name: "LowestDeps-Postgres"
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
-      backend: "postgres"
+      test-group: "core"
+      backend: "sqlite"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excluded-providers-as-string: ""
       excludes: "[]"
-      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
-      # yamllint disable rule:line-length
-      providers-test-types-list-as-string: ${{ needs.build-info.outputs.individual-providers-test-types-list-as-string }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       monitor-delay-time-in-seconds: 120
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+
+  tests-with-lowest-direct-resolution-providers:
+    name: "Low dep tests: providers"
+    needs: [build-info, build-ci-images]
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    if: needs.build-info.outputs.run-tests == 'true'
+    with:
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      test-name: "LowestDeps"
+      force-lowest-dependencies: "true"
+      test-scope: "All"
+      test-group: "providers"
+      backend: "sqlite"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excludes: "[]"
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.individual-providers-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      monitor-delay-time-in-seconds: 120
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   build-prod-images:
@@ -530,7 +667,7 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       build-type: "Regular"
       platform: "linux/amd64"
       push-image: "false"
@@ -540,9 +677,7 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-      build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
@@ -553,11 +688,10 @@ jobs:
     needs: [build-info, build-prod-images, generate-constraints]
     uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
@@ -574,7 +708,7 @@ jobs:
       packages: read
     with:
       platform: "linux/amd64"
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -586,20 +720,43 @@ jobs:
 
   tests-task-sdk:
     name: "Task SDK tests"
-    uses: ./.github/workflows/task-sdk-tests.yml
+    uses: ./.github/workflows/airflow-distributions-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
       packages: read
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-      run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      distribution-name: "task-sdk"
+      distribution-cmd-format: "prepare-task-sdk-distributions"
+      test-type: "task-sdk-tests"
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
+      needs.build-info.outputs.run-tests == 'true' &&
+      needs.build-info.outputs.only-new-ui-files != 'true')
+
+  tests-airflow-ctl:
+    name: "Airflow CTL tests"
+    uses: ./.github/workflows/airflow-distributions-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+      distribution-name: "airflow-ctl"
+      distribution-cmd-format: "prepare-airflow-ctl-distributions"
+      test-type: "airflow-ctl-tests"
+    if: >
+      ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
       needs.build-info.outputs.only-new-ui-files != 'true')
 
@@ -608,20 +765,37 @@ jobs:
     permissions:
       contents: write
       packages: write
+    # This will fire when all the jobs from "needs" are either successful or skipped
+    if: always() && !failure() && !cancelled()
     needs:
+      - additional-ci-image-checks
+      - additional-prod-image-tests
+      - basic-tests
       - build-info
-      - generate-constraints
-      - ci-image-checks
-      - tests-sqlite
-      - tests-mysql
-      - tests-postgres
-      - tests-non-db
-      - tests-integration-system
       - build-prod-images
+      - ci-image-checks
+      - generate-constraints
+      - providers
+      - tests-helm
+      - tests-integration-system
+      - tests-kubernetes
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      # - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-airflow-ctl
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -638,15 +812,6 @@ jobs:
   notify-slack-failure:
     name: "Notify Slack on Failure"
     needs:
-      - basic-tests
-      - additional-ci-image-checks
-      - providers
-      - tests-helm
-      - tests-special
-      - tests-with-lowest-direct-resolution
-      - additional-prod-image-tests
-      - tests-kubernetes
-      - tests-task-sdk
       - finalize-tests
     if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]

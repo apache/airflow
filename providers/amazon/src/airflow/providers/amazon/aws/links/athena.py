@@ -25,6 +25,5 @@ class AthenaQueryResultsLink(BaseAwsLink):
     name = "Query Results"
     key = "_athena_query_results"
     format_str = (
-        BASE_AWS_CONSOLE_LINK + "/athena/home?region={region_name}#"
-        "/query-editor/history/{query_execution_id}"
+        BASE_AWS_CONSOLE_LINK + "/athena/home?region={region_name}#/query-editor/history/{query_execution_id}"
     )

@@ -21,6 +21,7 @@ import os
 import re
 import tempfile
 from contextlib import redirect_stdout
+from importlib import reload
 from io import StringIO
 
 import pytest
@@ -28,6 +29,7 @@ import pytest
 from airflow.cli import cli_parser
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands import user_command
@@ -38,11 +40,6 @@ pytestmark = pytest.mark.db_test
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"
 TEST_USER3_EMAIL = "test-user3@example.com"
-
-
-@pytest.fixture
-def parser():
-    return cli_parser.get_parser()
 
 
 def _does_user_belong_to_role(appbuilder, email, rolename):
@@ -57,12 +54,24 @@ def _does_user_belong_to_role(appbuilder, email, rolename):
 class TestCliUsers:
     @pytest.fixture(autouse=True)
     def _set_attrs(self):
-        self.parser = cli_parser.get_parser()
-        with get_application_builder() as appbuilder:
-            self.appbuilder = appbuilder
-            self.clear_users()
-            yield
-            self.clear_users()
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            }
+        ):
+            # Reload the module to use FAB auth manager
+            reload(cli_parser)
+            # Clearing the cache before calling it
+            cli_parser.get_parser.cache_clear()
+            self.parser = cli_parser.get_parser()
+            with get_application_builder() as appbuilder:
+                self.appbuilder = appbuilder
+                self.clear_users()
+                yield
+                self.clear_users()
 
     def clear_users(self):
         session = self.appbuilder.get_session
@@ -389,9 +398,9 @@ class TestCliUsers:
             user_command.users_manage_role(args, remove=False)
         assert 'User "test4" added to role "Op"' in stdout.getvalue()
 
-        assert _does_user_belong_to_role(
-            appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename="Op"
-        ), "User should have been added to role 'Op'"
+        assert _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename="Op"), (
+            "User should have been added to role 'Op'"
+        )
 
     def test_cli_remove_user_role(self, create_user_test4):
         assert _does_user_belong_to_role(

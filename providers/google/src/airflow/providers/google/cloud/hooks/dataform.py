@@ -453,8 +453,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "name": workspace_path,
@@ -496,8 +495,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,
@@ -542,8 +540,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,
@@ -587,8 +584,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,
@@ -629,8 +625,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,
@@ -671,8 +666,7 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         workspace_path = (
-            f"projects/{project_id}/locations/{region}/"
-            f"repositories/{repository_id}/workspaces/{workspace_id}"
+            f"projects/{project_id}/locations/{region}/repositories/{repository_id}/workspaces/{workspace_id}"
         )
         request = {
             "workspace": workspace_path,

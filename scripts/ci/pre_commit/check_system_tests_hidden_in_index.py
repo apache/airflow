@@ -21,8 +21,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
-
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
@@ -30,15 +28,15 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 
-console = Console(color_system="standard", width=200)
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import AIRFLOW_PROVIDERS_ROOT_PATH, console
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 errors: list[Any] = []
 
 
 def check_system_test_entry_hidden(provider_index: Path):
     console.print(f"[bright_blue]Checking {provider_index}")
-    provider_path = provider_index.parent.parent.resolve().relative_to(AIRFLOW_SOURCES_ROOT / "providers")
+    provider_path = provider_index.parent.parent.resolve().relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
     expected_text = f"""
 .. toctree::
     :hidden:
@@ -48,9 +46,7 @@ def check_system_test_entry_hidden(provider_index: Path):
     System Tests <_api/tests/system/{provider_path}/index>
 """
     index_text = provider_index.read_text()
-    system_tests_path = (
-        AIRFLOW_SOURCES_ROOT / "providers" / provider_path / "tests" / "system" / provider_path
-    )
+    system_tests_path = AIRFLOW_PROVIDERS_ROOT_PATH / provider_path / "tests" / "system" / provider_path
     index_text_manual = index_text.split(
         ".. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!"
     )[0]

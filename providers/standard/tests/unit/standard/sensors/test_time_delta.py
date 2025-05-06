@@ -24,6 +24,7 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.time_delta import (
@@ -31,7 +32,12 @@ from airflow.providers.standard.sensors.time_delta import (
     TimeDeltaSensorAsync,
     WaitSensor,
 )
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils import timezone
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
+
+from tests_common.test_utils import db
 
 pytestmark = pytest.mark.db_test
 
@@ -39,16 +45,64 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 DEV_NULL = "/dev/null"
 TEST_DAG_ID = "unit_tests"
 
+if AIRFLOW_V_3_0_PLUS:
+    DEFER_PATH = "airflow.sdk.BaseOperator.defer"
+else:
+    DEFER_PATH = "airflow.models.baseoperator.BaseOperator.defer"
+
+
+@pytest.fixture(autouse=True)
+def clear_db():
+    db.clear_db_dags()
+    db.clear_db_runs()
+
 
 class TestTimedeltaSensor:
     def setup_method(self):
-        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
-        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=self.args)
+        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+        self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), start_date=DEFAULT_DATE)
 
     def test_timedelta_sensor(self):
         op = TimeDeltaSensor(task_id="timedelta_sensor_check", delta=timedelta(seconds=2), dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute({"dag_run": mock.MagicMock(run_after=DEFAULT_DATE), "data_interval_end": DEFAULT_DATE})
+
+
+@pytest.mark.parametrize(
+    "run_after, interval_end",
+    [
+        (timezone.utcnow() + timedelta(days=1), timezone.utcnow() + timedelta(days=2)),
+        (timezone.utcnow() + timedelta(days=1), None),
+    ],
+)
+def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_maker, session):
+    """Interval end should be used as base time when present else run_after"""
+    if not AIRFLOW_V_3_0_PLUS and not interval_end:
+        pytest.skip("not applicable")
+
+    context = {}
+    if interval_end:
+        context["data_interval_end"] = interval_end
+    delta = timedelta(seconds=1)
+    with dag_maker() as dag:
+        op = TimeDeltaSensor(task_id="wait_sensor_check", delta=delta, dag=dag, mode="reschedule")
+
+        kwargs = {}
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.types import DagRunTriggeredByType
+
+            kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
+        dr = dag.create_dagrun(
+            run_id="abcrhroceuh",
+            run_type=DagRunType.MANUAL,
+            state=None,
+            session=session,
+            **kwargs,
+        )
+    ti = dr.task_instances[0]
+    context.update(dag_run=dr, ti=ti)
+    expected = interval_end or run_after
+    actual = op._derive_base_time(context)
+    assert actual == expected
 
 
 class TestTimeDeltaSensorAsync:
@@ -61,7 +115,7 @@ class TestTimeDeltaSensorAsync:
         "should_defer",
         [False, True],
     )
-    @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
+    @mock.patch(DEFER_PATH)
     def test_timedelta_sensor(self, defer_mock, should_defer):
         delta = timedelta(hours=1)
         op = TimeDeltaSensorAsync(task_id="timedelta_sensor_check", delta=delta, dag=self.dag)
@@ -79,7 +133,7 @@ class TestTimeDeltaSensorAsync:
         "should_defer",
         [False, True],
     )
-    @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
+    @mock.patch(DEFER_PATH)
     @mock.patch("airflow.providers.standard.sensors.time_delta.sleep")
     def test_wait_sensor(self, sleep_mock, defer_mock, should_defer):
         wait_time = timedelta(seconds=30)
@@ -93,3 +147,41 @@ class TestTimeDeltaSensorAsync:
             else:
                 defer_mock.assert_not_called()
                 sleep_mock.assert_called_once_with(30)
+
+    @pytest.mark.parametrize(
+        "run_after, interval_end",
+        [
+            (timezone.utcnow() + timedelta(days=1), timezone.utcnow() + timedelta(days=2)),
+            (timezone.utcnow() + timedelta(days=1), None),
+        ],
+    )
+    def test_timedelta_sensor_async_run_after_vs_interval(self, run_after, interval_end, dag_maker):
+        """Interval end should be used as base time when present else run_after"""
+        if not AIRFLOW_V_3_0_PLUS and not interval_end:
+            pytest.skip("not applicable")
+
+        context = {}
+        if interval_end:
+            context["data_interval_end"] = interval_end
+        with dag_maker() as dag:
+            kwargs = {}
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.utils.types import DagRunTriggeredByType
+
+                kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
+
+            dr = dag.create_dagrun(
+                run_id="abcrhroceuh",
+                run_type=DagRunType.MANUAL,
+                state=None,
+                **kwargs,
+            )
+            context.update(dag_run=dr)
+            delta = timedelta(seconds=1)
+            op = TimeDeltaSensorAsync(task_id="wait_sensor_check", delta=delta, dag=dag)
+            base_time = interval_end or run_after
+            expected_time = base_time + delta
+            with pytest.raises(TaskDeferred) as caught:
+                op.execute(context)
+
+            assert caught.value.trigger.moment == expected_time

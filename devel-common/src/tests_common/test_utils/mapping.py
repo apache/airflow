@@ -21,8 +21,9 @@ from typing import TYPE_CHECKING
 from airflow.models.taskmap import TaskMap
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from sqlalchemy.orm import Session
+
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
 
 
 def expand_mapped_task(

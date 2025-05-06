@@ -21,30 +21,59 @@ description: 'Runs migration tests'
 runs:
   using: "composite"
   steps:
-    - name: "Test downgrade migration file ${{env.BACKEND}}"
+    - name: "Test migration file 2 to 3 migration: ${{env.BACKEND}}"
       shell: bash
-      run: >
-        breeze shell "airflow db reset --skip-init -y &&
-        airflow db migrate --to-revision heads &&
-        airflow db downgrade -r 937cbd173ca1 -y &&
-        airflow db migrate"
+      run: |
+        breeze shell "${{ env.AIRFLOW_2_CMD }}" --use-airflow-version 2.10.5 --answer y &&
+        breeze shell "${{ env.AIRFLOW_3_CMD }}" --no-db-cleanup
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+        AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+        DB_RESET: "false"
+        AIRFLOW_2_CMD: >-
+          airflow db reset --skip-init -y &&
+          airflow db migrate --to-revision heads
+        AIRFLOW_3_CMD: >-
+          airflow db migrate --to-revision heads &&
+          airflow db downgrade -n 2.7.0 -y &&
+          airflow db migrate
+      if: env.BACKEND != 'sqlite'
     - name: "Bring composer down"
       shell: bash
       run: breeze down
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
-    - name: "Test downgrade ORM ${{env.BACKEND}}"
+    - name: "Test ORM migration 2 to 3: ${{env.BACKEND}}"
+      shell: bash
+      run: >
+        breeze shell "${{ env.AIRFLOW_2_CMD }}" --use-airflow-version 2.10.5 --answer y &&
+        breeze shell "${{ env.AIRFLOW_3_CMD }}" --no-db-cleanup
+      env:
+        COMPOSE_PROJECT_NAME: "docker-compose"
+        AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+        DB_RESET: "false"
+        AIRFLOW_2_CMD: >-
+          airflow db reset -y
+        AIRFLOW_3_CMD: >-
+          airflow db migrate --to-revision heads &&
+          airflow db downgrade -n 2.7.0 -y &&
+          airflow db migrate
+      if: env.BACKEND != 'sqlite'
+    - name: "Bring compose down again"
+      shell: bash
+      run: breeze down
+      env:
+        COMPOSE_PROJECT_NAME: "docker-compose"
+    - name: "Test ORM migration ${{env.BACKEND}}"
       shell: bash
       run: >
         breeze shell "airflow db reset -y &&
-        airflow db migrate &&
-        airflow db downgrade -r 22ed7efa9da2 -y &&
+        airflow db migrate --to-revision heads &&
+        airflow db downgrade -n 2.7.0 -y &&
         airflow db migrate"
-        COMPOSE_PROJECT_NAME: "docker-compose"
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+        AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
     - name: "Bring compose down again"
       shell: bash
       run: breeze down
@@ -58,6 +87,7 @@ runs:
         airflow db migrate -s"
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+        AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
       if: env.BACKEND != 'sqlite'
     - name: "Bring any containers left down"
       shell: bash

@@ -1,3 +1,0 @@
-Default git-sync image is updated to ``4.3.0``
-
-The default git-sync image that is used with the Chart is now ``4.3.0``, previously it was ``4.1.0``.

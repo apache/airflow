@@ -21,12 +21,19 @@ from unittest.mock import Mock, patch
 
 import boto3
 import pytest
+
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
+if not AIRFLOW_V_3_0_PLUS:
+    pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
+
 from fastapi.testclient import TestClient
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
-from airflow.api_fastapi.app import create_app
-from system.amazon.aws.utils import set_env_id
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 
+from system.amazon.aws.utils import set_env_id
 from tests_common.test_utils.config import conf_vars
 
 SAML_METADATA_URL = "/saml/metadata"
@@ -129,7 +136,7 @@ def base_app(region_name, avp_policy_store_id):
         with (
             patch.object(OneLogin_Saml2_IdPMetadataParser, "parse_remote") as mock_parse_remote,
             patch(
-                "airflow.providers.amazon.aws.auth_manager.router.login._init_saml_auth"
+                "airflow.providers.amazon.aws.auth_manager.routes.login._init_saml_auth"
             ) as mock_init_saml_auth,
         ):
             mock_parse_remote.return_value = SAML_METADATA_PARSED
@@ -190,8 +197,23 @@ class TestAwsAuthManager:
         for policy_store_id in policy_store_ids:
             client.delete_policy_store(policyStoreId=policy_store_id)
 
-    def test_login_admin(self, client_admin_permissions):
-        response = client_admin_permissions.post("/auth/login_callback", follow_redirects=False)
+    def test_login_admin_redirect(self, client_admin_permissions):
+        response = client_admin_permissions.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback",
+            follow_redirects=False,
+            data={"RelayState": "login-redirect"},
+        )
+        token = response.cookies.get(COOKIE_NAME_JWT_TOKEN)
         assert response.status_code == 303
         assert "location" in response.headers
-        assert "/?token=" in response.headers["location"]
+        assert response.headers["location"] == "/"
+        assert token is not None
+
+    def test_login_admin_token(self, client_admin_permissions):
+        response = client_admin_permissions.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback",
+            follow_redirects=False,
+            data={"RelayState": "login-token"},
+        )
+        assert response.status_code == 200
+        assert response.json()["access_token"]

@@ -23,10 +23,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.auth.managers.utils.fab import (
-    get_method_from_fab_action_map,
-)
-from airflow.providers.fab.www.utils import CustomSQLAInterface
+from airflow.providers.fab.www.utils import CustomSQLAInterface, get_method_from_fab_action_map
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 EXISTING_ROLES = {
@@ -65,7 +62,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
     @staticmethod
     def before_request():
         """Run hook before request."""
-        g.user = get_auth_manager().get_user()
+        if hasattr(get_auth_manager(), "get_user"):
+            g.user = get_auth_manager().get_user()
 
     def create_limiter(self) -> Limiter:
         app = self.appbuilder.get_app

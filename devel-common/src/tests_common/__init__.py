@@ -22,7 +22,7 @@ from pathlib import Path
 
 # This constant is set to True if tests are run with Airflow installed from Packages rather than running
 # the tests within Airflow sources. While most tests in CI are run using Airflow sources, there are
-# also compatibility tests that only use `tests` package and run against installed packages of Airflow in
+# also compatibility tests that only use `tests` package and run against installed distributions of Airflow in
 # for supported Airflow versions.
 RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES = (
     "USE_AIRFLOW_VERSION" in os.environ

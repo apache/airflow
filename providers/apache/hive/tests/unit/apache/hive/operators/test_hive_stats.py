@@ -26,6 +26,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from airflow.providers.presto.hooks.presto import PrestoHook
+
 from unit.apache.hive import (
     DEFAULT_DATE,
     DEFAULT_DATE_DS,
@@ -325,9 +326,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         select_count_query = (
-            "SELECT COUNT(*) AS __count "
-            "FROM airflow.static_babynames_partitioned "
-            "WHERE ds = '2015-01-01';"
+            "SELECT COUNT(*) AS __count FROM airflow.static_babynames_partitioned WHERE ds = '2015-01-01';"
         )
         mock_presto_hook.get_first.assert_called_with(hql=select_count_query)
 

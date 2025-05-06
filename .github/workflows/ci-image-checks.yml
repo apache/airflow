@@ -20,12 +20,8 @@ name: CI Image Checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
-        required: true
-        type: string
-      runs-on-as-json-docs-build:
-        description: "The array of labels (in json form) determining the labels used for docs build."
+      amd-runners:
+        description: "The array of labels (in json form) determining public AMD runners."
         required: true
         type: string
       needs-mypy:
@@ -41,7 +37,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       branch:
-        description: "Branch used to run the CI jobs in (main/v2_*_test)."
+        description: "Branch used to run the CI jobs in (main/v*_*_test)."
         required: true
         type: string
       canary-run:
@@ -59,10 +55,6 @@ on:  # yamllint disable-line rule:truthy
       upgrade-to-newer-dependencies:
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
-        type: string
-      chicken-egg-providers:
-        description: "List of providers that should be prepared from sources"
-        required: false
         type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
@@ -121,7 +113,7 @@ jobs:
   install-pre-commit:
     timeout-minutes: 5
     name: "Install pre-commit for cache (only canary runs)"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
     if: inputs.basic-checks-only == 'false'
@@ -165,7 +157,7 @@ jobs:
   static-checks:
     timeout-minutes: 45
     name: "Static checks"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     needs: install-pre-commit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -205,7 +197,7 @@ jobs:
   mypy:
     timeout-minutes: 45
     name: "MyPy checks"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     needs: install-pre-commit
     if: inputs.needs-mypy == 'true'
     strategy:
@@ -249,7 +241,7 @@ jobs:
   build-docs:
     timeout-minutes: 150
     name: "Build documentation"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     if: inputs.docs-build == 'true'
     strategy:
       fail-fast: false
@@ -280,20 +272,19 @@ jobs:
       - name: "Restore docs inventory cache"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: ./docs/_inventory_cache/
-          # TODO(potiuk): do better with determining the key
-          key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
+          path: ./generated/_inventory_cache/
+          key: cache-docs-inventory-v1-${{ hashFiles('**/pyproject.toml') }}
         id: restore-docs-inventory-cache
       - name: "Building docs with ${{ matrix.flag }} flag"
         env:
           DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
-          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }}
+          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }} --refresh-airflow-inventories
       - name: "Save docs inventory cache"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: ./docs/_inventory_cache/
-          key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
+          path: ./generated/_inventory_cache/
+          key: cache-docs-inventory-v1-${{ hashFiles('**/pyproject.toml') }}
           if-no-files-found: 'error'
           retention-days: '2'
         # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
@@ -303,7 +294,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: airflow-docs
-          path: './docs/_build'
+          path: './generated/_build'
           retention-days: '7'
           if-no-files-found: 'error'
         if: matrix.flag == '--docs-only'
@@ -324,7 +315,9 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
-    if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    if: >
+      inputs.canary-run == 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -339,7 +332,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: airflow-docs
-          path: './docs/_build'
+          path: './generated/_build'
       - name: Check disk space available
         run: df -h
       - name: Create /mnt/airflow-site directory
@@ -377,22 +370,19 @@ jobs:
           rm /tmp/awscliv2.zip
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
-        if: inputs.branch == 'main'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
-        if: inputs.branch == 'main'
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
       - name: "Upload documentation to AWS S3"
-        if: inputs.branch == 'main'
-        run: aws s3 sync --delete ./docs/_build s3://apache-airflow-docs
+        run: aws s3 sync --delete ./generated/_build s3://apache-airflow-docs
 
   test-python-api-client:
     timeout-minutes: 60
     name: "Test Python API client"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.amd-runners) }}
     if: inputs.needs-api-codegen == 'true'
     env:
       BACKEND: "postgres"
@@ -431,8 +421,8 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
       - name: "Generate airflow python client"
         run: >
-          breeze release-management prepare-python-client --package-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+          breeze release-management prepare-python-client --distribution-format both
+          --python-client-repo ./airflow-client-python
       - name: "Show diff"
         run: git diff --color HEAD
         working-directory: ./airflow-client-python

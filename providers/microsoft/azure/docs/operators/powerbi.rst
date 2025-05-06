@@ -34,11 +34,38 @@ PowerBIDatasetRefreshOperator
 To trigger a refresh for the specified dataset from the specified workspace, use the :class:`~airflow.providers.microsoft.azure.operators.powerbi.PowerBIDatasetRefreshOperator`.
 
 
-.. exampleinclude:: /../../providers/microsoft/azure/tests/system/microsoft/azure/example_powerbi_dataset_refresh.py
+.. exampleinclude:: /../tests/system/microsoft/azure/example_powerbi_dataset_refresh.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_powerbi_refresh_async]
     :end-before: [END howto_operator_powerbi_refresh_async]
+
+.. _howto/operator:PowerBIDatasetListOperator:
+
+PowerBIDatasetListOperator
+----------------------------------
+
+To list all available and discoverable datasets from the specified workspace, use the :class:`~airflow.providers.microsoft.azure.operators.powerbi.PowerBIDatasetListOperator`.
+
+
+.. exampleinclude:: /../tests/system/microsoft/azure/example_powerbi_dataset_list.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_powerbi_dataset_list_async]
+    :end-before: [END howto_operator_powerbi_dataset_list_async]
+
+.. _howto/operator:PowerBIWorkspaceListOperator:
+
+PowerBIWorkspaceListOperator
+----------------------------------
+
+To list all available and discoverable workspaces for the tenant, use the :class:`~airflow.providers.microsoft.azure.operators.powerbi.PowerBIWorkspaceListOperator`.
+
+.. exampleinclude:: /../tests/system/microsoft/azure/example_powerbi_workspace_list.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_powerbi_workspace_list_async]
+    :end-before: [END howto_operator_powerbi_workspace_list_async]
 
 Reference
 ---------

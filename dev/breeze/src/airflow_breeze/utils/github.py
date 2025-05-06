@@ -29,7 +29,7 @@ from rich.markup import escape
 
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_dry_run
 
 
@@ -40,13 +40,16 @@ def get_ga_output(name: str, value: Any) -> str:
     return f"{output_name}={printed_value}"
 
 
-def download_file_from_github(tag: str, path: str, output_file: Path, timeout: int = 60) -> bool:
+def download_file_from_github(
+    tag: str, path: str, output_file: Path, github_token: str | None = None, timeout: int = 60
+) -> bool:
     """
     Downloads a file from GitHub repository of Apache Airflow
 
     :param tag: tag to download from
     :param path: path of the file relative to the repository root
     :param output_file: Path where the file should be downloaded
+    :param github_token: GitHub token to use for authentication
     :param timeout: timeout in seconds for the download request, default is 60 seconds
     :return: whether the file was successfully downloaded (False if the file is missing or error occurred)
     """
@@ -56,7 +59,12 @@ def download_file_from_github(tag: str, path: str, output_file: Path, timeout: i
     get_console().print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
         try:
-            response = requests.get(url, timeout=timeout)
+            # add github token to the request if provided
+            headers = {}
+            if github_token:
+                headers["Authorization"] = f"Bearer {github_token}"
+                headers["X-GitHub-Api-Version"] = "2022-11-28"
+            response = requests.get(url, headers=headers, timeout=timeout)
             if response.status_code == 403:
                 get_console().print(
                     f"[error]The {url} is not accessible.This may be caused by either of:\n"
@@ -97,8 +105,8 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
     get_console().print(
         "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
-    get_console().print("[info]Fetching all released Airflow 2 versions from GitHub[/]\n")
-    repo = Repo(AIRFLOW_SOURCES_ROOT)
+    get_console().print("[info]Fetching all released Airflow 2/3 versions from GitHub[/]\n")
+    repo = Repo(AIRFLOW_ROOT_PATH)
     all_active_tags: list[str] = []
     try:
         ref_tags = repo.git.ls_remote("--tags", "apache").splitlines()
@@ -116,7 +124,7 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
     tags = [tag.split("refs/tags/")[1].strip() for tag in ref_tags if "refs/tags/" in tag]
     for tag in tags:
         match = ACTIVE_TAG_MATCH.match(tag)
-        if match and match.group(1) == "2":
+        if match and (match.group(1) == "2" or match.group(1) == "3"):
             all_active_tags.append(tag)
     airflow_versions = sorted(all_active_tags, key=Version)
     for version in airflow_versions:
@@ -139,13 +147,18 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
 
 
 def download_constraints_file(
-    airflow_version: str, python_version: str, include_provider_dependencies: bool, output_file: Path
+    airflow_version: str,
+    python_version: str,
+    github_token: str | None,
+    include_provider_dependencies: bool,
+    output_file: Path,
 ) -> bool:
     """
     Downloads constraints file from GitHub repository of Apache Airflow
 
     :param airflow_version: airflow version
     :param python_version: python version
+    :param github_token: GitHub token
     :param include_provider_dependencies: whether to include provider dependencies
     :param output_file: the file where to store the constraint file
     :return: true if the file was successfully downloaded
@@ -158,6 +171,7 @@ def download_constraints_file(
     return download_file_from_github(
         tag=constraints_tag,
         path=constraints_file_path,
+        github_token=github_token,
         output_file=output_file,
     )
 
@@ -170,7 +184,7 @@ def get_tag_date(tag: str) -> str | None:
     """
     from git import Repo
 
-    repo = Repo(AIRFLOW_SOURCES_ROOT)
+    repo = Repo(AIRFLOW_ROOT_PATH)
     try:
         tag_object = repo.tags[tag].object
     except IndexError:
@@ -225,8 +239,7 @@ def download_artifact_from_run_id(run_id: str, output_file: Path, github_reposit
 
     if response.status_code != 200:
         get_console().print(
-            "[error]Downloading artifacts failed with status code "
-            f"{response.status_code}: {response.text}",
+            f"[error]Downloading artifacts failed with status code {response.status_code}: {response.text}",
         )
         sys.exit(1)
 
@@ -263,8 +276,7 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
 
     if pull_response.status_code != 200:
         get_console().print(
-            "[error]Fetching PR failed with status codee "
-            f"{pull_response.status_code}: {pull_response.text}",
+            f"[error]Fetching PR failed with status codee {pull_response.status_code}: {pull_response.text}",
         )
         sys.exit(1)
 

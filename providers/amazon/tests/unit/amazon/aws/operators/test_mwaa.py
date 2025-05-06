@@ -17,8 +17,13 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock
 
+import pytest
+
+from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 OP_KWARGS = {
@@ -31,6 +36,10 @@ OP_KWARGS = {
     "data_interval_end": "2025-01-03T00:00:01Z",
     "conf": {"key": "value"},
     "note": "test note",
+    "wait_for_completion": False,
+    "waiter_delay": 5,
+    "waiter_max_attempts": 20,
+    "deferrable": False,
 }
 HOOK_RETURN_VALUE = {
     "ResponseMetadata": {},
@@ -53,6 +62,10 @@ class TestMwaaTriggerDagRunOperator:
         assert op.data_interval_end == OP_KWARGS["data_interval_end"]
         assert op.conf == OP_KWARGS["conf"]
         assert op.note == OP_KWARGS["note"]
+        assert op.wait_for_completion == OP_KWARGS["wait_for_completion"]
+        assert op.waiter_delay == OP_KWARGS["waiter_delay"]
+        assert op.waiter_max_attempts == OP_KWARGS["waiter_max_attempts"]
+        assert op.deferrable == OP_KWARGS["deferrable"]
 
     @mock.patch.object(MwaaTriggerDagRunOperator, "hook")
     def test_execute(self, mock_hook):
@@ -78,3 +91,26 @@ class TestMwaaTriggerDagRunOperator:
     def test_template_fields(self):
         operator = MwaaTriggerDagRunOperator(**OP_KWARGS)
         validate_template_fields(operator)
+
+    @pytest.mark.parametrize(
+        "wait_for_completion, deferrable",
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+        ],
+    )
+    @mock.patch.object(MwaaHook, "get_waiter")
+    @mock.patch.object(MwaaTriggerDagRunOperator, "hook")
+    def test_execute_wait_combinations(self, mock_hook, _, wait_for_completion, deferrable):
+        kwargs = OP_KWARGS
+        kwargs["wait_for_completion"] = wait_for_completion
+        kwargs["deferrable"] = deferrable
+        op = MwaaTriggerDagRunOperator(**OP_KWARGS)
+        mock_hook.invoke_rest_api.return_value = HOOK_RETURN_VALUE
+        op.defer = MagicMock()
+        response = op.execute({})
+
+        assert response == HOOK_RETURN_VALUE
+        assert mock_hook.get_waiter.call_count == wait_for_completion
+        assert op.defer.call_count == deferrable

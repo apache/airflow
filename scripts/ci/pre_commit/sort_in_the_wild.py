@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import re
 import sys
-from pathlib import Path
+
+from common_precommit_utils import AIRFLOW_ROOT_PATH
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
@@ -28,7 +29,6 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 NUMBER_MATCH = re.compile(r"(^\d+\.)")
 
 
@@ -37,7 +37,7 @@ def stable_sort(x):
 
 
 if __name__ == "__main__":
-    inthewild_path = Path(AIRFLOW_SOURCES) / "INTHEWILD.md"
+    inthewild_path = AIRFLOW_ROOT_PATH / "INTHEWILD.md"
     content = inthewild_path.read_text()
     header = []
     companies = []
@@ -53,7 +53,7 @@ if __name__ == "__main__":
             match = NUMBER_MATCH.match(line)
             if not match:
                 print(
-                    f"\033[0;31mERROR: The {index+1} line in `INTHEWILD.md` should begin with '1.'. "
+                    f"\033[0;31mERROR: The {index + 1} line in `INTHEWILD.md` should begin with '1.'. "
                     f"Please fix it !\033[0m\n"
                 )
                 print(line)
@@ -61,7 +61,7 @@ if __name__ == "__main__":
                 sys.exit(1)
             if not line.startswith("1."):
                 print(
-                    f"\033[0;33mWARNING: The {index+1} line in `INTHEWILD.md` should begin with '1.' "
+                    f"\033[0;33mWARNING: The {index + 1} line in `INTHEWILD.md` should begin with '1.' "
                     f"but it starts with {match.group(1)} Replacing the number with 1.\033[0m\n"
                 )
                 old_line = line
