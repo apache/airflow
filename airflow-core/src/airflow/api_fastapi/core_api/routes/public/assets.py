@@ -148,7 +148,16 @@ def get_assets(
         assets_select.options(
             subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks)
         )
-    )
+    ).all()
+
+    if limit.value is not None:
+        limit.value = len(assets)
+
+    if offset.value is not None:
+        offset.value = 0
+
+    assets = assets[offset.value:limit.value]
+
     return AssetCollectionResponse(
         assets=assets,
         total_entries=total_entries,
