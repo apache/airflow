@@ -288,9 +288,7 @@ def clear_task_instances(
             dr = ti.dag_run
             ti_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session)
             if not ti_dag:
-                raise AirflowException(
-                    f"Serialized dag not found for dag run. dag_id={dr.dag_id} run_id={dr.run_id}"
-                )
+                log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
                 task = ti_dag.get_task(task_id)
@@ -333,10 +331,8 @@ def clear_task_instances(
                 dr.start_date = timezone.utcnow()
                 dr_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session)
                 if not dr_dag:
-                    raise AirflowException(
-                        f"Serialized dag not found for dag run. dag_id={dr.dag_id} run_id={dr.run_id}"
-                    )
-                if not dr_dag.disable_bundle_versioning:
+                    log.warning("No serialized dag found for dag '%s'", dr.dag_id)
+                if dr_dag and not dr_dag.disable_bundle_versioning:
                     bundle_version = dr.dag_model.bundle_version
                     if bundle_version is not None:
                         dr.bundle_version = bundle_version
