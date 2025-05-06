@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Tests
+name: Tests AMD
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 1,7,13,19 * * *'
@@ -43,7 +43,7 @@ env:
   VERBOSE: "true"
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-amd-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -173,7 +173,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/basic-tests.yml
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
@@ -194,8 +194,7 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"
@@ -219,8 +218,8 @@ jobs:
       id-token: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -241,7 +240,8 @@ jobs:
     uses: ./.github/workflows/generate-constraints.yml
     if: needs.build-info.outputs.ci-image-build == 'true'
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
@@ -257,7 +257,8 @@ jobs:
       id-token: write
       contents: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
       mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -292,7 +293,8 @@ jobs:
       needs.build-info.outputs.skip-providers-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true'
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -314,7 +316,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -331,7 +334,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -358,7 +362,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -385,7 +390,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       backend: "mysql"
       test-name: "MySQL"
       test-scope: "DB"
@@ -412,7 +418,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       backend: "mysql"
       test-name: "MySQL"
       test-scope: "DB"
@@ -440,7 +447,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -469,7 +477,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -499,7 +508,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -527,7 +537,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -561,7 +572,8 @@ jobs:
        needs.build-info.outputs.full-tests-needed == 'true')
     with:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       core-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       providers-test-types-list-as-strings-in-json: >
@@ -586,7 +598,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
       run-system-tests: ${{ needs.build-info.outputs.run-tests }}
@@ -609,7 +622,8 @@ jobs:
     if: >
       needs.build-info.outputs.run-tests == 'true'
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
@@ -637,7 +651,8 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-tests == 'true'
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
@@ -666,9 +681,9 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      build-type: "Regular"
+      runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
+      build-type: "Regular"
       push-image: "false"
       upload-image-artifact: "true"
       upload-package-artifact: "true"
@@ -687,7 +702,8 @@ jobs:
     needs: [build-info, build-prod-images, generate-constraints]
     uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -706,8 +722,8 @@ jobs:
       contents: read
       packages: read
     with:
+      runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -725,7 +741,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -746,7 +763,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -794,8 +812,8 @@ jobs:
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
+      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -825,10 +843,51 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨🕒 Scheduled CI Failure Alert (AMD) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨🕒 Scheduled CI Failure Alert (AMD) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
+
+  summarize-warnings:
+    timeout-minutes: 15
+    name: "Summarize warnings"
+    runs-on: ${{ fromJSON(needs.build-info.outputs.amd-runners) }}
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Download all test warning artifacts from the current build"
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          pattern: test-warnings-*
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.default-python-version }}
+      - name: "Summarize all warnings"
+        run: |
+          ./scripts/ci/testing/summarize_captured_warnings.py ./artifacts \
+            --pattern "**/warnings-*.txt" \
+            --output ./files
+      - name: "Upload artifact for summarized warnings"
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summarized-amd-runner-warnings
+          path: ./files/warn-summary-*.txt
+          retention-days: 7
+          if-no-files-found: ignore
+          overwrite: true
