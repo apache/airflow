@@ -310,7 +310,7 @@ jobs:
       id-token: write
       contents: read
     needs: build-docs
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-docs-build) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

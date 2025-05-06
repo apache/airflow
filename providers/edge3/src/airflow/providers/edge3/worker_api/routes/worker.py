@@ -114,7 +114,7 @@ _worker_queue_doc = Body(
 
 
 def redefine_state(worker_state: EdgeWorkerState, body_state: EdgeWorkerState) -> EdgeWorkerState:
-    """Redefine the state of the worker based on maintenance request."""
+    """Redefine the state of the worker based on maintenance or shutdown request."""
     if (
         worker_state == EdgeWorkerState.MAINTENANCE_REQUEST
         and body_state
@@ -132,6 +132,14 @@ def redefine_state(worker_state: EdgeWorkerState, body_state: EdgeWorkerState) -
             return EdgeWorkerState.RUNNING
         if body_state == EdgeWorkerState.MAINTENANCE_MODE:
             return EdgeWorkerState.IDLE
+
+    if worker_state == EdgeWorkerState.SHUTDOWN_REQUEST:
+        if body_state not in (
+            EdgeWorkerState.OFFLINE_MAINTENANCE,
+            EdgeWorkerState.OFFLINE,
+            EdgeWorkerState.UNKNOWN,
+        ):
+            return EdgeWorkerState.SHUTDOWN_REQUEST
 
     return body_state
 
