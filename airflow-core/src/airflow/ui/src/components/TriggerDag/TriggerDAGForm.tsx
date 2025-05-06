@@ -70,7 +70,10 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
   // Automatically reset form when conf is fetched
   useEffect(() => {
     if (conf) {
-      reset({ conf });
+      reset((prevValues) => ({
+        ...prevValues,
+        conf,
+      }));
     }
   }, [conf, reset]);
 
