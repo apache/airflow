@@ -169,4 +169,5 @@ instance. The commands are:
 - ``airflow edge remote-edge-worker-request-maintenance``: Request a remote edge worker to enter maintenance mode
 - ``airflow edge remote-edge-worker-update-maintenance-comment``: Updates the maintenance comment for a remote edge worker
 - ``airflow edge remote-edge-worker-exit-maintenance``: Request a remote edge worker to exit maintenance mode
+- ``airflow edge shutdown-remote-edge-worker``: Shuts down a remote edge worker gracefully
 - ``airflow edge remove-remote-edge-worker``: Remove a worker instance from the cluster
