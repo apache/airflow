@@ -51,6 +51,11 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
         }
       }
 
+- Some parts of the UI are rendered inside iframes (Auth managers security links for instance), you need to make sure that you are not setting a restricted CSP for iframe rendering
+  such as ``frame-ancestors 'none'``. You can set the CSP header in your reverse proxy configuration, for example::
+
+      add_header Content-Security-Policy "frame-ancestors 'self';";
+
 - Use ``--proxy-headers`` CLI flag to tell Uvicorn to respect these headers: ``airflow api-server --proxy-headers``
 
 - If your proxy server is not on the same host (or in the same docker container) as Airflow, then you will need to
