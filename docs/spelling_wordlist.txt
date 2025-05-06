@@ -655,6 +655,7 @@ falsy
 faq
 Fargate
 fargate
+FastAPI
 fastapi
 fbee
 fc
