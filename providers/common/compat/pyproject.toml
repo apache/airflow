@@ -64,7 +64,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "openlineage" = [
-    "apache-airflow-providers-openlineage"
+    "apache-airflow-providers-openlineage>=2.3.0"
 ]
 "standard" = [
     "apache-airflow-providers-standard"

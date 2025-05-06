@@ -187,7 +187,7 @@ dependencies = [
     "apache-airflow-providers-mysql"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage"
+    "apache-airflow-providers-openlineage>=2.3.0"
 ]
 "postgres" = [
     "apache-airflow-providers-postgres"
