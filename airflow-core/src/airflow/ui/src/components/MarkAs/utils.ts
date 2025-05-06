@@ -19,3 +19,14 @@
 import type { DAGRunPatchStates } from "openapi/requests/types.gen";
 
 export const allowedStates: Array<DAGRunPatchStates> = ["success", "failed"];
+
+export type TaskActionProps = {
+  dagId: string;
+  dagRunId: string;
+  logicalDate?: string | null;
+  mapIndex?: number;
+  note?: string | null;
+  startDate: string | null;
+  taskDisplayName?: string;
+  taskId: string;
+};
