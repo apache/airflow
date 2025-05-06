@@ -330,7 +330,8 @@ ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
-SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+ALTERNATIVE_PLATFORMS = ["linux/x86_64", "linux/aarch64"]
+SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64", *ALTERNATIVE_PLATFORMS]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
@@ -338,15 +339,21 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
 
+def normalize_platform_machine(platform_machine: str) -> str:
+    if "linux/" in platform_machine:
+        return {"linux/x86_64": "linux/amd64", "linux/aarch64": "linux/arm64"}.get(
+            platform_machine, platform_machine
+        )
+    return "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}.get(platform_machine, platform_machine)
+
+
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine.lower()
-    # Some additional conversion for various platforms...
-    machine = {"x86_64": "amd64", "aarch64": "arm64"}.get(machine, machine)
-    return machine
+    return normalize_platform_machine(machine)
 
 
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
+DOCKER_DEFAULT_PLATFORM = get_default_platform_machine()
 DOCKER_BUILDKIT = 1
 
 DRILL_HOST_PORT = "28047"
