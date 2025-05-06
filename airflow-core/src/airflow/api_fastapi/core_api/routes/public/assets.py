@@ -186,8 +186,7 @@ def get_assets(
     # Create an empty list to be returned
     assets = []
 
-    for row in assets_rows:
-        asset, last_asset_event_id, last_asset_event_timestamp = row
+    for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
         asset_response = AssetResponse.model_validate(
             {
                 **asset.__dict__,
