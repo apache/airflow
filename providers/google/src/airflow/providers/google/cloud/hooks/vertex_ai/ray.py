@@ -23,7 +23,7 @@ import dataclasses
 from typing import Any
 
 import vertex_ray
-from google._upb._message import ScalarMapContainer
+from google._upb._message import ScalarMapContainer  # type: ignore[attr-defined]
 from google.cloud import aiplatform
 from google.cloud.aiplatform.vertex_ray.util import resources
 from google.cloud.aiplatform_v1 import (
