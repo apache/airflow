@@ -14,24 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-common-messaging
-name: Common Messaging
-description: |
-  ``Common Messaging Provider``
-
-state: ready
-source-date-epoch: 1741121853
-# Note that those versions are maintained by release manager - do not update them manually
-# with the exception of case where other provider in sources has >= new provider version.
-# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
-# to be done in the same PR
-versions:
-  - 1.0.1
-  - 1.0.0
-
-triggers:
-  - integration-name: Message queue
-    python-modules:
-      - airflow.providers.common.messaging.triggers.msg_queue

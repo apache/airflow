@@ -562,6 +562,7 @@ class JobResponse(BaseModel):
     executor_class: Annotated[str | None, Field(title="Executor Class")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     unixname: Annotated[str | None, Field(title="Unixname")] = None
+    dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
 
 
 class JsonValue(RootModel[Any]):
@@ -892,6 +893,7 @@ class XComResponse(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class XComResponseNative(BaseModel):
@@ -906,6 +908,7 @@ class XComResponseNative(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -921,6 +924,7 @@ class XComResponseString(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 

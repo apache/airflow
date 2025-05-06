@@ -379,7 +379,7 @@ function start_api_server_with_examples(){
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
-    export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+    export AIRFLOW__API__EXPOSE_CONFIG=True
     airflow dags reserialize
     echo "Example dags parsing finished"
     if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then

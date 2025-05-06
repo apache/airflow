@@ -4573,6 +4573,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Task Instance
+      summary: Delete Task Instance
+      description: Delete a task instance.
+      operationId: delete_task_instance
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Delete Task Instance
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped:
     get:
       tags:
@@ -9135,6 +9201,11 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
       type: object
       required:
       - id
@@ -10558,6 +10629,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - key
@@ -10567,6 +10641,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -10596,6 +10671,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         value:
           title: Value
       type: object
@@ -10607,6 +10685,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -10637,6 +10716,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         value:
           anyOf:
           - type: string
@@ -10651,6 +10733,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

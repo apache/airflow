@@ -345,7 +345,7 @@ class CommandFactory:
         commands = []
         if parameter_type_map not in self.datamodels_extended_map.keys():
             self.datamodels_extended_map[parameter_type] = []
-        for field, field_type in parameter_type_map.__fields__.items():
+        for field, field_type in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue
             self.datamodels_extended_map[parameter_type].append(field)
