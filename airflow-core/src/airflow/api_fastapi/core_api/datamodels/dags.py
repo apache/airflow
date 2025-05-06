@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import inspect
 from collections import abc
 from collections.abc import Iterable
 from datetime import datetime, timedelta
@@ -163,6 +164,14 @@ class DAGDetailsResponse(DAGResponse):
         if tz is None:
             return None
         return str(tz)
+
+    @field_validator("doc_md", mode="before")
+    @classmethod
+    def get_doc_md(cls, doc_md: str | None) -> str | None:
+        """Clean indentation in doc md."""
+        if doc_md is None:
+            return None
+        return inspect.cleandoc(doc_md)
 
     @field_validator("params", mode="before")
     @classmethod
