@@ -20,8 +20,12 @@ name: Provider tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
+      runners:
         description: "The array of labels (in json form) determining public AMD runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       canary-run:
@@ -68,7 +72,7 @@ jobs:
   prepare-install-verify-provider-distributions:
     timeout-minutes: 80
     name: "Providers ${{ matrix.package-format }} tests"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -91,7 +95,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
@@ -163,7 +167,7 @@ jobs:
     timeout-minutes: 80
     # yamllint disable rule:line-length
     name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.compat.test-types.description }}
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -189,7 +193,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ matrix.compat.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ matrix.compat.python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"

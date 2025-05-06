@@ -52,11 +52,6 @@ function core_tests() {
         breeze testing core-tests --test-type "All-Quarantined" || true
         RESULT=$?
         set +x
-    elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
-        set -x
-        breeze testing core-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
-        RESULT=$?
-        set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
         set -x
         breeze testing system-tests airflow-core/tests/system/example_empty.py
@@ -98,11 +93,6 @@ function providers_tests() {
     elif [[ "${TEST_SCOPE}" == "Quarantined" ]]; then
         set -x
         breeze testing providers-tests --test-type "All-Quarantined" || true
-        RESULT=$?
-        set +x
-    elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
-        set -x
-        breeze testing providers-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
         RESULT=$?
         set +x
     else

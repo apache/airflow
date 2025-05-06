@@ -20,8 +20,8 @@ name: Basic tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
-        description: "The array of labels (in json form) determining public runners."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
       run-ui-tests:
@@ -66,7 +66,7 @@ jobs:
   run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -87,7 +87,7 @@ jobs:
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     if: inputs.run-ui-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -155,7 +155,7 @@ jobs:
   install-pre-commit:
     timeout-minutes: 5
     name: "Install pre-commit for cache"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
     steps:
@@ -183,7 +183,7 @@ jobs:
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     needs: install-pre-commit
     if: inputs.basic-checks-only == 'true'
     steps:
@@ -236,7 +236,7 @@ jobs:
   upgrade-check:
     timeout-minutes: 45
     name: "Upgrade checks"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     needs: install-pre-commit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -306,7 +306,7 @@ jobs:
   test-airflow-release-commands:
     timeout-minutes: 80
     name: "Test Airflow release commands"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}

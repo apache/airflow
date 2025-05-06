@@ -20,8 +20,12 @@ name: Integration and system tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
+      runners:
         description: "The array of labels (in json form) determining public runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       testable-core-integrations:
@@ -71,7 +75,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-core-integrations != '[]'
     name: "Integration core ${{ matrix.integration }}"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -99,7 +103,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Integration: core ${{ matrix.integration }}"
@@ -120,7 +124,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-providers-integrations != '[]' && inputs.skip-providers-tests != 'true'
     name: "Integration: providers ${{ matrix.integration }}"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -148,7 +152,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Integration: providers ${{ matrix.integration }}"
@@ -168,7 +172,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.run-system-tests == 'true'
     name: "System Tests"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
@@ -192,7 +196,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "System Tests"

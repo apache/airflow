@@ -20,8 +20,12 @@ name: Unit tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
+      runners:
         description: "The array of labels (in json form) determining public AMD runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       test-group:
@@ -37,7 +41,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       test-scope:
-        description: "The scope of the test to run: ('DB', 'Non-DB', 'All', 'ARM collection')"
+        description: "The scope of the test to run: ('DB', 'Non-DB', 'All')"
         required: true
         type: string
       test-name:
@@ -125,7 +129,7 @@ jobs:
       ${{ inputs.test-scope }}-${{ inputs.test-group }}:\
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
       ${{ matrix.python-version}}:${{ matrix.test-types.description }}"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -168,7 +172,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: >

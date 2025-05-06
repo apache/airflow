@@ -20,8 +20,12 @@ name: Additional PROD image tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
-        description: "The array of labels (in json form) determining AMD public runners."
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       default-branch:
@@ -63,7 +67,8 @@ jobs:
     name: PROD image extra checks (main)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
@@ -78,7 +83,8 @@ jobs:
     name: PROD image extra checks (release)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
-      amd-runners: ${{ inputs.amd-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
@@ -92,7 +98,7 @@ jobs:
   test-examples-of-prod-image-building:
     timeout-minutes: 60
     name: "Test examples of PROD image building"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -112,7 +118,7 @@ jobs:
       - name: "Prepare breeze & PROD image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           image-type: "prod"
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
@@ -130,7 +136,7 @@ jobs:
   test-docker-compose-quick-start:
     timeout-minutes: 60
     name: "Docker Compose quick start with PROD image verifying"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -149,7 +155,7 @@ jobs:
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           image-type: "prod"
           python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           use-uv: ${{ inputs.use-uv }}

@@ -49,8 +49,7 @@ jobs:
     name: "Build Info"
     runs-on: ["ubuntu-24.04"]
     outputs:
-      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
-      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
+      runners: ${{ steps.selective-checks.outputs.amd-runners }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
@@ -109,8 +108,7 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
+      runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"

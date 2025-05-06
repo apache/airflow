@@ -196,7 +196,6 @@ class ShellParams:
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
-    remove_arm_packages: bool = False
     restart: bool = False
     run_db_tests_only: bool = False
     run_tests: bool = False
@@ -615,7 +614,6 @@ class ShellParams:
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
-        _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_TESTS", self.run_tests)
         _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
