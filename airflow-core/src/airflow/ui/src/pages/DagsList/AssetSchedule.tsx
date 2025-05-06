@@ -59,7 +59,7 @@ export const AssetSchedule = ({ dag }: Props) => {
     return (
       <HStack>
         <FiDatabase style={{ display: "inline" }} />
-        <Link asChild color="fg.info" display="block" py={2}>
+        <Link asChild color="fg.info" display="block" fontSize="sm">
           <RouterLink to={`/assets/${asset.id}`}>{asset.name ?? asset.uri}</RouterLink>
         </Link>
       </HStack>
@@ -79,7 +79,10 @@ export const AssetSchedule = ({ dag }: Props) => {
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
         <Popover.Arrow />
         <Popover.Body>
-          <AssetExpression events={pendingEvents} expression={dag.asset_expression as ExpressionType} />
+          <AssetExpression
+            events={pendingEvents}
+            expression={(nextRun?.asset_expression ?? dag.asset_expression) as ExpressionType}
+          />
         </Popover.Body>
       </Popover.Content>
     </Popover.Root>
