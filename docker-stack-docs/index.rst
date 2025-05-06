@@ -48,6 +48,8 @@ Every time a new version of Airflow is released, the images are prepared in the
 `apache/airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
 for all the supported Python versions.
 
+The images we release are multi-platform AMD/ARM images.
+
 You can find the following images there (Assuming Airflow version :subst-code:`|airflow-version|`):
 
 * :subst-code:`apache/airflow:latest`              - the latest released Airflow image with default Python version (3.12 currently)
@@ -209,23 +211,11 @@ Support
 The reference Docker Image supports the following platforms and database:
 
 
-Intel platform (x86_64)
------------------------
-
 * Postgres Client
-* MySQL Client
+* MySQL Client (8+)
 * MSSQL Client
 
-ARM platform (aarch64)
-----------------------
-
-ARM support is experimental, might change any time.
-
-* Postgres Client
-* MySQL Client (MySQL 8)
-* MSSQL Client
-
-Note that MySQL on arm has experimental support through MariaDB client library.
+Note that MySQL on ``ARM`` platform has experimental support through MariaDB client library.
 
 Usage
 =====
