@@ -20,12 +20,12 @@ name: Finalize tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
-        description: "The array of labels (in json form) determining public AMD runners."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
-      arm-runners:
-        description: "The array of labels (in json form) determining public ARM runners."
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       python-versions:
@@ -80,7 +80,7 @@ permissions:
   contents: read
 jobs:
   update-constraints:
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     timeout-minutes: 80
     name: "Update constraints"
     permissions:
@@ -93,7 +93,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
-    if: inputs.upgrade-to-newer-dependencies != 'false'
+    if: inputs.upgrade-to-newer-dependencies != 'false' && inputs.platform == 'linux/amd64'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -132,8 +132,8 @@ jobs:
         run:
           git push
 
-  push-buildx-cache-to-github-registry-amd:
-    name: Push Regular AMD Image Cache
+  push-buildx-cache-to-github-registry:
+    name: Push Regular Image Cache ${{ inputs.platform }}
     needs: [update-constraints]
     uses: ./.github/workflows/push-image-cache.yml
     permissions:
@@ -142,12 +142,11 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      amd-runners: ${{ inputs.amd-runners }}
-      arm-runners: ${{ inputs.arm-runners }}
+      runners: ${{ inputs.runners }}
+      platform: ${ { inputs.platform }}
       cache-type: "Regular AMD"
       include-prod-images: "true"
       push-latest-images: "true"
-      platform: "linux/amd64"
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
@@ -158,67 +157,3 @@ jobs:
     if: >
       inputs.canary-run == 'true' &&
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-
-  #    push-buildx-cache-to-github-registry-arm:
-  #      name: Push Regular ARM Image Cache
-  #      needs: [update-constraints]
-  #      uses: ./.github/workflows/push-image-cache.yml
-  #      permissions:
-  #        contents: read
-  #        packages: write
-  #      with:
-  #        amd-runners: ${{ inputs.amd-runners }}
-  #        arm-runners: ${{ inputs.arm-runners }}
-  #        cache-type: "Regular ARM"
-  #        include-prod-images: "true"
-  #        push-latest-images: "true"
-  #        platform: "linux/arm64"
-  #        python-versions: ${{ inputs.python-versions }}
-  #        branch: ${{ inputs.branch }}
-  #        constraints-branch: ${{ inputs.constraints-branch }}
-  #        use-uv: "true"
-  #        include-success-outputs: ${{ inputs.include-success-outputs }}
-  #        docker-cache: ${{ inputs.docker-cache }}
-  #      if: >
-  #        inputs.canary-run == 'true' &&
-  #        (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-
-  summarize-warnings:
-    timeout-minutes: 15
-    name: "Summarize warnings"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Free up disk space"
-        shell: bash
-        run: ./scripts/tools/free_up_disk_space.sh
-      - name: "Download all test warning artifacts from the current build"
-        uses: actions/download-artifact@v4
-        with:
-          path: ./artifacts
-          pattern: test-warnings-*
-      - name: "Setup python"
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ inputs.default-python-version }}
-      - name: "Summarize all warnings"
-        run: |
-          ./scripts/ci/testing/summarize_captured_warnings.py ./artifacts \
-            --pattern "**/warnings-*.txt" \
-            --output ./files
-      - name: "Upload artifact for summarized warnings"
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-summarized-warnings
-          path: ./files/warn-summary-*.txt
-          retention-days: 7
-          if-no-files-found: ignore
-          overwrite: true
