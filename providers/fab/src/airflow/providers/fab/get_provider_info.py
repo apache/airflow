@@ -30,6 +30,13 @@ def get_provider_info():
             "fab": {
                 "description": "This section contains configs specific to FAB provider.",
                 "options": {
+                    "expose_hostname": {
+                        "description": "Expose hostname in the web server\n",
+                        "version_added": "2.0.2",
+                        "type": "string",
+                        "example": None,
+                        "default": "False",
+                    },
                     "auth_rate_limited": {
                         "description": "Boolean for enabling rate limiting on authentication endpoints.\n",
                         "version_added": "1.0.2",
