@@ -36,6 +36,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
@@ -153,6 +154,7 @@ const taskInstanceColumns = (
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
+        <DeleteTaskInstanceButton taskInstance={row.original} withText={false} />
         <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
         <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
       </Flex>
