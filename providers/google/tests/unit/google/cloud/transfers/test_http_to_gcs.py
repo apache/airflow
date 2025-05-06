@@ -33,6 +33,8 @@ TEST_BUCKET = "test-bucket"
 SOURCE_ENDPOINT = "main_dir/test_object3.json"
 DESTINATION_PATH_FILE = "destination_dir/copy.txt"
 ENDPOINT = "/"
+HEADERS = {"header_key": "header_value"}
+DATA = {"some": "data"}
 
 
 class TestHttpToGCSOperator:
@@ -51,22 +53,24 @@ class TestHttpToGCSOperator:
 
     @mock.patch("airflow.providers.google.cloud.transfers.http_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.http_to_gcs.HttpHook")
-    def test_execute(self, http_hook, gcs_hook):
+    def test_execute_copy_single_file(self, http_hook, gcs_hook):
         task = HttpToGCSOperator(
             task_id="http_to_gcs_operator",
             http_conn_id=HTTP_CONN_ID,
             endpoint=ENDPOINT,
+            headers=HEADERS,
+            data=DATA,
             object_name=DESTINATION_PATH_FILE,
             bucket_name=TEST_BUCKET,
             gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN
-        )
-        task.execute(None)
-        gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        gcs_hook.return_value.get_bucket.assert_called_once_with(TEST_BUCKET)
+        task.execute(None)
+
+        # GCS
+        gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        gcs_hook.upload.assert_called_once_with(bucket_name=TEST_BUCKET, object_name=DESTINATION_PATH_FILE)
+
+        # HTTP
         http_hook.assert_called_once_with(HTTP_CONN_ID)
-        gcs_hook.return_value.upload.assert_not_called()
-        gcs_hook.return_value.get_bucket.return_value.blob.assert_called_once_with(DESTINATION_PATH_FILE)
+        http_hook.run.assert_called_once_with(endpoint=ENDPOINT, headers=HEADERS, data=DATA)
