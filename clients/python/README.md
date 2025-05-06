@@ -555,11 +555,11 @@ You can also set it by env variable: `export AIRFLOW__CORE__LOAD_EXAMPLES=True`
   In the `[webserver]` section of your `airflow.cfg` set:
 
 ```ini
-[webserver]
+[api]
 expose_config = True
 ```
 
-You can also set it by env variable: `export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True`
+You can also set it by env variable: `export AIRFLOW__API__EXPOSE_CONFIG=True`
 
 * Configure your host/ip/user/password in the `test_python_client.py` file
 
