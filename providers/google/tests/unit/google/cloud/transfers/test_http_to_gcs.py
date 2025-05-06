@@ -69,8 +69,10 @@ class TestHttpToGCSOperator:
 
         # GCS
         gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        gcs_hook.upload.assert_called_once_with(bucket_name=TEST_BUCKET, object_name=DESTINATION_PATH_FILE)
+        task.gcs_hook.upload.assert_called_once_with(
+            bucket_name=TEST_BUCKET, object_name=DESTINATION_PATH_FILE
+        )
 
         # HTTP
         http_hook.assert_called_once_with(HTTP_CONN_ID)
-        http_hook.run.assert_called_once_with(endpoint=ENDPOINT, headers=HEADERS, data=DATA)
+        task.http_hook.run.assert_called_once_with(endpoint=ENDPOINT, headers=HEADERS, data=DATA)
