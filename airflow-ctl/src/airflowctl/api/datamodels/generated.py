@@ -566,12 +566,16 @@ class JsonValue(RootModel[Any]):
     root: Any
 
 
+class Id(RootModel[int]):
+    root: Annotated[int, Field(ge=0, title="Id")]
+
+
 class LastAssetEventResponse(BaseModel):
     """
     Last asset event response serializer.
     """
 
-    id: Annotated[int | None, Field(title="Id")] = None
+    id: Annotated[Id | None, Field(title="Id")] = None
     timestamp: Annotated[datetime | None, Field(title="Timestamp")] = None
 
 

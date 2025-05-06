@@ -3446,6 +3446,7 @@ export const $LastAssetEventResponse = {
       anyOf: [
         {
           type: "integer",
+          minimum: 0,
         },
         {
           type: "null",
