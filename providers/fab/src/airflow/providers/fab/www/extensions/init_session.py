@@ -55,6 +55,7 @@ def init_airflow_session_interface(app):
             table="session",
             key_prefix="",
             use_signer=True,
+            cleanup_n_requests=5,
         )
     else:
         raise AirflowConfigException(
