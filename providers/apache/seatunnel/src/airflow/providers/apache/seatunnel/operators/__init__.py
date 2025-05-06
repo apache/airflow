@@ -15,7 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from airflow_seatunnel_provider.operators.seatunnel_operator import SeaTunnelOperator
-
-__all__ = ["SeaTunnelOperator"]

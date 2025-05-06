@@ -19,10 +19,10 @@
 from datetime import datetime, timedelta
 import re
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
-from airflow_seatunnel_provider.operators.seatunnel_operator import SeaTunnelOperator
-from airflow_seatunnel_provider.sensors.seatunnel_sensor import SeaTunnelJobSensor
+from airflow.providers.apache.seatunnel.operators.seatunnel_operator import SeaTunnelOperator
+from airflow.providers.apache.seatunnel.sensors.seatunnel_sensor import SeaTunnelJobSensor
 
 default_args = {
     'owner': 'airflow',

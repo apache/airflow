@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 
-from airflow_seatunnel_provider.operators.seatunnel_operator import SeaTunnelOperator
+from airflow.providers.apache.seatunnel.operators.seatunnel_operator import SeaTunnelOperator
 
 default_args = {
     'owner': 'airflow',

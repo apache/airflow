@@ -15,7 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from airflow_seatunnel_provider.sensors.seatunnel_sensor import SeaTunnelJobSensor
-
-__all__ = ["SeaTunnelJobSensor"]
