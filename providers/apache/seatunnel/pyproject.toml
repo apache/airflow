@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "airflow-provider-seatunnel"
+version = "0.1.0"
+authors = [
+    {name = "Apache SeaTunnel Community", email = "dev@seatunnel.apache.org"},
+]
+description = "Apache Airflow provider for Apache SeaTunnel"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Framework :: Apache Airflow",
+    "Framework :: Apache Airflow :: Provider",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "License :: OSI Approved :: Apache Software Licens",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "apache-airflow>=2.3.0",
+    "requests>=2.25.0",
+]
+
+[project.urls]
+"Homepage" = "https://seatunnel.apache.org/"
+"Documentation" = "https://seatunnel.apache.org/"
+"Source Code" = "https://github.com/apache/seatunnel"
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow_seatunnel_provider:get_provider_info" 
