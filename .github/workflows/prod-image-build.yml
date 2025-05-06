@@ -204,6 +204,7 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
+      PLATFORM: ${{ inputs.platform }}
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
