@@ -60,8 +60,6 @@ The following code shows how to add extra links to an operator via Plugins:
             GoogleLink(),
         ]
 
-.. note:: Operator Extra Links should be registered via Airflow Plugins or custom Airflow Provider to work.
-
 The extra links defined via custom Airflow Provider will be pushed as an xcom to the XCom table in metadata DB
 during task execution. During display in the grid view, this xcom is retrieved and displayed.
 
