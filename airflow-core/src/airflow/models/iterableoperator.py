@@ -21,13 +21,11 @@ import logging
 import os
 from abc import abstractmethod
 from asyncio import Semaphore, gather
-from collections.abc import Coroutine, Iterable, Iterator, Sequence
-from contextlib import suppress
+from collections.abc import Coroutine, Iterable, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from datetime import timedelta
-from json import JSONDecodeError
 from math import ceil
 from multiprocessing import TimeoutError
-from multiprocessing.pool import ApplyResult, ThreadPool
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
@@ -43,26 +41,63 @@ from airflow.models import BaseOperator
 from airflow.models.abstractoperator import DEFAULT_TASK_EXECUTION_TIMEOUT
 from airflow.models.expandinput import (
     ExpandInput,
-    _needs_run_time_resolution,
-    is_mappable,
 )
 from airflow.models.iterable import XComIterable, event_loop
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.definitions._internal.abstractoperator import Operator
+from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.context import Context
-from airflow.sdk.definitions.xcom_arg import XComArg, _MapResult
+from airflow.sdk.definitions.xcom_arg import XComArg
+from airflow.sdk.execution_time.callback_runner import (
+    create_executable_runner,
+)
+from airflow.sdk.execution_time.context import context_get_outlet_events
 from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import context_get_outlet_events
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_instance_session import get_current_task_instance_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import jinja2
-    from sqlalchemy.orm import Session
+
+
+class VolatileTaskInstance(TaskInstance):
+    """Volatile task instance to run an operator which handles XCom's in memory."""
+
+    _xcoms: dict[str, Any] = {}
+
+    def xcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
+        key: str = XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,  # TODO: Add support for this
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        key = f"{self.task_id}_{self.dag_id}_{key}"
+        if map_indexes is not None and (not isinstance(map_indexes, int) or map_indexes >= 0):
+            key += f"_{map_indexes}"
+        return self._xcoms.get(key, default)
+
+    def xcom_push(self, key: str, value: Any):
+        key = f"{self.task_id}_{self.dag_id}_{key}"
+        if self.map_index is not None and self.map_index >= 0:
+            key += f"_{self.map_index}"
+        self._xcoms[key] = value
+
+    @property
+    def next_try_number(self) -> int:
+        return self.try_number + 1
+
+    @property
+    def xcom_key(self) -> str:
+        return f"{self.task_id}_{self.map_index}"
 
 
 class TaskExecutor(LoggingMixin):
@@ -84,15 +119,31 @@ class TaskExecutor(LoggingMixin):
         return self._task_instance
 
     @property
+    def dag_id(self) -> str:
+        return self._task_instance.dag_id
+
+    @property
+    def task_id(self) -> str:
+        return self._task_instance.task_id
+
+    @property
     def task_index(self) -> int:
-        return int(self._task_instance.task_id.rsplit("_", 1)[-1])
+        # return int(self._task_instance.task_id.rsplit("_", 1)[-1])
+        return self._task_instance.map_index
+
+    @property
+    def key(self):
+        return self.task_instance.xcom_key
 
     @property
     def context(self) -> Context:
-        return {**self.__context, **{"ti": self.task_instance}}
+        return {
+            **self.__context,
+            **{"ti": self.task_instance, "task_instance": self.task_instance},
+        }
 
     @property
-    def operator(self) -> Operator:
+    def operator(self) -> BaseOperator:
         return self.task_instance.task
 
     @property
@@ -125,10 +176,7 @@ class TaskExecutor(LoggingMixin):
         if self.task_instance.try_number == 0:
             self.operator.render_template_fields(context=self.context)
             self.operator.pre_execute(context=self.context)
-            self.task_instance.set_state(TaskInstanceState.SCHEDULED)
-            self.task_instance._run_execute_callback(
-                context=self.context, task=self.operator
-            )
+            self.task_instance._run_execute_callback(context=self.context, task=self.operator)
         return self
 
     async def __aenter__(self):
@@ -145,19 +193,26 @@ class TaskExecutor(LoggingMixin):
                         self.task_index,
                         exc_value,
                     )
+                    if self.task_instance.task.on_failure_callback:
+                        self.task_instance.task.on_failure_callback(
+                            {**self.context, **{"exception": exc_value}}
+                        )
+                    self.task_instance.state = TaskInstanceState.FAILED
                     raise exc_value
 
                 self.task_instance.try_number += 1
                 self.task_instance.end_date = timezone.utcnow()
-                self.task_instance.set_state(TaskInstanceState.UP_FOR_RESCHEDULE)
+                if self.task_instance.task.on_retry_callback:
+                    self.task_instance.task.on_retry_callback({**self.context, **{"exception": exc_value}})
+                self.task_instance.state = TaskInstanceState.UP_FOR_RESCHEDULE
                 raise AirflowRescheduleTaskInstanceException(task=self.task_instance)
 
-            self.task_instance.set_state(TaskInstanceState.FAILED)
             raise exc_value
-        if self.operator.do_xcom_push:
-            self.task_instance.xcom_push(key=XCOM_RETURN_KEY, value=self._result)
+
+        self.task_instance.state = TaskInstanceState.SUCCESS
+        if self.task_instance.task.on_success_callback:
+            self.task_instance.task.on_success_callback(self.context)
         self.operator.post_execute(context=self.context, result=self._result)
-        self.task_instance.set_state(TaskInstanceState.SUCCESS)
         if self.log.isEnabledFor(logging.INFO):
             self.log.info(
                 "Task instance %s for %s finished successfully in %s attempts in %s mode.",
@@ -185,12 +240,12 @@ class OperatorExecutor(TaskExecutor):
         outlet_events = context_get_outlet_events(self.context)
         # TODO: change back to operator.execute once ExecutorSafeguard is fixed
         if hasattr(self.operator.execute, "__wrapped__"):
-            return ExecutionCallableRunner(
+            return create_executable_runner(
                 func=self.operator.execute.__wrapped__,
                 outlet_events=outlet_events,
                 logger=self.log,
             ).run(self.operator, self.context)
-        return ExecutionCallableRunner(
+        return create_executable_runner(
             func=self.operator.execute,
             outlet_events=outlet_events,
             logger=self.log,
@@ -218,11 +273,9 @@ class TriggerExecutor(TaskExecutor):
 
             if task_deferred.method_name:
                 try:
-                    next_method = self.operator.next_callable(
-                        task_deferred.method_name, task_deferred.kwargs
-                    )
+                    next_method = self.operator.next_callable(task_deferred.method_name, task_deferred.kwargs)
                     outlet_events = context_get_outlet_events(self.context)
-                    return ExecutionCallableRunner(
+                    return create_executable_runner(
                         func=next_method,
                         outlet_events=outlet_events,
                         logger=self.log,
@@ -258,9 +311,7 @@ class IterableOperator(BaseOperator):
         self._operator_class = operator_class
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
-        self.timeout = (
-            timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
-        )
+        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
         self._mapped_kwargs: Iterable[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
@@ -272,31 +323,35 @@ class IterableOperator(BaseOperator):
     def operator_name(self) -> str:
         return self._operator_class.__name__
 
+    @property
+    def task_type(self) -> str:
+        return self._operator_class.__name__
+
+    @property
+    def chunk_size(self) -> int:
+        return self.max_active_tis_per_dag * 2
+
     def _get_specified_expand_input(self) -> ExpandInput:
         return self.expand_input
 
-    def _unmap_operator(self, index: int, mapped_kwargs: dict):
+    def _unmap_operator(self, mapped_kwargs: dict):
         kwargs = {
             **self.partial_kwargs,
-            **{"task_id": f"{self.task_id}_{index}"},
+            **{"task_id": self.task_id},
             **mapped_kwargs,
         }
         self._number_of_tasks += 1
-        self.log.debug("index: %s", index)
         self.log.debug("kwargs: %s", kwargs)
         self.log.debug("operator_class: %s", self._operator_class)
         self.log.debug("number_of_tasks: %s", self._number_of_tasks)
         return self._operator_class(**kwargs, _airflow_from_mapped=True)
 
-    def _resolve(self, value, context: Context, session: Session):
+    def _resolve(self, value, context: Context):
         if isinstance(value, dict):
             for key in value:
                 item = value[key]
-                if _needs_run_time_resolution(item):
-                    item = item.resolve(context=context, session=session)
-
-                    if is_mappable(item):
-                        item = iter(item)  # type: ignore
+                if isinstance(item, ResolveMixin):
+                    item = item.resolve(context=context)
 
                 self.log.debug("resolved_value: %s", item)
 
@@ -304,46 +359,44 @@ class IterableOperator(BaseOperator):
 
         return value
 
-    def _lazy_mapped_kwargs(self, input, context: Context, session: Session):
-        self.log.debug("_lazy_mapped_kwargs value: %s", input)
+    def _lazy_mapped_kwargs(self, value, context: Context) -> Iterable[dict]:
+        self.log.debug("_lazy_mapped_kwargs resolved_value: %s", value)
 
-        value = self._resolve(value=input, context=context, session=session)
+        resolved_value = self._resolve(value=value, context=context)
 
-        self.log.debug("resolved value: %s", value)
+        self.log.debug("resolved resolved_value: %s", resolved_value)
 
-        if isinstance(value, dict):
-            for key, item in value.items():
+        if isinstance(resolved_value, dict):
+            for key, item in resolved_value.items():
                 if not isinstance(item, (Sequence, Iterable)) or isinstance(item, str):
                     yield {key: item}
                 else:
                     for sub_item in item:
                         yield {key: sub_item}
 
-    def _resolve_expand_input(self, context: Context, session: Session):
+    def _resolve_expand_input(self, context: Context):
         self.log.debug("resolve_expand_input: %s", self.expand_input)
 
-        if isinstance(self.expand_input.value, XComArg):
-            resolved_input = self.expand_input.value.resolve(
-                context=context, session=session
-            )
+        # TODO: check how to use the correct ResolvMixin type
+        if isinstance(self.expand_input.value, ResolveMixin):
+            resolved_input = self.expand_input.value.resolve(context=context)
         else:
             resolved_input = self.expand_input.value
 
         self.log.debug("resolved_input: %s", resolved_input)
 
-        if isinstance(resolved_input, _MapResult):
+        # Once _MapResult inherits from _MappableResult in Airflow, check only for _MappableResult
+        if type(resolved_input).__name__ in {
+            "_FilterResult",
+            "_MapResult",
+            "_LazyMapResult",
+        }:
             self._mapped_kwargs = map(
-                lambda value: self._resolve(
-                    value=value, context=context, session=session
-                ),
+                lambda value: self._resolve(value=value, context=context),
                 resolved_input,
             )
         else:
-            self._mapped_kwargs = iter(
-                self._lazy_mapped_kwargs(
-                    input=resolved_input, context=context, session=session
-                )
-            )
+            self._mapped_kwargs = iter(self._lazy_mapped_kwargs(value=resolved_input, context=context))
 
         self.log.debug("mapped_kwargs: %s", self._mapped_kwargs)
 
@@ -352,26 +405,29 @@ class IterableOperator(BaseOperator):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        session = get_current_task_instance_session()
-        self._resolve_expand_input(context=context, session=session)
+        self._resolve_expand_input(context=context)
+
+    def _xcom_push(self, context: Context, task: TaskInstance, value: Any) -> None:
+        self.log.info("Pushing XCom %s", task.map_index)
+
+        context["ti"].xcom_push(key=task.xcom_key, value=value)
 
     def _run_tasks(
         self,
         context: Context,
-        tasks: Iterator[TaskInstance],
-    ) -> Iterable[Any] | None:
+        tasks: Iterable[TaskInstance],
+    ) -> None:
         exception: BaseException | None = None
         reschedule_date = timezone.utcnow()
         prev_futures_count = 0
-        futures: dict[ApplyResult, TaskInstance] = {}
-        failed_tasks: list[TaskInstance] = []
-        chunked_tasks: Iterator[Iterable[TaskInstance]] = ichunked(
-            tasks, (self.max_active_tis_per_dag * 2)
-        )
+        futures: dict[Future, TaskInstance] = {}
 
-        with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
+        failed_tasks: list[TaskInstance] = []
+        chunked_tasks = ichunked(tasks, self.chunk_size)
+
+        with ThreadPoolExecutor(max_workers=self.max_active_tis_per_dag) as pool:
             for task in next(chunked_tasks, []):
-                future = pool.apply_async(self._run_operator, (context, task))
+                future = pool.submit(self._run_operator, context, task)
                 futures[future] = task
 
             while futures:
@@ -381,73 +437,78 @@ class IterableOperator(BaseOperator):
                     self.log.info("Number of remaining futures: %s", futures_count)
                     prev_futures_count = futures_count
 
-                deferred_tasks: list[Coroutine[Any, Any, Any]] = []
-                ready_futures = [future for future in futures.keys() if future.ready()]
+                deferred_tasks: dict[Coroutine[Any, Any, Any], TaskInstance] = {}
+                ready_futures = False
 
-                for future in ready_futures:
-                    task = futures.pop(future)
+                with event_loop() as loop:
+                    for future in as_completed(futures.keys()):
+                        task = futures.pop(future)
+                        ready_futures = True
 
-                    try:
-                        result = future.get(timeout=self.timeout)
+                        try:
+                            result = future.result(timeout=self.timeout)
 
-                        self.log.debug("result: %s", result)
+                            self.log.debug("result: %s", result)
 
-                        if isinstance(result, TaskDeferred):
-                            deferred_tasks.append(
-                                self._run_deferrable(
-                                    context=context,
-                                    task_instance=task,
-                                    task_deferred=result,
+                            if isinstance(result, TaskDeferred):
+                                deferred_task = loop.create_task(
+                                    self._run_deferrable(
+                                        context=context,
+                                        task_instance=task,
+                                        task_deferred=result,
+                                    )
                                 )
-                            )
-                    except TimeoutError as e:
-                        self.log.warning(
-                            "A timeout occurred for task_id %s", task.task_id
-                        )
-                        if task.next_try_number > self.retries:
-                            exception = AirflowTaskTimeout(e)
-                        else:
-                            reschedule_date = min(
-                                reschedule_date, task.next_retry_datetime()
-                            )
-                            failed_tasks.append(task)
-                    except AirflowRescheduleTaskInstanceException as e:
-                        reschedule_date = min(reschedule_date, e.reschedule_date)
-                        failed_tasks.append(e.task)
-                    except AirflowException as e:
-                        self.log.error(
-                            "An exception occurred for task_id %s", task.task_id
-                        )
-                        exception = e
+                                deferred_tasks[deferred_task] = task
+                            elif result and task.task.do_xcom_push:
+                                self._xcom_push(
+                                    context=context,
+                                    task=task,
+                                    value=result,
+                                )
+                        except TimeoutError as e:
+                            self.log.warning("A timeout occurred for task_id %s", task.task_id)
+                            if task.next_try_number > self.retries:
+                                exception = AirflowTaskTimeout(e)
+                            else:
+                                reschedule_date = min(reschedule_date, task.next_retry_datetime())
+                                failed_tasks.append(task)
+                        except AirflowRescheduleTaskInstanceException as e:
+                            reschedule_date = min(reschedule_date, e.reschedule_date)
+                            failed_tasks.append(e.task)
+                        except AirflowException as e:
+                            self.log.error("An exception occurred for task_id %s", task.task_id)
+                            exception = e
 
-                for task in next(chunked_tasks, []):
-                    future = pool.apply_async(self._run_operator, (context, task))
-                    futures[future] = task
+                    if len(futures) < self.chunk_size:
+                        for task in next(chunked_tasks, []):
+                            future = pool.submit(self._run_operator, context, task)
+                            futures[future] = task
 
-                if deferred_tasks:
-                    self.log.info("Running %s deferred tasks", len(deferred_tasks))
+                    if deferred_tasks:
+                        self.log.info("Running %s deferred tasks", len(deferred_tasks))
 
-                    with event_loop() as loop:
-                        for result in loop.run_until_complete(
-                            gather(
-                                *[loop.create_task(task) for task in deferred_tasks],
-                                return_exceptions=True,
-                            )
-                        ):
+                        deferred_task_keys = list(deferred_tasks.keys())
+                        results = loop.run_until_complete(gather(*deferred_task_keys, return_exceptions=True))
+
+                        for future, result in zip(deferred_task_keys, results):
+                            task = deferred_tasks[future]
+
                             self.log.debug("result: %s", result)
 
                             if isinstance(result, Exception):
-                                if isinstance(
-                                    result, AirflowRescheduleTaskInstanceException
-                                ):
-                                    reschedule_date = min(
-                                        reschedule_date, result.reschedule_date
-                                    )
-                                    failed_tasks.append(result.task)
+                                if isinstance(result, AirflowRescheduleTaskInstanceException):
+                                    reschedule_date = min(reschedule_date, result.reschedule_date)
+                                    failed_tasks.append(task)
                                 else:
                                     exception = result
-                elif not ready_futures and futures:
-                    sleep(len(futures) * 0.1)
+                            elif result and task.task.do_xcom_push:
+                                self._xcom_push(
+                                    context=context,
+                                    task=task,
+                                    value=result,
+                                )
+                    elif not ready_futures and futures:
+                        sleep(len(futures) * 0.1)
 
         if not failed_tasks:
             if exception:
@@ -459,7 +520,6 @@ class IterableOperator(BaseOperator):
                     run_id=context["run_id"],
                     length=self._number_of_tasks,
                 )
-            return None
 
         # Calculate delay before the next retry
         if reschedule_date > timezone.utcnow():
@@ -473,32 +533,12 @@ class IterableOperator(BaseOperator):
 
             sleep(delay_seconds)
 
-        return self._run_tasks(context, iter(failed_tasks))
-
-    @classmethod
-    def _xcom_pull(cls, task_instance: TaskInstance):
-        with suppress(JSONDecodeError):
-            return task_instance.xcom_pull(
-                task_ids=task_instance.task_id, dag_id=task_instance.dag_id
-            )
-        return None
+        return self._run_tasks(context, failed_tasks)
 
     def _run_operator(self, context: Context, task_instance: TaskInstance):
         try:
-            result = self._xcom_pull(task_instance)
-
-            self.log.debug("result: %s", result)
-
-            if result is None:
-                with OperatorExecutor(
-                    context=context, task_instance=task_instance
-                ) as executor:
-                    return executor.run()
-            else:
-                self.log.info(
-                    "Task instance %s already completed.", task_instance.task_id
-                )
-            return result
+            with OperatorExecutor(context=context, task_instance=task_instance) as executor:
+                return executor.run()
         except TaskDeferred as task_deferred:
             return task_deferred
 
@@ -506,18 +546,16 @@ class IterableOperator(BaseOperator):
         self, context: Context, task_instance: TaskInstance, task_deferred: TaskDeferred
     ):
         async with self._semaphore:
-            async with TriggerExecutor(
-                context=context, task_instance=task_instance
-            ) as executor:
+            async with TriggerExecutor(context=context, task_instance=task_instance) as executor:
                 return await executor.run_deferred(task_deferred)
 
-    def _create_task(
-        self, run_id: str, index: int, mapped_kwargs: dict
-    ) -> TaskInstance:
-        operator = self._unmap_operator(index, mapped_kwargs)
-        return TaskInstance(
+    def _create_task(self, run_id: str, index: int, mapped_kwargs: dict) -> TaskInstance:
+        operator = self._unmap_operator(mapped_kwargs)
+        return VolatileTaskInstance(
             task=operator,
             run_id=run_id,
+            state=TaskInstanceState.SCHEDULED.value,
+            map_index=index,
         )
 
     def execute(self, context: Context):
@@ -526,7 +564,9 @@ class IterableOperator(BaseOperator):
             tasks=iter(
                 map(
                     lambda mapped_kwargs: self._create_task(
-                        context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]
+                        context["ti"].run_id,
+                        mapped_kwargs[0],
+                        mapped_kwargs[1],
                     ),
                     enumerate(self._mapped_kwargs),
                 )

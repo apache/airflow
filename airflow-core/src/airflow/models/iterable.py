@@ -66,7 +66,7 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
                 loop.close()
 
 
-class XComIterable(Iterator, Sequence):
+class XComIterable(Sequence):
     """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
 
     def __init__(self, task_id: str, dag_id: str, run_id: str, length: int):
@@ -97,9 +97,9 @@ class XComIterable(Iterator, Sequence):
             raise IndexError
 
         return XCom.get_one(
-            key=XCOM_RETURN_KEY,
+            key=f"{self.task_id}_{index}",
             dag_id=self.dag_id,
-            task_id=f"{self.task_id}_{index}",
+            task_id=self.task_id,
             run_id=self.run_id,
         )
 
@@ -140,9 +140,7 @@ class DeferredIterable(Iterator, ResolveMixin, LoggingMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         yield self.operator, XCOM_RETURN_KEY
 
-    def resolve(
-        self, context: Context, *, include_xcom: bool = True
-    ) -> DeferredIterable:
+    def resolve(self, context: Context) -> DeferredIterable:
         return DeferredIterable(
             results=self.results,
             trigger=self.trigger,
@@ -220,14 +218,11 @@ class DeferredIterable(Iterator, ResolveMixin, LoggingMixin):
         }
 
     @classmethod
-    def get_operator_from_dag(
-        cls, dag_fileloc: str, dag_id: str, task_id: str
-    ) -> Operator:
+    def get_operator_from_dag(cls, dag_fileloc: str, dag_id: str, task_id: str) -> Operator:
         """Loads a DAG using DagBag and gets the operator by task_id."""
-
         from airflow.models import DagBag
 
-        dag_bag = DagBag(dag_folder=None)  # Avoid loading all DAGs
+        dag_bag = DagBag(collect_dags=False)  # Avoid loading all DAGs
         dag_bag.process_file(dag_fileloc)
         cls.logger().info("dag_bag: %s", dag_bag)
         cls.logger().info("dags: %s", dag_bag.dags)
@@ -236,12 +231,9 @@ class DeferredIterable(Iterator, ResolveMixin, LoggingMixin):
     @classmethod
     def deserialize(cls, data: dict, version: int):
         """Ensure the object is JSON deserializable."""
-
         trigger_class = import_string(data["trigger"][0])
         trigger = trigger_class(**data["trigger"][1])
-        operator = cls.get_operator_from_dag(
-            data["dag_fileloc"], data["dag_id"], data["task_id"]
-        )
+        operator = cls.get_operator_from_dag(data["dag_fileloc"], data["dag_id"], data["task_id"])
         return DeferredIterable(
             results=data["results"],
             trigger=trigger,
