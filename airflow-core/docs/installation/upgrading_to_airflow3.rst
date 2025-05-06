@@ -70,6 +70,9 @@ Some changes can be automatically fixed. To do so, run the following command:
 
     ruff check dag/ --select AIR301 --fix --preview
 
+
+You can also configure these flags through configuration files. See `Configuring Ruff <Configuring Ruff>`_ for details.
+
 Step 4: Install the Standard Providers
 --------------------------------------
 
