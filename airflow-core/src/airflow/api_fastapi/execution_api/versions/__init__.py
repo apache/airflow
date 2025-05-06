@@ -19,7 +19,10 @@ from __future__ import annotations
 
 from cadwyn import HeadVersion, Version, VersionBundle
 
+from airflow.api_fastapi.execution_api.versions.v2025_04_28 import AddRenderedMapIndexField
+
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2025-04-28", AddRenderedMapIndexField),
     Version("2025-04-11"),
 )

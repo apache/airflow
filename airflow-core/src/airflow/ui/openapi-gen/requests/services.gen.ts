@@ -116,6 +116,8 @@ import type {
   GetTaskInstanceResponse,
   PatchTaskInstanceData,
   PatchTaskInstanceResponse,
+  DeleteTaskInstanceData,
+  DeleteTaskInstanceResponse,
   GetMappedTaskInstancesData,
   GetMappedTaskInstancesResponse,
   GetTaskInstanceDependenciesByMapIndexData,
@@ -1945,6 +1947,40 @@ export class TaskInstanceService {
         403: "Forbidden",
         404: "Not Found",
         409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Task Instance
+   * Delete a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns null Successful Response
+   * @throws ApiError
+   */
+  public static deleteTaskInstance(
+    data: DeleteTaskInstanceData,
+  ): CancelablePromise<DeleteTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });

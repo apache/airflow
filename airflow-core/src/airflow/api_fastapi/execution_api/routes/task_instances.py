@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from typing import Annotated, Any
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import structlog
@@ -55,8 +56,13 @@ from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_task
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
+
+if TYPE_CHECKING:
+    from airflow.sdk.types import Operator
+
 
 router = VersionedAPIRouter()
 
@@ -82,7 +88,10 @@ log = structlog.get_logger(__name__)
     response_model_exclude_unset=True,
 )
 def ti_run(
-    task_instance_id: UUID, ti_run_payload: Annotated[TIEnterRunningPayload, Body()], session: SessionDep
+    task_instance_id: UUID,
+    ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
+    session: SessionDep,
+    request: Request,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -233,6 +242,11 @@ def ti_run(
             or 0
         )
 
+        if dag := request.app.state.dag_bag.get_dag(ti.dag_id):
+            upstream_map_indexes = dict(_get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index))
+        else:
+            upstream_map_indexes = None
+
         context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
@@ -242,6 +256,7 @@ def ti_run(
             connections=[],
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
+            upstream_map_indexes=upstream_map_indexes,
         )
 
         # Only set if they are non-null
@@ -255,6 +270,27 @@ def ti_run(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
+
+
+def _get_upstream_map_indexes(
+    task: Operator, ti_map_index: int
+) -> Iterator[tuple[str, int | list[int] | None]]:
+    for upstream_task in task.upstream_list:
+        map_indexes: int | list[int] | None
+        if not isinstance(upstream_task.task_group, MappedTaskGroup):
+            # regular tasks or non-mapped task groups
+            map_indexes = None
+        elif task.task_group == upstream_task.task_group:
+            # tasks in the same mapped task group
+            # the task should use the map_index as the previous task in the same mapped task group
+            map_indexes = ti_map_index
+        else:
+            # tasks not in the same mapped task group
+            # the upstream mapped task group should combine the xcom as a list and return it
+            mapped_ti_count: int = upstream_task.task_group.get_parse_time_mapped_ti_count()
+            map_indexes = list(range(mapped_ti_count)) if mapped_ti_count is not None else None
+
+        yield upstream_task.task_id, map_indexes
 
 
 @ti_id_router.patch(

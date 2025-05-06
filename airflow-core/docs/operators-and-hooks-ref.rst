@@ -51,13 +51,13 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Operators
      - Guides
 
-   * - :mod:`airflow.provider.standard.operators.bash`
+   * - :mod:`airflow.providers.standard.operators.bash`
      - :doc:`How to use <apache-airflow-providers-standard:operators/bash>`
 
-   * - :mod:`airflow.provider.standard.operators.python`
+   * - :mod:`airflow.providers.standard.operators.python`
      - :doc:`How to use <apache-airflow-providers-standard:operators/python>`
 
-   * - :mod:`airflow.provider.standard.operators.datetime`
+   * - :mod:`airflow.providers.standard.operators.datetime`
      - :doc:`How to use <apache-airflow-providers-standard:operators/datetime>`
 
    * - :mod:`airflow.providers.standard.operators.empty`
