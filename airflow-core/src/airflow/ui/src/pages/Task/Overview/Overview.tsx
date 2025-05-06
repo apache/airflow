@@ -65,7 +65,7 @@ export const Overview = () => {
   );
 
   return (
-    <Box m={4}>
+    <Box m={4} spaceY={4}>
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -77,7 +77,7 @@ export const Overview = () => {
       </Box>
       <HStack flexWrap="wrap">
         <TrendCountButton
-          colorPalette="failed"
+          colorPalette={(failedTaskInstances?.total_entries ?? 0) === 0 ? "green" : "red"}
           count={failedTaskInstances?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTaskInstances?.task_instances ?? []).map((ti) => ({
