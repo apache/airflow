@@ -34,16 +34,8 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
 )
 
-RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
-# we should get more sophisticated logic here in the future, but for now we just check if
-# we use self airflow, vm-based, amd hosted runner as a default
-# TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
-RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
-RUNS_ON_SELF_HOSTED_ASF_RUNNER = '["self-hosted", "asf-runner"]'
-# TODO: when we have it properly set-up with labels we should change it to
-# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
-# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
-SELF_HOSTED_RUNNERS_CPU_COUNT = 8
+PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
+PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
 ANSWER = ""
 
@@ -131,7 +123,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.29.12", "v1.30.8", "v1.31.4", "v1.32.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.30.10", "v1.31.6", "v1.32.3", "v1.33.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -199,8 +191,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.1"
-UV_VERSION = "0.6.17"
+PIP_VERSION = "25.1.1"
+UV_VERSION = "0.7.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -632,8 +624,8 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.26.0"
-HELM_VERSION = "v3.16.4"
+KIND_VERSION = "v0.27.0"
+HELM_VERSION = "v3.17.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -696,7 +688,8 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "3.0.0",
-        "remove-providers": "cloudant",
+        # TODO: bring back common-messaging when we bump airflow to 3.0.1
+        "remove-providers": "cloudant common.messaging",
         "run-tests": "true",
     },
 ]

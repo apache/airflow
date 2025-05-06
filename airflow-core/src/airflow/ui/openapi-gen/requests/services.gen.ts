@@ -116,6 +116,8 @@ import type {
   GetTaskInstanceResponse,
   PatchTaskInstanceData,
   PatchTaskInstanceResponse,
+  DeleteTaskInstanceData,
+  DeleteTaskInstanceResponse,
   GetMappedTaskInstancesData,
   GetMappedTaskInstancesResponse,
   GetTaskInstanceDependenciesByMapIndexData,
@@ -214,6 +216,7 @@ import type {
   GetDependenciesResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
+  DagStatsResponse2,
   StructureDataData,
   StructureDataResponse2,
   GridDataData,
@@ -1950,6 +1953,40 @@ export class TaskInstanceService {
   }
 
   /**
+   * Delete Task Instance
+   * Delete a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns null Successful Response
+   * @throws ApiError
+   */
+  public static deleteTaskInstance(
+    data: DeleteTaskInstanceData,
+  ): CancelablePromise<DeleteTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Get Mapped Task Instances
    * Get list of mapped task instances.
    * @param data The data for the request.
@@ -3551,6 +3588,19 @@ export class DashboardService {
         400: "Bad Request",
         422: "Validation Error",
       },
+    });
+  }
+
+  /**
+   * Dag Stats
+   * Return basic DAG stats with counts of DAGs in various states.
+   * @returns DashboardDagStatsResponse Successful Response
+   * @throws ApiError
+   */
+  public static dagStats(): CancelablePromise<DagStatsResponse2> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dashboard/dag_stats",
     });
   }
 }

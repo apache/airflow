@@ -2915,6 +2915,25 @@ export const useDashboardServiceHistoricalMetrics = <
     ...options,
   });
 /**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceDagStats = <
+  TData = Common.DashboardServiceDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(queryKey),
+    queryFn: () => DashboardService.dagStats() as TData,
+    ...options,
+  });
+/**
  * Structure Data
  * Get Structure Data.
  * @param data The data for the request.
@@ -4719,6 +4738,57 @@ export const useDagServiceDeleteDag = <
     },
     TContext
   >({ mutationFn: ({ dagId }) => DagService.deleteDag({ dagId }) as unknown as Promise<TData>, ...options });
+/**
+ * Delete Task Instance
+ * Delete a task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns null Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceDeleteTaskInstance = <
+  TData = Common.TaskInstanceServiceDeleteTaskInstanceMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex?: number;
+        taskId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex?: number;
+      taskId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, mapIndex, taskId }) =>
+      TaskInstanceService.deleteTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
 /**
  * Delete Pool
  * Delete a pool entry.

@@ -114,13 +114,15 @@ class TypeOfChange(Enum):
 
 
 # defines the precedence order for provider version bumps
-# BREAKING_CHANGE > FEATURE > BUGFIX > MIN_AIRFLOW_VERSION_BUMP > MISC > DOCUMENTATION > SKIP
+# BREAKING_CHANGE > FEATURE > MIN_AIRFLOW_VERSION_BUMP > BUGFIX > MISC > DOCUMENTATION > SKIP
+
+# When MIN_AIRFLOW_VERSION_BUMP is provided, it means that the bump is at least feature
 precedence_order = {
     TypeOfChange.SKIP: 0,
     TypeOfChange.DOCUMENTATION: 1,
     TypeOfChange.MISC: 2,
-    TypeOfChange.MIN_AIRFLOW_VERSION_BUMP: 2.5,
     TypeOfChange.BUGFIX: 3,
+    TypeOfChange.MIN_AIRFLOW_VERSION_BUMP: 3.5,
     TypeOfChange.FEATURE: 4,
     TypeOfChange.BREAKING_CHANGE: 5,
 }
@@ -452,7 +454,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     while True:
         get_console().print(
             "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
-            f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
+            f"change, (m)isc, (s)kip, airflow_min_(v)ersion_bump (q)uit [{display_answers}]?[/] ",
             end="",
         )
         try:
@@ -948,7 +950,7 @@ def _get_changes_classified(
 
         if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
-        elif type_of_change == TypeOfChange.MISC:
+        elif type_of_change == TypeOfChange.MISC or type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
             classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)

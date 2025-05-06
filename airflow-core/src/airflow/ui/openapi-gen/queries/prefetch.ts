@@ -2431,6 +2431,17 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
   });
 /**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(),
+    queryFn: () => DashboardService.dagStats(),
+  });
+/**
  * Structure Data
  * Get Structure Data.
  * @param data The data for the request.

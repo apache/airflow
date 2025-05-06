@@ -319,6 +319,7 @@ class DAGSourceResponse(BaseModel):
     content: Annotated[str | None, Field(title="Content")] = None
     dag_id: Annotated[str, Field(title="Dag Id")]
     version_number: Annotated[int | None, Field(title="Version Number")] = None
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DAGTagCollectionResponse(BaseModel):
@@ -481,6 +482,7 @@ class EventLogResponse(BaseModel):
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
     owner: Annotated[str | None, Field(title="Owner")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+    dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
 
 
 class ExternalLogUrlResponse(BaseModel):
@@ -560,6 +562,11 @@ class JobResponse(BaseModel):
     executor_class: Annotated[str | None, Field(title="Executor Class")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     unixname: Annotated[str | None, Field(title="Unixname")] = None
+    dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
+
+
+class JsonValue(RootModel[Any]):
+    root: Any
 
 
 class PluginImportErrorResponse(BaseModel):
@@ -837,7 +844,7 @@ class VariableBody(BaseModel):
         extra="forbid",
     )
     key: Annotated[str, Field(max_length=250, title="Key")]
-    value: Annotated[str, Field(title="Value")]
+    value: JsonValue
     description: Annotated[str | None, Field(title="Description")] = None
 
 
@@ -886,6 +893,7 @@ class XComResponse(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class XComResponseNative(BaseModel):
@@ -900,6 +908,7 @@ class XComResponseNative(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -915,6 +924,7 @@ class XComResponseString(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 
@@ -1008,6 +1018,7 @@ class BackfillResponse(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
     completed_at: Annotated[datetime | None, Field(title="Completed At")] = None
     updated_at: Annotated[datetime, Field(title="Updated At")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class BulkCreateActionConnectionBody(BaseModel):
@@ -1141,6 +1152,7 @@ class DAGDetailsResponse(BaseModel):
     template_search_path: Annotated[list[str] | None, Field(title="Template Search Path")] = None
     timezone: Annotated[str | None, Field(title="Timezone")] = None
     last_parsed: Annotated[datetime | None, Field(title="Last Parsed")] = None
+    default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int, Field(description="Return max_active_tasks as concurrency.", title="Concurrency")
@@ -1220,6 +1232,7 @@ class DAGRunResponse(BaseModel):
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DAGRunsBatchBody(BaseModel):

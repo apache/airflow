@@ -1748,6 +1748,16 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDashboardServiceHistoricalMetricsKey, ...(queryKey ?? [{ endDate, startDate }])];
+export type DashboardServiceDagStatsDefaultResponse = Awaited<ReturnType<typeof DashboardService.dagStats>>;
+export type DashboardServiceDagStatsQueryResult<
+  TData = DashboardServiceDagStatsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDashboardServiceDagStatsKey = "DashboardServiceDagStats";
+export const UseDashboardServiceDagStatsKeyFn = (queryKey?: Array<unknown>) => [
+  useDashboardServiceDagStatsKey,
+  ...(queryKey ?? []),
+];
 export type StructureServiceStructureDataDefaultResponse = Awaited<
   ReturnType<typeof StructureService.structureData>
 >;
@@ -1933,6 +1943,9 @@ export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
 >;
 export type DagRunServiceDeleteDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.deleteDagRun>>;
 export type DagServiceDeleteDagMutationResult = Awaited<ReturnType<typeof DagService.deleteDag>>;
+export type TaskInstanceServiceDeleteTaskInstanceMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.deleteTaskInstance>
+>;
 export type PoolServiceDeletePoolMutationResult = Awaited<ReturnType<typeof PoolService.deletePool>>;
 export type VariableServiceDeleteVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.deleteVariable>

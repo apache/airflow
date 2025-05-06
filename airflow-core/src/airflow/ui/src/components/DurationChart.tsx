@@ -35,7 +35,6 @@ import { Bar } from "react-chartjs-2";
 import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
 import { pluralize } from "src/utils";
-import { getDuration } from "src/utils/datetime_utils";
 
 ChartJS.register(
   CategoryScale,
@@ -55,6 +54,8 @@ const average = (ctx: PartialEventContext, index: number) => {
 };
 
 type RunResponse = DAGRunResponse | TaskInstanceResponse;
+
+const getDuration = (start: string, end: string | null) => dayjs.duration(dayjs(end).diff(start)).asSeconds();
 
 export const DurationChart = ({
   entries,

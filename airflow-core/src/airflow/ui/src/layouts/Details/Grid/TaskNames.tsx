@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
+import type { MouseEvent } from "react";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -30,6 +31,22 @@ type Props = {
   nodes: Array<GridTask>;
 };
 
+const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+  tasks.forEach((task) => {
+    task.style.backgroundColor = "var(--chakra-colors-blue-subtle)";
+  });
+};
+
+const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+  tasks.forEach((task) => {
+    task.style.backgroundColor = "";
+  });
+};
+
 export const TaskNames = ({ nodes }: Props) => {
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", taskId } = useParams();
@@ -37,13 +54,14 @@ export const TaskNames = ({ nodes }: Props) => {
 
   return nodes.map((node) => (
     <Box
-      _hover={{ bg: "blue.subtle" }}
       bg={node.id === taskId ? "blue.muted" : undefined}
       borderBottomWidth={1}
       borderColor={node.isGroup ? "border.emphasized" : "border.muted"}
-      id={`name-${node.id.replaceAll(".", "-")}`}
+      id={node.id.replaceAll(".", "-")}
       key={node.id}
       maxHeight="20px"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       transition="background-color 0.2s"
     >
       {node.isGroup ? (
