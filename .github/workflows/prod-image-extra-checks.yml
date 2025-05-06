@@ -20,8 +20,8 @@ name: PROD images extra checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      amd-runners:
+        description: "The array of labels (in json form) determining public AMD runners."
         required: true
         type: string
       python-versions:
@@ -33,15 +33,11 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       branch:
-        description: "Branch used to run the CI jobs in (main/v2_*_test)."
+        description: "Branch used to run the CI jobs in (main/v*_*_test)."
         required: true
         type: string
       use-uv:
         description: "Whether to use uv to build the image (true/false)"
-        required: true
-        type: string
-      build-provider-distributions:
-        description: "Whether to build provider distributions (true/false). If false providers are from PyPI"
         required: true
         type: string
       upgrade-to-newer-dependencies:
@@ -66,7 +62,7 @@ jobs:
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      amd-runners: ${{ inputs.amd-runners }}
       build-type: "MySQL Client"
       upload-image-artifact: "false"
       upload-package-artifact: "false"
@@ -78,7 +74,6 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: ${{ inputs.use-uv }}
-      build-provider-distributions: ${{ inputs.build-provider-distributions }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
@@ -87,10 +82,8 @@ jobs:
 
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
-    # Skip testing PIP image on release branches as all images there are built with pip
-    if: ${{ inputs.use-uv == 'true' }}
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      amd-runners: ${{ inputs.amd-runners }}
       build-type: "pip"
       upload-image-artifact: "false"
       upload-package-artifact: "false"
@@ -102,7 +95,6 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: "false"
-      build-provider-distributions: ${{ inputs.build-provider-distributions }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}

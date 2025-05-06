@@ -16,24 +16,45 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Stack, StackSeparator } from "@chakra-ui/react";
-import { useEffect } from "react";
+import { Box, Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
+import { useCallback, useEffect, useState } from "react";
+import { MdError } from "react-icons/md";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import { Accordion } from "../ui";
 import { Row } from "./Row";
+import { isRequired } from "./isParamRequired";
 
 export type FlexibleFormProps = {
   flexibleFormDefaultSection: string;
   initialParamsDict: { paramsDict: ParamsSpec };
   key?: string;
+  setError: (error: boolean) => void;
 };
 
-export const FlexibleForm = ({ flexibleFormDefaultSection, initialParamsDict }: FlexibleFormProps) => {
+export const FlexibleForm = ({
+  flexibleFormDefaultSection,
+  initialParamsDict,
+  setError,
+}: FlexibleFormProps) => {
   const { paramsDict: params, setinitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
+  const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
+
+  const recheckSection = useCallback(() => {
+    sectionError.clear();
+    Object.entries(params).forEach(([, element]) => {
+      if (
+        isRequired(element) &&
+        (element.value === null || element.value === undefined || element.value === "")
+      ) {
+        sectionError.set(element.schema.section ?? flexibleFormDefaultSection, true);
+        setSectionError(sectionError);
+      }
+    });
+  }, [flexibleFormDefaultSection, params, sectionError]);
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
@@ -54,6 +75,24 @@ export const FlexibleForm = ({ flexibleFormDefaultSection, initialParamsDict }: 
     [setParamsDict, setinitialParamDict],
   );
 
+  useEffect(() => {
+    recheckSection();
+    if (sectionError.size === 0) {
+      setError(false);
+    } else {
+      setError(true);
+    }
+  }, [params, setError, recheckSection, sectionError]);
+
+  const onUpdate = (_value?: string, error?: unknown) => {
+    recheckSection();
+    if (!Boolean(error) && sectionError.size === 0) {
+      setError(false);
+    } else {
+      setError(true);
+    }
+  };
+
   return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")
     ? Object.entries(params).map(([, secParam]) => {
         const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
@@ -65,7 +104,14 @@ export const FlexibleForm = ({ flexibleFormDefaultSection, initialParamsDict }: 
 
           return (
             <Accordion.Item key={currentSection} value={currentSection}>
-              <Accordion.ItemTrigger cursor="button">{currentSection}</Accordion.ItemTrigger>
+              <Accordion.ItemTrigger cursor="button">
+                <Text color={sectionError.get(currentSection) ? "red" : undefined}>{currentSection}</Text>
+                {sectionError.get(currentSection) ? (
+                  <Icon color="red" margin="-1">
+                    <MdError />
+                  </Icon>
+                ) : undefined}
+              </Accordion.ItemTrigger>
               <Accordion.ItemContent paddingTop={0}>
                 <Box p={5}>
                   <Stack separator={<StackSeparator />}>
@@ -76,7 +122,7 @@ export const FlexibleForm = ({ flexibleFormDefaultSection, initialParamsDict }: 
                           (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                       )
                       .map(([name]) => (
-                        <Row key={name} name={name} />
+                        <Row key={name} name={name} onUpdate={onUpdate} />
                       ))}
                   </Stack>
                 </Box>

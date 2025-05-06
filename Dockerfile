@@ -54,10 +54,10 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=25.1
+ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=79.0.1
-ARG AIRFLOW_UV_VERSION=0.6.17
+ARG AIRFLOW_SETUPTOOLS_VERSION=80.1.0
+ARG AIRFLOW_UV_VERSION=0.7.2
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -491,7 +491,7 @@ function common::get_airflow_version_specification() {
 function common::get_constraints_location() {
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
-        if  [[ ${AIRFLOW_VERSION} =~ v?2.* && ! ${AIRFLOW_VERSION} =~ .*dev.* ]]; then
+        if  [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
             AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}
         else
             AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}
@@ -1599,12 +1599,12 @@ COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 
-ARG VERSION_SUFFIX_FOR_PYPI=""
+ARG VERSION_SUFFIX=""
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_DISTRIBUTIONS_FROM_CONTEXT=${INSTALL_DISTRIBUTIONS_FROM_CONTEXT} \
     USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS=${USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS} \
-    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
+    VERSION_SUFFIX=${VERSION_SUFFIX}
 
 WORKDIR ${AIRFLOW_HOME}
 

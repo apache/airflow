@@ -144,8 +144,19 @@ def install_local_airflow_with_latest_resolution(config_params: ConfigParams) ->
     )
 
 
-def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
+def freeze_distributions_to_file(
+    config_params: ConfigParams,
+    file: TextIO,
+    distributions_to_exclude_from_constraints: list[str] | None = None,
+) -> None:
     console.print(f"[bright_blue]Freezing constraints to file: {file.name}")
+    if distributions_to_exclude_from_constraints:
+        console.print(
+            "[bright_blue]Excluding distributions from constraints:",
+            distributions_to_exclude_from_constraints,
+        )
+    else:
+        distributions_to_exclude_from_constraints = []
     result = run_command(
         # TODO(potiuk): check if we can change this to uv
         cmd=["pip", "freeze"],
@@ -182,6 +193,8 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
         if "file://" in line:
             continue
         if line.strip() == "":
+            continue
+        if line in distributions_to_exclude_from_constraints:
             continue
         count_lines += 1
         file.write(line)
@@ -300,9 +313,25 @@ def generate_constraints_source_providers(config_params: ConfigParams) -> None:
     """
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(SOURCE_PROVIDERS_CONSTRAINTS_PREFIX)
-        freeze_packages_to_file(config_params, constraints_file)
+        freeze_distributions_to_file(config_params, constraints_file)
     download_latest_constraint_file(config_params)
     diff_constraints(config_params)
+
+
+def get_locally_build_distribution_specs() -> list[str]:
+    """
+    Get all locally build distribution specification.
+
+    This is used to exclude them from the constraints file.
+    return: list of distributionss (distribution==version) to exclude from the constraints file.
+    """
+    all_distribution_specs = []
+    all_distributions_in_dist = AIRFLOW_DIST_PATH.glob("apache_airflow_providers_*.whl")
+    for dist_file_path in all_distributions_in_dist:
+        version = dist_file_path.name.split("-")[1]
+        distribution_name = dist_file_path.name.split("-")[0].replace("_", "-")
+        all_distribution_specs.append(f"{distribution_name}=={version}")
+    return all_distribution_specs
 
 
 def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
@@ -332,9 +361,12 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
         check=True,
     )
     console.print("[success]Installed airflow with PyPI providers with eager upgrade.")
+    distributions_to_exclude_from_constraints = get_locally_build_distribution_specs()
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(PYPI_PROVIDERS_CONSTRAINTS_PREFIX)
-        freeze_packages_to_file(config_params, constraints_file)
+        freeze_distributions_to_file(
+            config_params, constraints_file, distributions_to_exclude_from_constraints
+        )
     download_latest_constraint_file(config_params)
     diff_constraints(config_params)
 
@@ -352,7 +384,7 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     console.print("[success]Installed airflow with [all] extras only with eager upgrade.")
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(NO_PROVIDERS_CONSTRAINTS_PREFIX)
-        freeze_packages_to_file(config_params, constraints_file)
+        freeze_distributions_to_file(config_params, constraints_file)
     download_latest_constraint_file(config_params)
     diff_constraints(config_params)
 

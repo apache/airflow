@@ -96,6 +96,7 @@ def get_task_instance(
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
+        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
     )
     task_instance = session.scalar(query)
 
@@ -171,6 +172,7 @@ def get_mapped_task_instances(
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
         .options(joinedload(TI.dag_version))
+        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -238,16 +240,14 @@ def get_task_instance_dependencies(
 ) -> TaskDependencyCollectionResponse:
     """Get dependencies blocking task from getting scheduled."""
     query = select(TI).where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-
-    if map_index == -1:
-        query = query.where(TI.map_index == -1)
-    else:
-        query = query.where(TI.map_index == map_index)
+    query = query.where(TI.map_index == map_index)
 
     result = session.execute(query).one_or_none()
 
     if result is None:
-        error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
+        error_message = (
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     ti = result[0]
@@ -298,6 +298,7 @@ def get_task_instance_tries(
                 orm_object.map_index == map_index,
             )
             .options(joinedload(orm_object.dag_version))
+            .options(joinedload(orm_object.dag_run).options(joinedload(DagRun.dag_model)))
         )
         return query
 
@@ -358,6 +359,7 @@ def get_mapped_task_instance(
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
+        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
     )
     task_instance = session.scalar(query)
 
@@ -431,7 +433,13 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
-    query = select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(joinedload(TI.dag_version))
+    query = (
+        select(TI)
+        .join(TI.dag_run)
+        .outerjoin(TI.dag_version)
+        .options(joinedload(TI.dag_version))
+        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+    )
 
     if dag_id != "~":
         dag = request.app.state.dag_bag.get_dag(dag_id)
@@ -555,7 +563,9 @@ def get_task_instances_batch(
         session=session,
     )
     task_instance_select = task_instance_select.options(
-        joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
+        joinedload(TI.rendered_task_instance_fields),
+        joinedload(TI.task_instance_note),
+        joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)),
     )
 
     task_instances = session.scalars(task_instance_select)
@@ -742,10 +752,7 @@ def _patch_ti_validate_request(
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
-    if map_index == -1:
-        query = query.where(or_(TI.map_index == -1, TI.map_index is None))
-    else:
-        query = query.where(TI.map_index == map_index)
+    query = query.where(TI.map_index == map_index)
 
     try:
         ti = session.scalar(query)
@@ -755,7 +762,9 @@ def _patch_ti_validate_request(
             "Multiple task instances found. As the TI is mapped, add the map_index value to the URL",
         )
 
-    err_msg_404 = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
+    err_msg_404 = (
+        f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+    )
     if ti is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
 
@@ -916,3 +925,33 @@ def patch_task_instance(
                 session.commit()
 
     return TaskInstanceResponse.model_validate(ti)
+
+
+@task_instances_router.delete(
+    task_instances_prefix + "/{task_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def delete_task_instance(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
+    map_index: int = -1,
+) -> None:
+    """Delete a task instance."""
+    query = select(TI).where(
+        TI.dag_id == dag_id,
+        TI.run_id == dag_run_id,
+        TI.task_id == task_id,
+    )
+
+    query = query.where(TI.map_index == map_index)
+    task_instance = session.scalar(query)
+    if task_instance is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
+
+    session.delete(task_instance)

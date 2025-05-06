@@ -106,11 +106,13 @@ EXAMPLE_TEMPLATE = {
 EXAMPLE_CONTEXT = {
     "ti": MagicMock(
         dag_id="dag_id",
-        dag_run=MagicMock(run_after=dt.datetime(2024, 11, 11), logical_date=dt.datetime(2024, 11, 11)),
         task_id="task_id",
         try_number=1,
         map_index=1,
         logical_date=dt.datetime(2024, 11, 11),
+        dag_run=MagicMock(
+            run_after=dt.datetime(2024, 11, 11), logical_date=dt.datetime(2024, 11, 11), clear_number=0
+        ),
     )
 }
 OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG = {
@@ -142,6 +144,9 @@ OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
     "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.rootParentJobName": "dag_id",
+    "spark.openlineage.rootParentJobNamespace": "default",
+    "spark.openlineage.rootParentRunId": "01931885-2800-799d-8041-88a263ffa0d8",
 }
 
 
@@ -1034,6 +1039,9 @@ def test_inject_openlineage_properties_into_dataproc_workflow_template_parent_in
                         "spark.openlineage.parentJobName": "dag_id.task_id",
                         "spark.openlineage.parentJobNamespace": "default",
                         "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                        "spark.openlineage.rootParentJobName": "dag_id",
+                        "spark.openlineage.rootParentJobNamespace": "default",
+                        "spark.openlineage.rootParentRunId": "01931885-2800-799d-8041-88a263ffa0d8",
                     },
                 },
             },

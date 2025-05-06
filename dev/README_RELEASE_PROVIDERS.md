@@ -419,7 +419,7 @@ svn commit -m "delete old providers"
 
 In order to publish release candidate to PyPI you just need to build and release packages.
 The packages should however contain the rcN suffix in the version file name but not internally in the package,
-so you need to use `--version-suffix-for-pypi` switch to prepare those packages.
+so you need to use `--version-suffix` switch to prepare those packages.
 Note that these are different packages than the ones used for SVN upload
 though they should be generated from the same sources.
 
@@ -430,14 +430,14 @@ you should clean up dist folder before generating the packages, so you will only
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 breeze release-management prepare-provider-distributions  --include-removed-providers \
- --version-suffix-for-pypi rc1 --distribution-format both
+ --version-suffix rc1 --distribution-format both
 ```
 
 If you only build few packages, run:
 
 ```shell script
 breeze release-management prepare-provider-distributions \
---version-suffix-for-pypi rc1 --distribution-format both PACKAGE PACKAGE ....
+--version-suffix rc1 --distribution-format both PACKAGE PACKAGE ....
 ```
 
 Alternatively, if you have set the environment variable: `DISTRIBUTIONS_LIST` above, just run the command:
@@ -518,7 +518,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build apache-airflow-providers all-providers --include-removed-providers
+breeze build-docs --clean-build apache-airflow-providers all-providers --include-removed-providers --include-commits
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -529,20 +529,20 @@ If we want to just release some providers you can release them using package nam
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
+breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build --include-commits
 ```
 
 Alternatively, if you have set the environment variable: `DISTRIBUTIONS_LIST` above, just run the command:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build
+breeze build-docs --clean-build --include-commits
 ```
 
 Or using `--distributions-list` argument:
 
 ```shell script
-breeze build-docs --distributions-list PACKAGE1,PACKAGE2
+breeze build-docs --distributions-list PACKAGE1,PACKAGE2 --include-commits
 ```
 
 - Now you can preview the documentation.
