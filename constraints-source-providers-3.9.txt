@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-05T16:49:53.176690
+# This constraints file was automatically generated on 2025-05-06T11:02:59.956427
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -222,7 +222,7 @@ google-api-core==2.24.2
 google-api-python-client==2.169.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
-google-auth==2.39.0
+google-auth==2.40.0
 google-cloud-aiplatform==1.91.0
 google-cloud-alloydb==0.4.5
 google-cloud-appengine-logging==1.6.1
@@ -354,7 +354,7 @@ libcst==1.7.0
 limits==4.2
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.4.0
+looker-sdk==25.6.0
 lxml==5.3.2
 lz4==4.4.4
 markdown-it-py==3.0.0
@@ -575,7 +575,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.15.0
-snowflake-snowpark-python==1.31.0
+snowflake-snowpark-python==1.31.1
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.7
@@ -647,7 +647,7 @@ types-cffi==1.17.0.20250326
 types-croniter==6.0.0.20250411
 types-docutils==0.21.0.20241128
 types-paramiko==3.5.0.20240928
-types-protobuf==6.30.2.20250503
+types-protobuf==6.30.2.20250506
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
@@ -675,7 +675,7 @@ uvloop==0.21.0
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.31.0
+virtualenv==20.31.1
 watchfiles==1.0.5
 watchtower==3.4.0
 wcwidth==0.2.13
