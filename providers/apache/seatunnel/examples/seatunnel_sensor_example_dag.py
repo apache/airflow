@@ -1,3 +1,21 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from datetime import datetime, timedelta
 import re
 from airflow import DAG
@@ -19,12 +37,12 @@ default_args = {
 def extract_job_id(**kwargs):
     # 从XCom中获取SeaTunnel任务的输出
     seatunnel_output = kwargs['ti'].xcom_pull(task_ids='start_seatunnel_job')
-    
+
     # 使用正则表达式寻找job_id，这个模式需要根据实际输出格式调整
     # 示例正则表达式，假设job_id是以"Job id:"或"Job ID:"或类似格式出现的
     # 也可能是"Job xxx successfully started"格式
     job_id_pattern = r'[Jj]ob\s+(?:[Ii][Dd]:\s*)?([a-zA-Z0-9-]+)'
-    
+
     match = re.search(job_id_pattern, seatunnel_output)
     if match:
         job_id = match.group(1)
@@ -44,7 +62,7 @@ with DAG(
     start_date=datetime.now() - timedelta(days=1),
     tags=['example', 'seatunnel', 'sensor'],
 ) as dag:
-    
+
     # First, we start a SeaTunnel job
     # Note: This example works with Zeta engine only, as it exposes a REST API
     start_job = SeaTunnelOperator(
@@ -81,13 +99,13 @@ sink {
         engine='zeta',
         seatunnel_conn_id='seatunnel_default',
     )
-    
+
     # 添加任务来提取job_id
     extract_id = PythonOperator(
         task_id='extract_job_id',
         python_callable=extract_job_id,
     )
-    
+
     # 使用提取的job_id来监控
     wait_for_job = SeaTunnelJobSensor(
         task_id='wait_for_job_completion',
@@ -97,6 +115,6 @@ sink {
         poke_interval=10,  # Check every 10 seconds
         timeout=600,  # Timeout after 10 minutes
     )
-    
+
     # Define the task dependency
     start_job >> extract_id >> wait_for_job
