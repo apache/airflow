@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field, field_validator
+from pydantic import Field, NonNegativeInt, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.sdk.execution_time.secrets_masker import redact
@@ -42,6 +42,13 @@ class TaskOutletAssetReference(StrictBaseModel):
     updated_at: datetime
 
 
+class LastAssetEventResponse(BaseModel):
+    """Last asset event response serializer."""
+
+    id: NonNegativeInt | None = None
+    timestamp: datetime | None = None
+
+
 class AssetResponse(BaseModel):
     """Asset serializer for responses."""
 
@@ -55,6 +62,7 @@ class AssetResponse(BaseModel):
     consuming_dags: list[DagScheduleAssetReference]
     producing_tasks: list[TaskOutletAssetReference]
     aliases: list[AssetAliasResponse]
+    last_asset_event: LastAssetEventResponse | None = None
 
     @field_validator("extra", mode="after")
     @classmethod

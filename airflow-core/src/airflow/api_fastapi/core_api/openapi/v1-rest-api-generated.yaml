@@ -7148,6 +7148,10 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+        last_asset_event:
+          anyOf:
+          - $ref: '#/components/schemas/LastAssetEventResponse'
+          - type: 'null'
       type: object
       required:
       - id
@@ -9221,6 +9225,23 @@ components:
       title: JobResponse
       description: Job serializer for responses.
     JsonValue: {}
+    LastAssetEventResponse:
+      properties:
+        id:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Id
+        timestamp:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp
+      type: object
+      title: LastAssetEventResponse
+      description: Last asset event response serializer.
     PatchTaskInstanceBody:
       properties:
         new_state:
