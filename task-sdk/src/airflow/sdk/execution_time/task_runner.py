@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import functools
 import os
@@ -133,6 +134,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     is_mapped: bool | None = None
     """True if the original task was mapped."""
+
+    rendered_map_index: str | None = None
 
     def __rich_repr__(self):
         yield "id", self.id
@@ -831,7 +834,17 @@ def run(
                 ti.state = state = TaskInstanceState.FAILED
                 return state, msg, error
 
-            result = _execute_task(context, ti, log)
+            try:
+                result = _execute_task(context, ti, log)
+            except Exception:
+                import jinja2
+
+                # If the task failed, swallow rendering error so it doesn't mask the main error.
+                with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                    ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
+                raise
+            else:  # If the task succeeded, render normally to let rendering error bubble up.
+                ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -851,6 +864,7 @@ def run(
         msg = TaskState(
             state=TaskInstanceState.SKIPPED,
             end_date=datetime.now(tz=timezone.utc),
+            rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.SKIPPED
     except AirflowRescheduleException as reschedule:
@@ -868,6 +882,7 @@ def run(
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
+            rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.FAILED
         error = e
@@ -884,6 +899,7 @@ def run(
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
+            rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.FAILED
         error = e
@@ -915,6 +931,7 @@ def _handle_current_task_success(
         end_date=datetime.now(tz=timezone.utc),
         task_outlets=task_outlets,
         outlet_events=outlet_events,
+        rendered_map_index=ti.rendered_map_index,
     )
     return msg, TaskInstanceState.SUCCESS
 
@@ -925,7 +942,9 @@ def _handle_current_task_failed(
     end_date = datetime.now(tz=timezone.utc)
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
-    return TaskState(state=TaskInstanceState.FAILED, end_date=end_date), TaskInstanceState.FAILED
+    return TaskState(
+        state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
+    ), TaskInstanceState.FAILED
 
 
 def _handle_trigger_dag_run(
@@ -951,11 +970,19 @@ def _handle_trigger_dag_run(
                 "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
                 dag_id=drte.trigger_dag_id,
             )
-            msg = TaskState(state=TaskInstanceState.SKIPPED, end_date=datetime.now(tz=timezone.utc))
+            msg = TaskState(
+                state=TaskInstanceState.SKIPPED,
+                end_date=datetime.now(tz=timezone.utc),
+                rendered_map_index=ti.rendered_map_index,
+            )
             state = TaskInstanceState.SKIPPED
         else:
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
-            msg = TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=timezone.utc))
+            msg = TaskState(
+                state=TaskInstanceState.FAILED,
+                end_date=datetime.now(tz=timezone.utc),
+                rendered_map_index=ti.rendered_map_index,
+            )
             state = TaskInstanceState.FAILED
 
         return msg, state
@@ -1001,7 +1028,11 @@ def _handle_trigger_dag_run(
                 log.error(
                     "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
                 )
-                msg = TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=timezone.utc))
+                msg = TaskState(
+                    state=TaskInstanceState.FAILED,
+                    end_date=datetime.now(tz=timezone.utc),
+                    rendered_map_index=ti.rendered_map_index,
+                )
                 state = TaskInstanceState.FAILED
                 return msg, state
             if comms_msg.state in drte.allowed_states:
@@ -1104,6 +1135,16 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
     return result
+
+
+def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
+    """Render named map index if the DAG author defined map_index_template at the task level."""
+    if (template := context.get("map_index_template")) is None:
+        return None
+    jinja_env = ti.task.dag.get_template_env()
+    rendered_map_index = jinja_env.from_string(template).render(context)
+    log.info("Map index rendered as %s", rendered_map_index)
+    return rendered_map_index
 
 
 def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):

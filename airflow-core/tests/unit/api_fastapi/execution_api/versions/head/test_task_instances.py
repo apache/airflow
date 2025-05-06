@@ -44,6 +44,7 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
+DEFAULT_RENDERED_MAP_INDEX = "test rendered map index"
 
 
 def _create_asset_aliases(session, num: int = 2) -> None:
@@ -178,6 +179,7 @@ class TestTIRunState:
                 "consumed_asset_events": [],
             },
             "task_reschedule_count": 0,
+            "upstream_map_indexes": None,
             "max_tries": max_tries,
             "should_retry": should_retry,
             "variables": [],
@@ -256,6 +258,7 @@ class TestTIRunState:
         assert response.json() == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
+            "upstream_map_indexes": None,
             "max_tries": 0,
             "should_retry": False,
             "variables": [],
@@ -317,6 +320,7 @@ class TestTIRunState:
         assert response.json() == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
+            "upstream_map_indexes": None,
             "max_tries": 0,
             "should_retry": False,
             "variables": [],
@@ -464,6 +468,39 @@ class TestTIUpdateState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == expected_state
         assert ti.end_date == end_date
+
+    @pytest.mark.parametrize(
+        ("state", "end_date", "expected_state", "rendered_map_index"),
+        [
+            (State.SUCCESS, DEFAULT_END_DATE, State.SUCCESS, DEFAULT_RENDERED_MAP_INDEX),
+            (State.FAILED, DEFAULT_END_DATE, State.FAILED, DEFAULT_RENDERED_MAP_INDEX),
+            (State.SKIPPED, DEFAULT_END_DATE, State.SKIPPED, DEFAULT_RENDERED_MAP_INDEX),
+        ],
+    )
+    def test_ti_update_state_to_terminal_with_rendered_map_index(
+        self, client, session, create_task_instance, state, end_date, expected_state, rendered_map_index
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_terminal_with_rendered_map_index",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": state, "end_date": end_date.isoformat(), "rendered_map_index": rendered_map_index},
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == expected_state
+        assert ti.end_date == end_date
+        assert ti.rendered_map_index == rendered_map_index
 
     @pytest.mark.parametrize(
         "task_outlets",

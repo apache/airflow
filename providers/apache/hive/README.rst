@@ -54,9 +54,8 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``hmsclient``                            ``>=0.1.0``
-``pandas``                               ``>=2.1.2,<2.2``
 ``pyhive[hive_pure_sasl]``               ``>=0.7.0``
 ``thrift``                               ``>=0.11.0``
 ``jmespath``                             ``>=0.7.0``
