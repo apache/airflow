@@ -34,6 +34,12 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 3.0.1
+~~~~~~~~~~~~~
+
+  * The ``ARM`` image is not experimental any more - we are running the ARM tests regularly in our CI. The
+    ``MySQL`` support for `ARM` images however is still experimental.
+
 Airflow 3.0
 ~~~~~~~~~~~
 
