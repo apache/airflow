@@ -376,7 +376,15 @@ def get_dag_runs(
         limit=limit,
         session=session,
     )
-    dag_runs = session.scalars(dag_run_select)
+    dag_runs = session.scalars(dag_run_select).all()
+
+    if limit.value is not None:
+        limit.value = len(dag_runs)
+
+    if offset.value is not None:
+        offset.value = 0
+
+    dag_runs = dag_runs[offset.value:limit.value]
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,

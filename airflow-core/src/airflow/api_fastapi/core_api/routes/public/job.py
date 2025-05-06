@@ -130,7 +130,13 @@ def get_jobs(
     if is_alive is not None:
         jobs = [job for job in jobs if job.is_alive()]
 
-    total_entries = len(jobs)
+    if limit.value is not None:
+        limit.value = len(jobs)
+
+    if offset.value is not None:
+        offset.value = 0    
+
+    jobs = jobs[offset.value:limit.value]
 
     return JobCollectionResponse(
         jobs=jobs,
