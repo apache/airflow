@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Heading, Flex, HStack, Skeleton } from "@chakra-ui/react";
+import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { FiDatabase } from "react-icons/fi";
 
@@ -40,7 +41,6 @@ type AssetEventProps = {
   readonly assetId?: number;
   readonly data?: AssetEventCollectionResponse;
   readonly isLoading?: boolean;
-  readonly [key: string]: unknown;
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;
   readonly tableUrlState?: TableState;
@@ -56,7 +56,7 @@ export const AssetEvents = ({
   tableUrlState,
   title,
   ...rest
-}: AssetEventProps) => {
+}: AssetEventProps & BoxProps) => {
   const assetSortOptions = createListCollection({
     items: [
       { label: "Newest first", value: "-timestamp" },
