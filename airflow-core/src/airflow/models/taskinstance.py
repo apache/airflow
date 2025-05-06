@@ -310,7 +310,6 @@ def clear_task_instances(
             session.merge(ti)
 
     if dag_run_state is not False and tis:
-        from airflow.models.dag import DagModel
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
         run_ids_by_dag_id = defaultdict(set)
@@ -338,14 +337,7 @@ def clear_task_instances(
                         f"Serialized dag not found for dag run. dag_id={dr.dag_id} run_id={dr.run_id}"
                     )
                 if not dr_dag.disable_bundle_versioning:
-                    if dr.dag_model:
-                        bundle_version = dr.dag_model.bundle_version
-                    else:
-                        bundle_version = session.scalar(
-                            select(DagModel.bundle_version).where(
-                                DagModel.dag_id == dr_dag.dag_id,
-                            )
-                        )
+                    bundle_version = dr.dag_model.bundle_version
                     if bundle_version is not None:
                         dr.bundle_version = bundle_version
                 if dag_run_state == DagRunState.QUEUED:
