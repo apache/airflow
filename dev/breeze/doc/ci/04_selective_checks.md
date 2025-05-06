@@ -196,14 +196,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | helm-version                                            | Which Helm version to use for tests                                                                    | v3.15.3                                 |      |
 | include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                               | false                                   |      |
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                      | Providers[\amazon\] Providers\[google\] | *    |
-| is-airflow-runner                                       | Whether runner used is an airflow or infrastructure runner (true if airflow/false if infrastructure)   | false                                   |      |
-| is-amd-runner                                           | Whether runner used is an AMD one                                                                      | true                                    |      |
-| is-arm-runner                                           | Whether runner used is an ARM one                                                                      | false                                   |      |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                          | false                                   |      |
-| is-k8s-runner                                           | Whether the build runs on our k8s infrastructure                                                       | false                                   |      |
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                             | false                                   |      |
-| is-self-hosted-runner                                   | Whether the runner is self-hosted                                                                      | false                                   |      |
-| is-vm-runner                                            | Whether the runner uses VM to run                                                                      | true                                    |      |
 | kind-version                                            | Which Kind version to use for tests                                                                    | v0.24.0                                 |      |
 | kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string   | 3.9-v1.25.2 3.10-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                 | \['v1.25.2'\]                           |      |
@@ -234,11 +228,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-tests                                               | Whether unit tests should be run ("true"/"false")                                                      | true                                    |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                        | true                                    |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                | true                                    |      |
-| runs-on-as-json-default                                 | List of labels assigned for runners for that build for default runs for that build (as string)         | \["ubuntu-22.04"\]                      |      |
-| runs-on-as-json-docs-build                              | List of labels assigned for runners for that build for ddcs build (as string)                          | \["ubuntu-22.04"\]                      |      |
-| runs-on-as-json-self-hosted                             | List of labels assigned for runners for that build for self hosted runners                             | \["self-hosted", "Linux", "X64"\]       |      |
-| runs-on-as-json-self-hosted-asf                         | List of labels assigned for runners for that build for ASF self hosted runners                         | \["self-hosted", "Linux", "X64"\]       |      |
-| runs-on-as-json-public                                  | List of labels assigned for runners for that build for public runners                                  | \["ubuntu-22.04"\]                      |      |
+| amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                              | \["ubuntu-22.04"\]                      |      |
+| arm-runners                                             | List of labels assigned for runners for that build for public ARM runners                              | \["ubuntu-22.04-arm"\]                  |      |
 | selected-providers-list-as-string                       | List of providers affected when they are selectively affected.                                         | airbyte http                            | *    |
 | skip-pre-commits                                        | Which pre-commits should be skipped during the static-checks run                                       | flynt,identity                          |      |
 | skip-providers-tests                                    | When provider tests should be skipped (on non-main branch or when no provider changes detected)        | true                                    |      |
@@ -329,8 +320,6 @@ This table summarizes the labels you can use on PRs to control the selective che
 | latest versions only             | *-versions-*, *-versions-*       | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones. |
 | non committer build              | is-committer-build               | If set, the scripts used for images are used from target branch for committers.           |
 | upgrade to newer dependencies    | upgrade-to-newer-dependencies    | If set to true (default false) then dependencies in the CI image build are upgraded.      |
-| use public runners               | runs-on-as-json-public           | Force using public runners as default runners.                                            |
-| use self-hosted runners          | runs-on-as-json-default          | Force using self-hosted runners as default runners.                                       |
 
 -----
 

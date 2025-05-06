@@ -1193,11 +1193,17 @@ class TestHandleRequest:
                 id="patch_task_instance_to_skipped",
             ),
             pytest.param(
-                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                RetryTask(
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test retry task"
+                ),
                 b"",
                 "task_instances.retry",
                 (),
-                {"id": TI_ID, "end_date": timezone.parse("2024-10-31T12:00:00Z")},
+                {
+                    "id": TI_ID,
+                    "end_date": timezone.parse("2024-10-31T12:00:00Z"),
+                    "rendered_map_index": "test retry task",
+                },
                 "",
                 id="up_for_retry",
             ),
@@ -1317,7 +1323,9 @@ class TestHandleRequest:
                 id="get_asset_events_by_asset_alias",
             ),
             pytest.param(
-                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                SucceedTask(
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
+                ),
                 b"",
                 "task_instances.succeed",
                 (),
@@ -1326,6 +1334,7 @@ class TestHandleRequest:
                     "outlet_events": None,
                     "task_outlets": None,
                     "when": timezone.parse("2024-10-31T12:00:00Z"),
+                    "rendered_map_index": "test success task",
                 },
                 "",
                 id="succeed_task",

@@ -319,6 +319,7 @@ class DAGSourceResponse(BaseModel):
     content: Annotated[str | None, Field(title="Content")] = None
     dag_id: Annotated[str, Field(title="Dag Id")]
     version_number: Annotated[int | None, Field(title="Version Number")] = None
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DAGTagCollectionResponse(BaseModel):
@@ -481,6 +482,7 @@ class EventLogResponse(BaseModel):
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
     owner: Annotated[str | None, Field(title="Owner")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+    dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
 
 
 class ExternalLogUrlResponse(BaseModel):
@@ -560,6 +562,7 @@ class JobResponse(BaseModel):
     executor_class: Annotated[str | None, Field(title="Executor Class")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     unixname: Annotated[str | None, Field(title="Unixname")] = None
+    dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
 
 
 class JsonValue(RootModel[Any]):
@@ -903,6 +906,7 @@ class XComResponse(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class XComResponseNative(BaseModel):
@@ -917,6 +921,7 @@ class XComResponseNative(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -932,6 +937,7 @@ class XComResponseString(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 

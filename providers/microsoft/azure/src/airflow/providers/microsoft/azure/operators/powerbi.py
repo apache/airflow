@@ -23,7 +23,11 @@ from typing import TYPE_CHECKING, Any
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
-from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
+from airflow.providers.microsoft.azure.triggers.powerbi import (
+    PowerBIDatasetListTrigger,
+    PowerBITrigger,
+    PowerBIWorkspaceListTrigger,
+)
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
@@ -164,6 +168,144 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                 context=context,
                 key=f"{self.task_id}.powerbi_dataset_refresh_status",
                 value=event["dataset_refresh_status"],
+            )
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+
+
+class PowerBIWorkspaceListOperator(BaseOperator):
+    """
+    Gets a list of workspaces where the service principal from the connection is assigned as admin.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PowerBIWorkspaceListOperator`
+
+    :param conn_id: The connection Id to connect to PowerBI.
+    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter`. Default is 1 week (60s * 60m * 24h * 7d).
+        When no timeout is specified or set to None then there is no HTTP timeout on each request.
+    :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+        You can pass an enum named APIVersion which has 2 possible members v1 and beta,
+        or you can pass a string as `v1.0` or `beta`.
+    """
+
+    def __init__(
+        self,
+        *,
+        conn_id: str = PowerBIHook.default_conn_name,
+        timeout: float = 60 * 60 * 24 * 7,
+        proxies: dict | None = None,
+        api_version: APIVersion | str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
+        self.conn_id = conn_id
+        self.timeout = timeout
+
+    @property
+    def proxies(self) -> dict | None:
+        return self.hook.proxies
+
+    @property
+    def api_version(self) -> str | None:
+        return self.hook.api_version
+
+    def execute(self, context: Context):
+        """List visible PowerBI Workspaces."""
+        self.defer(
+            trigger=PowerBIWorkspaceListTrigger(
+                conn_id=self.conn_id,
+                timeout=self.timeout,
+                proxies=self.proxies,
+                api_version=self.api_version,
+            ),
+            method_name=self.execute_complete.__name__,
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> Any:
+        """
+        Return immediately - callback for when the trigger fires.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event:
+            self.xcom_push(
+                context=context,
+                key=f"{self.task_id}.powerbi_workspace_ids",
+                value=event["workspace_ids"],
+            )
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+
+
+class PowerBIDatasetListOperator(BaseOperator):
+    """
+    Gets a list of datasets where the service principal from the connection is assigned as admin.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PowerBIDatasetListOperator`
+
+    :param conn_id: The connection Id to connect to PowerBI.
+    :param group_id: The group Id to list discoverable datasets.
+    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter`. Default is 1 week (60s * 60m * 24h * 7d).
+        When no timeout is specified or set to None then there is no HTTP timeout on each request.
+    :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+        You can pass an enum named APIVersion which has 2 possible members v1 and beta,
+        or you can pass a string as `v1.0` or `beta`.
+    """
+
+    def __init__(
+        self,
+        *,
+        group_id: str,
+        conn_id: str = PowerBIHook.default_conn_name,
+        timeout: float = 60 * 60 * 24 * 7,
+        proxies: dict | None = None,
+        api_version: APIVersion | str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
+        self.conn_id = conn_id
+        self.group_id = group_id
+        self.timeout = timeout
+
+    @property
+    def proxies(self) -> dict | None:
+        return self.hook.proxies
+
+    @property
+    def api_version(self) -> str | None:
+        return self.hook.api_version
+
+    def execute(self, context: Context):
+        """List visible PowerBI datasets within group (Workspace)."""
+        self.defer(
+            trigger=PowerBIDatasetListTrigger(
+                conn_id=self.conn_id,
+                timeout=self.timeout,
+                proxies=self.proxies,
+                api_version=self.api_version,
+                group_id=self.group_id,
+            ),
+            method_name=self.execute_complete.__name__,
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> Any:
+        """
+        Return immediately - callback for when the trigger fires.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event:
+            self.xcom_push(
+                context=context,
+                key=f"{self.task_id}.powerbi_dataset_ids",
+                value=event["dataset_ids"],
             )
             if event["status"] == "error":
                 raise AirflowException(event["message"])
