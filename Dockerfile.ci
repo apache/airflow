@@ -1121,7 +1121,7 @@ function start_api_server_with_examples(){
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
-    export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+    export AIRFLOW__API__EXPOSE_CONFIG=True
     echo
     echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
     echo
