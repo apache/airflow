@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 
@@ -27,7 +28,6 @@ import {
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
-import { queryClient } from "src/queryClient";
 
 import Time from "../Time";
 import { Button, ProgressBar } from "../ui";
@@ -45,17 +45,18 @@ const buttonProps = {
   variant: "outline",
 } satisfies ButtonProps;
 
-const onSuccess = async () => {
-  await queryClient.invalidateQueries({
-    queryKey: [useBackfillServiceListBackfills1Key],
-  });
-};
-
 const BackfillBanner = ({ dagId }: Props) => {
   const { data, isLoading } = useBackfillServiceListBackfills1({
     dagId,
   });
   const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
+
+  const queryClient = useQueryClient();
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: [useBackfillServiceListBackfills1Key],
+    });
+  };
 
   const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({ onSuccess });
   const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({

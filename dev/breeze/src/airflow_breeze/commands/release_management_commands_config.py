@@ -84,7 +84,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--distribution-format",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--use-local-hatch",
             ],
         }
@@ -102,7 +102,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--distribution-format",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--use-local-hatch",
             ],
         }
@@ -112,7 +112,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--distribution-format",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--use-local-hatch",
             ],
         }
@@ -232,8 +232,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distributions-list-file",
                 "--skip-deleting-generated-files",
                 "--skip-tag-check",
-                "--version-suffix-for-pypi",
-                "--version-suffix-for-local",
+                "--version-suffix",
                 "--distributions-list",
             ],
         }
@@ -268,7 +267,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Python client preparation flags",
             "options": [
                 "--distribution-format",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--use-local-hatch",
                 "--python-client-repo",
                 "--only-publish-build-scripts",
@@ -281,7 +280,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Generate constraints flags",
             "options": [
                 "--airflow-constraints-mode",
-                "--chicken-egg-providers",
                 "--github-repository",
                 "--python",
                 "--use-uv",
@@ -300,19 +298,47 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze release-management release-prod-images": [
         {
-            "name": "Release PROD IMAGE flags",
+            "name": "Select images to release",
             "options": [
                 "--airflow-version",
-                "--chicken-egg-providers",
-                "--commit-sha",
-                "--dockerhub-repo",
-                "--limit-python",
-                "--limit-platform",
-                "--skip-latest",
-                "--include-pre-release",
+                "--python",
+                "--platform",
                 "--slim-images",
             ],
-        }
+        },
+        {
+            "name": "Prepare digest only images",
+            "options": [
+                "--metadata-folder",
+            ],
+        },
+        {
+            "name": "Additional options for release",
+            "options": [
+                "--commit-sha",
+                "--dockerhub-repo",
+                "--include-pre-release",
+                "--skip-latest",
+            ],
+        },
+    ],
+    "breeze release-management merge-prod-images": [
+        {
+            "name": "Select images to merge",
+            "options": [
+                "--airflow-version",
+                "--python",
+                "--slim-images",
+                "--metadata-folder",
+            ],
+        },
+        {
+            "name": "Extra options for merge",
+            "options": [
+                "--skip-latest",
+                "--dockerhub-repo",
+            ],
+        },
     ],
     "breeze release-management generate-issue-content-core": [
         {
@@ -378,7 +404,10 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         }
     ],
     "breeze release-management generate-providers-metadata": [
-        {"name": "Generate providers metadata flags", "options": ["--refresh-constraints", "--python"]}
+        {
+            "name": "Generate providers metadata flags",
+            "options": ["--refresh-constraints", "--github-token", "--python"],
+        }
     ],
     "breeze release-management start-rc-process": [
         {
