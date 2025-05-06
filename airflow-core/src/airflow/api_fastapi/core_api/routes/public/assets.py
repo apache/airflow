@@ -183,7 +183,6 @@ def get_assets(
         )
     )
 
-    # Create an empty list to be returned
     assets = []
 
     for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
