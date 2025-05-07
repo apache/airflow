@@ -114,7 +114,13 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
               ) : undefined}
 
               {runMode === RunMode.SINGLE ? (
-                <TriggerDAGForm dagId={dagId} isPaused={isPaused} onClose={onClose} open={open} />
+                <TriggerDAGForm
+                  dagDisplayName={dagDisplayName}
+                  dagId={dagId}
+                  isPaused={isPaused}
+                  onClose={onClose}
+                  open={open}
+                />
               ) : (
                 hasSchedule && dag && <RunBackfillForm dag={dag} onClose={onClose} />
               )}

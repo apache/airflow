@@ -40,7 +40,7 @@ const columns: Array<ColumnDef<XComResponse>> = [
     accessorKey: "dag_id",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
+        <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
       </Link>
     ),
     enableSorting: false,

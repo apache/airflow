@@ -53,7 +53,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
     ? []
     : [
         {
-          accessorKey: "dag_id",
+          accessorKey: "dag_display_name",
           enableSorting: false,
           header: "Dag ID",
         },
