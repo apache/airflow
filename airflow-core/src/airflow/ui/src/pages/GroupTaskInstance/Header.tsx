@@ -43,10 +43,10 @@ export const Header = ({
   }
   const stats = [
     ...entries,
-    { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
-    { label: "End", value: <Time datetime={taskInstance.end_date} /> },
+    { label: "Earliest Start", value: <Time datetime={taskInstance.start_date} /> },
+    { label: "Latest End", value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
-      ? [{ label: "Duration", value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
+      ? [{ label: "Total Duration", value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
       : []),
   ];
 
