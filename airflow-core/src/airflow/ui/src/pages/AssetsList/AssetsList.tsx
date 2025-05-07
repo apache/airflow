@@ -27,6 +27,7 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
+import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 import { pluralize } from "src/utils";
@@ -44,6 +45,21 @@ const columns: Array<ColumnDef<AssetResponse>> = [
       </Link>
     ),
     header: () => "Name",
+  },
+  {
+    accessorKey: "last_asset_event",
+    cell: ({ row: { original } }: AssetRow) => {
+      const assetEvent = original.last_asset_event;
+      const timestamp = assetEvent?.timestamp;
+
+      if (timestamp === null || timestamp === undefined) {
+        return undefined;
+      }
+
+      return <Time datetime={timestamp} />;
+    },
+    enableSorting: false,
+    header: () => "Last Asset Event",
   },
   {
     accessorKey: "group",
