@@ -44,6 +44,7 @@ from slugify import slugify
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import (
     AirflowException,
+    AirflowProviderDeprecationWarning,
     DeserializingResultError,
 )
 from airflow.models.baseoperator import BaseOperator
@@ -1810,22 +1811,24 @@ class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
 
 class TestCurrentContext:
     def test_current_context_no_context_raise(self):
-        with pytest.raises(RuntimeError):
-            get_current_context()
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with pytest.raises(RuntimeError):
+                get_current_context()
 
     def test_current_context_roundtrip(self):
         example_context = {"Hello": "World"}
-
         with set_current_context(example_context):
-            assert get_current_context() == example_context
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                assert get_current_context() == example_context
 
     def test_context_removed_after_exit(self):
         example_context = {"Hello": "World"}
 
         with set_current_context(example_context):
             pass
-        with pytest.raises(RuntimeError):
-            get_current_context()
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with pytest.raises(RuntimeError):
+                get_current_context()
 
     def test_nested_context(self):
         """
@@ -1842,12 +1845,13 @@ class TestCurrentContext:
             ctx_obj = set_current_context(new_context)
             ctx_obj.__enter__()
             ctx_list.append(ctx_obj)
-        for i in reversed(range(max_stack_depth)):
-            # Iterate over contexts in reverse order - stack is LIFO
-            ctx = get_current_context()
-            assert ctx["ContextId"] == i
-            # End of with statement
-            ctx_list[i].__exit__(None, None, None)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            for i in reversed(range(max_stack_depth)):
+                # Iterate over contexts in reverse order - stack is LIFO
+                ctx = get_current_context()
+                assert ctx["ContextId"] == i
+                # End of with statement
+                ctx_list[i].__exit__(None, None, None)
 
 
 class MyContextAssertOperator(BaseOperator):
