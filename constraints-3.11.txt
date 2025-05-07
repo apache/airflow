@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-07T00:35:05.815856
+# This constraints file was automatically generated on 2025-05-07T11:00:36.977147
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -219,7 +219,7 @@ azure-kusto-data==5.0.3
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
 azure-mgmt-core==1.5.0
-azure-mgmt-cosmosdb==9.7.0
+azure-mgmt-cosmosdb==9.8.0
 azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
@@ -332,7 +332,7 @@ google-api-core==2.24.2
 google-api-python-client==2.169.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
-google-auth==2.40.0
+google-auth==2.40.1
 google-cloud-aiplatform==1.91.0
 google-cloud-alloydb==0.4.5
 google-cloud-appengine-logging==1.6.1
@@ -712,7 +712,7 @@ sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.14.0
-sqlalchemy-spanner==1.10.0
+sqlalchemy-spanner==1.11.0
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
 sshtunnel==0.4.0
