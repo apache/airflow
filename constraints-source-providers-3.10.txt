@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-07T10:50:14.270273
+# This constraints file was automatically generated on 2025-05-07T16:07:02.799624
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -286,6 +286,7 @@ h2==4.2.0
 hatch==1.14.1
 hatchling==1.27.0
 hdfs==2.7.3
+hf-xet==1.1.0
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -293,7 +294,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.30.2
+huggingface-hub==0.31.1
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -599,7 +600,7 @@ sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.14.0
-sqlalchemy-spanner==1.10.0
+sqlalchemy-spanner==1.11.0
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
 sshtunnel==0.4.0
