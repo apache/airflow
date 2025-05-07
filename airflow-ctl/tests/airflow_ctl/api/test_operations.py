@@ -34,6 +34,7 @@ from airflowctl.api.datamodels.generated import (
     AssetAliasResponse,
     AssetCollectionResponse,
     AssetResponse,
+    BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
     BulkAction,
@@ -170,39 +171,96 @@ class TestAssetsOperations:
 
 class TestBackfillOperations:
     backfill_id: NonNegativeInt = 1
+    backfill_body = BackfillPostBody(
+        dag_id="dag_id",
+        from_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        to_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_backwards=False,
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.COMPLETED,
+        max_active_runs=1,
+    )
+    backfill_response = BackfillResponse(
+        id=backfill_id,
+        dag_id="dag_id",
+        from_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        to_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        dag_run_conf={},
+        is_paused=False,
+        reprocess_behavior=ReprocessBehavior.COMPLETED,
+        max_active_runs=1,
+        created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        completed_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        dag_display_name="TEST_DAG_1",
+    )
+    backfills_collection_response = BackfillCollectionResponse(
+        backfills=[backfill_response],
+        total_entries=1,
+    )
 
     def test_create(self):
-        backfill_body = BackfillPostBody(
-            dag_id="dag_id",
-            from_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
-            to_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            run_backwards=False,
-            dag_run_conf={},
-            reprocess_behavior=ReprocessBehavior.COMPLETED,
-            max_active_runs=1,
-        )
-        backfill_response = BackfillResponse(
-            id=self.backfill_id,
-            dag_id="dag_id",
-            from_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
-            to_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            dag_run_conf={},
-            is_paused=False,
-            reprocess_behavior=ReprocessBehavior.COMPLETED,
-            max_active_runs=1,
-            created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
-            completed_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            dag_display_name="TEST_DAG_1",
-        )
-
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/backfills"
-            return httpx.Response(200, json=json.loads(backfill_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.create(backfill=backfill_body)
-        assert response == backfill_response
+        response = client.backfills.create(backfill=self.backfill_body)
+        assert response == self.backfill_response
+
+    def test_create_dry_run(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/backfills/dry_run"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.create_dry_run(backfill=self.backfill_body)
+        assert response == self.backfill_response
+
+    def test_get(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/backfills/{self.backfill_id}"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.get(self.backfill_id)
+        assert response == self.backfill_response
+
+    def test_list(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/backfills"
+            return httpx.Response(200, json=json.loads(self.backfills_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.list()
+        assert response == self.backfills_collection_response
+
+    def test_pause(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/pause"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.pause(self.backfill_id)
+        assert response == self.backfill_response
+
+    def test_unpause(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/unpause"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.unpause(self.backfill_id)
+        assert response == self.backfill_response
+
+    def test_cancel(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/cancel"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.cancel(self.backfill_id)
+        assert response == self.backfill_response
 
 
 class TestConfigOperations:
