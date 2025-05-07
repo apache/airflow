@@ -98,6 +98,10 @@ const taskInstanceColumns = (
         },
       ]),
   {
+    accessorKey: "rendered_map_index",
+    header: "Map Index",
+  },
+  {
     accessorKey: "state",
     cell: ({
       row: {
@@ -124,10 +128,6 @@ const taskInstanceColumns = (
     accessorKey: "end_date",
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
     header: "End Date",
-  },
-  {
-    accessorKey: "rendered_map_index",
-    header: "Map Index",
   },
   {
     accessorKey: "try_number",
