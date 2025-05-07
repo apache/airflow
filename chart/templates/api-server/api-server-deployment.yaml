@@ -111,12 +111,12 @@ spec:
         {{- else }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-            - podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    component: api-server
-                topologyKey: kubernetes.io/hostname
-              weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: api-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
         {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
