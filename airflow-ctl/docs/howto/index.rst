@@ -32,7 +32,7 @@ How to use Airflow CTL
 
 **Important Note**
 ''''''''''''''''''
-Airflow CTL needs Airflow API running to be able to work. So see login section below before use.
+Airflow CTL needs the Airflow API running to be able to work. Please, see the login section below before use.
 Otherwise, you may get errors.
 
 Login
@@ -62,7 +62,7 @@ There are two ways to authenticate with the Airflow API:
   export AIRFLOW_CLI_TOKEN=<token>
   airflowctl auth login --api-url <api_url> --env <env_name>
 
-In both cases token securely stored in keyring backend. Only configuration persisted in ``~/.config/airflow`` file
+In both cases token is securely stored in the keyring backend. Only configuration persisted in ``~/.config/airflow`` file
 is the API URL and the environment name. The token is stored in the keyring backend and is not persisted in the
 configuration file. The keyring backend is used to securely store the token and is not accessible to the user.
 
@@ -74,4 +74,4 @@ For more information use
   airflowctl auth login --help
 
 You are ready to use Airflow CTL now. You can use the command ``airflowctl --help`` to see the list of available commands.
-Also see :doc:`/cli-and-env-variables-ref` for the list of available commands and options.
+Please, also see :doc:`/cli-and-env-variables-ref` for the list of available commands and options.

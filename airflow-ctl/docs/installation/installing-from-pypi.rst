@@ -19,7 +19,7 @@ Installation from PyPI
 ----------------------
 
 This page describes installations using the ``apache-airflow-ctl`` package `published in
-PyPI <https://pypi.org/project/apache-airflow/>`__.
+PyPI <https://pypi.org/project/apache-airflow-ctl/>`__.
 
 Installation tools
 ''''''''''''''''''
