@@ -19,6 +19,7 @@
 import { FiGlobe } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
+import type { MenuItem } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
 
 import { NavButton } from "./NavButton";
@@ -26,7 +27,7 @@ import { NavButton } from "./NavButton";
 const links = [
   {
     href: "/events",
-    title: "Events",
+    title: "Audit Log",
   },
   {
     href: "/xcoms",
@@ -34,19 +35,27 @@ const links = [
   },
 ];
 
-export const BrowseButton = () => (
-  <Menu.Root positioning={{ placement: "right" }}>
-    <Menu.Trigger asChild>
-      <NavButton icon={<FiGlobe size="1.75rem" />} title="Browse" />
-    </Menu.Trigger>
-    <Menu.Content>
-      {links.map((link) => (
-        <Menu.Item asChild key={link.title} value={link.title}>
-          <Link aria-label={link.title} to={link.href}>
-            {link.title}
-          </Link>
-        </Menu.Item>
-      ))}
-    </Menu.Content>
-  </Menu.Root>
-);
+export const BrowseButton = ({ authorizedMenuItems }: { readonly authorizedMenuItems: Array<MenuItem> }) => {
+  const menuItems = links
+    .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
+    .map((link) => (
+      <Menu.Item asChild key={link.title} value={link.title}>
+        <Link aria-label={link.title} to={link.href}>
+          {link.title}
+        </Link>
+      </Menu.Item>
+    ));
+
+  if (!menuItems.length) {
+    return undefined;
+  }
+
+  return (
+    <Menu.Root positioning={{ placement: "right" }}>
+      <Menu.Trigger asChild>
+        <NavButton icon={<FiGlobe size="1.75rem" />} title="Browse" />
+      </Menu.Trigger>
+      <Menu.Content>{menuItems}</Menu.Content>
+    </Menu.Root>
+  );
+};

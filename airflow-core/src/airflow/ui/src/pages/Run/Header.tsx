@@ -22,6 +22,7 @@ import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
+import { DagVersion } from "src/components/DagVersion";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -103,12 +104,15 @@ export const Header = ({
           },
           { label: "Start", value: <Time datetime={dagRun.start_date} /> },
           { label: "End", value: <Time datetime={dagRun.end_date} /> },
-          { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
+          { label: "Duration", value: getDuration(dagRun.start_date, dagRun.end_date) },
           {
             label: "Dag Version(s)",
             value: (
               <LimitedItemsList
-                items={dagRun.dag_versions.map(({ version_number: versionNumber }) => `v${versionNumber}`)}
+                items={dagRun.dag_versions.map((version) => (
+                  <DagVersion key={version.id} version={version} />
+                ))}
+                maxItems={4}
               />
             ),
           },

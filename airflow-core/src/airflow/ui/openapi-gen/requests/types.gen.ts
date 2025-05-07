@@ -90,6 +90,7 @@ export type AssetResponse = {
   consuming_dags: Array<DagScheduleAssetReference>;
   producing_tasks: Array<TaskOutletAssetReference>;
   aliases: Array<AssetAliasResponse>;
+  last_asset_event?: LastAssetEventResponse | null;
 };
 
 /**
@@ -132,22 +133,7 @@ export type BackfillResponse = {
   created_at: string;
   completed_at: string | null;
   updated_at: string;
-};
-
-/**
- * Base Edge serializer for responses.
- */
-export type BaseEdgeResponse = {
-  source_id: string;
-  target_id: string;
-};
-
-/**
- * Base Graph serializer for responses.
- */
-export type BaseGraphResponse = {
-  edges: Array<BaseEdgeResponse>;
-  nodes: Array<BaseNodeResponse>;
+  dag_display_name: string;
 };
 
 /**
@@ -156,25 +142,6 @@ export type BaseGraphResponse = {
 export type BaseInfoResponse = {
   status: string | null;
 };
-
-/**
- * Base Node serializer for responses.
- */
-export type BaseNodeResponse = {
-  id: string;
-  label: string;
-  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
-};
-
-export type type =
-  | "join"
-  | "task"
-  | "asset-condition"
-  | "asset"
-  | "asset-alias"
-  | "dag"
-  | "sensor"
-  | "trigger";
 
 /**
  * Bulk Action to be performed on the used model.
@@ -391,34 +358,6 @@ export type ConfigOption = {
 };
 
 /**
- * configuration serializer.
- */
-export type ConfigResponse = {
-  navbar_color: string;
-  navbar_text_color: string;
-  navbar_hover_color: string;
-  navbar_text_hover_color: string;
-  navbar_logo_text_color: string;
-  page_size: number;
-  auto_refresh_interval: number;
-  default_ui_timezone: string;
-  hide_paused_dags_by_default: boolean;
-  instance_name: string;
-  instance_name_has_markup: boolean;
-  enable_swagger_ui: boolean;
-  require_confirmation_dag_change: boolean;
-  default_wrap: boolean;
-  warn_deployment_exposure: boolean;
-  audit_view_excluded_events: string;
-  audit_view_included_events: string;
-  test_connection: string;
-  state_color_mapping: {
-    [key: string]: unknown;
-  };
-  dashboard_alert: Array<UIAlert>;
-};
-
-/**
  * Config Section Schema.
  */
 export type ConfigSection = {
@@ -447,41 +386,6 @@ export type ConnectionBody = {
 export type ConnectionCollectionResponse = {
   connections: Array<ConnectionResponse>;
   total_entries: number;
-};
-
-/**
- * A class to store the behavior of each standard field of a Hook.
- */
-export type ConnectionHookFieldBehavior = {
-  /**
-   * Flag if the form field should be hidden.
-   */
-  hidden?: boolean;
-  /**
-   * Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.
-   */
-  title?: string | null;
-  /**
-   * Placeholder text that should be populated to the form.
-   */
-  placeholder?: string | null;
-};
-
-/**
- * Response model for Hook information == Connection type meta data.
- *
- * It is used to transfer providers information loaded by providers_manager such that
- * the API server/Web UI can use this data to render connection form UI.
- */
-export type ConnectionHookMetaData = {
-  connection_type: string | null;
-  hook_class_name: string | null;
-  default_conn_name: string | null;
-  hook_name: string;
-  standard_fields: StandardHookFields | null;
-  extra_fields: {
-    [key: string]: unknown;
-  } | null;
 };
 
 /**
@@ -532,10 +436,11 @@ export type DAGDetailsResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
-  is_active: boolean;
+  is_stale: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -568,6 +473,9 @@ export type DAGDetailsResponse = {
   template_search_path: Array<string> | null;
   timezone: string | null;
   last_parsed: string | null;
+  default_args: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Return file token.
    */
@@ -596,10 +504,11 @@ export type DAGResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
-  is_active: boolean;
+  is_stale: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -673,26 +582,8 @@ export type DAGRunResponse = {
   };
   note: string | null;
   dag_versions: Array<DagVersionResponse>;
-};
-
-/**
- * DAG Run States for responses.
- */
-export type DAGRunStates = {
-  queued: number;
-  running: number;
-  success: number;
-  failed: number;
-};
-
-/**
- * DAG Run Types for responses.
- */
-export type DAGRunTypes = {
-  backfill: number;
-  scheduled: number;
-  manual: number;
-  asset_triggered: number;
+  bundle_version: string | null;
+  dag_display_name: string;
 };
 
 /**
@@ -721,6 +612,7 @@ export type DAGSourceResponse = {
   content: string | null;
   dag_id: string;
   version_number: number | null;
+  dag_display_name: string;
 };
 
 /**
@@ -755,51 +647,6 @@ export type DAGWarningResponse = {
   warning_type: DagWarningType;
   message: string;
   timestamp: string;
-};
-
-/**
- * DAG with latest dag runs collection response serializer.
- */
-export type DAGWithLatestDagRunsCollectionResponse = {
-  total_entries: number;
-  dags: Array<DAGWithLatestDagRunsResponse>;
-};
-
-/**
- * DAG with latest dag runs response serializer.
- */
-export type DAGWithLatestDagRunsResponse = {
-  dag_id: string;
-  dag_display_name: string;
-  is_paused: boolean;
-  is_active: boolean;
-  last_parsed_time: string | null;
-  last_expired: string | null;
-  bundle_name: string | null;
-  relative_fileloc: string | null;
-  fileloc: string;
-  description: string | null;
-  timetable_summary: string | null;
-  timetable_description: string | null;
-  tags: Array<DagTagResponse>;
-  max_active_tasks: number;
-  max_active_runs: number | null;
-  max_consecutive_failed_dag_runs: number;
-  has_task_concurrency_limits: boolean;
-  has_import_errors: boolean;
-  next_dagrun_logical_date: string | null;
-  next_dagrun_data_interval_start: string | null;
-  next_dagrun_data_interval_end: string | null;
-  next_dagrun_run_after: string | null;
-  owners: Array<string>;
-  asset_expression: {
-    [key: string]: unknown;
-  } | null;
-  latest_dag_runs: Array<DAGRunResponse>;
-  /**
-   * Return file token.
-   */
-  readonly file_token: string;
 };
 
 /**
@@ -899,7 +746,7 @@ export type DagVersionResponse = {
   id: string;
   version_number: number;
   dag_id: string;
-  bundle_name: string;
+  bundle_name: string | null;
   bundle_version: string | null;
   created_at: string;
   readonly bundle_url: string | null;
@@ -929,17 +776,6 @@ export type DryRunBackfillResponse = {
 };
 
 /**
- * Edge serializer for responses.
- */
-export type EdgeResponse = {
-  source_id: string;
-  target_id: string;
-  is_setup_teardown?: boolean | null;
-  label?: string | null;
-  is_source_asset?: boolean | null;
-};
-
-/**
  * Event Log Collection Response.
  */
 export type EventLogCollectionResponse = {
@@ -962,13 +798,24 @@ export type EventLogResponse = {
   logical_date: string | null;
   owner: string | null;
   extra: string | null;
+  dag_display_name?: string | null;
+};
+
+/**
+ * Response for the external log URL endpoint.
+ */
+export type ExternalLogUrlResponse = {
+  url: string;
 };
 
 /**
  * Extra Links Response.
  */
-export type ExtraLinksResponse = {
-  [key: string]: string | null;
+export type ExtraLinkCollectionResponse = {
+  extra_links: {
+    [key: string]: string | null;
+  };
+  total_entries: number;
 };
 
 /**
@@ -988,49 +835,6 @@ export type FastAPIRootMiddlewareResponse = {
   middleware: string;
   name: string;
   [key: string]: unknown | string;
-};
-
-/**
- * DAG Run model for the Grid UI.
- */
-export type GridDAGRunwithTIs = {
-  dag_run_id: string;
-  queued_at: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  run_after: string;
-  state: DagRunState;
-  run_type: DagRunType;
-  logical_date: string | null;
-  data_interval_start: string | null;
-  data_interval_end: string | null;
-  note: string | null;
-  task_instances: Array<GridTaskInstanceSummary>;
-};
-
-/**
- * Response model for the Grid UI.
- */
-export type GridResponse = {
-  dag_runs: Array<GridDAGRunwithTIs>;
-  structure: StructureDataResponse;
-};
-
-/**
- * Task Instance Summary model for the Grid UI.
- */
-export type GridTaskInstanceSummary = {
-  task_id: string;
-  try_number: number;
-  start_date: string | null;
-  end_date: string | null;
-  queued_dttm: string | null;
-  child_states: {
-    [key: string]: number;
-  } | null;
-  task_count: number;
-  state: TaskInstanceState | null;
-  note: string | null;
 };
 
 /**
@@ -1056,15 +860,6 @@ export type HealthInfoResponse = {
   scheduler: SchedulerInfoResponse;
   triggerer: TriggererInfoResponse;
   dag_processor?: DagProcessorInfoResponse | null;
-};
-
-/**
- * Historical Metric Data serializer for responses.
- */
-export type HistoricalMetricDataResponse = {
-  dag_run_types: DAGRunTypes;
-  dag_run_states: DAGRunStates;
-  task_instance_states: TaskInstanceStateCount;
 };
 
 /**
@@ -1108,37 +903,17 @@ export type JobResponse = {
   executor_class: string | null;
   hostname: string | null;
   unixname: string | null;
+  dag_display_name?: string | null;
 };
 
-/**
- * Menu Item for responses.
- */
-export type MenuItem = {
-  text: string;
-  href: string;
-};
+export type JsonValue = unknown;
 
 /**
- * Menu Item Collection serializer for responses.
+ * Last asset event response serializer.
  */
-export type MenuItemCollectionResponse = {
-  menu_items: Array<MenuItem>;
-  total_entries: number;
-};
-
-/**
- * Node serializer for responses.
- */
-export type NodeResponse = {
-  id: string;
-  label: string;
-  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
-  children?: Array<NodeResponse> | null;
-  is_mapped?: boolean | null;
-  tooltip?: string | null;
-  setup_teardown_type?: "setup" | "teardown" | null;
-  operator?: string | null;
-  asset_condition_type?: "or-gate" | "and-gate" | null;
+export type LastAssetEventResponse = {
+  id?: number | null;
+  timestamp?: string | null;
 };
 
 /**
@@ -1159,6 +934,22 @@ export type PatchTaskInstanceBody = {
 export type PluginCollectionResponse = {
   plugins: Array<PluginResponse>;
   total_entries: number;
+};
+
+/**
+ * Plugin Import Error Collection serializer.
+ */
+export type PluginImportErrorCollectionResponse = {
+  import_errors: Array<PluginImportErrorResponse>;
+  total_entries: number;
+};
+
+/**
+ * Plugin Import Error serializer for responses.
+ */
+export type PluginImportErrorResponse = {
+  source: string;
+  error: string;
 };
 
 /**
@@ -1273,26 +1064,6 @@ export type SchedulerInfoResponse = {
 };
 
 /**
- * Standard fields of a Hook that a form will render.
- */
-export type StandardHookFields = {
-  description: ConnectionHookFieldBehavior | null;
-  url_schema: ConnectionHookFieldBehavior | null;
-  host: ConnectionHookFieldBehavior | null;
-  port: ConnectionHookFieldBehavior | null;
-  login: ConnectionHookFieldBehavior | null;
-  password: ConnectionHookFieldBehavior | null;
-};
-
-/**
- * Structure Data serializer for responses.
- */
-export type StructureDataResponse = {
-  edges: Array<EdgeResponse>;
-  nodes: Array<NodeResponse>;
-};
-
-/**
  * An individual log message.
  */
 export type StructuredLogMessage = {
@@ -1355,6 +1126,7 @@ export type TaskInstanceHistoryResponse = {
   try_number: number;
   max_tries: number;
   task_display_name: string;
+  dag_display_name: string;
   hostname: string | null;
   unixname: string | null;
   pool: string;
@@ -1388,6 +1160,7 @@ export type TaskInstanceResponse = {
   try_number: number;
   max_tries: number;
   task_display_name: string;
+  dag_display_name: string;
   hostname: string | null;
   unixname: string | null;
   pool: string;
@@ -1428,25 +1201,6 @@ export type TaskInstanceState =
   | "upstream_failed"
   | "skipped"
   | "deferred";
-
-/**
- * TaskInstance serializer for responses.
- */
-export type TaskInstanceStateCount = {
-  no_status: number;
-  removed: number;
-  scheduled: number;
-  queued: number;
-  running: number;
-  success: number;
-  restarting: number;
-  failed: number;
-  up_for_retry: number;
-  up_for_reschedule: number;
-  upstream_failed: number;
-  skipped: number;
-  deferred: number;
-};
 
 /**
  * Task Instance body for get batch.
@@ -1576,16 +1330,6 @@ export type TriggererInfoResponse = {
   latest_triggerer_heartbeat: string | null;
 };
 
-/**
- * Optional alert to be shown at the top of the page.
- */
-export type UIAlert = {
-  text: string;
-  category: "info" | "warning" | "error";
-};
-
-export type category = "info" | "warning" | "error";
-
 export type ValidationError = {
   loc: Array<string | number>;
   msg: string;
@@ -1597,7 +1341,7 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  value: string;
+  value: JsonValue;
   description?: string | null;
 };
 
@@ -1655,6 +1399,7 @@ export type XComResponse = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
 };
 
 /**
@@ -1668,6 +1413,7 @@ export type XComResponseNative = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
   value: unknown;
 };
 
@@ -1682,6 +1428,7 @@ export type XComResponseString = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
   value: string | null;
 };
 
@@ -1693,15 +1440,354 @@ export type XComUpdateBody = {
   map_index?: number;
 };
 
-export type GetAuthLinksResponse = MenuItemCollectionResponse;
-
-export type NextRunAssetsData = {
-  dagId: string;
+/**
+ * Base Edge serializer for responses.
+ */
+export type BaseEdgeResponse = {
+  source_id: string;
+  target_id: string;
 };
 
-export type NextRunAssetsResponse = {
-  [key: string]: unknown;
+/**
+ * Base Graph serializer for responses.
+ */
+export type BaseGraphResponse = {
+  edges: Array<BaseEdgeResponse>;
+  nodes: Array<BaseNodeResponse>;
 };
+
+/**
+ * Base Node serializer for responses.
+ */
+export type BaseNodeResponse = {
+  id: string;
+  label: string;
+  type:
+    | "join"
+    | "task"
+    | "asset-condition"
+    | "asset"
+    | "asset-alias"
+    | "asset-name-ref"
+    | "asset-uri-ref"
+    | "dag"
+    | "sensor"
+    | "trigger";
+};
+
+export type type =
+  | "join"
+  | "task"
+  | "asset-condition"
+  | "asset"
+  | "asset-alias"
+  | "asset-name-ref"
+  | "asset-uri-ref"
+  | "dag"
+  | "sensor"
+  | "trigger";
+
+/**
+ * configuration serializer.
+ */
+export type ConfigResponse = {
+  navbar_color: string;
+  navbar_text_color: string;
+  navbar_hover_color: string;
+  navbar_text_hover_color: string;
+  page_size: number;
+  auto_refresh_interval: number;
+  hide_paused_dags_by_default: boolean;
+  instance_name: string;
+  instance_name_has_markup: boolean;
+  enable_swagger_ui: boolean;
+  require_confirmation_dag_change: boolean;
+  default_wrap: boolean;
+  warn_deployment_exposure: boolean;
+  audit_view_excluded_events: string;
+  audit_view_included_events: string;
+  test_connection: string;
+  dashboard_alert: Array<UIAlert>;
+  show_external_log_redirect: boolean;
+  external_log_name?: string | null;
+};
+
+/**
+ * A class to store the behavior of each standard field of a Hook.
+ */
+export type ConnectionHookFieldBehavior = {
+  /**
+   * Flag if the form field should be hidden.
+   */
+  hidden?: boolean;
+  /**
+   * Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.
+   */
+  title?: string | null;
+  /**
+   * Placeholder text that should be populated to the form.
+   */
+  placeholder?: string | null;
+};
+
+/**
+ * Response model for Hook information == Connection type meta data.
+ *
+ * It is used to transfer providers information loaded by providers_manager such that
+ * the API server/Web UI can use this data to render connection form UI.
+ */
+export type ConnectionHookMetaData = {
+  connection_type: string | null;
+  hook_class_name: string | null;
+  default_conn_name: string | null;
+  hook_name: string;
+  standard_fields: StandardHookFields | null;
+  extra_fields: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * DAG Run States for responses.
+ */
+export type DAGRunStates = {
+  queued: number;
+  running: number;
+  success: number;
+  failed: number;
+};
+
+/**
+ * DAG Run Types for responses.
+ */
+export type DAGRunTypes = {
+  backfill: number;
+  scheduled: number;
+  manual: number;
+  asset_triggered: number;
+};
+
+/**
+ * DAG with latest dag runs collection response serializer.
+ */
+export type DAGWithLatestDagRunsCollectionResponse = {
+  total_entries: number;
+  dags: Array<DAGWithLatestDagRunsResponse>;
+};
+
+/**
+ * DAG with latest dag runs response serializer.
+ */
+export type DAGWithLatestDagRunsResponse = {
+  dag_id: string;
+  dag_display_name: string;
+  is_paused: boolean;
+  is_stale: boolean;
+  last_parsed_time: string | null;
+  last_expired: string | null;
+  bundle_name: string | null;
+  bundle_version: string | null;
+  relative_fileloc: string | null;
+  fileloc: string;
+  description: string | null;
+  timetable_summary: string | null;
+  timetable_description: string | null;
+  tags: Array<DagTagResponse>;
+  max_active_tasks: number;
+  max_active_runs: number | null;
+  max_consecutive_failed_dag_runs: number;
+  has_task_concurrency_limits: boolean;
+  has_import_errors: boolean;
+  next_dagrun_logical_date: string | null;
+  next_dagrun_data_interval_start: string | null;
+  next_dagrun_data_interval_end: string | null;
+  next_dagrun_run_after: string | null;
+  owners: Array<string>;
+  asset_expression: {
+    [key: string]: unknown;
+  } | null;
+  latest_dag_runs: Array<DAGRunResponse>;
+  /**
+   * Return file token.
+   */
+  readonly file_token: string;
+};
+
+/**
+ * Dashboard DAG Stats serializer for responses.
+ */
+export type DashboardDagStatsResponse = {
+  active_dag_count: number;
+  failed_dag_count: number;
+  running_dag_count: number;
+  queued_dag_count: number;
+};
+
+/**
+ * Edge serializer for responses.
+ */
+export type EdgeResponse = {
+  source_id: string;
+  target_id: string;
+  is_setup_teardown?: boolean | null;
+  label?: string | null;
+  is_source_asset?: boolean | null;
+};
+
+export type ExtraMenuItem = {
+  text: string;
+  href: string;
+};
+
+/**
+ * DAG Run model for the Grid UI.
+ */
+export type GridDAGRunwithTIs = {
+  dag_run_id: string;
+  queued_at: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  run_after: string;
+  state: DagRunState;
+  run_type: DagRunType;
+  logical_date: string | null;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+  note: string | null;
+  task_instances: Array<GridTaskInstanceSummary>;
+};
+
+/**
+ * Response model for the Grid UI.
+ */
+export type GridResponse = {
+  dag_runs: Array<GridDAGRunwithTIs>;
+  structure: StructureDataResponse;
+};
+
+/**
+ * Task Instance Summary model for the Grid UI.
+ */
+export type GridTaskInstanceSummary = {
+  task_id: string;
+  try_number: number;
+  start_date: string | null;
+  end_date: string | null;
+  queued_dttm: string | null;
+  child_states: {
+    [key: string]: number;
+  } | null;
+  task_count: number;
+  state: TaskInstanceState | null;
+  note: string | null;
+};
+
+/**
+ * Historical Metric Data serializer for responses.
+ */
+export type HistoricalMetricDataResponse = {
+  dag_run_types: DAGRunTypes;
+  dag_run_states: DAGRunStates;
+  task_instance_states: TaskInstanceStateCount;
+};
+
+/**
+ * Define all menu items defined in the menu.
+ */
+export type MenuItem =
+  | "Assets"
+  | "Audit Log"
+  | "Config"
+  | "Connections"
+  | "Dags"
+  | "Docs"
+  | "Plugins"
+  | "Pools"
+  | "Providers"
+  | "Variables"
+  | "XComs";
+
+/**
+ * Menu Item Collection serializer for responses.
+ */
+export type MenuItemCollectionResponse = {
+  authorized_menu_items: Array<MenuItem>;
+  extra_menu_items: Array<ExtraMenuItem>;
+};
+
+/**
+ * Node serializer for responses.
+ */
+export type NodeResponse = {
+  id: string;
+  label: string;
+  type:
+    | "join"
+    | "task"
+    | "asset-condition"
+    | "asset"
+    | "asset-alias"
+    | "asset-name-ref"
+    | "asset-uri-ref"
+    | "dag"
+    | "sensor"
+    | "trigger";
+  children?: Array<NodeResponse> | null;
+  is_mapped?: boolean | null;
+  tooltip?: string | null;
+  setup_teardown_type?: "setup" | "teardown" | null;
+  operator?: string | null;
+  asset_condition_type?: "or-gate" | "and-gate" | null;
+};
+
+/**
+ * Standard fields of a Hook that a form will render.
+ */
+export type StandardHookFields = {
+  description: ConnectionHookFieldBehavior | null;
+  url_schema: ConnectionHookFieldBehavior | null;
+  host: ConnectionHookFieldBehavior | null;
+  port: ConnectionHookFieldBehavior | null;
+  login: ConnectionHookFieldBehavior | null;
+  password: ConnectionHookFieldBehavior | null;
+};
+
+/**
+ * Structure Data serializer for responses.
+ */
+export type StructureDataResponse = {
+  edges: Array<EdgeResponse>;
+  nodes: Array<NodeResponse>;
+};
+
+/**
+ * TaskInstance serializer for responses.
+ */
+export type TaskInstanceStateCount = {
+  no_status: number;
+  removed: number;
+  scheduled: number;
+  queued: number;
+  running: number;
+  success: number;
+  restarting: number;
+  failed: number;
+  up_for_retry: number;
+  up_for_reschedule: number;
+  upstream_failed: number;
+  skipped: number;
+  deferred: number;
+};
+
+/**
+ * Optional alert to be shown at the top of the page.
+ */
+export type UIAlert = {
+  text: string;
+  category: "info" | "warning" | "error";
+};
+
+export type category = "info" | "warning" | "error";
 
 export type GetAssetsData = {
   dagIds?: Array<string>;
@@ -1807,24 +1893,68 @@ export type DeleteDagAssetQueuedEventData = {
 
 export type DeleteDagAssetQueuedEventResponse = void;
 
-export type GetConfigsResponse = ConfigResponse;
-
-export type GetConfigData = {
-  accept?: "application/json" | "text/plain" | "*/*";
-  section?: string | null;
+export type NextRunAssetsData = {
+  dagId: string;
 };
 
-export type GetConfigResponse = Config;
-
-export type GetConfigValueData = {
-  accept?: "application/json" | "text/plain" | "*/*";
-  option: string;
-  section: string;
+export type NextRunAssetsResponse = {
+  [key: string]: unknown;
 };
 
-export type GetConfigValueResponse = Config;
+export type ListBackfillsData = {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
 
-export type HookMetaDataResponse = Array<ConnectionHookMetaData>;
+export type ListBackfillsResponse = BackfillCollectionResponse;
+
+export type CreateBackfillData = {
+  requestBody: BackfillPostBody;
+};
+
+export type CreateBackfillResponse = BackfillResponse;
+
+export type GetBackfillData = {
+  backfillId: number;
+};
+
+export type GetBackfillResponse = BackfillResponse;
+
+export type PauseBackfillData = {
+  backfillId: number;
+};
+
+export type PauseBackfillResponse = BackfillResponse;
+
+export type UnpauseBackfillData = {
+  backfillId: number;
+};
+
+export type UnpauseBackfillResponse = BackfillResponse;
+
+export type CancelBackfillData = {
+  backfillId: number;
+};
+
+export type CancelBackfillResponse = BackfillResponse;
+
+export type CreateBackfillDryRunData = {
+  requestBody: BackfillPostBody;
+};
+
+export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
+
+export type ListBackfills1Data = {
+  active?: boolean | null;
+  dagId?: string | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type ListBackfills1Response = BackfillCollectionResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -1875,119 +2005,7 @@ export type TestConnectionResponse = ConnectionTestResponse;
 
 export type CreateDefaultConnectionsResponse = void;
 
-export type RecentDagRunsData = {
-  dagDisplayNamePattern?: string | null;
-  dagIdPattern?: string | null;
-  dagIds?: Array<string> | null;
-  dagRunsLimit?: number;
-  lastDagRunState?: DagRunState | null;
-  limit?: number;
-  offset?: number;
-  onlyActive?: boolean;
-  owners?: Array<string>;
-  paused?: boolean | null;
-  tags?: Array<string>;
-  tagsMatchMode?: "any" | "all" | null;
-};
-
-export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
-
-export type GetDependenciesData = {
-  nodeId?: string | null;
-};
-
-export type GetDependenciesResponse = BaseGraphResponse;
-
-export type HistoricalMetricsData = {
-  endDate?: string | null;
-  startDate: string;
-};
-
-export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
-
-export type StructureDataData = {
-  dagId: string;
-  externalDependencies?: boolean;
-  includeDownstream?: boolean;
-  includeUpstream?: boolean;
-  root?: string | null;
-  versionNumber?: number | null;
-};
-
-export type StructureDataResponse2 = StructureDataResponse;
-
-export type ListBackfillsData = {
-  active?: boolean | null;
-  dagId?: string | null;
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-};
-
-export type ListBackfillsResponse = BackfillCollectionResponse;
-
-export type ListBackfills1Data = {
-  dagId: string;
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-};
-
-export type ListBackfills1Response = BackfillCollectionResponse;
-
-export type CreateBackfillData = {
-  requestBody: BackfillPostBody;
-};
-
-export type CreateBackfillResponse = BackfillResponse;
-
-export type GetBackfillData = {
-  backfillId: string;
-};
-
-export type GetBackfillResponse = BackfillResponse;
-
-export type PauseBackfillData = {
-  backfillId: unknown;
-};
-
-export type PauseBackfillResponse = BackfillResponse;
-
-export type UnpauseBackfillData = {
-  backfillId: unknown;
-};
-
-export type UnpauseBackfillResponse = BackfillResponse;
-
-export type CancelBackfillData = {
-  backfillId: unknown;
-};
-
-export type CancelBackfillResponse = BackfillResponse;
-
-export type CreateBackfillDryRunData = {
-  requestBody: BackfillPostBody;
-};
-
-export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
-
-export type GridDataData = {
-  dagId: string;
-  includeDownstream?: boolean;
-  includeUpstream?: boolean;
-  limit?: number;
-  logicalDateGte?: string | null;
-  logicalDateLte?: string | null;
-  offset?: number;
-  orderBy?: string;
-  root?: string | null;
-  runAfterGte?: string | null;
-  runAfterLte?: string | null;
-  runType?: Array<string>;
-  state?: Array<string>;
-};
-
-export type GridDataResponse = GridResponse;
+export type HookMetaDataResponse = Array<ConnectionHookMetaData>;
 
 export type GetDagRunData = {
   dagId: string;
@@ -2038,6 +2056,7 @@ export type GetDagRunsData = {
   orderBy?: string;
   runAfterGte?: string | null;
   runAfterLte?: string | null;
+  runType?: Array<string>;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -2081,6 +2100,23 @@ export type GetDagReportsData = {
 
 export type GetDagReportsResponse = unknown;
 
+export type GetConfigData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  section?: string | null;
+};
+
+export type GetConfigResponse = Config;
+
+export type GetConfigValueData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  option: string;
+  section: string;
+};
+
+export type GetConfigValueResponse = Config;
+
+export type GetConfigsResponse = ConfigResponse;
+
 export type ListDagWarningsData = {
   dagId?: string | null;
   limit?: number;
@@ -2099,10 +2135,10 @@ export type GetDagsData = {
   dagRunStartDateGte?: string | null;
   dagRunStartDateLte?: string | null;
   dagRunState?: Array<string>;
+  excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean;
   orderBy?: string;
   owners?: Array<string>;
   paused?: boolean | null;
@@ -2114,10 +2150,10 @@ export type GetDagsResponse = DAGCollectionResponse;
 
 export type PatchDagsData = {
   dagIdPattern?: string | null;
+  excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean;
   owners?: Array<string>;
   paused?: boolean | null;
   requestBody: DAGPatchBody;
@@ -2195,7 +2231,7 @@ export type GetExtraLinksData = {
   taskId: string;
 };
 
-export type GetExtraLinksResponse = ExtraLinksResponse;
+export type GetExtraLinksResponse = ExtraLinkCollectionResponse;
 
 export type GetTaskInstanceData = {
   dagId: string;
@@ -2215,6 +2251,15 @@ export type PatchTaskInstanceData = {
 };
 
 export type PatchTaskInstanceResponse = TaskInstanceResponse;
+
+export type DeleteTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+};
+
+export type DeleteTaskInstanceResponse = null;
 
 export type GetMappedTaskInstancesData = {
   dagId: string;
@@ -2244,23 +2289,23 @@ export type GetMappedTaskInstancesData = {
 
 export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
 
-export type GetTaskInstanceDependenciesData = {
+export type GetTaskInstanceDependenciesByMapIndexData = {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
 };
 
-export type GetTaskInstanceDependenciesResponse = TaskDependencyCollectionResponse;
+export type GetTaskInstanceDependenciesByMapIndexResponse = TaskDependencyCollectionResponse;
 
-export type GetTaskInstanceDependencies1Data = {
+export type GetTaskInstanceDependenciesData = {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
 };
 
-export type GetTaskInstanceDependencies1Response = TaskDependencyCollectionResponse;
+export type GetTaskInstanceDependenciesResponse = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceTriesData = {
   dagId: string;
@@ -2289,7 +2334,7 @@ export type GetMappedTaskInstanceData = {
 
 export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 
-export type PatchTaskInstance1Data = {
+export type PatchTaskInstanceByMapIndexData = {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
@@ -2298,7 +2343,7 @@ export type PatchTaskInstance1Data = {
   updateMask?: Array<string> | null;
 };
 
-export type PatchTaskInstance1Response = TaskInstanceResponse;
+export type PatchTaskInstanceByMapIndexResponse = TaskInstanceResponse;
 
 export type GetTaskInstancesData = {
   dagId: string;
@@ -2364,7 +2409,7 @@ export type PostClearTaskInstancesData = {
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 
-export type PatchTaskInstanceDryRunData = {
+export type PatchTaskInstanceDryRunByMapIndexData = {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
@@ -2373,9 +2418,9 @@ export type PatchTaskInstanceDryRunData = {
   updateMask?: Array<string> | null;
 };
 
-export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
+export type PatchTaskInstanceDryRunByMapIndexResponse = TaskInstanceCollectionResponse;
 
-export type PatchTaskInstanceDryRun1Data = {
+export type PatchTaskInstanceDryRunData = {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
@@ -2384,7 +2429,7 @@ export type PatchTaskInstanceDryRun1Data = {
   updateMask?: Array<string> | null;
 };
 
-export type PatchTaskInstanceDryRun1Response = TaskInstanceCollectionResponse;
+export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
 
 export type GetLogData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -2398,6 +2443,16 @@ export type GetLogData = {
 };
 
 export type GetLogResponse = TaskInstancesLogResponse;
+
+export type GetExternalLogUrlData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+  tryNumber: number;
+};
+
+export type GetExternalLogUrlResponse = ExternalLogUrlResponse;
 
 export type GetImportErrorData = {
   importErrorId: number;
@@ -2436,6 +2491,8 @@ export type GetPluginsData = {
 };
 
 export type GetPluginsResponse = PluginCollectionResponse;
+
+export type ImportErrorsResponse = PluginImportErrorCollectionResponse;
 
 export type DeletePoolData = {
   poolName: string;
@@ -2624,40 +2681,70 @@ export type LogoutData = {
 
 export type LogoutResponse = unknown;
 
-export type NotFoundHandlerData = {
-  restOfPath: string;
+export type GetAuthMenusResponse = MenuItemCollectionResponse;
+
+export type RecentDagRunsData = {
+  dagDisplayNamePattern?: string | null;
+  dagIdPattern?: string | null;
+  dagIds?: Array<string> | null;
+  dagRunsLimit?: number;
+  excludeStale?: boolean;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
 };
 
-export type NotFoundHandlerResponse = unknown;
+export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDependenciesData = {
+  nodeId?: string | null;
+};
+
+export type GetDependenciesResponse = BaseGraphResponse;
+
+export type HistoricalMetricsData = {
+  endDate?: string | null;
+  startDate: string;
+};
+
+export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
+
+export type DagStatsResponse2 = DashboardDagStatsResponse;
+
+export type StructureDataData = {
+  dagId: string;
+  externalDependencies?: boolean;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
+  root?: string | null;
+  versionNumber?: number | null;
+};
+
+export type StructureDataResponse2 = StructureDataResponse;
+
+export type GridDataData = {
+  dagId: string;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  root?: string | null;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
+  runType?: Array<string>;
+  state?: Array<string>;
+};
+
+export type GridDataResponse = GridResponse;
 
 export type $OpenApiTs = {
-  "/ui/auth/links": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        200: MenuItemCollectionResponse;
-      };
-    };
-  };
-  "/ui/next_run_assets/{dag_id}": {
-    get: {
-      req: NextRunAssetsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: {
-          [key: string]: unknown;
-        };
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
   "/api/v2/assets": {
     get: {
       req: GetAssetsData;
@@ -3013,371 +3100,16 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/config": {
+  "/ui/next_run_assets/{dag_id}": {
     get: {
+      req: NextRunAssetsData;
       res: {
         /**
          * Successful Response
          */
-        200: ConfigResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/api/v2/config": {
-    get: {
-      req: GetConfigData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: Config;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Not Acceptable
-         */
-        406: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/api/v2/config/section/{section}/option/{option}": {
-    get: {
-      req: GetConfigValueData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: Config;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Not Acceptable
-         */
-        406: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/ui/connections/hook_meta": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        200: Array<ConnectionHookMetaData>;
-      };
-    };
-  };
-  "/api/v2/connections/{connection_id}": {
-    delete: {
-      req: DeleteConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    get: {
-      req: GetConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ConnectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    patch: {
-      req: PatchConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ConnectionResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/api/v2/connections": {
-    get: {
-      req: GetConnectionsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ConnectionCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    post: {
-      req: PostConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        201: ConnectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    patch: {
-      req: BulkConnectionsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: BulkResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/api/v2/connections/test": {
-    post: {
-      req: TestConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ConnectionTestResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/api/v2/connections/defaults": {
-    post: {
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/ui/dags/recent_dag_runs": {
-    get: {
-      req: RecentDagRunsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGWithLatestDagRunsCollectionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/ui/dependencies": {
-    get: {
-      req: GetDependenciesData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: BaseGraphResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/ui/dashboard/historical_metrics_data": {
-    get: {
-      req: HistoricalMetricsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: HistoricalMetricDataResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/ui/structure/structure_data": {
-    get: {
-      req: StructureDataData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: StructureDataResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/ui/backfills": {
-    get: {
-      req: ListBackfillsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: BackfillCollectionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
+        200: {
+          [key: string]: unknown;
+        };
         /**
          * Validation Error
          */
@@ -3387,7 +3119,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/backfills": {
     get: {
-      req: ListBackfills1Data;
+      req: ListBackfillsData;
       res: {
         /**
          * Successful Response
@@ -3588,18 +3320,14 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/grid/{dag_id}": {
+  "/ui/backfills": {
     get: {
-      req: GridDataData;
+      req: ListBackfills1Data;
       res: {
         /**
          * Successful Response
          */
-        200: GridResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
+        200: BackfillCollectionResponse;
         /**
          * Not Found
          */
@@ -3608,6 +3336,211 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/connections/{connection_id}": {
+    delete: {
+      req: DeleteConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/connections": {
+    get: {
+      req: GetConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: PostConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: BulkConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BulkResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/connections/test": {
+    post: {
+      req: TestConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionTestResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/connections/defaults": {
+    post: {
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+      };
+    };
+  };
+  "/ui/connections/hook_meta": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Array<ConnectionHookMetaData>;
       };
     };
   };
@@ -3930,6 +3863,82 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/api/v2/config": {
+    get: {
+      req: GetConfigData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/config/section/{section}/option/{option}": {
+    get: {
+      req: GetConfigValueData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/config": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConfigResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+      };
+    };
+  };
   "/api/v2/dagWarnings": {
     get: {
       req: ListDagWarningsData;
@@ -4205,7 +4214,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: ExtraLinksResponse;
+        200: ExtraLinkCollectionResponse;
         /**
          * Unauthorized
          */
@@ -4284,6 +4293,31 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+    delete: {
+      req: DeleteTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped": {
     get: {
@@ -4314,7 +4348,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
     get: {
-      req: GetTaskInstanceDependenciesData;
+      req: GetTaskInstanceDependenciesByMapIndexData;
       res: {
         /**
          * Successful Response
@@ -4341,7 +4375,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
     get: {
-      req: GetTaskInstanceDependencies1Data;
+      req: GetTaskInstanceDependenciesData;
       res: {
         /**
          * Successful Response
@@ -4447,7 +4481,7 @@ export type $OpenApiTs = {
       };
     };
     patch: {
-      req: PatchTaskInstance1Data;
+      req: PatchTaskInstanceByMapIndexData;
       res: {
         /**
          * Successful Response
@@ -4617,7 +4651,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run": {
     patch: {
-      req: PatchTaskInstanceDryRunData;
+      req: PatchTaskInstanceDryRunByMapIndexData;
       res: {
         /**
          * Successful Response
@@ -4648,7 +4682,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run": {
     patch: {
-      req: PatchTaskInstanceDryRun1Data;
+      req: PatchTaskInstanceDryRunData;
       res: {
         /**
          * Successful Response
@@ -4685,6 +4719,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstancesLogResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/externalLogUrl/{try_number}": {
+    get: {
+      req: GetExternalLogUrlData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ExternalLogUrlResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */
@@ -4801,6 +4866,24 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/plugins/importErrors": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PluginImportErrorCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };
@@ -5456,14 +5539,114 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/api/v2/{rest_of_path}": {
+  "/ui/auth/menus": {
     get: {
-      req: NotFoundHandlerData;
       res: {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: MenuItemCollectionResponse;
+      };
+    };
+  };
+  "/ui/dags/recent_dag_runs": {
+    get: {
+      req: RecentDagRunsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGWithLatestDagRunsCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dependencies": {
+    get: {
+      req: GetDependenciesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BaseGraphResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dashboard/historical_metrics_data": {
+    get: {
+      req: HistoricalMetricsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: HistoricalMetricDataResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dashboard/dag_stats": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DashboardDagStatsResponse;
+      };
+    };
+  };
+  "/ui/structure/structure_data": {
+    get: {
+      req: StructureDataData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: StructureDataResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/grid/{dag_id}": {
+    get: {
+      req: GridDataData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: GridResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

@@ -442,8 +442,7 @@ class S3Hook(AwsBaseHook):
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
                 return head_object_val
-            else:
-                raise e
+            raise e
 
     async def list_prefixes_async(
         self,
@@ -936,8 +935,7 @@ class S3Hook(AwsBaseHook):
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
                 return None
-            else:
-                raise e
+            raise e
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1469,8 +1467,7 @@ class S3Hook(AwsBaseHook):
                 raise AirflowNotFoundException(
                     f"The source file in Bucket {bucket_name} with path {key} does not exist"
                 )
-            else:
-                raise e
+            raise e
 
         if preserve_file_name:
             local_dir = local_path or gettempdir()

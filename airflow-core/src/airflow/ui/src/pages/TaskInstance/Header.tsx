@@ -23,6 +23,7 @@ import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import { DagVersion } from "src/components/DagVersion";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
@@ -47,14 +48,11 @@ export const Header = ({
     { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
     { label: "End", value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
-      ? [{ label: "Duration", value: `${getDuration(taskInstance.start_date, taskInstance.end_date)}s` }]
+      ? [{ label: "Duration", value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
       : []),
     {
       label: "DAG Version",
-      value:
-        taskInstance.dag_version?.version_number === undefined
-          ? ""
-          : `v${taskInstance.dag_version.version_number}`,
+      value: <DagVersion version={taskInstance.dag_version} />,
     },
   ];
 

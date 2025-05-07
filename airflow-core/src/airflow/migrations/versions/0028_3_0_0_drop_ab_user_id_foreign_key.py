@@ -41,7 +41,6 @@ def upgrade():
     """Apply Drop ab_user.id foreign key."""
     with op.batch_alter_table("dag_run_note", schema=None) as batch_op:
         batch_op.drop_constraint("dag_run_note_user_fkey", type_="foreignkey")
-
     with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
         batch_op.drop_constraint("task_instance_note_user_fkey", type_="foreignkey")
 

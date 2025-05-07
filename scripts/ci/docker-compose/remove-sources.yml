@@ -44,6 +44,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/pig/src
       - ../../../empty:/opt/airflow/providers/apache/pinot/src
       - ../../../empty:/opt/airflow/providers/apache/spark/src
+      - ../../../empty:/opt/airflow/providers/apache/tinkerpop/src
       - ../../../empty:/opt/airflow/providers/apprise/src
       - ../../../empty:/opt/airflow/providers/arangodb/src
       - ../../../empty:/opt/airflow/providers/asana/src
@@ -62,7 +63,7 @@ services:
       - ../../../empty:/opt/airflow/providers/dingding/src
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/docker/src
-      - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/edge3/src
       - ../../../empty:/opt/airflow/providers/elasticsearch/src
       - ../../../empty:/opt/airflow/providers/exasol/src
       - ../../../empty:/opt/airflow/providers/fab/src

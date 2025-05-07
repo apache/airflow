@@ -22,8 +22,7 @@ from datetime import datetime
 from opentelemetry import trace
 
 from airflow import DAG
-from airflow.decorators import task
-from airflow.sdk import chain
+from airflow.sdk import chain, task
 from airflow.traces import otel_tracer
 from airflow.traces.tracer import Trace
 

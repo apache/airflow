@@ -95,6 +95,7 @@ def run_docker_compose_tests(
     image_name: str,
     extra_pytest_args: tuple,
     skip_docker_compose_deletion: bool,
+    include_success_outputs: bool,
 ) -> tuple[int, str]:
     command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
     if command_result.returncode != 0:
@@ -106,8 +107,11 @@ def run_docker_compose_tests(
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
+    if include_success_outputs:
+        env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
+    # since we are only running one test, we can print output directly with pytest -s
     command_result = run_command(
-        ["uv", "run", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+        ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],
         env=env,
         check=False,
         cwd=DOCKER_TESTS_ROOT_PATH.as_posix(),
@@ -259,8 +263,7 @@ def convert_test_type_to_pytest_args(
         helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
             return [f"{helm_folder}/tests/helm_tests/{test_type}"]
-        else:
-            return [helm_folder]
+        return [helm_folder]
     if test_type == SelectiveCoreTestType.OTHER.value and test_group == GroupOfTests.CORE:
         return find_all_other_tests()
     if test_group in [
@@ -391,6 +394,9 @@ def generate_args_for_pytest(
             args.append(f"--ignore={group_folder}")
     if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
+    if test_group == GroupOfTests.SYSTEM:
+        # System tests will be inited when the api server is started
+        args.append("--without-db-init")
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
         args.append("--ignore-glob=clients/python/tmp/*")
     args.extend(get_suspended_provider_args())

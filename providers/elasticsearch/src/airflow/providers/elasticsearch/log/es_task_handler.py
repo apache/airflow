@@ -113,8 +113,7 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
     if isinstance(val, TaskInstance):
         val.try_number = ti.try_number
         return val
-    else:
-        raise AirflowException(f"Could not find TaskInstance for {ti}")
+    raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -356,8 +355,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 )
                 if AIRFLOW_V_3_0_PLUS:
                     return missing_log_message, metadata
-                else:
-                    return [("", missing_log_message)], metadata  # type: ignore[list-item]
+                return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5

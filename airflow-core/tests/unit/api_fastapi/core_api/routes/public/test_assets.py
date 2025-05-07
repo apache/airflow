@@ -189,7 +189,13 @@ class TestAssets:
         freezer.stop()
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self):
+        clear_db_assets()
+        clear_db_runs()
+        clear_db_logs()
+
+        yield
+
         clear_db_assets()
         clear_db_runs()
         clear_db_logs()
@@ -229,7 +235,7 @@ class TestAssets:
 
 class TestGetAssets(TestAssets):
     def test_should_respond_200(self, test_client, session):
-        self.create_assets()
+        assets1, asset2 = self.create_assets(session)
         session.add(AssetModel("inactive", "inactive"))
         session.commit()
 
@@ -243,7 +249,7 @@ class TestGetAssets(TestAssets):
         assert response_data == {
             "assets": [
                 {
-                    "id": 1,
+                    "id": assets1.id,
                     "name": "simple1",
                     "uri": "s3://bucket/key/1",
                     "group": "asset",
@@ -253,9 +259,11 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    # No AssetEvent, so no data!
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
-                    "id": 2,
+                    "id": asset2.id,
                     "name": "simple2",
                     "uri": "s3://bucket/key/2",
                     "group": "asset",
@@ -265,16 +273,16 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
             "total_entries": 2,
         }
 
     def test_should_show_inactive(self, test_client, session):
-        self.create_assets()
+        asset1, asset2 = self.create_assets(session)
         session.add(
-            AssetModel(
-                id=3,
+            asset3 := AssetModel(
                 name="simple3",
                 uri="s3://bucket/key/3",
                 group="asset",
@@ -295,7 +303,7 @@ class TestGetAssets(TestAssets):
         assert response_data == {
             "assets": [
                 {
-                    "id": 1,
+                    "id": asset1.id,
                     "name": "simple1",
                     "uri": "s3://bucket/key/1",
                     "group": "asset",
@@ -305,9 +313,10 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
-                    "id": 2,
+                    "id": asset2.id,
                     "name": "simple2",
                     "uri": "s3://bucket/key/2",
                     "group": "asset",
@@ -317,9 +326,10 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
-                    "id": 3,
+                    "id": asset3.id,
                     "name": "simple3",
                     "uri": "s3://bucket/key/3",
                     "group": "asset",
@@ -329,6 +339,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
             "total_entries": 3,
@@ -499,9 +510,10 @@ class TestGetAssetsEndpointPagination(TestAssets):
             ("/assets?limit=1", ["s3://bucket/key/1"]),
             ("/assets?limit=100", [f"s3://bucket/key/{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 102)]),
-            ("/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 104)]),
+            ("/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 52)]),
+            ("/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 54)]),
             # Limit and offset test data
+            ("/assets?offset=50&limit=50", [f"s3://bucket/key/{i}" for i in range(51, 101)]),
             ("/assets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
         ],
     )
@@ -520,7 +532,7 @@ class TestGetAssetsEndpointPagination(TestAssets):
         response = test_client.get("/assets")
 
         assert response.status_code == 200
-        assert len(response.json()["assets"]) == 100
+        assert len(response.json()["assets"]) == 50
 
 
 class TestAssetAliases:
@@ -600,8 +612,8 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
             ("/assets/aliases?limit=1", ["simple1"]),
             ("/assets/aliases?limit=100", [f"simple{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 102)]),
-            ("/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 104)]),
+            ("/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 52)]),
+            ("/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 54)]),
             # Limit and offset test data
             ("/assets/aliases?offset=3&limit=3", ["simple4", "simple5", "simple6"]),
         ],
@@ -619,16 +631,17 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
         self.create_asset_aliases(num=110)
         response = test_client.get("/assets/aliases")
         assert response.status_code == 200
-        assert len(response.json()["asset_aliases"]) == 100
+        assert len(response.json()["asset_aliases"]) == 50
 
 
 class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
-        self.create_assets()
-        self.create_assets_events()
-        self.create_dag_run()
-        self.create_asset_dag_run()
+        asset1, asset2 = self.create_assets(session)
+        self.create_assets_events(session)
+        self.create_dag_run(session)
+        self.create_asset_dag_run(session)
         assets = session.query(AssetEvent).all()
+        session.commit()
         assert len(assets) == 2
         response = test_client.get("/assets/events")
         assert response.status_code == 200
@@ -785,8 +798,8 @@ class TestGetAssetEvents(TestAssets):
             ({"limit": "1"}, [1]),
             ({"limit": "100"}, list(range(1, 101))),
             # Offset test data
-            ({"offset": "1"}, list(range(2, 102))),
-            ({"offset": "3"}, list(range(4, 104))),
+            ({"offset": "1"}, list(range(2, 52))),
+            ({"offset": "3"}, list(range(4, 54))),
         ],
     )
     def test_limit_and_offset(self, test_client, params, expected_asset_ids):
@@ -890,6 +903,7 @@ class TestGetAssetEndpoint(TestAssets):
             "consuming_dags": [],
             "producing_tasks": [],
             "aliases": [],
+            "last_asset_event": {"id": None, "timestamp": None},
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -923,6 +937,7 @@ class TestGetAssetEndpoint(TestAssets):
             "consuming_dags": [],
             "producing_tasks": [],
             "aliases": [],
+            "last_asset_event": {"id": None, "timestamp": None},
         }
 
 
@@ -944,6 +959,8 @@ class TestGetAssetAliasEndpoint(TestAssetAliases):
 
 class TestQueuedEventEndpoint(TestAssets):
     def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
+        session.query(AssetDagRunQueue).delete()
+        session.flush()
         adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
         session.add(adrq)
         session.commit()
@@ -955,9 +972,8 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_respond_200(self, test_client, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        self.create_assets(session=session, num=1)
-        asset_id = 1
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
         response = test_client.get(
             f"/dags/{dag_id}/assets/queuedEvents",
@@ -967,7 +983,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.json() == {
             "queued_events": [
                 {
-                    "asset_id": 1,
+                    "asset_id": asset.id,
                     "dag_id": "dag",
                     "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 }
@@ -1050,13 +1066,13 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, test_client, session):
-        self.create_assets(session)
-        event_payload = {"asset_id": 1, "extra": {"foo": "bar"}}
+        (asset,) = self.create_assets(session, num=1)
+        event_payload = {"asset_id": asset.id, "extra": {"foo": "bar"}}
         response = test_client.post("/assets/events", json=event_payload)
         assert response.status_code == 200
         assert response.json() == {
             "id": mock.ANY,
-            "asset_id": 1,
+            "asset_id": asset.id,
             "uri": "s3://bucket/key/1",
             "group": "asset",
             "name": "simple1",
@@ -1088,13 +1104,13 @@ class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
-        self.create_assets(session)
-        event_payload = {"asset_id": 1, "extra": {"password": "bar"}}
+        (asset,) = self.create_assets(session, num=1)
+        event_payload = {"asset_id": asset.id, "extra": {"password": "bar"}}
         response = test_client.post("/assets/events", json=event_payload)
         assert response.status_code == 200
         assert response.json() == {
             "id": mock.ANY,
-            "asset_id": 1,
+            "asset_id": asset.id,
             "uri": "s3://bucket/key/1",
             "group": "asset",
             "name": "simple1",
@@ -1107,6 +1123,39 @@ class TestPostAssetEvents(TestAssets):
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
 
+    def test_should_update_asset_endpoint(self, test_client, session):
+        """Test for a single Asset."""
+        (asset,) = self.create_assets(session, num=1)
+        event_payload = {"asset_id": asset.id, "extra": {"foo": "bar"}}
+        asset_event_response = test_client.post("/assets/events", json=event_payload)
+        asset_response = test_client.get(f"/assets/{asset.id}")
+
+        assert asset_response.json()["last_asset_event"]["id"] == asset_event_response.json()["id"]
+        assert (
+            asset_response.json()["last_asset_event"]["timestamp"] == asset_event_response.json()["timestamp"]
+        )
+
+    def test_should_update_assets_endpoint(self, test_client, session):
+        """Test for multiple Assets."""
+        asset1, asset2 = self.create_assets(session, num=2)
+
+        # Now, only make a POST to the /assets/events endpoint for one of the Assets
+        for _ in range(2):
+            event_payload = {"asset_id": asset1.id, "extra": {"foo": "bar"}}
+            asset_event_response = test_client.post("/assets/events", json=event_payload)
+
+        assets_response = test_client.get("/assets")
+
+        for asset in assets_response.json()["assets"]:
+            # We should expect to see AssetEvents for the first Asset
+            if asset["id"] == asset1.id:
+                assert asset["last_asset_event"]["id"] == asset_event_response.json()["id"]
+                assert asset["last_asset_event"]["timestamp"] == asset_event_response.json()["timestamp"]
+
+            elif asset["id"] == asset2.id:
+                assert asset["last_asset_event"]["id"] is None
+                assert asset["last_asset_event"]["timestamp"] is None
+
 
 @pytest.mark.need_serialized_dag
 class TestPostAssetMaterialize(TestAssets):
@@ -1118,7 +1167,9 @@ class TestPostAssetMaterialize(TestAssets):
     @pytest.fixture(autouse=True)
     def create_dags(self, setup, dag_maker, session):
         # Depend on 'setup' so it runs first. Otherwise it deletes what we create here.
-        assets = {am.id: am.to_public() for am in self.create_assets(session=session, num=3)}
+        assets = {
+            i: am.to_public() for i, am in enumerate(self.create_assets(session=session, num=3), start=1)
+        }
         with dag_maker(self.DAG_ASSET1_ID, schedule=None, session=session):
             EmptyOperator(task_id="task", outlets=assets[1])
         with dag_maker(self.DAG_ASSET2_ID_A, schedule=None, session=session):
@@ -1134,6 +1185,8 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 200
         assert response.json() == {
+            "bundle_version": None,
+            "dag_display_name": self.DAG_ASSET1_ID,
             "dag_run_id": mock.ANY,
             "dag_id": self.DAG_ASSET1_ID,
             "dag_versions": mock.ANY,
@@ -1176,16 +1229,15 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_respond_200(self, test_client, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        self.create_assets(session=session, num=1)
-        asset_id = 1
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        response = test_client.get(f"/assets/{asset_id}/queuedEvents")
+        response = test_client.get(f"/assets/{asset.id}/queuedEvents")
         assert response.status_code == 200
         assert response.json() == {
             "queued_events": [
                 {
-                    "asset_id": asset_id,
+                    "asset_id": asset.id,
                     "dag_id": "dag",
                     "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 }
@@ -1212,14 +1264,13 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_respond_204(self, test_client, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        self.create_assets(session=session, num=1)
-        asset_id = 1
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is not None
-        response = test_client.delete(f"/assets/{asset_id}/queuedEvents")
+        assert session.get(AssetDagRunQueue, (asset.id, dag_id)) is not None
+        response = test_client.delete(f"/assets/{asset.id}/queuedEvents")
         assert response.status_code == 204
-        assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is None
+        assert session.get(AssetDagRunQueue, (asset.id, dag_id)) is None
         check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -1240,15 +1291,14 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
     def test_delete_should_respond_204(self, test_client, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        self.create_assets(session=session, num=1)
-        asset_id = 1
+        (asset,) = self.create_assets(session=session, num=1)
 
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+        self._create_asset_dag_run_queues(dag_id, asset.id, session)
         adrq = session.query(AssetDagRunQueue).all()
         assert len(adrq) == 1
 
         response = test_client.delete(
-            f"/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+            f"/dags/{dag_id}/assets/{asset.id}/queuedEvents",
         )
 
         assert response.status_code == 204

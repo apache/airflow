@@ -41,12 +41,14 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     DagRunType,
     PrevSuccessfulDagRunResponse,
+    TaskInstanceState,
+    TaskStatesResponse,
     TerminalStateNonSuccess,
-    TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
@@ -144,17 +146,29 @@ class TaskInstanceOperations:
         resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         return TIRunContext.model_validate_json(resp.read())
 
-    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime):
+    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index):
         """Tell the API server that this TI has reached a terminal state."""
-        if state == TerminalTIState.SUCCESS:
+        if state == TaskInstanceState.SUCCESS:
             raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
-        body = TITerminalStatePayload(end_date=when, state=TerminalStateNonSuccess(state))
+        body = TITerminalStatePayload(
+            end_date=when, state=TerminalStateNonSuccess(state), rendered_map_index=rendered_map_index
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):
+    def retry(self, id: uuid.UUID, end_date: datetime, rendered_map_index):
+        """Tell the API server that this TI has failed and reached a up_for_retry state."""
+        body = TIRetryStatePayload(end_date=end_date, rendered_map_index=rendered_map_index)
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, rendered_map_index):
         """Tell the API server that this TI has succeeded."""
-        body = TISuccessStatePayload(end_date=when, task_outlets=task_outlets, outlet_events=outlet_events)
+        body = TISuccessStatePayload(
+            end_date=when,
+            task_outlets=task_outlets,
+            outlet_events=outlet_events,
+            rendered_map_index=rendered_map_index,
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):
@@ -180,13 +194,13 @@ class TaskInstanceOperations:
         body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
         self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
 
-    def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
+    def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> OKResponse:
         """Set Rendered Task Instance Fields via the API server."""
         self.client.put(f"task-instances/{id}/rtif", json=body)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
-        return {"ok": True}
+        return OKResponse(ok=True)
 
     def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
         """
@@ -205,6 +219,7 @@ class TaskInstanceOperations:
     def get_count(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -224,8 +239,38 @@ class TaskInstanceOperations:
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
 
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})  # type: ignore[dict-item]
+
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
+
+    def get_task_states(
+        self,
+        dag_id: str,
+        map_index: int | None = None,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+    ) -> TaskStatesResponse:
+        """Get task states given criteria."""
+        params = {
+            "dag_id": dag_id,
+            "task_ids": task_ids,
+            "task_group_id": task_group_id,
+            "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
+            "run_ids": run_ids,
+        }
+
+        # Remove None values from params
+        params = {k: v for k, v in params.items() if v is not None}
+
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})  # type: ignore[dict-item]
+
+        resp = self.client.get("task-instances/states", params=params)
+        return TaskStatesResponse.model_validate_json(resp.read())
 
 
 class ConnectionOperations:
@@ -273,14 +318,25 @@ class VariableOperations:
             raise
         return VariableResponse.model_validate_json(resp.read())
 
-    def set(self, key: str, value: str | None, description: str | None = None):
+    def set(self, key: str, value: str | None, description: str | None = None) -> OKResponse:
         """Set an Airflow Variable via the API server."""
         body = VariablePostBody(val=value, description=description)
         self.client.put(f"variables/{key}", content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
-        return {"ok": True}
+        return OKResponse(ok=True)
+
+    def delete(
+        self,
+        key: str,
+    ) -> OKResponse:
+        """Delete a variable with given key via the API server."""
+        self.client.delete(f"variables/{key}")
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return OKResponse(ok=True)
 
 
 class XComOperations:
@@ -347,7 +403,7 @@ class XComOperations:
         value,
         map_index: int | None = None,
         mapped_length: int | None = None,
-    ) -> dict[str, bool]:
+    ) -> OKResponse:
         """Set a XCom value via the API server."""
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
@@ -360,7 +416,7 @@ class XComOperations:
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
-        return {"ok": True}
+        return OKResponse(ok=True)
 
     def delete(
         self,
@@ -369,7 +425,7 @@ class XComOperations:
         task_id: str,
         key: str,
         map_index: int | None = None,
-    ) -> dict[str, bool]:
+    ) -> OKResponse:
         """Delete a XCom with given key via the API server."""
         params = {}
         if map_index is not None and map_index >= 0:
@@ -378,7 +434,43 @@ class XComOperations:
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
-        return {"ok": True}
+        return OKResponse(ok=True)
+
+    def get_sequence_item(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        offset: int,
+    ) -> XComResponse | ErrorResponse:
+        params = {"offset": offset}
+        try:
+            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "XCom not found",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    key=key,
+                    offset=offset,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.XCOM_NOT_FOUND,
+                    detail={
+                        "dag_id": dag_id,
+                        "run_id": run_id,
+                        "task_id": task_id,
+                        "key": key,
+                        "offset": offset,
+                    },
+                )
+            raise
+        return XComResponse.model_validate_json(resp.read())
 
 
 class AssetOperations:
@@ -447,7 +539,7 @@ class DagRunOperations:
         conf: dict | None = None,
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
-    ):
+    ) -> OKResponse | ErrorResponse:
         """Trigger a DAG run via the API server."""
         body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
 
@@ -463,12 +555,11 @@ class DagRunOperations:
 
                 log.info("DAG Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
-            else:
-                raise
+            raise
 
         return OKResponse(ok=True)
 
-    def clear(self, dag_id: str, run_id: str):
+    def clear(self, dag_id: str, run_id: str) -> OKResponse:
         """Clear a DAG run via the API server."""
         self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
         # TODO: Error handling

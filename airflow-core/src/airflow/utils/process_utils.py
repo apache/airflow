@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import array
 import errno
 import logging
 import os
@@ -31,6 +32,7 @@ import sys
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
+    import fcntl
     import pty
     import termios
     import tty
@@ -210,10 +212,12 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
 
     old_tty = termios.tcgetattr(sys.stdin)
     old_sigint_handler = signal.getsignal(signal.SIGINT)
+    old_winch_handler = signal.getsignal(signal.SIGWINCH)
     tty.setcbreak(sys.stdin.fileno())
 
     # open pseudo-terminal to interact with subprocess
     primary_fd, secondary_fd = pty.openpty()
+
     try:
         with subprocess.Popen(
             cmd,
@@ -224,7 +228,21 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
             **kwargs,
         ) as proc:
             # ignore SIGINT in the parent process
-            signal.signal(signal.SIGINT, signal.SIG_IGN)
+            def _sighandler(sig, frame):
+                proc.send_signal(sig)
+
+            def _sigwinch(sig, frame):
+                # On Py3.11+ we could use termios.tcgetwinsize/tcsetwinsize instead
+                buf = array.array("h", [0, 0, 0, 0])
+
+                fcntl.ioctl(pty.STDOUT_FILENO, termios.TIOCGWINSZ, buf, True)
+                fcntl.ioctl(secondary_fd, termios.TIOCSWINSZ, buf)
+
+            # Set the initial size too
+            _sigwinch(signal.SIGWINCH, None)
+
+            signal.signal(signal.SIGINT, _sighandler)
+            signal.signal(signal.SIGWINCH, _sigwinch)
             while proc.poll() is None:
                 readable_fbs, _, _ = select.select([sys.stdin, primary_fd], [], [], 0)
                 if sys.stdin in readable_fbs:
@@ -233,10 +251,11 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
                 if primary_fd in readable_fbs:
                     output_data = os.read(primary_fd, 10240)
                     if output_data:
-                        os.write(sys.stdout.fileno(), output_data)
+                        os.write(pty.STDOUT_FILENO, output_data)
     finally:
         # restore tty settings back
         signal.signal(signal.SIGINT, old_sigint_handler)
+        signal.signal(signal.SIGWINCH, old_winch_handler)
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
 
 

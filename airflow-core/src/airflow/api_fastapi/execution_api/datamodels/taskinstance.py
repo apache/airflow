@@ -75,6 +75,7 @@ class TITerminalStatePayload(StrictBaseModel):
 
     end_date: UtcDateTime
     """When the task completed executing"""
+    rendered_map_index: str | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -97,6 +98,7 @@ class TISuccessStatePayload(StrictBaseModel):
 
     task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
     outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
+    rendered_map_index: str | None = None
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -136,6 +138,7 @@ class TIDeferredStatePayload(StrictBaseModel):
 
     Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
     """
+    rendered_map_index: str | None = None
 
 
 class TIRescheduleStatePayload(StrictBaseModel):
@@ -171,6 +174,7 @@ class TIRetryStatePayload(StrictBaseModel):
         ),
     ]
     end_date: UtcDateTime
+    rendered_map_index: str | None = None
 
 
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
@@ -195,13 +199,13 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
 
     if state == TIState.SUCCESS:
         return "success"
-    elif state in set(TerminalTIState):
+    if state in set(TerminalTIState):
         return "_terminal_"
-    elif state == TIState.DEFERRED:
+    if state == TIState.DEFERRED:
         return "deferred"
-    elif state == TIState.UP_FOR_RESCHEDULE:
+    if state == TIState.UP_FOR_RESCHEDULE:
         return "up_for_reschedule"
-    elif state == TIState.UP_FOR_RETRY:
+    if state == TIState.UP_FOR_RETRY:
         return "up_for_retry"
     return "_other_"
 
@@ -230,7 +234,7 @@ class TIHeartbeatInfo(StrictBaseModel):
 
 # This model is not used in the API, but it is included in generated OpenAPI schema
 # for use in the client SDKs.
-class TaskInstance(StrictBaseModel):
+class TaskInstance(BaseModel):
     """Schema for TaskInstance model with minimal required fields needed for Runtime."""
 
     id: uuid.UUID
@@ -310,7 +314,7 @@ class TIRunContext(BaseModel):
     connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
     """Connections that can be accessed by the task instance."""
 
-    upstream_map_indexes: dict[str, int] | None = None
+    upstream_map_indexes: dict[str, int | list[int] | None] | None = None
 
     next_method: str | None = None
     """Method to call. Set when task resumes from a trigger."""
@@ -337,8 +341,7 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
-class TIRuntimeCheckPayload(StrictBaseModel):
-    """Payload for performing Runtime checks on the TaskInstance model as requested by the SDK."""
+class TaskStatesResponse(BaseModel):
+    """Response for task states with run_id, task and state."""
 
-    inlets: list[AssetProfile] | None = None
-    outlets: list[AssetProfile] | None = None
+    task_states: dict[str, Any]

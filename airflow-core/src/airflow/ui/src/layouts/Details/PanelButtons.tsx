@@ -17,29 +17,32 @@
  * under the License.
  */
 import {
-  Box,
+  Flex,
   IconButton,
   ButtonGroup,
-  Stack,
   createListCollection,
   type SelectValueChangeDetails,
-  Accordion,
-  Text,
+  Popover,
+  Portal,
+  Select,
 } from "@chakra-ui/react";
-import { FiGrid } from "react-icons/fi";
+import { useReactFlow } from "@xyflow/react";
+import { FiChevronDown, FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import DagVersionSelect from "src/components/DagVersionSelect";
+import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
-import { Select } from "src/components/ui";
+import { Button } from "src/components/ui";
 
 import { DagRunSelect } from "./DagRunSelect";
+import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
   readonly dagView: string;
   readonly limit: number;
+  readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -52,27 +55,29 @@ const options = createListCollection({
   ],
 });
 
+const displayRunOptions = createListCollection({
+  items: [
+    { label: "5", value: "5" },
+    { label: "10", value: "10" },
+    { label: "25", value: "25" },
+    { label: "50", value: "50" },
+    { label: "100", value: "100" },
+    { label: "365", value: "365" },
+  ],
+});
+
 const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
 
-export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) => {
+export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLimit }: Props) => {
   const { dagId = "" } = useParams();
+  const { fitView } = useReactFlow();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
     "tasks",
   );
   const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
-  const displayRunOptions = createListCollection({
-    items: [
-      { label: "5", value: "5" },
-      { label: "10", value: "10" },
-      { label: "25", value: "25" },
-      { label: "50", value: "50" },
-      { label: "100", value: "100" },
-      { label: "365", value: "365" },
-    ],
-  });
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     const runLimit = Number(event.value[0]);
 
@@ -95,13 +100,34 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
     }
   };
 
+  const handleFocus = (view: string) => {
+    if (panelGroupRef.current) {
+      const panelGroup = panelGroupRef.current;
+
+      if (typeof panelGroup.setLayout === "function") {
+        const newLayout = view === "graph" ? [70, 30] : [30, 70];
+
+        panelGroup.setLayout(newLayout);
+        // Used setTimeout to ensure DOM has been updated
+        setTimeout(() => {
+          void fitView();
+        }, 1);
+      }
+    }
+  };
+
   return (
-    <>
-      <ButtonGroup attached left={0} position="absolute" size="sm" top={0} variant="outline" zIndex={1}>
+    <Flex justifyContent="space-between" position="absolute" top={1} width="100%" zIndex={1}>
+      <ButtonGroup attached size="sm" variant="outline">
         <IconButton
           aria-label="Show Grid"
           colorPalette="blue"
-          onClick={() => setDagView("grid")}
+          onClick={() => {
+            setDagView("grid");
+            if (dagView === "grid") {
+              handleFocus("grid");
+            }
+          }}
           title="Show Grid"
           variant={dagView === "grid" ? "solid" : "outline"}
         >
@@ -110,67 +136,94 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
         <IconButton
           aria-label="Show Graph"
           colorPalette="blue"
-          onClick={() => setDagView("graph")}
+          onClick={() => {
+            setDagView("graph");
+            if (dagView === "graph") {
+              handleFocus("graph");
+            }
+          }}
           title="Show Graph"
           variant={dagView === "graph" ? "solid" : "outline"}
         >
           <MdOutlineAccountTree />
         </IconButton>
       </ButtonGroup>
-      <Box justifyContent="flex-end" position="absolute" right={3} top={0} width="250px" zIndex={1}>
-        <Accordion.Root collapsible>
-          <Accordion.Item borderBottomWidth={0} value="1">
-            <Accordion.ItemTrigger justifyContent="flex-end">
-              <Text fontSize="sm">Options</Text>
-              <Accordion.ItemIndicator />
-            </Accordion.ItemTrigger>
-            <Accordion.ItemContent display="flex">
-              <Accordion.ItemBody bg="bg.muted" p={2} width="fit-content">
-                <Stack gap={1} mr={2}>
+      <Flex gap={1} mr={3}>
+        <ToggleGroups />
+        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+        <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
+          <Popover.Trigger asChild>
+            <Button size="sm" variant="outline">
+              Options
+              <FiChevronDown size="0.5rem" />
+            </Button>
+          </Popover.Trigger>
+          <Portal>
+            <Popover.Positioner>
+              <Popover.Content>
+                <Popover.Arrow />
+                <Popover.Body p={2}>
                   {dagView === "graph" ? (
                     <>
                       <DagVersionSelect />
                       <DagRunSelect limit={limit} />
                       <Select.Root
+                        // @ts-expect-error The expected option type is incorrect
                         collection={options}
-                        data-testid="filter-duration"
+                        data-testid="dependencies"
                         onValueChange={handleDepsChange}
                         size="sm"
                         value={[dependencies]}
                       >
                         <Select.Label fontSize="xs">Dependencies</Select.Label>
-                        <Select.Trigger>
-                          <Select.ValueText placeholder="Dependencies" />
-                        </Select.Trigger>
-                        <Select.Content>
-                          {options.items.map((option) => (
-                            <Select.Item item={option} key={option.value}>
-                              {option.label}
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText placeholder="Dependencies" />
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {options.items.map((option) => (
+                              <Select.Item item={option} key={option.value}>
+                                {option.label}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
                       </Select.Root>
                       <Select.Root
+                        // @ts-expect-error The expected option type is incorrect
                         collection={directionOptions}
                         onValueChange={handleDirectionUpdate}
                         size="sm"
                         value={[direction]}
                       >
                         <Select.Label fontSize="xs">Graph Direction</Select.Label>
-                        <Select.Trigger>
-                          <Select.ValueText />
-                        </Select.Trigger>
-                        <Select.Content>
-                          {directionOptions.items.map((option) => (
-                            <Select.Item item={option} key={option.value}>
-                              {option.label}
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText />
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {directionOptions.items.map((option) => (
+                              <Select.Item item={option} key={option.value}>
+                                {option.label}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
                       </Select.Root>
                     </>
                   ) : (
                     <Select.Root
+                      // @ts-expect-error The expected option type is incorrect
                       collection={displayRunOptions}
                       data-testid="display-dag-run-options"
                       onValueChange={handleLimitChange}
@@ -178,25 +231,31 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
                       value={[limit.toString()]}
                     >
                       <Select.Label>Number of Dag Runs</Select.Label>
-                      <Select.Trigger>
-                        {}
-                        <Select.ValueText />
-                      </Select.Trigger>
-                      <Select.Content>
-                        {displayRunOptions.items.map((option) => (
-                          <Select.Item item={option} key={option.value}>
-                            {option.label}
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
+                      <Select.Control>
+                        <Select.Trigger>
+                          <Select.ValueText />
+                        </Select.Trigger>
+                        <Select.IndicatorGroup>
+                          <Select.Indicator />
+                        </Select.IndicatorGroup>
+                      </Select.Control>
+                      <Select.Positioner>
+                        <Select.Content>
+                          {displayRunOptions.items.map((option) => (
+                            <Select.Item item={option} key={option.value}>
+                              {option.label}
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select.Positioner>
                     </Select.Root>
                   )}
-                </Stack>
-              </Accordion.ItemBody>
-            </Accordion.ItemContent>
-          </Accordion.Item>
-        </Accordion.Root>
-      </Box>
-    </>
+                </Popover.Body>
+              </Popover.Content>
+            </Popover.Positioner>
+          </Portal>
+        </Popover.Root>
+      </Flex>
+    </Flex>
   );
 };

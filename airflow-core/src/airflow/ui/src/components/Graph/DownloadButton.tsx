@@ -23,7 +23,7 @@ import { FiDownload } from "react-icons/fi";
 
 import { toaster } from "src/components/ui";
 
-export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
+export const DownloadButton = ({ name }: { readonly name: string }) => {
   const { getNodes, getZoom } = useReactFlow();
 
   const onClick = () => {
@@ -49,7 +49,7 @@ export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
         .then((dataUrl) => {
           const downloadLink = document.createElement("a");
 
-          downloadLink.setAttribute("download", `${dagId}-graph.png`);
+          downloadLink.setAttribute("download", `${name}-graph.png`);
           downloadLink.setAttribute("href", dataUrl);
           downloadLink.click();
         })
@@ -65,7 +65,13 @@ export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
 
   return (
     <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
-      <IconButton aria-label="Download graph image" onClick={onClick} size="xs" variant="ghost">
+      <IconButton
+        aria-label="Download graph image"
+        onClick={onClick}
+        size="xs"
+        title="Download graph image"
+        variant="ghost"
+      >
         <FiDownload />
       </IconButton>
     </Panel>

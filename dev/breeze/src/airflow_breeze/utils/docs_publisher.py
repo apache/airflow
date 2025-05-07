@@ -18,18 +18,17 @@ from __future__ import annotations
 
 import os
 import shutil
-from pathlib import Path
 
 from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import get_provider_distributions_metadata, get_short_package_name
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.publish_docs_helpers import pretty_format_path
 
 PROCESS_TIMEOUT = 15 * 60
 
-ROOT_PROJECT_DIR = Path(__file__).parents[5].resolve()
-GENERATED_PATH = ROOT_PROJECT_DIR / "generated"
+GENERATED_PATH = AIRFLOW_ROOT_PATH / "generated"
 
 
 class DocsPublisher:
@@ -52,8 +51,7 @@ class DocsPublisher:
         if self.is_versioned:
             version = "stable"
             return f"{GENERATED_PATH}/_build/docs/{self.package_name}/{version}"
-        else:
-            return f"{GENERATED_PATH}/_build/docs/{self.package_name}"
+        return f"{GENERATED_PATH}/_build/docs/{self.package_name}"
 
     @property
     def _current_version(self):
@@ -76,8 +74,7 @@ class DocsPublisher:
     def _publish_dir(self) -> str:
         if self.is_versioned:
             return f"docs-archive/{self.package_name}/{self._current_version}"
-        else:
-            return f"docs-archive/{self.package_name}"
+        return f"docs-archive/{self.package_name}"
 
     def publish(self, override_versioned: bool, airflow_site_dir: str):
         """Copy documentation packages files to airflow-site repository."""

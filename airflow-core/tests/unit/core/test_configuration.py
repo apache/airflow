@@ -73,6 +73,12 @@ def restore_env():
         yield
 
 
+@pytest.fixture(scope="module", autouse=True)
+def restore_providers_manager_configuration():
+    yield
+    ProvidersManager().initialize_providers_configuration()
+
+
 def parameterized_config(template) -> str:
     """
     Generates configuration from provided template & variables defined in current scope.
@@ -1705,7 +1711,6 @@ def test_sensitive_values():
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
-        ("core", "internal_api_secret_key"),
         ("api_auth", "jwt_secret"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),

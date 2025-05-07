@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import inspect
 from collections import abc
 from collections.abc import Iterable
 from datetime import datetime, timedelta
@@ -58,10 +59,11 @@ class DAGResponse(BaseModel):
     dag_id: str
     dag_display_name: str
     is_paused: bool
-    is_active: bool
+    is_stale: bool
     last_parsed_time: datetime | None
     last_expired: datetime | None
     bundle_name: str | None
+    bundle_version: str | None
     relative_fileloc: str | None
     fileloc: str
     description: str | None
@@ -88,7 +90,7 @@ class DAGResponse(BaseModel):
 
         if v is None:
             return []
-        elif isinstance(v, str):
+        if isinstance(v, str):
             return v.split(",")
         return v
 
@@ -153,6 +155,7 @@ class DAGDetailsResponse(DAGResponse):
     template_search_path: Iterable[str] | None
     timezone: str | None
     last_parsed: datetime | None
+    default_args: abc.Mapping | None
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -161,6 +164,14 @@ class DAGDetailsResponse(DAGResponse):
         if tz is None:
             return None
         return str(tz)
+
+    @field_validator("doc_md", mode="before")
+    @classmethod
+    def get_doc_md(cls, doc_md: str | None) -> str | None:
+        """Clean indentation in doc md."""
+        if doc_md is None:
+            return None
+        return inspect.cleandoc(doc_md)
 
     @field_validator("params", mode="before")
     @classmethod

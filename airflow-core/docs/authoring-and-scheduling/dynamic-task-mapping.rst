@@ -41,11 +41,11 @@ This will show ``Total was 9`` in the task logs when executed.
 
 This is the resulting DAG structure:
 
-.. image:: /img/mapping-simple-graph.png
+.. image:: /img/ui-light/mapping_simple_graph.png
 
 The grid view also provides visibility into your mapped tasks in the details panel:
 
-.. image:: /img/mapping-simple-grid.png
+.. image:: /img/ui-dark/grid_mapped_task.png
 
 .. note:: Only keyword arguments are allowed to be passed to ``expand()``.
 
@@ -203,7 +203,7 @@ Since the template is rendered after the main execution block, it is possible to
 
 .. code-block:: python
 
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
 
     @task(map_index_template="{{ my_variable }}")
@@ -254,7 +254,7 @@ In this example, you have a regular data delivery to an S3 bucket and want to ap
     from datetime import datetime
 
     from airflow.sdk import DAG
-    from airflow.decorators import task
+    from airflow.sdk import task
     from airflow.providers.amazon.aws.hooks.s3 import S3Hook
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
 

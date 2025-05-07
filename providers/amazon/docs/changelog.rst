@@ -26,6 +26,112 @@
 Changelog
 ---------
 
+9.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.10+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Move SQS messaging from common.messaging to Amazon provider (#50057)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo in emr sensor _hook_parameters (#49597)``
+* ``Update 'prune_logs' in Amazon provider package to support 'RuntimeTaskInstance' (#49363)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``Update GlueJobOperator to inherit AWS base class (#49750)``
+* ``Amazon EMR Sensors/Operators inherit AWS Base Classes (#49486)``
+* ``Introduce lower bind to lxml as 5.4.0 (#49612)``
+* ``Remove Marshmallow from Core (#49388)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Limit boto3 (#49939)" (#49948)``
+   * ``Refactor connection creation in system tests to use REST API instead (#49804)``
+   * ``Min provider version=2.10; use running_state freely (#49924)``
+   * ``Also limit botocore when upgrading to latest (#49962)``
+   * ``Add AWS auth manager to AWS provider.yaml (#49944)``
+   * ``Limit boto3 (#49939)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Replace chicken-egg providers with automated use of unreleased packages (#49799)``
+   * ``Fix AWS system test names (#49791)``
+   * ``Update 'secure' in AWS auth manager (#49751)``
+   * ``use NonNegativeInt for backfill_id (#49691)``
+   * ``Fix AWS auth manager (#49588)``
+   * ``Fix AWS auth manager system test (#49561)``
+   * ``Make AWS auth manager compatible with AF3 (#49419)``
+   * ``capitalize the term airflow (#49450)``
+   * ``Use Label class from task sdk in providers (#49398)``
+   * ``Add Stop AutoML Job to the Sagemaker system test to clean up. (#49325)``
+
+9.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'EksClusterStateSensor'. Save 'region' as attribute (#49138)``
+* ``Decrease default value of 'waiter_max_attempts' in 'MwaaTriggerDagRunOperator' (#49136)``
+* ``Increase default value of 'waiter_max_attempts' in 'BedrockBatchInferenceOperator' (#49090)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+* ``Add base_url fallback for aws auth_manager (#49305)``
+* ``remove superfluous else block (#49199)``
+* ``AWS Batch Operators/Sensors inherit AWS Base classes (#49172)``
+* ``Help pip to find appropriate boto for aiobotocore (#49166)``
+* ``Update EKS Operators and Sensors to inherit AWS base classes (#48192)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Unpause DAG in AWS MWAA system test (#49145)``
+   * ``Fix AWS auth manager system test (#49072)``
+
+9.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Bedrock Batch Inference Operator and accompanying parts (#48468)``
+* ``Update ECS executor to support Task SDK (#48513)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle NoCredentialsError in waiter_with_logging.py (#48946)``
+* ``Bedrock Batch Inference - Trying to stop a completed job is a successful result (#48964)``
+* ``S3Hook: remove error return on inactivity period check (#48782)``
+
+Misc
+~~~~
+
+* ``Rename list_jobs method to describe_jobs in GlueJobHook (#48904)``
+* ``Fix typo in docstring for MwaaHook (#48980)``
+* ``Update Amazon RDS Operators and Sensors to inherit AWS Base classes (#48872)``
+* ``Change provider-specific dependencies to refer to providers (#48843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor AWS system tests to not use @task.branch (#48973)``
+   * ``Fix botocore version in Amazon provider docs to match 'pyproject.toml' (#48981)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Fix default base value (#49013)``
+
 9.5.0
 .....
 

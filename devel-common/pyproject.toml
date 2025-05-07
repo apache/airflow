@@ -40,7 +40,7 @@ dependencies = [
     "time-machine>=2.13.0",
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
-    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest]"
+    "apache-airflow-devel-common[basic]"
 ]
 
 [project.optional-dependencies]
@@ -74,7 +74,7 @@ dependencies = [
     "rich-click>=1.7.1",
     "click>=8.1.8",
     "docutils>=0.21",
-    "sphinx-airflow-theme>=0.1.0",
+    "sphinx-airflow-theme>=0.2.2",
     "sphinx-argparse>=0.4.0",
     "sphinx-autoapi>=3",
     "sphinx-autobuild>=2024.10.2",

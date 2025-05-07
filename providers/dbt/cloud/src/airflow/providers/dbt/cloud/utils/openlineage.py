@@ -22,7 +22,7 @@ import re
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
-from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -48,14 +48,7 @@ def _get_logical_date(task_instance):
     return date
 
 
-def _get_try_number(val):
-    # todo: remove when min airflow version >= 2.10.0
-    if AIRFLOW_V_2_10_PLUS:
-        return val.try_number
-    return val.try_number - 1
-
-
-@require_openlineage_version(provider_min_version="2.0.0")
+@require_openlineage_version(provider_min_version="2.3.0")
 def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
 ) -> OperatorLineage:
@@ -144,14 +137,23 @@ def generate_openlineage_events_from_dbt_cloud_run(
         dag_id=task_instance.dag_id,
         task_id=operator.task_id,
         logical_date=_get_logical_date(task_instance),
-        try_number=_get_try_number(task_instance),
+        try_number=task_instance.try_number,
         map_index=task_instance.map_index,
+    )
+
+    root_parent_run_id = OpenLineageAdapter.build_dag_run_id(
+        dag_id=task_instance.dag_id,
+        logical_date=_get_logical_date(task_instance),
+        clear_number=task_instance.dag_run.clear_number,
     )
 
     parent_job = ParentRunMetadata(
         run_id=parent_run_id,
         job_name=f"{task_instance.dag_id}.{task_instance.task_id}",
         job_namespace=namespace(),
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_name=task_instance.dag_id,
+        root_parent_job_namespace=namespace(),
     )
     client = get_openlineage_listener().adapter.get_or_create_openlineage_client()
 

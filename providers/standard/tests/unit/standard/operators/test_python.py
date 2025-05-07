@@ -70,7 +70,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -480,6 +480,7 @@ class TestBranchOperator(BasePythonTest):
                 branch_ti.set_state(TaskInstanceState.SUCCESS, session=session)
                 dr.task_instance_scheduling_decisions(session=session)
                 branch_2_ti = dr.get_task_instance(task_id="branch_2", session=session)
+                branch_2_ti.task = self.branch_2
                 assert branch_2_ti.state == TaskInstanceState.SKIPPED
                 branch_2_ti.set_state(None)
                 branch_2_ti.run()
@@ -761,6 +762,7 @@ class TestShortCircuitOperator(BasePythonTest):
                 sc_ti.set_state(TaskInstanceState.SUCCESS, session=session)
                 dr.task_instance_scheduling_decisions(session=session)
                 op1_ti = dr.get_task_instance(task_id="op1", session=session)
+                op1_ti.task = self.op1
                 assert op1_ti.state == TaskInstanceState.SKIPPED
                 op1_ti.set_state(None)
                 op1_ti.run()
@@ -864,8 +866,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
@@ -935,11 +936,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "conn",  # Accessor for Connection.
             "map_index_template",
         }
-        if AIRFLOW_V_2_10_PLUS:
-            intentionally_excluded_context_keys |= {
-                "inlet_events",
-                "outlet_events",
-            }
+        intentionally_excluded_context_keys |= {
+            "inlet_events",
+            "outlet_events",
+        }
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()
@@ -1154,7 +1154,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return True
             raise RuntimeError
 
-        self.run_as_task(f, system_site_packages=False, requirements=extra_requirements)
+        self.run_as_task(
+            f, system_site_packages=False, requirements=extra_requirements, serializer=serializer
+        )
 
     def test_system_site_packages(self):
         def f():
@@ -1200,7 +1202,12 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs", *extra_requirements], system_site_packages=False)
+        self.run_as_task(
+            f,
+            requirements=["funcsigs", *extra_requirements],
+            system_site_packages=False,
+            serializer=serializer,
+        )
 
     @pytest.mark.parametrize(
         "serializer, extra_requirements",
@@ -1215,7 +1222,12 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs>1.0", *extra_requirements], system_site_packages=False)
+        self.run_as_task(
+            f,
+            requirements=["funcsigs>1.0", *extra_requirements],
+            system_site_packages=False,
+            serializer=serializer,
+        )
 
     def test_requirements_file(self):
         def f():
@@ -1526,8 +1538,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         with pytest.raises(
             AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
@@ -1709,6 +1720,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 branch_2_ti = dr.get_task_instance(task_id="branch_2", session=session)
                 # FIXME
                 if self.opcls != BranchExternalPythonOperator:
+                    branch_2_ti.task = self.branch_2
                     assert branch_2_ti.state == TaskInstanceState.SKIPPED
                     branch_2_ti.set_state(None, session=session)
                     branch_2_ti.run()

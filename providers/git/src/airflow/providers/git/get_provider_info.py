@@ -26,9 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-git",
         "name": "GIT",
         "description": "`Distributed version control system (GIT) <https://git-scm.com/>`__\n",
-        "state": "not-ready",
-        "source-date-epoch": 1742823216,
-        "versions": ["0.0.1"],
         "integrations": [
             {
                 "integration-name": "GIT (Git)",
@@ -41,6 +38,4 @@ def get_provider_info():
         "connection-types": [
             {"hook-class-name": "airflow.providers.git.hooks.git.GitHook", "connection-type": "git"}
         ],
-        "dependencies": ["apache-airflow>=3.0.0.dev0", "GitPython>=3.1.44"],
-        "devel-dependencies": [],
     }

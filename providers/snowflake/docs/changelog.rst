@@ -27,6 +27,73 @@
 Changelog
 ---------
 
+6.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.10+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+.. note::
+   ``private_key_content`` in Snowflake connection should now be base64 encoded. To encode your private key, you can use the following Python snippet:
+
+   .. code-block:: python
+
+         import base64
+
+         with open("path/to/your/private_key.pem", "rb") as key_file:
+             encoded_key = base64.b64encode(key_file.read()).decode("utf-8")
+             print(encoded_key)
+
+Features
+~~~~~~~~
+
+* ``Adding OAuth support for SnowflakeHook  (#47191)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SnowflakeSqlApiHook backwards compatibility for get_oauth_token method (#49482)``
+* ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
+* ``Fix mypy for get_oauth_token signature in SnowflakeSqlApiHook (#49449)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``enhance: logs SQL before execution in 'snowflake' and 'databricks_sql' (#48942)``
+* ``chore: import paths use the stable functions (#49460)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid committing history for providers (#49907)``
+
+6.2.2
+.....
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.2.1
+.....
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 6.2.0
 .....
 

@@ -81,19 +81,16 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_use_distributions_from_dist,
 )
 from airflow_breeze.commands.main_command import cleanup, main
-from airflow_breeze.commands.testing_commands import (
-    option_force_lowest_dependencies,
-)
 from airflow_breeze.global_constants import (
     ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
     ALLOWED_TTY,
-    CELERY_INTEGRATION,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
@@ -125,6 +122,8 @@ from airflow_breeze.utils.run_utils import (
     run_compile_ui_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
+
+CELERY_INTEGRATION = "celery"
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -299,7 +298,6 @@ option_load_default_connections = click.option(
 @option_executor_shell
 @option_excluded_providers
 @option_force_build
-@option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
 @option_include_mypy_volume
@@ -354,7 +352,6 @@ def shell(
     extra_args: tuple,
     excluded_providers: str,
     force_build: bool,
-    force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
     include_mypy_volume: bool,
@@ -425,7 +422,6 @@ def shell(
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
-        force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
         include_mypy_volume=include_mypy_volume,
@@ -672,11 +668,18 @@ def start_airflow(
 @option_builder
 @click.option(
     "--clean-build",
-    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
-    "before the build - useful for a clean build.",
     is_flag=True,
+    help="Cleans the build directory before building the documentation and removes all inventory "
+    "cache (including external inventories).",
+)
+@click.option(
+    "--refresh-airflow-inventories",
+    is_flag=True,
+    help="When set, only airflow package inventories will be refreshed, regardless "
+    "if they are already downloaded. With `--clean-build` - everything is cleaned..",
 )
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
+@click.option("--include-commits", help="Include commits in the documentation.", is_flag=True)
 @option_dry_run
 @option_github_repository
 @option_include_not_ready_providers
@@ -709,10 +712,12 @@ def start_airflow(
 def build_docs(
     builder: str,
     clean_build: bool,
+    refresh_airflow_inventories: bool,
     docs_only: bool,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
+    include_commits: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
@@ -726,7 +731,9 @@ def build_docs(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     build_params = BuildCiParams(
-        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        builder=builder,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
@@ -735,9 +742,17 @@ def build_docs(
         directories_to_clean = ["apis"]
     generated_path = AIRFLOW_ROOT_PATH / "generated"
     for dir_name in directories_to_clean:
+        get_console().print("Removing all generated dirs.")
         for directory in generated_path.rglob(dir_name):
             get_console().print(f"[info]Removing {directory}")
             shutil.rmtree(directory, ignore_errors=True)
+    if refresh_airflow_inventories and not clean_build:
+        get_console().print("Removing airflow inventories.")
+        package_globs = ["helm-chart", "docker-stack", "apache-airflow*"]
+        for package_glob in package_globs:
+            for directory in (generated_path / "_inventory_cache").rglob(package_glob):
+                get_console().print(f"[info]Removing {directory}")
+                shutil.rmtree(directory, ignore_errors=True)
 
     docs_list_as_tuple: tuple[str, ...] = ()
     if distributions_list and len(distributions_list):
@@ -757,6 +772,7 @@ def build_docs(
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
+        include_commits=include_commits,
         short_doc_packages=expand_all_provider_distributions(
             short_doc_packages=doc_packages,
             include_removed=include_removed_providers,
@@ -769,6 +785,7 @@ def build_docs(
     shell_params = ShellParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        mount_sources=MOUNT_ALL,
     )
     result = execute_command_in_shell(shell_params, project_name="docs", command=cmd)
     fix_ownership_using_docker()
@@ -1097,9 +1114,8 @@ def find_airflow_container() -> str | None:
             # On docker-compose v1 we get '--------' as output here
             stop_exec_on_error(docker_compose_ps_command.returncode)
         return container_running
-    else:
-        stop_exec_on_error(1)
-        return None
+    stop_exec_on_error(1)
+    return None
 
 
 @main.command(
@@ -1146,7 +1162,7 @@ def doctor(ctx):
     shell_params.print_badge_info()
 
     perform_environment_checks()
-    fix_ownership_using_docker()
+    fix_ownership_using_docker(quiet=False)
 
     given_answer = user_confirm("Are you sure with the removal of temporary Python files and Python cache?")
     if not get_dry_run() and given_answer == Answer.YES:

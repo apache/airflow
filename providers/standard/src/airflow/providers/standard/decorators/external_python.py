@@ -18,12 +18,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
 
-from airflow.decorators.base import task_decorator_factory
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.bases.decorator import task_decorator_factory
+else:
+    from airflow.decorators.base import task_decorator_factory  # type: ignore[no-redef]
 from airflow.providers.standard.decorators.python import _PythonDecoratedOperator
 from airflow.providers.standard.operators.python import ExternalPythonOperator
 
 if TYPE_CHECKING:
-    from airflow.decorators.base import TaskDecorator
+    from airflow.sdk.bases.decorator import TaskDecorator
 
 
 class _PythonExternalDecoratedOperator(_PythonDecoratedOperator, ExternalPythonOperator):

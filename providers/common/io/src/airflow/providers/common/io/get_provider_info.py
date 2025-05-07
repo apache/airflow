@@ -26,23 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-common-io",
         "name": "Common IO",
         "description": "Common IO Provider\n",
-        "state": "ready",
-        "source-date-epoch": 1743477801,
-        "versions": [
-            "1.5.2",
-            "1.5.1",
-            "1.5.0",
-            "1.4.2",
-            "1.4.1",
-            "1.4.0",
-            "1.3.2",
-            "1.3.1",
-            "1.3.0",
-            "1.2.0",
-            "1.1.0",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Common IO",
@@ -57,7 +40,6 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.common.io.operators.file_transfer"],
             }
         ],
-        "xcom": ["airflow.providers.common.io.xcom.backend"],
         "asset-uris": [
             {
                 "schemes": ["file"],
@@ -102,10 +84,4 @@ def get_provider_info():
                 },
             }
         },
-        "dependencies": ["apache-airflow>=2.9.0"],
-        "optional-dependencies": {
-            "common.compat": ["apache-airflow-providers-common-compat"],
-            "openlineage": ["apache-airflow-providers-openlineage"],
-        },
-        "devel-dependencies": [],
     }

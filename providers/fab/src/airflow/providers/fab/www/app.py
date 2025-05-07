@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from os.path import isabs
 
 from flask import Flask
@@ -40,6 +41,8 @@ from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
     init_plugins,
 )
+from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
+from airflow.providers.fab.www.utils import get_session_lifetime_config
 
 app: Flask | None = None
 
@@ -56,6 +59,12 @@ def create_app(enable_plugins: bool):
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
+
+    webserver_config = conf.get_mandatory_value("fab", "config_file")
+    # Enable customizations in webserver_config.py to be applied via Flask.current_app.
+    with flask_app.app_context():
+        flask_app.config.from_pyfile(webserver_config, silent=True)
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not isabs(url.database):
@@ -95,6 +104,7 @@ def create_app(enable_plugins: bool):
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_xframe_protection(flask_app)
         init_airflow_session_interface(flask_app)
+        init_wsgi_middleware(flask_app)
     return flask_app
 
 

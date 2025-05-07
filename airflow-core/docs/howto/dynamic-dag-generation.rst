@@ -127,7 +127,7 @@ and Airflow will automatically register them.
 .. code-block:: python
 
     from datetime import datetime
-    from airflow.decorators import dag, task
+    from airflow.sdk import dag, task
 
     configs = {
         "config1": {"message": "first DAG will receive this message"},

@@ -20,6 +20,7 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
+import itertools
 import json
 import platform
 import subprocess
@@ -27,18 +28,14 @@ from enum import Enum
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+)
 
-RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
-# we should get more sophisticated logic here in the future, but for now we just check if
-# we use self airflow, vm-based, amd hosted runner as a default
-# TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
-RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
-RUNS_ON_SELF_HOSTED_ASF_RUNNER = '["self-hosted", "asf-runner"]'
-# TODO: when we have it properly set-up with labels we should change it to
-# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
-# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
-SELF_HOSTED_RUNNERS_CPU_COUNT = 8
+PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
+PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
 ANSWER = ""
 
@@ -57,14 +54,14 @@ NONE_BACKEND = "none"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-CELERY_INTEGRATION = "celery"
 TESTABLE_CORE_INTEGRATIONS = [
-    CELERY_INTEGRATION,
     "kerberos",
 ]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
+    "celery",
     "cassandra",
     "drill",
+    "gremlin",
     "kafka",
     "mongo",
     "mssql",
@@ -126,7 +123,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.29.12", "v1.30.8", "v1.31.4", "v1.32.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.30.10", "v1.31.6", "v1.32.3", "v1.33.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -194,8 +191,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.0.1"
-UV_VERSION = "0.6.10"
+PIP_VERSION = "25.1.1"
+UV_VERSION = "0.7.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -333,7 +330,8 @@ ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
-SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+ALTERNATIVE_PLATFORMS = ["linux/x86_64", "linux/aarch64"]
+SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64", *ALTERNATIVE_PLATFORMS]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
@@ -341,19 +339,26 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
 
+def normalize_platform_machine(platform_machine: str) -> str:
+    if "linux/" in platform_machine:
+        return {"linux/x86_64": "linux/amd64", "linux/aarch64": "linux/arm64"}.get(
+            platform_machine, platform_machine
+        )
+    return "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}.get(platform_machine, platform_machine)
+
+
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine.lower()
-    # Some additional conversion for various platforms...
-    machine = {"x86_64": "amd64"}.get(machine, machine)
-    return machine
+    return normalize_platform_machine(machine)
 
 
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
+DOCKER_DEFAULT_PLATFORM = get_default_platform_machine()
 DOCKER_BUILDKIT = 1
 
 DRILL_HOST_PORT = "28047"
 FLOWER_HOST_PORT = "25555"
+GREMLIN_HOST_PORT = "8182"
 MSSQL_HOST_PORT = "21433"
 MYSQL_HOST_PORT = "23306"
 POSTGRES_HOST_PORT = "25433"
@@ -382,57 +387,64 @@ else:
     CURRENT_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
 
+PYTHON_3_6_TO_3_8 = ["3.6", "3.7", "3.8"]
+PYTHON_3_6_TO_3_9 = ["3.6", "3.7", "3.8", "3.9"]
+PYTHON_3_6_TO_3_10 = ["3.7", "3.8", "3.9", "3.10"]
+PYTHON_3_7_TO_3_11 = ["3.7", "3.8", "3.9", "3.10", "3.11"]
+PYTHON_3_8_TO_3_11 = ["3.8", "3.9", "3.10", "3.11"]
+PYTHON_3_8_TO_3_12 = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
-    "2.0.0": ["3.6", "3.7", "3.8"],
-    "2.0.1": ["3.6", "3.7", "3.8"],
-    "2.0.2": ["3.6", "3.7", "3.8"],
-    "2.1.0": ["3.6", "3.7", "3.8"],
-    "2.1.1": ["3.6", "3.7", "3.8"],
-    "2.1.2": ["3.6", "3.7", "3.8", "3.9"],
-    "2.1.3": ["3.6", "3.7", "3.8", "3.9"],
-    "2.1.4": ["3.6", "3.7", "3.8", "3.9"],
-    "2.2.0": ["3.6", "3.7", "3.8", "3.9"],
-    "2.2.1": ["3.6", "3.7", "3.8", "3.9"],
-    "2.2.2": ["3.6", "3.7", "3.8", "3.9"],
-    "2.2.3": ["3.6", "3.7", "3.8", "3.9"],
-    "2.2.4": ["3.6", "3.7", "3.8", "3.9"],
-    "2.2.5": ["3.6", "3.7", "3.8", "3.9"],
-    "2.3.0": ["3.7", "3.8", "3.9", "3.10"],
-    "2.3.1": ["3.7", "3.8", "3.9", "3.10"],
-    "2.3.2": ["3.7", "3.8", "3.9", "3.10"],
-    "2.3.3": ["3.7", "3.8", "3.9", "3.10"],
-    "2.3.4": ["3.7", "3.8", "3.9", "3.10"],
-    "2.4.0": ["3.7", "3.8", "3.9", "3.10"],
-    "2.4.1": ["3.7", "3.8", "3.9", "3.10"],
-    "2.4.2": ["3.7", "3.8", "3.9", "3.10"],
-    "2.4.3": ["3.7", "3.8", "3.9", "3.10"],
-    "2.5.0": ["3.7", "3.8", "3.9", "3.10"],
-    "2.5.1": ["3.7", "3.8", "3.9", "3.10"],
-    "2.5.2": ["3.7", "3.8", "3.9", "3.10"],
-    "2.5.3": ["3.7", "3.8", "3.9", "3.10"],
-    "2.6.0": ["3.7", "3.8", "3.9", "3.10"],
-    "2.6.1": ["3.7", "3.8", "3.9", "3.10"],
-    "2.6.2": ["3.7", "3.8", "3.9", "3.10", "3.11"],
-    "2.6.3": ["3.7", "3.8", "3.9", "3.10", "3.11"],
-    "2.7.0": ["3.8", "3.9", "3.10", "3.11"],
-    "2.7.1": ["3.8", "3.9", "3.10", "3.11"],
-    "2.7.2": ["3.8", "3.9", "3.10", "3.11"],
-    "2.7.3": ["3.8", "3.9", "3.10", "3.11"],
-    "2.8.0": ["3.8", "3.9", "3.10", "3.11"],
-    "2.8.1": ["3.8", "3.9", "3.10", "3.11"],
-    "2.8.2": ["3.8", "3.9", "3.10", "3.11"],
-    "2.8.3": ["3.8", "3.9", "3.10", "3.11"],
-    "2.9.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.9.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.9.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.9.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.10.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.10.4": ["3.8", "3.9", "3.10", "3.11", "3.12"],
-    "2.10.5": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.0.0": PYTHON_3_6_TO_3_8,
+    "2.0.1": PYTHON_3_6_TO_3_8,
+    "2.0.2": PYTHON_3_6_TO_3_8,
+    "2.1.0": PYTHON_3_6_TO_3_8,
+    "2.1.1": PYTHON_3_6_TO_3_8,
+    "2.1.2": PYTHON_3_6_TO_3_9,
+    "2.1.3": PYTHON_3_6_TO_3_9,
+    "2.1.4": PYTHON_3_6_TO_3_9,
+    "2.2.0": PYTHON_3_6_TO_3_9,
+    "2.2.1": PYTHON_3_6_TO_3_9,
+    "2.2.2": PYTHON_3_6_TO_3_9,
+    "2.2.3": PYTHON_3_6_TO_3_9,
+    "2.2.4": PYTHON_3_6_TO_3_9,
+    "2.2.5": PYTHON_3_6_TO_3_9,
+    "2.3.0": PYTHON_3_6_TO_3_10,
+    "2.3.1": PYTHON_3_6_TO_3_10,
+    "2.3.2": PYTHON_3_6_TO_3_10,
+    "2.3.3": PYTHON_3_6_TO_3_10,
+    "2.3.4": PYTHON_3_6_TO_3_10,
+    "2.4.0": PYTHON_3_6_TO_3_10,
+    "2.4.1": PYTHON_3_6_TO_3_10,
+    "2.4.2": PYTHON_3_6_TO_3_10,
+    "2.4.3": PYTHON_3_6_TO_3_10,
+    "2.5.0": PYTHON_3_6_TO_3_10,
+    "2.5.1": PYTHON_3_6_TO_3_10,
+    "2.5.2": PYTHON_3_6_TO_3_10,
+    "2.5.3": PYTHON_3_6_TO_3_10,
+    "2.6.0": PYTHON_3_6_TO_3_10,
+    "2.6.1": PYTHON_3_6_TO_3_10,
+    "2.6.2": PYTHON_3_7_TO_3_11,
+    "2.6.3": PYTHON_3_7_TO_3_11,
+    "2.7.0": PYTHON_3_8_TO_3_11,
+    "2.7.1": PYTHON_3_8_TO_3_11,
+    "2.7.2": PYTHON_3_8_TO_3_11,
+    "2.7.3": PYTHON_3_8_TO_3_11,
+    "2.8.0": PYTHON_3_8_TO_3_11,
+    "2.8.1": PYTHON_3_8_TO_3_11,
+    "2.8.2": PYTHON_3_8_TO_3_11,
+    "2.8.3": PYTHON_3_8_TO_3_11,
+    "2.9.0": PYTHON_3_8_TO_3_12,
+    "2.9.1": PYTHON_3_8_TO_3_12,
+    "2.9.2": PYTHON_3_8_TO_3_12,
+    "2.9.3": PYTHON_3_8_TO_3_12,
+    "2.10.0": PYTHON_3_8_TO_3_12,
+    "2.10.1": PYTHON_3_8_TO_3_12,
+    "2.10.2": PYTHON_3_8_TO_3_12,
+    "2.10.3": PYTHON_3_8_TO_3_12,
+    "2.10.4": PYTHON_3_8_TO_3_12,
+    "2.10.5": PYTHON_3_8_TO_3_12,
 }
 
 DB_RESET = False
@@ -545,16 +557,60 @@ def get_airflow_extras():
 
 # Initialize integrations
 ALL_PYPROJECT_TOML_FILES = AIRFLOW_ROOT_PATH.rglob("pyproject.toml")
+ALL_PROVIDER_YAML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
+ALL_PROVIDER_PYPROJECT_TOML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
+    AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
+)
+
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
 )
-if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
-    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 
-with AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.open() as f:
-    PROVIDER_DEPENDENCIES = json.load(f)
+
+def _calculate_provider_deps_hash():
+    import hashlib
+
+    hasher = hashlib.sha256()
+    for file in sorted(itertools.chain(ALL_PROVIDER_PYPROJECT_TOML_FILES, ALL_PROVIDER_YAML_FILES)):
+        hasher.update(file.read_bytes())
+    return hasher.hexdigest()
+
+
+def _run_provider_dependencies_generation(calculated_hash=None) -> dict:
+    if calculated_hash is None:
+        calculated_hash = _calculate_provider_deps_hash()
+    AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_hash)
+    # We use regular print there as rich console might not be initialized yet here
+    print("Regenerating provider dependencies file")
+    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
+    return json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
+
+
+if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
+    PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation()
+else:
+    PROVIDER_DEPENDENCIES = json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
+
+
+def generate_provider_dependencies_if_needed():
+    regenerate_provider_dependencies = False
+    if (
+        not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
+        or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
+    ):
+        regenerate_provider_dependencies = True
+        calculated_hash = _calculate_provider_deps_hash()
+    else:
+        calculated_hash = _calculate_provider_deps_hash()
+        if calculated_hash.strip() != AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.read_text().strip():
+            regenerate_provider_dependencies = True
+    if regenerate_provider_dependencies:
+        global PROVIDER_DEPENDENCIES
+        PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation(calculated_hash)
+
 
 DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
 
@@ -575,8 +631,8 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.26.0"
-HELM_VERSION = "v3.16.4"
+KIND_VERSION = "v0.27.0"
+HELM_VERSION = "v3.17.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -599,10 +655,12 @@ DEFAULT_EXTRAS = [
     "celery",
     "cncf-kubernetes",
     "common-io",
+    "common-messaging",
     "docker",
     "elasticsearch",
     "fab",
     "ftp",
+    "git",
     "google",
     "google-auth",
     "graphviz",
@@ -627,26 +685,18 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(
-    [
-        "common.messaging",
-        "fab",
-        "openlineage",
-    ]
-)
-
-
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
-    {
-        "python-version": "3.9",
-        "airflow-version": "2.9.3",
-        "remove-providers": "cloudant common.messaging fab edge git",
-        "run-tests": "true",
-    },
     {
         "python-version": "3.9",
         "airflow-version": "2.10.5",
         "remove-providers": "cloudant common.messaging fab git",
+        "run-tests": "true",
+    },
+    {
+        "python-version": "3.9",
+        "airflow-version": "3.0.0",
+        # TODO: bring back common-messaging when we bump airflow to 3.0.1
+        "remove-providers": "cloudant common.messaging",
         "run-tests": "true",
     },
 ]

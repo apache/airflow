@@ -43,7 +43,6 @@ from sqlalchemy_jsonfield import JSONField
 
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.base import Base, StringID
-from airflow.models.dag_version import DagVersion
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -135,6 +134,13 @@ class Backfill(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
+
+    dag_model = relationship(
+        "DagModel",
+        primaryjoin="DagModel.dag_id == Backfill.dag_id",
+        viewonly=True,
+        foreign_keys=[dag_id],
+    )
 
     def __repr__(self):
         return f"Backfill({self.dag_id=}, {self.from_date=}, {self.to_date=})"
@@ -298,36 +304,34 @@ def _create_backfill_dag_run(
                     )
                 )
                 return
-            else:
-                lock = session.execute(
-                    with_row_locks(
-                        query=select(DagRun).where(DagRun.logical_date == info.logical_date),
-                        session=session,
-                        skip_locked=True,
-                    )
+            lock = session.execute(
+                with_row_locks(
+                    query=select(DagRun).where(DagRun.logical_date == info.logical_date),
+                    session=session,
+                    skip_locked=True,
                 )
-                if lock:
-                    _handle_clear_run(
-                        session=session,
-                        dag=dag,
-                        dr=dr,
-                        info=info,
+            )
+            if lock:
+                _handle_clear_run(
+                    session=session,
+                    dag=dag,
+                    dr=dr,
+                    info=info,
+                    backfill_id=backfill_id,
+                    sort_ordinal=backfill_sort_ordinal,
+                )
+            else:
+                session.add(
+                    BackfillDagRun(
                         backfill_id=backfill_id,
+                        dag_run_id=None,
+                        logical_date=info.logical_date,
+                        exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
                         sort_ordinal=backfill_sort_ordinal,
                     )
-                else:
-                    session.add(
-                        BackfillDagRun(
-                            backfill_id=backfill_id,
-                            dag_run_id=None,
-                            logical_date=info.logical_date,
-                            exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
-                            sort_ordinal=backfill_sort_ordinal,
-                        )
-                    )
-                return
+                )
+            return
 
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         try:
             dr = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
@@ -339,7 +343,6 @@ def _create_backfill_dag_run(
                 conf=dag_run_conf,
                 run_type=DagRunType.BACKFILL_JOB,
                 triggered_by=DagRunTriggeredByType.BACKFILL,
-                dag_version=dag_version,
                 state=DagRunState.QUEUED,
                 start_date=timezone.utcnow(),
                 backfill_id=backfill_id,
@@ -469,11 +472,10 @@ def _create_backfill(
             max_active_runs=max_active_runs,
             dag_run_conf=dag_run_conf,
             reprocess_behavior=reprocess_behavior,
+            dag_model=dag,
         )
         session.add(br)
         session.commit()
-
-        backfill_sort_ordinal = 0
 
         dagrun_info_list = _get_info_list(
             from_date=from_date,
@@ -487,8 +489,7 @@ def _create_backfill(
         if not dag_model:
             raise RuntimeError(f"Dag {dag_id} not found")
 
-        for info in dagrun_info_list:
-            backfill_sort_ordinal += 1
+        for backfill_sort_ordinal, info in enumerate(dagrun_info_list, start=1):
             _create_backfill_dag_run(
                 dag=dag,
                 info=info,

@@ -25,9 +25,8 @@ import logging
 from datetime import datetime
 
 from airflow.configuration import conf
-from airflow.decorators import task
 from airflow.example_dags.libs.helper import print_stuff
-from airflow.sdk import DAG
+from airflow.sdk import DAG, task
 
 log = logging.getLogger(__name__)
 

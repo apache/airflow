@@ -21,8 +21,7 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import task, task_group
-from airflow.sdk import DAG
+from airflow.sdk import DAG, task, task_group
 
 
 # [START howto_task_group_decorator]

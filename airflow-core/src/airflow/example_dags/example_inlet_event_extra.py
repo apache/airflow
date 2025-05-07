@@ -25,9 +25,8 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.decorators import task
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, Asset
+from airflow.sdk import DAG, Asset, task
 
 asset = Asset("s3://output/1.txt")
 
@@ -56,5 +55,5 @@ with DAG(
     BashOperator(
         task_id="read_asset_event_from_classic",
         inlets=[asset],
-        bash_command="echo '{{ inlet_events['s3://output/1.txt'][-1].extra | tojson }}'",
+        bash_command="echo '{{ inlet_events.for_asset(uri='s3://output/1.txt')[-1].extra | tojson }}'",
     )

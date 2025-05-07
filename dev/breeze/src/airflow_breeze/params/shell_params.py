@@ -46,6 +46,7 @@ from airflow_breeze.global_constants import (
     EDGE_EXECUTOR,
     FAB_AUTH_MANAGER,
     FLOWER_HOST_PORT,
+    GREMLIN_HOST_PORT,
     KEYCLOAK_INTEGRATION,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -146,7 +147,6 @@ class ShellParams:
     builder: str = "autodetect"
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
-    chicken_egg_providers: str = ""
     clean_airflow_installation: bool = False
     collect_only: bool = False
     db_reset: bool = False
@@ -196,7 +196,6 @@ class ShellParams:
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
-    remove_arm_packages: bool = False
     restart: bool = False
     run_db_tests_only: bool = False
     run_tests: bool = False
@@ -219,7 +218,7 @@ class ShellParams:
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
-    version_suffix_for_pypi: str = ""
+    version_suffix: str = ""
     warn_image_upgrade_needed: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
@@ -386,13 +385,13 @@ class ShellParams:
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
         if "all-testable" in self.integration:
-            if self.test_group == GroupOfTests.CORE:
+            if self.test_group == GroupOfTests.INTEGRATION_CORE:
                 integrations = TESTABLE_CORE_INTEGRATIONS
-            elif self.test_group == GroupOfTests.PROVIDERS:
+            elif self.test_group == GroupOfTests.INTEGRATION_PROVIDERS:
                 integrations = TESTABLE_PROVIDERS_INTEGRATIONS
             else:
                 get_console().print(
-                    "[error]You can only use `core` or `providers` test "
+                    "[error]You can only use `integration-core` or `integration-providers` test "
                     "group with `all-testable` integration."
                 )
                 sys.exit(1)
@@ -519,7 +518,6 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
-        _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{WEB_HOST_PORT}")
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
@@ -533,7 +531,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__WEBSERVER__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
         if self.executor == EDGE_EXECUTOR:
             _set_var(
-                _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
+                _env,
+                "AIRFLOW__CORE__EXECUTOR",
+                "airflow.providers.edge3.executors.edge_executor.EdgeExecutor",
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
             _set_var(
@@ -559,7 +559,6 @@ class ShellParams:
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")
         _set_var(_env, "CELERY_BROKER_URLS_MAP", CELERY_BROKER_URLS_MAP)
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
-        _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CLEAN_AIRFLOW_INSTALLATION", self.clean_airflow_installation)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
@@ -580,6 +579,7 @@ class ShellParams:
         _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
@@ -614,7 +614,6 @@ class ShellParams:
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
-        _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_TESTS", self.run_tests)
         _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
@@ -638,7 +637,7 @@ class ShellParams:
         _set_var(_env, "USE_XDIST", self.use_xdist)
         _set_var(_env, "VERBOSE", get_verbose())
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
-        _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
+        _set_var(_env, "VERSION_SUFFIX", self.version_suffix)
         _set_var(_env, "WEB_HOST_PORT", None, WEB_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
@@ -700,12 +699,11 @@ class ShellParams:
                     # we check if the set of env variables had not changed since last run
                     # if so - cool, we do not need to do anything else
                     return
-                else:
-                    if get_verbose():
-                        get_console().print(
-                            f"[info]The keys has changed vs last run. Regenerating[/]: "
-                            f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
-                        )
+                if get_verbose():
+                    get_console().print(
+                        f"[info]The keys has changed vs last run. Regenerating[/]: "
+                        f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
+                    )
             if get_verbose():
                 get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
             GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))

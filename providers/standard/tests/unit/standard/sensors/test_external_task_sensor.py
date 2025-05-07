@@ -26,7 +26,6 @@ from unittest import mock
 import pytest
 
 from airflow import settings
-from airflow.decorators import task as task_deco
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
@@ -55,8 +54,10 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
-
+else:
+    from airflow.decorators import task as task_deco
 pytestmark = pytest.mark.db_test
 
 
@@ -1107,13 +1108,12 @@ class TestExternalTaskSensorV3:
                 allowed_states=["success"],
             )
 
-        self.context["ti"].get_ti_count.return_value = 1
+        self.context["ti"].get_task_states.return_value = {"run_id": {"test_group.task_id": State.SUCCESS}}
         op.execute(context=self.context)
 
-        self.context["ti"].get_ti_count.assert_called_once_with(
+        self.context["ti"].get_task_states.assert_called_once_with(
             dag_id="test_dag_parent",
             logical_dates=[DEFAULT_DATE],
-            states=["success"],
             task_group_id="test_group",
         )
 
@@ -1225,15 +1225,14 @@ class TestExternalTaskSensorV3:
                 failed_states=[State.FAILED],
             )
 
-        self.context["ti"].get_ti_count.return_value = 1
+        self.context["ti"].get_task_states.return_value = {"run_id": {"test_group.task_id": State.FAILED}}
 
         with pytest.raises(AirflowException):
             op.execute(context=self.context)
 
-        self.context["ti"].get_ti_count.assert_called_once_with(
+        self.context["ti"].get_task_states.assert_called_once_with(
             dag_id="test_dag_parent",
             logical_dates=[DEFAULT_DATE],
-            states=[State.FAILED],
             task_group_id="test_group",
         )
 
@@ -1505,7 +1504,6 @@ def run_tasks(
                 run_after=logical_date,
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.TEST,
-                dag_version=None,
                 state=DagRunState.RUNNING,
                 start_date=logical_date,
                 session=session,

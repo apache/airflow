@@ -29,6 +29,7 @@ from collections.abc import Collection, Generator, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
+from pathlib import Path
 from re import Pattern
 from typing import (
     TYPE_CHECKING,
@@ -76,6 +77,7 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads import BundleInfo
 from airflow.models.asset import (
     AssetDagRunQueue,
     AssetModel,
@@ -114,6 +116,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
@@ -174,7 +177,7 @@ def _get_model_data_interval(
         if end is not None:
             raise InconsistentDataInterval(instance, start_field_name, end_field_name)
         return None
-    elif end is None:
+    if end is None:
         raise InconsistentDataInterval(instance, start_field_name, end_field_name)
     return DataInterval(start, end)
 
@@ -235,10 +238,10 @@ def get_asset_triggered_next_run_info(
     }
 
 
-def _triggerer_is_healthy():
+def _triggerer_is_healthy(session: Session):
     from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 
-    job = TriggererJobRunner.most_recent_job()
+    job = TriggererJobRunner.most_recent_job(session=session)
     return job and job.is_alive()
 
 
@@ -254,9 +257,8 @@ def _create_orm_dagrun(
     conf: Any,
     state: DagRunState | None,
     run_type: DagRunType,
-    dag_version: DagVersion | None,
     creating_job_id: int | None,
-    backfill_id: int | None,
+    backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
     session: Session = NEW_SESSION,
 ) -> DagRun:
@@ -265,6 +267,7 @@ def _create_orm_dagrun(
         bundle_version = session.scalar(
             select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
         )
+    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -282,14 +285,13 @@ def _create_orm_dagrun(
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+    run.created_dag_version = dag_version
     run.consumed_asset_events = []
     session.add(run)
     session.flush()
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    if not dag_version:
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
     return run
 
@@ -747,7 +749,12 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is active."""
-        return session.scalar(select(DagModel.is_active).where(DagModel.dag_id == self.dag_id))
+        return session.scalar(select(~DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
+
+    @provide_session
+    def get_is_stale(self, session=NEW_SESSION) -> None:
+        """Return a boolean indicating whether this DAG is stale."""
+        return session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> None:
@@ -1245,7 +1252,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # Clear downstream tasks that are in failed/upstream_failed state to resume them.
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
-        subdag = self.partial_subset(
+        subset = self.partial_subset(
             task_ids={task_id},
             include_downstream=True,
             include_upstream=False,
@@ -1267,9 +1274,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         }
         if not future and not past:  # Simple case 1: we're only dealing with exactly one run.
             clear_kwargs["run_id"] = run_id
-            subdag.clear(**clear_kwargs)
+            subset.clear(**clear_kwargs)
         elif future and past:  # Simple case 2: we're clearing ALL runs.
-            subdag.clear(**clear_kwargs)
+            subset.clear(**clear_kwargs)
         else:  # Complex cases: we may have more than one run, based on a date range.
             # Make 'future' and 'past' make some sense when multiple runs exist
             # for the same logical date. We order runs by their id and only
@@ -1281,7 +1288,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             else:
                 clear_kwargs["end_date"] = logical_date
                 exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id < dr_id)
-            subdag.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
+            subset.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
         return altered
 
     @provide_session
@@ -1357,13 +1364,13 @@ class DAG(TaskSDKDag, LoggingMixin):
             # Clear downstream tasks that are in failed/upstream_failed state to resume them.
             # Flush the session so that the tasks marked success are reflected in the db.
             session.flush()
-            task_subset = self.partial_subset(
+            subset = self.partial_subset(
                 task_ids=task_ids,
                 include_downstream=True,
                 include_upstream=False,
             )
 
-            task_subset.clear(
+            subset.clear(
                 start_date=start_date,
                 end_date=end_date,
                 only_failed=True,
@@ -1543,6 +1550,8 @@ class DAG(TaskSDKDag, LoggingMixin):
     ):
         all_tis = []
         for dag in dags:
+            if not isinstance(dag, DAG):
+                dag = DAG.from_sdk_dag(dag)
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
@@ -1569,6 +1578,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if do_it:
             for dag in dags:
+                if not isinstance(dag, DAG):
+                    dag = DAG.from_sdk_dag(dag)
                 dag.clear(
                     start_date=start_date,
                     end_date=end_date,
@@ -1679,6 +1690,10 @@ class DAG(TaskSDKDag, LoggingMixin):
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
             )
+            # Start a mock span so that one is present and not started downstream. We
+            # don't care about otel in dag.test and starting the span during dagrun update
+            # is not functioning properly in this context anyway.
+            dr.start_dr_spans_if_needed(tis=[])
 
             tasks = self.task_dict
             self.log.debug("starting dagrun")
@@ -1715,7 +1730,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
 
-                triggerer_running = _triggerer_is_healthy()
+                triggerer_running = _triggerer_is_healthy(session)
                 for ti in scheduled_tis:
                     ti.task = tasks[ti.task_id]
 
@@ -1728,8 +1743,26 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if use_executor:
                         if executor.has_task(ti):
                             continue
-                        # Send the task to the executor
-                        executor.queue_task_instance(ti, ignore_ti_state=True)
+                        # TODO: Task-SDK: This check is transitionary. Remove once all executors are ported over.
+                        from airflow.executors import workloads
+                        from airflow.executors.base_executor import BaseExecutor
+
+                        if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
+                            workload = workloads.ExecuteTask.make(
+                                ti,
+                                dag_rel_path=Path(self.fileloc),
+                                generator=executor.jwt_generator,
+                                # For the system test/debug purpose, we use the default bundle which uses
+                                # local file system. If it turns out to be a feature people want, we could
+                                # plumb the Bundle to use as a parameter to dag.test
+                                bundle_info=BundleInfo(name="dags-folder"),
+                            )
+                            executor.queue_workload(workload, session=session)
+                            ti.state = TaskInstanceState.QUEUED
+                            session.commit()
+                        else:
+                            # Send the task to the executor
+                            executor.queue_task_instance(ti, ignore_ti_state=True)
                     else:
                         # Run the task locally
                         try:
@@ -1744,10 +1777,10 @@ class DAG(TaskSDKDag, LoggingMixin):
                             self.log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
-                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+                    from airflow.jobs.scheduler_job_runner import SchedulerDagBag, SchedulerJobRunner
 
                     SchedulerJobRunner.process_executor_events(
-                        executor=executor, dag_bag=dag_bag, job_id=None, session=session
+                        executor=executor, job_id=None, scheduler_dag_bag=SchedulerDagBag(), session=session
                     )
             if use_executor:
                 executor.end()
@@ -1764,11 +1797,10 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
-        dag_version: DagVersion | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
-        backfill_id: int | None = None,
+        backfill_id: NonNegativeInt | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -1838,7 +1870,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type,
-            dag_version=dag_version,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             triggered_by=triggered_by,
@@ -1885,6 +1916,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         asset_op.add_dag_asset_name_uri_references(session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_asset_trigger_references(orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
 
         dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
 
@@ -1914,7 +1946,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if not active_dag_ids:
             return
         for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))).all():
-            dag.is_active = False
+            dag.is_stale = True
             session.merge(dag)
         session.commit()
 
@@ -1930,14 +1962,14 @@ class DAG(TaskSDKDag, LoggingMixin):
         :return: None
         """
         for dag in session.scalars(
-            select(DagModel).where(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
+            select(DagModel).where(DagModel.last_parsed_time < expiration_date, ~DagModel.is_stale)
         ):
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
                 dag.dag_id,
                 dag.last_parsed_time.isoformat(),
             )
-            dag.is_active = False
+            dag.is_stale = True
             session.merge(dag)
             session.commit()
 
@@ -2014,16 +2046,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             if not field.init or field.name in ["edge_info"]:
                 continue
 
-            value = getattr(dag, field.name)
-
-            # Handle special cases where values need conversion
-            if field.name == "max_consecutive_failed_dag_runs":
-                # SchedulerDAG requires this to be >= 0, while TaskSDKDag allows -1
-                if value == -1:
-                    # If it is -1, we get the default value from the DAG
-                    continue
-
-            kwargs[field.name] = value
+            kwargs[field.name] = getattr(dag, field.name)
 
         new_dag = cls(**kwargs)
 
@@ -2130,7 +2153,7 @@ class DagModel(Base):
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
-    is_active = Column(Boolean, default=False)
+    is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
@@ -2279,7 +2302,7 @@ class DagModel(Base):
 
     def get_is_active(self, *, session: Session | None = None) -> bool:
         """Provide interface compatibility to 'DAG'."""
-        return self.is_active
+        return not self.is_stale
 
     @staticmethod
     @provide_session
@@ -2364,14 +2387,14 @@ class DagModel(Base):
             .options(
                 load_only(
                     cls.relative_fileloc,
-                    cls.is_active,
+                    cls.is_stale,
                 ),
             )
         )
 
         for dm in dag_models:
             if dm.relative_fileloc not in rel_filelocs:
-                dm.is_active = False
+                dm.is_stale = True
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
@@ -2444,7 +2467,7 @@ class DagModel(Base):
             select(cls)
             .where(
                 cls.is_paused == expression.false(),
-                cls.is_active == expression.true(),
+                cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),
@@ -2478,8 +2501,7 @@ class DagModel(Base):
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        else:
-            last_automated_data_interval = last_automated_dag_run
+        last_automated_data_interval = last_automated_dag_run
         next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
@@ -2515,9 +2537,15 @@ if STATICA_HACK:  # pragma: no cover
 
 
 def _run_inline_trigger(trigger):
-    from airflow.triggers.base import run_trigger
+    async def _run_inline_trigger_main():
+        # We can replace it with `return await anext(trigger.run(), default=None)`
+        # when we drop support for Python 3.9
+        try:
+            return await trigger.run().__anext__()
+        except StopAsyncIteration:
+            return None
 
-    return asyncio.run(run_trigger(trigger))
+    return asyncio.run(_run_inline_trigger_main())
 
 
 def _run_task(
@@ -2590,7 +2618,6 @@ def _get_or_create_dagrun(
         run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
         triggered_by=triggered_by,
-        dag_version=DagVersion.get_latest_version(dag.dag_id, session=session),
         start_date=start_date or logical_date,
         session=session,
     )

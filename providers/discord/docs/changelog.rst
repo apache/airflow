@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.9.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix discord and slack provider icon url (#48680)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+
 3.9.4
 .....
 

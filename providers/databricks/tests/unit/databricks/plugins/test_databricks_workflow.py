@@ -114,6 +114,7 @@ def test_repair_task_with_params(mock_databricks_hook):
     expected_payload = {
         "run_id": DATABRICKS_RUN_ID,
         "rerun_tasks": tasks_to_repair,
+        "latest_repair_id": 100,
         "overriding_parameters": {
             "key1": "value1",
             "key2": "value2",

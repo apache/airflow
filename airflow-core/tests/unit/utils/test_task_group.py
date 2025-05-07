@@ -22,18 +22,18 @@ from datetime import timedelta
 import pendulum
 import pytest
 
-from airflow.decorators import (
+from airflow.exceptions import TaskAlreadyInTaskGroup
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
+from airflow.models.xcom_arg import XComArg
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import (
     dag,
     setup,
     task as task_decorator,
     task_group as task_group_decorator,
     teardown,
 )
-from airflow.exceptions import TaskAlreadyInTaskGroup
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
-from airflow.models.xcom_arg import XComArg
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 
@@ -45,13 +45,11 @@ def make_task(name, type_="classic"):
     if type_ == "classic":
         return BashOperator(task_id=name, bash_command="echo 1")
 
-    else:
+    @task_decorator
+    def my_task():
+        pass
 
-        @task_decorator
-        def my_task():
-            pass
-
-        return my_task.override(task_id=name)()
+    return my_task.override(task_id=name)()
 
 
 EXPECTED_JSON_LEGACY = {
@@ -68,6 +66,16 @@ EXPECTED_JSON_LEGACY = {
     },
     "children": [
         {
+            "id": "task1",
+            "value": {
+                "label": "task1",
+                "labelStyle": "fill:#000;",
+                "style": "fill:#e8f7e4;",
+                "rx": 5,
+                "ry": 5,
+            },
+        },
+        {
             "id": "group234",
             "value": {
                 "label": "group234",
@@ -80,6 +88,16 @@ EXPECTED_JSON_LEGACY = {
                 "isMapped": False,
             },
             "children": [
+                {
+                    "id": "group234.task2",
+                    "value": {
+                        "label": "task2",
+                        "labelStyle": "fill:#000;",
+                        "style": "fill:#e8f7e4;",
+                        "rx": 5,
+                        "ry": 5,
+                    },
+                },
                 {
                     "id": "group234.group34",
                     "value": {
@@ -125,16 +143,6 @@ EXPECTED_JSON_LEGACY = {
                     ],
                 },
                 {
-                    "id": "group234.task2",
-                    "value": {
-                        "label": "task2",
-                        "labelStyle": "fill:#000;",
-                        "style": "fill:#e8f7e4;",
-                        "rx": 5,
-                        "ry": 5,
-                    },
-                },
-                {
                     "id": "group234.upstream_join_id",
                     "value": {
                         "label": "",
@@ -144,16 +152,6 @@ EXPECTED_JSON_LEGACY = {
                     },
                 },
             ],
-        },
-        {
-            "id": "task1",
-            "value": {
-                "label": "task1",
-                "labelStyle": "fill:#000;",
-                "style": "fill:#e8f7e4;",
-                "rx": 5,
-                "ry": 5,
-            },
         },
         {
             "id": "task5",
@@ -174,12 +172,14 @@ EXPECTED_JSON = {
     "tooltip": "",
     "is_mapped": False,
     "children": [
+        {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task"},
         {
             "id": "group234",
             "label": "group234",
             "tooltip": "",
             "is_mapped": False,
             "children": [
+                {"id": "group234.task2", "label": "task2", "operator": "EmptyOperator", "type": "task"},
                 {
                     "id": "group234.group34",
                     "label": "group34",
@@ -202,12 +202,10 @@ EXPECTED_JSON = {
                     ],
                     "type": "task",
                 },
-                {"id": "group234.task2", "label": "task2", "operator": "EmptyOperator", "type": "task"},
                 {"id": "group234.upstream_join_id", "label": "", "type": "join"},
             ],
             "type": "task",
         },
-        {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task"},
         {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task"},
     ],
     "type": "task",
@@ -316,28 +314,28 @@ def test_build_task_group_with_prefix():
         "id": None,
         "label": None,
         "children": [
+            {"id": "task1", "label": "task1"},
             {
                 "id": "group234",
                 "label": "group234",
                 "children": [
+                    {"id": "task2", "label": "task2"},
                     {
                         "id": "group34",
                         "label": "group34",
                         "children": [
+                            {"id": "group34.task3", "label": "task3"},
                             {
                                 "id": "group34.group4",
                                 "label": "group4",
                                 "children": [{"id": "task4", "label": "task4"}],
                             },
-                            {"id": "group34.task3", "label": "task3"},
                             {"id": "group34.downstream_join_id", "label": ""},
                         ],
                     },
-                    {"id": "task2", "label": "task2"},
                     {"id": "group234.upstream_join_id", "label": ""},
                 ],
             },
-            {"id": "task1", "label": "task1"},
             {"id": "task5", "label": "task5"},
         ],
     }
@@ -349,7 +347,7 @@ def test_build_task_group_with_task_decorator():
     """
     Test that TaskGroup can be used with the @task decorator.
     """
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def task_1():
@@ -391,6 +389,7 @@ def test_build_task_group_with_task_decorator():
     expected_node_id = {
         "id": None,
         "children": [
+            {"id": "task_1"},
             {
                 "id": "group234",
                 "children": [
@@ -401,7 +400,6 @@ def test_build_task_group_with_task_decorator():
                     {"id": "group234.downstream_join_id"},
                 ],
             },
-            {"id": "task_1"},
             {"id": "task_5"},
         ],
     }
@@ -445,11 +443,12 @@ def test_sub_dag_task_group():
         group234 >> group6
         group234 >> task7
 
-    subdag = dag.partial_subset(task_ids="task5", include_upstream=True, include_downstream=False)
+    subset = dag.partial_subset(task_ids="task5", include_upstream=True, include_downstream=False)
 
     expected_node_id = {
         "id": None,
         "children": [
+            {"id": "task1"},
             {
                 "id": "group234",
                 "children": [
@@ -464,14 +463,13 @@ def test_sub_dag_task_group():
                     {"id": "group234.upstream_join_id"},
                 ],
             },
-            {"id": "task1"},
             {"id": "task5"},
         ],
     }
 
-    assert extract_node_id(task_group_to_dict(subdag.task_group)) == expected_node_id
+    assert extract_node_id(task_group_to_dict(subset.task_group)) == expected_node_id
 
-    edges = dag_edges(subdag)
+    edges = dag_edges(subset)
     assert sorted((e["source_id"], e["target_id"]) for e in edges) == [
         ("group234.group34.downstream_join_id", "task5"),
         ("group234.group34.task3", "group234.group34.downstream_join_id"),
@@ -481,19 +479,19 @@ def test_sub_dag_task_group():
         ("task1", "group234.upstream_join_id"),
     ]
 
-    subdag_task_groups = subdag.task_group.get_task_group_dict()
-    assert subdag_task_groups.keys() == {None, "group234", "group234.group34"}
+    groups = subset.task_group.get_task_group_dict()
+    assert groups.keys() == {None, "group234", "group234.group34"}
 
     included_group_ids = {"group234", "group234.group34"}
     included_task_ids = {"group234.group34.task3", "group234.group34.task4", "task1", "task5"}
 
-    for task_group in subdag_task_groups.values():
+    for task_group in groups.values():
         assert task_group.upstream_group_ids.issubset(included_group_ids)
         assert task_group.downstream_group_ids.issubset(included_group_ids)
         assert task_group.upstream_task_ids.issubset(included_task_ids)
         assert task_group.downstream_task_ids.issubset(included_task_ids)
 
-    for task in subdag.task_group:
+    for task in subset.task_group:
         assert task.upstream_task_ids.issubset(included_task_ids)
         assert task.downstream_task_ids.issubset(included_task_ids)
 
@@ -542,6 +540,7 @@ def test_dag_edges():
     expected_node_id = {
         "id": None,
         "children": [
+            {"id": "task1"},
             {
                 "id": "group_a",
                 "children": [
@@ -569,6 +568,8 @@ def test_dag_edges():
                     {"id": "group_c.downstream_join_id"},
                 ],
             },
+            {"id": "task9"},
+            {"id": "task10"},
             {
                 "id": "group_d",
                 "children": [
@@ -577,9 +578,6 @@ def test_dag_edges():
                     {"id": "group_d.upstream_join_id"},
                 ],
             },
-            {"id": "task1"},
-            {"id": "task10"},
-            {"id": "task9"},
         ],
     }
 
@@ -638,9 +636,9 @@ def test_dag_edges_setup_teardown():
 
 
 def test_dag_edges_setup_teardown_nested():
-    from airflow.decorators import task, task_group
     from airflow.models.dag import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import task, task_group
 
     logical_date = pendulum.parse("20200101")
 
@@ -746,7 +744,7 @@ def test_build_task_group_deco_context_manager():
     2. TaskGroup consisting Tasks created using task decorator.
     3. Node Ids of dags created with taskgroup decorator.
     """
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     # Creating Tasks
     @task
@@ -820,9 +818,12 @@ def test_build_task_group_deco_context_manager():
     node_ids = {
         "id": None,
         "children": [
+            {"id": "task_start"},
             {
                 "id": "section_1",
                 "children": [
+                    {"id": "section_1.task_1"},
+                    {"id": "section_1.task_2"},
                     {
                         "id": "section_1.section_2",
                         "children": [
@@ -830,12 +831,9 @@ def test_build_task_group_deco_context_manager():
                             {"id": "section_1.section_2.task_4"},
                         ],
                     },
-                    {"id": "section_1.task_1"},
-                    {"id": "section_1.task_2"},
                 ],
             },
             {"id": "task_end"},
-            {"id": "task_start"},
         ],
     }
 
@@ -844,7 +842,7 @@ def test_build_task_group_deco_context_manager():
 
 def test_build_task_group_depended_by_task():
     """A decorator-based task group should be able to be used as a relative to operators."""
-    from airflow.decorators import dag as dag_decorator, task
+    from airflow.sdk import dag as dag_decorator, task
 
     @dag_decorator(schedule=None, start_date=pendulum.now())
     def build_task_group_depended_by_task():
@@ -879,7 +877,7 @@ def test_build_task_group_depended_by_task():
 
 def test_build_task_group_with_operators():
     """Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     def task_start():
         """Dummy Task which is First Task of Dag"""
@@ -938,7 +936,7 @@ def test_build_task_group_with_operators():
 
 def test_task_group_context_mix():
     """Test cases to check nested TaskGroup context manager with taskgroup decorator"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     def task_start():
         """Dummy Task which is First Task of Dag"""
@@ -994,6 +992,7 @@ def test_task_group_context_mix():
     node_ids = {
         "id": None,
         "children": [
+            {"id": "task_start"},
             {
                 "id": "section_1",
                 "children": [
@@ -1013,7 +1012,6 @@ def test_task_group_context_mix():
                 ],
             },
             {"id": "task_end"},
-            {"id": "task_start"},
         ],
     }
 
@@ -1041,7 +1039,7 @@ def test_default_args():
 
 def test_duplicate_task_group_id():
     """Testing automatic suffix assignment for duplicate group_id"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task(task_id="start_task")
     def task_start():
@@ -1114,7 +1112,7 @@ def test_duplicate_task_group_id():
 
 def test_call_taskgroup_twice():
     """Test for using same taskgroup decorated function twice"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task(task_id="start_task")
     def task_start():
@@ -1155,17 +1153,17 @@ def test_call_taskgroup_twice():
             {
                 "id": "task_group1",
                 "children": [
-                    {"id": "task_group1.end_task"},
                     {"id": "task_group1.start_task"},
                     {"id": "task_group1.task"},
+                    {"id": "task_group1.end_task"},
                 ],
             },
             {
                 "id": "task_group1__1",
                 "children": [
-                    {"id": "task_group1__1.end_task"},
                     {"id": "task_group1__1.start_task"},
                     {"id": "task_group1__1.task"},
+                    {"id": "task_group1__1.end_task"},
                 ],
             },
         ],
@@ -1176,7 +1174,7 @@ def test_call_taskgroup_twice():
 
 def test_pass_taskgroup_output_to_task():
     """Test that the output of a task group can be passed to a task."""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def one():
@@ -1215,7 +1213,7 @@ def test_decorator_unknown_args():
 
 
 def test_decorator_multiple_use_task():
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @dag("test-dag", schedule=None, start_date=DEFAULT_DATE)
     def _test_dag():
@@ -1435,8 +1433,7 @@ def test_add_to_another_group():
 
 
 def test_task_group_edge_modifier_chain():
-    from airflow.sdk import chain
-    from airflow.utils.edgemodifier import Label
+    from airflow.sdk import Label, chain
 
     with DAG(dag_id="test", schedule=None, start_date=pendulum.DateTime(2022, 5, 20)) as dag:
         start = EmptyOperator(task_id="sleep_3_seconds")

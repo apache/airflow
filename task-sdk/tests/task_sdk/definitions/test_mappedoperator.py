@@ -24,7 +24,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk.api.datamodels._generated import TerminalTIState
+from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -405,7 +405,7 @@ def test_nested_mapped_task_groups():
             g1.expand(x=t())
 
 
-RunTI = Callable[[DAG, str, int], TerminalTIState]
+RunTI = Callable[[DAG, str, int], TaskInstanceState]
 
 
 def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
@@ -439,7 +439,7 @@ def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
     mock_supervisor_comms.get_message.side_effect = xcom_get
 
     states = [run_ti(dag, "show", map_index) for map_index in range(6)]
-    assert states == [TerminalTIState.SUCCESS] * 6
+    assert states == [TaskInstanceState.SUCCESS] * 6
     assert outputs == [
         (1, ("a", "x")),
         (1, ("b", "y")),
@@ -479,7 +479,7 @@ def test_map_product_same(run_ti: RunTI, mock_supervisor_comms):
     mock_supervisor_comms.get_message.side_effect = xcom_get
 
     states = [run_ti(dag, "show", map_index) for map_index in range(4)]
-    assert states == [TerminalTIState.SUCCESS] * 4
+    assert states == [TaskInstanceState.SUCCESS] * 4
     assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
 
 
@@ -603,7 +603,7 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
         if key in expected_values:
             value = expected_values[key]
             return XComResult(key="return_value", value=value)
-        elif last_request.map_index is None:
+        if last_request.map_index is None:
             # Get all mapped XComValues for this ti
             value = [v for k, v in expected_values.items() if k[0] == last_request.task_id]
             return XComResult(key="return_value", value=value)
@@ -627,26 +627,39 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
         "tg.t2": range(3),
         "t3": [None],
     }
+    upstream_map_indexes_per_task_id = {
+        ("tg.t1", 0): {},
+        ("tg.t1", 1): {},
+        ("tg.t1", 2): {},
+        ("tg.t2", 0): {"tg.t1": 0},
+        ("tg.t2", 1): {"tg.t1": 1},
+        ("tg.t2", 2): {"tg.t1": 2},
+        ("t3", None): {"tg.t2": [0, 1, 2]},
+    }
     for task in dag.tasks:
         for map_index in expansion_per_task_id[task.task_id]:
-            mapped_ti = create_runtime_ti(task=task.prepare_for_execution(), map_index=map_index)
+            mapped_ti = create_runtime_ti(
+                task=task.prepare_for_execution(),
+                map_index=map_index,
+                upstream_map_indexes=upstream_map_indexes_per_task_id[(task.task_id, map_index)],
+            )
             context = mapped_ti.get_template_context()
             mapped_ti.task.render_template_fields(context)
             mapped_ti.task.execute(context)
     assert results == expected_values
 
 
-@pytest.mark.xfail(reason="SkipMixin hasn't been ported over to use the Task Execution API yet")
 def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms):
-    from airflow.decorators import task_group
-    from airflow.operators.empty import EmptyOperator
+    from airflow.sdk import task_group
 
     if TYPE_CHECKING:
+        from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.operators.python import ShortCircuitOperator
     else:
         ShortCircuitOperator = pytest.importorskip(
             "airflow.providers.standard.operators.python"
         ).ShortCircuitOperator
+        EmptyOperator = pytest.importorskip("airflow.providers.standard.operators.empty").EmptyOperator
 
     with DAG("test") as dag:
 
@@ -670,44 +683,18 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
             ti.task.execute(context)
 
     assert ti
-    # TODO: these tests might not be right
     mock_supervisor_comms.send_request.assert_has_calls(
         [
-            SetXCom(
-                key="skipmixin_key",
-                value=None,
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=0,
-            ),
-            SetXCom(
-                key="return_value",
-                value=True,
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=0,
-            ),
-            SetXCom(
-                key="skipmixin_key",
-                value={"skipped": ["group.empty_task"]},
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=1,
+            mock.call(
+                log=mock.ANY,
+                msg=SetXCom(
+                    key="skipmixin_key",
+                    value={"skipped": ["group.empty_task"]},
+                    dag_id=ti.dag_id,
+                    run_id=ti.run_id,
+                    task_id="group.push_xcom_from_shortcircuit",
+                    map_index=1,
+                ),
             ),
         ]
     )
-    #
-    # assert (
-    #     tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="return_value", map_indexes=0)
-    #     is True
-    # )
-    # assert (
-    #     tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=0)
-    #     is None
-    # )
-    # assert tis[0].xcom_pull(
-    #     task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=1
-    # ) == {"skipped": ["group.empty_task"]}

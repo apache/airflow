@@ -160,9 +160,14 @@ PKG-INFO
 # Openapi files
 .openapi-generator-ignore
 version.txt
-v1-generated.yaml
+v1*.yaml
+_private_ui*.yaml
 
 # Front end generated files
 api-generated.ts
 openapi-gen
 pnpm-lock.yaml
+
+# python generated file
+generated.py
+auth_generated.py

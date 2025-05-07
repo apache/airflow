@@ -337,24 +337,19 @@ class PlainXComArg(XComArg):
         task_id = self.operator.task_id
 
         if self.operator.is_mapped:
-            return LazyXComSequence[Any](xcom_arg=self, ti=ti)
+            return LazyXComSequence(xcom_arg=self, ti=ti)
         tg = self.operator.get_closest_mapped_task_group()
-        result = None
         if tg is None:
-            # regular task
-            result = ti.xcom_pull(
-                task_ids=task_id,
-                key=self.key,
-                default=NOTSET,
-                map_indexes=None,
-            )
+            map_indexes = None
         else:
-            # task from a task group
-            result = ti.xcom_pull(
-                task_ids=task_id,
-                key=self.key,
-                default=NOTSET,
-            )
+            upstream_map_indexes = getattr(ti, "_upstream_map_indexes", {})
+            map_indexes = upstream_map_indexes.get(task_id, None)
+        result = ti.xcom_pull(
+            task_ids=task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=map_indexes,
+        )
         if not isinstance(result, ArgNotSet):
             if isinstance(result, ResolveMixin):
                 return result.resolve(context)
@@ -532,7 +527,7 @@ class _ConcatResult(Sequence):
         for value in self.values:
             if i < 0:
                 break
-            elif i >= (curlen := len(value)):
+            if i >= (curlen := len(value)):
                 i -= curlen
             elif isinstance(value, Sequence):
                 return value[i]

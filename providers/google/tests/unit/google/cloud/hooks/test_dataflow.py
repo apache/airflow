@@ -37,7 +37,7 @@ from google.cloud.dataflow_v1beta3 import (
 )
 from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import run_beam_command
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -677,14 +677,15 @@ class TestDataflowTemplateHook:
         )
         on_new_job_callback = mock.MagicMock()
 
-        result = self.dataflow_hook.start_sql_job(
-            job_name=TEST_SQL_JOB_NAME,
-            query=TEST_SQL_QUERY,
-            options=TEST_SQL_OPTIONS,
-            location=TEST_LOCATION,
-            project_id=TEST_PROJECT,
-            on_new_job_callback=on_new_job_callback,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.dataflow_hook.start_sql_job(
+                job_name=TEST_SQL_JOB_NAME,
+                query=TEST_SQL_QUERY,
+                options=TEST_SQL_OPTIONS,
+                location=TEST_LOCATION,
+                project_id=TEST_PROJECT,
+                on_new_job_callback=on_new_job_callback,
+            )
         mock_run.assert_called_once_with(
             [
                 "gcloud",
@@ -723,15 +724,16 @@ class TestDataflowTemplateHook:
         mock_run.return_value = mock.MagicMock(
             stdout=f"{TEST_JOB_ID}\n".encode(), stderr=f"{TEST_JOB_ID}\n".encode(), returncode=1
         )
-        with pytest.raises(AirflowException):
-            self.dataflow_hook.start_sql_job(
-                job_name=TEST_SQL_JOB_NAME,
-                query=TEST_SQL_QUERY,
-                options=TEST_SQL_OPTIONS,
-                location=TEST_LOCATION,
-                project_id=TEST_PROJECT,
-                on_new_job_callback=mock.MagicMock(),
-            )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with pytest.raises(AirflowException):
+                self.dataflow_hook.start_sql_job(
+                    job_name=TEST_SQL_JOB_NAME,
+                    query=TEST_SQL_QUERY,
+                    options=TEST_SQL_OPTIONS,
+                    location=TEST_LOCATION,
+                    project_id=TEST_PROJECT,
+                    on_new_job_callback=mock.MagicMock(),
+                )
 
     def test_extract_job_id_raises_exception(self):
         with pytest.raises(AirflowException):
@@ -981,7 +983,7 @@ class TestDataflowJob:
             multiple_jobs=True,
             wait_until_finished=wait_until_finished,
         )
-        result = dataflow_job._check_dataflow_job_state(job)
+        result = dataflow_job.job_reached_terminal_state(job, wait_until_finished)
         assert result == expected_result
 
     @pytest.mark.parametrize(
@@ -1053,7 +1055,7 @@ class TestDataflowJob:
         result = False
         for current_job in jobs:
             job = {"id": "id-2", "name": "name-2", "type": current_job[0], "currentState": current_job[1]}
-            result = dataflow_job._check_dataflow_job_state(job)
+            result = dataflow_job.job_reached_terminal_state(job, wait_until_finished)
         assert result == expected_result
 
     @pytest.mark.parametrize(
@@ -1086,7 +1088,7 @@ class TestDataflowJob:
             multiple_jobs=True,
             wait_until_finished=wait_until_finished,
         )
-        result = dataflow_job._check_dataflow_job_state(job)
+        result = dataflow_job.job_reached_terminal_state(job, wait_until_finished)
         assert result == expected_result
 
     @pytest.mark.parametrize(
@@ -1157,7 +1159,7 @@ class TestDataflowJob:
             multiple_jobs=True,
         )
         with pytest.raises(AirflowException, match=exception_regex):
-            dataflow_job._check_dataflow_job_state(job)
+            dataflow_job.job_reached_terminal_state(job)
 
     @pytest.mark.parametrize(
         "job_type, expected_terminal_state, match",
@@ -1198,7 +1200,7 @@ class TestDataflowJob:
             expected_terminal_state=expected_terminal_state,
         )
         with pytest.raises(AirflowException, match=match):
-            dataflow_job._check_dataflow_job_state(job)
+            dataflow_job.job_reached_terminal_state(job, custom_terminal_state=expected_terminal_state)
 
     def test_dataflow_job_cancel_job(self):
         mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs

@@ -47,6 +47,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
 
 pytestmark = pytest.mark.db_test
@@ -74,7 +75,6 @@ def move_back(old_path, new_path):
     shutil.move(new_path, old_path)
 
 
-# TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliTasks:
     run_id = "TEST_RUN_ID"
     dag_id = "example_python_operator"
@@ -91,7 +91,7 @@ class TestCliTasks:
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
-        cls.dagbag = DagBag(read_dags_from_db=True)
+        cls.dagbag = DagBag(read_dags_from_db=True, include_examples=True)
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         cls.dag_run = cls.dag.create_dagrun(
@@ -101,7 +101,6 @@ class TestCliTasks:
             logical_date=DEFAULT_DATE,
             data_interval=data_interval,
             run_after=DEFAULT_DATE,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
@@ -109,6 +108,7 @@ class TestCliTasks:
     def teardown_class(cls) -> None:
         clear_db_runs()
 
+    @conf_vars({("core", "load_examples"): "true"})
     @pytest.mark.execution_timeout(120)
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
@@ -235,11 +235,10 @@ class TestCliTasks:
 
     @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch("airflow.providers.standard.triggers.file.glob", return_value=["/tmp/test"])
-    @mock.patch("airflow.providers.standard.triggers.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.providers.standard.triggers.file.os")
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
-    def test_cli_test_with_deferrable_operator(
-        self, mock_pock, mock_is_file, mock_glob, mock_getmtime, caplog
-    ):
+    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_os, mock_glob, mock_getmtime, caplog):
+        mock_os.path.isfile.return_value = True
         with caplog.at_level(level=logging.INFO):
             task_command.task_test(
                 self.parser.parse_args(
@@ -353,7 +352,6 @@ class TestCliTasks:
             data_interval=data_interval,
             run_after=default_date2,
             run_type=DagRunType.MANUAL,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.CLI,
         )
         ti2 = TaskInstance(task2, run_id=dagrun.run_id)
@@ -438,7 +436,6 @@ class TestLogsfromTaskRunCommand:
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.TEST,
         )
         self.tis = self.dr.get_task_instances()

@@ -24,6 +24,7 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -35,6 +36,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
@@ -139,13 +141,12 @@ const taskInstanceColumns = (
   },
   {
     cell: ({ row: { original } }) =>
-      Boolean(original.start_date) ? `${getDuration(original.start_date, original.end_date)}s` : "",
+      Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
     header: "Duration",
   },
   {
     accessorKey: "dag_version",
-    cell: ({ row: { original } }) =>
-      original.dag_version?.version_number === undefined ? "" : `v${original.dag_version.version_number}`,
+    cell: ({ row: { original } }) => <DagVersion version={original.dag_version} />,
     enableSorting: false,
     header: "Dag Version",
   },
@@ -155,6 +156,7 @@ const taskInstanceColumns = (
       <Flex justifyContent="end">
         <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
         <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
+        <DeleteTaskInstanceButton taskInstance={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,

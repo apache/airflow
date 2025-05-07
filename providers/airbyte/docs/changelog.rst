@@ -26,6 +26,48 @@
 Changelog
 ---------
 
+
+5.0.2
+.....
+
+.. note::
+
+   In this version of the provider, the ``provider_info`` entrypoint returned json has been cleaned up to
+   not contain any extra values that have not been described in the
+   `Provider Info Schema <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/provider_info.schema.json>`_
+   This is generally backwards-compatible change, as those values appearing there (such as ``dependencies`` had
+   never been described in the schema nor documentation (and the schema allows for optional, unsolicited components).
+   If you depended on some values like ``dependencies`` there, the data exposed there is available in the metadata
+   of the package (for example ``dependencies`` are available in ``requires`` metadata field of the package) and
+   you should retrieve them from there instead.
+
+   Also the ``Provider Info Schema`` for Airflow 3.0 has been updated to reflect the latest functionality
+   that can be exposed by the provider. The schema is backwards-compatible, it only contains new possible
+   entries that can appear there, reflecting new functionality added in Airflow 2 and 3.
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+* ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix some mistakes in AirbyteJobSensor docs. (#49196)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 5.0.1
 .....
 

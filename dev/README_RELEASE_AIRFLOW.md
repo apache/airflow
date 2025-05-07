@@ -40,7 +40,6 @@
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Remove chicken-egg providers](#remove-chicken-egg-providers)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
@@ -345,11 +344,9 @@ to have an environment prepared to build multi-platform images. You can achieve 
 Building the image is triggered by running the
 [Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
 
-When you trigger it you need to pass Airflow Version (including the right rc suffix). Make sure to use the
-``v2-*-stable`` branch for the workflow.
-
-You can leave the "skip latest" field empty.
-
+When you trigger it you need to pass Airflow Version (including the right `rc` suffix). The workflow will
+normalize and verify version passed. When you are testing or want to release image faster you can also
+select the check-box to limit the build to only AMD platform. This will speed up the build significantly.
 
 ![Release prod image](images/release_prod_image_rc.png)
 
@@ -522,7 +519,7 @@ The output should be empty (files are identical).
 In case the files are different, you should see:
 
 ```
-Binary files apache_airflow-2.9.0.dev0.tar.gz and .../apache_airflow-2.9.0.dev0.tar.gz differ
+Binary files apache_airflow-2.9.0.tar.gz and .../apache_airflow-2.9.0.tar.gz differ
 ```
 
 
@@ -778,44 +775,11 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
 
-## Remove chicken-egg providers
-
-For the first MINOR (X.Y.0) release you need to do few more steps if there are new "chicken-egg" providers
-that have min-airflow version set to X.Y.0
-
-* NOTE! WE MIGHT WANT TO AUTOMATE THAT STEP IN THE FUTURE
-
-1. Checkout the constraints-2-* branch and update the ``constraints-3*.txt`` file with the new provider
-   version. Find the place where the provider should be added, add it with the latest provider version.
-
-```
-apache-airflow-providers-PROVIDER==VERSION
-```
-
-Commit, push and tag this change with ``constraints-X.Y.Z`` tag:
-
-```bash
-git add
-git commit -m "Add chicken-egg provider apache-airflow-providers-PROVIDER"
-git tag -s constraints-X.Y.Z --force
-git push -f apache constraints-X.Y.Z
-```
-
-
-2. remove providers from ``CHICKEN_EGG_PROVIDERS`` list  in ``src/airflow_breeze/global_constants.py``
-   that have >= ``X.Y.0`` in the corresponding provider.yaml file.
-
-
-3. In case the provider should also be installed in the image (it is part of ``prod_image_installed_providers.txt``)
-   it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
-
 ```Dockerfile
 ARG AIRFLOW_EXTRAS=".....,<provider>,...."
 ```
 
-This change needs to be merged to ``main`` and cherry-picked to ``v2-*-test`` branch before building the image.
-
-4. Make sure to update Airflow version in ``v2-*-test`` branch after cherry-picking to X.Y.1.dev0 in
+4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
    ``airflow/__init__.py``
 
 
@@ -829,7 +793,7 @@ When you trigger it you need to pass:
 * Airflow Version
 * Optional "true" in skip latest field if you do not want to re-tag the latest image
 
-Make sure you use ``v2-*-test`` branch to run the workflow.
+Make sure you use ``v3-*-test`` branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 

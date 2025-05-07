@@ -62,7 +62,7 @@ apache-airflow-providers-mongo package
 `MongoDB <https://www.mongodb.com/>`__
 
 
-Release: 5.0.2
+Release: 5.0.3
 
 Provider package
 ----------------

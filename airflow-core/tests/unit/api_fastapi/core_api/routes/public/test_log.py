@@ -25,11 +25,12 @@ from unittest.mock import PropertyMock
 
 import pytest
 from itsdangerous.url_safe import URLSafeSerializer
+from uuid6 import uuid7
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
@@ -72,6 +73,18 @@ class TestTaskInstancesLog:
 
         self.app.state.dag_bag.bag_dag(dag)
 
+        for ti in dr.task_instances:
+            ti.try_number = 1
+            ti.hostname = "localhost"
+            session.merge(ti)
+        dag.clear()
+        for ti in dr.task_instances:
+            ti.try_number = 2
+            ti.id = str(uuid7())
+            ti.hostname = "localhost"
+            session.merge(ti)
+            session.flush()
+
         # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
         with dag_maker(
             f"{self.DAG_ID}_copy", start_date=timezone.parse(self.default_time), session=session
@@ -85,26 +98,20 @@ class TestTaskInstancesLog:
         )
         self.app.state.dag_bag.bag_dag(dummy_dag)
 
-        for ti in dr.task_instances:
-            ti.try_number = 1
-            ti.hostname = "localhost"
-            session.merge(ti)
         for ti in dr2.task_instances:
             ti.try_number = 1
             ti.hostname = "localhost"
             session.merge(ti)
-        session.flush()
-        dag.clear()
         dummy_dag.clear()
-        for ti in dr.task_instances:
-            ti.try_number = 2
-            ti.hostname = "localhost"
-            session.merge(ti)
         for ti in dr2.task_instances:
             ti.try_number = 2
+            ti.id = str(uuid7())
             ti.hostname = "localhost"
             session.merge(ti)
+            session.flush()
         session.flush()
+
+        ...
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
@@ -165,6 +172,7 @@ class TestTaskInstancesLog:
         )
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
+        assert response.status_code == 200, response.json()
         resp_contnt = response.json()["content"]
         assert expected_filename in resp_contnt[0]["sources"]
         assert log_content in resp_contnt[2]["event"]
@@ -389,3 +397,55 @@ class TestTaskInstancesLog:
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"
+
+    @pytest.mark.parametrize(
+        "supports_external_link, task_id, expected_status, expected_response, mock_external_url",
+        [
+            (
+                True,
+                "task_for_testing_log_endpoint",
+                200,
+                {"url": "https://external-logs.example.com/log/123"},
+                True,
+            ),
+            (
+                False,
+                "task_for_testing_log_endpoint",
+                400,
+                {"detail": "Task log handler does not support external logs."},
+                False,
+            ),
+            (True, "INVALID_TASK", 404, {"detail": "TaskInstance not found"}, False),
+        ],
+        ids=[
+            "external_links_supported_task_exists",
+            "external_links_not_supported",
+            "external_links_supported_task_not_found",
+        ],
+    )
+    def test_get_external_log_url(
+        self, supports_external_link, task_id, expected_status, expected_response, mock_external_url
+    ):
+        with (
+            mock.patch(
+                "airflow.utils.log.log_reader.TaskLogReader.supports_external_link",
+                new_callable=mock.PropertyMock,
+                return_value=supports_external_link,
+            ),
+            mock.patch("airflow.utils.log.log_reader.TaskLogReader.log_handler") as mock_log_handler,
+        ):
+            url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{task_id}/externalLogUrl/{self.TRY_NUMBER}"
+            if mock_external_url:
+                mock_log_handler.get_external_log_url.return_value = (
+                    "https://external-logs.example.com/log/123"
+                )
+
+            response = self.client.get(url)
+
+            if expected_status == 200:
+                mock_log_handler.get_external_log_url.assert_called_once()
+            else:
+                mock_log_handler.get_external_log_url.assert_not_called()
+
+            assert response.status_code == expected_status
+            assert response.json() == expected_response

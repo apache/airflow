@@ -51,7 +51,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -86,8 +86,6 @@ def _bootstrap_dagbag():
 
 
 def initial_db_init():
-    from flask import Flask
-
     from airflow.configuration import conf
     from airflow.utils import db
 
@@ -98,6 +96,8 @@ def initial_db_init():
         db.downgrade(to_revision="5f2621c13b39")
         db.upgradedb(to_revision="head")
     else:
+        from flask import Flask
+
         from airflow.www.extensions.init_appbuilder import init_appbuilder
         from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -159,11 +159,10 @@ def clear_db_assets():
         session.query(AssetDagRunQueue).delete()
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()
-        if AIRFLOW_V_2_10_PLUS:
-            from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
+        from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
 
-            session.query(AssetAliasModel).delete()
-            session.query(DagScheduleAssetAliasReference).delete()
+        session.query(AssetAliasModel).delete()
+        session.query(DagScheduleAssetAliasReference).delete()
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.asset import (
                 AssetActive,
@@ -191,6 +190,9 @@ def clear_db_dags():
     with create_session() as session:
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
+        session.query(
+            DagRun
+        ).delete()  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
         session.query(DagModel).delete()
 
 

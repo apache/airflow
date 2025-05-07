@@ -31,7 +31,6 @@ from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.decorators import setup, task, task_group, teardown
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
@@ -43,6 +42,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.sdk import setup, task, task_group, teardown
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -100,7 +100,6 @@ class TestDagRun:
         logical_date: datetime.datetime | None = None,
         is_backfill: bool = False,
         state: DagRunState = DagRunState.RUNNING,
-        dag_version: DagVersion | None = None,
         session: Session,
     ):
         now = timezone.utcnow()
@@ -123,7 +122,6 @@ class TestDagRun:
             run_after=data_interval.end,
             start_date=now,
             state=state,
-            dag_version=dag_version or DagVersion.get_latest_version(dag.dag_id, session=session),
             triggered_by=DagRunTriggeredByType.TEST,
             session=session,
         )
@@ -1037,7 +1035,7 @@ class TestDagRun:
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + datetime.timedelta(days=1),
-            is_active=True,
+            is_stale=False,
         )
         session.add(orm_dag)
         session.flush()
@@ -1111,7 +1109,7 @@ class TestDagRun:
 
         try:
             info = dag.next_dagrun_info(None)
-            orm_dag_kwargs = {"dag_id": dag.dag_id, "has_task_concurrency_limits": False, "is_active": True}
+            orm_dag_kwargs = {"dag_id": dag.dag_id, "has_task_concurrency_limits": False, "is_stale": False}
             if info is not None:
                 orm_dag_kwargs.update(
                     {
@@ -2091,7 +2089,7 @@ def test_mapped_skip_upstream_not_deadlock(dag_maker):
 
 
 def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session, dag_maker):
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def do_something(i):
@@ -2403,8 +2401,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 
     tr = TaskReschedule(
-        task_instance_id=ti.id,
-        try_number=ti.try_number,
+        ti_id=ti.id,
         start_date=timezone.datetime(2017, 1, 1),
         end_date=timezone.datetime(2017, 1, 2),
         reschedule_date=timezone.datetime(2017, 1, 1),
