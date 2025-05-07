@@ -111,12 +111,12 @@ spec:
         {{- else }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  component: api-server
-              topologyKey: kubernetes.io/hostname
-            weight: 100
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    component: api-server
+                topologyKey: kubernetes.io/hostname
+              weight: 100
         {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
@@ -140,6 +140,9 @@ spec:
             {{- end }}
             {{- if .Values.apiServer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
@@ -179,6 +182,9 @@ spec:
             {{- end }}
             {{- if .Values.apiServer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
           ports:
             - name: api-server
@@ -237,5 +243,10 @@ spec:
         {{- end }}
         {{- if .Values.apiServer.extraVolumes }}
           {{- tpl (toYaml .Values.apiServer.extraVolumes) . | nindent 8 }}
+        {{- end }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        - name: webserver-config
+          configMap:
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
         {{- end }}
 {{- end }}
