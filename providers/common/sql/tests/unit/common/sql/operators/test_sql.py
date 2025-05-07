@@ -38,6 +38,7 @@ from airflow.providers.common.sql.operators.sql import (
     SQLTableCheckOperator,
     SQLThresholdCheckOperator,
     SQLValueCheckOperator,
+    default_output_processor_with_column_names,
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -66,6 +67,19 @@ class MockHook:
 
 def _get_mock_db_hook():
     return MockHook()
+
+
+def test_default_output_processor_with_column_names():
+    results_input = [[(1, "Alice"), (2, "Bob")], [(101, 1), (102, 2)]]
+    descriptions_input = [
+        (("CustomerId", int, None, None, None, None, 0), ("Name", str, None, None, None, None, 0)),
+        (("OrderId", int, None, None, None, None, 0), ("CustomerId", int, None, None, None, None, 0)),
+    ]
+    expected_output = [
+        ([(1, "Alice"), (2, "Bob")], ["CustomerId", "Name"]),
+        ([(101, 1), (102, 2)], ["OrderId", "CustomerId"]),
+    ]
+    assert default_output_processor_with_column_names(results_input, descriptions_input) == expected_output
 
 
 class TestBaseSQLOperator:
