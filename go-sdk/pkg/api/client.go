@@ -18,21 +18,17 @@
 package api
 
 import (
-	"context"
-	"encoding/json"
-	"io"
-	"net/http"
+	"maps"
 
 	"github.com/google/uuid"
-	"github.com/oapi-codegen/oapi-codegen/v2/pkg/securityprovider"
+	"resty.dev/v3"
 )
 
-func apiVersionInjector(ctx context.Context, req *http.Request) error {
-	req.Header.Set("Airflow-API-Version", API_VERSION)
-	return nil
-}
+const API_VERSION = "2025-04-11"
 
-func correlationIdInjector(ctx context.Context, req *http.Request) error {
+//go:generate go run -modfile=../../tools.mod github.com/ashb/oapi-resty-codegen --config oapi-codegen.yml ../../openapi-fmt.json
+
+func correlationIdInjector(_ *resty.Client, req *resty.Request) error {
 	if uuid, err := uuid.NewV7(); err != nil {
 		return err
 	} else {
@@ -41,46 +37,36 @@ func correlationIdInjector(ctx context.Context, req *http.Request) error {
 	return nil
 }
 
-func NewDefaultClient(server string, opts ...ClientOption) (*Client, error) {
+func NewDefaultClient(server string, opts ...ClientOption) (ClientInterface, error) {
+	rc := resty.New()
+	rc.SetBaseURL(server)
+	rc.SetHeader("Airflow-API-Version", API_VERSION)
 	return NewClient(
-		server, WithRequestEditorFn(apiVersionInjector), WithRequestEditorFn(correlationIdInjector),
+		server,
+		WithClient(rc),
+		WithRequestMiddleware(correlationIdInjector),
 	)
 }
 
-// WithBearerToken creates a copy of the client adding in a Bearer token security provider
-func (c *Client) WithBearerToken(token string) (*Client, error) {
-	auth, err := securityprovider.NewSecurityProviderBearerToken(token)
-	if err != nil {
-		return nil, err
+// WithBearerToken creates a copy of the client (reusing the underlying http.Client) adding in a Bearer token auth to all requests
+func (c *Client) WithBearerToken(token string) (ClientInterface, error) {
+	rc := resty.NewWithClient(c.Client.Client())
+	maps.Copy(rc.Header(), c.Client.Header())
+	rc.SetBaseURL(c.Server)
+
+	// We don't use SetAuthToken/SetAuthScheme, as that produces a (valid, but annoying) warning about using Auth
+	// over HTTP: "Using sensitive credentials in HTTP mode is not secure." It's a time-limited-token though, so we
+	// can reasonably ignore that herej and setting the header directly by-passes that
+	// rc.SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
+	rc.SetAuthToken(token)
+	rc.SetAuthScheme("Bearer")
+
+	opts := []ClientOption{
+		WithClient(rc),
+	}
+	for _, mw := range c.RequestMiddleware {
+		opts = append(opts, WithRequestMiddleware(mw))
 	}
 
-	opts := []ClientOption{WithRequestEditorFn(auth.Intercept)}
-
-	if c.Client != nil {
-		opts = append(opts, WithHTTPClient(c.Client))
-	}
-	for _, fn := range c.RequestEditors {
-		opts = append(opts, WithRequestEditorFn(fn))
-	}
 	return NewClient(c.Server, opts...)
-}
-
-func (*Client) ResponseErrorToJson(resp *http.Response) (any, error) {
-	if resp.Body == nil {
-		return "Unknown error", nil
-	}
-	b, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	// Try to json decode it, else just return the content
-	var jsonMap map[string](any)
-
-	err = json.Unmarshal(b, &jsonMap)
-	if err != nil {
-		return string(b), nil
-	}
-	return jsonMap, nil
 }

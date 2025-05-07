@@ -19,24 +19,25 @@ package sdk
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 )
 
 func VariableGet(ctx context.Context, key string) (string, error) {
-	client := ctx.Value(sdkcontext.ApiClientContextKey).(*api.Client)
+	client := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
 
-	resp, err := client.GetVariable(ctx, key)
+	resp, err := client.Variables().Get(ctx, key)
 	if err != nil {
+		var httpError *api.GeneralHTTPError
+		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
+			// TODO: return a custom error message!
+			return "", fmt.Errorf("variable %q not found: %d", key, httpError.Response.StatusCode())
+		}
 		return "", err
 	}
-	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("variable not found: %d", resp.StatusCode)
-	}
-	b, err := io.ReadAll(resp.Body)
 	// TODO: Handle deserialization etc!
-	return string(b), err
+	return *resp.Value, nil
 }

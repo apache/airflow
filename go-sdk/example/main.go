@@ -64,6 +64,9 @@ func load() error {
 }
 
 func main() {
+	logger := makeLogger()
+	slog.SetDefault(logger)
+	logger.Debug("Starting up")
 	worker := worker.New(logger)
 	registerTasks(worker)
 
@@ -71,9 +74,10 @@ func main() {
 }
 
 func makeLogger() *slog.Logger {
-	log := slog.New(slogcolor.NewHandler(os.Stderr, slogcolor.DefaultOptions))
-	slog.SetDefault(log)
+	var opts slogcolor.Options = *slogcolor.DefaultOptions
+	leveler := &slog.LevelVar{}
+	leveler.Set(slog.LevelDebug)
+	opts.Level = leveler
+	log := slog.New(slogcolor.NewHandler(os.Stderr, &opts))
 	return log
 }
-
-var logger = makeLogger()

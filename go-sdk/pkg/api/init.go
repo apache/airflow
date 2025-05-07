@@ -15,7 +15,28 @@
 // specific language governing permissions and limitations
 // under the License.
 
-/*
-sdk implements the interface for Go Tasks to access the Airflow state
-*/
-package sdk
+package api
+
+import (
+	"os"
+	"os/user"
+)
+
+var (
+	Hostname string
+	Username string
+)
+
+func init() {
+	user, err := user.Current()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	Username = user.Username
+
+	Hostname, err = os.Hostname()
+	if err != nil {
+		panic(err.Error())
+	}
+}

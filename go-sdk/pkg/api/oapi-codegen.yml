@@ -30,4 +30,3 @@ output-options:
   skip-prune: true
   overlay:
     path: overlay.yml
-  user-templates:

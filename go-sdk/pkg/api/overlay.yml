@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+# yamllint disable rule:line-length
 overlay: 1.0.0
 info:
   title: OpenAPI Overlay
@@ -26,3 +27,42 @@ actions:
       Since the version is consistent across the entire client, we don't want it in the request objects
     target: $.paths.*.*.parameters[?(@.name == "Airflow-API-Version")]
     remove: true
+
+  # Customize the operation IDs so it produced nice function names
+  - target: $.paths['/dag-runs/count']
+    update:
+      operationId: get_dag_run_count
+  - target: $.paths['/dag-runs/{dag_id}/{run_id}/state'].get
+    update:
+      operationId: get_dag_run_state
+  - target: $.paths['/task-instances/{task_instance_id}/heartbeat'].put
+    update:
+      operationId: task_instance_heartbeat
+  - target: $.paths['/task-instances/{task_instance_id}/rtif'].put
+    update:
+      operationId: task_instance_put_rendered_fields
+  - target: $.paths['/task-instances/{task_instance_id}/run'].patch
+    update:
+      operationId: task_instance_run
+  - target: $.paths['/task-instances/{task_instance_id}/state'].patch
+    update:
+      operationId: task_instance_update_state
+  - target: $.paths['/task-instances/{task_instance_id}/skip-downstream'].patch
+    update:
+      operationId: task_instance_skip_downstream
+
+  - target: $.paths['/task-instances/{task_instance_id}/state'].patch.requestBody.content['application/json'].schema
+    description: Override UpdateState body to not be an embedded type
+    update:
+      x-go-type: TIUpdateStatePayload
+  - target: $.components.schemas
+    update:
+      TIUpdateStatePayload:
+        oneOf:
+          - $ref: "#/components/schemas/TITerminalStatePayload"
+          - $ref: "#/components/schemas/TISuccessStatePayload"
+          - $ref: "#/components/schemas/TITargetStatePayload"
+          - $ref: "#/components/schemas/TIDeferredStatePayload"
+          - $ref: "#/components/schemas/TIRescheduleStatePayload"
+          - $ref: "#/components/schemas/TIRetryStatePayload"
+        title: "TI UpdateState Payload"

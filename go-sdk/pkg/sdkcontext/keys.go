@@ -21,10 +21,12 @@ type (
 	activityContextKey  struct{}
 	apiClientContextKey struct{}
 	workerContextKey    struct{}
+	runtimeTIContextKey struct{}
 )
 
 var (
 	ActivityContextKey  = activityContextKey{}
+	RuntimeTIContextKey = runtimeTIContextKey{}
 	ApiClientContextKey = apiClientContextKey{}
 	WorkerContextKey    = workerContextKey{}
 )

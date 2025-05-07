@@ -25,6 +25,7 @@ import (
 var (
 	Hostname string
 	Username string
+	PID      int
 )
 
 func init() {
@@ -39,4 +40,6 @@ func init() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	PID = os.Getpid()
 }

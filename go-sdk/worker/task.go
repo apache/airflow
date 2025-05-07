@@ -56,6 +56,7 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 			reflectArgs[i] = reflect.Zero(in)
 		}
 	}
+	slog.Debug("Attempting to call fn", "fn", f.fn, "args", reflectArgs)
 	retValues := f.fn.Call(reflectArgs)
 
 	var err error

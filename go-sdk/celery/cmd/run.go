@@ -18,10 +18,6 @@
 package cmd
 
 import (
-	"log/slog"
-	"os"
-
-	"github.com/MatusOllah/slogcolor"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -33,9 +29,6 @@ var runCmd = &cobra.Command{
 	Short: "Connect to Celery broker and run Airflow activities",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log := slog.New(slogcolor.NewHandler(os.Stderr, slogcolor.DefaultOptions))
-		slog.SetDefault(log)
-
 		var config celery.Config
 
 		viper.BindPFlags(cmd.Flags())
