@@ -49,11 +49,8 @@ const columns: Array<ColumnDef<AssetResponse>> = [
   {
     accessorKey: "last_asset_event",
     cell: ({ row: { original } }: AssetRow) => {
-      const assetEvent = "last_asset_event" in original ? original.last_asset_event : undefined;
-      const timestamp =
-        assetEvent !== undefined && assetEvent !== null && "timestamp" in assetEvent
-          ? assetEvent.timestamp
-          : undefined;
+      const assetEvent = original.last_asset_event;
+      const timestamp = assetEvent?.timestamp;
 
       if (timestamp === null || timestamp === undefined) {
         return undefined;
