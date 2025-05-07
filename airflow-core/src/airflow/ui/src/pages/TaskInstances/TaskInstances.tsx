@@ -168,7 +168,7 @@ const taskInstanceColumns = (
 ];
 
 export const TaskInstances = () => {
-  const { dagId, runId, taskId } = useParams();
+  const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -196,8 +196,8 @@ export const TaskInstances = () => {
       orderBy,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
-      taskId: taskId ?? undefined,
+      taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
+      taskId: Boolean(groupId) ? undefined : taskId,
     },
     undefined,
     {
@@ -214,7 +214,7 @@ export const TaskInstances = () => {
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
       <DataTable
-        columns={taskInstanceColumns(dagId, runId, taskId)}
+        columns={taskInstanceColumns(dagId, runId, Boolean(groupId) ? undefined : taskId)}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

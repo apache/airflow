@@ -29,9 +29,25 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isM
   const { dagId = "", runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  // We don't have a task group details page to link to
   if (isGroup) {
-    return <TaskName isGroup={true} isMapped={isMapped} {...rest} />;
+    const GroupTaskName = <TaskName isGroup={true} isMapped={isMapped} {...rest} />;
+
+    // currently not supported all dag runs
+    if (runId === undefined) {
+      return undefined;
+    }
+
+    return (
+      <RouterLink
+        ref={ref}
+        to={{
+          pathname: `/dags/${dagId}/runs/${runId}/tasks/group/${id}`,
+          search: searchParams.toString(),
+        }}
+      >
+        {GroupTaskName}
+      </RouterLink>
+    );
   }
 
   return (
