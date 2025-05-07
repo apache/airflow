@@ -28,7 +28,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
-from typing_extensions import Literal
+from typing_extensions import Literal, overload
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -1070,6 +1070,28 @@ class HiveServer2Hook(DbApiHook):
         res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
         df = pl.DataFrame(res["data"], schema=[c[0] for c in res["header"]], orient="row", **kwargs)
         return df
+
+    @overload  # type: ignore[override]
+    def get_df(
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        *,
+        df_type: Literal["pandas"] = "pandas",
+        **kwargs: Any,
+    ) -> pd.DataFrame: ...
+
+    @overload  # type: ignore[override]
+    def get_df(
+        self,
+        sql: str,
+        schema: str = "default",
+        hive_conf: dict[Any, Any] | None = None,
+        *,
+        df_type: Literal["polars"],
+        **kwargs: Any,
+    ) -> pl.DataFrame: ...
 
     def get_df(  # type: ignore
         self,
