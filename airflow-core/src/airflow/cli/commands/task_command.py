@@ -381,7 +381,7 @@ def task_test(args, dag: DAG | None = None) -> None:
     )
     try:
         with redirect_stdout(RedactedIO()):
-            _run_task(ti=ti)
+            _run_task(ti=ti, run_triggerer=True)
         if ti.state == State.FAILED and args.post_mortem:
             debugger = _guess_debugger()
             debugger.set_trace()
