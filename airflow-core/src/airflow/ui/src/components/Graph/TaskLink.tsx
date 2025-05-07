@@ -29,37 +29,23 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isM
   const { dagId = "", runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  if (isGroup) {
-    const GroupTaskName = <TaskName isGroup={true} isMapped={isMapped} {...rest} />;
-
-    // currently not supported all dag runs
-    if (runId === undefined) {
-      return undefined;
-    }
-
-    return (
-      <RouterLink
-        ref={ref}
-        to={{
-          pathname: `/dags/${dagId}/runs/${runId}/tasks/group/${id}`,
-          search: searchParams.toString(),
-        }}
-      >
-        {GroupTaskName}
-      </RouterLink>
-    );
+  if (isGroup && runId === undefined) {
+    return undefined;
   }
+
+  const pathname = isGroup
+    ? `/dags/${dagId}/runs/${runId}/tasks/group/${id}`
+    : `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`;
 
   return (
     <RouterLink
       ref={ref}
       to={{
-        // Do not include runId if there is no selected run, clicking a second time will deselect a task id
-        pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`,
+        pathname,
         search: searchParams.toString(),
       }}
     >
-      <TaskName isMapped={isMapped} {...rest} />
+      <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
     </RouterLink>
   );
 });

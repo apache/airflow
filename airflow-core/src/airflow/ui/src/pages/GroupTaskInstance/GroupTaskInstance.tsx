@@ -72,9 +72,7 @@ export const GroupTaskInstance = () => {
     .find((dr) => dr.dag_run_id === runId)
     ?.task_instances.find((ti) => ti.task_id === groupId);
 
-  const tabs = [
-    { icon: <MdOutlineTask />, label: 'Task Instances', value: "" },
-  ];
+  const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
 
   return (
     <ReactFlowProvider>
