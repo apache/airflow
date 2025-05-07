@@ -33,9 +33,7 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}",
-                        "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ result is string }}"
+                        "try_number": "{{ result is number }}"
                     },
                     "task": {
                         "inlets": "[]",
@@ -122,9 +120,7 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}",
-                        "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ result is string }}"
+                        "try_number": "{{ result is number }}"
                     },
                     "task": {
                         "inlets": "[]",
