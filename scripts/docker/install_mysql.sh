@@ -35,7 +35,7 @@ readonly MARIADB_LTS_VERSION="10.11"
 retry() {
     local retries=3
     local count=0
-    adding delay of 10 seconds
+    # adding delay of 10 seconds
     local delay=10
     until "$@"; do
         exit_code=$?
