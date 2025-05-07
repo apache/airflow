@@ -47,12 +47,12 @@ from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import Log
 from airflow.models.asset import (
     AssetActive,
+    AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
-    AssetAliasModel,
-    DagScheduleAssetReference,
     DagScheduleAssetAliasReference,
+    DagScheduleAssetReference,
     TaskOutletAssetReference,
     asset_alias_asset_event_association_table,
 )
@@ -1614,7 +1614,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
                 )
             ).all()
-            
+
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
