@@ -100,9 +100,6 @@ dependencies = [
 # boto3 have native async support and we move away from aio aiobotocore
 "aiobotocore" = [
     "aiobotocore[boto3]>=2.21.1",
-    # boto3 here should be synchronized with latest aiobotocore version otherwise pip might get
-    # into a backtracking loop and fail to install the package
-    "boto3<1.37.2,>=1.37.0"
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=7.2.0",
