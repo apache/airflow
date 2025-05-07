@@ -24,6 +24,7 @@ import boto3
 from moto import mock_aws
 
 from airflow.models.dag import DAG
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
 
 EXAMPLE_URL = "http://www.example.com"
@@ -60,14 +61,50 @@ class TestHttpToS3Operator:
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
         operator = HttpToS3Operator(
-            task_id="s3_to_file_sensor",
+            task_id="http_to_s3_operator",
             http_conn_id=self.http_conn_id,
             endpoint=self.endpoint,
             s3_key=self.s3_key,
             s3_bucket=self.s3_bucket,
             dag=self.dag,
         )
-        operator.execute(None)
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.s3.S3Hook.load_bytes",
+            autospec=True,
+            side_effect=S3Hook.load_bytes,
+        ) as m:
+            operator.execute(None)
+            # file was loaded using standard API
+            m.assert_called_once()
+
+        objects_in_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
+        # there should be object found, and there should only be one object found
+        assert len(objects_in_bucket["Contents"]) == 1
+        # the object found should be consistent with dest_key specified earlier
+        assert objects_in_bucket["Contents"][0]["Key"] == self.s3_key
+
+    @mock_aws
+    def test_execute_stream(self, requests_mock):
+        requests_mock.register_uri("GET", EXAMPLE_URL, content=self.response)
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=self.s3_bucket)
+        operator = HttpToS3Operator(
+            task_id="http_to_s3_operator",
+            http_conn_id=self.http_conn_id,
+            endpoint=self.endpoint,
+            s3_key=self.s3_key,
+            s3_bucket=self.s3_bucket,
+            dag=self.dag,
+            extra_options={"stream": True},
+        )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.s3.S3Hook.load_file_obj",
+            autospec=True,
+            side_effect=S3Hook.load_file_obj,
+        ) as m:
+            operator.execute(None)
+            # file was loaded using lazy API
+            m.assert_called_once()
 
         objects_in_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
         # there should be object found, and there should only be one object found
