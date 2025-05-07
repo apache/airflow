@@ -32,6 +32,7 @@ EXIT_CODE=0
 . "$( dirname "${BASH_SOURCE[0]}" )/check_connectivity.sh"
 
 export COLOR_YELLOW=$'\e[33m'
+export COLOR_RESET=$'\e[0m'
 
 function check_service {
     local label=$1
