@@ -25,7 +25,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from airflow.models import Variable, crypto, variable
-from airflow.secrets.cache import SecretCache
+from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 
 from tests_common.test_utils import db

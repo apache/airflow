@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.6.1"
+version = "9.7.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -66,8 +66,8 @@ dependencies = [
     # in the `devel-dependencies` section to be the same minimum version.
     # Apparently latest boto is causing OOM (143) issues in our CI
     # we limit it for now - see https://github.com/apache/airflow/issues/49937
-    "boto3>=1.37.0,<1.38.3",
-    "botocore>=1.37.0,<1.38.3",
+    "boto3>=1.37.0",
+    "botocore>=1.37.0",
     "inflection>=0.5.1",
     # Allow a wider range of watchtower versions for flexibility among users
     "watchtower>=3.3.1,<4",
@@ -100,9 +100,6 @@ dependencies = [
 # boto3 have native async support and we move away from aio aiobotocore
 "aiobotocore" = [
     "aiobotocore[boto3]>=2.21.1",
-    # boto3 here should be synchronized with latest aiobotocore version otherwise pip might get
-    # into a backtracking loop and fail to install the package
-    "boto3<1.37.2,>=1.37.0"
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=7.2.0",
@@ -138,7 +135,7 @@ dependencies = [
     "apache-airflow-providers-mongo"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage"
+    "apache-airflow-providers-openlineage>=2.3.0"
 ]
 "salesforce" = [
     "apache-airflow-providers-salesforce"
@@ -149,6 +146,9 @@ dependencies = [
 "standard" = [
     "apache-airflow-providers-standard"
 ]
+"common.messaging" = [
+    "apache-airflow-providers-common-messaging>=1.0.1"
+]
 
 [dependency-groups]
 dev = [
@@ -158,6 +158,7 @@ dev = [
     "apache-airflow-providers-apache-hive",
     "apache-airflow-providers-cncf-kubernetes",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-exasol",
     "apache-airflow-providers-ftp",
@@ -211,8 +212,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.6.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.6.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.7.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.7.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

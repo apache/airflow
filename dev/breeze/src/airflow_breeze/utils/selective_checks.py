@@ -46,9 +46,8 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
-    RUNS_ON_PUBLIC_RUNNER,
-    RUNS_ON_SELF_HOSTED_ASF_RUNNER,
-    RUNS_ON_SELF_HOSTED_RUNNER,
+    PUBLIC_AMD_RUNNERS,
+    PUBLIC_ARM_RUNNERS,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
@@ -86,7 +85,6 @@ LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
@@ -1261,135 +1259,12 @@ class SelectiveChecks:
         return " ".join(sorted(affected_providers))
 
     @cached_property
-    def runs_on_as_json_default(self) -> str:
-        if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
-            if self._is_canary_run():
-                return RUNS_ON_SELF_HOSTED_RUNNER
-            if self._pr_labels and USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
-                # Forced public runners
-                return RUNS_ON_PUBLIC_RUNNER
-            actor = self._github_actor
-            if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
-                try:
-                    actor = self._github_context_dict["event"]["pull_request"]["user"]["login"]
-                    get_console().print(
-                        f"[warning]The actor: {actor} retrieved from GITHUB_CONTEXT's"
-                        f" event.pull_request.user.login[/]"
-                    )
-                except Exception as e:
-                    get_console().print(f"[warning]Exception when reading user login: {e}[/]")
-                    get_console().print(
-                        f"[info]Could not find the actor from pull request, "
-                        f"falling back to the actor who triggered the PR: {actor}[/]"
-                    )
-            if (
-                actor not in COMMITTERS
-                and self._pr_labels
-                and USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels
-            ):
-                get_console().print(
-                    f"[error]The PR has `{USE_SELF_HOSTED_RUNNERS_LABEL}` label, but "
-                    f"{actor} is not a committer. This is not going to work.[/]"
-                )
-                sys.exit(1)
-            if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels:
-                # Forced self-hosted runners
-                return RUNS_ON_SELF_HOSTED_RUNNER
-            return RUNS_ON_PUBLIC_RUNNER
-        return RUNS_ON_PUBLIC_RUNNER
+    def amd_runners(self) -> str:
+        return PUBLIC_AMD_RUNNERS
 
     @cached_property
-    def runs_on_as_json_self_hosted(self) -> str:
-        return RUNS_ON_SELF_HOSTED_RUNNER
-
-    @cached_property
-    def runs_on_as_json_self_hosted_asf(self) -> str:
-        return RUNS_ON_SELF_HOSTED_ASF_RUNNER
-
-    @cached_property
-    def runs_on_as_json_docs_build(self) -> str:
-        # We used to run docs build on self-hosted runners because they had more space, but
-        # It turned out that public runners have a lot of space in /mnt folder that we can utilise
-        # but in the future we might want to switch back to self-hosted runners so we have this
-        # separate property to determine that and place to implement different logic if needed
-        return RUNS_ON_PUBLIC_RUNNER
-
-    @cached_property
-    def runs_on_as_json_public(self) -> str:
-        return RUNS_ON_PUBLIC_RUNNER
-
-    @cached_property
-    def is_self_hosted_runner(self) -> bool:
-        """
-        True if the job has runs_on labels indicating It should run on "self-hosted" runner.
-
-        All self-hosted runners have "self-hosted" label.
-        """
-        return "self-hosted" in json.loads(self.runs_on_as_json_default)
-
-    @cached_property
-    def is_airflow_runner(self) -> bool:
-        """
-        True if the job has runs_on labels indicating It should run on Airflow managed runner.
-
-        All Airflow team-managed runners will have "airflow-runner" label.
-        """
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "airflow-runner" presence in runs_on
-        runs_on_array = json.loads(self.runs_on_as_json_default)
-        return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
-
-    @cached_property
-    def is_amd_runner(self) -> bool:
-        """
-        True if the job has runs_on labels indicating AMD architecture.
-
-        Matching amd label, asf-runner, and any ubuntu that does not contain arm
-        The last case is just in case - currently there are no public runners that have ARM
-        instances, but they can add them in the future. It might be that for compatibility
-        they will just add arm in the runner name - because currently GitHub users use just
-        one label "ubuntu-*" for all their work and depend on them being AMD ones.
-        """
-        return any(
-            [
-                label.lower() == "amd"
-                or label.lower() == "amd64"
-                or label.lower() == "x64"
-                or label == "asf-runner"
-                or ("ubuntu" in label and "arm" not in label.lower())
-                for label in json.loads(self.runs_on_as_json_public)
-            ]
-        )
-
-    @cached_property
-    def is_arm_runner(self) -> bool:
-        """
-        True if the job has runs_on labels indicating ARM architecture.
-
-        Matches any label containing arm - including ASF-specific "asf-arm" label.
-
-        # See https://cwiki.apache.org/confluence/pages/viewpage.action?spaceKey=INFRA&title=ASF+Infra+provided+self-hosted+runners
-        """
-        return any(
-            [
-                label.lower() == "arm" or label.lower() == "arm64" or label == "asf-arm"
-                for label in json.loads(self.runs_on_as_json_public)
-            ]
-        )
-
-    @cached_property
-    def is_vm_runner(self) -> bool:
-        """Whether the runner is VM runner (managed by airflow)."""
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "airflow-runner" presence in runs_on
-        return self.is_airflow_runner
-
-    @cached_property
-    def is_k8s_runner(self) -> bool:
-        """Whether the runner is K8s runner (managed by airflow)."""
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "k8s-runner" presence in runs_on
-        return False
+    def arm_runners(self) -> str:
+        return PUBLIC_ARM_RUNNERS
 
     @cached_property
     def has_migrations(self) -> bool:

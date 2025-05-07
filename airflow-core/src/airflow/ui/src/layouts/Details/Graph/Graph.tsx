@@ -144,7 +144,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId,
+        isSelected: node.id === taskId || node.id === `dag:${dagId}`,
         taskInstance,
       },
     };

@@ -54,10 +54,9 @@ from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
-    IntermediateTIState,
     TaskInstance,
+    TaskInstanceState,
     TaskStatesResponse,
-    TerminalTIState,
     VariableResponse,
     XComResponse,
 )
@@ -130,10 +129,10 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
 STATES_SENT_DIRECTLY = [
-    IntermediateTIState.DEFERRED,
-    IntermediateTIState.UP_FOR_RESCHEDULE,
-    IntermediateTIState.UP_FOR_RETRY,
-    TerminalTIState.SUCCESS,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.SUCCESS,
     SERVER_TERMINATED,
 ]
 
@@ -768,6 +767,7 @@ class ActivitySubprocess(WatchedSubprocess):
     # TODO: This should come from airflow.cfg: [core] task_success_overtime
     TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
+    _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
@@ -843,7 +843,10 @@ class ActivitySubprocess(WatchedSubprocess):
         # by the subprocess in the `handle_requests` method.
         if self.final_state not in STATES_SENT_DIRECTLY:
             self.client.task_instances.finish(
-                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
+                id=self.id,
+                state=self.final_state,
+                when=datetime.now(tz=timezone.utc),
+                rendered_map_index=self._rendered_map_index,
             )
 
         # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
@@ -977,10 +980,10 @@ class ActivitySubprocess(WatchedSubprocess):
         Not valid before the process has finished.
         """
         if self._exit_code == 0:
-            return self._terminal_state or TerminalTIState.SUCCESS
+            return self._terminal_state or TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
-        return TerminalTIState.FAILED
+        return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
         log.debug("Received message from task runner", msg=msg)
@@ -989,21 +992,26 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.succeed(
                 id=self.id,
                 when=msg.end_date,
                 task_outlets=msg.task_outlets,
                 outlet_events=msg.outlet_events,
+                rendered_map_index=self._rendered_map_index,
             )
         elif isinstance(msg, RetryTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.retry(
                 id=self.id,
                 end_date=msg.end_date,
+                rendered_map_index=self._rendered_map_index,
             )
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
@@ -1045,10 +1053,11 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = xcom
         elif isinstance(msg, DeferTask):
-            self._terminal_state = IntermediateTIState.DEFERRED
+            self._terminal_state = TaskInstanceState.DEFERRED
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.defer(self.id, msg)
         elif isinstance(msg, RescheduleTask):
-            self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
+            self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)

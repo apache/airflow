@@ -68,6 +68,8 @@ const ConnectionForm = ({
   const standardFields = connectionTypeMeta[selectedConnType]?.standard_fields ?? {};
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
 
+  const [formErrors, setFormErrors] = useState(false);
+
   useEffect(() => {
     reset((prevValues) => ({
       ...initialConnection,
@@ -198,6 +200,7 @@ const ConnectionForm = ({
               flexibleFormDefaultSection={flexibleFormExtraFieldSection}
               initialParamsDict={paramsDic}
               key={selectedConnType}
+              setError={setFormErrors}
             />
             <Accordion.Item key="extraJson" value="extraJson">
               <Accordion.ItemTrigger cursor="button">Extra Fields JSON</Accordion.ItemTrigger>
@@ -228,7 +231,7 @@ const ConnectionForm = ({
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.conf) || isPending || !isValid}
+            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> Save

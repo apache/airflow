@@ -63,8 +63,8 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstance,
+    TaskInstanceState,
     TaskStatesResponse,
-    TerminalTIState,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
@@ -370,12 +370,13 @@ class TaskState(BaseModel):
     """
 
     state: Literal[
-        TerminalTIState.FAILED,
-        TerminalTIState.SKIPPED,
-        TerminalTIState.REMOVED,
+        TaskInstanceState.FAILED,
+        TaskInstanceState.SKIPPED,
+        TaskInstanceState.REMOVED,
     ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
+    rendered_map_index: str | None = None
 
 
 class SucceedTask(TISuccessStatePayload):

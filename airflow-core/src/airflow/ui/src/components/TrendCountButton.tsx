@@ -43,12 +43,8 @@ export const TrendCountButton = ({
   label,
   route,
   startDate,
-}: Props) => {
-  if (count === 0 && !isLoading) {
-    return undefined;
-  }
-
-  return isLoading ? (
+}: Props) =>
+  isLoading ? (
     <Skeleton borderRadius={4} height="45px" width="350px" />
   ) : (
     <Link to={route}>
@@ -63,4 +59,3 @@ export const TrendCountButton = ({
       </HStack>
     </Link>
   );
-};

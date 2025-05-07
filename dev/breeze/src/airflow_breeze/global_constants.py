@@ -34,16 +34,8 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
 )
 
-RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
-# we should get more sophisticated logic here in the future, but for now we just check if
-# we use self airflow, vm-based, amd hosted runner as a default
-# TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
-RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
-RUNS_ON_SELF_HOSTED_ASF_RUNNER = '["self-hosted", "asf-runner"]'
-# TODO: when we have it properly set-up with labels we should change it to
-# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
-# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
-SELF_HOSTED_RUNNERS_CPU_COUNT = 8
+PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
+PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
 ANSWER = ""
 
@@ -197,8 +189,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.1"
-UV_VERSION = "0.6.17"
+PIP_VERSION = "25.1.1"
+UV_VERSION = "0.7.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -336,7 +328,8 @@ ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
-SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+ALTERNATIVE_PLATFORMS = ["linux/x86_64", "linux/aarch64"]
+SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64", *ALTERNATIVE_PLATFORMS]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
@@ -344,15 +337,21 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
 
+def normalize_platform_machine(platform_machine: str) -> str:
+    if "linux/" in platform_machine:
+        return {"linux/x86_64": "linux/amd64", "linux/aarch64": "linux/arm64"}.get(
+            platform_machine, platform_machine
+        )
+    return "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}.get(platform_machine, platform_machine)
+
+
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine.lower()
-    # Some additional conversion for various platforms...
-    machine = {"x86_64": "amd64", "aarch64": "arm64"}.get(machine, machine)
-    return machine
+    return normalize_platform_machine(machine)
 
 
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
+DOCKER_DEFAULT_PLATFORM = get_default_platform_machine()
 DOCKER_BUILDKIT = 1
 
 DRILL_HOST_PORT = "28047"
@@ -694,7 +693,8 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "3.0.0",
-        "remove-providers": "cloudant",
+        # TODO: bring back common-messaging when we bump airflow to 3.0.1
+        "remove-providers": "cloudant common.messaging",
         "run-tests": "true",
     },
 ]

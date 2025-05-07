@@ -113,8 +113,8 @@ run the commands below.
     airflow tasks test example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
     airflow backfill create --dag-id example_bash_operator \
-        --start-date 2015-01-01 \
-        --end-date 2015-01-02
+        --from-date 2015-01-01 \
+        --to-date 2015-01-02
 
 If you want to run the individual parts of Airflow manually rather than using
 the all-in-one ``standalone`` command, you can instead run:

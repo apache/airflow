@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, Skeleton, Link, Text } from "@chakra-ui/react";
+import { Box, Heading, Flex, Skeleton, Link } from "@chakra-ui/react";
 import { BiTargetLock } from "react-icons/bi";
-import { FiExternalLink } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
@@ -76,11 +75,8 @@ export const PoolSummary = () => {
           </Heading>
         </Flex>
         {hasPoolsAccess ? (
-          <Link asChild color="fg.info" display="flex" gap={1}>
-            <RouterLink to="/pools">
-              <Text fontSize="xs">Manage Pools</Text>
-              <FiExternalLink size={12} />
-            </RouterLink>
+          <Link asChild color="fg.info" display="flex" fontSize="xs" gap={1}>
+            <RouterLink to="/pools">Manage Pools</RouterLink>
           </Link>
         ) : undefined}
       </Flex>
