@@ -225,10 +225,13 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     def get_oauth_token(self, conn_config: dict[str, Any] | None = None) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         warnings.warn(
-            "This method is deprecated. Please use `get_oauth_token` method from `SnowflakeHook` instead. ",
+            "This method is deprecated. Please use `get_oauth_token` method from `SnowflakeHook` instead.",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
+        if conn_config is None:
+            conn_config = self._get_conn_params
+
         return super().get_oauth_token(conn_config=conn_config)
 
     def get_request_url_header_params(self, query_id: str) -> tuple[dict[str, Any], dict[str, Any], str]:
