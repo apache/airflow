@@ -24,25 +24,28 @@ on:  # yamllint disable-line rule:truthy
         description: "The branch or tag to checkout for the docs publishing"
         required: true
         type: string
-      exclude-docs:
-        description: "Comma separated list of docs to exclude"
-        required: false
-        default: "NO_DOCS"
-        type: string
-      destination-location:
-        description: "The destination location in S3"
-        required: false
-        default: "s3://staging-docs-airflow-apache-org/docs"
-        type: string
-      docs-list-as-string:
+      include-docs:
         description: |
           Space separated list of docs to build.
           To publish docs for nested provider packages, provide the package name with `.`
           eg: amazon common.messaging apache.kafka
 
         required: false
-        default: ""
+        default: "all"
         type: string
+      exclude-docs:
+        description: "Comma separated list of docs to exclude"
+        required: false
+        default: "no-docs-excluded"
+        type: string
+      destination-location:
+        description: "The destination location in S3"
+        required: false
+        default: "s3://staging-docs-airflow-apache-org/docs"
+        type: choice
+        options:
+          - s3://staging-docs-airflow-apache-org/docs
+
 env:
   AIRFLOW_ROOT_PATH: "/home/runner/work/temp-airflow-repo-reference"  # checkout dir for referenced tag
 permissions:
@@ -56,9 +59,11 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
       REF: ${{ inputs.ref }}
-      EXCLUDE_DOCS: ${{ inputs.exclude-docs }}
+      INCLUDE_DOCS: ${{ inputs.include_docs }}
+      EXCLUDE_DOCS: ${{ inputs.exclude_docs }}
       DESTINATION_LOCATION: ${{ inputs.destination-location }}
-      DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+    outputs:
+      include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -76,9 +81,9 @@ jobs:
           echo "Input parameters summary"
           echo "========================="
           echo "Ref: '${REF}'"
+          echo "Included docs : '${INCLUDE_DOCS}'"
           echo "Exclude docs: '${EXCLUDE_DOCS}'"
           echo "Destination location: '${DESTINATION_LOCATION}'"
-          echo "Docs list as string: '${DOCS_LIST_AS_STRING}'"
 
   build-ci-images:
     name: Build CI images
@@ -104,7 +109,7 @@ jobs:
       disable-airflow-repo-cache: false
 
   build-docs:
-    needs: [build-ci-images]
+    needs: [build-ci-images, build-info]
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ubuntu-latest
@@ -114,7 +119,7 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
+      PYTHON_MAJOR_MINOR_VERSION: 3.9
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -138,9 +143,9 @@ jobs:
           use-uv: true
       - name: "Building docs with --docs-only flag"
         env:
-          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >
-          breeze build-docs ${DOCS_LIST_AS_STRING} --docs-only
+          breeze build-docs ${INCLUDE_DOCS} --docs-only
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
@@ -151,7 +156,7 @@ jobs:
           overwrite: 'true'
 
   publish-docs-to-s3:
-    needs: [build-docs]
+    needs: [build-docs, build-info]
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -202,10 +207,10 @@ jobs:
           use-uv: true
       - name: "Publish docs to tmp directory"
         env:
-          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
-          ${DOCS_LIST_AS_STRING}
+          ${INCLUDE_DOCS}
       - name: Check disk space available
         run: df -h
       - name: "Generate back references for providers"
