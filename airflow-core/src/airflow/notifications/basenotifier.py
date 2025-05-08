@@ -20,3 +20,11 @@
 from __future__ import annotations
 
 from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "base": {
+        "BaseNotifier": "airflow.sdk.bases.notifier.BaseNotifier",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)
