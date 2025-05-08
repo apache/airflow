@@ -206,7 +206,7 @@ class SqlToS3Operator(BaseOperator):
                 if self.file_format == FILE_FORMAT.PARQUET:
                     getattr(df, file_options.function)(buf, **self.pd_kwargs)
                 else:
-                    text_buf = io.TextIOWrapper(buf, write_through=True)
+                    text_buf = io.TextIOWrapper(buf, encoding="utf-8", write_through=True)
                     getattr(df, file_options.function)(text_buf, **self.pd_kwargs)
                     text_buf.flush()
             buf.seek(0)
