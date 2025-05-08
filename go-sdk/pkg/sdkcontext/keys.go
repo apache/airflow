@@ -25,6 +25,9 @@ type (
 )
 
 var (
+	// ActivityContextKey stores the current Activity
+	//
+	// ctx.Value(ctx, sdkcontext.ActivityContex).(api.ExecuteTaskActivity)
 	ActivityContextKey  = activityContextKey{}
 	RuntimeTIContextKey = runtimeTIContextKey{}
 	ApiClientContextKey = apiClientContextKey{}

@@ -57,17 +57,19 @@ type (
 
 	worker struct {
 		Registry
-		client api.ClientInterface
-		logger *slog.Logger
+		client            api.ClientInterface
+		logger            *slog.Logger
+		heartbeatInterval time.Duration
+		reportTimeout     time.Duration
 	}
 )
 
 func New(logger *slog.Logger) Worker {
 	return &worker{
-		logger: logger,
-		Registry: &registry{
-			taskFuncMap: make(map[string]map[string]Task),
-		},
+		logger:            logger,
+		heartbeatInterval: HeartbeatInterval,
+		reportTimeout:     ReportTimeout,
+		Registry:          newRegistry(),
 	}
 }
 
@@ -86,6 +88,68 @@ func (w *worker) WithServer(server string) (Worker, error) {
 		client:   client,
 		logger:   w.logger,
 	}, nil
+}
+
+// heartbeater runs a heartbeat loop until either the taskContext is signaled as done, or a message is
+// received on stopChan
+func (w *worker) heartbeater(
+	ctx context.Context,
+	logger *slog.Logger,
+	taskContext context.Context,
+	taskLogger *slog.Logger,
+	stopChan chan bool,
+) {
+	ticker := time.NewTicker(w.heartbeatInterval)
+	defer ticker.Stop()
+	logger.InfoContext(ctx, "Starting heartbeater")
+	for {
+		select {
+		case <-ticker.C:
+			// TODO: Record when last successful heartbeat was, and fail+abort if we haven't managed to record
+			// one recently enough
+
+			activity := taskContext.Value(sdkcontext.ActivityContextKey).(api.ExecuteTaskActivity)
+			client := taskContext.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+			err := client.TaskInstances().
+				Heartbeat(ctx, activity.TI.Id, &api.TIHeartbeatInfo{
+					Hostname: Hostname,
+					Pid:      os.Getpid(),
+				})
+			if err != nil {
+				logger.InfoContext(ctx, "heartbeating", slog.Any("error", err))
+			}
+
+			var httpError *api.GeneralHTTPError
+			if errors.As(err, &httpError) {
+				resp := httpError.Response
+				if resp != nil && resp.StatusCode() == 404 || resp.StatusCode() == 409 {
+					stopChan <- true
+					logger.ErrorContext(
+						ctx,
+						"Server indicated the task shouldn't be running anymore",
+						"status_code", resp.StatusCode(),
+						"details", httpError.JSON,
+					)
+					taskLogger.ErrorContext(
+						taskContext,
+						"Server indicated the task shouldn't be running anymore. Terminating activity",
+						"status_code",
+						resp.StatusCode(),
+						"details",
+						httpError.JSON,
+					)
+
+					// TODO: Put a timeout on waiting for the task to actually cancel?
+					return
+				}
+
+			}
+		case <-taskContext.Done():
+			return
+		case <-stopChan:
+			return
+		}
+	}
 }
 
 func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTaskActivity) error {
@@ -111,11 +175,10 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 		}
 
 		c = activityClient.(*api.Client)
-		// c.SetLogger(&logging.RestyLoggerBridge{Handler: logger.Handler(), Context: ctx})
+		c.SetLogger(&logging.RestyLoggerBridge{Handler: logger.Handler(), Context: ctx})
 		if viper.GetBool("api_client.debug") {
 			c.EnableDebug()
 		}
-		c.Client.SetDebug(true)
 	}
 
 	reportStateFailed := func() error {
@@ -137,6 +200,7 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 	taskLogger, err := w.setupTaskLogger(ctx, activity)
 	if err != nil {
 		logger.ErrorContext(taskContext, "Could not create logger", slog.Any("error", err))
+		_ = reportStateFailed()
 		return err
 	}
 
@@ -193,10 +257,11 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 	stopHeartbeating := make(chan bool)
 	defer func() {
 		if r := recover(); r != nil {
-			// Create a new context that isn't cancelled to give us time to report
-			ctx, cancel := context.WithTimeout(context.WithoutCancel(taskContext), ReportTimeout)
-			defer cancel()
 			stopHeartbeating <- true
+
+			// Create a new context that isn't cancelled to give us time to report
+			ctx, cancel := context.WithTimeout(context.WithoutCancel(taskContext), w.reportTimeout)
+			defer cancel()
 			taskLogger.ErrorContext(
 				ctx,
 				"Recovered in task",
@@ -208,58 +273,7 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 		}
 	}()
 
-	ticker := time.NewTicker(HeartbeatInterval)
-	go func() {
-		logger.InfoContext(ctx, "Starting heartbeater")
-		for {
-			select {
-			case <-ticker.C:
-				// TODO: Record when last successful heartbeat was, and fail+abort if we haven't managed to record
-				// one recently enough
-
-				err := activityClient.TaskInstances().
-					Heartbeat(ctx, activity.TI.Id, &api.TIHeartbeatInfo{
-						Hostname: Hostname,
-						Pid:      os.Getpid(),
-					})
-				if err != nil {
-					logger.InfoContext(ctx, "heartbeating", slog.Any("error", err))
-				}
-
-				var httpError *api.GeneralHTTPError
-				if errors.As(err, &httpError) {
-					resp := httpError.Response
-					if resp != nil && resp.StatusCode() == 404 || resp.StatusCode() == 409 {
-						stopHeartbeating <- true
-						logger.ErrorContext(
-							ctx,
-							"Server indicated the task shouldn't be running anymore",
-							"status_code", resp.StatusCode(),
-							"details", httpError.JSON,
-						)
-						taskLogger.ErrorContext(
-							taskContext,
-							"Server indicated the task shouldn't be running anymore. Terminating activity",
-							"status_code",
-							resp.StatusCode(),
-							"details",
-							httpError.JSON,
-						)
-
-						// TODO: Put a timeout on waiting for the task to actually cancel?
-						return
-					}
-
-				}
-			case <-taskContext.Done():
-				return
-			case <-stopHeartbeating:
-				return
-			}
-		}
-	}()
-
-	defer ticker.Stop()
+	go w.heartbeater(ctx, logger, taskContext, taskLogger, stopHeartbeating)
 
 	err = task.Execute(taskContext, taskLogger)
 	endTime := time.Now().UTC()
@@ -317,7 +331,7 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 }
 
 func (w *worker) setupTaskLogger(
-	ctx context.Context,
+	_ context.Context,
 	activity api.ExecuteTaskActivity,
 ) (*slog.Logger, error) {
 	// Create a logger that:
@@ -335,7 +349,6 @@ func (w *worker) setupTaskLogger(
 		return nil, err
 	}
 
-	// TODO: log to the file name specified in `activity`
 	fh, err := os.Create(filename)
 	if err != nil {
 		return nil, err

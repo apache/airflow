@@ -38,6 +38,10 @@ type (
 	}
 )
 
+func newRegistry() *registry {
+	return &registry{taskFuncMap: make(map[string]map[string]Task)}
+}
+
 func getFnName(fn reflect.Value) string {
 	fullName := runtime.FuncForPC(fn.Pointer()).Name()
 	parts := strings.Split(fullName, ".")
@@ -50,7 +54,7 @@ func (r *registry) RegisterTask(dagId string, fn any) {
 	val := reflect.ValueOf(fn)
 
 	if val.Kind() != reflect.Func {
-		panic(fmt.Sprintf("Task fn was a %s, not a func", val.Kind()))
+		panic(fmt.Errorf("task fn was a %s, not a func", val.Kind()))
 	}
 
 	fnName := getFnName(val)
@@ -61,7 +65,7 @@ func (r *registry) RegisterTask(dagId string, fn any) {
 func (r *registry) RegisterTaskWithName(dagId, taskId string, fn any) {
 	task, err := NewTaskFunction(fn)
 	if err != nil {
-		panic(fmt.Sprintf("Error registering task %q for DAG %q: %s", taskId, dagId, err.Error()))
+		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))
 	}
 
 	r.RWMutex.Lock()
@@ -76,7 +80,7 @@ func (r *registry) RegisterTaskWithName(dagId, taskId string, fn any) {
 
 	_, exists = dagTasks[taskId]
 	if exists {
-		panic(fmt.Sprintf("TaskId %q is already registered for DAG %q", taskId, dagId))
+		panic(fmt.Errorf("taskId %q is already registered for DAG %q", taskId, dagId))
 	}
 	dagTasks[taskId] = task
 }
