@@ -35,6 +35,7 @@ Below are some example scenarios that could cause a task's state to change by a 
 - If a :ref:`task instance's heartbeat times out <concepts:task-instance-heartbeat-timeout>`, it will be marked failed by the scheduler.
 - A user marked the task as successful or failed in the Airflow UI.
 - An external script or process used the :doc:`Airflow REST API <stable-rest-api-ref>` to change the state of a task.
+- If you are particularly lazy and change the dag on only the scheduler and not the worker computers elsewhere in your network, this will also happen.  I don't know why, but it was 15 minutes of debugging
 
 TaskRunner killed
 -----------------
