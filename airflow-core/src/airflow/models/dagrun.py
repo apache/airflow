@@ -1035,7 +1035,7 @@ class DagRun(Base, LoggingMixin):
                             ti.span_status = SpanStatus.ACTIVE
                             self.active_spans.set("ti:" + ti.id, ti_span)
             else:
-                self.log.info(
+                self.log.debug(
                     "Found span_status '%s', while updating state for dag_run '%s'",
                     self.span_status,
                     self.run_id,
