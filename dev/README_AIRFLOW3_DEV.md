@@ -194,7 +194,7 @@ uv tool upgrade cherry-picker
 Then, in order to backport a commit to a branch, you can use the following command:
 
 ```bash
-cherry-picker COMMIT_SHA BRANCH_NAME1 [BRANCH_NAME2 ...]
+cherry_picker COMMIT_SHA BRANCH_NAME1 [BRANCH_NAME2 ...]
 ```
 
 This will create a new branch with the cherry-picked commit and open a PR against the target branch in

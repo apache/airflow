@@ -314,7 +314,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.5.2
@@ -648,7 +648,7 @@ repos:
           ^.*commits\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start\.rst$|
-          ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
           git|
           ^airflow-core/newsfragments/43349\.significant\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|

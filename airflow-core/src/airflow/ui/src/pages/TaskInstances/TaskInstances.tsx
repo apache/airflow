@@ -57,7 +57,7 @@ const taskInstanceColumns = (
     ? []
     : [
         {
-          accessorKey: "dag_id",
+          accessorKey: "dag_display_name",
           enableSorting: false,
           header: "Dag ID",
         },
@@ -98,6 +98,10 @@ const taskInstanceColumns = (
         },
       ]),
   {
+    accessorKey: "rendered_map_index",
+    header: "Map Index",
+  },
+  {
     accessorKey: "state",
     cell: ({
       row: {
@@ -124,10 +128,6 @@ const taskInstanceColumns = (
     accessorKey: "end_date",
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
     header: "End Date",
-  },
-  {
-    accessorKey: "rendered_map_index",
-    header: "Map Index",
   },
   {
     accessorKey: "try_number",
@@ -168,7 +168,7 @@ const taskInstanceColumns = (
 ];
 
 export const TaskInstances = () => {
-  const { dagId, runId, taskId } = useParams();
+  const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -196,8 +196,8 @@ export const TaskInstances = () => {
       orderBy,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
-      taskId: taskId ?? undefined,
+      taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
+      taskId: Boolean(groupId) ? undefined : taskId,
     },
     undefined,
     {
@@ -214,7 +214,7 @@ export const TaskInstances = () => {
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
       <DataTable
-        columns={taskInstanceColumns(dagId, runId, taskId)}
+        columns={taskInstanceColumns(dagId, runId, Boolean(groupId) ? undefined : taskId)}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

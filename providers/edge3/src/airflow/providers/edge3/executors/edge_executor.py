@@ -177,7 +177,11 @@ class EdgeExecutor(BaseExecutor):
             .with_for_update(skip_locked=True)
             .filter(
                 EdgeWorkerModel.state.not_in(
-                    [EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE, EdgeWorkerState.OFFLINE_MAINTENANCE]
+                    [
+                        EdgeWorkerState.UNKNOWN,
+                        EdgeWorkerState.OFFLINE,
+                        EdgeWorkerState.OFFLINE_MAINTENANCE,
+                    ]
                 ),
                 EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
             )
@@ -186,7 +190,17 @@ class EdgeExecutor(BaseExecutor):
 
         for worker in lifeless_workers:
             changed = True
-            worker.state = EdgeWorkerState.UNKNOWN
+            #  If the worker dies in maintenance mode we want to remember it, so it can start in maintenance mode
+            worker.state = (
+                EdgeWorkerState.OFFLINE_MAINTENANCE
+                if worker.state
+                in (
+                    EdgeWorkerState.MAINTENANCE_MODE,
+                    EdgeWorkerState.MAINTENANCE_PENDING,
+                    EdgeWorkerState.MAINTENANCE_REQUEST,
+                )
+                else EdgeWorkerState.UNKNOWN
+            )
             reset_metrics(worker.worker_name)
 
         return changed
