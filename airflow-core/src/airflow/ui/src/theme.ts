@@ -37,7 +37,7 @@ const customConfig = defineConfig({
     tokens: {
       colors: {
         black: { value: "#1C202A" },
-        navbar: {
+        steel: {
           // This is a 20/80 blend between "blue" and "slate"
           "50": { value: "oklch(98.0% 0.006 248.717)" },
           "100": { value: "oklch(96.2% 0.012 249.460)" },
@@ -291,13 +291,13 @@ const customConfig = defineConfig({
           "100": { value: "oklch(96.7% .003 264.542)" },
           "200": { value: "oklch(92.8% .006 264.531)" },
           "300": { value: "oklch(87.2% .01 258.338)" },
-          "400": { value: "oklch(70.7% .022 261.325)" },
+          "400": { value: "oklch(78.7% .022 261.325)" },
           "500": { value: "oklch(55.1% .027 264.364)" },
           "600": { value: "oklch(44.6% .050 256.802)" },
           "700": { value: "oklch(37.3% .034 259.733)" },
-          "800": { value: "oklch(27.8% .033 256.848)" },
-          "900": { value: "oklch(21% .034 264.665)" },
-          "950": { value: "oklch(13% .028 261.692)" },
+          "800": { value: "oklch(32.8% .034 260.848)" },
+          "900": { value: "oklch(18% .034 264.665)" },
+          "950": { value: "oklch(11% .028 261.692)" },
         },
         zinc: {
           "50": { value: "oklch(98.5% 0 0)" },
@@ -342,7 +342,7 @@ const customConfig = defineConfig({
     },
     semanticTokens: {
       colors: {
-        navbar: generateSemanticTokens("navbar"),
+        navbar: generateSemanticTokens("steel"),
         // TAILWIND 4.0 COLORS
         red: generateSemanticTokens("red"),
         orange: generateSemanticTokens("orange"),
