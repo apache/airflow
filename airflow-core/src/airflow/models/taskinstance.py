@@ -254,7 +254,7 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
-    dag: DAG,
+    dag: DAG | None = None,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
 ) -> None:
     """
