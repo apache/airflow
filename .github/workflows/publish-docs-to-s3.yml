@@ -35,7 +35,11 @@ on:  # yamllint disable-line rule:truthy
         default: "s3://staging-docs-airflow-apache-org/docs"
         type: string
       docs-list-as-string:
-        description: "Space separated list of docs to build"
+        description: |
+          Space separated list of docs to build.
+          To publish docs for nested provider packages, provide the package name with `.`
+          eg: amazon common.messaging apache.kafka
+
         required: false
         default: ""
         type: string
@@ -75,21 +79,6 @@ jobs:
           echo "Exclude docs: '${EXCLUDE_DOCS}'"
           echo "Destination location: '${DESTINATION_LOCATION}'"
           echo "Docs list as string: '${DOCS_LIST_AS_STRING}'"
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        with:
-          use-uv: "true"
 
   build-ci-images:
     name: Build CI images
