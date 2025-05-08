@@ -52,12 +52,12 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 };
 
 const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => {
-  const { taskId: selectedTaskId } = useParams();
+  const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
 
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId ? "blue.muted" : undefined}
+      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "blue.muted" : undefined}
       height="20px"
       id={taskId.replaceAll(".", "-")}
       justifyContent="center"
