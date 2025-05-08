@@ -25,7 +25,7 @@ from uuid import UUID
 
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, Depends, HTTPException, Query, Request, status
+from fastapi import Body, Depends, HTTPException, Query, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -34,6 +34,7 @@ from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     PrevSuccessfulDagRunResponse,
@@ -91,7 +92,7 @@ def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -242,7 +243,7 @@ def ti_run(
             or 0
         )
 
-        if dag := request.app.state.dag_bag.get_dag(ti.dag_id):
+        if dag := dag_bag.get_dag(ti.dag_id):
             upstream_map_indexes = dict(_get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index))
         else:
             upstream_map_indexes = None
@@ -306,7 +307,7 @@ def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ):
     """
     Update the state of a TaskInstance.
@@ -371,7 +372,7 @@ def ti_update_state(
 
         if updated_state == TerminalTIState.FAILED:
             ti = session.get(TI, ti_id_str)
-            ser_dag = request.app.state.dag_bag.get_dag(dag_id)
+            ser_dag = dag_bag.get_dag(dag_id)
             if ser_dag and getattr(ser_dag, "fail_fast", False):
                 task_dict = getattr(ser_dag, "task_dict")
                 task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
