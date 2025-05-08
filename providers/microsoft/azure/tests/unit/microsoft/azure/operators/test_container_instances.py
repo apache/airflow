@@ -161,8 +161,9 @@ class TestACIOperator:
         assert aci_mock.return_value.delete.call_count == 1
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
-    def test_execute_with_failures_without_removal(self, aci_mock):
-        expected_cg = make_mock_container(state="Terminated", exit_code=1, detail_status="test")
+    @pytest.mark.parametrize("state", ["Terminated", "Unhealthy"])
+    def test_execute_with_failures_without_removal(self, aci_mock, state):
+        expected_cg = make_mock_container(state=state, exit_code=1, detail_status="test")
         aci_mock.return_value.get_state.return_value = expected_cg
 
         aci_mock.return_value.exists.return_value = False

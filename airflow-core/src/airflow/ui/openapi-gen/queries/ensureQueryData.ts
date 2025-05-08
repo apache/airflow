@@ -354,7 +354,7 @@ export const ensureUseBackfillServiceGetBackfillData = (
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
 ) =>
   queryClient.ensureQueryData({
@@ -1263,7 +1263,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstancesData = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1278,13 +1278,14 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
   },
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Dependencies
@@ -1297,7 +1298,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseTaskInstanceServiceGetTaskInstanceDependencies1Data = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1312,13 +1313,13 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependencies1Data = (
   },
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Tries
@@ -1696,6 +1697,44 @@ export const ensureUseTaskInstanceServiceGetLogData = (
         token,
         tryNumber,
       }),
+  });
+/**
+ * Get External Log Url
+ * Get external log URL for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.mapIndex
+ * @returns ExternalLogUrlResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseTaskInstanceServiceGetExternalLogUrlData = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+      tryNumber,
+    }),
+    queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }),
   });
 /**
  * Get Import Error
@@ -2390,6 +2429,17 @@ export const ensureUseDashboardServiceHistoricalMetricsData = (
   queryClient.ensureQueryData({
     queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
+  });
+/**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(),
+    queryFn: () => DashboardService.dagStats(),
   });
 /**
  * Structure Data

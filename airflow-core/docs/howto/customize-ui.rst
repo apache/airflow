@@ -64,3 +64,40 @@ After
 .. note::
 
     From version 2.3.0 you can include markup in ``instance_name`` variable for further customization. To enable, set ``instance_name_has_markup`` under the ``[webserver]`` section inside ``airflow.cfg`` to ``True``.
+
+
+Add custom alert messages on the dashboard
+------------------------------------------
+
+Extra alert messages can be shown on the UI dashboard. This can be useful for warning about setup issues
+or announcing changes to end users. The following example shows how to add alert messages:
+
+1.  Add the following contents to ``airflow_local_settings.py`` file under ``$AIRFLOW_HOME/config``.
+    Each alert message should specify a severity level (``info``, ``warning``, ``error``) using ``category``.
+
+    .. code-block:: python
+
+      from airflow.api_fastapi.common.types import UIAlert
+
+      DASHBOARD_UIALERTS = [
+          UIAlert(text="Welcome to Airflow.", category="info"),
+          UIAlert(text="Airflow server downtime scheduled for tomorrow at 10:00 AM.", category="warning"),
+          UIAlert(text="Critical error detected!", category="error"),
+      ]
+
+    See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+    configure local settings.
+
+2.  Restart Airflow Webserver, and you should now see:
+
+.. image:: ../img/ui-alert-message.png
+
+Alert messages also support Markdown. In the following example, we show an alert message of heading 2 with a link included.
+
+    .. code-block:: python
+
+      DASHBOARD_UIALERTS = [
+          UIAlert(text="## Visit [airflow.apache.org](https://airflow.apache.org)", category="info"),
+      ]
+
+.. image:: ../img/ui-alert-message-markdown.png

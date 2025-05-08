@@ -21,13 +21,12 @@ import logging
 import sys
 from typing import Annotated, Any
 
-from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
-from pydantic import BaseModel, JsonValue
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
+from pydantic import BaseModel, JsonValue, StringConstraints
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.taskmap import TaskMap
@@ -57,7 +56,7 @@ async def has_xcom_access(
     return True
 
 
-router = AirflowRouter(
+router = APIRouter(
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
@@ -95,7 +94,7 @@ async def xcom_query(
             "description": "Metadata about the number of matching XCom values",
             "headers": {
                 "Content-Range": {
-                    "pattern": r"^map_indexes \d+$",
+                    "schema": {"pattern": r"^map_indexes \d+$"},
                     "description": "The number of (mapped) XCom values found for this task.",
                 },
             },
@@ -127,6 +126,7 @@ class GetXcomFilterParams(BaseModel):
 
     map_index: int = -1
     include_prior_dates: bool = False
+    offset: int | None = None
 
 
 @router.get(
@@ -137,23 +137,28 @@ def get_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, StringConstraints(min_length=1)],
     session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
-    # The xcom_query allows no map_index to be passed. This endpoint should always return just a single item,
-    # so we override that query value
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
-        map_indexes=params.map_index,
         include_prior_dates=params.include_prior_dates,
         session=session,
     )
-    xcom_query = xcom_query.filter(XComModel.map_index == params.map_index)
+    if params.offset is not None:
+        xcom_query = xcom_query.filter(XComModel.value.is_not(None)).order_by(None)
+        if params.offset >= 0:
+            xcom_query = xcom_query.order_by(XComModel.map_index.asc()).offset(params.offset)
+        else:
+            xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - params.offset)
+    else:
+        xcom_query = xcom_query.filter(XComModel.map_index == params.map_index)
+
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
@@ -161,13 +166,19 @@ def get_xcom(
     # performance hits from retrieving large data files into the API server.
     result = xcom_query.limit(1).first()
     if result is None:
-        map_index = params.map_index
+        if params.offset is None:
+            message = (
+                f"XCom with {key=} map_index={params.map_index} not found for "
+                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+            )
+        else:
+            message = (
+                f"XCom with {key=} offset={params.offset} not found for "
+                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"XCom with {key=} {map_index=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}",
-            },
+            detail={"reason": "not_found", "message": message},
         )
 
     return XComResponse(key=key, value=result.value)
@@ -189,7 +200,7 @@ def set_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, StringConstraints(min_length=1)],
     value: Annotated[
         JsonValue,
         Body(
@@ -218,6 +229,17 @@ def set_xcom(
 ):
     """Set an Airflow XCom."""
     from airflow.configuration import conf
+
+    # Validate that the provided key is not empty
+    # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "invalid_key",
+                "message": "XCom key must be a non-empty string.",
+            },
+        )
 
     if mapped_length is not None:
         task_map = TaskMap(

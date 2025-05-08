@@ -331,16 +331,16 @@ You can add ``uv`` support for ``pre-commit`` even if you've installed it with `
 
 .. code-block:: bash
 
-  pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
+  pre-commit run  --files airflow-core/src/airflow/utils/decorators.py  airflow-core/tests/unit/utils/test_task_group.py
 
 
 6. Running specific hook for selected files
 
 .. code-block:: bash
 
-  pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
+  pre-commit run black --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     black...............................................................Passed
-  pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
+  pre-commit run ruff --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     Run ruff............................................................Passed
 
 
@@ -441,7 +441,7 @@ see in CI in your local environment.
 
    .. code-block:: bash
 
-      sudo apt install golang-docker-credential-helper
+      sudo apt install golang-docker-credential-helpers
 
    Once the package is installed, execute the breeze command again to resume image building.
 

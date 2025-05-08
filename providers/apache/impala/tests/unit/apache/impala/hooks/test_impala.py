@@ -107,13 +107,13 @@ def test_get_records(impala_hook_fixture):
     impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(statement)
 
 
-def test_get_pandas_df(impala_hook_fixture):
+def test_get_df(impala_hook_fixture):
     statement = "SQL"
     column = "col"
     result_sets = [("row1",), ("row2",)]
     impala_hook_fixture.get_conn.return_value.cursor.return_value.description = [(column,)]
     impala_hook_fixture.get_conn.return_value.cursor.return_value.fetchall.return_value = result_sets
-    df = impala_hook_fixture.get_pandas_df(statement)
+    df = impala_hook_fixture.get_df(statement, df_type="pandas")
 
     assert column == df.columns[0]
 
@@ -121,3 +121,18 @@ def test_get_pandas_df(impala_hook_fixture):
     assert result_sets[1][0] == df.values.tolist()[1][0]
 
     impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(statement)
+
+
+def test_get_df_polars(impala_hook_fixture):
+    statement = "SQL"
+    column = "col"
+    result_sets = [("row1",), ("row2",)]
+    mock_execute = MagicMock()
+    mock_execute.description = [(column, None, None, None, None, None, None)]
+    mock_execute.fetchall.return_value = result_sets
+    impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.return_value = mock_execute
+
+    df = impala_hook_fixture.get_df(statement, df_type="polars")
+    assert column == df.columns[0]
+    assert result_sets[0][0] == df.row(0)[0]
+    assert result_sets[1][0] == df.row(1)[0]

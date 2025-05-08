@@ -17,35 +17,52 @@
  * under the License.
  */
 import { Field, Stack } from "@chakra-ui/react";
+import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import type { ParamSpec } from "src/queries/useDagParams";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { FieldSelector } from "./FieldSelector";
-
-const isRequired = (param: ParamSpec) =>
-  // The field is required if the schema type is defined.
-  // But if the type "null" is included, then the field is not required.
-  // We assume that "null" is only defined if the type is an array.
-  Boolean(param.schema.type) && (!Array.isArray(param.schema.type) || !param.schema.type.includes("null"));
+import { isRequired } from "./isParamRequired";
 
 /** Render a normal form row with a field that is auto-selected */
-export const FieldRow = ({ name }: FlexibleFormElementProps) => {
+export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementProps) => {
   const { paramsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
+  const [error, setError] = useState<unknown>(
+    isRequired(param) && param.value === null ? "This field is required" : undefined,
+  );
+  const [isValid, setIsValid] = useState(!(isRequired(param) && param.value === null));
+
+  // console.log(param);
+
+  const onUpdate = (value?: string, _error?: unknown) => {
+    if (Boolean(_error)) {
+      setIsValid(false);
+      setError(_error);
+      rowOnUpdate(undefined, _error);
+    } else if (isRequired(param) && (!Boolean(value) || value === "")) {
+      setIsValid(false);
+      setError("This field is required");
+      rowOnUpdate(undefined, "This field is required");
+    } else {
+      setIsValid(true);
+      setError(undefined);
+      rowOnUpdate();
+    }
+  };
 
   return (
-    <Field.Root orientation="horizontal" required={isRequired(param)}>
+    <Field.Root invalid={!isValid} orientation="horizontal" required={isRequired(param)}>
       <Stack>
         <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
           {param.schema.title ?? name} <Field.RequiredIndicator />
         </Field.Label>
       </Stack>
       <Stack css={{ flexBasis: "70%" }}>
-        <FieldSelector name={name} />
+        <FieldSelector name={name} onUpdate={onUpdate} />
         {param.description === null ? (
           param.schema.description_md === undefined ? undefined : (
             <Field.HelperText>
@@ -55,6 +72,7 @@ export const FieldRow = ({ name }: FlexibleFormElementProps) => {
         ) : (
           <Field.HelperText>{param.description}</Field.HelperText>
         )}
+        {isValid ? undefined : <Field.ErrorText>{String(error)}</Field.ErrorText>}
       </Stack>
     </Field.Root>
   );

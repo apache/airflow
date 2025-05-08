@@ -45,10 +45,12 @@ TEST_XCOM_VALUE_AS_JSON = json.dumps(TEST_XCOM_VALUE)
 TEST_XCOM_KEY_2 = "test_xcom_key_non_existing"
 
 TEST_DAG_ID = "test-dag-id"
+TEST_DAG_DISPLAY_NAME = "test-dag-id"
 TEST_TASK_ID = "test-task-id"
 TEST_EXECUTION_DATE = "2005-04-02T00:00:00+00:00"
 
 TEST_DAG_ID_2 = "test-dag-id-2"
+TEST_DAG_DISPLAY_NAME_2 = "test-dag-id-2"
 TEST_TASK_ID_2 = "test-task-id-2"
 
 logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
@@ -125,6 +127,7 @@ class TestGetXComEntry(TestXComEndpoint):
         current_data = response.json()
         assert current_data == {
             "dag_id": TEST_DAG_ID,
+            "dag_display_name": TEST_DAG_DISPLAY_NAME,
             "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "run_id": run_id,
             "key": TEST_XCOM_KEY,
@@ -232,6 +235,7 @@ class TestGetXComEntries(TestXComEndpoint):
             "xcom_entries": [
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
@@ -241,6 +245,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 },
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
@@ -267,6 +272,7 @@ class TestGetXComEntries(TestXComEndpoint):
             "xcom_entries": [
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
@@ -276,6 +282,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 },
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
@@ -285,6 +292,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 },
                 {
                     "dag_id": TEST_DAG_ID_2,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME_2,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
@@ -294,6 +302,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 },
                 {
                     "dag_id": TEST_DAG_ID_2,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME_2,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
@@ -321,6 +330,7 @@ class TestGetXComEntries(TestXComEndpoint):
             expected_entries = [
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": TEST_XCOM_KEY,
@@ -334,6 +344,7 @@ class TestGetXComEntries(TestXComEndpoint):
             expected_entries = [
                 {
                     "dag_id": TEST_DAG_ID,
+                    "dag_display_name": TEST_DAG_DISPLAY_NAME,
                     "logical_date": logical_date_formatted,
                     "run_id": run_id,
                     "key": TEST_XCOM_KEY,
@@ -357,6 +368,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 [
                     {
                         "dag_id": TEST_DAG_ID,
+                        "dag_display_name": TEST_DAG_DISPLAY_NAME,
                         "logical_date": logical_date_formatted,
                         "run_id": run_id,
                         "key": TEST_XCOM_KEY,
@@ -366,6 +378,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     },
                     {
                         "dag_id": TEST_DAG_ID,
+                        "dag_display_name": TEST_DAG_DISPLAY_NAME,
                         "logical_date": logical_date_formatted,
                         "run_id": run_id,
                         "key": TEST_XCOM_KEY,

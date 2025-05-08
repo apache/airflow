@@ -246,6 +246,9 @@ repos:
         name: Check that executables have shebang
       - id: check-xml
         name: Check XML files with xmllint
+        exclude: >
+          (?x)
+          ^scripts/ci/docker-compose/gremlin/.
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
         exclude: ^airflow-core/docs/img/.*\.dot$|^dev/breeze/doc/images/output.*$
@@ -311,7 +314,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.5.2
@@ -511,7 +514,7 @@ repos:
         name: Update versions in docs
         entry: ./scripts/ci/pre_commit/update_versions.py
         language: python
-        files: ^docs|^airflow-core/src/airflow/__init__\.py$
+        files: ^docs|^airflow-core/src/airflow/__init__\.py$|.*/pyproject\.toml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
@@ -645,7 +648,7 @@ repos:
           ^.*commits\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start\.rst$|
-          ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
           git|
           ^airflow-core/newsfragments/43349\.significant\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
@@ -886,7 +889,7 @@ repos:
         name: Update Airflow's meta-package pyproject.toml
         language: python
         entry: ./scripts/ci/pre_commit/update_airflow_pyproject_toml.py
-        files: ^pyproject\.toml$
+        files: ^.*/pyproject\.toml$|^scripts/ci/pre_commit/update_airflow_pyproject_toml\.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1', 'packaging>=23.2' ]
@@ -970,6 +973,7 @@ repos:
         exclude: >
           (?x)
           ^scripts/ci/docker-compose/grafana/.|
+          ^scripts/ci/docker-compose/gremlin/.|
           ^scripts/ci/docker-compose/.+-config\.ya?ml$
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
@@ -1314,7 +1318,7 @@ repos:
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
       - id: ts-compile-format-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files

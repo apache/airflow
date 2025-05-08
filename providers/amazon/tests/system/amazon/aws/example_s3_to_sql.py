@@ -18,9 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import settings
 from airflow.decorators import task
-from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
@@ -41,6 +39,7 @@ from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
 from tests_common.test_utils.watcher import watcher
 
 # Externally fetched variables:
@@ -68,18 +67,19 @@ SAMPLE_DATA = r"""1,Caipirinha,Cachaca
 @task
 def create_connection(conn_id_name: str, cluster_id: str):
     cluster_endpoint = RedshiftHook().conn.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    conn = Connection(
-        conn_id=conn_id_name,
-        conn_type="redshift",
-        host=cluster_endpoint["Endpoint"]["Address"],
-        login=DB_LOGIN,
-        password=DB_PASS,
-        port=cluster_endpoint["Endpoint"]["Port"],
-        schema=cluster_endpoint["DBName"],
+    make_authenticated_rest_api_request(
+        path="/api/v2/connections",
+        method="POST",
+        body={
+            "connection_id": conn_id_name,
+            "conn_type": "redshift",
+            "host": cluster_endpoint["Endpoint"]["Address"],
+            "login": DB_LOGIN,
+            "schema": cluster_endpoint["DBName"],
+            "port": cluster_endpoint["Endpoint"]["Port"],
+            "password": DB_PASS,
+        },
     )
-    session = settings.Session()
-    session.add(conn)
-    session.commit()
 
 
 with DAG(

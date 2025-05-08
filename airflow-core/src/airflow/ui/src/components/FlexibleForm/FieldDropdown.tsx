@@ -33,7 +33,7 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
 };
 const enumTypes = ["string", "number", "integer"];
 
-export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
+export const FieldDropdown = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
@@ -55,6 +55,7 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
     }
 
     setParamsDict(paramsDict);
+    onUpdate(value);
   };
 
   return (

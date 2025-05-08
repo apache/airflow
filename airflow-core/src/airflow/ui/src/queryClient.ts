@@ -26,7 +26,7 @@ if (OpenAPI.BASE.endsWith("/")) {
   OpenAPI.BASE = OpenAPI.BASE.slice(0, -1);
 }
 
-export const queryClient = new QueryClient({
+export const client = new QueryClient({
   defaultOptions: {
     mutations: {
       retry: 1,

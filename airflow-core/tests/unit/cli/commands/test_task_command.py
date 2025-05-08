@@ -47,6 +47,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
 
 pytestmark = pytest.mark.db_test
@@ -74,7 +75,6 @@ def move_back(old_path, new_path):
     shutil.move(new_path, old_path)
 
 
-# TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliTasks:
     run_id = "TEST_RUN_ID"
     dag_id = "example_python_operator"
@@ -91,7 +91,7 @@ class TestCliTasks:
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
-        cls.dagbag = DagBag(read_dags_from_db=True)
+        cls.dagbag = DagBag(read_dags_from_db=True, include_examples=True)
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         cls.dag_run = cls.dag.create_dagrun(
@@ -108,6 +108,7 @@ class TestCliTasks:
     def teardown_class(cls) -> None:
         clear_db_runs()
 
+    @conf_vars({("core", "load_examples"): "true"})
     @pytest.mark.execution_timeout(120)
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:

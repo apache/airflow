@@ -70,7 +70,7 @@ class CommonBuildParams:
     python: str = "3.9"
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     dry_run: bool = False
-    version_suffix_for_pypi: str | None = None
+    version_suffix: str | None = None
     verbose: bool = False
     debian_version: str = "bookworm"
     build_arg_values: list[str] = field(default_factory=list)
@@ -181,9 +181,9 @@ class CommonBuildParams:
 
         airflow_version = get_airflow_version()
         try:
-            if self.version_suffix_for_pypi and self.version_suffix_for_pypi not in airflow_version:
+            if self.version_suffix and self.version_suffix not in airflow_version:
                 version = Version(airflow_version)
-                return version.base_version + f".{self.version_suffix_for_pypi}"
+                return version.base_version + f".{self.version_suffix}"
         except Exception:
             # in case of any failure just fall back to the original version set
             pass
@@ -201,7 +201,7 @@ class CommonBuildParams:
         self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
         self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
         self._opt_arg("DOCKER_HOST", self.docker_host)
-        self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
+        self._opt_arg("VERSION_SUFFIX", self.version_suffix)
 
     def _set_common_req_args(self):
         self._req_arg("AIRFLOW_BRANCH", self.airflow_branch)

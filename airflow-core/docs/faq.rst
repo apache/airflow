@@ -31,8 +31,8 @@ There are very many reasons why your task might not be getting scheduled. Here a
 - Does your script "compile", can the Airflow engine parse it and find your
   DAG object? To test this, you can run ``airflow dags list`` and
   confirm that your DAG shows up in the list. You can also run
-  ``airflow tasks list foo_dag_id --tree`` and confirm that your task
-  shows up in the list as expected. If you use the CeleryExecutor, you
+  ``airflow dags show foo_dag_id`` and confirm that your task
+  shows up in the graphviz format as expected. If you use the CeleryExecutor, you
   may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
 

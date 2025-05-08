@@ -24,6 +24,19 @@ from chart_utils.helm_template_generator import render_chart
 class TestWebserverDeployment:
     """Tests webserver deployment."""
 
+    def test_airflow_3(self):
+        """
+        Webserver does not exist in airflow 3.0.0
+
+        For example, user may be disabled when using webserver and having it deployed on another host.
+        """
+        docs = render_chart(
+            values={"webserver": {"enabled": True}},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert len(docs) == 0
+
     def test_can_be_disabled(self):
         """
         Webserver should be able to be disabled if the users desires.
@@ -31,7 +44,7 @@ class TestWebserverDeployment:
         For example, user may be disabled when using webserver and having it deployed on another host.
         """
         docs = render_chart(
-            values={"webserver": {"enabled": False}},
+            values={"airflowVersion": "2.10.5", "webserver": {"enabled": False}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -40,6 +53,7 @@ class TestWebserverDeployment:
     def test_should_remove_replicas_field(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "hpa": {"enabled": True},
                 },
@@ -51,6 +65,7 @@ class TestWebserverDeployment:
     def test_should_not_remove_replicas_field(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "hpa": {"enabled": False},
                 },
@@ -62,9 +77,10 @@ class TestWebserverDeployment:
     def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "config": {
                     "webserver": {"base_url": "https://example.com:21222/mypath/path"},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
@@ -82,9 +98,10 @@ class TestWebserverDeployment:
     def test_should_add_path_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "config": {
                     "webserver": {"base_url": "https://example.com:21222/mypath/path"},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
@@ -107,7 +124,7 @@ class TestWebserverDeployment:
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
-        values = {"webserver": {}}
+        values = {"webserver": {}, "airflowVersion": "2.10.5"}
         if revision_history_limit:
             values["webserver"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
@@ -119,7 +136,13 @@ class TestWebserverDeployment:
         expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
-    @pytest.mark.parametrize("values", [{"config": {"webserver": {"base_url": ""}}}, {}])
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"airflowVersion": "2.10.5", "config": {"webserver": {"base_url": ""}}},
+            {"airflowVersion": "2.10.5"},
+        ],
+    )
     def test_should_not_contain_host_header(self, values):
         print(values)
         docs = render_chart(values=values, show_only=["templates/webserver/webserver-deployment.yaml"])
@@ -140,11 +163,12 @@ class TestWebserverDeployment:
     def test_should_use_templated_base_url_for_probes(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "config": {
                     "webserver": {
                         "base_url": "https://{{ .Release.Name }}.com:21222/mypath/{{ .Release.Name }}/path"
                     },
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
@@ -166,11 +190,12 @@ class TestWebserverDeployment:
     def test_should_add_scheme_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "livenessProbe": {"scheme": "HTTPS"},
                     "readinessProbe": {"scheme": "HTTPS"},
                     "startupProbe": {"scheme": "HTTPS"},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
@@ -187,7 +212,7 @@ class TestWebserverDeployment:
 
     def test_should_add_volume_and_volume_mount_when_exist_webserver_config(self):
         docs = render_chart(
-            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True"}},
+            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True"}, "airflowVersion": "2.10.5"},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -206,6 +231,7 @@ class TestWebserverDeployment:
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "executor": "CeleryExecutor",
                 "webserver": {
                     "extraContainers": [
@@ -224,6 +250,7 @@ class TestWebserverDeployment:
     def test_should_template_extra_containers(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "executor": "CeleryExecutor",
                 "webserver": {
                     "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
@@ -239,6 +266,7 @@ class TestWebserverDeployment:
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "env": [
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
@@ -271,6 +299,7 @@ class TestWebserverDeployment:
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
                     "extraVolumeMounts": [
@@ -294,6 +323,7 @@ class TestWebserverDeployment:
     def test_should_add_global_volume_and_global_volume_mount(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "volumes": [{"name": "test-volume", "emptyDir": {}}],
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
             },
@@ -309,6 +339,7 @@ class TestWebserverDeployment:
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "waitForMigrations": {
                         "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
@@ -344,6 +375,7 @@ class TestWebserverDeployment:
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "waitForMigrations": {"enabled": False},
                 },
@@ -358,6 +390,7 @@ class TestWebserverDeployment:
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
@@ -375,6 +408,7 @@ class TestWebserverDeployment:
     def test_should_template_extra_init_containers(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "extraInitContainers": [{"name": "{{ .Release.Name }}-init-container"}],
                 },
@@ -389,6 +423,7 @@ class TestWebserverDeployment:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "labels": {"test_label": "test_label_value"},
                 },
@@ -402,6 +437,7 @@ class TestWebserverDeployment:
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "affinity": {
                         "nodeAffinity": {
@@ -420,7 +456,7 @@ class TestWebserverDeployment:
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                     ],
                     "nodeSelector": {"diskType": "ssd"},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
@@ -453,7 +489,9 @@ class TestWebserverDeployment:
         )
 
     def test_should_create_default_affinity(self):
-        docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
+        docs = render_chart(
+            values={"airflowVersion": "2.10.5"}, show_only=["templates/webserver/webserver-deployment.yaml"]
+        )
 
         assert jmespath.search(
             "spec.template.spec.affinity.podAntiAffinity."
@@ -485,6 +523,7 @@ class TestWebserverDeployment:
         }
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "affinity": expected_affinity,
                     "tolerations": [
@@ -538,20 +577,6 @@ class TestWebserverDeployment:
             "spec.template.spec.topologySpreadConstraints[0]", docs[0]
         )
 
-    def test_scheduler_name(self):
-        docs = render_chart(
-            values={"schedulerName": "airflow-scheduler"},
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search(
-                "spec.template.spec.schedulerName",
-                docs[0],
-            )
-            == "airflow-scheduler"
-        )
-
     @pytest.mark.parametrize(
         "log_persistence_values, expected_claim_name",
         [
@@ -562,7 +587,7 @@ class TestWebserverDeployment:
     )
     def test_logs_persistence_adds_volume_and_mount(self, log_persistence_values, expected_claim_name):
         docs = render_chart(
-            values={"logs": {"persistence": log_persistence_values}},
+            values={"airflowVersion": "2.10.5", "logs": {"persistence": log_persistence_values}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -618,6 +643,7 @@ class TestWebserverDeployment:
     def test_webserver_resources_are_configurable(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "resources": {
                         "limits": {"cpu": "200m", "memory": "128Mi"},
@@ -653,6 +679,7 @@ class TestWebserverDeployment:
     def test_webserver_security_contexts_are_configurable(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "securityContexts": {
                         "pod": {
@@ -685,6 +712,7 @@ class TestWebserverDeployment:
     def test_webserver_security_context_legacy(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "securityContext": {
                         "fsGroup": 1000,
@@ -706,6 +734,7 @@ class TestWebserverDeployment:
 
     def test_webserver_resources_are_not_added_by_default(self):
         docs = render_chart(
+            values={"airflowVersion": "2.10.5"},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
@@ -731,7 +760,7 @@ class TestWebserverDeployment:
     def test_update_strategy(self):
         expected_strategy = {"type": "RollingUpdate", "rollingUpdate": {"maxUnavailable": 1}}
         docs = render_chart(
-            values={"webserver": {"strategy": expected_strategy}},
+            values={"airflowVersion": "2.10.5", "webserver": {"strategy": expected_strategy}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -739,7 +768,8 @@ class TestWebserverDeployment:
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": None}, show_only=["templates/webserver/webserver-deployment.yaml"]
+            values={"airflowVersion": "2.10.5", "airflowLocalSettings": None},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
@@ -748,7 +778,7 @@ class TestWebserverDeployment:
 
     def test_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": "# Well hello!"},
+            values={"airflowVersion": "2.10.5", "airflowLocalSettings": "# Well hello!"},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         volume_mount = {
@@ -761,7 +791,9 @@ class TestWebserverDeployment:
         assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     def test_default_command_and_args(self):
-        docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
+        docs = render_chart(
+            values={"airflowVersion": "2.10.5"}, show_only=["templates/webserver/webserver-deployment.yaml"]
+        )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
@@ -774,7 +806,7 @@ class TestWebserverDeployment:
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={"webserver": {"command": command, "args": args}},
+            values={"airflowVersion": "2.10.5", "webserver": {"command": command, "args": args}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -783,7 +815,10 @@ class TestWebserverDeployment:
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
-            values={"webserver": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            values={
+                "airflowVersion": "2.10.5",
+                "webserver": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]},
+            },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -872,6 +907,7 @@ class TestWebserverDeployment:
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "annotations": {"test_annotation": "test_annotation_value"},
                 },
@@ -884,6 +920,7 @@ class TestWebserverDeployment:
     def test_webserver_pod_hostaliases(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}],
                 },
@@ -897,6 +934,7 @@ class TestWebserverDeployment:
     def test_should_add_annotations_to_webserver_configmap(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "configMapAnnotations": {"test_annotation": "test_annotation_value"},
@@ -911,8 +949,8 @@ class TestWebserverDeployment:
     @pytest.mark.parametrize(
         "webserver_values, expected",
         [
-            ({}, 30),
-            ({"webserver": {"terminationGracePeriodSeconds": 1200}}, 1200),
+            ({"airflowVersion": "2.10.5"}, 30),
+            ({"airflowVersion": "2.10.5", "webserver": {"terminationGracePeriodSeconds": 1200}}, 1200),
         ],
     )
     def test_webserver_termination_grace_period_seconds(self, webserver_values, expected):
@@ -928,6 +966,7 @@ class TestWebserverService:
 
     def test_default_service(self):
         docs = render_chart(
+            values={"airflowVersion": "2.10.5"},
             show_only=["templates/webserver/webserver-service.yaml"],
         )
 
@@ -944,6 +983,7 @@ class TestWebserverService:
     def test_overrides(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "ports": {"airflowUI": 9000},
                 "webserver": {
                     "service": {
@@ -987,6 +1027,7 @@ class TestWebserverService:
     def test_ports_overrides(self, ports, expected_ports):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {"service": {"ports": ports}},
             },
             show_only=["templates/webserver/webserver-service.yaml"],
@@ -997,6 +1038,7 @@ class TestWebserverService:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "labels": {"test_label": "test_label_value"},
                 },
@@ -1022,6 +1064,7 @@ class TestWebserverService:
     def test_nodeport_service(self, ports, expected_ports):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "service": {
                         "type": "NodePort",
@@ -1081,6 +1124,7 @@ class TestWebserverNetworkPolicy:
     def test_defaults(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "networkPolicies": {"enabled": True},
                 "webserver": {
                     "networkPolicy": {
@@ -1119,6 +1163,7 @@ class TestWebserverNetworkPolicy:
     def test_ports_overrides(self, ports, expected_ports):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "networkPolicies": {"enabled": True},
                 "webserver": {
                     "networkPolicy": {
@@ -1137,6 +1182,7 @@ class TestWebserverNetworkPolicy:
     def test_deprecated_from_param(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "networkPolicies": {"enabled": True},
                 "webserver": {
                     "extraNetworkPolicies": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
@@ -1152,6 +1198,7 @@ class TestWebserverNetworkPolicy:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "networkPolicies": {"enabled": True},
                 "webserver": {
                     "labels": {"test_label": "test_label_value"},
@@ -1169,6 +1216,7 @@ class TestWebserverServiceAccount:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "serviceAccount": {"create": True},
                     "labels": {"test_label": "test_label_value"},
@@ -1182,6 +1230,7 @@ class TestWebserverServiceAccount:
     def test_default_automount_service_account_token(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "serviceAccount": {"create": True},
                 },
@@ -1193,6 +1242,7 @@ class TestWebserverServiceAccount:
     def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },

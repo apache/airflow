@@ -138,6 +138,7 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/extensions/test_init_security.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_session.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_views.py",
+            "providers/fab/tests/unit/fab/www/extensions/test_init_wsgi_middlewares.py",
             "providers/fab/tests/unit/fab/www/security/test_permissions.py",
             "providers/fab/tests/unit/fab/www/test_airflow_flask_app.py",
             "providers/fab/tests/unit/fab/www/test_app.py",
@@ -184,6 +185,7 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_hyperparameter_tuning_job.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_model_service.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_pipeline_job.py",
+            "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_ray.py",
             "providers/google/tests/unit/google/cloud/sensors/vertex_ai/test_feature_store.py",
             "providers/google/tests/unit/google/cloud/transfers/test_bigquery_to_sql.py",
             "providers/google/tests/unit/google/cloud/transfers/test_presto_to_gcs.py",
@@ -476,6 +478,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataplex.DataplexCatalogBaseOperator",
         "airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.ray.RayBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
         "airflow.providers.google.marketing_platform.operators.search_ads._GoogleSearchAdsBaseOperator",
     }

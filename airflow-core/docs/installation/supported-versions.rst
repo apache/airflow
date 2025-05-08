@@ -26,16 +26,16 @@ Apache Airflow® version life cycle:
  .. This table is automatically updated by pre-commit scripts/ci/pre_commit/supported_versions.py
  .. Beginning of auto-generated table
 
-=========  =====================  =========  ===============  =================  ================
-Version    Current Patch/Minor    State      First Release    Limited Support    EOL/Terminated
-=========  =====================  =========  ===============  =================  ================
-3          3.0.0                  Supported  Apr 22, 2025     TBD                TBD
-2          2.10.5                 Supported  Dec 17, 2020     TBD                TBD
-1.10       1.10.15                EOL        Aug 27, 2018     Dec 17, 2020       June 17, 2021
-1.9        1.9.0                  EOL        Jan 03, 2018     Aug 27, 2018       Aug 27, 2018
-1.8        1.8.2                  EOL        Mar 19, 2017     Jan 03, 2018       Jan 03, 2018
-1.7        1.7.1.2                EOL        Mar 28, 2016     Mar 19, 2017       Mar 19, 2017
-=========  =====================  =========  ===============  =================  ================
+=========  =====================  =========  ===============  =====================  ================
+Version    Current Patch/Minor    State      First Release    Limited Maintenance    EOL/Terminated
+=========  =====================  =========  ===============  =====================  ================
+3          3.0.0                  Supported  Apr 22, 2025     TBD                    TBD
+2          2.10.5                 Supported  Dec 17, 2020     TBD                    TBD
+1.10       1.10.15                EOL        Aug 27, 2018     Dec 17, 2020           June 17, 2021
+1.9        1.9.0                  EOL        Jan 03, 2018     Aug 27, 2018           Aug 27, 2018
+1.8        1.8.2                  EOL        Mar 19, 2017     Jan 03, 2018           Jan 03, 2018
+1.7        1.7.1.2                EOL        Mar 28, 2016     Mar 19, 2017           Mar 19, 2017
+=========  =====================  =========  ===============  =====================  ================
 
  .. End of auto-generated table
 

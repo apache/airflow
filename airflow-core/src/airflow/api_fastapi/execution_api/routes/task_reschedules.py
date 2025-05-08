@@ -19,15 +19,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import status
+from fastapi import APIRouter, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.models.taskreschedule import TaskReschedule
 
-router = AirflowRouter(
+router = APIRouter(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},

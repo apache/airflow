@@ -22,7 +22,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS
 from airflow.sensors.base import BaseSensorOperator
 
 try:
@@ -123,9 +122,7 @@ class TimeSensorAsync(BaseSensorOperator):
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
-            trigger=DateTimeTrigger(moment=self.target_datetime, end_from_trigger=self.end_from_trigger)
-            if AIRFLOW_V_2_10_PLUS
-            else DateTimeTrigger(moment=self.target_datetime),
+            trigger=DateTimeTrigger(moment=self.target_datetime, end_from_trigger=self.end_from_trigger),
             method_name="execute_complete",
         )
 

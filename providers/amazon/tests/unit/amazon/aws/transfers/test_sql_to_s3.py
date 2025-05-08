@@ -38,8 +38,8 @@ class TestSqlToS3Operator:
 
         mock_dbapi_hook = mock.Mock()
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
-        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
-        get_pandas_df_mock.return_value = test_df
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
         with NamedTemporaryFile() as f:
             temp_mock.return_value.__enter__.return_value.name = f.name
 
@@ -58,7 +58,7 @@ class TestSqlToS3Operator:
             op.execute(None)
             mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
 
-            get_pandas_df_mock.assert_called_once_with(sql=query, parameters=None)
+            get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
 
             temp_mock.assert_called_once_with(mode="r+", suffix=".csv")
             mock_s3_hook.return_value.load_file.assert_called_once_with(
@@ -78,8 +78,8 @@ class TestSqlToS3Operator:
         mock_dbapi_hook = mock.Mock()
 
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
-        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
-        get_pandas_df_mock.return_value = test_df
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
         with NamedTemporaryFile() as f:
             temp_mock.return_value.__enter__.return_value.name = f.name
 
@@ -98,7 +98,7 @@ class TestSqlToS3Operator:
             op.execute(None)
             mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
 
-            get_pandas_df_mock.assert_called_once_with(sql=query, parameters=None)
+            get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
 
             temp_mock.assert_called_once_with(mode="rb+", suffix=".parquet")
             mock_s3_hook.return_value.load_file.assert_called_once_with(
@@ -114,8 +114,8 @@ class TestSqlToS3Operator:
 
         mock_dbapi_hook = mock.Mock()
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
-        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
-        get_pandas_df_mock.return_value = test_df
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
         with NamedTemporaryFile() as f:
             temp_mock.return_value.__enter__.return_value.name = f.name
 
@@ -135,7 +135,7 @@ class TestSqlToS3Operator:
             op.execute(None)
             mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
 
-            get_pandas_df_mock.assert_called_once_with(sql=query, parameters=None)
+            get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
 
             temp_mock.assert_called_once_with(mode="r+", suffix=".json")
             mock_s3_hook.return_value.load_file.assert_called_once_with(

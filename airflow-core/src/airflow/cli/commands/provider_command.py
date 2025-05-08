@@ -222,6 +222,19 @@ def executors_list(args):
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
+def queues_list(args):
+    """List all queues at the command line."""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().queue_class_names),
+        output=args.output,
+        mapper=lambda x: {
+            "queue_class_names": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
+@providers_configuration_loaded
 def config_list(args):
     """List all configurations at the command line."""
     AirflowConsole().print_as(

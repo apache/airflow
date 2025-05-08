@@ -21,11 +21,16 @@ import { MdOutlineHealthAndSafety } from "react-icons/md";
 
 import { useMonitorServiceGetHealth } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { useAutoRefresh } from "src/utils";
 
 import { HealthBadge } from "./HealthBadge";
 
 export const Health = () => {
-  const { data, error, isLoading } = useMonitorServiceGetHealth();
+  const refetchInterval = useAutoRefresh({});
+
+  const { data, error, isLoading } = useMonitorServiceGetHealth(undefined, {
+    refetchInterval,
+  });
 
   return (
     <Box>

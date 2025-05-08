@@ -41,9 +41,9 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     DagRunType,
     PrevSuccessfulDagRunResponse,
+    TaskInstanceState,
     TaskStatesResponse,
     TerminalStateNonSuccess,
-    TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -146,22 +146,29 @@ class TaskInstanceOperations:
         resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         return TIRunContext.model_validate_json(resp.read())
 
-    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime):
+    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index):
         """Tell the API server that this TI has reached a terminal state."""
-        if state == TerminalTIState.SUCCESS:
+        if state == TaskInstanceState.SUCCESS:
             raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
-        body = TITerminalStatePayload(end_date=when, state=TerminalStateNonSuccess(state))
+        body = TITerminalStatePayload(
+            end_date=when, state=TerminalStateNonSuccess(state), rendered_map_index=rendered_map_index
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def retry(self, id: uuid.UUID, end_date: datetime):
+    def retry(self, id: uuid.UUID, end_date: datetime, rendered_map_index):
         """Tell the API server that this TI has failed and reached a up_for_retry state."""
-        body = TIRetryStatePayload(end_date=end_date)
+        body = TIRetryStatePayload(end_date=end_date, rendered_map_index=rendered_map_index)
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):
+    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, rendered_map_index):
         """Tell the API server that this TI has succeeded."""
-        body = TISuccessStatePayload(end_date=when, task_outlets=task_outlets, outlet_events=outlet_events)
+        body = TISuccessStatePayload(
+            end_date=when,
+            task_outlets=task_outlets,
+            outlet_events=outlet_events,
+            rendered_map_index=rendered_map_index,
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):
@@ -212,6 +219,7 @@ class TaskInstanceOperations:
     def get_count(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -231,12 +239,16 @@ class TaskInstanceOperations:
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
 
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})  # type: ignore[dict-item]
+
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
 
     def get_task_states(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -253,6 +265,9 @@ class TaskInstanceOperations:
 
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
+
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})  # type: ignore[dict-item]
 
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
@@ -420,6 +435,42 @@ class XComOperations:
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
         return OKResponse(ok=True)
+
+    def get_sequence_item(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        offset: int,
+    ) -> XComResponse | ErrorResponse:
+        params = {"offset": offset}
+        try:
+            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "XCom not found",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    key=key,
+                    offset=offset,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.XCOM_NOT_FOUND,
+                    detail={
+                        "dag_id": dag_id,
+                        "run_id": run_id,
+                        "task_id": task_id,
+                        "key": key,
+                        "offset": offset,
+                    },
+                )
+            raise
+        return XComResponse.model_validate_json(resp.read())
 
 
 class AssetOperations:

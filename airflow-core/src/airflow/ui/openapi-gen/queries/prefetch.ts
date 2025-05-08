@@ -354,7 +354,7 @@ export const prefetchUseBackfillServiceGetBackfill = (
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
 ) =>
   queryClient.prefetchQuery({
@@ -1263,7 +1263,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
+export const prefetchUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1278,13 +1278,14 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Dependencies
@@ -1297,7 +1298,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
+export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1312,13 +1313,13 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Tries
@@ -1696,6 +1697,44 @@ export const prefetchUseTaskInstanceServiceGetLog = (
         token,
         tryNumber,
       }),
+  });
+/**
+ * Get External Log Url
+ * Get external log URL for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.mapIndex
+ * @returns ExternalLogUrlResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetExternalLogUrl = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+      tryNumber,
+    }),
+    queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }),
   });
 /**
  * Get Import Error
@@ -2390,6 +2429,17 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
+  });
+/**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(),
+    queryFn: () => DashboardService.dagStats(),
   });
 /**
  * Structure Data

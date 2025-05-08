@@ -150,10 +150,6 @@ def get_html_theme_options():
 
 def get_html_context(conf_py_path: str):
     return {
-        # Google Analytics ID.
-        # For more information look at:
-        # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
-        "theme_analytics_id": "UA-140539454-1",
         # Variables used to build a button for editing the source code
         #
         # The path is created according to the following template:

@@ -54,7 +54,7 @@ Requirements
 PIP package             Version required
 ======================  =====================
 ``aiofiles``            ``>=23.2.0``
-``apache-airflow``      ``>=2.9.0``
+``apache-airflow``      ``>=2.10.0``
 ``asgiref``             ``>=3.5.2``
 ``cryptography``        ``>=41.0.0``
 ``kubernetes``          ``>=29.0.0,<=31.0.0``

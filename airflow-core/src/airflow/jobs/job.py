@@ -109,6 +109,13 @@ class Job(Base, LoggingMixin):
         backref="creating_job",
     )
 
+    dag_model = relationship(
+        "DagModel",
+        primaryjoin="Job.dag_id == DagModel.dag_id",
+        viewonly=True,
+        foreign_keys=[dag_id],
+    )
+
     """
     TaskInstances which have been enqueued by this Job.
 

@@ -38,6 +38,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
+    normalize_platform_machine,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -226,7 +227,7 @@ option_include_not_ready_providers = click.option(
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
-    help="Whether to include outputs of successful parallel runs (skipped by default).",
+    help="Whether to include outputs of successful runs (not shown by default).",
     is_flag=True,
     envvar="INCLUDE_SUCCESS_OUTPUTS",
 )
@@ -331,6 +332,14 @@ option_python = click.option(
     help="Python major/minor version used in Airflow image for images.",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
 )
+option_python_no_default = click.option(
+    "-p",
+    "--python",
+    type=BetterChoice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
+    help="Python major/minor version used in Airflow image for images "
+    "(if not specified - all python versions are used).",
+    envvar="PYTHON_MAJOR_MINOR_VERSION",
+)
 option_python_versions = click.option(
     "--python-versions",
     help="Space separated list of python versions used for build with multiple versions.",
@@ -427,16 +436,51 @@ option_verbose = click.option(
     type=VerboseOption(),
     callback=_set_default_from_parent,
 )
-option_version_suffix_for_pypi = click.option(
-    "--version-suffix-for-pypi",
-    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
-    envvar="VERSION_SUFFIX_FOR_PYPI",
+
+
+def _is_number_greater_than_expected(value: str) -> bool:
+    digits = [c for c in value.split("+")[0] if c.isdigit()]
+    if not digits:
+        return False
+    if len(digits) == 1 and digits[0] == "0" and not value.startswith(".dev"):
+        return False
+    return True
+
+
+def _validate_version_suffix(ctx: click.core.Context, param: click.core.Option, value: str):
+    if not value:
+        return value
+    if any(
+        value.startswith(s) for s in ("a", "b", "rc", "+", ".dev", ".post")
+    ) and _is_number_greater_than_expected(value):
+        return value
+    raise click.BadParameter(
+        "Version suffix for PyPI packages should be empty or or start with a/b/rc/+/.dev/.post and number "
+        "should be greater than 0 for non-dev version."
+    )
+
+
+option_version_suffix = click.option(
+    "--version-suffix",
+    help="Version suffix used for PyPI packages (a1, a2, b1, rc1, rc2, .dev0, .dev1, .post1, .post2 etc.)."
+    " Note the `.` is need in `.dev0` and `.post`. Might be followed with +local_version",
+    envvar="VERSION_SUFFIX",
+    callback=_validate_version_suffix,
     default="",
 )
+
+
+def _normalize_platform(ctx: click.core.Context, param: click.core.Option, value: str):
+    if not value:
+        return value
+    return normalize_platform_machine(value)
+
+
 option_platform_single = click.option(
     "--platform",
     help="Platform for Airflow image.",
     default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
     envvar="PLATFORM",
+    callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
 )

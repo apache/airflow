@@ -655,6 +655,7 @@ falsy
 faq
 Fargate
 fargate
+FastAPI
 fastapi
 fbee
 fc
@@ -1813,6 +1814,9 @@ timedeltas
 timeframe
 timespan
 timezones
+TinkerPop
+Tinkerpop
+tinkerpop
 tis
 TLS
 tls

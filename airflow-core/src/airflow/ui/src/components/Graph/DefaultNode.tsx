@@ -28,6 +28,7 @@ export const DefaultNode = ({ data: { height, label, width } }: NodeProps<NodeTy
       bg="bg"
       borderRadius={5}
       borderWidth={2}
+      cursor="auto"
       flexDirection="column"
       height={`${height}px`}
       p={2}

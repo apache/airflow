@@ -154,8 +154,6 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
         job_name="job",
         job_description="description",
         event_time=event_time,
-        parent_job_name=None,
-        parent_run_id=None,
         code_location=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
@@ -217,8 +215,6 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
         job_name="job",
         job_description="description",
         event_time=event_time,
-        parent_job_name="parent_job_name",
-        parent_run_id=parent_run_id,
         code_location=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
@@ -228,9 +224,17 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
             job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
             run_facets={
+                "parent": parent_run.ParentRunFacet(
+                    run=parent_run.Run(runId=parent_run_id),
+                    job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                    root=parent_run.Root(
+                        run=parent_run.RootRun(runId=parent_run_id),
+                        job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                    ),
+                ),
                 "externalQuery1": external_query_run.ExternalQueryRunFacet(
                     externalQueryId="123", source="source"
-                )
+                ),
             },
         ),
         run_facets={
@@ -256,6 +260,10 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                         "parent": parent_run.ParentRunFacet(
                             run=parent_run.Run(runId=parent_run_id),
                             job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                            root=parent_run.Root(
+                                run=parent_run.RootRun(runId=parent_run_id),
+                                job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                            ),
                         ),
                         "externalQuery1": external_query_run.ExternalQueryRunFacet(
                             externalQueryId="123", source="source"
@@ -308,8 +316,6 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     adapter.complete_task(
         run_id=run_id,
         end_time=event_time,
-        parent_job_name=None,
-        parent_run_id=None,
         job_name="job",
         task=OperatorLineage(),
     )
@@ -360,8 +366,6 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
     adapter.complete_task(
         run_id=run_id,
         end_time=event_time,
-        parent_job_name="parent_job_name",
-        parent_run_id=parent_run_id,
         job_name="job",
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
@@ -374,7 +378,17 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
             },
         ),
         run_facets={
-            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId=parent_run_id),
+                job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId=parent_run_id),
+                    job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                ),
+            ),
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                externalQueryId="999", source="source"
+            ),
         },
     )
 
@@ -389,6 +403,10 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                         "parent": parent_run.ParentRunFacet(
                             run=parent_run.Run(runId=parent_run_id),
                             job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                            root=parent_run.Root(
+                                run=parent_run.RootRun(runId=parent_run_id),
+                                job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                            ),
                         ),
                         "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
                             version=ANY, name="Airflow", openlineageAdapterVersion=ANY
@@ -437,8 +455,6 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
     adapter.fail_task(
         run_id=run_id,
         end_time=event_time,
-        parent_job_name=None,
-        parent_run_id=None,
         job_name="job",
         task=OperatorLineage(),
     )
@@ -489,8 +505,6 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     adapter.fail_task(
         run_id=run_id,
         end_time=event_time,
-        parent_job_name="parent_job_name",
-        parent_run_id=parent_run_id,
         job_name="job",
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
@@ -503,7 +517,17 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
             job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
         ),
         run_facets={
-            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId=parent_run_id),
+                job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId=parent_run_id),
+                    job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                ),
+            ),
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                externalQueryId="999", source="source"
+            ),
         },
         error=ValueError("Error message"),
     )
@@ -518,6 +542,10 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                     "parent": parent_run.ParentRunFacet(
                         run=parent_run.Run(runId=parent_run_id),
                         job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                        root=parent_run.Root(
+                            run=parent_run.RootRun(runId=parent_run_id),
+                            job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                        ),
                     ),
                     "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
                         version=ANY, name="Airflow", openlineageAdapterVersion=ANY
@@ -637,7 +665,17 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         nominal_end_time=event_time.isoformat(),
         owners=["airflow"],
         description=dag.description,
-        run_facets={"airflowDagRun": dag_run_facet},
+        run_facets={
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId=random_uuid),
+                job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId=random_uuid),
+                    job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                ),
+            ),
+            "airflowDagRun": dag_run_facet,
+        },
         job_facets=job_facets,
     )
 
@@ -649,6 +687,14 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
             run=Run(
                 runId=random_uuid,
                 facets={
+                    "parent": parent_run.ParentRunFacet(
+                        run=parent_run.Run(runId=random_uuid),
+                        job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                        root=parent_run.Root(
+                            run=parent_run.RootRun(runId=random_uuid),
+                            job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                        ),
+                    ),
                     "nominalTime": nominal_time_run.NominalTimeRunFacet(
                         nominalStartTime=event_time.isoformat(),
                         nominalEndTime=event_time.isoformat(),
@@ -750,7 +796,17 @@ def test_emit_dag_complete_event(
         clear_number=0,
         dag_run_state=DagRunState.SUCCESS,
         task_ids=["task_0", "task_1", "task_2.test"],
-        run_facets={"airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run)},
+        run_facets={
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId=random_uuid),
+                job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId=random_uuid),
+                    job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                ),
+            ),
+            "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
+        },
     )
 
     client.emit.assert_called_once_with(
@@ -760,6 +816,14 @@ def test_emit_dag_complete_event(
             run=Run(
                 runId=random_uuid,
                 facets={
+                    "parent": parent_run.ParentRunFacet(
+                        run=parent_run.Run(runId=random_uuid),
+                        job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                        root=parent_run.Root(
+                            run=parent_run.RootRun(runId=random_uuid),
+                            job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                        ),
+                    ),
                     "airflowState": AirflowStateRunFacet(
                         dagRunState=DagRunState.SUCCESS,
                         tasksState={
@@ -846,7 +910,17 @@ def test_emit_dag_failed_event(
         dag_run_state=DagRunState.FAILED,
         task_ids=["task_0", "task_1", "task_2.test"],
         msg="error msg",
-        run_facets={"airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run)},
+        run_facets={
+            "parent": parent_run.ParentRunFacet(
+                run=parent_run.Run(runId=random_uuid),
+                job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId=random_uuid),
+                    job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                ),
+            ),
+            "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
+        },
     )
 
     client.emit.assert_called_once_with(
@@ -856,6 +930,14 @@ def test_emit_dag_failed_event(
             run=Run(
                 runId=random_uuid,
                 facets={
+                    "parent": parent_run.ParentRunFacet(
+                        run=parent_run.Run(runId=random_uuid),
+                        job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                        root=parent_run.Root(
+                            run=parent_run.RootRun(runId=random_uuid),
+                            job=parent_run.RootJob(namespace=namespace(), name="parent_job_name"),
+                        ),
+                    ),
                     "errorMessage": error_message_run.ErrorMessageRunFacet(
                         message="error msg", programmingLanguage="python"
                     ),

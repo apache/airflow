@@ -40,6 +40,8 @@ mock_config_response = {
     "audit_view_included_events": "",
     "test_connection": "Disabled",
     "dashboard_alert": [],
+    "show_external_log_redirect": False,
+    "external_log_name": None,
 }
 
 

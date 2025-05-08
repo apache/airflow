@@ -20,6 +20,7 @@ import { useDisclosure } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
+import { useState } from "react";
 import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
@@ -42,8 +43,10 @@ export const UserSettingsButton = () => {
   const { selectedTimezone } = useTimezone();
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
 
+  const [time, setTime] = useState(dayjs());
+
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
+    <Menu.Root onOpenChange={() => setTime(dayjs())} positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
         <NavButton icon={<FiUser size="1.75rem" />} title="User" />
       </Menu.Trigger>
@@ -79,7 +82,7 @@ export const UserSettingsButton = () => {
         </Menu.Item>
         <Menu.Item onClick={onOpenTimezone} value="timezone">
           <FiClock size="1.25rem" style={{ marginRight: "8px" }} />
-          {dayjs().tz(selectedTimezone).format("HH:mm z (Z)")}
+          {dayjs(time).tz(selectedTimezone).format("HH:mm z (Z)")}
         </Menu.Item>
         <Menu.Item onClick={onOpenLogout} value="logout">
           <FiLogOut size="1.25rem" style={{ marginRight: "8px" }} />

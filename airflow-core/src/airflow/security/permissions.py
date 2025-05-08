@@ -95,13 +95,7 @@ PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RES
 
 
 def resource_name(root_dag_id: str, resource: str) -> str:
-    """
-    Return the resource name for a DAG id.
-
-    Note that since a sub-DAG should follow the permission of its
-    parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
-    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
-    """
+    """Return the resource name for a DAG id."""
     if root_dag_id in RESOURCE_DETAILS_MAP.keys():
         return root_dag_id
     if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
@@ -112,10 +106,6 @@ def resource_name(root_dag_id: str, resource: str) -> str:
 def resource_name_for_dag(root_dag_id: str) -> str:
     """
     Return the resource name for a DAG id.
-
-    Note that since a sub-DAG should follow the permission of its
-    parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
-    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
 
     Note: This function is kept for backwards compatibility.
     """

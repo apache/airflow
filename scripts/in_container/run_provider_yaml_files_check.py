@@ -467,9 +467,7 @@ def check_plugin_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     return num_plugins, num_errors
 
 
-@run_check("Checking extra-links belong to package, exist and are classes")
-def check_extra_link_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
-    resource_type = "extra-links"
+def _check_simple_class_list(resource_type, yaml_files):
     num_errors = 0
     num_extra_links = 0
     for yaml_file_path, provider_data in yaml_files.items():
@@ -483,20 +481,24 @@ def check_extra_link_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     return num_extra_links, num_errors
 
 
+@run_check("Checking extra-links belong to package, exist and are classes")
+def check_extra_link_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("extra-links", yaml_files)
+
+
 @run_check("Checking notifications belong to package, exist and are classes")
 def check_notification_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
-    resource_type = "notifications"
-    num_errors = 0
-    num_notifications = 0
-    for yaml_file_path, provider_data in yaml_files.items():
-        provider_package = _filepath_to_module(yaml_file_path)
-        notifications = provider_data.get(resource_type)
-        if notifications:
-            num_notifications += len(notifications)
-            num_errors += check_if_objects_exist_and_belong_to_package(
-                notifications, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
-            )
-    return num_notifications, num_errors
+    return _check_simple_class_list("notifications", yaml_files)
+
+
+@run_check("Checking executors belong to package, exist and are classes")
+def check_executor_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("executors", yaml_files)
+
+
+@run_check("Checking queues belong to package, exist and are classes")
+def check_queue_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("queues", yaml_files)
 
 
 @run_check("Checking for duplicates in list of transfers")
@@ -731,6 +733,8 @@ if __name__ == "__main__":
 
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_hook_class_name_entries_in_connection_types(all_parsed_yaml_files)
+    check_executor_classes(all_parsed_yaml_files)
+    check_queue_classes(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_trigger_modules(all_parsed_yaml_files)

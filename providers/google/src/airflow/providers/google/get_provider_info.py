@@ -675,6 +675,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.operators.vertex_ai.pipeline_job",
                     "airflow.providers.google.cloud.operators.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.operators.vertex_ai.feature_store",
+                    "airflow.providers.google.cloud.operators.vertex_ai.ray",
                 ],
             },
             {
@@ -1041,6 +1042,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.hooks.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.hooks.vertex_ai.prediction_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.feature_store",
+                    "airflow.providers.google.cloud.hooks.vertex_ai.ray",
                 ],
             },
             {
@@ -1427,6 +1429,8 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink",
+            "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterLink",
+            "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterListLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink",

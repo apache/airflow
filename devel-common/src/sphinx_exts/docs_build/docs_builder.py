@@ -121,6 +121,13 @@ class AirflowDocsBuilder:
         sys.exit(1)
 
     @property
+    def pythonpath(self) -> list[Path]:
+        path = []
+        if (self._src_dir.parent / "tests").exists():
+            path.append(self._src_dir.parent.joinpath("tests").resolve())
+        return path
+
+    @property
     def _generated_api_dir(self) -> Path:
         return self._build_dir.resolve() / "_api"
 
@@ -167,6 +174,8 @@ class AirflowDocsBuilder:
             console.print("[yellow]Command to run:[/] ", " ".join([shlex.quote(arg) for arg in build_cmd]))
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
+        if self.pythonpath:
+            env["PYTHONPATH"] = ":".join([path.as_posix() for path in self.pythonpath])
         if verbose:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] The output is hidden until an error occurs."
@@ -246,6 +255,8 @@ class AirflowDocsBuilder:
             console.print("[yellow]Command to run:[/] ", " ".join([shlex.quote(arg) for arg in build_cmd]))
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
+        if self.pythonpath:
+            env["PYTHONPATH"] = ":".join([path.as_posix() for path in self.pythonpath])
         if verbose:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] Running sphinx. "

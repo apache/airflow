@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 from openlineage.client.serde import Serde
 from openlineage.client.transport import Config, Transport, get_default_factory
 
+# We use `airflow.models.variable.Variable` instead of `airflow.sdk.Variable`, even for Airflow 3, as it also
+# works on scheduler. It may emit DeprecationWarning on workers, but it's needed for DAG events to be emitted.
 from airflow.models.variable import Variable
 
 if TYPE_CHECKING:

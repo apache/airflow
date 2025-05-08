@@ -951,7 +951,8 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -997,6 +998,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -1048,6 +1051,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -1099,6 +1104,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -4566,6 +4573,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Task Instance
+      summary: Delete Task Instance
+      description: Delete a task instance.
+      operationId: delete_task_instance
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Delete Task Instance
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped:
     get:
       tags:
@@ -4800,7 +4873,7 @@ paths:
       - Task Instance
       summary: Get Task Instance Dependencies
       description: Get dependencies blocking task from getting scheduled.
-      operationId: get_task_instance_dependencies
+      operationId: get_task_instance_dependencies_by_map_index
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -5125,7 +5198,7 @@ paths:
       - Task Instance
       summary: Patch Task Instance
       description: Update a task instance.
-      operationId: patch_task_instance
+      operationId: patch_task_instance_by_map_index
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -5718,7 +5791,7 @@ paths:
       - Task Instance
       summary: Patch Task Instance Dry Run
       description: Update a task instance dry_run mode.
-      operationId: patch_task_instance_dry_run
+      operationId: patch_task_instance_dry_run_by_map_index
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -6417,6 +6490,85 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/externalLogUrl/{try_number}:
+    get:
+      tags:
+      - Task Instance
+      summary: Get External Log Url
+      description: Get external log URL for a specific task instance.
+      operationId: get_external_log_url
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: try_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          exclusiveMinimum: 0
+          title: Try Number
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalLogUrlResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/parseDagFile/{file_token}:
     put:
       tags:
@@ -6996,6 +7148,10 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+        last_asset_event:
+          anyOf:
+          - $ref: '#/components/schemas/LastAssetEventResponse'
+          - type: 'null'
       type: object
       required:
       - id
@@ -7066,6 +7222,7 @@ components:
       properties:
         id:
           type: integer
+          minimum: 0.0
           title: Id
         dag_id:
           type: string
@@ -7104,6 +7261,9 @@ components:
           type: string
           format: date-time
           title: Updated At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - id
@@ -7117,6 +7277,7 @@ components:
       - created_at
       - completed_at
       - updated_at
+      - dag_display_name
       title: BackfillResponse
       description: Base serializer for Backfill.
     BaseInfoResponse:
@@ -7906,6 +8067,12 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed
+        default_args:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Default Args
         file_token:
           type: string
           title: File Token
@@ -7960,6 +8127,7 @@ components:
       - template_search_path
       - timezone
       - last_parsed
+      - default_args
       - file_token
       - concurrency
       - latest_dag_version
@@ -8250,6 +8418,14 @@ components:
             $ref: '#/components/schemas/DagVersionResponse'
           type: array
           title: Dag Versions
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - dag_run_id
@@ -8268,6 +8444,8 @@ components:
       - conf
       - note
       - dag_versions
+      - bundle_version
+      - dag_display_name
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunsBatchBody:
@@ -8370,11 +8548,15 @@ components:
           - type: integer
           - type: 'null'
           title: Version Number
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - content
       - dag_id
       - version_number
+      - dag_display_name
       title: DAGSourceResponse
       description: DAG Source serializer for responses.
     DAGTagCollectionResponse:
@@ -8786,6 +8968,11 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
       type: object
       required:
       - event_log_id
@@ -8801,6 +8988,16 @@ components:
       - extra
       title: EventLogResponse
       description: Event Log Response.
+    ExternalLogUrlResponse:
+      properties:
+        url:
+          type: string
+          title: Url
+      type: object
+      required:
+      - url
+      title: ExternalLogUrlResponse
+      description: Response for the external log URL endpoint.
     ExtraLinkCollectionResponse:
       properties:
         extra_links:
@@ -9008,6 +9205,11 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
       type: object
       required:
       - id
@@ -9022,6 +9224,24 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    JsonValue: {}
+    LastAssetEventResponse:
+      properties:
+        id:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Id
+        timestamp:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp
+      type: object
+      title: LastAssetEventResponse
+      description: Last asset event response serializer.
     PatchTaskInstanceBody:
       properties:
         new_state:
@@ -9520,6 +9740,9 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         hostname:
           anyOf:
           - type: string
@@ -9593,6 +9816,7 @@ components:
       - try_number
       - max_tries
       - task_display_name
+      - dag_display_name
       - hostname
       - unixname
       - pool
@@ -9665,6 +9889,9 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         hostname:
           anyOf:
           - type: string
@@ -9763,6 +9990,7 @@ components:
       - try_number
       - max_tries
       - task_display_name
+      - dag_display_name
       - hostname
       - unixname
       - pool
@@ -10292,8 +10520,7 @@ components:
           maxLength: 250
           title: Key
         value:
-          type: string
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
         description:
           anyOf:
           - type: string
@@ -10423,6 +10650,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - key
@@ -10432,6 +10662,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -10461,6 +10692,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         value:
           title: Value
       type: object
@@ -10472,6 +10706,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -10502,6 +10737,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         value:
           anyOf:
           - type: string
@@ -10516,6 +10754,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

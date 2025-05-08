@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { CgRedo } from "react-icons/cg";
 
@@ -63,21 +63,23 @@ export const TaskNode = ({
           }}
           taskInstance={taskInstance}
         >
-          <Flex
+          <Box
             // Alternate background color for nested open groups
             bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
             borderColor={
               taskInstance?.state ? `${taskInstance.state}.solid` : isSelected ? "border.inverted" : "border"
             }
             borderRadius={5}
-            borderWidth={isSelected ? 6 : 2}
+            borderWidth={isSelected ? 4 : 2}
             height={`${height + (isSelected ? 4 : 0)}px`}
             justifyContent="space-between"
+            overflow="hidden"
+            position="relative"
             px={isSelected ? 1 : 2}
             py={isSelected ? 0 : 1}
             width={`${width + (isSelected ? 4 : 0)}px`}
           >
-            <Box>
+            <LinkOverlay asChild>
               <TaskLink
                 childCount={taskInstance?.task_count}
                 id={id}
@@ -87,35 +89,42 @@ export const TaskNode = ({
                 label={label}
                 setupTeardownType={setupTeardownType}
               />
-              <Text color="fg.muted" fontSize="sm" textTransform="capitalize">
-                {isGroup ? "Task Group" : operator}
-              </Text>
-              {taskInstance === undefined ? undefined : (
-                <HStack>
-                  <StateBadge fontSize="xs" state={taskInstance.state}>
-                    {taskInstance.state}
-                  </StateBadge>
-                  {taskInstance.try_number > 1 ? <CgRedo /> : undefined}
-                </HStack>
-              )}
-            </Box>
-            <Box>
-              {isGroup ? (
-                <Button
-                  colorPalette="blue"
-                  cursor="pointer"
-                  height="inherit"
-                  onClick={onClick}
-                  pb={2}
-                  pr={0}
-                  variant="plain"
-                >
-                  {isOpen ? "- " : "+ "}
-                  {pluralize("task", childCount, undefined, false)}
-                </Button>
-              ) : undefined}
-            </Box>
-          </Flex>
+            </LinkOverlay>
+            <Text
+              color="fg.muted"
+              fontSize="sm"
+              overflow="hidden"
+              textOverflow="ellipsis"
+              textTransform="capitalize"
+              whiteSpace="nowrap"
+            >
+              {isGroup ? "Task Group" : operator}
+            </Text>
+            {taskInstance === undefined ? undefined : (
+              <HStack>
+                <StateBadge fontSize="xs" state={taskInstance.state}>
+                  {taskInstance.state}
+                </StateBadge>
+                {taskInstance.try_number > 1 ? <CgRedo /> : undefined}
+              </HStack>
+            )}
+            {isGroup ? (
+              <Button
+                colorPalette="blue"
+                cursor="pointer"
+                height={8}
+                onClick={onClick}
+                position="absolute"
+                px={1}
+                right={0}
+                top={0}
+                variant="plain"
+              >
+                {isOpen ? "- " : "+ "}
+                {pluralize("task", childCount, undefined, false)}
+              </Button>
+            ) : undefined}
+          </Box>
         </TaskInstanceTooltip>
         {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
           <>

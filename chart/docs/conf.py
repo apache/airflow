@@ -64,8 +64,6 @@ PACKAGE_NAME = "helm-chart"
 CHART_ROOT_PATH = AIRFLOW_REPO_ROOT_PATH / "chart"
 CHART_DOC_PATH = CHART_ROOT_PATH / "docs"
 CHART_STATIC_PATH = CHART_DOC_PATH / "static"
-conf_py_path = f"/docs/{PACKAGE_NAME}/"
-
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
 CHART_YAML_FILE_PATH = CHART_ROOT_PATH / "Chart.yaml"
@@ -133,6 +131,10 @@ keep_warnings = True
 html_theme = "sphinx_airflow_theme"
 
 html_title = f"{PACKAGE_NAME} Documentation"
+
+conf_py_path = "/chart/docs/"
+# A dictionary of values to pass into the template engine's context for all pages.
+html_context = get_html_context(conf_py_path)
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = ""

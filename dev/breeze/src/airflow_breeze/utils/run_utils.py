@@ -66,6 +66,7 @@ def run_command(
     output_outside_the_group: bool = False,
     verbose_override: bool | None = None,
     dry_run_override: bool | None = None,
+    quiet: bool = False,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -91,6 +92,7 @@ def run_command(
         outside the "CI folded group" in CI - so that it is immediately visible without unfolding.
     :param verbose_override: override verbose parameter with the one specified if not None.
     :param dry_run_override: override dry_run parameter with the one specified if not None.
+    :param quiet: if True, suppresses all output (including the command itself) and runs it in
     :param kwargs: kwargs passed to POpen
     """
 
@@ -136,7 +138,10 @@ def run_command(
             kwargs["stderr"] = subprocess.STDOUT
     command_to_print = " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
     env_to_print = get_environments_to_print(env)
-    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
+    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override) or quiet:
+        if quiet and not kwargs.get("capture_output"):
+            kwargs["stdout"] = subprocess.DEVNULL
+            kwargs["stderr"] = subprocess.DEVNULL
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     with ci_group(title=f"Running command: {title}", message_type=None):
         get_console(output=output).print(f"\n[info]Working directory {workdir}\n")

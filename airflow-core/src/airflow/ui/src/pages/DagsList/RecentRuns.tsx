@@ -24,6 +24,7 @@ import { Link } from "react-router-dom";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
+import { getDuration } from "src/utils";
 
 dayjs.extend(duration);
 
@@ -68,7 +69,7 @@ export const RecentRuns = ({
                   End Date: <Time datetime={run.end_date} />
                 </Text>
               )}
-              <Text>Duration: {run.duration.toFixed(2)}s</Text>
+              <Text>Duration: {getDuration(run.start_date, run.end_date)}</Text>
             </Box>
           }
           key={run.dag_run_id}

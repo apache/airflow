@@ -23,6 +23,7 @@ from urllib.parse import ParseResult, urljoin, urlparse
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -198,7 +199,7 @@ def requires_access_backfill(method: ResourceMethod) -> Callable:
         request: Request,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
-        backfill_id: str | None = request.path_params.get("backfill_id")
+        backfill_id: NonNegativeInt | None = request.path_params.get("backfill_id")
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_backfill(

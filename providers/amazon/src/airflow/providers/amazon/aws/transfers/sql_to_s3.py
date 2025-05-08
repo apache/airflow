@@ -187,7 +187,7 @@ class SqlToS3Operator(BaseOperator):
     def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        data_df = sql_hook.get_pandas_df(sql=self.query, parameters=self.parameters)
+        data_df = sql_hook.get_df(sql=self.query, parameters=self.parameters, df_type="pandas")
         self.log.info("Data from SQL obtained")
         self._fix_dtypes(data_df, self.file_format)
         file_options = FILE_OPTIONS_MAP[self.file_format]
@@ -233,8 +233,6 @@ class SqlToS3Operator(BaseOperator):
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
         hook = conn.get_hook(hook_params=self.sql_hook_params)
-        if not callable(getattr(hook, "get_pandas_df", None)):
-            raise AirflowException(
-                "This hook is not supported. The hook class must have get_pandas_df method."
-            )
+        if not callable(getattr(hook, "get_df", None)):
+            raise AirflowException("This hook is not supported. The hook class must have get_df method.")
         return hook

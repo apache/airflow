@@ -25,6 +25,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
+import { getDuration } from "src/utils";
 
 type Props = {
   readonly taskInstance?: GridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
@@ -47,8 +48,8 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
             End Date: <Time datetime={taskInstance.end_date} />
           </Text>
           {taskInstance.try_number > 1 && <Text>Try Number: {taskInstance.try_number}</Text>}
-          {"duration" in taskInstance ? (
-            <Text>Duration: {taskInstance.duration?.toFixed(2) ?? 0}s</Text>
+          {"start_date" in taskInstance ? (
+            <Text>Duration: {getDuration(taskInstance.start_date, taskInstance.end_date)}</Text>
           ) : undefined}
         </Box>
       }

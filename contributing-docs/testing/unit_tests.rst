@@ -51,6 +51,8 @@ That mean if one of this warning appear during test run and do not captured the 
     ...
     FAILED tests/models/test_dag.py::TestDag::test_clear_dag[None-None] - airflow.exceptions.RemovedInAirflow3Warning: Calling `DAG.create_dagrun()` without an explicit data interval is deprecated
 
+**NOTE:** As of Airflow 3.0 the test file tests/models/test_dag.py has been relocated to airflow-core/tests/unit/models/test_dag.py.
+
 For avoid this make sure:
 
 * You do not use deprecated method, classes and arguments in your test cases;
@@ -1175,7 +1177,7 @@ Herr id how to reproduce it.
 
    rm dist/*
    breeze release-management prepare-provider-distributions --include-not-ready-providers \
-      --version-suffix-for-pypi dev0 --distribution-format wheel
+      --skip-tag-check --distribution-format wheel
 
 3. Prepare provider constraints
 
@@ -1225,7 +1227,7 @@ Rebuilding single provider package can be done using this command:
 .. code-block:: bash
 
   breeze release-management prepare-provider-distributions \
-    --version-suffix-for-pypi dev0 --distribution-format wheel <provider>
+    --skip-tag-check --distribution-format wheel <provider>
 
 Lowest direct dependency resolution tests
 -----------------------------------------
