@@ -38,7 +38,7 @@ function check_service {
     local label=$1
     local call=$2
     local max_check=${3:=1}
-    local initial_delay=${4:=0}
+    local initial_delay="${4:-0}"
 
     if [[ ${initial_delay} != 0 ]]; then
         echo "${COLOR_YELLOW}Adding initial delay. Waiting ${initial_delay} seconds before checking ${label}.${COLOR_RESET}"
