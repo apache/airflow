@@ -1229,11 +1229,10 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
                 log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
                 pass
         if not inspect(settings.engine).has_table("ab_user"):
-            log.error(
+            raise AirflowException(
                 "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
                 "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
             )
-            return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
