@@ -110,9 +110,16 @@ def _get_logical_date(task_instance):
 
     return date
 
-    # todo: move this run_id logic into OpenLineage's listener to avoid differences
+
+def _get_dag_run_clear_number(task_instance):
+    # todo: remove when min airflow version >= 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun = task_instance.get_template_context()["dag_run"]
+        return dagrun.clear_number
+    return task_instance.dag_run.clear_number
 
 
+# todo: move this run_id logic into OpenLineage's listener to avoid differences
 def _get_ol_run_id(task_instance) -> str:
     """
     Get OpenLineage run_id from TaskInstance.
@@ -140,7 +147,7 @@ def _get_ol_dag_run_id(task_instance) -> str:
     return OpenLineageAdapter.build_dag_run_id(
         dag_id=task_instance.dag_id,
         logical_date=_get_logical_date(task_instance),
-        clear_number=task_instance.dag_run.clear_number,
+        clear_number=_get_dag_run_clear_number(task_instance),
     )
 
 

@@ -48,6 +48,14 @@ def _get_logical_date(task_instance):
     return date
 
 
+def _get_dag_run_clear_number(task_instance):
+    # todo: remove when min airflow version >= 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun = task_instance.get_template_context()["dag_run"]
+        return dagrun.clear_number
+    return task_instance.dag_run.clear_number
+
+
 @require_openlineage_version(provider_min_version="2.3.0")
 def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
@@ -144,7 +152,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     root_parent_run_id = OpenLineageAdapter.build_dag_run_id(
         dag_id=task_instance.dag_id,
         logical_date=_get_logical_date(task_instance),
-        clear_number=task_instance.dag_run.clear_number,
+        clear_number=_get_dag_run_clear_number(task_instance),
     )
 
     parent_job = ParentRunMetadata(
