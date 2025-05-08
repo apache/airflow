@@ -57,7 +57,7 @@ const taskInstanceColumns = (
     ? []
     : [
         {
-          accessorKey: "dag_id",
+          accessorKey: "dag_display_name",
           enableSorting: false,
           header: "Dag ID",
         },
