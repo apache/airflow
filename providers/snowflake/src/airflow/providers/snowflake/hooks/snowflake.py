@@ -191,7 +191,7 @@ class SnowflakeHook(DbApiHook):
 
     @property
     def account_identifier(self) -> str:
-        """Returns snowflake account identifier."""
+        """Get snowflake account identifier."""
         conn_config = self._get_conn_params
         account_identifier = f"https://{conn_config['account']}"
 
@@ -205,7 +205,7 @@ class SnowflakeHook(DbApiHook):
         if conn_config is None:
             conn_config = self._get_conn_params
 
-        url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
+        url = f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
 
         data = {
             "grant_type": "refresh_token",
