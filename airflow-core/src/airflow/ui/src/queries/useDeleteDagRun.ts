@@ -22,6 +22,7 @@ import {
   useDagRunServiceDeleteDagRun,
   useDagRunServiceGetDagRunsKey,
   UseDagRunServiceGetDagRunKeyFn,
+  UseGridServiceGridDataKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
@@ -43,7 +44,11 @@ export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDag
   const queryClient = useQueryClient();
 
   const onSuccess = async () => {
-    const queryKeys = [UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }), [useDagRunServiceGetDagRunsKey]];
+    const queryKeys = [
+      UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+      [useDagRunServiceGetDagRunsKey],
+      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+    ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
