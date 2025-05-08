@@ -94,6 +94,18 @@ def _parse_file_entrypoint():
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
+    # Pre-import modules
+    if conf.getboolean("scheduler", "parsing_pre_import_modules", fallback=True):
+        import importlib
+
+        from airflow.utils.file import iter_airflow_imports
+
+    for module in iter_airflow_imports(msg.file):
+        try:
+            importlib.import_module(module)
+        except Exception as e:
+            log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, msg.file, e)
+
     bag = DagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
