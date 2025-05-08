@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import {
   useDagRunServiceGetDagRun,
   useDagServiceGetDagDetails,
+  useTaskInstanceServiceGetMappedTaskInstance,
   useTaskServiceGetTask,
 } from "openapi/queries";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
@@ -51,6 +52,12 @@ export const DagBreadcrumb = () => {
   );
 
   const { data: task } = useTaskServiceGetTask({ dagId, taskId }, undefined, { enabled: Boolean(taskId) });
+
+  const { data: mappedTaskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
+    { dagId, dagRunId: runId ?? "", mapIndex: parseInt(mapIndex, 10), taskId: taskId ?? "" },
+    undefined,
+    { enabled: Boolean(runId) && Boolean(taskId) && mapIndex !== "-1" },
+  );
 
   const links: Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }> =
     [
@@ -101,7 +108,7 @@ export const DagBreadcrumb = () => {
   }
 
   if (mapIndex !== "-1") {
-    links.push({ label: mapIndex, title: "Map Index" });
+    links.push({ label: mappedTaskInstance?.rendered_map_index ?? mapIndex, title: "Map Index" });
   }
 
   return <BreadcrumbStats links={links} />;
