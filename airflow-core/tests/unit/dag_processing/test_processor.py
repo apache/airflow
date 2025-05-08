@@ -37,6 +37,7 @@ from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
     _parse_file,
+    _pre_import_airflow_modules,
 )
 from airflow.models import DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
@@ -76,6 +77,11 @@ def inprocess_client():
     client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
     client.base_url = "http://in-process.invalid/"  # type: ignore[assignment]
     return client
+
+
+@pytest.fixture
+def mock_logger():
+    return MagicMock()
 
 
 @pytest.mark.usefixtures("disable_load_example")
@@ -140,7 +146,12 @@ class TestDagFileProcessor:
         assert "a.py" in resp.import_errors
 
     def test_top_level_variable_access(
-        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
+        self,
+        spy_agency: SpyAgency,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        inprocess_client,
+        mock_logger,
     ):
         logger_filehandle = MagicMock()
 
@@ -158,6 +169,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=mock_logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -171,7 +183,12 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "test_abc"
 
     def test_top_level_variable_access_not_found(
-        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
+        self,
+        spy_agency: SpyAgency,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        inprocess_client,
+        mock_logger,
     ):
         logger_filehandle = MagicMock()
 
@@ -187,6 +204,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=mock_logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -200,7 +218,7 @@ class TestDagFileProcessor:
         if result.import_errors:
             assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
 
-    def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
+    def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client, mock_logger):
         from airflow.models.variable import Variable as VariableORM
 
         logger_filehandle = MagicMock()
@@ -218,6 +236,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=mock_logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -235,7 +254,7 @@ class TestDagFileProcessor:
             assert len(all_vars) == 1
             assert all_vars[0].key == "mykey"
 
-    def test_top_level_variable_delete(self, tmp_path: pathlib.Path, inprocess_client):
+    def test_top_level_variable_delete(self, tmp_path: pathlib.Path, inprocess_client, mock_logger):
         from airflow.models.variable import Variable as VariableORM
 
         logger_filehandle = MagicMock()
@@ -259,6 +278,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=mock_logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -276,7 +296,7 @@ class TestDagFileProcessor:
             assert len(all_vars) == 0
 
     def test_top_level_connection_access(
-        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client, mock_logger
     ):
         logger_filehandle = MagicMock()
 
@@ -295,6 +315,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=mock_logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -307,7 +328,9 @@ class TestDagFileProcessor:
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "test_my_conn"
 
-    def test_top_level_connection_access_not_found(self, tmp_path: pathlib.Path, inprocess_client):
+    def test_top_level_connection_access_not_found(
+        self, tmp_path: pathlib.Path, inprocess_client, mock_logger
+    ):
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -323,6 +346,7 @@ class TestDagFileProcessor:
             path=path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=mock_logger,
             logger_filehandle=logger_filehandle,
             client=inprocess_client,
         )
@@ -336,7 +360,7 @@ class TestDagFileProcessor:
         if result.import_errors:
             assert "CONNECTION_NOT_FOUND" in next(iter(result.import_errors.values()))
 
-    def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path, inprocess_client):
+    def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path, inprocess_client, mock_logger):
         tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
 
         dag1_path = tmp_path.joinpath("dag1.py")
@@ -355,6 +379,7 @@ class TestDagFileProcessor:
             path=dag1_path,
             bundle_path=tmp_path,
             callbacks=[],
+            logger=mock_logger,
             logger_filehandle=MagicMock(),
             client=inprocess_client,
         )
@@ -365,6 +390,61 @@ class TestDagFileProcessor:
         assert result is not None
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "dag_name"
+
+    def test__pre_import_airflow_modules_when_disabled(self, mock_logger):
+        with (
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "false"}),
+            patch("airflow.dag_processing.processor.iter_airflow_imports") as mock_iter,
+        ):
+            _pre_import_airflow_modules("test.py", mock_logger)
+
+        mock_iter.assert_not_called()
+        mock_logger.warning.assert_not_called()
+
+    def test__pre_import_airflow_modules_when_enabled(self, mock_logger):
+        with (
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
+            patch("airflow.dag_processing.processor.iter_airflow_imports", return_value=["airflow.models"]),
+            patch("airflow.dag_processing.processor.importlib.import_module") as mock_import,
+        ):
+            _pre_import_airflow_modules("test.py", mock_logger)
+
+        mock_import.assert_called_once_with("airflow.models")
+        mock_logger.warning.assert_not_called()
+
+    def test__pre_import_airflow_modules_warns_on_missing_module(self, mock_logger):
+        with (
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
+            patch(
+                "airflow.dag_processing.processor.iter_airflow_imports", return_value=["non_existent_module"]
+            ),
+            patch(
+                "airflow.dag_processing.processor.importlib.import_module", side_effect=ModuleNotFoundError()
+            ),
+        ):
+            _pre_import_airflow_modules("test.py", mock_logger)
+
+        mock_logger.warning.assert_called_once()
+        warning_args = mock_logger.warning.call_args[0]
+        assert "Error when trying to pre-import module" in warning_args[0]
+        assert "non_existent_module" in warning_args[1]
+        assert "test.py" in warning_args[2]
+
+    def test__pre_import_airflow_modules_partial_success_and_warning(self, mock_logger):
+        with (
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
+            patch(
+                "airflow.dag_processing.processor.iter_airflow_imports",
+                return_value=["airflow.models", "non_existent_module"],
+            ),
+            patch(
+                "airflow.dag_processing.processor.importlib.import_module",
+                side_effect=[None, ModuleNotFoundError()],
+            ),
+        ):
+            _pre_import_airflow_modules("test.py", mock_logger)
+
+        assert mock_logger.warning.call_count == 1
 
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
