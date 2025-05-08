@@ -72,9 +72,9 @@ class S3DocsPublish:
             return []
         excluded_docs = self.exclude_docs.split(",")
 
-        # We remove NO_DOCS string, this will be send from github workflows input as default value.
-        if "NO_DOCS" in excluded_docs:
-            excluded_docs.remove("NO_DOCS")
+        # We remove `no-docs-excluded` string, this will be send from github workflows input as default value.
+        if "no-docs-excluded" in excluded_docs:
+            excluded_docs.remove("no-docs-excluded")
         return excluded_docs
 
     @cached_property
