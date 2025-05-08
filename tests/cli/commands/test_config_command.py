@@ -236,7 +236,8 @@ class TestCliConfigGetValue:
 
 class TestConfigLint:
     @pytest.mark.parametrize(
-        "removed_config", [config for config in config_command.CONFIGS_CHANGES if config.was_removed]
+        "removed_config",
+        [config for config in config_command.CONFIGS_CHANGES if config.was_removed and config.message],
     )
     def test_lint_detects_removed_configs(self, removed_config):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
@@ -517,7 +518,7 @@ class TestCliConfigUpdate:
         )
         monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [renamed_change])
         assert conf.has_option("test_admin", "rename_key")
-        args = self.parser.parse_args(["config", "update"])
+        args = self.parser.parse_args(["config", "update", "--fix", "--all-recommendations"])
         config_command.update_config(args)
         content = fake_config.read_text()
         admin_section = content.split("[test_admin]")[-1]
@@ -534,7 +535,7 @@ class TestCliConfigUpdate:
         )
         monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [removed_change])
         assert conf.has_option("test_admin", "remove_key")
-        args = self.parser.parse_args(["config", "update"])
+        args = self.parser.parse_args(["config", "update", "--fix", "--all-recommendations"])
         config_command.update_config(args)
         content = fake_config.read_text()
         assert "remove_key" not in content
@@ -559,3 +560,23 @@ class TestCliConfigUpdate:
         config_command.update_config(args)
         backup_path = os.environ.get("AIRFLOW_CONFIG") + ".bak"
         mock_copy.assert_called_once_with(os.environ.get("AIRFLOW_CONFIG"), backup_path)
+
+    def test_update_only_breaking_changes_with_fix(self, monkeypatch, setup_fake_airflow_cfg):
+        fake_config = setup_fake_airflow_cfg
+        breaking_change = ConfigChange(
+            config=ConfigParameter("test_admin", "rename_key"),
+            renamed_to=ConfigParameter("test_admin", "new_breaking_key"),
+            breaking=True,
+        )
+        non_breaking_change = ConfigChange(
+            config=ConfigParameter("test_admin", "remove_key"),
+            suggestion="Option removed.",
+            breaking=False,
+        )
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [breaking_change, non_breaking_change])
+        args = self.parser.parse_args(["config", "update", "--fix"])
+        config_command.update_config(args)
+        content = fake_config.read_text()
+        assert "rename_key = legacy_value" not in content
+        assert "new_breaking_key" in content
+        assert "remove_key" in content
