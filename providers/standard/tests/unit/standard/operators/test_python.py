@@ -1893,12 +1893,14 @@ class TestCurrentContextRuntime:
     def test_context_in_task(self):
         with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
             op = MyContextAssertOperator(task_id="assert_context")
-            op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
     def test_get_context_in_old_style_context_task(self):
         with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
-            op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
 
 @pytest.mark.need_serialized_dag(False)
