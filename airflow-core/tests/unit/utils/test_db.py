@@ -296,7 +296,7 @@ class TestDb:
 
     @conf_vars({("core", "unit_test_mode"): "False"})
     @mock.patch("airflow.utils.db.inspect")
-    def test_downgrade_raises_if_lower_than_v3_0_0_and_no_ab_user(self, mock_inspect, caplog):
+    def test_downgrade_raises_if_lower_than_v3_0_0_and_no_ab_user(self, mock_inspect):
         mock_inspect.return_value.has_table.return_value = False
         msg = (
             "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
