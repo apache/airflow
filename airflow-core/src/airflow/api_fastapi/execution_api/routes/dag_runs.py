@@ -23,7 +23,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
-from airflow.api.common.trigger_dag import trigger_dag
+from airflow.api.common.trigger_dag import DagRunTriggerDisallowedError, trigger_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
@@ -44,6 +44,7 @@ log = logging.getLogger(__name__)
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "DAG has import errors and cannot be triggered"},
+        status.HTTP_403_FORBIDDEN: {"description": "The trigger type is disallowed for this DAG"},
         status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
         status.HTTP_409_CONFLICT: {"description": "DAG Run already exists for the given dag_id"},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload"},
@@ -81,6 +82,14 @@ def trigger_dag_run(
             triggered_by=DagRunTriggeredByType.OPERATOR,
             replace_microseconds=False,
             session=session,
+        )
+    except DagRunTriggerDisallowedError as e:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "trigger_disallowed",
+                "message": str(e),
+            },
         )
     except DagRunAlreadyExists:
         raise HTTPException(

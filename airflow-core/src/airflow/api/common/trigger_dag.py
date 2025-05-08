@@ -28,11 +28,21 @@ from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from sqlalchemy import select
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from sqlalchemy.orm.session import Session
+
+
+class DagRunTriggerDisallowedError(Exception):
+    """Raised when trying to trigger a DAG with a disallowed trigger type."""
+
+    def __init__(self, dag_id: str, trigger_type: DagRunTriggeredByType):
+        self.dag_id = dag_id
+        self.trigger_type = trigger_type
+        super().__init__(f"Trigger type '{trigger_type.value}' is disallowed for DAG '{dag_id}'")
 
 
 @provide_session
@@ -65,6 +75,13 @@ def _trigger_dag(
 
     if dag is None or dag_id not in dag_bag.dags:
         raise DagNotFound(f"Dag id {dag_id} not found")
+        
+    # Check if the trigger type is disallowed for this DAG
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+    if dag_model and dag_model.disallowed_trigger_types:
+        disallowed_types = dag_model.disallowed_trigger_types
+        if isinstance(disallowed_types, list) and triggered_by.value in disallowed_types:
+            raise DagRunTriggerDisallowedError(dag_id, triggered_by)
 
     run_after = run_after or timezone.coerce_datetime(timezone.utcnow())
     if logical_date:
