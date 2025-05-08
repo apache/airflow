@@ -85,7 +85,7 @@ class TestClearTasks:
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-            clear_task_instances(qry, session, dag=dag)
+            clear_task_instances(tis=qry, session=session, dag=dag)
 
             ti0.refresh_from_db(session)
             ti1.refresh_from_db(session)
@@ -119,7 +119,7 @@ class TestClearTasks:
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-            clear_task_instances(qry, session, dag=dag)
+            clear_task_instances(tis=qry, session=session, dag=dag)
 
             ti0.refresh_from_db()
 
@@ -142,7 +142,7 @@ class TestClearTasks:
         session.add(ti0)
         session.commit()
 
-        clear_task_instances([ti0], session, dag=dag)
+        clear_task_instances(tis=[ti0], session=session, dag=dag)
 
         ti0.refresh_from_db()
 
@@ -184,7 +184,7 @@ class TestClearTasks:
         # in the way that those two sort methods are equivalent
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
         assert session.query(TaskInstanceHistory).count() == 0
-        clear_task_instances(qry, session, dag_run_state=state, dag=dag)
+        clear_task_instances(tis=qry, session=session, dag_run_state=state, dag=dag)
         session.flush()
         # 2 TIs were cleared so 2 history records should be created
         assert session.query(TaskInstanceHistory).count() == 2
@@ -226,7 +226,7 @@ class TestClearTasks:
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-        clear_task_instances(qry, session, dag=dag)
+        clear_task_instances(tis=qry, session=session, dag=dag)
         session.flush()
 
         session.refresh(dr)
@@ -277,7 +277,7 @@ class TestClearTasks:
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-        clear_task_instances(qry, session, dag=dag)
+        clear_task_instances(tis=qry, session=session, dag=dag)
         session.flush()
 
         session.refresh(dr)
@@ -328,7 +328,7 @@ class TestClearTasks:
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-            clear_task_instances(qry, session, dag=dag)
+            clear_task_instances(tis=qry, session=session, dag=dag)
 
         # When no task is found, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
@@ -376,7 +376,7 @@ class TestClearTasks:
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-            clear_task_instances(qry, session)
+            clear_task_instances(tis=qry, session=session, dag=dag)
 
         # When no DAG is found, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
@@ -426,7 +426,7 @@ class TestClearTasks:
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-        clear_task_instances(qry, session)
+        clear_task_instances(tis=qry, session=session, dag=dag)
 
         ti0.refresh_from_db(session=session)
         ti1.refresh_from_db(session=session)
@@ -486,7 +486,7 @@ class TestClearTasks:
         ti1.run(session=session)
 
         qry = session.query(TI).filter(TI.dag_id.in_((dag0.dag_id, dag1.dag_id))).all()
-        clear_task_instances(qry, session, dag=dag0)
+        clear_task_instances(tis=qry, session=session, dag=dag0)
 
         ti0.refresh_from_db(session=session)
         ti1.refresh_from_db(session=session)
@@ -545,7 +545,7 @@ class TestClearTasks:
                 .order_by(TI.task_id)
                 .all()
             )
-            clear_task_instances(qry, session, dag=dag)
+            clear_task_instances(tis=qry, session=session, dag=dag)
             assert count_task_reschedule(ti0) == 0
             assert count_task_reschedule(ti1) == 1
 
@@ -586,7 +586,7 @@ class TestClearTasks:
         session = dag_maker.session
         session.flush()
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-        clear_task_instances(qry, session, dag=dag)
+        clear_task_instances(tis=qry, session=session, dag=dag)
         session.flush()
 
         session.refresh(dr)

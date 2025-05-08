@@ -1524,8 +1524,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if do_it:
             clear_task_instances(
-                list(tis),
-                session,
+                tis=list(tis),
+                session=session,
                 dag=self,
                 dag_run_state=dag_run_state,
             )
