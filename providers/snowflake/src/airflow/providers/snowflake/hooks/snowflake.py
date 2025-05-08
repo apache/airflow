@@ -189,8 +189,10 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
-    def _get_account_identifier(self, conn_config: dict) -> str:
+    @property
+    def account_identifier(self) -> str:
         """Get snowflake account identifier."""
+        conn_config = self._get_conn_params
         account_identifier = f"https://{conn_config['account']}"
 
         if conn_config["region"]:
@@ -203,8 +205,7 @@ class SnowflakeHook(DbApiHook):
         if conn_config is None:
             conn_config = self._get_conn_params
 
-        account_identifier = self._get_account_identifier(conn_config=conn_config)
-        url = f"{account_identifier}.snowflakecomputing.com/oauth/token-request"
+        url = f"{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
 
         data = {
             "grant_type": "refresh_token",
