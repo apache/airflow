@@ -449,3 +449,28 @@ class TestTaskInstancesLog:
 
             assert response.status_code == expected_status
             assert response.json() == expected_response
+
+    @pytest.mark.parametrize("try_number", [1, 2])
+    def test_log_fetched_from_ti_history_when_try_number_differs(self, try_number, session):
+        key = self.app.state.secret_key
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": False})
+
+        mock_ti = mock.Mock()
+        # Simulates a mismatch between the current TaskInstance's try_number (=3)
+        # and the requested try_number (1 or 2). The log should be fetched from TaskInstanceHistory.
+        mock_ti.try_number = 3
+        mock_ti_history = mock.Mock()
+
+        with mock.patch.object(session, "scalar", side_effect=[mock_ti, mock_ti_history]) as _:
+            response = self.client.get(
+                f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
+                params={"token": token},
+                headers={"Accept": "application/json"},
+            )
+
+            assert response.status_code == 200
+
+            log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
+            resp_content = response.content.decode("utf-8")
+            assert log_content in resp_content
