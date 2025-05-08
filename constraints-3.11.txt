@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-08T06:18:00.481906
+# This constraints file was automatically generated on 2025-05-08T12:55:31.184891
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -126,7 +126,8 @@ apache-airflow-providers-cncf-kubernetes==10.4.3
 apache-airflow-providers-cohere==1.4.3
 apache-airflow-providers-common-compat==1.6.1
 apache-airflow-providers-common-io==1.5.4
-apache-airflow-providers-common-sql==1.26.0
+apache-airflow-providers-common-messaging==1.0.1
+apache-airflow-providers-common-sql==1.27.0
 apache-airflow-providers-databricks==7.3.2
 apache-airflow-providers-datadog==3.8.3
 apache-airflow-providers-dbt-cloud==4.3.3
@@ -617,7 +618,7 @@ pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.14.0
-pytest-rerunfailures==15.0
+pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
 pytest-xdist==3.6.1

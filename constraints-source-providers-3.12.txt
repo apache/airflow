@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-08T06:07:37.383026
+# This constraints file was automatically generated on 2025-05-08T12:45:07.085917
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -500,7 +500,7 @@ pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.14.0
-pytest-rerunfailures==15.0
+pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
 pytest-xdist==3.6.1
