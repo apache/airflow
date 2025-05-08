@@ -177,7 +177,30 @@ class EdgeExecutor(BaseExecutor):
             .with_for_update(skip_locked=True)
             .filter(
                 EdgeWorkerModel.state.not_in(
-                    [EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE, EdgeWorkerState.OFFLINE_MAINTENANCE]
+                    [
+                        EdgeWorkerState.UNKNOWN,
+                        EdgeWorkerState.OFFLINE,
+                        EdgeWorkerState.OFFLINE_MAINTENANCE,
+                        EdgeWorkerState.MAINTENANCE_MODE,
+                        EdgeWorkerState.MAINTENANCE_PENDING,
+                        EdgeWorkerState.MAINTENANCE_REQUEST,
+                    ]
+                ),
+                EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
+            )
+            .all()
+        )
+
+        lifeless_workers_maintenance: list[EdgeWorkerModel] = (
+            session.query(EdgeWorkerModel)
+            .with_for_update(skip_locked=True)
+            .filter(
+                EdgeWorkerModel.state.in_(
+                    [
+                        EdgeWorkerState.MAINTENANCE_MODE,
+                        EdgeWorkerState.MAINTENANCE_PENDING,
+                        EdgeWorkerState.MAINTENANCE_REQUEST,
+                    ]
                 ),
                 EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
             )
@@ -187,6 +210,11 @@ class EdgeExecutor(BaseExecutor):
         for worker in lifeless_workers:
             changed = True
             worker.state = EdgeWorkerState.UNKNOWN
+            reset_metrics(worker.worker_name)
+
+        for worker in lifeless_workers_maintenance:
+            changed = True
+            worker.state = EdgeWorkerState.OFFLINE_MAINTENANCE
             reset_metrics(worker.worker_name)
 
         return changed
