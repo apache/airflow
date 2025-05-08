@@ -97,27 +97,25 @@ class ConsumeFromTopicOperator(BaseOperator):
         self.apply_function_kwargs = apply_function_kwargs or {}
         self.kafka_config_id = kafka_config_id
         self.commit_cadence = commit_cadence
-        self.max_messages = max_messages or True
+        self.max_messages = max_messages
         self.max_batch_size = max_batch_size
         self.poll_timeout = poll_timeout
 
-        if self.max_messages is True:
-            self.read_to_end = True
-        else:
-            self.read_to_end = False
+        self.read_to_end = self.max_messages is None
 
         if self.commit_cadence not in VALID_COMMIT_CADENCE:
             raise AirflowException(
                 f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got {self.commit_cadence}"
             )
 
-        if self.max_messages and self.max_batch_size > self.max_messages:
+        if self.max_messages is not None and self.max_batch_size > self.max_messages:
             self.log.warning(
                 "max_batch_size (%s) > max_messages (%s). Setting max_messages to %s ",
                 self.max_batch_size,
                 self.max_messages,
                 self.max_batch_size,
             )
+            self.max_messages = self.max_batch_size
 
         if self.commit_cadence == "never":
             self.commit_cadence = None
@@ -150,7 +148,7 @@ class ConsumeFromTopicOperator(BaseOperator):
                 **self.apply_function_kwargs,
             )
 
-        messages_left = self.max_messages
+        messages_left = self.max_messages or True
 
         while self.read_to_end or (
             messages_left > 0

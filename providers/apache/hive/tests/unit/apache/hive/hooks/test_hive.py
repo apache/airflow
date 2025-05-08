@@ -23,6 +23,7 @@ from collections import namedtuple
 from unittest import mock
 
 import pandas as pd
+import polars as pl
 import pytest
 from hmsclient import HMSClient
 
@@ -737,8 +738,10 @@ class TestHiveServer2Hook:
         assert len(df) == 2
         if df_type == "pandas":
             assert df["hive_server_hook.a"].values.tolist() == [1, 2]
+            assert isinstance(df, pd.DataFrame)
         elif df_type == "polars":
             assert df["hive_server_hook.a"].to_list() == [1, 2]
+            assert isinstance(df, pl.DataFrame)
         date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")

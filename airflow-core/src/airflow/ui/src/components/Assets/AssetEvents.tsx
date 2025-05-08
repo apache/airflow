@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Heading, Flex, HStack, Skeleton } from "@chakra-ui/react";
+import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { FiDatabase } from "react-icons/fi";
 
@@ -54,7 +55,8 @@ export const AssetEvents = ({
   setTableUrlState,
   tableUrlState,
   title,
-}: AssetEventProps) => {
+  ...rest
+}: AssetEventProps & BoxProps) => {
   const assetSortOptions = createListCollection({
     items: [
       { label: "Newest first", value: "-timestamp" },
@@ -63,7 +65,7 @@ export const AssetEvents = ({
   });
 
   return (
-    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2}>
+    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2} {...rest}>
       <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
         <HStack>
           <StateBadge colorPalette="blue" fontSize="md" variant="solid">

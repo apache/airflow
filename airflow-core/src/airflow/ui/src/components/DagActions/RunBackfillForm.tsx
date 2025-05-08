@@ -96,7 +96,10 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
 
   useEffect(() => {
     if (conf) {
-      reset({ conf });
+      reset((prevValues) => ({
+        ...prevValues,
+        conf,
+      }));
     }
   }, [conf, reset]);
 

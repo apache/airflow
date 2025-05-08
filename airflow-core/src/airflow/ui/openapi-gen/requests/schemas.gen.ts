@@ -342,6 +342,16 @@ export const $AssetResponse = {
       type: "array",
       title: "Aliases",
     },
+    last_asset_event: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/LastAssetEventResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -2505,9 +2515,13 @@ export const $DAGSourceResponse = {
       ],
       title: "Version Number",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["content", "dag_id", "version_number"],
+  required: ["content", "dag_id", "version_number", "dag_display_name"],
   title: "DAGSourceResponse",
   description: "DAG Source serializer for responses.",
 } as const;
@@ -3063,6 +3077,17 @@ export const $EventLogResponse = {
       ],
       title: "Extra",
     },
+    dag_display_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -3410,6 +3435,17 @@ export const $JobResponse = {
       ],
       title: "Unixname",
     },
+    dag_display_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -3429,6 +3465,38 @@ export const $JobResponse = {
 } as const;
 
 export const $JsonValue = {} as const;
+
+export const $LastAssetEventResponse = {
+  properties: {
+    id: {
+      anyOf: [
+        {
+          type: "integer",
+          minimum: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Id",
+    },
+    timestamp: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  title: "LastAssetEventResponse",
+  description: "Last asset event response serializer.",
+} as const;
 
 export const $PatchTaskInstanceBody = {
   properties: {
@@ -5649,9 +5717,22 @@ export const $XComResponse = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+  ],
   title: "XComResponse",
   description: "Serializer for a xcom item.",
 } as const;
@@ -5695,12 +5776,26 @@ export const $XComResponseNative = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     value: {
       title: "Value",
     },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+    "value",
+  ],
   title: "XComResponseNative",
   description: "XCom response serializer with native return type.",
 } as const;
@@ -5744,6 +5839,10 @@ export const $XComResponseString = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     value: {
       anyOf: [
         {
@@ -5757,7 +5856,17 @@ export const $XComResponseString = {
     },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+    "value",
+  ],
   title: "XComResponseString",
   description: "XCom response serializer with string return type.",
 } as const;
