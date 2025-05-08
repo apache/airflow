@@ -34,6 +34,7 @@ import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
 
 type TriggerDAGFormProps = {
+  readonly dagDisplayName: string;
   readonly dagId: string;
   readonly isPaused: boolean;
   readonly onClose: () => void;
@@ -47,7 +48,7 @@ export type DagRunTriggerParams = {
   note: string;
 };
 
-const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
+const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
@@ -70,7 +71,10 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
   // Automatically reset form when conf is fetched
   useEffect(() => {
     if (conf) {
-      reset({ conf });
+      reset((prevValues) => ({
+        ...prevValues,
+        conf,
+      }));
     }
   }, [conf, reset]);
 
@@ -146,7 +150,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
       </ConfigForm>
       {isPaused ? (
         <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
-          Unpause {dagId} on trigger
+          Unpause {dagDisplayName} on trigger
         </Checkbox>
       ) : undefined}
       <ErrorAlert error={errors.date ?? errorTrigger} />
