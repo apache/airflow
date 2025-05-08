@@ -53,6 +53,9 @@ Misc
 * ``Amazon EMR Sensors/Operators inherit AWS Base Classes (#49486)``
 * ``Introduce lower bind to lxml as 5.4.0 (#49612)``
 * ``Remove Marshmallow from Core (#49388)``
+* ``Migrate 'HiveToDynamoDBOperator' and 'SqlToS3Operator' to use 'get_df' (#50126)``
+* ``add root parent information to OpenLineage events (#49237)``
+* ``Remove limits for aiobotocore limiting boto3 (#50285)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -73,6 +76,8 @@ Misc
    * ``capitalize the term airflow (#49450)``
    * ``Use Label class from task sdk in providers (#49398)``
    * ``Add Stop AutoML Job to the Sagemaker system test to clean up. (#49325)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Prepare ad hoc release for providers May 2025 (#50166)``
 
 9.6.1
 .....
