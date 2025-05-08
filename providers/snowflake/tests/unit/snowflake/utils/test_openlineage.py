@@ -317,6 +317,7 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
     query_ids = ["query1", "query2", "query3"]
     original_query_ids = copy.deepcopy(query_ids)
     logical_date = timezone.datetime(2025, 1, 1)
+    mock_dagrun = mock.MagicMock(logical_date=logical_date, clear_number=0)
     mock_ti = mock.MagicMock(
         dag_id="dag_id",
         task_id="task_id",
@@ -324,9 +325,9 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
         try_number=1,
         logical_date=logical_date,
         state=TaskInstanceState.FAILED,  # This will be query default state if no metadata found
-        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
+        dag_run=mock_dagrun,
     )
-    mock_ti.get_template_context.return_value = {"dag_run": mock.MagicMock(logical_date=logical_date)}
+    mock_ti.get_template_context.return_value = {"dag_run": mock_dagrun}
 
     fake_metadata = {
         "query1": {
