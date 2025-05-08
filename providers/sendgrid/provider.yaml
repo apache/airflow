@@ -21,7 +21,7 @@ name: Sendgrid
 description: |
     `Sendgrid <https://sendgrid.com/>`__
 
-state: not-ready  # change to ready when https://github.com/sendgrid/sendgrid-python/pull/1098 is fixed
+state: ready
 source-date-epoch: 1743477884
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
