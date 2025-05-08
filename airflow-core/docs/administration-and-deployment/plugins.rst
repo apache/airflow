@@ -20,6 +20,10 @@
 Plugins
 ========
 
+.. warning::
+
+    As of Airflow version 3.0.0, support for user-defined macros is pending.
+
 Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
