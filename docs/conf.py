@@ -304,7 +304,7 @@ html_theme = "sphinx_airflow_theme"
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
 if PACKAGE_NAME == "apache-airflow":
-    html_title = "Airflow Documentation"
+    html_title = f"Airflow {PACKAGE_VERSION} Documentation"
 else:
     html_title = f"{PACKAGE_NAME} Documentation"
 # A shorter title for the navigation bar.  Default is the same as html_title.
