@@ -22,7 +22,7 @@ Plugins
 
 .. warning::
 
-    As of Airflow version 3.0.0, support for user-defined macros is pending.
+    As part of Airflow 3.0.0 development, support for user-defined macros is pending. This will be added soon in one of the 3.0.0 patch version or 3.1
 
 Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
