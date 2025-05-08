@@ -108,7 +108,7 @@ from airflow.sdk.execution_time.task_runner import (
     finalize,
     parse,
     run,
-    startup,
+    startup, get_log_url_from_ti,
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils import timezone
@@ -208,6 +208,8 @@ def test_parse(test_dags_dir: Path, make_ti_context):
         },
     ):
         ti = parse(what, mock.Mock())
+        assert ti is not None
+        assert ti.log_url == get_log_url_from_ti(ti)
 
     assert ti.task
     assert ti.task.dag
