@@ -143,6 +143,24 @@ class TestWorkerApiRoutes:
                 EdgeWorkerState.MAINTENANCE_REQUEST,
                 id="maintenance_starting",
             ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_MODE,
+                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                id="maintenance_crash",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_PENDING,
+                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                id="maintenance_crash_2",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                id="maintenance_crash_3",
+            ),
         ],
     )
     def test_redefine_state(
