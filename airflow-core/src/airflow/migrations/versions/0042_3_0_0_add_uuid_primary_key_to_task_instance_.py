@@ -223,7 +223,9 @@ def upgrade():
                     """
                 ).bindparams(batch_size=batch_size)
             )
-            row_count = result.rowcount
+            row_count = 0
+            if result:
+                row_count = result.rowcount
             if row_count == 0:
                 break
             print(f"Migrated {row_count} task_instance rows in this batch...")
