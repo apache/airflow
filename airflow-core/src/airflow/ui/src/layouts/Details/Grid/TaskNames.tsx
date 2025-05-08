@@ -49,12 +49,12 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 
 export const TaskNames = ({ nodes }: Props) => {
   const { toggleGroupId } = useOpenGroups();
-  const { dagId = "", taskId } = useParams();
+  const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
   return nodes.map((node) => (
     <Box
-      bg={node.id === taskId ? "blue.muted" : undefined}
+      bg={node.id === taskId || node.id === groupId ? "blue.muted" : undefined}
       borderBottomWidth={1}
       borderColor={node.isGroup ? "border.emphasized" : "border.muted"}
       id={node.id.replaceAll(".", "-")}
