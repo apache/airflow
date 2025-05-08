@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.models.dag import DagModel
@@ -29,6 +31,7 @@ from tests.test_utils.db import clear_db_dags
 class TestStaleDagCleanup:
     """Test that stale DAGs get deactivated based on raw dag_directory path"""
 
+    @pytest.mark.db_test
     def test_deactivate_stale_dags(self):
         threshold = conf.getint("scheduler", "stale_dag_threshold")
         now = timezone.utcnow()
