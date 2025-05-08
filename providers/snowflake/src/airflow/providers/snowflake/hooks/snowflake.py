@@ -205,7 +205,7 @@ class SnowflakeHook(DbApiHook):
         if conn_config is None:
             conn_config = self._get_conn_params
 
-        url = f"{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+        url = f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
 
         data = {
             "grant_type": "refresh_token",
