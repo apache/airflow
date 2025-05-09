@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,16 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""Re exporting the new notifier module from Task SDK for backward compatibility."""
+"""Airflow Notifiers."""
 
 from __future__ import annotations
 
-from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
-    "base": {
+    "basenotifier": {
         "BaseNotifier": "airflow.sdk.bases.notifier.BaseNotifier",
     },
 }
