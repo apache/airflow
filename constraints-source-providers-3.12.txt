@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-08T19:49:04.691332
+# This constraints file was automatically generated on 2025-05-09T02:24:45.384993
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -234,8 +234,8 @@ google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
 google-cloud-container==2.56.1
 google-cloud-core==2.4.3
-google-cloud-datacatalog==3.27.0
-google-cloud-dataflow-client==0.8.17
+google-cloud-datacatalog==3.27.1
+google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.1
 google-cloud-dataplex==2.10.1
 google-cloud-dataproc-metastore==1.18.2
@@ -244,7 +244,7 @@ google-cloud-dlp==3.29.0
 google-cloud-kms==3.4.1
 google-cloud-language==2.17.1
 google-cloud-logging==3.12.1
-google-cloud-managedkafka==0.1.9
+google-cloud-managedkafka==0.1.10
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
 google-cloud-orchestration-airflow==1.17.5
@@ -259,7 +259,7 @@ google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.2
-google-cloud-texttospeech==2.26.0
+google-cloud-texttospeech==2.27.0
 google-cloud-translate==3.20.2
 google-cloud-videointelligence==2.16.1
 google-cloud-vision==3.10.1
