@@ -21,7 +21,7 @@ HTTP to Google Cloud Storage Transfer Operator
 
 Google has a service `Google Cloud Storage <https://cloud.google.com/storage/>`__. This service is
 used to store large data from various applications.
-HTTP (Hyper Text Transfer Protocol) HTTP is an application layer protocol
+HTTP (Hypertext Transfer Protocol) HTTP is an application layer protocol
 designed to transfer information between networked devices
 and runs on top of other layers of the network protocol stack.
 
