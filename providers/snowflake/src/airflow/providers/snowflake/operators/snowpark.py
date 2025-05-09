@@ -121,7 +121,7 @@ class SnowparkOperator(PythonOperator):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.sdk import get_current_context
         else:
-            from airflow.providers.standard.utils import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
         context = get_current_context()
         session.update_query_tag(
