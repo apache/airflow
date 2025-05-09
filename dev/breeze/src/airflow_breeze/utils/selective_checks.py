@@ -100,6 +100,7 @@ class FileGroupForCi(Enum):
     ALWAYS_TESTS_FILES = "always_test_files"
     API_FILES = "api_files"
     GIT_PROVIDER_FILES = "git_provider_files"
+    STANDARD_PROVIDER_FILES = "standard_provider_files"
     API_CODEGEN_FILES = "api_codegen_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
@@ -169,6 +170,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.GIT_PROVIDER_FILES: [
             r"^providers/git/src/",
+        ],
+        FileGroupForCi.STANDARD_PROVIDER_FILES: [
+            r"^providers/standard/src/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*generated\.yaml",
@@ -540,6 +544,16 @@ class SelectiveChecks:
             # TODO(potiuk): remove me when we get rid of the dependency
             get_console().print(
                 "[warning]Running full set of tests because git provider files changed "
+                "and for now we have core tests depending on them.[/]"
+            )
+            return True
+        if self._matching_files(
+            FileGroupForCi.STANDARD_PROVIDER_FILES,
+            CI_FILE_GROUP_MATCHES,
+        ):
+            # TODO(potiuk): remove me when we get rid of the dependency
+            get_console().print(
+                "[warning]Running full set of tests because standard provider files changed "
                 "and for now we have core tests depending on them.[/]"
             )
             return True
