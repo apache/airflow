@@ -30,7 +30,6 @@ from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSk
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
@@ -1798,12 +1797,16 @@ def dag_bag_multiple(session):
             dag=agg_dag,
         )
         begin >> task
-    bundle_name = "abcbunhdlerch3rc"
-    session.merge(DagBundleModel(name=bundle_name))
-    session.commit()
-    DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[daily_dag, agg_dag], bundle_version=None)
-    SerializedDagModel.write_dag(dag=daily_dag, bundle_name=bundle_name)
-    SerializedDagModel.write_dag(dag=agg_dag, bundle_name=bundle_name)
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+
+        bundle_name = "abcbunhdlerch3rc"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+        DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[daily_dag, agg_dag], bundle_version=None)
+        SerializedDagModel.write_dag(dag=daily_dag, bundle_name=bundle_name)
+        SerializedDagModel.write_dag(dag=agg_dag, bundle_name=bundle_name)
 
     return dag_bag
 
@@ -1861,14 +1864,16 @@ def dag_bag_head_tail(session):
         head >> body >> tail
 
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+
         dag_bag.bag_dag(dag=dag)
+        bundle_name = "9e8uh9odhu9c"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+        DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[dag], bundle_version=None)
+        SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)
     else:
         dag_bag.bag_dag(dag=dag, root_dag=dag)
-    bundle_name = "9e8uh9odhu9c"
-    session.merge(DagBundleModel(name=bundle_name))
-    session.commit()
-    DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[dag], bundle_version=None)
-    SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)
 
     return dag_bag
 
