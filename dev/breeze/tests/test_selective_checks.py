@@ -731,7 +731,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord http",
+                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord http google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1960,7 +1960,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
+                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
@@ -1975,7 +1975,7 @@ def test_expected_output_push(
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
-                            "hashicorp,microsoft.azure,microsoft.mssql,mysql,"
+                            "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
                             "Providers[google]",
                         }
