@@ -1618,6 +1618,26 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         execute_callable = getattr(self, next_method)
         return execute_callable(context, **next_kwargs)
 
+    def next_callable(
+        self, next_method: str, next_kwargs: dict[str, Any] | None = None
+    ) -> Callable[..., Any]:
+        """Get the next callable from given operator."""
+        from airflow.exceptions import TaskDeferralError
+
+        # __fail__ is a special signal value for next_method that indicates
+        # this task was scheduled specifically to fail.
+        if next_method == "__fail__":
+            next_kwargs = next_kwargs or {}
+            traceback = next_kwargs.get("traceback")
+            if traceback is not None:
+                self.log.error("Trigger failed:\n%s", "\n".join(traceback))
+            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+        # Grab the callable off the Operator/Task and add in any kwargs
+        execute_callable = getattr(self, next_method)
+        if next_kwargs:
+            execute_callable = partial(execute_callable, **next_kwargs)
+        return execute_callable
+
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
     r"""
@@ -1854,9 +1874,9 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     E.g.: suppose you want precedence like so::
 
-            ╭─op2─╮ ╭─op4─╮
-        op1─┤     ├─├─op5─┤─op7
-            ╰-op3─╯ ╰-op6─╯
+            ╭�"�op2�"�╮ ╭�"�op4�"�╮
+        op1�"��"�     �"��"��"��"�op5�"��"��"�op7
+            ╰-op3�"�╯ ╰-op6�"�╯
 
     Then you can accomplish like so::
 
