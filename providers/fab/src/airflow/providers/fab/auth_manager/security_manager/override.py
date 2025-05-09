@@ -99,12 +99,12 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
 from airflow.providers.fab.www.security import permissions
+from airflow.providers.fab.www.security.permissions import RESOURCE_BACKFILL
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import (
     AirflowDatabaseSessionInterface,
     AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
 )
-from airflow.security.permissions import RESOURCE_BACKFILL
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
@@ -112,7 +112,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET_ALIAS,
     )
 else:
-    from airflow.providers.common.compat.security.permissions import (
+    from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )

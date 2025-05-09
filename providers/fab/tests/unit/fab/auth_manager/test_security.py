@@ -37,6 +37,7 @@ from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from tests_common.test_utils.config import conf_vars
+from unit.fab.auth_manager.utils import _resource_name
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
@@ -51,7 +52,6 @@ from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.mock_security_manager import MockSecurityManager
-from tests_common.test_utils.permissions import _resource_name
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     create_user_scope,
@@ -67,7 +67,7 @@ if TYPE_CHECKING:
         RESOURCE_BACKFILL,
     )
 else:
-    from airflow.providers.common.compat.security.permissions import (
+    from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
         RESOURCE_BACKFILL,

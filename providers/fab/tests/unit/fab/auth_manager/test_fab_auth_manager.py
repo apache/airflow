@@ -47,18 +47,16 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
-from airflow.providers.common.compat.security.permissions import (
-    RESOURCE_ASSET,
-    RESOURCE_ASSET_ALIAS,
-    RESOURCE_BACKFILL,
-)
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
     ACTION_CAN_DELETE,
     ACTION_CAN_EDIT,
     ACTION_CAN_READ,
+    RESOURCE_ASSET,
+    RESOURCE_ASSET_ALIAS,
     RESOURCE_AUDIT_LOG,
+    RESOURCE_BACKFILL,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,

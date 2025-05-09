@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 
 def _resource_name(dag_id: str, resource_name: str) -> str:
