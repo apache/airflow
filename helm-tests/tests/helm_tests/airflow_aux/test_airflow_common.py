@@ -102,7 +102,15 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
-    def test_webserver_config_configmap_name_volume_mounts(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"celery": {"kerberosSidecar": {"enabled": True}}},
+            {"kerberosSidecar": {"enabled": False}, "celery": {"kerberosSidecar": {"enabled": True}}},
+        ],
+    )
+    def test_webserver_config_configmap_name_volume_mounts(self, workers_values):
         configmap_name = "my-configmap"
         docs = render_chart(
             values={
@@ -110,7 +118,7 @@ class TestAirflowCommon:
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": configmap_name,
                 },
-                "workers": {"kerberosSidecar": {"enabled": True}},
+                "workers": workers_values,
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -407,7 +415,18 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
 
-    def test_priority_class_name(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"priorityClassName": "low-priority-worker"},
+            {"celery": {"priorityClassName": "low-priority-worker"}},
+            {
+                "priorityClassName": "high-priority-worker",
+                "celery": {"priorityClassName": "low-priority-worker"},
+            },
+        ],
+    )
+    def test_priority_class_name(self, workers_values):
         docs = render_chart(
             values={
                 "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
@@ -417,7 +436,7 @@ class TestAirflowCommon:
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
                 "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
                 "webserver": {"priorityClassName": "low-priority-webserver"},
-                "workers": {"priorityClassName": "low-priority-worker"},
+                "workers": workers_values,
                 "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
                 "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},
                 "createUserJob": {"priorityClassName": "low-priority-create-user-job"},

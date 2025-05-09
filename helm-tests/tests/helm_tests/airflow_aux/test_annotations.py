@@ -393,6 +393,39 @@ class TestServiceAccountAnnotations:
         ),
         (
             {
+                "workers": {
+                    "celery": {
+                        "podAnnotations": {
+                            "example": "worker",
+                        },
+                    },
+                },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "worker",
+            },
+        ),
+        (
+            {
+                "workers": {
+                    "podAnnotations": {
+                        "example": "missing",
+                    },
+                    "celery": {
+                        "podAnnotations": {
+                            "example": "worker",
+                        },
+                    },
+                },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "worker",
+            },
+        ),
+        (
+            {
                 "flower": {
                     "enabled": True,
                     "podAnnotations": {
