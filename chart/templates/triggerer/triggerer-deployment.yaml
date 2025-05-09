@@ -163,7 +163,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Chart" .Chart "Release" .Release) | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.extraInitContainers }}
           {{- tpl (toYaml .Values.triggerer.extraInitContainers) . | nindent 8 }}

@@ -8978,6 +8978,33 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "gitConfig": {
+                            "description": "List of Git config options to apply before starting git-sync. Each item must have `name` and `value`.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
+                            },
+                            "examples": [
+                                {
+                                    "name": "http.sslVerify",
+                                    "value": "false"
+                                }
+                            ]
                         }
                     }
                 }

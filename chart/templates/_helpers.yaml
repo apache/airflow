@@ -308,6 +308,15 @@ If release name contains chart name it will be used as a full name.
     {{- with .Values.dags.gitSync.env }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+  {{- if .Values.dags.gitSync.gitConfig }}
+  command: ["/bin/sh", "-c"]
+  args:
+    - |
+      {{- range .Values.dags.gitSync.gitConfig }}
+      git config --global {{ .name }} {{ .value }} &&
+      {{- end }}
+      exec /git-sync
+  {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
   volumeMounts:
   - name: dags
