@@ -644,7 +644,6 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         run_conf=run_conf,
         use_executor=use_executor,
         mark_success_pattern=mark_success_pattern,
-        session=session,
     )
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun

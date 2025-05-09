@@ -27,8 +27,9 @@ import selectors
 import signal
 import sys
 import time
+from collections import deque
 from collections.abc import Generator
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
@@ -42,6 +43,7 @@ from typing import (
 )
 from uuid import UUID
 
+import aiologic
 import attrs
 import httpx
 import msgspec
@@ -837,6 +839,15 @@ class ActivitySubprocess(WatchedSubprocess):
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
+        self.update_task_state_if_needed()
+
+        # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
+        # upload the remote logs
+        self._upload_logs()
+
+        return self._exit_code
+
+    def update_task_state_if_needed(self):
         # If the process has finished non-directly patched state (directly means deferred, reschedule, etc.),
         # update the state of the TaskInstance to reflect the final state of the process.
         # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
@@ -848,12 +859,6 @@ class ActivitySubprocess(WatchedSubprocess):
                 when=datetime.now(tz=timezone.utc),
                 rendered_map_index=self._rendered_map_index,
             )
-
-        # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
-        # upload the remote logs
-        self._upload_logs()
-
-        return self._exit_code
 
     def _upload_logs(self):
         """
@@ -1153,6 +1158,183 @@ class ActivitySubprocess(WatchedSubprocess):
 
         if resp:
             self.send_msg(resp, **dump_opts)
+
+
+def in_process_api_server():
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+    return api
+
+
+@attrs.define
+class InProcessSupervisorComms:
+    """In-process communication handler that uses deques instead of sockets."""
+
+    supervisor: InProcessTestSupervisor
+    messages: deque[BaseModel] = attrs.field(factory=deque)
+    lock: aiologic.Lock = attrs.field(factory=aiologic.Lock)
+
+    def get_message(self) -> BaseModel:
+        """Get a message from the supervisor. Blocks until a message is available."""
+        return self.messages.popleft()
+
+    def send_request(self, log, msg: BaseModel):
+        """Send a request to the supervisor."""
+        log.debug("Sending request", msg=msg)
+
+        with set_supervisor_comms(None):
+            self.supervisor._handle_request(msg, log)  # type: ignore[arg-type]
+
+
+@attrs.define
+class TaskRunResult:
+    """Result of running a task via ``InProcessTestSupervisor``."""
+
+    ti: RuntimeTI
+    state: str
+    msg: BaseModel | None
+    error: BaseException | None
+
+
+@attrs.define(kw_only=True)
+class InProcessTestSupervisor(ActivitySubprocess):
+    """A supervisor that runs tasks in-process for easier testing."""
+
+    comms: InProcessSupervisorComms = attrs.field(init=False)
+    stdin = attrs.field(init=False)
+
+    @classmethod
+    def start(  # type: ignore[override]
+        cls,
+        *,
+        what: TaskInstance,
+        task,
+        logger: FilteringBoundLogger | None = None,
+        **kwargs,
+    ) -> TaskRunResult:
+        """
+        Run a task in-process without spawning a new child process.
+
+        This bypasses the standard `ActivitySubprocess.start()` behavior, which expects
+        to launch a subprocess and communicate via stdin/stdout. Instead, it constructs
+        the `RuntimeTaskInstance` directly — useful in contexts like `dag.test()` where the
+        DAG is already parsed in memory.
+
+        Supervisor state and communications are simulated in-memory via `InProcessSupervisorComms`.
+        """
+        # Create supervisor instance
+        supervisor = cls(
+            id=what.id,
+            pid=os.getpid(),  # Use current process
+            process=psutil.Process(),  # Current process
+            requests_fd=-1,  # Not used in in-process mode
+            process_log=logger or structlog.get_logger(logger_name="task").bind(),
+            client=cls._api_client(task.dag),
+            **kwargs,
+        )
+
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
+
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        with set_supervisor_comms(supervisor.comms):
+            supervisor.ti = what  # type: ignore[assignment]
+
+            # We avoid calling `task_runner.startup()` because we are already inside a
+            # parsed DAG file (e.g. via dag.test()).
+            # In normal execution, `startup()` parses the DAG based on info in a `StartupDetails` message.
+            # By directly constructing the `RuntimeTaskInstance`,
+            #   we skip re-parsing (`task_runner.parse()`) and avoid needing to set DAG Bundle config
+            #   and run the task in-process.
+            start_date = datetime.now(tz=timezone.utc)
+            ti_context = supervisor.client.task_instances.start(supervisor.id, supervisor.pid, start_date)
+
+            ti = RuntimeTaskInstance.model_construct(
+                **what.model_dump(exclude_unset=True),
+                task=task,
+                _ti_context_from_server=ti_context,
+                max_tries=ti_context.max_tries,
+                start_date=start_date,
+                state=TaskInstanceState.RUNNING,
+            )
+            context = ti.get_template_context()
+            log = structlog.get_logger(logger_name="task")
+
+            state, msg, error = run(ti, context, log)
+            finalize(ti, state, context, log, error)
+
+            # In the normal subprocess model, the task runner calls this before exiting.
+            # Since we're running in-process, we manually notify the API server that
+            # the task has finished—unless the terminal state was already sent explicitly.
+            supervisor.update_task_state_if_needed()
+
+        return TaskRunResult(ti=ti, state=state, msg=msg, error=error)
+
+    @staticmethod
+    def _api_client(dag=None):
+        from airflow.models.dagbag import DagBag
+        from airflow.sdk.api.client import Client
+
+        api = in_process_api_server()
+        if dag is not None:
+            from airflow.api_fastapi.common.deps import _get_dag_bag
+            from airflow.serialization.serialized_objects import SerializedDAG
+
+            # This is needed since the Execution API server uses the DagBag in its "state".
+            # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
+            dag_bag = DagBag(include_examples=False, collect_dags=False, load_op_links=False)
+
+            # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
+            dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+            api.app.dependency_overrides[_get_dag_bag] = lambda: dag_bag
+
+        client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
+    def send_msg(self, msg: BaseModel, **dump_opts):
+        """Override to use in-process comms."""
+        self.comms.messages.append(msg)
+
+    @property
+    def final_state(self):
+        """Override to use in-process comms."""
+        # Since we're running in-process, we don't have a final state until the task has finished.
+        # We also don't have a process exit code to determine success/failure.
+        return self._terminal_state
+
+
+@contextmanager
+def set_supervisor_comms(temp_comms):
+    """
+    Temporarily override `SUPERVISOR_COMMS` in the `task_runner` module.
+
+    This is used to simulate task-runner ↔ supervisor communication in-process,
+    by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
+    in place of the real inter-process communication layer.
+
+    Some parts of the code (e.g. models.Variable.get) check for the presence
+    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
+    This override ensures those code paths behave correctly during in-process tests.
+    """
+    from airflow.sdk.execution_time import task_runner
+
+    old = getattr(task_runner, "SUPERVISOR_COMMS", None)
+    task_runner.SUPERVISOR_COMMS = temp_comms
+    try:
+        yield
+    finally:
+        if old is not None:
+            task_runner.SUPERVISOR_COMMS = old
+        else:
+            delattr(task_runner, "SUPERVISOR_COMMS")
+
+
+def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
+    """Run a task in-process for testing."""
+    # Run the task
+    return InProcessTestSupervisor.start(what=ti, task=task)
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read

@@ -835,7 +835,7 @@ def run(
                 return state, msg, error
 
             try:
-                result = _execute_task(context, ti, log)
+                result = _execute_task(context=context, ti=ti, log=log)
             except Exception:
                 import jinja2
 
@@ -886,7 +886,7 @@ def run(
         )
         state = TaskInstanceState.FAILED
         error = e
-    except (AirflowTaskTimeout, AirflowException) as e:
+    except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         msg, state = _handle_current_task_failed(ti)

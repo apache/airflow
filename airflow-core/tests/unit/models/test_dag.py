@@ -1031,7 +1031,7 @@ class TestDag:
         assert dag_run.state == State.RUNNING
         assert dag_run.run_type != DagRunType.MANUAL
 
-    @patch("airflow.models.dag.Stats")
+    @patch("airflow.models.dagrun.Stats")
     def test_dag_handle_callback_crash(self, mock_stats):
         """
         Tests avoid crashes from calling dag callbacks exceptions
@@ -1062,8 +1062,8 @@ class TestDag:
             )
 
             # should not raise any exception
-            dag.handle_callback(dag_run, success=False)
-            dag.handle_callback(dag_run, success=True)
+        dag_run.handle_dag_callback(dag=dag, success=False)
+        dag_run.handle_dag_callback(dag=dag, success=True)
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
@@ -1102,8 +1102,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag.handle_callback(dag_run, success=True)
-            dag.handle_callback(dag_run, success=False)
+            dag_run.handle_dag_callback(dag=dag, success=False)
+            dag_run.handle_dag_callback(dag=dag, success=True)
 
     @pytest.mark.parametrize("catchup,expected_next_dagrun", [(True, DEFAULT_DATE), (False, None)])
     def test_next_dagrun_after_fake_scheduled_previous(self, catchup, expected_next_dagrun):
@@ -1507,8 +1507,8 @@ class TestDag:
             mock_handle_object_1(f"task {ti.task_id} failed...")
 
         def handle_dag_failure(context):
-            ti = context["task_instance"]
-            mock_handle_object_2(f"dag {ti.dag_id} run failed...")
+            dag_id = context["dag"].dag_id
+            mock_handle_object_2(f"dag {dag_id} run failed...")
 
         dag = DAG(
             dag_id="test_local_testing_conn_file",
