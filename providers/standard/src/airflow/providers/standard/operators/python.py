@@ -26,6 +26,7 @@ import subprocess
 import sys
 import textwrap
 import types
+import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
@@ -38,6 +39,7 @@ import lazy_object_proxy
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
+    AirflowProviderDeprecationWarning,
     AirflowSkipException,
     DeserializingResultError,
 )
@@ -1113,6 +1115,13 @@ def get_current_context() -> Mapping[str, Any]:
     was starting to execute.
     """
     if AIRFLOW_V_3_0_PLUS:
+        warnings.warn(
+            "Using get_current_context from standard provider is deprecated and will be removed."
+            "Please import `from airflow.sdk import get_current_context` and use it instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         from airflow.sdk import get_current_context
 
         return get_current_context()
