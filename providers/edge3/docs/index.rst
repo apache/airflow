@@ -28,7 +28,11 @@
     Home <self>
     Changelog <changelog>
     Security <security>
-    Installation on Windows <install_on_windows>
+    Why using Edge <why_edge>
+    Architecture <architecture>
+    Edge Worker Deployment <deployment>
+    Edge UI Plugin <ui_plugin>
+    Worker on Windows <install_on_windows>
 
 
 .. toctree::
@@ -47,6 +51,13 @@
     Configuration <configurations-ref>
     CLI <cli-ref>
     Python API <_api/airflow/providers/edge3/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Resources
+
+    Example DAGs <https://github.com/apache/airflow/tree/providers-edge3/|version|/providers/edge3/src/airflow/providers/edge3/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-edge3/>
     Installing from sources <installing-providers-from-sources>
 

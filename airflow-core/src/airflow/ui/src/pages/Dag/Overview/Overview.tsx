@@ -84,7 +84,7 @@ export const Overview = () => {
   });
 
   return (
-    <Box m={4}>
+    <Box m={4} spaceY={4}>
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -96,7 +96,7 @@ export const Overview = () => {
       </Box>
       <HStack flexWrap="wrap">
         <TrendCountButton
-          colorPalette="failed"
+          colorPalette={(failedTasks?.total_entries ?? 0) === 0 ? "green" : "failed"}
           count={failedTasks?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTasks?.task_instances ?? []).map((ti) => ({
@@ -111,7 +111,7 @@ export const Overview = () => {
           startDate={startDate}
         />
         <TrendCountButton
-          colorPalette="failed"
+          colorPalette={(failedRuns?.total_entries ?? 0) === 0 ? "green" : "failed"}
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
           events={(failedRuns?.dag_runs ?? []).map((dr) => ({
@@ -138,6 +138,7 @@ export const Overview = () => {
           <AssetEvents
             data={assetEventsData}
             isLoading={isLoadingAssetEvents}
+            ml={0}
             setOrderBy={setAssetSortBy}
             title="Created Asset Event"
           />

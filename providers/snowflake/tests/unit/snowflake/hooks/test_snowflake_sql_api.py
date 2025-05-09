@@ -368,7 +368,7 @@ class TestSnowflakeSqlApiHook:
         with pytest.warns(expected_warning=AirflowProviderDeprecationWarning):
             hook.get_oauth_token(CONN_PARAMS_OAUTH)
         requests_post.assert_called_once_with(
-            f"https://{CONN_PARAMS_OAUTH['account']}.{CONN_PARAMS_OAUTH['region']}.snowflakecomputing.com/oauth/token-request",
+            f"https://{CONN_PARAMS_OAUTH['account']}.snowflakecomputing.com/oauth/token-request",
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": CONN_PARAMS_OAUTH["refresh_token"],

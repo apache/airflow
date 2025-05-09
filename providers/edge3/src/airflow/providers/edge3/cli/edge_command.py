@@ -473,6 +473,9 @@ class _EdgeWorkerCli:
                 _EdgeWorkerCli.maintenance_comments = worker_info.maintenance_comments
             else:
                 _EdgeWorkerCli.maintenance_comments = None
+            if worker_info.state == EdgeWorkerState.SHUTDOWN_REQUEST:
+                logger.info("Shutdown requested!")
+                _EdgeWorkerCli.drain = True
 
             worker_state_changed = worker_info.state != state
         except EdgeWorkerVersionException:
@@ -712,6 +715,18 @@ def remove_remote_worker(args) -> None:
         raise SystemExit
 
 
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def remote_worker_request_shutdown(args) -> None:
+    """Initiate the shutdown of the remote edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import request_shutdown
+
+    request_shutdown(args.edge_hostname)
+    logger.info("Requested shutdown of Edge Worker host %s by %s.", args.edge_hostname, getuser())
+
+
 ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
@@ -853,6 +868,12 @@ EDGE_COMMANDS: list[ActionCommand] = [
         name="remove-remote-edge-worker",
         help=remove_remote_worker.__doc__,
         func=remove_remote_worker,
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
+    ),
+    ActionCommand(
+        name="shutdown-remote-edge-worker",
+        help=remote_worker_request_shutdown.__doc__,
+        func=remote_worker_request_shutdown,
         args=(ARG_REQUIRED_EDGE_HOSTNAME,),
     ),
 ]
