@@ -57,6 +57,7 @@ from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
+from typing_extensions import Literal
 
 from airflow.exceptions import (
     AirflowException,
@@ -81,6 +82,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
     from google.api_core.page_iterator import HTTPIterator
     from google.api_core.retry import Retry
     from requests import Session
@@ -286,8 +288,39 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dialect: str | None = None,
         **kwargs,
     ) -> pd.DataFrame:
+        if dialect is None:
+            dialect = "legacy" if self.use_legacy_sql else "standard"
+
+        credentials, project_id = self.get_credentials_and_project_id()
+
+        return read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
+
+    def _get_polars_df(self, sql, parameters=None, dialect=None, **kwargs) -> pl.DataFrame:
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Polars is not installed. Please install it with `pip install polars`."
+            )
+
+        if dialect is None:
+            dialect = "legacy" if self.use_legacy_sql else "standard"
+
+        credentials, project_id = self.get_credentials_and_project_id()
+
+        pandas_df = read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
+        return pl.from_pandas(pandas_df)
+
+    def get_df(
+        self,
+        sql,
+        parameters=None,
+        dialect=None,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> pd.DataFrame | pl.DataFrame:
         """
-        Get a Pandas DataFrame for the BigQuery results.
+        Get a DataFrame for the BigQuery results.
 
         The DbApiHook method must be overridden because Pandas doesn't support
         PEP 249 connections, except for SQLite.
@@ -303,24 +336,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             defaults to use `self.use_legacy_sql` if not specified
         :param kwargs: (optional) passed into pandas_gbq.read_gbq method
         """
-        if dialect is None:
-            dialect = "legacy" if self.use_legacy_sql else "standard"
+        if df_type == "polars":
+            return self._get_polars_df(sql, parameters, dialect, **kwargs)
 
-        credentials, project_id = self.get_credentials_and_project_id()
-
-        return read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
-
-    async def _get_polars_df(self, sql, parameters=None, dialect=None, **kwargs):
-        try:
-            import polars as pl
-        except ImportError:
-            raise AirflowOptionalProviderFeatureException(
-                "Polars is not installed. Please install it with `pip install polars`."
-            )
-
-        client = self.get_client()
-        rows = await client.query(sql).result()
-        return pl.from_arrow(rows.to_arrow())
+        if df_type == "pandas":
+            return self._get_pandas_df(sql, parameters, dialect, **kwargs)
 
     @deprecated(
         planned_removal_date="November 30, 2025",

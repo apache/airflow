@@ -35,10 +35,15 @@ class TestBigQueryDataframeResultsSystem(GoogleSystemTest):
 
     @pytest.mark.parametrize("df_type", ["pandas", "polars"])
     def test_output_is_dataframe_with_valid_query(self, df_type):
-        import pandas as pd
-
         df = self.instance.get_df("select 1", df_type=df_type)
-        assert isinstance(df, pd.DataFrame)
+        if df_type == "polars":
+            import polars as pl
+
+            assert isinstance(df, pl.DataFrame)
+        else:
+            import pandas as pd
+
+            assert isinstance(df, pd.DataFrame)
 
     @pytest.mark.parametrize("df_type", ["pandas", "polars"])
     def test_throws_exception_with_invalid_query(self, df_type):
@@ -49,15 +54,31 @@ class TestBigQueryDataframeResultsSystem(GoogleSystemTest):
     @pytest.mark.parametrize("df_type", ["pandas", "polars"])
     def test_succeeds_with_explicit_legacy_query(self, df_type):
         df = self.instance.get_df("select 1", df_type=df_type)
-        assert df.iloc(0)[0][0] == 1
+        if df_type == "polars":
+            assert df.item(0, 0) == 1
+        else:
+            assert df.iloc[0][0] == 1
 
     @pytest.mark.parametrize("df_type", ["pandas", "polars"])
     def test_succeeds_with_explicit_std_query(self, df_type):
-        df = self.instance.get_df("select * except(b) from (select 1 a, 2 b)", df_type=df_type)
-        assert df.iloc(0)[0][0] == 1
+        df = self.instance.get_df(
+            "select * except(b) from (select 1 a, 2 b)",
+            parameters=None,
+            dialect="standard",
+            df_type=df_type,
+        )
+        if df_type == "polars":
+            assert df.item(0, 0) == 1
+        else:
+            assert df.iloc[0][0] == 1
 
     @pytest.mark.parametrize("df_type", ["pandas", "polars"])
     def test_throws_exception_with_incompatible_syntax(self, df_type):
         with pytest.raises(Exception) as ctx:
-            self.instance.get_df("select * except(b) from (select 1 a, 2 b)", df_type=df_type)
+            self.instance.get_df(
+                "select * except(b) from (select 1 a, 2 b)",
+                parameters=None,
+                dialect="legacy",
+                df_type=df_type,
+            )
         assert "Reason: " in str(ctx.value), ""
