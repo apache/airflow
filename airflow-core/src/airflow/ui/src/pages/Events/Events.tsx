@@ -138,7 +138,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
 ];
 
 export const Events = () => {
-  const { dagId, runId, taskId } = useParams();
+  const { dagId, groupId, runId, taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
@@ -153,7 +153,7 @@ export const Events = () => {
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       runId,
-      taskId,
+      taskId: groupId ?? taskId,
     },
     undefined,
     { enabled: !isNaN(pagination.pageSize) },
