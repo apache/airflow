@@ -24,21 +24,28 @@ on:  # yamllint disable-line rule:truthy
         description: "The branch or tag to checkout for the docs publishing"
         required: true
         type: string
+      include-docs:
+        description: |
+          Space separated list of docs to build.
+          To publish docs for nested provider packages, provide the package name with `.`
+          eg: amazon common.messaging apache.kafka
+
+        required: false
+        default: "all"
+        type: string
       exclude-docs:
         description: "Comma separated list of docs to exclude"
         required: false
-        default: "NO_DOCS"
+        default: "no-docs-excluded"
         type: string
       destination-location:
         description: "The destination location in S3"
         required: false
         default: "s3://staging-docs-airflow-apache-org/docs"
-        type: string
-      docs-list-as-string:
-        description: "Space separated list of docs to build"
-        required: false
-        default: ""
-        type: string
+        type: choice
+        options:
+          - s3://staging-docs-airflow-apache-org/docs
+
 env:
   AIRFLOW_ROOT_PATH: "/home/runner/work/temp-airflow-repo-reference"  # checkout dir for referenced tag
 permissions:
@@ -48,15 +55,15 @@ jobs:
     timeout-minutes: 10
     name: "Build Info"
     runs-on: ["ubuntu-24.04"]
-    outputs:
-      runners: ${{ steps.selective-checks.outputs.amd-runners }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
       REF: ${{ inputs.ref }}
-      EXCLUDE_DOCS: ${{ inputs.exclude-docs }}
+      INCLUDE_DOCS: ${{ inputs.include_docs }}
+      EXCLUDE_DOCS: ${{ inputs.exclude_docs }}
       DESTINATION_LOCATION: ${{ inputs.destination-location }}
-      DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+    outputs:
+      include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -74,29 +81,9 @@ jobs:
           echo "Input parameters summary"
           echo "========================="
           echo "Ref: '${REF}'"
+          echo "Included docs : '${INCLUDE_DOCS}'"
           echo "Exclude docs: '${EXCLUDE_DOCS}'"
           echo "Destination location: '${DESTINATION_LOCATION}'"
-          echo "Docs list as string: '${DOCS_LIST_AS_STRING}'"
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        with:
-          use-uv: "true"
-      - name: Selective checks
-        id: selective-checks
-        env:
-          VERBOSE: "false"
-        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
 
   build-ci-images:
     name: Build CI images
@@ -108,7 +95,7 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: '["ubuntu-22.04"]'
       platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"
@@ -122,7 +109,7 @@ jobs:
       disable-airflow-repo-cache: false
 
   build-docs:
-    needs: [build-ci-images]
+    needs: [build-ci-images, build-info]
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ubuntu-latest
@@ -132,7 +119,7 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
+      PYTHON_MAJOR_MINOR_VERSION: 3.9
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -156,9 +143,9 @@ jobs:
           use-uv: true
       - name: "Building docs with --docs-only flag"
         env:
-          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >
-          breeze build-docs ${DOCS_LIST_AS_STRING} --docs-only
+          breeze build-docs ${INCLUDE_DOCS} --docs-only
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
@@ -169,7 +156,7 @@ jobs:
           overwrite: 'true'
 
   publish-docs-to-s3:
-    needs: [build-docs]
+    needs: [build-docs, build-info]
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -220,10 +207,10 @@ jobs:
           use-uv: true
       - name: "Publish docs to tmp directory"
         env:
-          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
-          ${DOCS_LIST_AS_STRING}
+          ${INCLUDE_DOCS}
       - name: Check disk space available
         run: df -h
       - name: "Generate back references for providers"
