@@ -31,7 +31,6 @@ from airflow.api_fastapi.core_api.app import (
     init_middlewares,
     init_views,
 )
-from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -80,16 +79,12 @@ def create_app(apps: str = "all") -> FastAPI:
         version="2",
     )
 
-    dag_bag = get_dag_bag()
-
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
-        task_exec_api_app.state.dag_bag = dag_bag
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
     if "core" in apps_list or "all" in apps_list:
-        app.state.dag_bag = dag_bag
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
