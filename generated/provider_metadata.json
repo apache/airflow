@@ -3183,6 +3183,10 @@
         "1.0.0": {
             "associated_airflow_version": "3.0.0",
             "date_released": "2025-04-14T07:15:27Z"
+        },
+        "1.0.1": {
+            "associated_airflow_version": "3.0.0",
+            "date_released": "2025-05-08T08:02:07Z"
         }
     },
     "common.sql": {
@@ -3357,6 +3361,10 @@
         "1.26.0": {
             "associated_airflow_version": "3.0.0",
             "date_released": "2025-04-19T17:32:22Z"
+        },
+        "1.27.0": {
+            "associated_airflow_version": "3.0.0",
+            "date_released": "2025-05-08T08:02:07Z"
         }
     },
     "databricks": {
