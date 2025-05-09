@@ -35,11 +35,11 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations .Values.workers.celery.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar .Values.workers.celery.logGroomerSidecar) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar .Values.workers.celery.kerberosSidecar) }}
-{{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.workers.celery.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.workers.celery.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.workers.celery.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooks := or .Values.workers.celery.containerLifecycleHooks .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.celery.logGroomerSidecar.containerLifecycleHooks .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.celery.kerberosSidecar.containerLifecycleHooks .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" ((or .Values.workers.celery.safeToEvict .Values.workers.safeToEvict) | toString) }}
-{{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
+{{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations .Values.workers.celery.podAnnotations }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
