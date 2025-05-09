@@ -498,7 +498,7 @@ class Connection(Base, LoggingMixin):
                     return conn
             except Exception:
                 log.exception(
-                    "Error while retrieving connection from secrets backend (%s). "
+                    "Unable to retrieve connection from secrets backend (%s). "
                     "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
                 )
