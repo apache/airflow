@@ -84,7 +84,7 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
-  {{- if and .Values.workers.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer))) }}
+  {{- if and (or .Values.workers.keda.enabled .Values.workers.celery.keda.enabled) (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (or (not .Values.workers.keda.usePgbouncer) (not .Values.workers.celery.keda.usePgbouncer)))) }}
   - name: KEDA_DB_CONN
     valueFrom:
       secretKeyRef:
@@ -1107,11 +1107,10 @@ capabilities:
 {{- end }}
 
 {{- define "kedaNetworkPolicySelector" }}
-  {{- if .Values.workers.keda.enabled }}
-
-  {{- if .Values.workers.keda.namespaceLabels }}
+  {{- if or .Values.workers.keda.enabled .Values.workers.celery.keda.enabled }}
+  {{- if or .Values.workers.keda.namespaceLabels .Values.workers.celery.keda.namespaceLabels }}
       - namespaceSelector:
-          matchLabels: {{- toYaml .Values.workers.keda.namespaceLabels | nindent 10 }}
+          matchLabels: {{- toYaml (.Values.workers.celery.keda.namespaceLabels | default .Values.workers.keda.namespaceLabels) | nindent 10 }}
         podSelector:
   {{- else }}
       - podSelector:

@@ -1615,7 +1615,6 @@
             "description": "Airflow Workers configuration.",
             "type": "object",
             "x-docsSection": "Workers",
-            "additionalProperties": false,
             "properties": {
                 "replicas": {
                     "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
@@ -2547,6 +2546,188 @@
                     "type": "object",
                     "x-docsSection": "Workers",
                     "properties": {
+                        "replicas": {
+                            "description": "Number of Airflow Celery workers.",
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "revisionHistoryLimit": {
+                            "description": "Max number of old Airflow Celery workers replicasets to retain.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null,
+                            "x-docsSection": null
+                        },
+                        "command": {
+                            "description": "Command to use when running Airflow Celery workers (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running Airflow Celery workers (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "-c",
+                                "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}"
+                            ]
+                        },
+                        "livenessProbe": {
+                            "description": "Liveness probe configuration for Celery worker containers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable liveness probe for Celery workers.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "initialDelaySeconds": {
+                                    "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                                    "type": "integer",
+                                    "default": 20
+                                },
+                                "failureThreshold": {
+                                    "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "periodSeconds": {
+                                    "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 60
+                                },
+                                "command": {
+                                    "description": "Command for livenessProbe.",
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "updateStrategy": {
+                            "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null
+                        },
+                        "strategy": {
+                            "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": {
+                                "rollingUpdate": {
+                                    "maxSurge": "100%",
+                                    "maxUnavailable": "50%"
+                                }
+                            }
+                        },
+                        "podManagementPolicy": {
+                            "description": "Specifies the policy for managing Airflow Celery workers pods. Only applicable to StatefulSet.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null,
+                            "enum": [
+                                "OrderedReady",
+                                "Parallel"
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the Airflow Celery workers. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "pod": {
+                                    "description": "Pod security context definition for the Airflow Celery workers.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "runAsUser": 50000,
+                                            "runAsGroup": 0,
+                                            "fsGroup": 0
+                                        }
+                                    ]
+                                },
+                                "container": {
+                                    "description": "Container security context definition for the Airflow Celery workers.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container level lifecycle hooks for Airflow Celery workers. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
                             "type": "object",
@@ -2578,6 +2759,699 @@
                                     }
                                 }
                             }
+                        },
+                        "keda": {
+                            "description": "KEDA configuration.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Allow KEDA autoscaling.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "namespaceLabels": {
+                                    "description": "Labels used in `matchLabels` for namespace in the PgBouncer NetworkPolicy.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "pollingInterval": {
+                                    "description": "How often KEDA polls the airflow DB to report new scale requests to the HPA.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "cooldownPeriod": {
+                                    "description": "How many seconds KEDA will wait before scaling to zero.",
+                                    "type": "integer",
+                                    "default": 30
+                                },
+                                "minReplicaCount": {
+                                    "description": "Minimum number of Airflow Celery workers created by KEDA.",
+                                    "type": "integer",
+                                    "default": 0
+                                },
+                                "maxReplicaCount": {
+                                    "description": "Maximum number of Airflow Celery workers created by KEDA.",
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "advanced": {
+                                    "description": "Advanced KEDA configuration.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "horizontalPodAutoscalerConfig": {
+                                            "description": "HorizontalPodAutoscalerConfig specifies horizontal scale config.",
+                                            "type": "object",
+                                            "default": {},
+                                            "properties": {
+                                                "behavior": {
+                                                    "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                                                    "type": "object",
+                                                    "default": {},
+                                                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "query": {
+                                    "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                                    "type": "string",
+                                    "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                                },
+                                "usePgbouncer": {
+                                    "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                                    "type": "boolean",
+                                    "default": true
+                                }
+                            }
+                        },
+                        "hpa": {
+                            "description": "HPA configuration.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Allow HPA autoscaling (KEDA must be disabled).",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "minReplicaCount": {
+                                    "description": "Minimum number of Airflow Celery workers created by HPA.",
+                                    "type": "integer",
+                                    "default": 0
+                                },
+                                "maxReplicaCount": {
+                                    "description": "Maximum number of Airflow Celery workers created by HPA.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "metrics": {
+                                    "description": "Specifications for which to use to calculate the desired replica count.",
+                                    "type": "array",
+                                    "default": [
+                                        {
+                                            "type": "Resource",
+                                            "resource": {
+                                                "name": "cpu",
+                                                "target": {
+                                                    "type": "Utilization",
+                                                    "averageUtilization": 80
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "items": {
+                                        "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricSpec"
+                                    }
+                                },
+                                "behavior": {
+                                    "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                                    "type": "object",
+                                    "default": {},
+                                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+                                }
+                            }
+                        },
+                        "persistence": {
+                            "description": "Persistence configuration.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable persistent volumes.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "persistentVolumeClaimRetentionPolicy": {
+                                    "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                                    "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
+                                },
+                                "size": {
+                                    "description": "Volume size for Airflow Celery worker StatefulSet.",
+                                    "type": "string",
+                                    "default": "100Gi"
+                                },
+                                "storageClassName": {
+                                    "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "fixPermissions": {
+                                    "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to Airflow Celery worker volumes.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "containerLifecycleHooks": {
+                                    "description": "Container Lifecycle Hooks definition for the persistence. If not set, the values from global `containerLifecycleHooks` will be used.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "postStart": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo postStart handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            },
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo preStop handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the persistence.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "kerberosSidecar": {
+                            "description": "Kerberos sidecar for Airflow Celery workers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable Kerberos sidecar for the Airflow Celery worker.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "resources": {
+                                    "description": "Resources on Airflow Celery workers kerberos sidecar.",
+                                    "type": "object",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "limits": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            },
+                                            "requests": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            }
+                                        }
+                                    ],
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                                },
+                                "containerLifecycleHooks": {
+                                    "description": "Container Lifecycle Hooks definition for the kerberos sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "postStart": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo postStart handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            },
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo preStop handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the kerberos sidecar. If not set, the values from global `securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the kerberos sidecar.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "kerberosInitContainer": {
+                            "description": "Kerberos init container for Airflow Celery workers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable Kerberos init container for the Airflow Celery worker.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "resources": {
+                                    "description": "Resources on Airflow Celery workers kerberos init container.",
+                                    "type": "object",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "limits": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            },
+                                            "requests": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            }
+                                        }
+                                    ],
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                                },
+                                "containerLifecycleHooks": {
+                                    "description": "Container Lifecycle Hooks definition for the kerberos init container. If not set, the values from global `containerLifecycleHooks` will be used.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "postStart": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo postStart handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            },
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo preStop handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the kerberos init container. If not set, the values from global `securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the kerberos init container.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "resources": {
+                            "description": "Resources on Airflow Celery workers.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ],
+                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                            "type": "integer",
+                            "default": 600
+                        },
+                        "safeToEvict": {
+                            "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "extraContainers": {
+                            "description": "Launch additional containers into Airflow Celery workers (templated).",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                            }
+                        },
+                        "extraInitContainers": {
+                            "description": "Add additional init containers into Airflow Celery workers (templated).",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                            }
+                        },
+                        "extraVolumes": {
+                            "description": "Mount additional volumes into Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                            }
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Mount additional volumes into Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                            }
+                        },
+                        "extraPorts": {
+                            "description": "Expose additional ports on the Airflow Celery worker container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
+                            }
+                        },
+                        "nodeSelector": {
+                            "description": "Select certain nodes for Airflow Celery worker pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "runtimeClassName": {
+                            "description": "Specify runtime for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "affinity": {
+                            "description": "Specify scheduling constraints for Airflow Celery worker pods.",
+                            "type": "object",
+                            "default": "See values.yaml",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                        },
+                        "tolerations": {
+                            "description": "Specify Tolerations for Airflow Celery worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints for Airflow Celery worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                            }
+                        },
+                        "hostAliases": {
+                            "description": "Specify HostAliases for Airflow Celery workers.",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "ip": "127.0.0.2",
+                                    "hostnames": [
+                                        "test.hostname.one"
+                                    ]
+                                },
+                                {
+                                    "ip": "127.0.0.3",
+                                    "hostnames": [
+                                        "test.hostname.two"
+                                    ]
+                                }
+                            ]
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the Airflow Celery worker deployment.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "podAnnotations": {
+                            "description": "Annotations to add to the Airflow Celery worker pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "labels": {
+                            "description": "Labels to add to the Airflow Celery worker objects and pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "logGroomerSidecar": {
+                            "$ref": "#/definitions/logGroomerConfigType",
+                            "description": "Configuration for Airflow Celery worker log groomer sidecar."
+                        },
+                        "waitForMigrations": {
+                            "description": "wait-for-airflow-migrations init container.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable wait-for-airflow-migrations init container.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "env": {
+                                    "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                                    "type": "array",
+                                    "default": [],
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "name",
+                                            "value"
+                                        ],
+                                        "additionalProperties": false
+                                    }
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the wait for migrations.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "env": {
+                            "description": "Add additional env vars to Airflow Celery worker.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    },
+                                    "valueFrom": {
+                                        "type": "object",
+                                        "properties": {
+                                            "configMapKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                                "description": "Selects a key of a ConfigMap."
+                                            },
+                                            "secretKeyRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                                "description": "Selects a key of a secret in the pod's namespace."
+                                            }
+                                        },
+                                        "anyOf": [
+                                            {
+                                                "required": [
+                                                    "configMapKeyRef"
+                                                ]
+                                            },
+                                            {
+                                                "required": [
+                                                    "secretKeyRef"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "value"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "valueFrom"
+                                        ]
+                                    }
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "volumeClaimTemplates": {
+                            "description": "Specify additional volume claim template for Airflow Celery workers.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.PersistentVolumeClaimTemplate"
+                            },
+                            "examples": [
+                                {
+                                    "name": "data-volume-1",
+                                    "storageClassName": "storage-class-1",
+                                    "accessModes": [
+                                        "ReadWriteOnce"
+                                    ],
+                                    "resources": {
+                                        "requests": {
+                                            "storage": "10Gi"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "data-volume-2",
+                                    "storageClassName": "storage-class-2",
+                                    "accessModes": [
+                                        "ReadWriteOnce"
+                                    ],
+                                    "resources": {
+                                        "requests": {
+                                            "storage": "20Gi"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
