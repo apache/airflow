@@ -154,7 +154,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.read_gbq")
     @pytest.mark.parametrize("df_type", ["pandas", "polars"])
-    def test_get_df(self, mock_read_gbq, mock_get_client, df_type):
+    def test_get_df(self, mock_read_gbq, df_type):
         self.hook.get_df("select 1", df_type=df_type)
 
         if df_type == "pandas":
