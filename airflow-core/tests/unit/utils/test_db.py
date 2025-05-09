@@ -28,6 +28,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from alembic.autogenerate import compare_metadata
+from alembic.command import check
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
@@ -305,3 +306,13 @@ class TestDb:
         )
         with pytest.raises(AirflowException, match=re.escape(msg)):
             downgrade(to_revision=_REVISION_HEADS_MAP["2.7.0"])
+
+    def test_has_pending_upgrade_ops(self):
+        with mock.patch.dict(
+            os.environ, {"AIRFLOW__DATABASE__ALEMBIC_INI_FILE_PATH": "/tmp/alembic.ini"}, clear=True
+        ):
+            config = _get_alembic_config()
+            assert config.config_file_name == "/tmp/alembic.ini"
+
+        config = _get_alembic_config()
+        check(config)
