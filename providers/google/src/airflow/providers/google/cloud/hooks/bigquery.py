@@ -32,7 +32,6 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NoReturn, Union, cast
 
 from aiohttp import ClientSession as ClientSession
-from deprecated import deprecated as airflow_providers_deprecated
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -323,10 +322,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         rows = await client.query(sql).result()
         return pl.from_arrow(rows.to_arrow())
 
-    @airflow_providers_deprecated(
-        reason="Replaced by function `get_df_by_chunks`.",
+    @deprecated(
+        planned_removal_date="November 30, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_df",
         category=AirflowProviderDeprecationWarning,
-        action="ignore",
     )
     def get_pandas_df(self, sql, parameters=None, dialect=None, **kwargs):
         return self._get_pandas_df(sql, parameters, dialect, **kwargs)

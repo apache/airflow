@@ -33,26 +33,31 @@ class TestBigQueryDataframeResultsSystem(GoogleSystemTest):
     def setup_method(self):
         self.instance = hook.BigQueryHook()
 
-    def test_output_is_dataframe_with_valid_query(self):
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_output_is_dataframe_with_valid_query(self, df_type):
         import pandas as pd
 
-        df = self.instance.get_df("select 1", df_type="pandas")
+        df = self.instance.get_df("select 1", df_type=df_type)
         assert isinstance(df, pd.DataFrame)
 
-    def test_throws_exception_with_invalid_query(self):
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_throws_exception_with_invalid_query(self, df_type):
         with pytest.raises(Exception) as ctx:
-            self.instance.get_df("from `1`", df_type="pandas")
+            self.instance.get_df("from `1`", df_type=df_type)
         assert "Reason: " in str(ctx.value), ""
 
-    def test_succeeds_with_explicit_legacy_query(self):
-        df = self.instance.get_df("select 1", df_type="pandas")
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_succeeds_with_explicit_legacy_query(self, df_type):
+        df = self.instance.get_df("select 1", df_type=df_type)
         assert df.iloc(0)[0][0] == 1
 
-    def test_succeeds_with_explicit_std_query(self):
-        df = self.instance.get_df("select * except(b) from (select 1 a, 2 b)", df_type="pandas")
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_succeeds_with_explicit_std_query(self, df_type):
+        df = self.instance.get_df("select * except(b) from (select 1 a, 2 b)", df_type=df_type)
         assert df.iloc(0)[0][0] == 1
 
-    def test_throws_exception_with_incompatible_syntax(self):
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_throws_exception_with_incompatible_syntax(self, df_type):
         with pytest.raises(Exception) as ctx:
-            self.instance.get_df("select * except(b) from (select 1 a, 2 b)", df_type="pandas")
+            self.instance.get_df("select * except(b) from (select 1 a, 2 b)", df_type=df_type)
         assert "Reason: " in str(ctx.value), ""
