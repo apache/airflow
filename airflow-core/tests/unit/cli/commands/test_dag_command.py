@@ -833,6 +833,20 @@ class TestCliDags:
         assert len(mock__execute_task.call_args_list) == 1
         assert mock__execute_task.call_args_list[0].kwargs["ti"].task_id == "dummy_operator"
 
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
+        """Test that example DAGs are excluded when bundle names are passed."""
+        from airflow.utils.cli import get_dag
+
+        with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
+            # example DAG should not be found since include_examples=False
+            with pytest.raises(AirflowException, match="could not be found"):
+                get_dag(bundle_names=["testing"], dag_id="example_simplest_dag")
+
+            # However, "test_sensor.py" should exist
+            dag = get_dag(bundle_names=["testing"], dag_id="test_sensor")
+            assert dag.dag_id == "test_sensor"
+
 
 class TestCliDagsReserialize:
     parser = cli_parser.get_parser()
