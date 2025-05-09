@@ -20,7 +20,7 @@
 ################################
 ## Airflow Worker KEDA Scaler
 #################################
-{{- if and .Values.workers.keda.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) ) }}
+{{- if and (or .Values.workers.keda.enabled .Values.workers.celery.keda.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) ) }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -32,20 +32,36 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     deploymentName: {{ .Release.Name }}-worker
-    {{- if or (.Values.labels) (.Values.workers.labels) }}
-      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or .Values.labels .Values.workers.labels .Values.workers.celery.labels }}
+      {{- mustMerge .Values.workers.celery.labels .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
   scaleTargetRef:
-    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
+    kind: {{ ternary "StatefulSet" "Deployment" (and .Values.workers.persistence.enabled .Values.workers.celery.persistence.enabled) }}
     name: {{ include "airflow.fullname" . }}-worker
     envSourceContainerName: worker
+  {{- if ne (int .Values.workers.celery.keda.pollingInterval) 5 }}
+  pollingInterval:  {{ .Values.workers.celery.keda.pollingInterval }}
+  {{- else }}
   pollingInterval:  {{ .Values.workers.keda.pollingInterval }}
-  cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}
-  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}
-  maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}
-  {{- if .Values.workers.keda.advanced }}
-  advanced: {{- toYaml .Values.workers.keda.advanced | nindent 4 }}
+  {{- end }}
+  {{- if ne (int .Values.workers.celery.keda.cooldownPeriod) 30 }}
+  cooldownPeriod:  {{ .Values.workers.celery.keda.cooldownPeriod }}
+  {{- else }}
+  cooldownPeriod:  {{ .Values.workers.keda.cooldownPeriod }}
+  {{- end }}
+  {{- if ne (int .Values.workers.celery.keda.minReplicaCount) 0 }}
+  minReplicaCount:  {{ .Values.workers.celery.keda.minReplicaCount }}
+  {{- else }}
+  minReplicaCount:  {{ .Values.workers.keda.minReplicaCount }}
+  {{- end }}
+  {{- if ne (int .Values.workers.celery.keda.maxReplicaCount) 10 }}
+  maxReplicaCount:  {{ .Values.workers.celery.keda.maxReplicaCount }}
+  {{- else }}
+  maxReplicaCount:  {{ .Values.workers.keda.maxReplicaCount }}
+  {{- end }}
+  {{- if or .Values.workers.keda.advanced .Values.workers.celery.keda.advanced }}
+  advanced: {{- toYaml (.Values.workers.celery.keda.advanced | default .Values.workers.keda.advanced) | nindent 4 }}
   {{- end }}
   triggers:
     {{- if eq .Values.data.metadataConnection.protocol "mysql" }}
@@ -53,16 +69,24 @@ spec:
       metadata:
         queryValue: "1"
         connectionStringFromEnv: KEDA_DB_CONN
+        {{- if ne (quote .Values.workers.celery.keda.query) (quote "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}") }}
+        query: {{ tpl .Values.workers.celery.keda.query . | quote }}
+        {{- else }}
         query: {{ tpl .Values.workers.keda.query . | quote }}
+        {{- end }}
     {{- else }}
     - type: "postgresql"
       metadata:
         targetQueryValue: "1"
-        {{- if and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer) }}
+        {{- if and .Values.pgbouncer.enabled (or (not .Values.workers.keda.usePgbouncer) (not .Values.workers.celery.keda.usePgbouncer)) }}
         connectionFromEnv: KEDA_DB_CONN
         {{- else }}
         connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
         {{- end }}
+        {{- if ne (quote .Values.workers.celery.keda.query) (quote "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}") }}
+        query: {{ tpl .Values.workers.celery.keda.query . | quote }}
+        {{- else }}
         query: {{ tpl .Values.workers.keda.query . | quote }}
+        {{- end }}
     {{- end }}
 {{- end }}
