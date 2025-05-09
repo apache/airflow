@@ -902,7 +902,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             if AIRFLOW_V_3_0_PLUS:
-                dag.bulk_write_to_db(self.bundle_name, None, [dag], session=self.session)
+                dag.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
             else:
                 dag.sync_to_db(session=self.session)
 
@@ -1072,6 +1072,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             fileloc=None,
             relative_fileloc=None,
             bundle_name=None,
+            bundle_version=None,
             session=None,
             **kwargs,
         ):
@@ -1106,6 +1107,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
             self.bundle_name = bundle_name or "dag_maker"
+            self.bundle_version = bundle_version
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.models.dagbundle import DagBundleModel
 
