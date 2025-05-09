@@ -27,14 +27,12 @@ GCP_CONN_ID = "GCP_CONN_ID"
 HTTP_CONN_ID = "HTPP_CONN_ID"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
-DEFAULT_MIME_TYPE = "application/octet-stream"
-
 TEST_BUCKET = "test-bucket"
-SOURCE_ENDPOINT = "main_dir/test_object3.json"
 DESTINATION_PATH_FILE = "destination_dir/copy.txt"
 ENDPOINT = "/"
 HEADERS = {"header_key": "header_value"}
 DATA = {"some": "data"}
+EXTRA_OPTIONS = {"check_response": False}
 
 
 class TestHttpToGCSOperator:
@@ -70,9 +68,22 @@ class TestHttpToGCSOperator:
         # GCS
         gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         task.gcs_hook.upload.assert_called_once_with(
-            bucket_name=TEST_BUCKET, object_name=DESTINATION_PATH_FILE
+            bucket_name=TEST_BUCKET,
+            object_name=DESTINATION_PATH_FILE,
+            data=task.http_hook.run.return_value.content,
+            mime_type=None,
+            gzip=False,
+            encoding=task.http_hook.run.return_value.encoding,
+            chunk_size=None,
+            timeout=None,
+            num_max_attempts=3,
+            metadata=None,
+            cache_control=None,
+            user_project=None,
         )
 
         # HTTP
         http_hook.assert_called_once_with(HTTP_CONN_ID)
-        task.http_hook.run.assert_called_once_with(endpoint=ENDPOINT, headers=HEADERS, data=DATA)
+        task.http_hook.run.assert_called_once_with(
+            endpoint=ENDPOINT, headers=HEADERS, data=DATA, extra_options=EXTRA_OPTIONS
+        )
