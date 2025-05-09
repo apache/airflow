@@ -33,8 +33,9 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import DagRunNotFound, TaskDeferred, TaskInstanceNotFound
 from airflow.models import TaskInstance
-from airflow.models.dag import DAG, _run_inline_trigger
+from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.secrets_masker import RedactedIO
 from airflow.ti_deps.dep_context import DepContext

@@ -100,6 +100,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dag_version import DagVersion
     from airflow.models.operator import Operator
+    from airflow.sdk import DAG as SDKDAG, Context
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
@@ -1147,8 +1148,8 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="task_failure")
 
-            if execute_callbacks:
-                dag.handle_callback(self, success=False, reason="task_failure", session=session)
+            if execute_callbacks and dag.has_on_failure_callback:
+                self.handle_dag_callback(dag=dag, success=False, reason="task_failure")
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1176,8 +1177,8 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.SUCCESS)
             self.notify_dagrun_state_changed(msg="success")
 
-            if execute_callbacks:
-                dag.handle_callback(self, success=True, reason="success", session=session)
+            if execute_callbacks and dag.has_on_success_callback:
+                self.handle_dag_callback(dag=dag, success=True, reason="success")
             elif dag.has_on_success_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1195,8 +1196,8 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
-            if execute_callbacks:
-                dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
+            if execute_callbacks and dag.has_on_failure_callback:
+                self.handle_dag_callback(dag=dag, success=False, reason="all_tasks_deadlocked")
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1315,6 +1316,32 @@ class DagRun(Base, LoggingMixin):
         # deliberately not notifying on QUEUED
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
+
+    def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
+        """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
+        context: Context = {  # type: ignore[assignment]
+            "dag": dag,
+            "run_id": str(self.run_id),
+            "reason": reason,
+        }
+
+        callbacks = dag.on_success_callback if success else dag.on_failure_callback
+        if not callbacks:
+            self.log.warning("Callback requested, but dag didn't have any for DAG: %s.", dag.dag_id)
+            return
+        callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+
+        for callback in callbacks:
+            self.log.info(
+                "Executing on_%s dag callback: %s",
+                "success" if success else "failure",
+                callback.__name__ if hasattr(callback, "__name__") else repr(callback),
+            )
+            try:
+                callback(context)
+            except Exception:
+                self.log.exception("Callback failed for %s", dag.dag_id)
+                Stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
 
     def _get_ready_tis(
         self,
