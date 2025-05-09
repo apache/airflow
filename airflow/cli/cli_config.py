@@ -973,6 +973,39 @@ ARG_LINT_CONFIG_IGNORE_OPTION = Arg(
     type=string_list_type,
 )
 
+# config update
+ARG_UPDATE_CONFIG_SECTION = Arg(
+    ("--section",),
+    help="The section name(s) to update in the airflow config.",
+    type=string_list_type,
+)
+ARG_UPDATE_CONFIG_OPTION = Arg(
+    ("--option",),
+    help="The option name(s) to update in the airflow config.",
+    type=string_list_type,
+)
+ARG_UPDATE_CONFIG_IGNORE_SECTION = Arg(
+    ("--ignore-section",),
+    help="The section name(s) to ignore to update in the airflow config.",
+    type=string_list_type,
+)
+ARG_UPDATE_CONFIG_IGNORE_OPTION = Arg(
+    ("--ignore-option",),
+    help="The option name(s) to ignore to update in the airflow config.",
+    type=string_list_type,
+)
+ARG_UPDATE_CONFIG_FIX = Arg(
+    ("--fix",),
+    help="Automatically apply the configuration changes instead of performing a dry run. (Default: dry-run mode)",
+    action="store_true",
+)
+
+ARG_UPDATE_ALL_RECOMMENDATIONS = Arg(
+    ("--all-recommendations",),
+    help="Include non-breaking (recommended) changes along with breaking ones. (Also use with --fix)",
+    action="store_true",
+)
+
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
     ("--namespace",),
@@ -1894,13 +1927,27 @@ CONFIG_COMMANDS = (
     ActionCommand(
         name="lint",
         help="lint options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.config_command.lint_config"),
+        func=lazy_load_command("airflow.cli.commands.config_command.lint_config"),
         args=(
             ARG_LINT_CONFIG_SECTION,
             ARG_LINT_CONFIG_OPTION,
             ARG_LINT_CONFIG_IGNORE_SECTION,
             ARG_LINT_CONFIG_IGNORE_OPTION,
             ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="update",
+        help="update options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
+        func=lazy_load_command("airflow.cli.commands.config_command.update_config"),
+        args=(
+            ARG_UPDATE_CONFIG_SECTION,
+            ARG_UPDATE_CONFIG_OPTION,
+            ARG_UPDATE_CONFIG_IGNORE_SECTION,
+            ARG_UPDATE_CONFIG_IGNORE_OPTION,
+            ARG_VERBOSE,
+            ARG_UPDATE_CONFIG_FIX,
+            ARG_UPDATE_ALL_RECOMMENDATIONS,
         ),
     ),
 )
