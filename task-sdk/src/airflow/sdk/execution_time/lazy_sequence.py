@@ -109,59 +109,53 @@ class LazyXComSequence(Sequence[T]):
     def __getitem__(self, key: slice) -> Sequence[T]: ...
 
     def __getitem__(self, key: int | slice) -> T | Sequence[T]:
-        if not isinstance(key, (int, slice)):
-            raise TypeError(f"Sequence indices must be integers or slices, not {type(key).__name__}")
-
-        if isinstance(key, slice):
-            raise TypeError("slice is not implemented yet")
-        # TODO...
-        # This implements the slicing syntax. We want to optimize negative slicing (e.g. seq[-10:]) by not
-        # doing an additional COUNT query (via HEAD http request) if possible. We can do this unless the
-        # start and stop have different signs (i.e. one is positive and another negative).
-        # start, stop, reverse = _coerce_slice(key)
-        # if start >= 0:
-        #     if stop is None:
-        #         stmt = self._select_asc.offset(start)
-        #     elif stop >= 0:
-        #         stmt = self._select_asc.slice(start, stop)
-        #     else:
-        #         stmt = self._select_asc.slice(start, len(self) + stop)
-        #     rows = [self._process_row(row) for row in self._session.execute(stmt)]
-        #     if reverse:
-        #         rows.reverse()
-        # else:
-        #     if stop is None:
-        #         stmt = self._select_desc.limit(-start)
-        #     elif stop < 0:
-        #         stmt = self._select_desc.slice(-stop, -start)
-        #     else:
-        #         stmt = self._select_desc.slice(len(self) - stop, -start)
-        #     rows = [self._process_row(row) for row in self._session.execute(stmt)]
-        #     if not reverse:
-        #         rows.reverse()
-        # return rows
-
+        from airflow.sdk.api.datamodels._generated import XComSequenceIndexResponse, XComSequenceSliceResponse
         from airflow.sdk.bases.xcom import BaseXCom
-        from airflow.sdk.execution_time.comms import GetXComSequenceItem, XComResult
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetXComSequenceItem, GetXComSequenceSlice
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        with SUPERVISOR_COMMS.lock:
-            source = (xcom_arg := self._xcom_arg).operator
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXComSequenceItem(
-                    key=xcom_arg.key,
-                    dag_id=source.dag_id,
-                    task_id=source.task_id,
-                    run_id=self._ti.run_id,
-                    offset=key,
-                ),
-            )
-            msg = SUPERVISOR_COMMS.get_message()
+        if isinstance(key, int):
+            with SUPERVISOR_COMMS.lock:
+                source = (xcom_arg := self._xcom_arg).operator
+                SUPERVISOR_COMMS.send_request(
+                    log=log,
+                    msg=GetXComSequenceItem(
+                        key=xcom_arg.key,
+                        dag_id=source.dag_id,
+                        task_id=source.task_id,
+                        run_id=self._ti.run_id,
+                        offset=key,
+                    ),
+                )
+                msg = SUPERVISOR_COMMS.get_message()
+            if isinstance(msg, ErrorResponse):
+                raise IndexError(key)
+            if not isinstance(msg, XComSequenceIndexResponse):
+                raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg}")
+            return BaseXCom.deserialize_value(msg.root)
 
-        if not isinstance(msg, XComResult):
-            raise IndexError(key)
-        return BaseXCom.deserialize_value(msg)
+        if isinstance(key, slice):
+            start, stop, step = _coerce_slice(key)
+            with SUPERVISOR_COMMS.lock:
+                source = (xcom_arg := self._xcom_arg).operator
+                SUPERVISOR_COMMS.send_request(
+                    log=log,
+                    msg=GetXComSequenceSlice(
+                        key=xcom_arg.key,
+                        dag_id=source.dag_id,
+                        task_id=source.task_id,
+                        run_id=self._ti.run_id,
+                        start=start,
+                        stop=stop,
+                        step=step,
+                    ),
+                )
+                msg = SUPERVISOR_COMMS.get_message()
+                if not isinstance(msg, XComSequenceSliceResponse):
+                    raise TypeError(f"Got unexpected response to GetXComSequenceSlice: {msg}")
+            return [BaseXCom.deserialize_value(value) for value in msg.root]
+
+        raise TypeError(f"Sequence indices must be integers or slices, not {type(key).__name__}")
 
 
 def _coerce_index(value: Any) -> int | None:
@@ -178,17 +172,13 @@ def _coerce_index(value: Any) -> int | None:
     raise TypeError("slice indices must be integers or None or have an __index__ method")
 
 
-def _coerce_slice(key: slice) -> tuple[int, int | None, bool]:
+def _coerce_slice(key: slice) -> tuple[int, int | None, int]:
     """
     Check slice content and convert it for SQL.
 
     See CPython documentation on this:
     https://docs.python.org/3/reference/datamodel.html#slice-objects
     """
-    if key.step is None or key.step == 1:
-        reverse = False
-    elif key.step == -1:
-        reverse = True
-    else:
-        raise ValueError("non-trivial slice step not supported")
-    return _coerce_index(key.start) or 0, _coerce_index(key.stop), reverse
+    if (step := _coerce_index(key.step)) == 0:
+        raise ValueError("slice step cannot be zero")
+    return _coerce_index(key.start) or 0, _coerce_index(key.stop), step or 1
