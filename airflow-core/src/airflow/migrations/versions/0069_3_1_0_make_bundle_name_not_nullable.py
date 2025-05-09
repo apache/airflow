@@ -48,7 +48,7 @@ def upgrade():
                 UPDATE dag
                 SET bundle_name =
                     CASE
-                        WHEN fileloc LIKE '%/airflow/airflow/example_dags/%' THEN 'example_dags'
+                        WHEN fileloc LIKE '%/airflow/example_dags/%' THEN 'example_dags'
                         ELSE 'dags-folder'
                     END
                 WHERE bundle_name IS NULL
