@@ -381,7 +381,7 @@ class BaseOperator(TaskSDKBaseOperator):
             # definition code
             assert isinstance(self.dag, SchedulerDAG)
 
-        clear_task_instances(results, session, dag=self.dag)
+        clear_task_instances(results, session)
         session.commit()
         return count
 
