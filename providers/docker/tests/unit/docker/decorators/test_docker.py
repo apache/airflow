@@ -335,6 +335,8 @@ class TestDockerDecorator:
             ret = f()
 
         dr = dag_maker.create_dagrun(session=session)
+        session.expunge_all()
+
         with pytest.raises(AirflowException):
             ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, session=session)
         ti = dr.get_task_instances(session=session)[0]
