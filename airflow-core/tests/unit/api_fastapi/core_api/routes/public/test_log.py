@@ -37,7 +37,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 class TestTaskInstancesLog:
