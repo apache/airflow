@@ -89,7 +89,6 @@ class TestSqlToS3Operator:
         op._get_hook = mock_dbapi_hook
         op.execute(None)
 
-        
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
         get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
         file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
@@ -106,8 +105,8 @@ class TestSqlToS3Operator:
 
         mock_dbapi_hook = mock.Mock()
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
-        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
-        get_pandas_df_mock.return_value = test_df
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
 
         op = SqlToS3Operator(
             query=query,
@@ -125,7 +124,7 @@ class TestSqlToS3Operator:
         op.execute(None)
 
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
-        get_pandas_df_mock.assert_called_once_with(sql=query, parameters=None)
+        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
         file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
         assert isinstance(file_obj, io.BytesIO)
         mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
@@ -140,8 +139,8 @@ class TestSqlToS3Operator:
 
         mock_dbapi_hook = mock.Mock()
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
-        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
-        get_pandas_df_mock.return_value = test_df
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
 
         op = SqlToS3Operator(
             query=query,
@@ -158,7 +157,7 @@ class TestSqlToS3Operator:
         op.execute(None)
 
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
-        get_pandas_df_mock.assert_called_once_with(sql=query, parameters=None)
+        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
         file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
         assert isinstance(file_obj, io.BytesIO)
         mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
