@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-09T08:46:09.331377
+# This constraints file was automatically generated on 2025-05-09T21:50:20.951626
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -247,7 +247,7 @@ google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
 graphviz==0.20.3
-greenlet==3.2.1
+greenlet==3.2.2
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -365,15 +365,15 @@ openlineage-python==1.32.1
 openlineage_sql==1.32.1
 openpyxl==3.1.5
 opensearch-py==2.8.0
-opentelemetry-api==1.32.1
-opentelemetry-exporter-otlp-proto-common==1.32.1
-opentelemetry-exporter-otlp-proto-grpc==1.32.1
-opentelemetry-exporter-otlp-proto-http==1.32.1
-opentelemetry-exporter-otlp==1.32.1
-opentelemetry-exporter-prometheus==0.53b1
-opentelemetry-proto==1.32.1
-opentelemetry-sdk==1.32.1
-opentelemetry-semantic-conventions==0.53b1
+opentelemetry-api==1.33.0
+opentelemetry-exporter-otlp-proto-common==1.33.0
+opentelemetry-exporter-otlp-proto-grpc==1.33.0
+opentelemetry-exporter-otlp-proto-http==1.33.0
+opentelemetry-exporter-otlp==1.33.0
+opentelemetry-exporter-prometheus==0.54b0
+opentelemetry-proto==1.33.0
+opentelemetry-sdk==1.33.0
+opentelemetry-semantic-conventions==0.54b0
 opsgenie-sdk==2.1.5
 oracledb==3.1.0
 ordered-set==4.1.0
@@ -495,7 +495,7 @@ sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.27.0
 setproctitle==1.3.6
-setuptools==80.3.1
+setuptools==80.4.0
 shapely==2.1.0
 shellingham==1.5.4
 simple-salesforce==1.12.6
@@ -504,7 +504,7 @@ slack_sdk==3.35.0
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
-snowballstemmer==3.0.0.1
+snowballstemmer==3.0.1
 snowflake-connector-python==3.15.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
@@ -556,7 +556,7 @@ towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.334.0
-trove-classifiers==2025.5.8.15
+trove-classifiers==2025.5.9.12
 twine==6.1.0
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415

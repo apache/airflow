@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-09T08:53:24.524279
+# This constraints file was automatically generated on 2025-05-09T21:57:38.629185
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -677,7 +677,7 @@ towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.330.0
-trove-classifiers==2025.5.8.15
+trove-classifiers==2025.5.9.12
 twine==6.1.0
 types-Deprecated==1.2.15.20241117
 types-Markdown==3.7.0.20241204
