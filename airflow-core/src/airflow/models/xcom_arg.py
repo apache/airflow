@@ -104,6 +104,18 @@ class SchedulerZipXComArg(SchedulerXComArg):
         )
 
 
+@attrs.define
+class SchedulerFilterXComArg(SchedulerXComArg):
+    arg: SchedulerXComArg
+    callables: Sequence[str]
+
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+        # We are deliberately NOT deserializing the callables. These are shown
+        # in the UI, and displaying a function object is useless.
+        return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
+
+
 @singledispatch
 def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Session) -> int | None:
     # The base implementation -- specific XComArg subclasses have specialised implementations
@@ -178,6 +190,11 @@ def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session):
     return sum(ready_lengths)
 
 
+@get_task_map_length.register
+def _(xcom_arg: SchedulerFilterXComArg, run_id: str, *, session: Session):
+    return get_task_map_length(xcom_arg.arg, run_id, session=session)
+
+
 def deserialize_xcom_arg(data: dict[str, Any], dag: SchedulerDAG):
     """DAG serialization interface."""
     klass = _XCOM_ARG_TYPES[data.get("type", "")]
@@ -187,6 +204,7 @@ def deserialize_xcom_arg(data: dict[str, Any], dag: SchedulerDAG):
 _XCOM_ARG_TYPES: dict[str, type[SchedulerXComArg]] = {
     "": SchedulerPlainXComArg,
     "concat": SchedulerConcatXComArg,
+    "filter": SchedulerFilterXComArg,
     "map": SchedulerMapXComArg,
     "zip": SchedulerZipXComArg,
 }
