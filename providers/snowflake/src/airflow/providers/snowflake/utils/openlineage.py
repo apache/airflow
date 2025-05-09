@@ -301,8 +301,9 @@ def emit_openlineage_events_for_snowflake_queries(
     # If real metadata is unavailable, we send events with eventTime=now
     default_event_time = timezone.utcnow()
     # If no query metadata is provided, we use task_instance's state when checking for success
-    default_state = str(task_instance.state) if hasattr(task_instance, "state") else ""
+    default_state = task_instance.state.value if hasattr(task_instance, "state") else ""
 
+    log.debug("Generating OpenLineage facets")
     common_run_facets = {"parent": _get_parent_run_facet(task_instance)}
     common_job_facets: dict[str, JobFacet] = {
         "jobType": job_type_job.JobTypeJobFacet(
