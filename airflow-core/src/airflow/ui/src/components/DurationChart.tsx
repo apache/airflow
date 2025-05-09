@@ -26,11 +26,13 @@ import {
   BarElement,
   Filler,
   Tooltip,
+  type ChartEvent,
 } from "chart.js";
 import type { PartialEventContext } from "chartjs-plugin-annotation";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
 import { Bar } from "react-chartjs-2";
+import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
@@ -64,6 +66,8 @@ export const DurationChart = ({
   readonly entries: Array<RunResponse> | undefined;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
+  const navigate = useNavigate();
+
   if (!entries) {
     return undefined;
   }
@@ -141,11 +145,44 @@ export const DurationChart = ({
         }}
         datasetIdKey="id"
         options={{
+          onClick: (_event, elements) => {
+            const [element] = elements;
+
+            if (element && typeof element.index === "number") {
+              const entry = entries[element.index];
+
+              if (kind === "Dag Run") {
+                const run = entry as DAGRunResponse;
+
+                navigate(`/dags/${run.dag_id}/runs/${run.dag_run_id}`);
+              }
+            }
+          },
+          onHover: (event: ChartEvent, elements) => {
+            const target = event.native?.target as HTMLElement;
+
+            target.style.cursor = elements.length > 0 ? "pointer" : "default";
+          },
           plugins: {
             annotation: {
               annotations: {
                 queuedAnnotation,
                 runAnnotation,
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const entry = entries[context.dataIndex];
+
+                  if (!entry) {
+                    return "";
+                  }
+
+                  const duration = Number(context.raw).toFixed(3);
+
+                  return `Run duration: ${duration}`;
+                },
               },
             },
           },
@@ -158,7 +195,6 @@ export const DurationChart = ({
               },
               title: { align: "end", display: true, text: "Run After" },
             },
-
             y: {
               title: { align: "end", display: true, text: "Duration (seconds)" },
             },
