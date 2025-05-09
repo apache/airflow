@@ -397,11 +397,16 @@ def test_expand_mapped_task_instance_with_named_index(
     expected_rendered_names,
 ) -> None:
     """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
-    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
+    dag_id = "test_dag_12345"
+    with dag_maker(
+        dag_id=dag_id,
+        start_date=DEFAULT_DATE,
+        serialized=True,
+    ):
         create_mapped_task(task_id="task1", map_names=["a", "b"], template=template)
 
-    dr = dag_maker.create_dagrun()
-    tis = dr.get_task_instances()
+    dr = dag_maker.create_dagrun(session=session)
+    tis = dr.get_task_instances(session=session)
     for ti in tis:
         ti.run()
     session.flush()
@@ -409,7 +414,7 @@ def test_expand_mapped_task_instance_with_named_index(
     indices = session.scalars(
         select(TaskInstance.rendered_map_index)
         .where(
-            TaskInstance.dag_id == "test-dag",
+            TaskInstance.dag_id == dag_id,
             TaskInstance.task_id == "task1",
             TaskInstance.run_id == dr.run_id,
         )

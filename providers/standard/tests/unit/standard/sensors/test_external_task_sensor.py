@@ -1771,14 +1771,13 @@ def test_external_task_marker_cyclic_shallow(dag_bag_cyclic):
 
 
 @pytest.fixture
-def dag_bag_multiple():
+def dag_bag_multiple(session):
     """
     Create a DagBag containing two DAGs, linked by multiple ExternalTaskMarker.
     """
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
     daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule="@daily")
     agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule="@daily")
-
     if AIRFLOW_V_3_0_PLUS:
         dag_bag.bag_dag(dag=daily_dag)
         dag_bag.bag_dag(dag=agg_dag)
@@ -1798,6 +1797,16 @@ def dag_bag_multiple():
             dag=agg_dag,
         )
         begin >> task
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+
+        bundle_name = "abcbunhdlerch3rc"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+        DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[daily_dag, agg_dag], bundle_version=None)
+        SerializedDagModel.write_dag(dag=daily_dag, bundle_name=bundle_name)
+        SerializedDagModel.write_dag(dag=agg_dag, bundle_name=bundle_name)
 
     return dag_bag
 
@@ -1819,7 +1828,7 @@ def test_clear_multiple_external_task_marker(dag_bag_multiple):
 
 
 @pytest.fixture
-def dag_bag_head_tail():
+def dag_bag_head_tail(session):
     """
     Create a DagBag containing one DAG, with task "head" depending on task "tail" of the
     previous logical_date.
@@ -1855,7 +1864,14 @@ def dag_bag_head_tail():
         head >> body >> tail
 
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.dagbundle import DagBundleModel
+
         dag_bag.bag_dag(dag=dag)
+        bundle_name = "9e8uh9odhu9c"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+        DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[dag], bundle_version=None)
+        SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)
     else:
         dag_bag.bag_dag(dag=dag, root_dag=dag)
 
