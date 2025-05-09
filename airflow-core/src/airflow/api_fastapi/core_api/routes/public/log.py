@@ -138,23 +138,24 @@ def get_log(
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
 
-    if accept == Mimetype.JSON:  # only specified application/json will return JSON
-        structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
-        encoded_token = None
-        if not out_metadata.get("end_of_log", False):
-            encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(out_metadata)
-        return TaskInstancesLogResponse.model_construct(
-            continuation_token=encoded_token, content=list(structured_log_stream)
-        )
+    if accept == Mimetype.NDJSON:  # only specified application/x-ndjson will return streaming response
+        log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
+        headers = None
+        if not metadata.get("end_of_log", False):
+            headers = {
+                "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
+            }
+        return StreamingResponse(media_type="application/x-ndjson", content=log_stream, headers=headers)
 
-    # text/plain, or something else we don't understand. Return raw log content in ndjson format with StreamingResponse
-    log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
-    headers = None
-    if not metadata.get("end_of_log", False):
-        headers = {
-            "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
-        }
-    return StreamingResponse(media_type="application/x-ndjson", content=log_stream, headers=headers)
+    # application/json, or something else we don't understand.
+    # Return JSON format, which will be more easily for users to debug.
+    structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
+    encoded_token = None
+    if not out_metadata.get("end_of_log", False):
+        encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(out_metadata)
+    return TaskInstancesLogResponse.model_construct(
+        continuation_token=encoded_token, content=list(structured_log_stream)
+    )
 
 
 @task_instances_log_router.get(
