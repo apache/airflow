@@ -170,21 +170,6 @@ export const DurationChart = ({
                 runAnnotation,
               },
             },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const entry = entries[context.dataIndex];
-
-                  if (!entry) {
-                    return "";
-                  }
-
-                  const duration = Number(context.raw).toFixed(3);
-
-                  return `Run duration: ${duration}`;
-                },
-              },
-            },
           },
           responsive: true,
           scales: {
