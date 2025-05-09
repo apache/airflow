@@ -348,6 +348,7 @@ class TestClearTasks:
         assert ti0.max_tries == 1
         assert ti0.state is None
         assert ti1.try_number == 1
+<<<<<<< HEAD
         assert ti1.state is None
         if delete_tasks:
             assert ti1.max_tries == 2
@@ -355,6 +356,61 @@ class TestClearTasks:
             assert ti1.max_tries == 3
         session.refresh(dr)
         assert dr.state == "queued"
+=======
+        assert ti1.max_tries == 2
+
+    def _clear_serdags(self, dag_id, session):
+        SDM = SerializedDagModel
+        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag_id))
+        for sdm in sdms:
+            session.delete(sdm)
+        session.commit()
+
+    def test_clear_task_instances_without_dag(self, dag_maker, session):
+        # Don't write DAG to the database, so no DAG is found by clear_task_instances().
+        # Explicitly needs catchup as True as test is creating history runs
+        with dag_maker(
+            "test_clear_task_instances_without_dag",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            catchup=True,
+        ) as dag:
+            task0 = EmptyOperator(task_id="task0")
+            task1 = EmptyOperator(task_id="task1", retries=2)
+
+        self._clear_serdags(dag_id=dag.dag_id, session=session)
+
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.refresh_from_task(task0)
+        ti1.refresh_from_task(task1)
+
+        # do the incrementing of try_number ordinarily handled by scheduler
+        ti0.try_number += 1
+        ti1.try_number += 1
+        session.merge(ti0)
+        session.merge(ti1)
+        session.commit()
+
+        # we use order_by(task_id) here because for the test DAG structure of ours
+        # this is equivalent to topological sort. It would not work in general case
+        # but it works for our case because we specifically constructed test DAGS
+        # in the way that those two sort methods are equivalent
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        clear_task_instances(qry, session)
+
+        # When no DAG is found, max_tries will be maximum of original max_tries or try_number.
+        ti0.refresh_from_db()
+        ti1.refresh_from_db()
+        assert ti0.try_number == 1
+        assert ti0.max_tries == 1
+        assert ti1.try_number == 1
+        assert ti1.max_tries == 2
+>>>>>>> 1fdbbfdaaa (Fix tests)
 
     def test_clear_task_instances_without_dag_param(self, dag_maker, session):
         # Explicitly needs catchup as True as test is creating history runs
@@ -700,13 +756,17 @@ class TestClearTasks:
         ti1, ti2 = sorted(dr.get_task_instances(session=session), key=lambda ti: ti.task_id)
         ti1.task = op1
         ti2.task = op2
-
-        session.get(TaskInstance, ti2.id).try_number += 1
+        ti2.refresh_from_db(session=session)
+        ti2.try_number += 1
         session.commit()
-        ti2.run(session=session)
+
         # Dependency not met
         assert ti2.try_number == 1
         assert ti2.max_tries == 1
+
+        ti1.refresh_from_db(session=session)
+        assert ti1.max_tries == 0
+        assert ti1.try_number == 0
 
         op2.clear(upstream=True, session=session)
         ti1.refresh_from_db(session)
@@ -716,23 +776,22 @@ class TestClearTasks:
         # max tries will be set to retries + curr try number == 1 + 1 == 2
         assert ti2.max_tries == 2
 
-        ti1.try_number += 1
-        session.merge(ti1)
-        session.commit()
-
-        ti1.run(session=session)
         ti1.refresh_from_db(session)
         ti2.refresh_from_db(session)
-        assert ti1.try_number == 1
+        assert ti1.try_number == 0
 
         ti2 = _get_ti(ti2)
         ti2.try_number += 1
+<<<<<<< HEAD
         ti2.refresh_from_task(op1)
         session.commit()
         ti2.run(ignore_ti_state=True, session=session)
         ti2.refresh_from_db(session)
         # max_tries is 0 because there is no task instance in db for ti1
         # so clear won't change the max_tries.
+=======
+        # max_tries ==
+>>>>>>> 1fdbbfdaaa (Fix tests)
         assert ti1.max_tries == 0
         assert ti2.try_number == 2
         assert ti2.max_tries == 2  # max tries has not changed since it was updated when op2.clear called
