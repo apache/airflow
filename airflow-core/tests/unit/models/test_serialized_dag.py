@@ -484,22 +484,26 @@ class TestSerializedDagModel:
 
         db.clear_db_assets()
 
-    @pytest.mark.parametrize("min_update_interval", [0, 10])
-    @mock.patch.object(DagVersion, "get_latest_version")
-    def test_min_update_interval_is_respected(
-        self, mock_dv_get_latest_version, min_update_interval, dag_maker
-    ):
-        mock_dv_get_latest_version.return_value = None
+    @pytest.mark.parametrize(
+        "provide_interval, new_task, should_write",
+        [
+            (True, True, False),
+            (True, False, False),
+            (False, True, True),
+            (False, False, False),
+        ],
+    )
+    def test_min_update_interval_is_respected(self, provide_interval, new_task, should_write, dag_maker):
+        min_update_interval = 10 if provide_interval else 0
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda: None)
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
-        # new task
-        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
-        SDM.write_dag(dag, bundle_name="testing", min_update_interval=min_update_interval)
-        if min_update_interval:
-            # Because min_update_interval is 10, DagVersion.get_latest_version would
-            # be called only once:
-            mock_dv_get_latest_version.assert_called_once()
-        else:
-            assert mock_dv_get_latest_version.call_count == 2
+
+        if new_task:
+            PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+
+        did_write = SDM.write_dag(
+            dag,
+            bundle_name="testing",
+            min_update_interval=min_update_interval,
+        )
+        assert did_write is should_write
