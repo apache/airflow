@@ -708,7 +708,6 @@ def post_clear_task_instances(
         clear_task_instances(
             task_instances,
             session,
-            dag,
             DagRunState.QUEUED if reset_dag_runs else False,
         )
 

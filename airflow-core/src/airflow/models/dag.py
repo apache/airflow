@@ -96,7 +96,6 @@ from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
-from airflow.security import permissions
 from airflow.settings import json
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -468,6 +467,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             return None
 
         from airflow.providers.fab import __version__ as FAB_VERSION
+        from airflow.providers.fab.www.security import permissions
 
         updated_access_control = {}
         for role, perms in access_control.items():
@@ -1526,7 +1526,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             clear_task_instances(
                 list(tis),
                 session,
-                dag=self,
                 dag_run_state=dag_run_state,
             )
         else:

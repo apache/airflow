@@ -25,7 +25,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
-from airflow.models import DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
@@ -150,6 +150,61 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert backfill_dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
+
+
+def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
+    """
+    Verify that when backfill clears an existing dag run, bundle version is cleared.
+    """
+    # two that will be reprocessed, and an old one not to be processed by backfill
+    existing = ["1985-01-01", "2021-01-02", "2021-01-03"]
+    run_ids = {d: f"scheduled_{d}" for d in existing}
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+    first_bundle_version = "bundle_VclmpcTdXv"
+    dag_model.bundle_version = first_bundle_version
+    session.commit()
+    for date in existing:
+        dag_maker.create_dagrun(
+            run_id=run_ids[date], logical_date=timezone.parse(date), session=session, state="failed"
+        )
+        session.commit()
+
+    # update bundle version
+    new_bundle_version = "bundle_VclmpcTdXv-2"
+    dag_model.bundle_version = new_bundle_version
+    session.commit()
+
+    # verify that existing dag runs still have the first bundle version
+    dag_runs = list(session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id)))
+    assert [x.bundle_version for x in dag_runs] == 3 * [first_bundle_version]
+    assert [x.state for x in dag_runs] == 3 * ["failed"]
+    session.commit()
+    _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        dag_run_conf=None,
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+    session.commit()
+
+    # verify that the old dag run (not included in backfill) still has first bundle version
+    # but the latter 5, which are included in the backfill, have the latest bundle version
+    dag_runs = sorted(
+        session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag.dag_id,
+            ),
+        ),
+        key=lambda x: x.logical_date,
+    )
+    expected = [first_bundle_version] + 5 * [new_bundle_version]
+    assert [x.bundle_version for x in dag_runs] == expected
 
 
 @pytest.mark.parametrize(

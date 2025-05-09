@@ -94,7 +94,6 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
-from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -255,7 +254,6 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
-    dag: DAG | None = None,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
 ) -> None:
     """
@@ -271,11 +269,13 @@ def clear_task_instances(
     :param session: current session
     :param dag_run_state: state to set finished DagRuns to.
         If set to False, DagRuns state will not be changed.
-    :param dag: DAG object
+
+    :meta private:
     """
-    # taskinstance uuids:
     task_instance_ids: list[str] = []
-    dag_bag = DagBag(read_dags_from_db=True)
+    from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+
+    scheduler_dagbag = SchedulerDagBag()
 
     for ti in tis:
         task_instance_ids.append(ti.id)
@@ -285,7 +285,10 @@ def clear_task_instances(
             # the task is terminated and becomes eligible for retry.
             ti.state = TaskInstanceState.RESTARTING
         else:
-            ti_dag = dag if dag and dag.dag_id == ti.dag_id else dag_bag.get_dag(ti.dag_id, session=session)
+            dr = ti.dag_run
+            ti_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session)
+            if not ti_dag:
+                log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
                 task = ti_dag.get_task(task_id)
@@ -326,6 +329,13 @@ def clear_task_instances(
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
+                dr_dag = scheduler_dagbag.get_dag(dag_run=dr, session=session)
+                if not dr_dag:
+                    log.warning("No serialized dag found for dag '%s'", dr.dag_id)
+                if dr_dag and not dr_dag.disable_bundle_versioning:
+                    bundle_version = dr.dag_model.bundle_version
+                    if bundle_version is not None:
+                        dr.bundle_version = bundle_version
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
