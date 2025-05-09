@@ -22,7 +22,7 @@ Thank you for installing Apache {{ title .Chart.Name }} {{ .Values.airflowVersio
 
 Your release is named {{ .Release.Name }}.
 
-{{- if or .Values.ingress.web.enabled .Values.ingress.flower.enabled .Values.ingress.enabled }}
+{{- if or .Values.ingress.web.enabled .Values.ingress.flower.enabled .Values.ingress.enabled .Values.ingress.apiServer.enabled }}
 You can now access your service(s) by following defined Ingress urls:
 
 {{- if .Values.ingress.web.host }}
@@ -30,6 +30,14 @@ You can now access your service(s) by following defined Ingress urls:
 DEPRECATION WARNING:
    `ingress.web.host` has been renamed to `ingress.web.hosts` and is now an array.
    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.ingress.web.hosts }}
+
+DEPRECATION ERROR:
+   `ingress.web.hosts` has been renamed to `ingress.apiServer.hosts` as per Airflow v3.
+   Please change your values as the service has been renamed.
 
 {{- end }}
 
@@ -81,6 +89,22 @@ Airflow Webserver:
       http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.web.path }}/
 {{- end }}
 {{- end }}
+
+{{- if .Values.ingress.apiServer.enabled }}
+Airflow API Server:
+{{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
+      {{- $tlsEnabled := $.Values.ingress.apiServer.tls.enabled -}}
+      {{- $hostname := $.Values.ingress.apiServer.host -}}
+      {{- if . | kindIs "string" | not }}
+      {{- if .tls }}
+      {{- $tlsEnabled = .tls.enabled -}}
+      {{- $hostname = .name -}}
+      {{- end }}
+      {{- end }}
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.apiServer.path }}/
+{{- end }}
+{{- end }}
+
 {{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 Flower dashboard:
 {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
