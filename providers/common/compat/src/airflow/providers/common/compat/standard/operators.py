@@ -39,8 +39,12 @@ else:
             _SERIALIZERS,
             PythonOperator,
             ShortCircuitOperator,
-            get_current_context,
         )
+
+    try:
+        from airflow.sdk import get_current_context
+    except (ImportError, ModuleNotFoundError):
+        from airflow.providers.standard.operators.python import get_current_context
 
 
 __all__ = ["PythonOperator", "_SERIALIZERS", "ShortCircuitOperator", "get_current_context"]
