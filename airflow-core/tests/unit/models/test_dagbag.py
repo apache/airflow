@@ -494,7 +494,7 @@ class TestDagBag:
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
             EmptyOperator(task_id="task_1")
-        # dag_maker.create_dagrun(session=session)
+
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
         dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
         dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
