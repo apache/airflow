@@ -3713,7 +3713,7 @@ class TestTaskInstance:
 
     def test_get_current_context_works_in_template(self, dag_maker):
         def user_defined_macro():
-            from airflow.providers.standard.operators.python import get_current_context
+            from airflow.sdk import get_current_context
 
             get_current_context()
 
