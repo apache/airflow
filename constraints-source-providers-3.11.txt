@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-29T11:18:28.000412
+# This constraints file was automatically generated on 2025-05-09T08:46:06.104351
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -48,7 +48,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.21.1
+aiobotocore==2.22.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.11.18
@@ -59,12 +59,12 @@ alabaster==1.0.0
 alembic==1.15.2
 alibabacloud-adb20211201==3.0.3
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.1
+alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.14
+alibabacloud_tea_openapi==0.3.15
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.16.0
@@ -83,7 +83,7 @@ asgiref==3.8.1
 asn1crypto==1.5.1
 astroid==3.3.9
 asttokens==3.0.0
-asyncssh==2.20.0
+asyncssh==2.21.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.3
 attrs==25.3.0
@@ -91,16 +91,16 @@ aws-sam-translator==1.97.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.33.0
+azure-core==1.34.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
-azure-identity==1.21.0
+azure-identity==1.22.0
 azure-keyvault-secrets==4.9.0
-azure-kusto-data==5.0.2
+azure-kusto-data==5.0.3
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
 azure-mgmt-core==1.5.0
-azure-mgmt-cosmosdb==9.7.0
+azure-mgmt-cosmosdb==9.8.0
 azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
@@ -123,8 +123,8 @@ billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
 blinker==1.9.0
-boto3==1.37.1
-botocore==1.37.1
+boto3==1.37.3
+botocore==1.37.3
 cachelib==0.13.0
 cachetools==5.5.2
 cassandra-driver==3.29.2
@@ -133,10 +133,10 @@ celery==5.5.2
 certifi==2025.4.26
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.34.2
+cfn-lint==1.35.1
 cgroupspy==0.2.3
 chardet==5.2.0
-charset-normalizer==3.4.1
+charset-normalizer==3.4.2
 checksumdir==1.2.0
 ciso8601==2.3.2
 click-didyoumean==0.3.1
@@ -184,7 +184,7 @@ et_xmlfile==2.0.0
 eventlet==0.39.1
 execnet==2.1.1
 executing==2.2.0
-facebook_business==22.0.4
+facebook_business==22.0.5
 fastavro==1.10.0
 fasteners==0.19
 fastjsonschema==2.21.1
@@ -203,11 +203,11 @@ gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
 google-api-core==2.24.2
-google-api-python-client==2.168.0
+google-api-python-client==2.169.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
-google-auth==2.39.0
-google-cloud-aiplatform==1.90.0
+google-auth==2.40.1
+google-cloud-aiplatform==1.92.0
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.3
@@ -219,8 +219,8 @@ google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
 google-cloud-container==2.56.1
 google-cloud-core==2.4.3
-google-cloud-datacatalog==3.27.0
-google-cloud-dataflow-client==0.8.17
+google-cloud-datacatalog==3.27.1
+google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.1
 google-cloud-dataplex==2.10.1
 google-cloud-dataproc-metastore==1.18.2
@@ -243,12 +243,13 @@ google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.2
-google-cloud-texttospeech==2.26.0
+google-cloud-texttospeech==2.27.0
 google-cloud-translate==3.20.2
 google-cloud-videointelligence==2.16.1
 google-cloud-vision==3.10.1
 google-cloud-workflows==1.18.1
 google-crc32c==1.7.1
+google-genai==1.2.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
@@ -274,7 +275,7 @@ hpack==4.1.0
 httpcore==1.0.9
 httplib2==0.22.0
 httpx==0.27.0
-humanize==4.12.2
+humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
 hyperlink==21.0.0
@@ -282,7 +283,7 @@ icdiff==2.0.7
 id==1.5.0
 identify==2.6.10
 idna==3.10
-ijson==3.3.0
+ijson==3.4.0
 imagesize==1.4.1
 importlib-metadata==6.11.0
 impyla==0.21.0
@@ -327,11 +328,11 @@ ldap3==2.9.1
 limits==5.1.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.4.0
+looker-sdk==25.6.0
 lxml==5.4.0
 lz4==4.4.4
 markdown-it-py==3.0.0
-marshmallow-oneofschema==3.1.1
+marshmallow-oneofschema==3.2.0
 marshmallow-sqlalchemy==0.28.2
 marshmallow==3.26.1
 matplotlib-inline==0.1.7
@@ -372,12 +373,12 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.76.0
+openai==1.78.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.32.0
-openlineage-python==1.32.0
-openlineage_sql==1.32.0
+openlineage-integration-common==1.32.1
+openlineage-python==1.32.1
+openlineage_sql==1.32.1
 openpyxl==3.1.5
 opensearch-py==2.8.0
 opentelemetry-api==1.27.0
@@ -392,7 +393,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==3.1.0
 ordered-set==4.1.0
-orjson==3.10.16
+orjson==3.10.18
 oss2==2.19.1
 packaging==25.0
 pandas-gbq==0.28.0
@@ -412,7 +413,7 @@ pinecone-plugin-interface==0.0.7
 pinecone==6.0.2
 pinotdb==5.6.0
 pipdeptree==2.26.1
-platformdirs==4.3.7
+platformdirs==4.3.8
 pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
@@ -441,18 +442,18 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.22.0
-pydantic==2.11.3
-pydantic_core==2.33.1
+pydantic==2.11.4
+pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydot==1.4.2
 pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.27.0
 pygraphviz==1.14
-pyiceberg==0.9.0
+pyiceberg==0.9.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
-pymongo==4.12.0
+pymongo==4.12.1
 pymssql==2.3.4
 pyodbc==5.2.0
 pyparsing==3.2.3
@@ -465,7 +466,7 @@ pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.14.0
-pytest-rerunfailures==15.0
+pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
 pytest==8.3.5
@@ -487,7 +488,7 @@ qdrant-client==1.14.2
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
-redshift-connector==2.1.5
+redshift-connector==2.1.6
 referencing==0.36.2
 regex==2024.11.6
 requests-file==2.1.0
@@ -516,7 +517,7 @@ semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.27.0
-setproctitle==1.3.5
+setproctitle==1.3.6
 shapely==2.1.0
 shellingham==1.5.4
 simple-salesforce==1.12.6
@@ -525,7 +526,7 @@ slack_sdk==3.35.0
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
-snowballstemmer==2.2.0
+snowballstemmer==3.0.0.1
 snowflake-connector-python==3.15.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
@@ -550,7 +551,7 @@ sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.14.0
 sqlalchemy-redshift==0.8.14
-sqlalchemy-spanner==1.10.0
+sqlalchemy-spanner==1.11.0
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
 sshtunnel==0.4.0
@@ -565,7 +566,7 @@ tabulate==0.9.0
 tenacity==9.1.2
 teradatasql==20.0.0.30
 teradatasqlalchemy==20.0.0.4
-termcolor==3.0.1
+termcolor==3.1.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
@@ -576,8 +577,8 @@ tornado==6.4.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
-trino==0.333.0
-trove-classifiers==2025.4.28.22
+trino==0.334.0
+trove-classifiers==2025.5.8.15
 twine==6.1.0
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415
@@ -589,14 +590,14 @@ types-cffi==1.17.0.20250326
 types-croniter==6.0.0.20250411
 types-docutils==0.21.0.20241128
 types-paramiko==3.5.0.20240928
-types-protobuf==5.29.1.20250403
+types-protobuf==6.30.2.20250506
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250326
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20250328
-types-setuptools==80.0.0.20250429
+types-setuptools==80.3.0.20250505
 types-tabulate==0.9.0.20241207
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -613,16 +614,17 @@ uv==0.6.14
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.30.0
+virtualenv==20.31.2
 watchtower==3.4.0
 wcwidth==0.2.13
 weaviate-client==4.9.6
 websocket-client==1.8.0
+websockets==14.2
 wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.15
 xmltodict==0.14.2
-yamllint==1.37.0
+yamllint==1.37.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.0

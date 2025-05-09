@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-29T11:18:38.279733
+# This constraints file was automatically generated on 2025-05-09T08:46:15.525760
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -33,7 +33,7 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 WTForms==3.1.2
 Werkzeug==2.2.3
-aiobotocore==2.21.1
+aiobotocore==2.22.0
 aiohappyeyeballs==2.4.4
 aiohttp==3.10.11
 aioitertools==0.12.0
@@ -52,12 +52,12 @@ babel==2.17.0
 backports.zoneinfo==0.2.1
 bcrypt==4.3.0
 blinker==1.8.2
-botocore==1.37.1
+botocore==1.37.3
 cachelib==0.13.0
 certifi==2025.4.26
 cffi==1.17.1
 cgroupspy==0.2.3
-charset-normalizer==3.4.1
+charset-normalizer==3.4.2
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==3.1.1
@@ -66,7 +66,7 @@ colorlog==6.9.0
 connexion==2.14.2
 cron-descriptor==1.4.5
 croniter==6.0.0
-cryptography==44.0.2
+cryptography==44.0.3
 decorator==5.2.1
 dill==0.4.0
 distlib==0.3.9
@@ -166,7 +166,7 @@ rich==13.9.4
 rpds-py==0.20.1
 s3fs==2024.10.0
 sentry-sdk==2.27.0
-setproctitle==1.3.5
+setproctitle==1.3.6
 six==1.17.0
 sniffio==1.3.1
 sqlparse==0.5.3
@@ -185,7 +185,7 @@ universal_pathlib==0.2.6
 urllib3==1.26.20
 uv==0.6.14
 vine==5.1.0
-virtualenv==20.30.0
+virtualenv==20.31.2
 wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.15
