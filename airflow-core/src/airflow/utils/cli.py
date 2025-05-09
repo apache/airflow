@@ -277,7 +277,7 @@ def get_dag(bundle_names: list | None, dag_id: str, from_db: bool = False) -> DA
         manager = DagBundlesManager()
         for bundle_name in bundle_names:
             bundle = manager.get_bundle(bundle_name)
-            dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)
+            dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path, include_examples=False)
             dag = dagbag.dags.get(dag_id)
             if dag:
                 break
