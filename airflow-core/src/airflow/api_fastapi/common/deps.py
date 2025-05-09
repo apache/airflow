@@ -14,16 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import os
+from typing import Annotated
 
-from airflow.models import DagBag
+from fastapi import Depends
+
+from airflow.models.dagbag import DagBag
 from airflow.settings import DAGS_FOLDER
 
 
-def get_dag_bag() -> DagBag:
-    """Instantiate the appropriate DagBag based on the ``SKIP_DAGS_PARSING`` environment variable."""
+def _get_dag_bag() -> DagBag:
     if os.environ.get("SKIP_DAGS_PARSING") == "True":
         return DagBag(os.devnull, include_examples=False)
     return DagBag(DAGS_FOLDER, read_dags_from_db=True)
+
+
+DagBagDep = Annotated[DagBag, Depends(_get_dag_bag)]

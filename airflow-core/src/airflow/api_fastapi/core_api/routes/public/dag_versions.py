@@ -18,11 +18,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
     QueryLimit,
@@ -80,10 +81,9 @@ def get_dag_version(
 )
 def get_dag_versions(
     dag_id: str,
+    session: SessionDep,
     limit: QueryLimit,
     offset: QueryOffset,
-    session: SessionDep,
-    request: Request,
     version_number: Annotated[
         FilterParam[int], Depends(filter_param_factory(DagVersion.version_number, int))
     ],
@@ -97,6 +97,7 @@ def get_dag_versions(
             SortParam(["id", "version_number", "bundle_name", "bundle_version"], DagVersion).dynamic_depends()
         ),
     ],
+    dag_bag: DagBagDep,
 ) -> DAGVersionCollectionResponse:
     """
     Get all DAG Versions.
@@ -106,7 +107,7 @@ def get_dag_versions(
     query = select(DagVersion)
 
     if dag_id != "~":
-        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        dag: DAG = dag_bag.get_dag(dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 

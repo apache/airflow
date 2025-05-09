@@ -27,6 +27,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
@@ -76,6 +77,7 @@ def get_log(
     try_number: PositiveInt,
     accept: HeaderAcceptJsonOrText,
     request: Request,
+    dag_bag: DagBagDep,
     session: SessionDep,
     full_content: bool = False,
     map_index: int = -1,
@@ -129,7 +131,7 @@ def get_log(
         metadata["end_of_log"] = True
         raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
 
-    dag = request.app.state.dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag(dag_id)
     if dag:
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)

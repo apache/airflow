@@ -20,11 +20,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
     FilterParam,
@@ -345,7 +346,7 @@ def create_asset_event(
 )
 def materialize_asset(
     asset_id: int,
-    request: Request,
+    dag_bag: DagBagDep,
     session: SessionDep,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a DAG run that produces it."""
@@ -367,7 +368,7 @@ def materialize_asset(
         )
 
     dag: DAG | None
-    if not (dag := request.app.state.dag_bag.get_dag(dag_id)):
+    if not (dag := dag_bag.get_dag(dag_id)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID `{dag_id}` was not found")
 
     return dag.create_dagrun(
