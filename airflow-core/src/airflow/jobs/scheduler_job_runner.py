@@ -1736,8 +1736,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.scheduler_dag_bag.get_dag, session=session)
         )
 
+        current_scheduling_decision_time = timezone.utcnow()
         span = Trace.get_current_span()
         for dag_run in dag_runs:
+            # All selected dag runs are unconditionally marked as "touched" here
+            # so the next call to get_queued_dag_runs_to_set_running() will
+            # de-prioritize them. This allows us to give every dag run a chance
+            # to be seen eventually. This is important since optimistic windowing
+            # in the select logic may cause the same set of runs to be selected
+            # over and over without any single one of them being set to RUNNING
+            # due to concurrency restrictions.
+            dag_run.last_scheduling_decision = current_scheduling_decision_time
+
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
