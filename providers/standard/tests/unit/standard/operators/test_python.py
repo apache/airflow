@@ -1946,7 +1946,7 @@ class TestShortCircuitWithTeardown:
     def test_short_circuit_with_teardowns(
         self, dag_maker, ignore_downstream_trigger_rules, should_skip, with_teardown, expected
     ):
-        with dag_maker() as dag:
+        with dag_maker(serialized=True):
             op1 = ShortCircuitOperator(
                 task_id="op1",
                 python_callable=lambda: not should_skip,
@@ -1959,21 +1959,20 @@ class TestShortCircuitWithTeardown:
                 op4.as_teardown()
             op1 >> op2 >> op3 >> op4
             op1.skip = MagicMock()
-            dagrun = dag_maker.create_dagrun()
-            tis = dagrun.get_task_instances()
-            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-            ti._run_raw_task()
-            expected_tasks = {dag.task_dict[x] for x in expected}
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
+        ti._run_raw_task()
         if should_skip:
             # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
-            assert actual_skipped == expected_tasks
+            actual_skipped = set(x.task_id for x in op1.skip.call_args.kwargs["tasks"])
+            assert actual_skipped == set(expected)
         else:
             op1.skip.assert_not_called()
 
     @pytest.mark.parametrize("config", ["sequence", "parallel"])
     def test_short_circuit_with_teardowns_complicated(self, dag_maker, config):
-        with dag_maker():
+        with dag_maker(serialized=True):
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
             s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
             op1 = ShortCircuitOperator(
@@ -1990,16 +1989,16 @@ class TestShortCircuitWithTeardown:
             else:
                 raise ValueError("unexpected")
             op1.skip = MagicMock()
-            dagrun = dag_maker.create_dagrun()
-            tis = dagrun.get_task_instances()
-            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-            ti._run_raw_task()
-            # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
-            assert actual_skipped == {s2, op2}
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
+        ti._run_raw_task()
+        # we can't use assert_called_with because it's a set and therefore not ordered
+        actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
+        assert actual_skipped == {s2, op2}
 
     def test_short_circuit_with_teardowns_complicated_2(self, dag_maker):
-        with dag_maker():
+        with dag_maker(serialized=True):
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
             s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
             op1 = ShortCircuitOperator(
@@ -2017,14 +2016,14 @@ class TestShortCircuitWithTeardown:
             # in this case we don't want to skip t2 since it should run
             op1 >> t2
             op1.skip = MagicMock()
-            dagrun = dag_maker.create_dagrun()
-            tis = dagrun.get_task_instances()
-            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-            ti._run_raw_task()
-            # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_kwargs = op1.skip.call_args.kwargs
-            actual_skipped = set(actual_kwargs["tasks"])
-            assert actual_skipped == {op3}
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
+        ti._run_raw_task()
+        # we can't use assert_called_with because it's a set and therefore not ordered
+        actual_kwargs = op1.skip.call_args.kwargs
+        actual_skipped = set(actual_kwargs["tasks"])
+        assert actual_skipped == {op3}
 
     @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
     def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db):
@@ -2032,7 +2031,7 @@ class TestShortCircuitWithTeardown:
         When logging is debug we convert to a list to log the tasks skipped
         before passing them to the skip method.
         """
-        with dag_maker():
+        with dag_maker(serialized=True):
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
             s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
             op1 = ShortCircuitOperator(
@@ -2051,18 +2050,18 @@ class TestShortCircuitWithTeardown:
             # in this case we don't want to skip t2 since it should run
             op1 >> t2
             op1.skip = MagicMock()
-            dagrun = dag_maker.create_dagrun()
-            tis = dagrun.get_task_instances()
-            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-            ti._run_raw_task()
-            # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_kwargs = op1.skip.call_args.kwargs
-            actual_skipped = actual_kwargs["tasks"]
-            if level <= logging.DEBUG:
-                assert isinstance(actual_skipped, list)
-            else:
-                assert isinstance(actual_skipped, Generator)
-            assert set(actual_skipped) == {op3}
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
+        ti._run_raw_task()
+        # we can't use assert_called_with because it's a set and therefore not ordered
+        actual_kwargs = op1.skip.call_args.kwargs
+        actual_skipped = actual_kwargs["tasks"]
+        if level <= logging.DEBUG:
+            assert isinstance(actual_skipped, list)
+        else:
+            assert isinstance(actual_skipped, Generator)
+        assert set(actual_skipped) == {op3}
 
 
 @pytest.mark.parametrize(
