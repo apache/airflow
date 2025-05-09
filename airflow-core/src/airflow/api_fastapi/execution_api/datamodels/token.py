@@ -17,16 +17,34 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-# TODO: This is a placeholder for Task Identity Token schema.
-class TIToken(BaseModel):
-    """Task Identity Token."""
+class RuntimeBindingsTokenType(StrEnum):
+    """Type of a token used to fetch details (e.g. XCom, Connection, Variable) from the execution API.
+    For synchronous tasks and triggers from sensor tasks this should be ``TASK_INSTANCE`` type.
+    For asset triggers this should be ``ASSET_TRIGGER`` type (because there is no parent Task Instance to
+    use). This is used in a custom claim `sub_type` in the token.
+    """
 
-    id: UUID
+    TASK_INSTANCE = "task_instance"
+    ASSET_TRIGGER = "asset_trigger"
+
+
+# TODO: This is a placeholder for Task Identity Token schema.
+class RuntimeBindingsToken(BaseModel):
+    """Task or Asset Trigger Identity Token for fetching runtime bindings (XCom, Connection, Variable)
+    id: str should be set to TaskInstance UUID for tasks and triggers with parent Task Instances. For asset
+            triggers this should be set to the asset id.
+    type: RuntimeBindingsTokenType
+    """
+
+    id: str
+
+    type: RuntimeBindingsTokenType = RuntimeBindingsTokenType.TASK_INSTANCE
 
     claims: dict[str, Any]
