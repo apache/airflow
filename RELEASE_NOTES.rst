@@ -449,8 +449,8 @@ Refactored Internal Utilities
 
 Several core components have been moved to more intuitive or stable locations:
 
-- The ``SecretsMasker`` class has been relocated to ``airflow.utils.secrets_masker``.
-- The ``ObjectStoragePath`` utility previously located under ``airflow.io`` is now available via ``airflow.utils.object_storage_path``.
+- The ``SecretsMasker`` class has been relocated to ``airflow.sdk.execution_time.secrets_masker``.
+- The ``ObjectStoragePath`` utility previously located under ``airflow.io`` is now available via ``airflow.sdk``.
 
 These changes simplify imports and reflect broader efforts to stabilize utility interfaces across the Airflow codebase.
 
@@ -537,7 +537,7 @@ Airflow 3.0 includes improved support for upgrade validation. Use the following 
 configs or deprecated usage patterns:
 
 - ``airflow config lint``: Identifies removed or invalid config keys
-- ``ruff check --select AIR30``: Flags removed interfaces and common migration issues
+- ``ruff check --select AIR30 --preview``: Flags removed interfaces and common migration issues
 
 CLI & API Changes
 ^^^^^^^^^^^^^^^^^
@@ -554,6 +554,19 @@ The Airflow CLI has been split into two distinct interfaces:
 - Remote functionality, including triggering DAGs or managing connections in service-mode environments, is now handled by a separate CLI called ``airflowctl``, distributed via the ``apache-airflow-client`` package.
 
 This change improves security and modularity for deployments that use Airflow in a distributed or API-first context.
+
+REST API v2 replaces v1
+"""""""""""""""""""""""
+
+The legacy REST API v1, previously built with Connexion and Marshmallow, has been replaced by a modern FastAPI-based REST API v2.
+
+This new implementation improves performance, aligns more closely with web standards, and provides a consistent developer experience across the API and UI.
+
+Key changes include stricter validation (422 errors instead of 400), the removal of the ``execution_date`` parameter in favor of ``logical_date``, and more consistent query parameter handling.
+
+The v2 API is now the stable, fully supported interface for programmatic access to Airflow, and also powers the new UI - achieving full feature parity between the UI and API.
+
+For details, see the :doc:`Airflow REST API v2 </stable-rest-api-ref>` documentation.
 
 REST API: DAG Trigger Behavior Updated
 """"""""""""""""""""""""""""""""""""""
@@ -775,8 +788,8 @@ compatible with Airflow 3.0. These checks are packaged under the ``AIR30x`` rule
 
 .. code-block:: bash
 
-    ruff check dags/ --select AIR301
-    ruff check dags/ --select AIR301 --fix
+    ruff check dags/ --select AIR301  --preview
+    ruff check dags/ --select AIR301 --fix  --preview
 
 These checks can automatically fix many common issues such as renamed arguments, removed imports, or legacy context
 variable usage.

@@ -1598,6 +1598,12 @@ PROVIDERS_COMMANDS = (
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
+        name="queues",
+        help="Get information about queues provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.queues_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name="notifications",
         help="Get information about notifications provided",
         func=lazy_load_command("airflow.cli.commands.provider_command.notifications_list"),

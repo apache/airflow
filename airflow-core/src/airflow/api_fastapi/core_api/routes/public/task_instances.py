@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Annotated, Literal, cast
 
 import structlog
-from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import or_, select
@@ -30,6 +30,7 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -122,7 +123,7 @@ def get_mapped_task_instances(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    request: Request,
+    dag_bag: DagBagDep,
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
@@ -177,7 +178,7 @@ def get_mapped_task_instances(
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
     if unfiltered_total_count == 0:
-        dag = request.app.state.dag_bag.get_dag(dag_id)
+        dag = dag_bag.get_dag(dag_id)
         if not dag:
             error_message = f"DAG {dag_id} not found"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
@@ -235,28 +236,26 @@ def get_task_instance_dependencies(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
     map_index: int = -1,
 ) -> TaskDependencyCollectionResponse:
     """Get dependencies blocking task from getting scheduled."""
     query = select(TI).where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-
-    if map_index == -1:
-        query = query.where(TI.map_index == -1)
-    else:
-        query = query.where(TI.map_index == map_index)
+    query = query.where(TI.map_index == map_index)
 
     result = session.execute(query).one_or_none()
 
     if result is None:
-        error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
+        error_message = (
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     ti = result[0]
     deps = []
 
     if ti.state in [None, TaskInstanceState.SCHEDULED]:
-        dag = request.app.state.dag_bag.get_dag(ti.dag_id)
+        dag = dag_bag.get_dag(ti.dag_id)
 
         if dag:
             try:
@@ -382,7 +381,7 @@ def get_mapped_task_instance(
 def get_task_instances(
     dag_id: str,
     dag_run_id: str,
-    request: Request,
+    dag_bag: DagBagDep,
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
@@ -444,7 +443,7 @@ def get_task_instances(
     )
 
     if dag_id != "~":
-        dag = request.app.state.dag_bag.get_dag(dag_id)
+        dag = dag_bag.get_dag(dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: `{dag_id}` was not found")
         query = query.where(TI.dag_id == dag_id)
@@ -647,12 +646,12 @@ def get_mapped_task_instance_try_details(
 )
 def post_clear_task_instances(
     dag_id: str,
-    request: Request,
+    dag_bag: DagBagDep,
     body: ClearTaskInstancesBody,
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
-    dag = request.app.state.dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag(dag_id)
     if not dag:
         error_message = f"DAG {dag_id} not found"
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
@@ -705,7 +704,7 @@ def post_clear_task_instances(
         dry_run=True,
         run_id=None if past or future else dag_run_id,
         task_ids=task_ids,
-        dag_bag=request.app.state.dag_bag,
+        dag_bag=dag_bag,
         session=session,
         **body.model_dump(
             include={
@@ -735,13 +734,13 @@ def _patch_ti_validate_request(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    request: Request,
+    dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
     map_index: int = -1,
     update_mask: list[str] | None = Query(None),
 ) -> tuple[DAG, TI, dict]:
-    dag = request.app.state.dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
 
@@ -754,10 +753,7 @@ def _patch_ti_validate_request(
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
-    if map_index == -1:
-        query = query.where(or_(TI.map_index == -1, TI.map_index is None))
-    else:
-        query = query.where(TI.map_index == map_index)
+    query = query.where(TI.map_index == map_index)
 
     try:
         ti = session.scalar(query)
@@ -767,7 +763,9 @@ def _patch_ti_validate_request(
             "Multiple task instances found. As the TI is mapped, add the map_index value to the URL",
         )
 
-    err_msg_404 = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
+    err_msg_404 = (
+        f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+    )
     if ti is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
 
@@ -803,7 +801,7 @@ def patch_task_instance_dry_run(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    request: Request,
+    dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
     map_index: int = -1,
@@ -811,7 +809,7 @@ def patch_task_instance_dry_run(
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
     dag, ti, data = _patch_ti_validate_request(
-        dag_id, dag_run_id, task_id, request, body, session, map_index, update_mask
+        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
     )
 
     tis: list[TI] = []
@@ -873,7 +871,7 @@ def patch_task_instance(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    request: Request,
+    dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     user: GetUserDep,
     session: SessionDep,
@@ -882,7 +880,7 @@ def patch_task_instance(
 ) -> TaskInstanceResponse:
     """Update a task instance."""
     dag, ti, data = _patch_ti_validate_request(
-        dag_id, dag_run_id, task_id, request, body, session, map_index, update_mask
+        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
     )
 
     for key, _ in data.items():
@@ -928,3 +926,33 @@ def patch_task_instance(
                 session.commit()
 
     return TaskInstanceResponse.model_validate(ti)
+
+
+@task_instances_router.delete(
+    task_instances_prefix + "/{task_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def delete_task_instance(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
+    map_index: int = -1,
+) -> None:
+    """Delete a task instance."""
+    query = select(TI).where(
+        TI.dag_id == dag_id,
+        TI.run_id == dag_run_id,
+        TI.task_id == task_id,
+    )
+
+    query = query.where(TI.map_index == map_index)
+    task_instance = session.scalar(query)
+    if task_instance is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
+
+    session.delete(task_instance)

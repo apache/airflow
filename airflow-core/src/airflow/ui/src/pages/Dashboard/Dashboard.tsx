@@ -32,7 +32,7 @@ export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
 
   return (
-    <Box px={4}>
+    <Box overflow="auto" px={4}>
       <VStack alignItems="start">
         {alerts.length > 0 ? (
           <Accordion.Root collapsible defaultValue={["ui_alerts"]}>
@@ -56,7 +56,7 @@ export const Dashboard = () => {
           </Accordion.Root>
         ) : undefined}
         <Heading mb={2} size="2xl">
-          Welcome,
+          Welcome
         </Heading>
       </VStack>
       <Box>

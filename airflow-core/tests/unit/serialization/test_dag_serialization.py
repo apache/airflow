@@ -91,8 +91,10 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.mock_operators import (
+    AirflowLink,
     AirflowLink2,
     CustomOperator,
+    GithubLink,
     GoogleLink,
     MockOperator,
 )
@@ -3094,6 +3096,13 @@ def test_mapped_task_with_operator_extra_links_property():
     assert deserialized_dag.task_dict["task"].operator_extra_links == [
         XComOperatorLink(name="airflow", xcom_key="_link_AirflowLink2")
     ]
+
+    mapped_task = deserialized_dag.task_dict["task"]
+    assert mapped_task.operator_extra_link_dict == {
+        "airflow": XComOperatorLink(name="airflow", xcom_key="_link_AirflowLink2")
+    }
+    assert mapped_task.global_operator_extra_link_dict == {"airflow": AirflowLink(), "github": GithubLink()}
+    assert mapped_task.extra_links == sorted({"airflow", "github"})
 
 
 def test_handle_v1_serdag():

@@ -84,30 +84,45 @@ class TestConsumeFromTopic:
         # execute the operator (this is essentially a no op as the broker isn't setup)
         operator.execute(context={})
 
-    @mock.patch("airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook.get_consumer")
-    def test_operator_consume_max(self, mock_get_consumer):
-        mock_consumer = mock.MagicMock()
-
+    @pytest.mark.parametrize(
+        ["max_messages", "expected_consumed_messages"],
+        [
+            [None, 1001],  # Consume all messages
+            [100, 1000],  # max_messages < max_batch_size -> max_messages is set to default max_batch_size
+            [2000, 1001],  # max_messages > max_batch_size
+        ],
+    )
+    def test_operator_consume(self, max_messages, expected_consumed_messages):
+        total_consumed_messages = 0
         mocked_messages = ["test_messages" for i in range(1001)]
 
         def mock_consume(num_messages=0, timeout=-1):
             nonlocal mocked_messages
+            nonlocal total_consumed_messages
             if num_messages < 0:
                 raise Exception("Number of messages needs to be positive")
             msg_count = min(num_messages, len(mocked_messages))
             returned_messages = mocked_messages[:msg_count]
             mocked_messages = mocked_messages[msg_count:]
+            total_consumed_messages += msg_count
             return returned_messages
 
+        mock_consumer = mock.MagicMock()
         mock_consumer.consume = mock_consume
-        mock_get_consumer.return_value = mock_consumer
 
-        operator = ConsumeFromTopicOperator(
-            kafka_config_id="kafka_d",
-            topics=["test"],
-            task_id="test",
-            poll_timeout=0.0001,
-        )
+        with mock.patch(
+            "airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook.get_consumer"
+        ) as mock_get_consumer:
+            mock_get_consumer.return_value = mock_consumer
 
-        # execute the operator (this is essentially a no op as we're mocking the consumer)
-        operator.execute(context={})
+            operator = ConsumeFromTopicOperator(
+                kafka_config_id="kafka_d",
+                topics=["test"],
+                task_id="test",
+                poll_timeout=0.0001,
+                max_messages=max_messages,
+            )
+
+            # execute the operator (this is essentially a no op as we're mocking the consumer)
+            operator.execute(context={})
+            assert total_consumed_messages == expected_consumed_messages
