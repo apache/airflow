@@ -20,7 +20,7 @@
 ################################
 ## Airflow Cleanup Pods CronJob
 #################################
-{{- if .Values.cleanup.enabled }}
+{{- if and .Values.cleanup.enabled (contains "KubernetesExecutor" .Values.executor) }}
 {{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
