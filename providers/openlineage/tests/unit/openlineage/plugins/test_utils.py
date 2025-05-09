@@ -208,7 +208,7 @@ def test_info_json_encodable_list_does_flatten():
 
     obj = Test(["a", "b", "c"])
 
-    assert json.loads(json.dumps(TestInfo(obj))) == {"alist": "['a', 'b', 'c']"}
+    assert json.loads(json.dumps(TestInfo(obj))) == {"alist": '["a", "b", "c"]'}
 
 
 def test_info_json_encodable_list_does_include_nonexisting():
