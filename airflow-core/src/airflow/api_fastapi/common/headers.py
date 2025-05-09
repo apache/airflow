@@ -60,6 +60,8 @@ def header_accept_json_or_ndjson_depends(
         ),
     ] = Mimetype.ANY,
 ) -> Mimetype:
+    if accept.startswith(Mimetype.ANY):
+        return Mimetype.ANY
     if accept.startswith(Mimetype.JSON):
         return Mimetype.JSON
     if accept.startswith(Mimetype.NDJSON) or accept.startswith(Mimetype.ANY):
