@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Collection, Mapping, Sequence
 from typing import Any, Callable
 
-from airflow.providers.common.compat.standard.operators import PythonOperator, get_current_context
+from airflow.providers.common.compat.standard.operators import PythonOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.snowpark import inject_session_into_op_kwargs
 
@@ -115,6 +115,14 @@ class SnowparkOperator(PythonOperator):
             session_parameters=self.session_parameters,
         )
         session = hook.get_snowpark_session()
+
+        from airflow.providers.snowflake.version_compat import AIRFLOW_V_3_0_PLUS
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk import get_current_context
+        else:
+            from airflow.providers.standard.operators.python import get_current_context
+
         context = get_current_context()
         session.update_query_tag(
             {
