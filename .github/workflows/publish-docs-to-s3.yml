@@ -39,11 +39,12 @@ on:  # yamllint disable-line rule:truthy
         default: "no-docs-excluded"
         type: string
       destination-location:
-        description: "The destination location in S3"
+        description: "The destination location in S3, default is live site"
         required: false
-        default: "s3://staging-docs-airflow-apache-org/docs"
+        default: "s3://live-docs-airflow-apache-org/docs"
         type: choice
         options:
+          - s3://live-docs-airflow-apache-org/docs
           - s3://staging-docs-airflow-apache-org/docs
 
 env:
