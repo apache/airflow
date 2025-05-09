@@ -59,6 +59,13 @@ config:
   fab:
     description: This section contains configs specific to FAB provider.
     options:
+      expose_hostname:
+        description: |
+          Expose hostname in the web server
+        version_added: 2.0.2
+        type: string
+        example: ~
+        default: "False"
       auth_rate_limited:
         description: |
           Boolean for enabling rate limiting on authentication endpoints.
