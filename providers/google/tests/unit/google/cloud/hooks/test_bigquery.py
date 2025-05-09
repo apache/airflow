@@ -153,8 +153,8 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert result is False
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.read_gbq")
-    def test_get_pandas_df(self, mock_read_gbq):
-        self.hook.get_pandas_df("select 1")
+    def test_get_df(self, mock_read_gbq):
+        self.hook.get_df("select 1", df_type="pandas")
 
         mock_read_gbq.assert_called_once_with(
             "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID

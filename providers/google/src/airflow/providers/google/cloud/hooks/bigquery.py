@@ -32,6 +32,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NoReturn, Union, cast
 
 from aiohttp import ClientSession as ClientSession
+from deprecated import deprecated as airflow_providers_deprecated
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -58,7 +59,11 @@ from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
@@ -275,7 +280,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         raise NotImplementedError()
 
-    def get_pandas_df(
+    def _get_pandas_df(
         self,
         sql: str,
         parameters: Iterable | Mapping[str, Any] | None = None,
@@ -305,6 +310,26 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         credentials, project_id = self.get_credentials_and_project_id()
 
         return read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
+
+    async def _get_polars_df(self, sql, parameters=None, dialect=None, **kwargs):
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Polars is not installed. Please install it with `pip install polars`."
+            )
+
+        client = self.get_client()
+        rows = await client.query(sql).result()
+        return pl.from_arrow(rows.to_arrow())
+
+    @airflow_providers_deprecated(
+        reason="Replaced by function `get_df_by_chunks`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(self, sql, parameters=None, dialect=None, **kwargs):
+        return self._get_pandas_df(sql, parameters, dialect, **kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
