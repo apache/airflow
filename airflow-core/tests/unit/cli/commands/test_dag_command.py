@@ -38,10 +38,10 @@ from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import _run_inline_trigger
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import task
+from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -631,7 +631,6 @@ class TestCliDags:
                     run_conf=None,
                     use_executor=False,
                     mark_success_pattern=None,
-                    session=mock.ANY,
                 ),
             ]
         )
@@ -665,7 +664,6 @@ class TestCliDags:
                     logical_date=mock.ANY,
                     run_conf=None,
                     use_executor=False,
-                    session=mock.ANY,
                     mark_success_pattern=None,
                 ),
             ]
@@ -693,7 +691,6 @@ class TestCliDags:
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
                     use_executor=False,
-                    session=mock.ANY,
                     mark_success_pattern=None,
                 ),
             ]
@@ -722,7 +719,6 @@ class TestCliDags:
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
                     use_executor=False,
-                    session=mock.ANY,
                     mark_success_pattern=None,
                 ),
             ]
@@ -773,7 +769,9 @@ class TestCliDags:
         assert e.payload == now
 
     def test_dag_test_no_triggerer_running(self, dag_maker):
-        with mock.patch("airflow.models.dag._run_inline_trigger", wraps=_run_inline_trigger) as mock_run:
+        with mock.patch(
+            "airflow.sdk.definitions.dag._run_inline_trigger", wraps=_run_inline_trigger
+        ) as mock_run:
             with dag_maker() as dag:
 
                 @task
@@ -806,12 +804,16 @@ class TestCliDags:
                 op = MyOp(task_id="abc", tfield=task_two)
                 task_two >> op
             dr = dag.test()
-            assert mock_run.call_args_list[0] == ((trigger,), {})
+
+            trigger_arg = mock_run.call_args_list[0].args[0]
+            assert isinstance(trigger_arg, DateTimeTrigger)
+            assert trigger_arg.moment == trigger.moment
+
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
 
-    @mock.patch("airflow.models.taskinstance.TaskInstance._execute_task_with_callbacks")
-    def test_dag_test_with_mark_success(self, mock__execute_task_with_callbacks):
+    @mock.patch("airflow.sdk.execution_time.task_runner._execute_task")
+    def test_dag_test_with_mark_success(self, mock__execute_task):
         """
         option `--mark-success-pattern` should mark matching tasks as success without executing them.
         """
@@ -828,8 +830,22 @@ class TestCliDags:
         dag_command.dag_test(cli_args)
 
         # only second operator was actually executed, first one was marked as success
-        assert len(mock__execute_task_with_callbacks.call_args_list) == 1
-        assert mock__execute_task_with_callbacks.call_args_list[0].kwargs["self"].task_id == "dummy_operator"
+        assert len(mock__execute_task.call_args_list) == 1
+        assert mock__execute_task.call_args_list[0].kwargs["ti"].task_id == "dummy_operator"
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
+        """Test that example DAGs are excluded when bundle names are passed."""
+        from airflow.utils.cli import get_dag
+
+        with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
+            # example DAG should not be found since include_examples=False
+            with pytest.raises(AirflowException, match="could not be found"):
+                get_dag(bundle_names=["testing"], dag_id="example_simplest_dag")
+
+            # However, "test_sensor.py" should exist
+            dag = get_dag(bundle_names=["testing"], dag_id="test_sensor")
+            assert dag.dag_id == "test_sensor"
 
 
 class TestCliDagsReserialize:

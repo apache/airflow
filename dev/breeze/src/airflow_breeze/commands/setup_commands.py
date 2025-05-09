@@ -498,7 +498,6 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
     env["PYTHONPATH"] = str(BREEZE_SOURCES_PATH)
     new_hash_dict = get_command_hash_dict()
     regenerate_all_commands = False
-    regenerate_all_commands = False
     commands_list = list(commands)
     if force:
         console.print("[info]Force regeneration all breeze command images")
