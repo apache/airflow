@@ -22,7 +22,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, insert, select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep
@@ -54,22 +54,43 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
-    DAGPatchBody,
     DAGFavoriteBody,
+    DAGPatchBody,
     DAGResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     EditableDagsFilterDep,
+    GetUserDep,
     ReadableDagsFilterDep,
     requires_access_dag,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
+
+
+@dags_router.get("/favorite", dependencies=[Depends(requires_access_dag(method="GET"))])
+def get_favorite_dags(session: SessionDep, user: GetUserDep) -> DAGCollectionResponse:
+    """Get DAGs favorited by the user."""
+    user_id = user.get_id()
+
+    favorite_dags_query = (
+        select(DagModel)
+        .join(DagFavorite, DagModel.dag_id == DagFavorite.dag_id)
+        .where(DagFavorite.user_id == user_id)
+    )
+
+    dags = session.scalars(favorite_dags_query).all()
+
+    return DAGCollectionResponse(
+        dags=dags,
+        total_entries=len(dags),
+    )
 
 
 @dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
@@ -317,47 +338,39 @@ def patch_dags(
         total_entries=total_entries,
     )
 
+
 @dags_router.put(
     "/{dag_id}",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_400_BAD_REQUEST,
-            status.HTTP_404_NOT_FOUND,
-        ]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
 )
 def favorite_dag(
     dag_id: str,
     favorite_body: DAGFavoriteBody,
     session: SessionDep,
-    update_mask: list[str] | None = Query(None),
+    user: GetUserDep,
 ) -> DAGResponse:
     """Favorite the specific DAG."""
     dag = session.get(DagModel, dag_id)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
 
-    if dag is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id: {dag_id} was not found")
+    user_id = user.get_id()
 
-    fields_to_update = favorite_body.model_fields_set
-    if update_mask:
-        if update_mask != ["is_favorite"]:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, "Only `is_favorite` field can be updated through the REST API"
-            )
-        fields_to_update = fields_to_update.intersection(update_mask)
+    if favorite_body.is_favorite:
+        session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
     else:
-        try:
-            DAGFavoriteBody(**favorite_body.model_dump())
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
+        session.execute(
+            delete(DagFavorite).where(
+                DagFavorite.dag_id == dag_id,
+                DagFavorite.user_id == user_id,
+            )
+        )
 
-    data = favorite_body.model_dump(include=fields_to_update, by_alias=True)
+    session.commit()
 
-    for key, val in data.items():
-        setattr(dag, key, val)
+    return DAGResponse.model_validate(dag)
 
-    return dag
 
 @dags_router.delete(
     "/{dag_id}",

@@ -383,6 +383,25 @@ export const useDagWarningServiceListDagWarningsSuspense = <TData = Common.DagWa
   warningType?: DagWarningType;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
+ * Get Favorite Dags
+ * Get DAGs favorited by the user.
+ * @returns DAGCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetFavoriteDagsSuspense = <
+  TData = Common.DagServiceGetFavoriteDagsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetFavoriteDagsKeyFn(queryKey),
+    queryFn: () => DagService.getFavoriteDags() as TData,
+    ...options,
+  });
+/**
 * Get Dags
 * Get all DAGs.
 * @param data The data for the request.
