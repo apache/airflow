@@ -29,7 +29,7 @@ import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, NoReturn, Union, cast
+from typing import TYPE_CHECKING, Any, NoReturn, Union, cast, overload
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -311,11 +311,22 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         pandas_df = read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
         return pl.from_pandas(pandas_df)
 
+    @overload
+    def get_df(
+        self, sql, parameters=None, dialect=None, *, df_type: Literal["pandas"] = "pandas", **kwargs
+    ) -> pd.DataFrame: ...
+
+    @overload
+    def get_df(
+        self, sql, parameters=None, dialect=None, *, df_type: Literal["polars"], **kwargs
+    ) -> pl.DataFrame: ...
+
     def get_df(
         self,
         sql,
         parameters=None,
         dialect=None,
+        *,
         df_type: Literal["pandas", "polars"] = "pandas",
         **kwargs,
     ) -> pd.DataFrame | pl.DataFrame:
