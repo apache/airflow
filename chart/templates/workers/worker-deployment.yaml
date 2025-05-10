@@ -24,11 +24,11 @@
 {{- $keda := or .Values.workers.keda.enabled .Values.workers.celery.keda.enabled }}
 {{- $hpa := and (or .Values.workers.hpa.enabled .Values.workers.celery.hpa.enabled) (or (not .Values.workers.keda.enabled) (not .Values.workers.celery.keda.enabled)) }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
-{{- $nodeSelector := or .Values.workers.nodeSelector .Values.workers.celery.nodeSelector .Values.nodeSelector }}
-{{- $affinity := or .Values.workers.affinity .Values.workers.celery.affinity .Values.affinity }}
-{{- $tolerations := or .Values.workers.tolerations .Values.workers.celery.tolerations .Values.tolerations }}
-{{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.workers.celery.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.workers.revisionHistoryLimit .Values.workers.celery.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $nodeSelector := or .Values.workers.celery.nodeSelector .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.workers.celery.affinity .Values.workers.affinity .Values.affinity }}
+{{- $tolerations := or .Values.workers.celery.tolerations .Values.workers.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.workers.celery.topologySpreadConstraints .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values.workers.celery.revisionHistoryLimit .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers .Values.workers.celery) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers .Values.workers.celery) }}
 {{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence .Values.workers.celery.persistence) }}
@@ -81,7 +81,7 @@ spec:
   {{- if and $persistence (or .Values.workers.podManagementPolicy .Values.workers.celery.podManagementPolicy) }}
   podManagementPolicy: {{ .Values.workers.celery.podManagementPolicy | default .Values.workers.podManagementPolicy }}
   {{- end }}
-  {{- if and $persistence (or .Values.workers.updateStrategy .Values.workers.celery.updateStrategy) }}
+  {{- if and $persistence (or .Values.workers.celery.updateStrategy .Values.workers.updateStrategy) }}
   updateStrategy: {{- toYaml (.Values.workers.celery.updateStrategy | default .Values.workers.updateStrategy) | nindent 4 }}
   {{- end }}
   {{- if and (not $persistence) (or .Values.workers.strategy .Values.workers.celery.strategy) }}
@@ -337,7 +337,7 @@ spec:
               value: "0"
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- include "container_extra_envs" (list . .Values.workers.env .Values.workers.celery.env) | indent 10 }}
+            {{- include "container_extra_envs" (list . (.Values.workers.celery.env | default .Values.workers.env)) | indent 10 }}
             {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.celery.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}
@@ -347,7 +347,7 @@ spec:
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
-        {{- if and $persistence (and .Values.workers.logGroomerSidecar.enabled .Values.workers.celery.logGroomerSidecar.enabled) }}
+        {{- if and $persistence (and .Values.workers.celery.logGroomerSidecar.enabled .Values.workers.logGroomerSidecar.enabled) }}
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -364,6 +364,7 @@ spec:
           args: {{ tpl (toYaml .Values.workers.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
+          {{ if and .Values.workers.celery.logGroomerSidecar.retentionDays .Values.workers.logGroomerSidecar.retentionDays }}
           {{- if ne (int .Values.workers.celery.logGroomerSidecar.retentionDays) 15 }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.celery.logGroomerSidecar.retentionDays }}"
@@ -371,12 +372,15 @@ spec:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
           {{- end }}
+          {{- end }}
+          {{ if and .Values.workers.celery.logGroomerSidecar.frequencyMinutes .Values.workers.logGroomerSidecar.frequencyMinutes }}
          {{- if ne (int .Values.workers.celery.logGroomerSidecar.frequencyMinutes) 15 }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.workers.celery.logGroomerSidecar.frequencyMinutes }}"
           {{- else if .Values.workers.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.workers.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
           {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
