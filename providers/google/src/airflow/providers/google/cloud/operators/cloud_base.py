@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.models import BaseOperator
@@ -26,6 +28,8 @@ from airflow.models import BaseOperator
 
 class GoogleCloudBaseOperator(BaseOperator):
     """Abstract base class for operators using Google API client libraries."""
+
+    template_fields: Sequence[str] = ("project_id", "impersonation_chain")
 
     def __deepcopy__(self, memo):
         """

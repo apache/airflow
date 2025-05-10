@@ -68,9 +68,9 @@ class AlloyDBBaseOperator(GoogleCloudBaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "project_id",
         "location",
         "gcp_conn_id",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
