@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any
@@ -275,6 +275,7 @@ class S3ToGCSOperator(S3ListOperator):
                 poll_interval=self.poll_interval,
             ),
             method_name="execute_complete",
+            kwargs=dict(files=files),
         )
 
     def submit_transfer_jobs(self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> list[str]:
@@ -329,7 +330,7 @@ class S3ToGCSOperator(S3ListOperator):
 
         return job_names
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any], files: Iterable[str]) -> list[str]:
         """
         Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
@@ -339,6 +340,7 @@ class S3ToGCSOperator(S3ListOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
         self.log.info("%s completed with response %s ", self.task_id, event["message"])
+        return list(files)
 
     def get_transfer_hook(self):
         return CloudDataTransferServiceHook(
