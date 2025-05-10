@@ -26,7 +26,6 @@ import {
   BarElement,
   Filler,
   Tooltip,
-  type ChartEvent,
 } from "chart.js";
 import type { PartialEventContext } from "chartjs-plugin-annotation";
 import annotationPlugin from "chartjs-plugin-annotation";
@@ -156,12 +155,17 @@ export const DurationChart = ({
               const run = entry as DAGRunResponse;
 
               navigate(`/dags/${run.dag_id}/runs/${run.dag_run_id}`);
+            } else {
+              const entry = entries[element.index];
+              const taskInstance = entry as TaskInstanceResponse;
+
+              navigate(
+                `/dags/${taskInstance.dag_id}/runs/${taskInstance.dag_run_id}/tasks/${taskInstance.task_id}`,
+              );
             }
           },
-          onHover: (event: ChartEvent, elements) => {
-            const target = event.native?.target as HTMLElement;
-
-            target.style.cursor = elements.length > 0 ? "pointer" : "default";
+          onHover: (_event, elements, chart) => {
+            chart.canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
           },
           plugins: {
             annotation: {
