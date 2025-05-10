@@ -284,7 +284,8 @@ def _render_openlineage_supported_classes_content():
         }
     )
 
-    # These excluded classes will be included in docs directly
+    # Excluding these classes from auto-detection, and any subclasses, to prevent detection of methods
+    # from abstract base classes (which need explicit OL support). Will be included in docs manually
     class_registry.pop("airflow.providers.common.sql.hooks.sql.DbApiHook")
     class_registry.pop("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator")
 
@@ -314,7 +315,12 @@ def _render_openlineage_supported_classes_content():
                 method_names=openlineage_db_hook_methods,
                 class_registry=class_registry,
             ):
-                db_type = class_name.replace("SqlApiHook", "").replace("Hook", "")
+                db_type = (  # Extract db type from hook name
+                    class_name.replace("RedshiftSQL", "Redshift")  # for RedshiftSQLHook
+                    .replace("DatabricksSql", "Databricks")  # for DatabricksSqlHook
+                    .replace("SnowflakeSqlApi", "Snowflake")  # for SnowflakeSqlApiHook
+                    .replace("Hook", "")  # for others like MySqlHook, TrinoHook etc.
+                )
                 db_hooks.append((db_type, class_path))
 
             elif info["methods_with_hook_level_lineage"]:
