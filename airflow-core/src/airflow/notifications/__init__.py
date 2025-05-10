@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,37 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Airflow Notifiers."""
 
----
-package-name: apache-airflow-providers-sendgrid
-name: Sendgrid
-description: |
-    `Sendgrid <https://sendgrid.com/>`__
+from __future__ import annotations
 
-state: ready
-source-date-epoch: 1743477884
-# Note that those versions are maintained by release manager - do not update them manually
-# with the exception of case where other provider in sources has >= new provider version.
-# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
-# to be done in the same PR
-versions:
-  - 4.0.1
-  - 4.0.0
-  - 3.6.0
-  - 3.5.1
-  - 3.5.0
-  - 3.4.0
-  - 3.3.0
-  - 3.2.2
-  - 3.2.1
-  - 3.2.0
-  - 3.1.0
-  - 3.0.0
-  - 2.0.4
-  - 2.0.3
-  - 2.0.2
-  - 2.0.1
-  - 2.0.0
-  - 1.0.2
-  - 1.0.1
-  - 1.0.0
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "basenotifier": {
+        "BaseNotifier": "airflow.sdk.bases.notifier.BaseNotifier",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)
