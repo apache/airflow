@@ -106,9 +106,10 @@ from airflow.sdk.execution_time.task_runner import (
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
+    get_log_url_from_ti,
     parse,
     run,
-    startup, get_log_url_from_ti,
+    startup,
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils import timezone
