@@ -567,7 +567,6 @@ export type DAGResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
-    is_favorite?: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_expired: string | null;
@@ -1680,7 +1679,6 @@ export type DAGWithLatestDagRunsResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
-    is_favorite?: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_expired: string | null;
@@ -2275,6 +2273,8 @@ export type ListDagWarningsData = {
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
+export type GetFavoriteDagsResponse = DAGCollectionResponse;
+
 export type GetDagsData = {
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2337,7 +2337,6 @@ export type PatchDagResponse = DAGResponse;
 export type FavoriteDagData = {
   dagId: string;
   requestBody: DAGFavoriteBody;
-  updateMask?: Array<string> | null;
 };
 
 export type FavoriteDagResponse = DAGResponse;
@@ -4197,6 +4196,24 @@ export type $OpenApiTs = {
             };
         };
     };
+  "/api/v2/dags/favorite": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+      };
+    };
+  };
     '/api/v2/dags': {
         get: {
             req: GetDagsData;
@@ -4308,7 +4325,32 @@ export type $OpenApiTs = {
                 422: HTTPValidationError;
             };
         };
-        delete: {
+        put: {
+      req: FavoriteDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    delete: {
             req: DeleteDagData;
             res: {
                 /**

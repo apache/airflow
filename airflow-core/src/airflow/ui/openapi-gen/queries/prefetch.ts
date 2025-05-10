@@ -383,6 +383,17 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
   warningType?: DagWarningType;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) });
 /**
+ * Get Favorite Dags
+ * Get DAGs favorited by the user.
+ * @returns DAGCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetFavoriteDags = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetFavoriteDagsKeyFn(),
+    queryFn: () => DagService.getFavoriteDags(),
+  });
+/**
 * Get Dags
 * Get all DAGs.
 * @param data The data for the request.

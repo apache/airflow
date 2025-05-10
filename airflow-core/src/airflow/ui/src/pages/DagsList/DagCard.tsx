@@ -22,6 +22,7 @@ import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
+import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
@@ -32,7 +33,6 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
 import { Schedule } from "./Schedule";
-import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
@@ -63,7 +63,7 @@ export const DagCard = ({ dag }: Props) => {
             pr={2}
           />
           <TriggerDAGButton dag={dag} withText={false} />
-          <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} withText={false} />
+          <FavoriteDagButton dagId={dag.dag_id} withText={false} />
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>

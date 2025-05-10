@@ -441,6 +441,25 @@ export const useDagWarningServiceListDagWarnings = <TData = Common.DagWarningSer
   warningType?: DagWarningType;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
+ * Get Favorite Dags
+ * Get DAGs favorited by the user.
+ * @returns DAGCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetFavoriteDags = <
+  TData = Common.DagServiceGetFavoriteDagsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetFavoriteDagsKeyFn(queryKey),
+    queryFn: () => DagService.getFavoriteDags() as TData,
+    ...options,
+  });
+/**
 * Get Dags
 * Get all DAGs.
 * @param data The data for the request.
@@ -1670,6 +1689,46 @@ export const useBackfillServiceCancelBackfill = <TData = Common.BackfillServiceC
   backfillId: number;
 }, TContext>({ mutationFn: ({ backfillId }) => BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>, ...options });
 /**
+ * Favorite Dag
+ * Favorite the specific DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceFavoriteDag = <
+  TData = Common.DagServiceFavoriteDagMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        requestBody: DAGFavoriteBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      requestBody: DAGFavoriteBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody }) =>
+      DagService.favoriteDag({ dagId, requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
 * Reparse Dag File
 * Request re-parsing a DAG file.
 * @param data The data for the request.
@@ -1795,51 +1854,6 @@ export const useDagServicePatchDag = <TData = Common.DagServicePatchDagMutationR
   requestBody: DAGPatchBody;
   updateMask?: string[];
 }, TContext>({ mutationFn: ({ dagId, requestBody, updateMask }) => DagService.patchDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
-
-/**
- * Favorite Dag
- * Toggle favorite the specific DAG.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.requestBody
- * @param data.updateMask
- * @returns DAGResponse Successful Response
- * @throws ApiError
- */
-export const useDagServiceFavoriteDag = <
-  TData = Common.DagServiceFavoriteDagMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        dagId: string;
-        requestBody: DAGFavoriteBody;
-        updateMask?: string[];
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      dagId: string;
-      requestBody: DAGFavoriteBody;
-      updateMask?: string[];
-    },
-    TContext
-  >({
-    mutationFn: ({ dagId, requestBody, updateMask }) =>
-      DagService.favoriteDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>,
-    ...options,
-  });
-
 /**
 * Patch Task Instance
 * Update a task instance.

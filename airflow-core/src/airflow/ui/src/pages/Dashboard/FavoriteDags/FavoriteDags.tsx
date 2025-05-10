@@ -16,29 +16,60 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, Text } from "@chakra-ui/react";
+import { useMemo, useState } from "react";
 import { FiStar } from "react-icons/fi";
-import { FavoriteDagCard } from "./FavoriteDagCard";
-import { useDagServiceGetDags } from "openapi/queries";
 
+import { useDagServiceGetFavoriteDags } from "openapi/queries";
+
+import { FavoriteDagCard } from "./FavoriteDagCard";
+
+const MAX_VISIBLE = 5;
 
 export const FavoriteDags = () => {
-    const { data: allDags } = useDagServiceGetDags();
-    const favorites = allDags?.dags?.filter((dag) => dag.is_favorite) ?? [];
+  const { data: favorites } = useDagServiceGetFavoriteDags();
 
-    return (
-        <Box>
-            <Flex color="fg.muted" my={2}>
-            <FiStar />
-            <Heading ml={1} size="xs">
-                Favorite Dags
-            </Heading>
-            </Flex>
-            <HStack align="end">
-              {favorites.map((dag) => (
-                <FavoriteDagCard key={dag.dag_id} dag_id={dag.dag_id} />
-              ))}
-            </HStack>
+  const [showAll, setShowAll] = useState(false);
+
+  const visibleFavorites = useMemo(() => {
+    if (!favorites?.dags) {
+      return [];
+    }
+
+    return showAll ? favorites.dags : favorites.dags.slice(0, MAX_VISIBLE);
+  }, [favorites, showAll]);
+
+  if (!favorites) {
+    return undefined;
+  }
+
+  return (
+    <Box>
+      <Flex color="fg.muted" my={2}>
+        <FiStar />
+        <Heading ml={1} size="xs">
+          Favorite Dags
+        </Heading>
+      </Flex>
+      <HStack align="end">
+        {visibleFavorites.map((dag) => (
+          <FavoriteDagCard dagId={dag.dag_id} key={dag.dag_id} />
+        ))}
+      </HStack>
+      {favorites.total_entries > MAX_VISIBLE && (
+        <Box mt={2}>
+          <Text
+            _hover={{ textDecoration: "underline" }}
+            as="span"
+            color="blue.500"
+            cursor="pointer"
+            fontSize="sm"
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll ? "Show Less" : "Show More"}
+          </Text>
         </Box>
-    );
+      )}
+    </Box>
+  );
 };

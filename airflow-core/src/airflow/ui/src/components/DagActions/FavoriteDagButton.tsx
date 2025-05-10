@@ -17,37 +17,51 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { useCallback, useMemo } from "react";
 import { FiStar } from "react-icons/fi";
 
-import ActionButton from "../ui/ActionButton";
+import { useDagServiceGetFavoriteDags } from "openapi/queries";
 import { useFavoriteDag } from "src/queries/useFavoriteDag";
-import { useCallback } from "react";
 
+import ActionButton from "../ui/ActionButton";
 
 type FavoriteDagButtonProps = {
   readonly dagId: string;
-  readonly isFavorite?: boolean;
   readonly withText?: boolean;
 };
 
-export const FavoriteDagButton = ({ dagId, isFavorite, withText = true}: FavoriteDagButtonProps) => {
+export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonProps) => {
+  const { data: favorites, refetch } = useDagServiceGetFavoriteDags();
+
+  const isFavorite = useMemo(
+    () => favorites?.dags.some((fav) => fav.dag_id === dagId) ?? false,
+    [favorites, dagId],
+  );
+
   const { mutate: toggleFavorite } = useFavoriteDag({ dagId });
 
   const onToggle = useCallback(() => {
-    toggleFavorite({
-      dagId,
-      requestBody: {
-        is_favorite: !isFavorite,
+    toggleFavorite(
+      {
+        dagId,
+        requestBody: {
+          is_favorite: !isFavorite,
+        },
       },
-    });
-  }, [dagId, isFavorite, toggleFavorite]);
+      {
+        onSuccess: () => {
+          void refetch();
+        },
+      },
+    );
+  }, [dagId, isFavorite, toggleFavorite, refetch]);
 
   return (
     <Box>
       <ActionButton
         actionName={isFavorite ? "Unfavorite Dag" : "Favorite Dag"}
         colorPalette="blue"
-        icon={<FiStar style={{fill: isFavorite ? 'blue' : 'none'}} />}
+        icon={<FiStar style={{ fill: isFavorite ? "blue" : "none" }} />}
         onClick={onToggle}
         text={isFavorite ? "Unfavorite Dag" : "Favorite Dag"}
         variant="solid"
@@ -56,5 +70,3 @@ export const FavoriteDagButton = ({ dagId, isFavorite, withText = true}: Favorit
     </Box>
   );
 };
-  
-
