@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-10T02:29:22.989663
+# This constraints file was automatically generated on 2025-05-10T14:32:03.940902
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -102,6 +102,7 @@ ansicolors==1.1.8
 anyio==4.9.0
 apache-airflow-providers-airbyte==5.0.2
 apache-airflow-providers-alibaba==3.0.3
+apache-airflow-providers-amazon==9.7.0
 apache-airflow-providers-apache-beam==6.0.4
 apache-airflow-providers-apache-cassandra==3.7.2
 apache-airflow-providers-apache-drill==3.0.1
@@ -181,6 +182,7 @@ apache-airflow-providers-sftp==5.2.1
 apache-airflow-providers-singularity==3.7.1
 apache-airflow-providers-slack==9.0.5
 apache-airflow-providers-smtp==2.0.3
+apache-airflow-providers-snowflake==6.3.0
 apache-airflow-providers-sqlite==4.0.2
 apache-airflow-providers-ssh==4.0.1
 apache-airflow-providers-standard==1.1.0
@@ -200,7 +202,7 @@ argcomplete==3.6.2
 asana==5.1.0
 asgiref==3.8.1
 asn1crypto==1.5.1
-astroid==3.3.9
+astroid==3.3.10
 asttokens==3.0.0
 async-timeout==5.0.1
 asyncpg==0.30.0
