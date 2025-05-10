@@ -224,6 +224,27 @@ class MaxComputeHook(AlibabaBaseHook):
         """
         client = self.get_client(project=project, endpoint=endpoint)
 
-        if client.exist_instance(id_=instance_id, project=project):
-            return client.get_instance(id_=instance_id, project=project)
-        raise ValueError(f"Instance with id {instance_id} does not exist in project {project}.")
+        return client.get_instance(id_=instance_id, project=project)
+
+    @fallback_to_default_project_endpoint
+    def stop_instance(
+        self,
+        instance_id: str,
+        project: str | None = None,
+        endpoint: str | None = None,
+    ) -> None:
+        """
+        Stop a MaxCompute task instance.
+
+        :param instance_id: The ID of the instance to stop.
+        :param project: The project ID to use.
+        :param endpoint: The endpoint to use.
+        """
+        client = self.get_client(project=project, endpoint=endpoint)
+
+        try:
+            client.stop_instance(id_=instance_id, project=project)
+            self.log.info("Instance %s stop requested.", instance_id)
+        except Exception as e:
+            self.log.error("Failed to stop instance %s: %s.", instance_id, str(e))
+            raise

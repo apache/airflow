@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from airflow.providers.alibaba.cloud.hooks.maxcompute import MaxComputeHook
 
 MAXCOMPUTE_HOOK_MODULE = "airflow.providers.alibaba.cloud.hooks.maxcompute.{}"
@@ -97,16 +95,6 @@ class TestMaxComputeHook:
             endpoint=MOCK_MAXCOMPUTE_ENDPOINT,
         )
 
-        mock_get_client.assert_called_once_with(
-            project=MOCK_MAXCOMPUTE_PROJECT,
-            endpoint=MOCK_MAXCOMPUTE_ENDPOINT,
-        )
-
-        mock_client.exist_instance.assert_called_once_with(
-            id_=instance_id,
-            project=MOCK_MAXCOMPUTE_PROJECT,
-        )
-
         mock_client.get_instance.assert_called_once_with(
             id_=instance_id,
             project=MOCK_MAXCOMPUTE_PROJECT,
@@ -115,25 +103,15 @@ class TestMaxComputeHook:
         assert instance == mock_instance
 
     @mock.patch(MAXCOMPUTE_HOOK_MODULE.format("MaxComputeHook.get_client"))
-    def test_get_instance_raises_value_error_when_instance_does_not_exist(self, mock_get_client):
+    def test_stop_instance_success(self, mock_get_client):
         mock_client = mock.MagicMock()
-        mock_client.exist_instance.return_value = False  # Simulate instance not existing
         mock_get_client.return_value = mock_client
-        instance_id = "non_existent_instance_id"
+        instance_id = "mock_instance_id"
 
-        with pytest.raises(
-            ValueError,
-            match=f"Instance with id {instance_id} does not exist in project {MOCK_MAXCOMPUTE_PROJECT}.",
-        ):
-            self.hook.get_instance(
-                instance_id=instance_id,
-                project=MOCK_MAXCOMPUTE_PROJECT,
-                endpoint=MOCK_MAXCOMPUTE_ENDPOINT,
-            )
-
-        mock_client.exist_instance.assert_called_once_with(
-            id_=instance_id,
+        self.hook.stop_instance(
+            instance_id=instance_id,
             project=MOCK_MAXCOMPUTE_PROJECT,
+            endpoint=MOCK_MAXCOMPUTE_ENDPOINT,
         )
 
-        mock_client.get_instance.assert_not_called()
+        mock_client.stop_instance.assert_called_once()
