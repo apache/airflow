@@ -2829,6 +2829,9 @@ dags:
     # subpath within the repo where dags are located
     # should be "" if dags are at repo root
     subPath: "tests/dags"
+    # Example:
+    # gitConfig: "credential.useHttpPath"
+    gitConfig: ~
     # if your repo needs a user name password
     # you can load them to a k8s secret like the one below
     #   ---

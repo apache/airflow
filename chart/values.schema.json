@@ -8978,6 +8978,18 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "gitConfig": {
+                            "description": "A Git config option to apply before starting git-sync.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null,
+                            "examples": [
+                                "http.sslVerify",
+                                "credential.useHttpPath"
+                            ]
                         }
                     }
                 }

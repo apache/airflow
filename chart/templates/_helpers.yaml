@@ -299,6 +299,8 @@ If release name contains chart name it will be used as a full name.
       value: {{ .Values.dags.gitSync.maxFailures | quote }}
     - name: GITSYNC_MAX_FAILURES
       value: {{ .Values.dags.gitSync.maxFailures | quote }}
+    - name: GITSYNC_GIT_CONFIG
+      value: {{ .Values.dags.gitSync.gitConfig | quote }}
     {{- if .is_init }}
     - name: GIT_SYNC_ONE_TIME
       value: "true"
