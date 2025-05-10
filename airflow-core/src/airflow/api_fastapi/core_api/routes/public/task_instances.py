@@ -52,7 +52,9 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
     TaskDependencyCollectionResponse,
@@ -64,6 +66,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.services.public.task_instances import BulkTaskInstanceService
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.listeners.listener import get_listener_manager
@@ -842,6 +845,22 @@ def patch_task_instance_dry_run(
         ],
         total_entries=len(tis),
     )
+
+
+@task_instances_router.patch(
+    task_instances_prefix,
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def bulk_task_instances(
+    request: BulkBody[BulkTaskInstanceBody],
+    session: SessionDep,
+    dag_id: str,
+    dag_run_id: str,
+) -> BulkResponse:
+    """Bulk update, and delete task instances."""
+    return BulkTaskInstanceService(
+        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id
+    ).handle_request()
 
 
 @task_instances_router.patch(

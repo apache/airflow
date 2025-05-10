@@ -37,6 +37,7 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  BulkBody_BulkTaskInstanceBody_,
   BulkBody_ConnectionBody_,
   BulkBody_PoolBody_,
   BulkBody_VariableBody_,
@@ -4172,6 +4173,49 @@ export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <
         taskId,
         updateMask,
       }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Bulk Task Instances
+ * Bulk update, and delete task instances.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.requestBody
+ * @returns BulkResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceBulkTaskInstances = <
+  TData = Common.TaskInstanceServiceBulkTaskInstancesMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        requestBody: BulkBody_BulkTaskInstanceBody_;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      requestBody: BulkBody_BulkTaskInstanceBody_;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, requestBody }) =>
+      TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
