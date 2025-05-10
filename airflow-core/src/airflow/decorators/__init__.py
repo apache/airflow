@@ -16,15 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.decorators import (
-    TaskDecorator as TaskDecorator,
-    TaskDecoratorCollection as TaskDecoratorCollection,
-    dag as dag,
-    setup as setup,
-    task as task,
-    task_group as task_group,
-    teardown as teardown,
-)
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
