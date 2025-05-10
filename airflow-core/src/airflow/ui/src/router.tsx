@@ -177,6 +177,15 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
       },
       {
+        children: [
+          { element: <TaskOverview />, index: true },
+          { element: <TaskInstances />, path: "task_instances" },
+          { element: <Events />, path: "events" },
+        ],
+        element: <Task />,
+        path: "dags/:dagId/tasks/group/:groupId",
+      },
+      {
         children: taskInstanceRoutes,
         element: <TaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",

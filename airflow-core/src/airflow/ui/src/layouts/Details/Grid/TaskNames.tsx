@@ -66,16 +66,26 @@ export const TaskNames = ({ nodes }: Props) => {
     >
       {node.isGroup ? (
         <Flex>
-          <TaskName
-            display="inline"
-            fontSize="sm"
-            fontWeight="normal"
-            isGroup={true}
-            isMapped={Boolean(node.is_mapped)}
-            label={node.label}
-            paddingLeft={node.depth * 3 + 2}
-            setupTeardownType={node.setup_teardown_type}
-          />
+          <Link asChild data-testid={node.id}>
+            <RouterLink
+              replace
+              to={{
+                pathname: `/dags/${dagId}/tasks/group/${node.id}`,
+                search: searchParams.toString(),
+              }}
+            >
+              <TaskName
+                display="inline"
+                fontSize="sm"
+                fontWeight="normal"
+                isGroup={true}
+                isMapped={Boolean(node.is_mapped)}
+                label={node.label}
+                paddingLeft={node.depth * 3 + 2}
+                setupTeardownType={node.setup_teardown_type}
+              />
+            </RouterLink>
+          </Link>
           <chakra.button
             aria-label="Toggle group"
             display="inline"

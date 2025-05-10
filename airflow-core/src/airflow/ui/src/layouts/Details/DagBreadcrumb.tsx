@@ -32,7 +32,7 @@ import { TogglePause } from "src/components/TogglePause";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const DagBreadcrumb = () => {
-  const { dagId = "", mapIndex = "-1", runId, taskId } = useParams();
+  const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: dag } = useDagServiceGetDagDetails({
@@ -83,6 +83,23 @@ export const DagBreadcrumb = () => {
       labelExtra: dagRun === undefined ? undefined : <StateBadge fontSize="xs" state={dagRun.state} />,
       title: "Dag Run",
       value: `/dags/${dagId}/runs/${runId}`,
+    });
+  }
+
+  // Add group breadcrumb
+  if (groupId !== undefined) {
+    if (runId === undefined) {
+      links.push({
+        label: "All Runs",
+        title: "Dag Run",
+        value: `/dags/${dagId}/runs`,
+      });
+    }
+
+    links.push({
+      label: groupId,
+      title: "Group",
+      value: `/dags/${dagId}/groups/${groupId}`,
     });
   }
 
