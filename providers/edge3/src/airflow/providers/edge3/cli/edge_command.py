@@ -178,7 +178,7 @@ class _EdgeWorkerCli:
         concurrency: int,
         job_poll_interval: int,
         heartbeat_interval: int,
-        daemon: bool,
+        daemon: bool = False,
     ):
         self.pid_file_path = pid_file_path
         self.job_poll_interval = job_poll_interval
