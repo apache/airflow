@@ -555,6 +555,19 @@ The Airflow CLI has been split into two distinct interfaces:
 
 This change improves security and modularity for deployments that use Airflow in a distributed or API-first context.
 
+REST API v2 replaces v1
+"""""""""""""""""""""""
+
+The legacy REST API v1, previously built with Connexion and Marshmallow, has been replaced by a modern FastAPI-based REST API v2.
+
+This new implementation improves performance, aligns more closely with web standards, and provides a consistent developer experience across the API and UI.
+
+Key changes include stricter validation (422 errors instead of 400), the removal of the ``execution_date`` parameter in favor of ``logical_date``, and more consistent query parameter handling.
+
+The v2 API is now the stable, fully supported interface for programmatic access to Airflow, and also powers the new UI - achieving full feature parity between the UI and API.
+
+For details, see the :doc:`Airflow REST API v2 </stable-rest-api-ref>` documentation.
+
 REST API: DAG Trigger Behavior Updated
 """"""""""""""""""""""""""""""""""""""
 

@@ -342,6 +342,16 @@ export const $AssetResponse = {
       type: "array",
       title: "Aliases",
     },
+    last_asset_event: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/LastAssetEventResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -3456,6 +3466,38 @@ export const $JobResponse = {
 
 export const $JsonValue = {} as const;
 
+export const $LastAssetEventResponse = {
+  properties: {
+    id: {
+      anyOf: [
+        {
+          type: "integer",
+          minimum: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Id",
+    },
+    timestamp: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  title: "LastAssetEventResponse",
+  description: "Last asset event response serializer.",
+} as const;
+
 export const $PatchTaskInstanceBody = {
   properties: {
     new_state: {
@@ -3915,9 +3957,13 @@ export const $QueuedEventResponse = {
       format: "date-time",
       title: "Created At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["dag_id", "asset_id", "created_at"],
+  required: ["dag_id", "asset_id", "created_at", "dag_display_name"],
   title: "QueuedEventResponse",
   description: "Queued Event serializer for responses..",
 } as const;

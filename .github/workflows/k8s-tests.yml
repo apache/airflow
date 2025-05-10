@@ -20,12 +20,12 @@ name: K8s tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      platform:
-        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
-      amd-runners:
-        description: "The array of labels (in json form) determining public AMD runners."
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       python-versions-list-as-string:
@@ -54,7 +54,7 @@ jobs:
   tests-kubernetes:
     timeout-minutes: 60
     name: "K8S System:${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-${{ matrix.use-standard-naming }}"
-    runs-on: ${{ fromJSON(inputs.amd-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]

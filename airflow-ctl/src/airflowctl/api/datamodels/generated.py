@@ -569,6 +569,19 @@ class JsonValue(RootModel[Any]):
     root: Any
 
 
+class Id(RootModel[int]):
+    root: Annotated[int, Field(ge=0, title="Id")]
+
+
+class LastAssetEventResponse(BaseModel):
+    """
+    Last asset event response serializer.
+    """
+
+    id: Annotated[Id | None, Field(title="Id")] = None
+    timestamp: Annotated[datetime | None, Field(title="Timestamp")] = None
+
+
 class PluginImportErrorResponse(BaseModel):
     """
     Plugin Import Error serializer for responses.
@@ -662,6 +675,7 @@ class QueuedEventResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     asset_id: Annotated[int, Field(title="Asset Id")]
     created_at: Annotated[datetime, Field(title="Created At")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class ReprocessBehavior(str, Enum):
@@ -983,6 +997,7 @@ class AssetResponse(BaseModel):
     consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
+    last_asset_event: LastAssetEventResponse | None = None
 
 
 class BackfillPostBody(BaseModel):
