@@ -32,7 +32,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0, AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -117,14 +117,15 @@ class TestWasbTaskHandler:
         logs, metadata = self.wasb_task_handler.read(ti)
 
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["https://wasb-container.blob.core.windows.net/abc/hello.log"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "Log line"
-            assert metadata == {
-                "end_of_log": True,
-                "log_pos": 1,
-            }
+            if AIRFLOW_V_3_0:
+                assert metadata == {"end_of_log": True, "log_pos": 1}
+            else:
+                assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             assert logs[0][0][0] == "localhost"
             assert (

@@ -20,7 +20,8 @@ from __future__ import annotations
 import contextlib
 import textwrap
 
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import PositiveInt
 from sqlalchemy.orm import joinedload
@@ -28,7 +29,7 @@ from sqlalchemy.sql import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.deps import DagBagDep
-from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
+from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrNdjson
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.log import ExternalLogUrlResponse, TaskInstancesLogResponse
@@ -43,13 +44,14 @@ task_instances_log_router = AirflowRouter(
     tags=["Task Instance"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
 )
 
-text_example_response_for_get_log = {
-    Mimetype.TEXT: {
+ndjson_example_response_for_get_log = {
+    Mimetype.NDJSON: {
         "schema": {
             "type": "string",
             "example": textwrap.dedent(
                 """\
-    content
+    {"content": "content"}
+    {"content": "content"}
     """
             ),
         }
@@ -63,7 +65,7 @@ text_example_response_for_get_log = {
         **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
         status.HTTP_200_OK: {
             "description": "Successful Response",
-            "content": text_example_response_for_get_log,
+            "content": ndjson_example_response_for_get_log,
         },
     },
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_LOGS))],
@@ -75,7 +77,7 @@ def get_log(
     dag_run_id: str,
     task_id: str,
     try_number: PositiveInt,
-    accept: HeaderAcceptJsonOrText,
+    accept: HeaderAcceptJsonOrNdjson,
     request: Request,
     dag_bag: DagBagDep,
     session: SessionDep,
@@ -136,24 +138,24 @@ def get_log(
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
 
-    if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
-        encoded_token = None
+    if accept == Mimetype.NDJSON:  # only specified application/x-ndjson will return streaming response
+        log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
+        headers = None
         if not metadata.get("end_of_log", False):
-            encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
-        return TaskInstancesLogResponse.model_construct(continuation_token=encoded_token, content=logs)
-    # text/plain, or something else we don't understand. Return raw log content
+            headers = {
+                "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
+            }
+        return StreamingResponse(media_type="application/x-ndjson", content=log_stream, headers=headers)
 
-    # We need to exhaust the iterator before we can generate the continuation token.
-    # We could improve this by making it a streaming/async response, and by then setting the header using
-    # HTTP Trailers
-    logs = "".join(task_log_reader.read_log_stream(ti, try_number, metadata))
-    headers = None
-    if not metadata.get("end_of_log", False):
-        headers = {
-            "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
-        }
-    return Response(media_type="application/x-ndjson", content=logs, headers=headers)
+    # application/json, or something else we don't understand.
+    # Return JSON format, which will be more easily for users to debug.
+    structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
+    encoded_token = None
+    if not out_metadata.get("end_of_log", False):
+        encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(out_metadata)
+    return TaskInstancesLogResponse.model_construct(
+        continuation_token=encoded_token, content=list(structured_log_stream)
+    )
 
 
 @task_instances_log_router.get(
