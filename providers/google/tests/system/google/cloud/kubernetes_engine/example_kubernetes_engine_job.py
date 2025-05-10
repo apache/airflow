@@ -48,7 +48,12 @@ CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 JOB_NAME = "test-pi"
 JOB_NAME_DEF = "test-pi-def"
+JOB_NAME_WITH_PARALLELISM = "test-pi-with-parallelism"
+JOB_NAME_DEF_WITH_PARALLELISM = "test-pi-def-with-parallelism"
 JOB_NAMESPACE = "default"
+
+PARALLELISM = 2
+COMPLETION_MODE = "Indexed"
 
 with DAG(
     DAG_ID,
@@ -92,6 +97,45 @@ with DAG(
     )
     # [END howto_operator_gke_start_job_def]
 
+    # [START howto_operator_gke_start_job_parallelism]
+    job_task_with_parallelism = GKEStartJobOperator(
+        task_id="job_task_with_parallelism",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        namespace=JOB_NAMESPACE,
+        image="perl:5.34.0",
+        cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
+        name=JOB_NAME_WITH_PARALLELISM,
+        wait_until_job_complete=True,
+        parallelism=PARALLELISM,
+        completions=PARALLELISM,
+        completion_mode=COMPLETION_MODE,
+        get_logs=True,
+        do_xcom_push=True,
+    )
+    # [END howto_operator_gke_start_job_with_parallelism]
+
+    # [START howto_operator_gke_start_job_def_with_parallelism]
+    job_task_def_with_parallelism = GKEStartJobOperator(
+        task_id="job_task_def_with_parallelism",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        namespace=JOB_NAMESPACE,
+        image="perl:5.34.0",
+        cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
+        name=JOB_NAME_DEF_WITH_PARALLELISM,
+        wait_until_job_complete=True,
+        deferrable=True,
+        parallelism=PARALLELISM,
+        completions=PARALLELISM,
+        completion_mode=COMPLETION_MODE,
+        get_logs=True,
+        do_xcom_push=True,
+    )
+    # [END howto_operator_gke_start_job_def_with_parallelism]
+
     # [START howto_operator_gke_list_jobs]
     list_job_task = GKEListJobsOperator(
         task_id="list_job_task", project_id=GCP_PROJECT_ID, location=GCP_LOCATION, cluster_name=CLUSTER_NAME
@@ -104,7 +148,7 @@ with DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         job_name=job_task.output["job_name"],
-        namespace="default",
+        namespace=JOB_NAMESPACE,
         cluster_name=CLUSTER_NAME,
     )
     # [END howto_operator_gke_describe_job]
@@ -114,7 +158,25 @@ with DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         job_name=job_task_def.output["job_name"],
-        namespace="default",
+        namespace=JOB_NAMESPACE,
+        cluster_name=CLUSTER_NAME,
+    )
+
+    describe_job_with_parallelism_task = GKEDescribeJobOperator(
+        task_id="describe_job_with_parallelism_task",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        job_name=job_task_with_parallelism.output["job_name"],
+        namespace=JOB_NAMESPACE,
+        cluster_name=CLUSTER_NAME,
+    )
+
+    describe_job_task_def_with_parallelism = GKEDescribeJobOperator(
+        task_id="describe_job_task_def_with_parallelism",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        job_name=job_task_def_with_parallelism.output["job_name"],
+        namespace=JOB_NAMESPACE,
         cluster_name=CLUSTER_NAME,
     )
 
@@ -125,7 +187,7 @@ with DAG(
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,
         name=job_task.output["job_name"],
-        namespace="default",
+        namespace=JOB_NAMESPACE,
     )
     # [END howto_operator_gke_suspend_job]
 
@@ -136,7 +198,7 @@ with DAG(
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,
         name=job_task.output["job_name"],
-        namespace="default",
+        namespace=JOB_NAMESPACE,
     )
     # [END howto_operator_gke_resume_job]
 
@@ -156,7 +218,25 @@ with DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,
-        name=JOB_NAME,
+        name=JOB_NAME_DEF,
+        namespace=JOB_NAMESPACE,
+    )
+
+    delete_job_with_parallelism = GKEDeleteJobOperator(
+        task_id="delete_job_with_parallelism",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        name=JOB_NAME_WITH_PARALLELISM,
+        namespace=JOB_NAMESPACE,
+    )
+
+    delete_job_def_with_parallelism = GKEDeleteJobOperator(
+        task_id="delete_job_def_with_parallelism",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        name=JOB_NAME_DEF_WITH_PARALLELISM,
         namespace=JOB_NAMESPACE,
     )
 
@@ -170,12 +250,17 @@ with DAG(
 
     chain(
         create_cluster,
-        [job_task, job_task_def],
+        [job_task, job_task_def, job_task_with_parallelism, job_task_def_with_parallelism],
         list_job_task,
-        [describe_job_task, describe_job_task_def],
+        [
+            describe_job_task,
+            describe_job_task_def,
+            describe_job_with_parallelism_task,
+            describe_job_task_def_with_parallelism,
+        ],
         suspend_job,
         resume_job,
-        [delete_job, delete_job_def],
+        [delete_job, delete_job_def, delete_job_with_parallelism, delete_job_def_with_parallelism],
         delete_cluster,
     )
 
