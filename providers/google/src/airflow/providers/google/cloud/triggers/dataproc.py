@@ -33,6 +33,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
@@ -141,6 +142,25 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             )
         return task_instance
 
+    def get_task_state(self):
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        task_states_response = RuntimeTaskInstance.get_task_states(
+            dag_id=self.task_instance.dag_id,
+            task_ids=[self.task_instance.task_id],
+            run_ids=[self.task_instance.run_id],
+        )
+        try:
+            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+        except Exception:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+            )
+        return task_state
+
     def safe_to_cancel(self) -> bool:
         """
         Whether it is safe to cancel the external job which is being executed by this trigger.
@@ -148,9 +168,13 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
         This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
         Because in those cases, we should NOT cancel the external job.
         """
-        # Database query is needed to get the latest state of the task instance.
-        task_instance = self.get_task_instance()  # type: ignore[call-arg]
-        return task_instance.state != TaskInstanceState.DEFERRED
+        if AIRFLOW_V_3_0_PLUS:
+            task_state = self.get_task_state()
+        else:
+            # Database query is needed to get the latest state of the task instance.
+            task_instance = self.get_task_instance()  # type: ignore[call-arg]
+            task_state = task_instance.state
+        return task_state != TaskInstanceState.DEFERRED
 
     async def run(self):
         try:
@@ -243,6 +267,25 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             )
         return task_instance
 
+    def get_task_state(self):
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        task_states_response = RuntimeTaskInstance.get_task_states(
+            dag_id=self.task_instance.dag_id,
+            task_ids=[self.task_instance.task_id],
+            run_ids=[self.task_instance.run_id],
+        )
+        try:
+            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+        except Exception:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+            )
+        return task_state
+
     def safe_to_cancel(self) -> bool:
         """
         Whether it is safe to cancel the external job which is being executed by this trigger.
@@ -250,9 +293,13 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
         This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
         Because in those cases, we should NOT cancel the external job.
         """
-        # Database query is needed to get the latest state of the task instance.
-        task_instance = self.get_task_instance()  # type: ignore[call-arg]
-        return task_instance.state != TaskInstanceState.DEFERRED
+        if AIRFLOW_V_3_0_PLUS:
+            task_state = self.get_task_state()
+        else:
+            # Database query is needed to get the latest state of the task instance.
+            task_instance = self.get_task_instance()  # type: ignore[call-arg]
+            task_state = task_instance.state
+        return task_state != TaskInstanceState.DEFERRED
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
