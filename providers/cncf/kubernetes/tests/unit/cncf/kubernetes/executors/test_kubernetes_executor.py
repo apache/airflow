@@ -29,7 +29,7 @@ from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
 from airflow import __version__
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
@@ -55,6 +55,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.config import conf_vars
 
@@ -228,19 +229,6 @@ class TestAirflowKubernetesScheduler:
             mock_delete_namespace.assert_called_with(pod_name, namespace, body=mock_client.V1DeleteOptions())
         finally:
             kube_executor.end()
-
-    def test_running_pod_log_lines(self):
-        # default behaviour
-        kube_executor = KubernetesExecutor()
-        assert kube_executor.RUNNING_POD_LOG_LINES == 100
-
-        # monkey-patching for second executor
-        kube_executor_2 = KubernetesExecutor()
-        kube_executor_2.RUNNING_POD_LOG_LINES = 200
-
-        # monkey-patching should not affect the class constant
-        assert kube_executor.RUNNING_POD_LOG_LINES == 100
-        assert kube_executor_2.RUNNING_POD_LOG_LINES == 200
 
 
 class TestKubernetesExecutor:
@@ -1340,38 +1328,6 @@ class TestKubernetesExecutor:
 
         assert executor.kube_config.multi_namespace_mode_namespace_list == expected_value_in_kube_config
 
-    @pytest.mark.db_test
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_get_task_log(self, mock_get_kube_client, create_task_instance_of_operator):
-        """fetch task log from pod"""
-        mock_kube_client = mock_get_kube_client.return_value
-
-        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_", b"b_", b"c_"]
-        mock_pod = mock.Mock()
-        mock_pod.metadata.name = "x"
-        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
-        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
-
-        executor = KubernetesExecutor()
-        messages, logs = executor.get_task_log(ti=ti, try_number=1)
-
-        mock_kube_client.read_namespaced_pod_log.assert_called_once()
-        assert messages == [
-            "Attempting to fetch logs from pod  through kube API",
-            "Found logs through kube API",
-        ]
-        assert logs[0] == "a_\nb_\nc_"
-
-        mock_kube_client.reset_mock()
-        mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
-
-        messages, logs = executor.get_task_log(ti=ti, try_number=1)
-        assert logs == [""]
-        assert messages == [
-            "Attempting to fetch logs from pod  through kube API",
-            "Reading from k8s pod logs failed: error_fetching_pod_log",
-        ]
-
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 
@@ -1414,6 +1370,143 @@ class TestKubernetesExecutor:
                 assert annotations_actual == expected_annotations
         finally:
             get_logs_task_metadata.cache_clear()
+
+
+class TestKubernetesExecutorTaskPodLogs:
+    """
+    Tests for KubernetesExecutor task pod logs related functionality.
+    """
+
+    def attr_pytest_warns(self):
+        return pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Usage of `RUNNING_POD_LOG_LINES` attribute is deprecated",
+        )
+
+    def set_config_running_pod_log_lines(self, value: int):
+        return conf_vars({("kubernetes_executor", "running_pod_log_lines"): str(value)})
+
+    def test_running_pod_log_lines_proper_config(self):
+        kube_executor_1 = KubernetesExecutor()
+        assert kube_executor_1.running_pod_log_lines == 100
+
+        with self.set_config_running_pod_log_lines(200):
+            kube_executor_2 = KubernetesExecutor()
+            assert kube_executor_2.running_pod_log_lines == 200
+
+        assert kube_executor_1.running_pod_log_lines == 100
+
+    def test_running_pod_log_lines_deprecated_attribute(self, monkeypatch: pytest.MonkeyPatch):
+        assert KubernetesExecutor.RUNNING_POD_LOG_LINES == NOTSET
+
+        cfg_value = 200
+        attr_value = 400
+        with self.attr_pytest_warns():
+            with self.set_config_running_pod_log_lines(cfg_value):
+                monkeypatch.setattr(KubernetesExecutor, "RUNNING_POD_LOG_LINES", attr_value)
+                kube_executor = KubernetesExecutor()
+                # Though it's deprecated, the attribute should still take precedence
+                # over config value to not break existing users local settings patches
+                assert kube_executor.running_pod_log_lines == attr_value
+
+    def test_running_pod_log_lines_attribute_deprecated_warning_on_instance(self):
+        kube_executor = KubernetesExecutor()
+        assert kube_executor.RUNNING_POD_LOG_LINES == NOTSET
+        assert kube_executor.running_pod_log_lines == 100
+
+        kube_executor.RUNNING_POD_LOG_LINES = 400
+
+        with self.attr_pytest_warns():
+            assert kube_executor.running_pod_log_lines == 400
+
+    def test_running_pod_log_lines_attribute_instances_logic(self):
+        with self.attr_pytest_warns():
+            # default behaviour
+            kube_executor = KubernetesExecutor()
+            assert kube_executor.RUNNING_POD_LOG_LINES == NOTSET
+            assert kube_executor.running_pod_log_lines == 100
+
+            # monkey-patching for second executor
+            kube_executor_2 = KubernetesExecutor()
+            kube_executor_2.RUNNING_POD_LOG_LINES = 200
+
+            # monkey-patching should not affect the class constant
+            assert kube_executor.running_pod_log_lines == 100
+            assert kube_executor_2.running_pod_log_lines == 200
+
+    @pytest.mark.parametrize(
+        "log_lines_cfg_value, expected_kwargs",
+        [[0, {"tail_lines": 0}], [125, {"tail_lines": 125}], [-1, {}], [-100, {}]],
+        ids=["Zero", "Positive", "Disabled", "Other negative disabled"],
+    )
+    def test__prepare_read_namespaced_pod_log_extra_kwargs(
+        self, log_lines_cfg_value: int, expected_kwargs: dict
+    ):
+        with self.set_config_running_pod_log_lines(log_lines_cfg_value):
+            kube_executor = KubernetesExecutor()
+            assert kube_executor.running_pod_log_lines == log_lines_cfg_value
+
+            extra_kwargs = kube_executor._prepare_read_namespaced_pod_log_extra_kwargs()
+            assert extra_kwargs == expected_kwargs
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_get_task_log(self, mock_get_kube_client, create_task_instance_of_operator):
+        """fetch task log from pod"""
+        mock_kube_client = mock_get_kube_client.return_value
+
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_", b"b_", b"c_"]
+        mock_pod = mock.Mock()
+        mock_pod.metadata.name = "x"
+        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
+
+        executor = KubernetesExecutor()
+        messages, logs = executor.get_task_log(ti=ti, try_number=1)
+
+        mock_kube_client.read_namespaced_pod_log.assert_called_once()
+        assert messages == [
+            "Attempting to fetch logs from pod  through kube API",
+            "Found logs through kube API",
+        ]
+        assert logs[0] == "a_\nb_\nc_"
+
+        mock_kube_client.reset_mock()
+        mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
+
+        messages, logs = executor.get_task_log(ti=ti, try_number=1)
+        assert logs == [""]
+        assert messages == [
+            "Attempting to fetch logs from pod  through kube API",
+            "Reading from k8s pod logs failed: error_fetching_pod_log",
+        ]
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("log_lines_cfg_value", [125, -1], ids=["limited", "unlimited"])
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_get_task_log_tail_log_lines(
+        self, mock_get_kube_client, create_task_instance_of_operator, log_lines_cfg_value
+    ):
+        mock_kube_client = mock_get_kube_client.return_value
+
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_", b"b_", b"c_"]
+        mock_pod = mock.Mock()
+        mock_pod.metadata.name = "x"
+        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
+
+        with self.set_config_running_pod_log_lines(log_lines_cfg_value):
+            executor = KubernetesExecutor()
+
+        assert executor.running_pod_log_lines == log_lines_cfg_value
+        executor.get_task_log(ti=ti, try_number=1)
+
+        _, call_kwargs = mock_kube_client.read_namespaced_pod_log.call_args
+        if log_lines_cfg_value > 0:
+            assert "tail_lines" in call_kwargs
+            assert call_kwargs["tail_lines"] == log_lines_cfg_value
+        else:
+            assert "tail_lines" not in call_kwargs
 
 
 class TestKubernetesJobWatcher:
