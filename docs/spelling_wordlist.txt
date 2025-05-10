@@ -1090,6 +1090,7 @@ materializations
 Matomo
 matomo
 MaxCompute
+maxcompute
 Maxime
 MaxRuntimeInSeconds
 mb
