@@ -62,12 +62,3 @@ def downgrade():
     conn = op.get_bind()
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.alter_column("bundle_name", nullable=True, existing_type=sa.String(length=250))
-        conn.execute(
-            text(
-                """
-                UPDATE dag
-                SET bundle_name = NULL
-                WHERE bundle_name IN ('example_dags', 'dags-folder')
-                """
-            )
-        )
