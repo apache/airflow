@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 from airflow import settings
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.execution_time.secrets_masker import should_hide_value_for_key
 from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -258,7 +259,9 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_dag(bundle_names: list | None, dag_id: str, from_db: bool = False) -> DAG:
+def get_dag(
+    bundle_names: list | None, dag_id: str, from_db: bool = False, dagfile_path: str | None = None
+) -> DAG:
     """
     Return DAG of a given dag_id.
 
@@ -277,7 +280,10 @@ def get_dag(bundle_names: list | None, dag_id: str, from_db: bool = False) -> DA
         manager = DagBundlesManager()
         for bundle_name in bundle_names:
             bundle = manager.get_bundle(bundle_name)
-            dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path, include_examples=False)
+            with _airflow_parsing_context_manager(dag_id=dag_id):
+                dagbag = DagBag(
+                    dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
+                )
             dag = dagbag.dags.get(dag_id)
             if dag:
                 break
@@ -287,7 +293,10 @@ def get_dag(bundle_names: list | None, dag_id: str, from_db: bool = False) -> DA
         manager = DagBundlesManager()
         all_bundles = list(manager.get_all_dag_bundles())
         for bundle in all_bundles:
-            dag_bag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)
+            with _airflow_parsing_context_manager(dag_id=dag_id):
+                dag_bag = DagBag(
+                    dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
+                )
             dag = dag_bag.dags.get(dag_id)
             if dag:
                 break
