@@ -857,6 +857,10 @@ class TestPgbouncerNetworkPolicy:
                 {"executor": "CeleryExecutor", "workers": {"keda": {"enabled": True}}},
                 [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
             ),
+            (
+                {"executor": "CeleryExecutor", "workers": {"celery": {"keda": {"enabled": True}}}},
+                [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
+            ),
             # test with triggerer.keda enabled without namespace labels
             (
                 {"triggerer": {"keda": {"enabled": True}}},
@@ -871,11 +875,46 @@ class TestPgbouncerNetworkPolicy:
                 },
                 [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
             ),
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"celery": {"keda": {"enabled": True}}},
+                    "triggerer": {"keda": {"enabled": True}},
+                },
+                [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
+            ),
             # test with workers.keda enabled with namespace labels
             (
                 {
                     "executor": "CeleryExecutor",
                     "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {
+                        "keda": {"enabled": True, "namespaceLabels": {"airflow": "app"}},
+                        "celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    },
                 },
                 [
                     {
@@ -908,6 +947,35 @@ class TestPgbouncerNetworkPolicy:
                     }
                 ],
             ),
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {
+                        "keda": {"namespaceLabels": {"airflow": "app"}},
+                        "celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    },
+                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
             # test with workers.keda and triggerer.keda both enabled workers with namespace labels
             # and triggerer without namespace labels
             (
@@ -923,12 +991,54 @@ class TestPgbouncerNetworkPolicy:
                     }
                 ],
             ),
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+                    "triggerer": {"keda": {"enabled": True}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {
+                        "keda": {"enabled": True, "namespaceLabels": {"airflow": "app"}},
+                        "celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    },
+                    "triggerer": {"keda": {"enabled": True}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
             # test with workers.keda and triggerer.keda both enabled workers without namespace labels
             # and triggerer with namespace labels
             (
                 {
                     "executor": "CeleryExecutor",
                     "workers": {"keda": {"enabled": True}},
+                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"celery": {"keda": {"enabled": True}}},
                     "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
                 },
                 [
