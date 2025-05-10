@@ -148,14 +148,14 @@ export const DurationChart = ({
           onClick: (_event, elements) => {
             const [element] = elements;
 
-            if (element && typeof element.index === "number") {
+            if (!element) {
+              return;
+            }
+            if (kind === "Dag Run") {
               const entry = entries[element.index];
+              const run = entry as DAGRunResponse;
 
-              if (kind === "Dag Run") {
-                const run = entry as DAGRunResponse;
-
-                navigate(`/dags/${run.dag_id}/runs/${run.dag_run_id}`);
-              }
+              navigate(`/dags/${run.dag_id}/runs/${run.dag_run_id}`);
             }
           },
           onHover: (event: ChartEvent, elements) => {
