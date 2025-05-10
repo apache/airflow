@@ -208,8 +208,6 @@ def test_parse(test_dags_dir: Path, make_ti_context):
         },
     ):
         ti = parse(what, mock.Mock())
-        assert ti is not None
-        assert ti.log_url == get_log_url_from_ti(ti)
 
     assert ti.task
     assert ti.task.dag
@@ -2146,6 +2144,8 @@ class TestTaskRunnerCallsListeners:
         mocked_parse(what, "basic_dag", task)
 
         runtime_ti, context, log = startup()
+        assert runtime_ti is not None
+        assert runtime_ti.log_url == get_log_url_from_ti(runtime_ti)
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
 
