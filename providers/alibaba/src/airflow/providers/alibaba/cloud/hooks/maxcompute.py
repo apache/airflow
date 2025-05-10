@@ -134,7 +134,7 @@ class MaxComputeHook(AlibabaBaseHook):
     @fallback_to_default_project_endpoint
     def get_client(self, project: str, endpoint: str) -> ODPS:
         """
-        Get an authenticated BigQuery Client.
+        Get an authenticated MaxCompute ODPS Client.
 
         :param project_id: Project ID for the project which the client acts on behalf of.
         :param location: Default location for jobs / datasets / tables.

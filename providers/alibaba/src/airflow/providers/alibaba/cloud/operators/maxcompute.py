@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Alibaba Cloud OSS operators."""
+"""This module contains Alibaba Cloud MaxCompute operators."""
 
 from __future__ import annotations
 
