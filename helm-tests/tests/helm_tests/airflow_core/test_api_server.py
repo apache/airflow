@@ -158,6 +158,24 @@ class TestAPIServerDeployment:
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
+    def test_should_add_volume_and_volume_mount_when_exist_webserver_config(self):
+        docs = render_chart(
+            values={"apiServer": {"apiServerConfig": "CSRF_ENABLED = True"}, "airflowVersion": "2.10.5"},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+
+        assert {
+            "name": "api-config",
+            "configMap": {"name": "release-name-apiserver-config"},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
+        assert {
+            "name": "api-server-config",
+            "mountPath": "/opt/airflow/webserver_config.py",
+            "subPath": "webserver_config.py",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
     def test_wait_for_migration_airflow_version(self):
         expected_arg = ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]
         docs = render_chart(

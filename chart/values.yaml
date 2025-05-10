@@ -1400,6 +1400,21 @@ apiServer:
     periodSeconds: 10
     scheme: HTTP
 
+  # This string (templated) will be mounted into the Airflow Webserver
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
+  apiServerConfig: ~
+  # webserverConfig: |
+  #   from airflow import configuration as conf
+
+  #   # The SQLAlchemy connection string.
+  #   SQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')
+
+  #   # Flask-WTF flag for CSRF
+  #   CSRF_ENABLED = True
+  apiServerConfigConfigMapName: ~
+
 # Airflow webserver settings
 webserver:
   enabled: true
