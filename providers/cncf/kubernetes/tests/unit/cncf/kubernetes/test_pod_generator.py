@@ -196,8 +196,8 @@ class TestPodGenerator:
                 "python",
                 "-m",
                 "airflow.sdk.execution_time.execute_workload",
-                "--json-path",
-                "/tmp/execute/input.json",
+                "--json-string",
+                "temp",
             ],
             pod_override_object=None,
             base_worker_pod=worker_config,
@@ -207,33 +207,14 @@ class TestPodGenerator:
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
 
-        init_containers = sanitized_result["spec"]["initContainers"]
-        assert len(init_containers) == 1
-        init_container = init_containers[0]
-        assert init_container == {
-            "command": [
-                "/bin/sh",
-                "-c",
-                f"echo '{expected}' > /tmp/execute/input.json",
-            ],
-            "image": "busybox",
-            "name": "init-container",
-            "volumeMounts": [{"mountPath": "/tmp/execute", "name": "execute-volume", "readOnly": False}],
-        }
-
-        volumes = sanitized_result["spec"]["volumes"]
-        assert len(volumes) == 1
-        volume = volumes[0]
-        assert volume == {"emptyDir": {}, "name": "execute-volume"}
-
         main_container = sanitized_result["spec"]["containers"][0]
         assert main_container["command"] == [
             "python",
             "-m",
             "airflow.sdk.execution_time.execute_workload",
-            "--json-path",
+            "--json-string",
         ]
-        assert main_container["args"] == ["/tmp/execute/input.json"]
+        assert main_container["args"] == f"'{expected}'"
 
     def test_from_obj_pod_override_object(self):
         obj = {

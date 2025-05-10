@@ -398,8 +398,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     "python",
                     "-m",
                     "airflow.sdk.execution_time.execute_workload",
-                    "--json-path",
-                    "/tmp/execute/input.json",
+                    "--json-string",
+                    "temp",
                 ]
             else:
                 raise ValueError(
