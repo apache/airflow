@@ -8,15 +8,18 @@ class SourceConfig(BaseModel):
     operator_args: Optional[dict[str, str]] = None
     path: str = None
 
+
 class DestinationConfig(BaseModel):
     conn_id: str = None
     operator_args: Optional[dict[str, str]] = None
     path: str = None
 
+
 class OpenDALConfig(BaseModel):
     action: Literal["read", "write", "copy"]
     source_config: SourceConfig
     destination_config: Optional[DestinationConfig] = None
+
 
 class OpenDALBaseFileSystem:
     def __init__(self,
@@ -42,7 +45,7 @@ class OpenDALRead(OpenDALBaseFileSystem):
         super().__init__(**kwargs)
 
     def execute_opendal_task(self):
-        return self.source_operator.read(self.opendal_config.source_config.path)
+        return self.source_operator.read(self.opendal_config.get("source_config",{}).get("path", "/")).decode("utf-8")
 
 
 class OpenDALWrite(OpenDALBaseFileSystem):
@@ -50,19 +53,7 @@ class OpenDALWrite(OpenDALBaseFileSystem):
         super().__init__(**kwargs)
 
     def execute_opendal_task(self):
-        return self.source_operator.write(self.opendal_config.source_config.path, self.data)
+        if self.data and isinstance(self.data, str):
+            self.data = self.data.encode("utf-8")
 
-
-
-'''
-config:
-    action: read/write/copy
-    source_config:
-        conn_id
-        operator_args:
-        path
-    destination_config:
-        conn_id
-        operator_args:
-        path
-'''
+        return self.source_operator.write(self.opendal_config.get("source_config", {}).get("path"), self.data)

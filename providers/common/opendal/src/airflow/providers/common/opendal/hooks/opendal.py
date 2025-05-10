@@ -34,6 +34,7 @@ class OpenDALHook(BaseHook):
             self.config.get("operator_args"),
             self.config_type,
         )
+        print(f"op_args: {op_args}")
         return Operator(**op_args)
 
     @cached_property

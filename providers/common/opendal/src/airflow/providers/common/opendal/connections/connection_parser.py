@@ -37,7 +37,7 @@ class S3ConnectionParser(OpenDALAirflowConnectionParser):
         })
 
         params = {k: v for k, v in params.items() if v is not None}
-        return {"scheme": "s3", "params": params}
+        return {"scheme": "s3",  **params}
 
 
 class OpenDALOperatorFactory:
@@ -61,8 +61,8 @@ class OpenDALOperatorFactory:
         op_args = {}
         for parser in self._connection_parsers:
             if conn_scheme in parser.airflow_conn_type:
-                parsed_conn = parser.parse(conn)
-                params = parsed_conn.get("params")
+                params = parser.parse(conn)
+                break
 
         if config_type == "destination":
             op_args = conn.extra_dejson.get("destination_config", {}).get("operator_args", {})
@@ -70,5 +70,5 @@ class OpenDALOperatorFactory:
         if config_type == "source":
             op_args = conn.extra_dejson.get("source_config", {}).get("operator_args", {})
 
-
+        print(f"params: {params}")
         return {**params, **op_args, **opendal_config_operator_args}

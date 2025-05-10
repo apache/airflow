@@ -1,3 +1,4 @@
+import importlib
 from typing import Any
 
 from airflow.hooks.base import BaseHook
@@ -23,16 +24,31 @@ class OpenDALTaskOperator(BaseOperator):
     def __init__(self,
                  *,
                  opendal_config: OpenDALConfig,
+                 data: str | bytes = None,
                  **kwargs
                  ):
         super().__init__(**kwargs)
         self.opendal_config = opendal_config
+        self.data = data
 
     def execute(self, context: Context) -> Any:
-        action = self.opendal_config.action
 
-        source_operator = self.hook(self.opendal_config.source_config).get_operator
-        destination_operator = self.hook(self.opendal_config.destination_config, "destination").get_operator
+        action = self.opendal_config.get("action")
+
+        source_operator = self.hook(self.opendal_config.get("source_config")).get_operator
+        destination_operator = self.hook(self.opendal_config.get("destination_config"), "destination").get_operator if self.opendal_config.get("destination_config") else None
+
+        module = importlib.import_module(f"airflow.providers.common.opendal.filesystem.opendal_fs")
+        operator_class = getattr(module, f"OpenDAL{action.capitalize()}")
+
+        opendal_operator = operator_class(
+            opendal_config=self.opendal_config,
+            source_operator=source_operator,
+            destination_operator=destination_operator,
+            data=self.data,
+        )
+
+        return opendal_operator.execute_opendal_task()
 
 
 
