@@ -2607,6 +2607,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/favorite:
+    get:
+      tags:
+      - DAG
+      summary: Get Favorite Dags
+      description: Get DAGs favorited by the user.
+      operationId: get_favorite_dags
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /api/v2/dags:
     get:
       tags:
@@ -3024,6 +3052,58 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - DAG
+      summary: Favorite Dag
+      description: Favorite the specific DAG.
+      operationId: favorite_dag
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGFavoriteBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '404':
           content:
             application/json:
@@ -8382,6 +8462,17 @@ components:
       - latest_dag_version
       title: DAGDetailsResponse
       description: Specific serializer for DAG Details responses.
+    DAGFavoriteBody:
+      properties:
+        is_favorite:
+          type: boolean
+          title: Is Favorite
+      additionalProperties: false
+      type: object
+      required:
+      - is_favorite
+      title: DAGFavoriteBody
+      description: Dag Serializer for updatable bodies.
     DAGPatchBody:
       properties:
         is_paused:

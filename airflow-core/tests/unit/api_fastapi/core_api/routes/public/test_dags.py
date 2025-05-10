@@ -21,8 +21,10 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
@@ -151,6 +153,52 @@ class TestDagEndpoint:
 
     def teardown_method(self) -> None:
         self._clear_db()
+
+
+class TestGetFavoriteDags(TestDagEndpoint):
+    """Unit tests for Get Favorite DAGs."""
+
+    @pytest.mark.parametrize(
+        "setup_favorites, expected_total_entries, expected_ids",
+        [
+            ([], 0, []),
+            ([DAG1_ID], 1, [DAG1_ID]),
+            ([DAG1_ID, DAG2_ID], 2, [DAG1_ID, DAG2_ID]),
+        ],
+    )
+    def test_get_favorite_dags(
+        self, session, test_client, setup_favorites, expected_total_entries, expected_ids
+    ):
+        session.query(DagFavorite).delete()
+        session.query(DagModel).delete()
+        session.commit()
+
+        dags = [
+            DagModel(dag_id=dag_id, fileloc=f"/fake/path/{dag_id}.py")
+            for dag_id in [DAG1_ID, DAG2_ID, DAG3_ID]
+        ]
+        session.add_all(dags)
+        session.commit()
+
+        for dag_id in setup_favorites:
+            session.add(DagFavorite(user_id="test", dag_id=dag_id))
+        session.commit()
+
+        response = test_client.get("/dags/favorite")
+
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == expected_total_entries
+        assert sorted([dag["dag_id"] for dag in body["dags"]]) == sorted(expected_ids)
+
+    def test_get_favorite_dags_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags/favorite")
+        assert response.status_code == 401
+
+    def test_get_favorite_dags_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags/favorite")
+        assert response.status_code == 403
 
 
 class TestGetDags(TestDagEndpoint):
@@ -391,29 +439,34 @@ class TestPatchDags(TestDagEndpoint):
         response = unauthorized_test_client.patch("/dags", json={"is_paused": True})
         assert response.status_code == 403
 
+
 class TestFavoriteDag(TestDagEndpoint):
     """Unit tests for Favorite DAG."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, body, expected_status_code, expected_is_favorite",
+        "dag_id, body, expected_status_code, expected_exist_in_favorites",
         [
-            ({}, "fake_dag_id", {"is_favorite": True}, 404, None),
-            ({"update_mask": ["field_1", "is_favorite"]}, DAG1_ID, {"is_favorite": True}, 400, None),
-            ({}, DAG1_ID, {"is_favorite": True}, 200, True),
-            ({}, DAG1_ID, {"is_favorite": False}, 200, False),
-            ({"update_mask": ["is_favorite"]}, DAG1_ID, {"is_favorite": True}, 200, True),
-            ({"update_mask": ["is_favorite"]}, DAG1_ID, {"is_favorite": False}, 200, False),
+            ("fake_dag_id", {"is_favorite": True}, 404, None),
+            (DAG1_ID, {"is_favorite": True}, 200, True),
+            (DAG1_ID, {"is_favorite": False}, 200, False),
         ],
     )
     def test_favorite_dag(
-        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_favorite, session
+        self, test_client, dag_id, body, expected_status_code, expected_exist_in_favorites, session
     ):
-        response = test_client.put(f"/dags/{dag_id}", json=body, params=query_params)
-
+        response = test_client.put(f"/dags/{dag_id}", json=body)
         assert response.status_code == expected_status_code
+
         if expected_status_code == 200:
-            body = response.json()
-            assert body["is_favorite"] == expected_is_favorite
+            result = session.execute(
+                select(DagFavorite).where(DagFavorite.dag_id == dag_id, DagFavorite.user_id == "test")
+            ).first()
+
+            if expected_exist_in_favorites:
+                assert result is not None
+            else:
+                assert result is None
+
             check_last_log(session, dag_id=dag_id, event="favorite_dag", logical_date=None)
 
     def test_favorite_dag_should_response_401(self, unauthenticated_test_client):
