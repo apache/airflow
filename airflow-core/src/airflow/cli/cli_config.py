@@ -360,7 +360,7 @@ ARG_DAGFILE_PATH = Arg(
         "-f",
         "--dagfile-path",
     ),
-    help="Path to the DAG file. Can be absolute or relative to current directory",
+    help="Path to the dag file. Can be absolute or relative to current directory",
 )
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
