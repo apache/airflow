@@ -150,18 +150,22 @@ export const DurationChart = ({
             if (!element) {
               return;
             }
-            if (kind === "Dag Run") {
-              const entry = entries[element.index];
-              const run = entry as DAGRunResponse;
 
-              navigate(`/dags/${run.dag_id}/runs/${run.dag_run_id}`);
-            } else {
-              const entry = entries[element.index];
-              const taskInstance = entry as TaskInstanceResponse;
+            const entry = entries[element.index];
+            const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.dag_run_id}`;
 
-              navigate(
-                `/dags/${taskInstance.dag_id}/runs/${taskInstance.dag_run_id}/tasks/${taskInstance.task_id}`,
-              );
+            switch (kind) {
+              case "Dag Run": {
+                navigate(baseUrl);
+                break;
+              }
+              case "Task Instance": {
+                const taskInstance = entry as TaskInstanceResponse;
+
+                navigate(`${baseUrl}/tasks/${taskInstance.task_id}`);
+                break;
+              }
+              default:
             }
           },
           onHover: (_event, elements, chart) => {
