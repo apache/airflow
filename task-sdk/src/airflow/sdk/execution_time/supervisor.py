@@ -1320,15 +1320,22 @@ def set_supervisor_comms(temp_comms):
     """
     from airflow.sdk.execution_time import task_runner
 
-    old = getattr(task_runner, "SUPERVISOR_COMMS", None)
-    task_runner.SUPERVISOR_COMMS = temp_comms
+    sentinel = object()
+    old = getattr(task_runner, "SUPERVISOR_COMMS", sentinel)
+
+    if temp_comms is not None:
+        task_runner.SUPERVISOR_COMMS = temp_comms
+    elif old is not sentinel:
+        delattr(task_runner, "SUPERVISOR_COMMS")
+
     try:
         yield
     finally:
-        if old is not None:
-            task_runner.SUPERVISOR_COMMS = old
+        if old is sentinel:
+            if hasattr(task_runner, "SUPERVISOR_COMMS"):
+                delattr(task_runner, "SUPERVISOR_COMMS")
         else:
-            delattr(task_runner, "SUPERVISOR_COMMS")
+            task_runner.SUPERVISOR_COMMS = old
 
 
 def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
