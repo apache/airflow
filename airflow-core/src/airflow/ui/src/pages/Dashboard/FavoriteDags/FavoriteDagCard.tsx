@@ -17,35 +17,44 @@
  * under the License.
  */
 import { Box, Button, Text, VStack } from "@chakra-ui/react";
-import { useDagsServiceRecentDagRuns } from "openapi/queries";
 import { Link as RouterLink } from "react-router-dom";
+
+import { useDagsServiceRecentDagRuns } from "openapi/queries";
 import { RecentRuns } from "src/pages/DagsList/RecentRuns";
 
 type FavoriteDagProps = {
-  readonly dag_id: string;
+  readonly dagId: string;
 };
 
-export const FavoriteDagCard = ({ dag_id }: FavoriteDagProps) => {
-
+export const FavoriteDagCard = ({ dagId }: FavoriteDagProps) => {
   const { data } = useDagsServiceRecentDagRuns({
-    dagIds: [dag_id],
+    dagIds: [dagId],
     dagRunsLimit: 5,
   });
 
-  const latestRuns = data?.dags[0]?.latest_dag_runs || [];
-  
+  const latestRuns = data?.dags[0]?.latest_dag_runs ?? [];
+
   return (
-    <RouterLink to={`/dags/${dag_id}`} >
-      <Button borderRadius="md" display="flex" gap={2} variant="outline" flexDirection="column" px={4} py={3} height="auto">
+    <RouterLink to={`/dags/${dagId}`}>
+      <Button
+        borderRadius="md"
+        display="flex"
+        flexDirection="column"
+        gap={2}
+        height="auto"
+        px={4}
+        py={3}
+        variant="outline"
+      >
         <Box mt={1}>
           <VStack>
             <RecentRuns latestRuns={latestRuns} />
-            <Text fontSize="sm" textAlign="left" _hover={{ textDecoration: "underline" }}>
-              {dag_id}
+            <Text _hover={{ textDecoration: "underline" }} fontSize="sm" textAlign="left">
+              {dagId}
             </Text>
           </VStack>
         </Box>
       </Button>
-    </RouterLink>  
+    </RouterLink>
   );
 };
