@@ -18,6 +18,7 @@
 package api
 
 import (
+	"fmt"
 	"maps"
 
 	"github.com/google/uuid"
@@ -53,13 +54,13 @@ func (c *Client) WithBearerToken(token string) (ClientInterface, error) {
 	rc := resty.NewWithClient(c.Client.Client())
 	maps.Copy(rc.Header(), c.Client.Header())
 	rc.SetBaseURL(c.Server)
+	rc.SetDebug(c.Client.IsDebug())
+	rc.SetLogger(c.Client.Logger())
 
 	// We don't use SetAuthToken/SetAuthScheme, as that produces a (valid, but annoying) warning about using Auth
 	// over HTTP: "Using sensitive credentials in HTTP mode is not secure." It's a time-limited-token though, so we
 	// can reasonably ignore that herej and setting the header directly by-passes that
-	// rc.SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
-	rc.SetAuthToken(token)
-	rc.SetAuthScheme("Bearer")
+	rc.SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	opts := []ClientOption{
 		WithClient(rc),

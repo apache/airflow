@@ -73,8 +73,7 @@ func Execute(worker worker.Worker) {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
-		"config file (default is $HOME/.go-sdk.yaml)")
-
+		"config file (default is $HOME/airflow/go-sdk.yaml)")
 	rootCmd.AddCommand(runCmd)
 }
 

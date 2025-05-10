@@ -38,9 +38,16 @@ func registerTasks(worker worker.Worker) {
 	worker.RegisterTask("tutorial_dag", load)
 }
 
-func extract(log *slog.Logger) error {
+func extract(ctx context.Context, log *slog.Logger) error {
 	log.Info("Hello from task")
 	for range 10 {
+
+		// Once per loop,.check if we've been asked to cancel!
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		log.Info("After the beep the time will be", "time", time.Now())
 		time.Sleep(2 * time.Second)
 	}
@@ -74,7 +81,7 @@ func main() {
 }
 
 func makeLogger() *slog.Logger {
-	var opts slogcolor.Options = *slogcolor.DefaultOptions
+	opts := *slogcolor.DefaultOptions
 	leveler := &slog.LevelVar{}
 	leveler.Set(slog.LevelDebug)
 	opts.Level = leveler

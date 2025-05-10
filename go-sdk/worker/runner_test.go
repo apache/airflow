@@ -82,6 +82,16 @@ func (s *WorkerSuite) SetupTest() {
 	s.worker.(*worker).client = client
 }
 
+func (s *WorkerSuite) TestWithServer() {
+	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
+	iface, err := s.worker.WithServer("http://abc.com")
+
+	s.Require().NoError(err)
+	w := iface.(*worker)
+	s.Equal(100*time.Millisecond, w.heartbeatInterval)
+	s.Equal(w.client.(*api.Client).BaseURL(), "http://abc.com")
+}
+
 // ExpectTaskRun sets up  a matcher for the "/task-instances/{id}/run" end point and adds a finalize check
 // that it has been called
 func (s *WorkerSuite) ExpectTaskRun() {
@@ -146,6 +156,22 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 	s.Equal(1, s.transport.GetTotalCallCount(), "State was reported to server")
 }
 
+// TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't
+// start, but that it is logged
+func (s *WorkerSuite) TestStartContextErrorTaskDoesntStart() {
+	s.T().Fail()
+}
+
+// TestTaskPanicReportsFailedState tests that when the task/user code panics that we catch it and report thr
+// error upstream
+func (s *WorkerSuite) TestTaskPanicReportsFailedState() {
+	s.T().Fail()
+}
+
+func (s *WorkerSuite) TestTaskReturnErrorReportsFailedState() {
+	s.T().Fail()
+}
+
 func (s *WorkerSuite) TestTaskHeartbeatsWhlieRunning() {
 	s.worker.RegisterTaskWithName("tutorial_dag", "extract", func() error {
 		time.Sleep(time.Second)
@@ -174,4 +200,12 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhlieRunning() {
 		1,
 		"Actual call counts: %#v", callCounts,
 	)
+}
+
+func (s *WorkerSuite) TestTaskHeatbeatErrorStopsTaskAndLogs() {
+	s.T().Fail()
+}
+
+func (s *WorkerSuite) TestTokenRefreshHeaderRespected() {
+	s.T().Fail()
 }
