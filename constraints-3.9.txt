@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-09T17:47:15.355997
+# This constraints file was automatically generated on 2025-05-10T16:35:29.362244
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -101,6 +101,7 @@ ansicolors==1.1.8
 anyio==4.9.0
 apache-airflow-providers-airbyte==5.0.2
 apache-airflow-providers-alibaba==3.0.3
+apache-airflow-providers-amazon==9.7.0
 apache-airflow-providers-apache-beam==6.0.4
 apache-airflow-providers-apache-cassandra==3.7.2
 apache-airflow-providers-apache-drill==3.0.1
@@ -180,7 +181,7 @@ apache-airflow-providers-sftp==5.2.1
 apache-airflow-providers-singularity==3.7.1
 apache-airflow-providers-slack==9.0.5
 apache-airflow-providers-smtp==2.0.3
-apache-airflow-providers-snowflake==6.2.2
+apache-airflow-providers-snowflake==6.3.0
 apache-airflow-providers-sqlite==4.0.2
 apache-airflow-providers-ssh==4.0.1
 apache-airflow-providers-standard==1.1.0
@@ -200,7 +201,7 @@ argcomplete==3.6.2
 asana==5.1.0
 asgiref==3.8.1
 asn1crypto==1.5.1
-astroid==3.3.9
+astroid==3.3.10
 asttokens==3.0.0
 async-timeout==5.0.1
 asyncpg==0.30.0
@@ -671,7 +672,7 @@ ruamel.yaml==0.18.10
 ruff==0.11.2
 s3fs==2025.3.2
 s3transfer==0.11.3
-sagemaker_studio==1.0.13
+sagemaker_studio==1.0.14
 scikit-learn==1.5.2
 scipy==1.13.1
 scramp==1.4.5
