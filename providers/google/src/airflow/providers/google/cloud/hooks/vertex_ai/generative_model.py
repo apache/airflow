@@ -25,14 +25,12 @@ from typing import TYPE_CHECKING
 
 import vertexai
 from vertexai.generative_models import GenerativeModel
-from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
+from vertexai.language_models import TextEmbeddingModel
 from vertexai.preview.caching import CachedContent
 from vertexai.preview.evaluation import EvalResult, EvalTask
 from vertexai.preview.generative_models import GenerativeModel as preview_generative_model
 from vertexai.preview.tuning import sft
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -42,16 +40,6 @@ if TYPE_CHECKING:
 
 class GenerativeModelHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Generative Model APIs."""
-
-    @deprecated(
-        planned_removal_date="April 09, 2025",
-        use_instead="GenerativeModelHook.get_generative_model",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_text_generation_model(self, pretrained_model: str):
-        """Return a Model Garden Model object based on Text Generation."""
-        model = TextGenerationModel.from_pretrained(pretrained_model)
-        return model
 
     def get_text_embedding_model(self, pretrained_model: str):
         """Return a Model Garden Model object based on Text Embedding."""
@@ -99,59 +87,6 @@ class GenerativeModelHook(GoogleBaseHook):
 
         cached_context_model = preview_generative_model.from_cached_content(cached_content)
         return cached_context_model
-
-    @deprecated(
-        planned_removal_date="April 09, 2025",
-        use_instead="GenerativeModelHook.generative_model_generate_content",
-        category=AirflowProviderDeprecationWarning,
-    )
-    @GoogleBaseHook.fallback_to_default_project_id
-    def text_generation_model_predict(
-        self,
-        prompt: str,
-        pretrained_model: str,
-        temperature: float,
-        max_output_tokens: int,
-        top_p: float,
-        top_k: int,
-        location: str,
-        project_id: str = PROVIDE_PROJECT_ID,
-    ) -> str:
-        """
-        Use the Vertex AI PaLM API to generate natural language text.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param prompt: Required. Inputs or queries that a user or a program gives
-            to the Vertex AI PaLM API, in order to elicit a specific response.
-        :param pretrained_model: A pre-trained model optimized for performing natural
-            language tasks such as classification, summarization, extraction, content
-            creation, and ideation.
-        :param temperature: Temperature controls the degree of randomness in token
-            selection.
-        :param max_output_tokens: Token limit determines the maximum amount of text
-            output.
-        :param top_p: Tokens are selected from most probable to least until the sum
-            of their probabilities equals the top_p value. Defaults to 0.8.
-        :param top_k: A top_k of 1 means the selected token is the most probable
-            among all tokens.
-        """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
-
-        parameters = {
-            "temperature": temperature,
-            "max_output_tokens": max_output_tokens,
-            "top_p": top_p,
-            "top_k": top_k,
-        }
-
-        model = self.get_text_generation_model(pretrained_model)
-
-        response = model.predict(
-            prompt=prompt,
-            **parameters,
-        )
-        return response.text
 
     @GoogleBaseHook.fallback_to_default_project_id
     def text_embedding_model_get_embeddings(
