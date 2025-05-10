@@ -4115,7 +4115,7 @@ class TestSchedulerJob:
         # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
         assert not custom_task.operator_extra_links
 
-    def test_scheduler_create_dag_runs_does_not_raise_error(self, caplog, dag_maker):
+    def test_scheduler_create_dag_runs_does_not_raise_error_when_no_serdag(self, caplog, dag_maker):
         """
         Test that scheduler._create_dag_runs does not raise an error when the DAG does not exist
         in serialized_dag table
@@ -4137,10 +4137,18 @@ class TestSchedulerJob:
                 logger="airflow.jobs.scheduler_job_runner",
             ),
         ):
+            self._clear_serdags(dag_id=dag_maker.dag.dag_id, session=session)
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
             assert caplog.messages == [
                 "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
             ]
+
+    def _clear_serdags(self, dag_id, session):
+        SDM = SerializedDagModel
+        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag_id))
+        for sdm in sdms:
+            session.delete(sdm)
+        session.commit()
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
