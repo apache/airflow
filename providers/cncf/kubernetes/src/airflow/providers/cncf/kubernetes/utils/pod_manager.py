@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import enum
 import json
 import math
@@ -47,6 +48,7 @@ from airflow.utils.timezone import utcnow
 if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
+    from kubernetes.client.models.v1_object_reference import V1ObjectReference
     from kubernetes.client.models.v1_pod import V1Pod
     from urllib3.response import HTTPResponse
 
@@ -374,7 +376,21 @@ class PodManager(LoggingMixin):
         """Launch the pod asynchronously."""
         return self.run_pod_async(pod)
 
-    def await_pod_start(
+    async def watch_pod_events(self, pod: V1Pod, check_interval: int = 1) -> None:
+        """Read pod events and writes into log."""
+        self.keep_watching_for_events = True
+        num_events = 0
+        while self.keep_watching_for_events:
+            events = self.read_pod_events(pod)
+            for new_event in events.items[num_events:]:
+                involved_object: V1ObjectReference = new_event.involved_object
+                self.log.info(
+                    "The Pod has an Event: %s from %s", new_event.message, involved_object.field_path
+                )
+            num_events = len(events.items)
+            await asyncio.sleep(check_interval)
+
+    async def await_pod_start(
         self, pod: V1Pod, startup_timeout: int = 120, startup_check_interval: int = 1
     ) -> None:
         """
@@ -390,6 +406,7 @@ class PodManager(LoggingMixin):
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase != PodPhase.PENDING:
+                self.keep_watching_for_events = False
                 break
             self.log.warning("Pod not yet started: %s", pod.metadata.name)
             if time.time() - curr_time >= startup_timeout:
@@ -398,7 +415,7 @@ class PodManager(LoggingMixin):
                     "Check the pod events in kubernetes to determine why."
                 )
                 raise PodLaunchFailedException(msg)
-            time.sleep(startup_check_interval)
+            await asyncio.sleep(startup_check_interval)
 
     def fetch_container_logs(
         self,

@@ -160,6 +160,29 @@ class TestPodManager:
             ]
         )
 
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_watch_pod_events(self, mock_time_sleep, caplog):
+        events = mock.MagicMock()
+        events.items = []
+        for id in ["event 1", "event 2"]:
+            event = mock.MagicMock()
+            event.message = f"test {id}"
+            event.involved_object.field_path = f"object {id}"
+            events.items.append(event)
+        startup_check_interval = 10
+
+        def mock_read_pod_events(pod):
+            self.pod_manager.keep_watching_for_events = False
+            return events
+
+        with mock.patch.object(self.pod_manager, "read_pod_events", side_effect=mock_read_pod_events):
+            await self.pod_manager.watch_pod_events(pod=None, check_interval=startup_check_interval)
+
+        assert caplog.text.count("The Pod has an Event: test event 1 from object event 1") == 1
+        assert caplog.text.count("The Pod has an Event: test event 2 from object event 2") == 1
+        mock_time_sleep.assert_called_once_with(startup_check_interval)
+
     def test_read_pod_events_successfully_returns_events(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.list_namespaced_event.return_value = mock.sentinel.events
@@ -392,20 +415,22 @@ class TestPodManager:
 
         assert mock_run_pod_async.call_count == 3
 
-    def test_start_pod_raises_informative_error_on_timeout(self):
+    @pytest.mark.asyncio
+    async def test_start_pod_raises_informative_error_on_timeout(self):
         pod_response = mock.MagicMock()
         pod_response.status.phase = "Pending"
         self.mock_kube_client.read_namespaced_pod.return_value = pod_response
         expected_msg = "Check the pod events in kubernetes"
         mock_pod = MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):
-            self.pod_manager.await_pod_start(
+            await self.pod_manager.await_pod_start(
                 pod=mock_pod,
                 startup_timeout=0,
             )
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.time.sleep")
-    def test_start_pod_startup_interval_seconds(self, mock_time_sleep):
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep):
         pod_info_pending = mock.MagicMock(**{"status.phase": PodPhase.PENDING})
         pod_info_succeeded = mock.MagicMock(**{"status.phase": PodPhase.SUCCEEDED})
 
@@ -418,13 +443,14 @@ class TestPodManager:
         self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
         startup_check_interval = 10  # Any value is fine, as time.sleep is mocked to do nothing
         mock_pod = MagicMock()
-        self.pod_manager.await_pod_start(
+        await self.pod_manager.await_pod_start(
             pod=mock_pod,
             startup_timeout=60,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
             startup_check_interval=startup_check_interval,
         )
         mock_time_sleep.assert_called_with(startup_check_interval)
         assert mock_time_sleep.call_count == 2
+        assert not self.pod_manager.keep_watching_for_events
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):
