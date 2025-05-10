@@ -50,6 +50,10 @@ def get_provider_info():
                 "integration-name": "Alibaba Cloud AnalyticDB Spark",
                 "python-modules": ["airflow.providers.alibaba.cloud.operators.analyticdb_spark"],
             },
+            {
+                "integration-name": "Alibaba Cloud MaxCompute",
+                "python-modules": ["airflow.providers.alibaba.cloud.operators.maxcompute"],
+            },
         ],
         "sensors": [
             {
@@ -98,4 +102,5 @@ def get_provider_info():
             },
         ],
         "logging": ["airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler"],
+        "extra-links": ["airflow.providers.alibaba.cloud.links.maxcompute.MaxComputeLogViewLink"],
     }
