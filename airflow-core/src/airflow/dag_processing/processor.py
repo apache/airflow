@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import functools
+import importlib
 import os
 import sys
 import traceback
@@ -25,6 +26,7 @@ from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Liter
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
+from rich.console import Console
 
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
@@ -46,6 +48,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
+from airflow.utils.file import iter_airflow_imports
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -64,6 +67,8 @@ ToDagProcessor = Annotated[
     Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse, OKResponse],
     Field(discriminator="type"),
 ]
+
+console = Console()
 
 
 def _parse_file_entrypoint():
@@ -94,17 +99,20 @@ def _parse_file_entrypoint():
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
+
     # Pre-import modules
+    # Read the file to pre-import airflow modules used.
+    # This prevents them from being re-imported from zero in each "processing" process
+    # and saves CPU time and memory.
+
     if conf.getboolean("scheduler", "parsing_pre_import_modules", fallback=True):
-        import importlib
-
-        from airflow.utils.file import iter_airflow_imports
-
-    for module in iter_airflow_imports(msg.file):
-        try:
-            importlib.import_module(module)
-        except Exception as e:
-            log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, msg.file, e)
+        for module in iter_airflow_imports(msg.file):
+            try:
+                importlib.import_module(module)
+            except Exception as e:
+                log.warning(
+                    "Error when trying to pre-import module '%s' found in %s: %s", module, msg.file, e
+                )
 
     bag = DagBag(
         dag_folder=msg.file,
