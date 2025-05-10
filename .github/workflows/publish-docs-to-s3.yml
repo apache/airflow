@@ -85,6 +85,11 @@ jobs:
           echo "Included docs : '${INCLUDE_DOCS}'"
           echo "Exclude docs: '${EXCLUDE_DOCS}'"
           echo "Destination location: '${DESTINATION_LOCATION}'"
+        env:
+          REF: ${{ inputs.ref }}
+          INCLUDE_DOCS: ${{ inputs.include-docs }}
+          EXCLUDE_DOCS: ${{ inputs.exclude-docs }}
+          DESTINATION_LOCATION: ${{ inputs.destination-location }}
 
   build-ci-images:
     name: Build CI images
