@@ -41,10 +41,19 @@ from airflowctl.api.datamodels.generated import (
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
+    DAGCollectionResponse,
     DAGDetailsResponse,
+    DAGPatchBody,
     DAGResponse,
     DAGRunCollectionResponse,
     DAGRunResponse,
+    DagStatsCollectionResponse,
+    DAGTagCollectionResponse,
+    DAGVersionCollectionResponse,
+    DagVersionResponse,
+    DAGWarningCollectionResponse,
+    ImportErrorCollectionResponse,
+    ImportErrorResponse,
     JobCollectionResponse,
     PoolBody,
     PoolCollectionResponse,
@@ -365,6 +374,78 @@ class DagOperations(BaseOperations):
         try:
             self.response = self.client.get(f"dags/{dag_id}/details")
             return DAGDetailsResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_tags(self) -> DAGTagCollectionResponse | ServerResponseError:
+        """Get all DAG tags."""
+        try:
+            self.response = self.client.get("dagTags")
+            return DAGTagCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list(self) -> DAGCollectionResponse | ServerResponseError:
+        """List DAGs."""
+        try:
+            self.response = self.client.get("dags")
+            return DAGCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def patch(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
+        try:
+            self.response = self.client.patch(f"dags/{dag_id}", json=dag_body.model_dump())
+            return DAGResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def delete(self, dag_id: str) -> DAGResponse | ServerResponseError:
+        try:
+            self.response = self.client.delete(f"dags/{dag_id}")
+            return DAGResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_import_error(self, import_error_id: str) -> ImportErrorResponse | ServerResponseError:
+        try:
+            self.response = self.client.get(f"importErrors/{import_error_id}")
+            return ImportErrorResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list_import_error(self) -> ImportErrorCollectionResponse | ServerResponseError:
+        try:
+            self.response = self.client.get("fimportErrors")
+            return ImportErrorCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_stats(self, dag_ids: list) -> DagStatsCollectionResponse | ServerResponseError:  # type: ignore
+        try:
+            self.response = self.client.get("dagStats", params={"dag_ids": dag_ids})
+            return DagStatsCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_version(self, dag_id: str, version_number: int) -> DagVersionResponse | ServerResponseError:
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/dagVersions/{version_number}")
+            return DagVersionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list_version(self, dag_id: str) -> DAGVersionCollectionResponse | ServerResponseError:
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/dagVersions")
+            return DAGVersionCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list_warning(self, dag_id: str) -> DAGWarningCollectionResponse | ServerResponseError:
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/dagWarnings")
+            return DAGWarningCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
