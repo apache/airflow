@@ -1046,6 +1046,7 @@ export type QueuedEventResponse = {
   dag_id: string;
   asset_id: number;
   created_at: string;
+  dag_display_name: string;
 };
 
 /**

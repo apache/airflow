@@ -619,6 +619,7 @@ class AssetDagRunQueue(Base):
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     asset = relationship("AssetModel", viewonly=True)
+    dag_model = relationship("DagModel", viewonly=True)
 
     __tablename__ = "asset_dag_run_queue"
     __table_args__ = (

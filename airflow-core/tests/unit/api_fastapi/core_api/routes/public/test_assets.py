@@ -985,6 +985,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
                 {
                     "asset_id": asset.id,
                     "dag_id": "dag",
+                    "dag_display_name": "dag",
                     "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 }
             ],
@@ -1239,6 +1240,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
                 {
                     "asset_id": asset.id,
                     "dag_id": "dag",
+                    "dag_display_name": "dag",
                     "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 }
             ],
