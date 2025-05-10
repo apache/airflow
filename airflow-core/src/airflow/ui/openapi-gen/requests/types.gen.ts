@@ -178,6 +178,14 @@ export type BulkActionResponse = {
   }>;
 };
 
+export type BulkBody_BulkTaskInstanceBody_ = {
+  actions: Array<
+    | BulkCreateAction_BulkTaskInstanceBody_
+    | BulkUpdateAction_BulkTaskInstanceBody_
+    | BulkDeleteAction_BulkTaskInstanceBody_
+  >;
+};
+
 export type BulkBody_ConnectionBody_ = {
   actions: Array<
     BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_
@@ -192,6 +200,18 @@ export type BulkBody_VariableBody_ = {
   actions: Array<
     BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_
   >;
+};
+
+export type BulkCreateAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<BulkTaskInstanceBody>;
+  action_on_existence?: BulkActionOnExistence;
 };
 
 export type BulkCreateAction_ConnectionBody_ = {
@@ -228,6 +248,18 @@ export type BulkCreateAction_VariableBody_ = {
    */
   entities: Array<VariableBody>;
   action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkDeleteAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkDeleteAction_ConnectionBody_ = {
@@ -286,6 +318,33 @@ export type BulkResponse = {
    * Details of the bulk delete operation, including successful keys and errors.
    */
   delete?: BulkActionResponse | null;
+};
+
+/**
+ * Request body for bulk update, and delete task instances.
+ */
+export type BulkTaskInstanceBody = {
+  new_state?: TaskInstanceState | null;
+  note?: string | null;
+  include_upstream?: boolean;
+  include_downstream?: boolean;
+  include_future?: boolean;
+  include_past?: boolean;
+  dag_id: string;
+  dag_run_id: string;
+  task_id: string;
+};
+
+export type BulkUpdateAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<BulkTaskInstanceBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkUpdateAction_ConnectionBody_ = {
@@ -2374,6 +2433,14 @@ export type GetTaskInstancesData = {
 };
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type BulkTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: BulkBody_BulkTaskInstanceBody_;
+};
+
+export type BulkTaskInstancesResponse = BulkResponse;
 
 export type GetTaskInstancesBatchData = {
   dagId: "~";
@@ -4535,6 +4602,27 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: BulkTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BulkResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

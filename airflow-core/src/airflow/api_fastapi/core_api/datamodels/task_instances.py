@@ -224,3 +224,11 @@ class PatchTaskInstanceBody(StrictBaseModel):
         if ns not in valid_states:
             raise ValueError(f"'{ns}' is not one of {valid_states}")
         return ns
+
+
+class BulkTaskInstanceBody(PatchTaskInstanceBody, StrictBaseModel):
+    """Request body for bulk update, and delete task instances."""
+
+    dag_id: str
+    dag_run_id: str
+    task_id: str

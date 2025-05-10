@@ -4141,3 +4141,206 @@ class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
                 remaining_tis = base_query.filter(TaskInstance.map_index != -1).all()
                 if expected_remaining is not None:
                     assert set(ti.map_index for ti in remaining_tis) == expected_remaining
+
+
+class TestBulkTaskInstances(TestTaskInstanceEndpoint):
+    DAG_ID = "example_python_operator"
+    TASK_ID = "print_the_context"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances"
+
+    @pytest.mark.parametrize(
+        "default_ti, actions, expected_results",
+        [
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                TASK_ID,
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [TASK_ID],
+                        "errors": [],
+                    }
+                },
+                id="delete-success",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                "non_existent_task",
+                            ],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [],
+                    }
+                },
+                id="delete-skip",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                "non_existent_task",
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The task instances with these task_ids: {'non_existent_task'} were not found.",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+                id="delete-failure",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.RUNNING}],
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "dag_id": DAG_ID,
+                                    "dag_run_id": RUN_ID,
+                                    "task_id": TASK_ID,
+                                    "new_state": "failed",
+                                    "note": "test",
+                                    "include_upstream": True,
+                                    "include_downstream": True,
+                                    "include_future": True,
+                                    "include_past": True,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [TASK_ID],
+                        "errors": [],
+                    }
+                },
+                id="update-success",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.RUNNING}],
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "dag_id": DAG_ID,
+                                    "dag_run_id": RUN_ID,
+                                    "task_id": "non_existent_task",
+                                    "new_state": "failed",
+                                    "note": "test",
+                                    "include_upstream": True,
+                                    "include_downstream": True,
+                                    "include_future": True,
+                                    "include_past": True,
+                                },
+                            ],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [],
+                        "errors": [],
+                    }
+                },
+                id="update-skip",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.RUNNING}],
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "dag_id": DAG_ID,
+                                    "dag_run_id": RUN_ID,
+                                    "task_id": "non_existent_task",
+                                    "new_state": "failed",
+                                    "note": "test",
+                                    "include_upstream": True,
+                                    "include_downstream": True,
+                                    "include_future": True,
+                                    "include_past": True,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The task instances with these task_ids: {'non_existent_task'} were not found.",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+                id="update-failure",
+            ),
+        ],
+    )
+    def test_bulk_task_instances(self, test_client, session, default_ti, actions, expected_results):
+        self.create_task_instances(session, task_instances=default_ti)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json=actions,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        for task_id, value in expected_results.items():
+            assert response_data[task_id] == value
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={})
+        assert response.status_code == 403
+
+    def test_should_respond_422(self, test_client):
+        response = test_client.patch(self.ENDPOINT_URL, json={})
+        assert response.status_code == 422
+
+    def test_should_respond_405(self, test_client):
+        response = test_client.patch(
+            self.ENDPOINT_URL, json={"actions": [{"action": "create", "entities": []}]}
+        )
+        assert response.status_code == 405
