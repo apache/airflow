@@ -955,7 +955,13 @@ class TestDag:
             dr.update_state(session=session)
 
         dag_id = "dag_paused_after_limit"
-        dag = DAG(dag_id, schedule=None, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=2)
+        dag = DAG(
+            dag_id,
+            bundle_name="dags-folder",
+            schedule=None,
+            is_paused_upon_creation=False,
+            max_consecutive_failed_dag_runs=2,
+        )
         op1 = BashOperator(task_id="task", bash_command="exit 1;")
         dag.add_task(op1)
         session = settings.Session()
@@ -2060,6 +2066,7 @@ class TestDagModel:
         session = settings.Session()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="dags-folder",
             max_active_tasks=1,
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
@@ -2204,6 +2211,7 @@ class TestDagModel:
         session = settings.Session()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="dags-folder",
             has_task_concurrency_limits=False,
             next_dagrun=None,
             next_dagrun_create_after=None,
@@ -2228,6 +2236,7 @@ class TestDagModel:
         session = settings.Session()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="dags-folder",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
@@ -2260,6 +2269,7 @@ class TestDagModel:
 
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="dags-folder",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
@@ -2849,6 +2859,7 @@ def test_get_next_data_interval(
     dag = DAG(dag_id="test_get_next_data_interval", schedule="@daily", start_date=DEFAULT_DATE)
     dag_model = DagModel(
         dag_id="test_get_next_data_interval",
+        bundle_name="dags-folder",
         next_dagrun=logical_date,
         next_dagrun_data_interval_start=data_interval_start,
         next_dagrun_data_interval_end=data_interval_end,

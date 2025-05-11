@@ -437,6 +437,7 @@ class TestGetAssets(TestAssets):
     def test_filter_assets_by_dag_ids_works(self, test_client, dag_ids, expected_num, session):
         session.query(DagModel).delete()
         session.commit()
+        bundle_name = "dags-folder"
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -448,9 +449,9 @@ class TestGetAssets(TestAssets):
                 AssetActive.for_asset(asset1),
                 AssetActive.for_asset(asset2),
                 AssetActive.for_asset(asset3),
-                DagModel(dag_id="dag1"),
-                DagModel(dag_id="dag2"),
-                DagModel(dag_id="dag3"),
+                DagModel(dag_id="dag1", bundle_name=bundle_name),
+                DagModel(dag_id="dag2", bundle_name=bundle_name),
+                DagModel(dag_id="dag3", bundle_name=bundle_name),
                 DagScheduleAssetReference(dag_id="dag1", asset=asset1),
                 DagScheduleAssetReference(dag_id="dag2", asset=asset2),
                 TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3),
@@ -474,6 +475,7 @@ class TestGetAssets(TestAssets):
     ):
         session.query(DagModel).delete()
         session.commit()
+        bundle_name = "dags-folder"
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -485,9 +487,9 @@ class TestGetAssets(TestAssets):
                 AssetActive.for_asset(asset1),
                 AssetActive.for_asset(asset2),
                 AssetActive.for_asset(asset3),
-                DagModel(dag_id="dag1"),
-                DagModel(dag_id="dag2"),
-                DagModel(dag_id="dag3"),
+                DagModel(dag_id="dag1", bundle_name=bundle_name),
+                DagModel(dag_id="dag2", bundle_name=bundle_name),
+                DagModel(dag_id="dag3", bundle_name=bundle_name),
                 DagScheduleAssetReference(dag_id="dag1", asset=asset1),
                 DagScheduleAssetReference(dag_id="dag2", asset=asset2),
                 TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3),

@@ -146,7 +146,7 @@ def test_remove_reference_for_inactive_dag(
         EmptyOperator(task_id="t1", outlets=Asset(name="a", uri="b://b/"))
 
     DAG.bulk_write_to_db(
-        bundle_name=None,
+        bundle_name="dags-folder",
         bundle_version=None,
         dags=[dag1, dag2],
         session=session,

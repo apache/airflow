@@ -85,7 +85,7 @@ def clean_database():
 
 
 def create_trigger_in_db(session, trigger, operator=None):
-    dag_model = DagModel(dag_id="test_dag")
+    dag_model = DagModel(dag_id="test_dag", bundle_name="dags-folder")
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
     run = DagRun(
@@ -353,7 +353,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     session.add(trigger_orm)
     session.flush()
 
-    dag = DagModel(dag_id="test-dag")
+    dag = DagModel(dag_id="test-dag", bundle_name="dags-folder")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     ti = TaskInstance(
         PythonOperator(task_id="dummy-task", python_callable=print),

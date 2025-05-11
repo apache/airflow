@@ -63,6 +63,7 @@ def upgrade():
 
     conn = op.get_bind()
     with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_constraint("dag_bundle_name_fkey")
         conn.execute(
             text(
                 """
@@ -77,8 +78,15 @@ def upgrade():
             )
         )
         batch_op.alter_column("bundle_name", nullable=False, existing_type=sa.String(length=250))
+        batch_op.create_foreign_key(
+            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
+        )
 
 
 def downgrade():
     with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_constraint("dag_bundle_name_fkey")
         batch_op.alter_column("bundle_name", nullable=True, existing_type=sa.String(length=250))
+        batch_op.create_foreign_key(
+            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
+        )

@@ -49,6 +49,7 @@ class TestDagStatsEndpoint:
     def _create_dag_and_runs(self, session=None):
         dag_1 = DagModel(
             dag_id=DAG1_ID,
+            bundle_name="dags-folder",
             fileloc="/tmp/dag_stats_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -74,6 +75,7 @@ class TestDagStatsEndpoint:
         )
         dag_2 = DagModel(
             dag_id=DAG2_ID,
+            bundle_name="dags-folder",
             fileloc="/tmp/dag_stats_2.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -91,6 +93,7 @@ class TestDagStatsEndpoint:
         )
         dag_3 = DagModel(
             dag_id=DAG3_ID,
+            bundle_name="dags-folder",
             fileloc="/tmp/dag_stats_3.py",
             timetable_summary="2 2 * * *",
             is_stale=True,

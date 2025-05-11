@@ -596,7 +596,7 @@ class TestDBCleanup:
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
-        dag = DagModel(dag_id=f"test-dag_{uuid4()}")
+        dag = DagModel(dag_id=f"test-dag_{uuid4()}", bundle_name="dags-folder")
         session.add(dag)
         for num in range(num_tis):
             start_date = base_date.add(days=num)

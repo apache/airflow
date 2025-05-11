@@ -409,7 +409,7 @@ class TestGetXComEntries(TestXComEndpoint):
 
     @provide_session
     def _create_xcom_entries(self, dag_id, run_id, logical_date, task_id, mapped_ti=False, session=None):
-        dag = DagModel(dag_id=dag_id)
+        dag = DagModel(dag_id=dag_id, bundle_name="dags-folder")
         session.add(dag)
         dagrun = DagRun(
             dag_id=dag_id,

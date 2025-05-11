@@ -1233,6 +1233,7 @@ class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):
         inactive_dag = DagModel(
             dag_id="inactive",
+            bundle_name="dags-folder",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -1243,6 +1244,7 @@ class TestTriggerDagRun:
 
         import_errors_dag = DagModel(
             dag_id="import_errors",
+            bundle_name="dags-folder",
             fileloc="/tmp/dag_del_2.py",
             timetable_summary="2 2 * * *",
             is_stale=False,

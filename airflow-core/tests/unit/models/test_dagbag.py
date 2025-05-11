@@ -583,7 +583,7 @@ class TestDagBag:
         dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        model_before = DagModel(dag_id=dag_id, is_stale=False)
+        model_before = DagModel(dag_id=dag_id, bundle_name="dags-folder", is_stale=False)
         with create_session() as session:
             session.merge(model_before)
 

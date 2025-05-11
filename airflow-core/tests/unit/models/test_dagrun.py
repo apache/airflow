@@ -1032,6 +1032,7 @@ class TestDagRun:
 
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="dags-folder",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + datetime.timedelta(days=1),
@@ -1109,7 +1110,12 @@ class TestDagRun:
 
         try:
             info = dag.next_dagrun_info(None)
-            orm_dag_kwargs = {"dag_id": dag.dag_id, "has_task_concurrency_limits": False, "is_stale": False}
+            orm_dag_kwargs = {
+                "dag_id": dag.dag_id,
+                "bundle_name": "dags-folder",
+                "has_task_concurrency_limits": False,
+                "is_stale": False,
+            }
             if info is not None:
                 orm_dag_kwargs.update(
                     {

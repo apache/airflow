@@ -253,7 +253,7 @@ class TestDagRunOperatorAF2:
             f.flush()
         self.f_name = f.name
 
-        self.dag_model = DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile)
+        self.dag_model = DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile, bundle_name="dags-folder")
         with create_session() as session:
             session.add(self.dag_model)
             session.commit()
