@@ -306,7 +306,15 @@ class TestRBAC:
         )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    def test_service_account_custom_names(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+            {"celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
+            {"serviceAccount": {"name": "test"}, "celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
+        ],
+    )
+    def test_service_account_custom_names(self, workers_values):
         k8s_objects = render_chart(
             "test-rbac",
             values={
@@ -321,7 +329,7 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
-                "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                "workers": workers_values,
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
@@ -384,7 +392,15 @@ class TestRBAC:
         sa_name = jmespath.search("metadata.name", k8s_objects[0])
         assert sa_name == CUSTOM_WEBSERVER_NAME
 
-    def test_service_account_custom_names_in_objects(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+            {"celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
+            {"serviceAccount": {"name": "test"}, "celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
+        ],
+    )
+    def test_service_account_custom_names_in_objects(self, workers_values):
         k8s_objects = render_chart(
             "test-rbac",
             values={
@@ -399,7 +415,7 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
-                "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                "workers": workers_values,
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},

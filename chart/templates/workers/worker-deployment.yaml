@@ -21,20 +21,26 @@
 ## Airflow Worker Deployment
 #################################
 {{- $persistence := and .Values.workers.persistence.enabled .Values.workers.celery.persistence.enabled }}
-{{- $keda := or .Values.workers.keda.enabled .Values.workers.celery.keda.enabled }}
-{{- $hpa := and (or .Values.workers.hpa.enabled .Values.workers.celery.hpa.enabled) (or (not .Values.workers.keda.enabled) (not .Values.workers.celery.keda.enabled)) }}
+{{- $keda := or .Values.workers.celery.keda.enabled .Values.workers.keda.enabled }}
+{{- $hpa := and (or .Values.workers.celery.hpa.enabled .Values.workers.hpa.enabled) (or (not .Values.workers.celery.keda.enabled) (not .Values.workers.keda.enabled)) }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
 {{- $nodeSelector := or .Values.workers.celery.nodeSelector .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.celery.affinity .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.celery.tolerations .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.celery.topologySpreadConstraints .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.workers.celery.revisionHistoryLimit .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers .Values.workers.celery) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers .Values.workers.celery) }}
-{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence .Values.workers.celery.persistence) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations .Values.workers.celery.waitForMigrations) }}
-{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar .Values.workers.celery.logGroomerSidecar) }}
-{{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar .Values.workers.celery.kerberosSidecar) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
+{{- $securityContextCelery := include "airflowPodSecurityContext" (list . .Values.workers.celery) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
+{{- $containerSecurityContextCelery := include "containerSecurityContext" (list . .Values.workers.celery) }}
+{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence) }}
+{{- $containerSecurityContextPersistenceCelery := include "containerSecurityContext" (list . .Values.workers.celery.persistence) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations) }}
+{{- $containerSecurityContextWaitForMigrationsCelery := include "containerSecurityContext" (list . .Values.workers.celery.waitForMigrations) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar) }}
+{{- $containerSecurityContextLogGroomerSidecarCelery := include "containerSecurityContext" (list . .Values.workers.celery.logGroomerSidecar) }}
+{{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
+{{- $containerSecurityContextKerberosSidecarCelery := include "containerSecurityContext" (list . .Values.workers.celery.kerberosSidecar) }}
 {{- $containerLifecycleHooks := or .Values.workers.celery.containerLifecycleHooks .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.celery.logGroomerSidecar.containerLifecycleHooks .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.celery.kerberosSidecar.containerLifecycleHooks .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
@@ -151,8 +157,11 @@ spec:
       serviceAccountName: {{ include "worker.celery.serviceAccountName" . }}
       {{- else }}
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
-      {{- end }}
+      {{- if .Values.workers.celery.securityContexts.pod }}
+      securityContext: {{ $securityContextCelery | nindent 8 }}
+      {{- else }}
       securityContext: {{ $securityContext | nindent 8 }}
+      {{- end }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
@@ -168,7 +177,11 @@ spec:
             - -R
             - "{{ include "airflowPodSecurityContextsIds" (list . .Values.workers.celery .Values.workers) }}"
             - {{ template "airflow_logs" . }}
+          {{- if .Values.workers.celery.persistence.securityContexts.container }}
+          securityContext: {{ $containerSecurityContextPersistenceCelery | nindent 12 }}
+          {{- else }}
           securityContext: {{ $containerSecurityContextPersistence | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -217,7 +230,11 @@ spec:
           resources: {{- toYaml (.Values.workers.celery.resources | default .Values.workers.resources) | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.workers.celery.waitForMigrations.securityContexts.container }}
+          securityContext: {{ $containerSecurityContextWaitForMigrationsCelery | nindent 12 }}
+          {{- else }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
+          {{- end }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
@@ -248,7 +265,11 @@ spec:
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.workers.celery.securityContexts.container }}
+          securityContext: {{ $containerSecurityContextCelery | nindent 12 }}
+          {{- else }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
@@ -351,7 +372,11 @@ spec:
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.workers.celery.logGroomerSidecar.securityContexts.container }}
+          securityContext: {{ $containerSecurityContextLogGroomerSidecarCelery | nindent 12 }}
+          {{- else }}
           securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooksLogGroomerSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
           {{- end }}
@@ -405,7 +430,11 @@ spec:
         - name: worker-kerberos
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.workers.celery.kerberosSidecar.securityContexts.container }}
+          securityContext: {{ $containerSecurityContextKerberosSidecarCelery | nindent 12 }}
+          {{- else }}
           securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooksKerberosSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 12 }}
           {{- end }}

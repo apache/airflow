@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -35,16 +36,18 @@ class TestKerberos:
         k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
         assert k8s_objects_to_consider_str.count("kerberos") == 1
 
-    def test_kerberos_envs_available_in_worker_with_persistence(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}, "persistence": {"enabled": True}},
+            {"celery": {"kerberosSidecar": {"enabled": True}, "persistence": {"enabled": True}}},
+        ],
+    )
+    def test_kerberos_envssss_available_in_worker_with_persistence(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "kerberosSidecar": {"enabled": True},
-                    "persistence": {
-                        "enabled": True,
-                    },
-                },
+                "workers": workers_values,
                 "kerberos": {
                     "enabled": True,
                     "configPath": "/etc/krb5.conf",
@@ -62,25 +65,54 @@ class TestKerberos:
             "spec.template.spec.containers[0].env", docs[0]
         )
 
-    def test_kerberos_sidecar_resources(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "resources": {
+                        "requests": {"cpu": "200m", "memory": "200Mi"},
+                        "limits": {"cpu": "201m", "memory": "201Mi"},
+                    },
+                }
+            },
+            {
+                "celery": {
                     "kerberosSidecar": {
                         "enabled": True,
                         "resources": {
-                            "requests": {
-                                "cpu": "200m",
-                                "memory": "200Mi",
-                            },
-                            "limits": {
-                                "cpu": "201m",
-                                "memory": "201Mi",
-                            },
+                            "requests": {"cpu": "200m", "memory": "200Mi"},
+                            "limits": {"cpu": "201m", "memory": "201Mi"},
                         },
+                    }
+                }
+            },
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "resources": {
+                        "requests": {"cpu": "100m", "memory": "100Mi"},
+                        "limits": {"cpu": "201m", "memory": "201Mi"},
                     },
                 },
+                "celery": {
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "resources": {
+                            "requests": {"cpu": "200m", "memory": "200Mi"},
+                            "limits": {"cpu": "201m", "memory": "201Mi"},
+                        },
+                    }
+                },
+            },
+        ],
+    )
+    def test_kerberos_sidecar_resources(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
