@@ -517,12 +517,18 @@ def _launch_worker(args):
 @providers_configuration_loaded
 def worker(args):
     """Start Airflow Edge Worker."""
+    if args.umask:
+        umask = args.umask
+    else:
+        umask = conf.get("edge", "worker_umask", fallback=settings.DAEMON_UMASK)
+
     run_command_with_daemon_option(
         args=args,
         process_name=EDGE_WORKER_PROCESS_NAME,
         callback=lambda: _launch_worker(args),
         should_setup_logging=True,
         pid_file=_pid_file_path(args.pid),
+        umask=umask,
     )
 
 
@@ -806,6 +812,10 @@ ARG_STATE = Arg(
 ARG_DAEMON = Arg(
     ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
 )
+ARG_UMASK = Arg(
+    ("-u", "--umask"),
+    help="Set the umask of edge worker in daemon mode",
+)
 ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
 ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
 ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
@@ -825,6 +835,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,
+            ARG_UMASK,
         ),
     ),
     ActionCommand(
