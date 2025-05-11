@@ -180,7 +180,7 @@ class KubernetesPodOperator(BaseOperator):
         If more than one secret is required, provide a
         comma separated list: secret_a,secret_b
     :param service_account_name: Name of the service account
-    :param automount_service_account_token: If False, the pod will opt out of service account token automounting.
+    :param automount_service_account_token: indicates whether pods running as this service account should have an API token automatically mounted
     :param hostnetwork: If True enable host networking on the pod.
     :param host_aliases: A list of host aliases to apply to the containers in the pod.
     :param tolerations: A list of kubernetes tolerations.
