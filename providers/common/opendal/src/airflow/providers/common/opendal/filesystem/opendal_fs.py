@@ -98,6 +98,6 @@ class OpenDALCopy(OpenDALBaseFileSystem):
         source = self.opendal_config.get("source_config", {}).get("path")
         destination = self.opendal_config.get("destination_config", {}).get("path")
 
-        with open(destination, "wb") as f:
+        with self.destination_operator.open(destination, "wb") as f:
             f.write(self.source_operator.read(source))
 
