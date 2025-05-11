@@ -26,6 +26,7 @@ import {
   Portal,
   Select,
 } from "@chakra-ui/react";
+import { useReactFlow } from "@xyflow/react";
 import { FiChevronDown, FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -41,6 +42,7 @@ import { ToggleGroups } from "./ToggleGroups";
 type Props = {
   readonly dagView: string;
   readonly limit: number;
+  readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -68,8 +70,9 @@ const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
 
-export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) => {
+export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLimit }: Props) => {
   const { dagId = "" } = useParams();
+  const { fitView } = useReactFlow();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
     "tasks",
@@ -97,13 +100,34 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
     }
   };
 
+  const handleFocus = (view: string) => {
+    if (panelGroupRef.current) {
+      const panelGroup = panelGroupRef.current;
+
+      if (typeof panelGroup.setLayout === "function") {
+        const newLayout = view === "graph" ? [70, 30] : [30, 70];
+
+        panelGroup.setLayout(newLayout);
+        // Used setTimeout to ensure DOM has been updated
+        setTimeout(() => {
+          void fitView();
+        }, 1);
+      }
+    }
+  };
+
   return (
     <Flex justifyContent="space-between" position="absolute" top={1} width="100%" zIndex={1}>
       <ButtonGroup attached size="sm" variant="outline">
         <IconButton
           aria-label="Show Grid"
           colorPalette="blue"
-          onClick={() => setDagView("grid")}
+          onClick={() => {
+            setDagView("grid");
+            if (dagView === "grid") {
+              handleFocus("grid");
+            }
+          }}
           title="Show Grid"
           variant={dagView === "grid" ? "solid" : "outline"}
         >
@@ -112,7 +136,12 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
         <IconButton
           aria-label="Show Graph"
           colorPalette="blue"
-          onClick={() => setDagView("graph")}
+          onClick={() => {
+            setDagView("graph");
+            if (dagView === "graph") {
+              handleFocus("graph");
+            }
+          }}
           title="Show Graph"
           variant={dagView === "graph" ? "solid" : "outline"}
         >

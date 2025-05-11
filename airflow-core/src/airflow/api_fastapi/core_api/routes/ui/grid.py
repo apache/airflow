@@ -22,13 +22,14 @@ import itertools
 from typing import Annotated
 
 import structlog
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow import DAG
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
@@ -75,7 +76,7 @@ def grid_data(
     dag_id: str,
     session: SessionDep,
     offset: QueryOffset,
-    request: Request,
+    dag_bag: DagBagDep,
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     limit: QueryLimit,
@@ -90,7 +91,7 @@ def grid_data(
     root: str | None = None,
 ) -> GridResponse:
     """Return grid data."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 

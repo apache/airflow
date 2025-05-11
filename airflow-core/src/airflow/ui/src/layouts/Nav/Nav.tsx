@@ -18,6 +18,7 @@
  */
 import { Box, Flex, VStack } from "@chakra-ui/react";
 import { FiDatabase, FiHome } from "react-icons/fi";
+import { NavLink } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus, useVersionServiceGetVersion } from "openapi/queries";
 import { AirflowPin } from "src/assets/AirflowPin";
@@ -50,7 +51,9 @@ export const Nav = () => {
     >
       <Flex alignItems="center" flexDir="column" width="100%">
         <Box mb={3}>
-          <AirflowPin height="35px" width="35px" />
+          <NavLink to="/">
+            <AirflowPin height="35px" width="35px" />
+          </NavLink>
         </Box>
         <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
         <NavButton

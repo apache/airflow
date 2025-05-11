@@ -34,10 +34,10 @@ isort:skip_file
 
 from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
 from functools import cached_property as cached_property
-from typing import Any, Callable, Protocol, TypeVar, overload
+from typing import Any, Protocol, TypeVar
 
 from _typeshed import Incomplete as Incomplete
-from pandas import DataFrame as DataFrame
+from pandas import DataFrame as PandasDataFrame
 from sqlalchemy.engine import URL as URL, Engine as Engine, Inspector as Inspector
 
 from airflow.hooks.base import BaseHook as BaseHook
@@ -105,10 +105,10 @@ class DbApiHook(BaseHook):
     def get_reserved_words(self, dialect_name: str) -> set[str]: ...
     def get_pandas_df(
         self, sql, parameters: list | tuple | Mapping[str, Any] | None = None, **kwargs
-    ) -> DataFrame: ...
+    ) -> PandasDataFrame: ...
     def get_pandas_df_by_chunks(
         self, sql, parameters: list | tuple | Mapping[str, Any] | None = None, *, chunksize: int, **kwargs
-    ) -> Generator[DataFrame, None, None]: ...
+    ) -> Generator[PandasDataFrame, None, None]: ...
     def get_records(
         self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
     ) -> Any: ...
@@ -121,26 +121,6 @@ class DbApiHook(BaseHook):
     def split_sql_string(sql: str, strip_semicolon: bool = False) -> list[str]: ...
     @property
     def last_description(self) -> Sequence[Sequence] | None: ...
-    @overload
-    def run(
-        self,
-        sql: str | Iterable[str],
-        autocommit: bool = ...,
-        parameters: Iterable | Mapping[str, Any] | None = ...,
-        handler: None = ...,
-        split_statements: bool = ...,
-        return_last: bool = ...,
-    ) -> None: ...
-    @overload
-    def run(
-        self,
-        sql: str | Iterable[str],
-        autocommit: bool = ...,
-        parameters: Iterable | Mapping[str, Any] | None = ...,
-        handler: Callable[[Any], T] = ...,
-        split_statements: bool = ...,
-        return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
     def set_autocommit(self, conn, autocommit) -> None: ...
     def get_autocommit(self, conn) -> bool: ...
     def get_cursor(self) -> Any: ...

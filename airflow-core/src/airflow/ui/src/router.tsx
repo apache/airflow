@@ -53,6 +53,7 @@ import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
 import { Configs } from "./pages/Configs";
+import { GroupTaskInstance } from "./pages/GroupTaskInstance";
 import { Security } from "./pages/Security";
 import { client } from "./queryClient";
 
@@ -169,6 +170,11 @@ export const routerConfig = [
         children: [{ element: <TaskInstances />, index: true }],
         element: <MappedTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
+      },
+      {
+        children: [{ element: <TaskInstances />, index: true }],
+        element: <GroupTaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
       },
       {
         children: taskInstanceRoutes,

@@ -20,6 +20,7 @@ import os
 
 import pytest
 
+from airflow.api_fastapi.common.deps import _get_dag_bag
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dagbag import DagBag
@@ -94,7 +95,8 @@ class TestGetExtraLinks:
         DagBundlesManager().sync_bundles_to_db()
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {self.dag.dag_id: self.dag}
-        test_client.app.state.dag_bag = dag_bag
+
+        test_client.app.dependency_overrides[_get_dag_bag] = lambda: dag_bag
         dag_bag.sync_to_db("dags-folder", None)
 
         self.dag.create_dagrun(

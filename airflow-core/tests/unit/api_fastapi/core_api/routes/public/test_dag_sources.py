@@ -42,6 +42,7 @@ EXAMPLE_DAG_FILE = (
     AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "example_simplest_dag.py"
 )
 TEST_DAG_ID = "example_simplest_dag"
+TEST_DAG_DISPLAY_NAME = "example_simplest_dag"
 
 
 @pytest.fixture
@@ -106,6 +107,7 @@ class TestGetDAGSource:
             "content": dag_content,
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
+            "dag_display_name": TEST_DAG_DISPLAY_NAME,
         }
         assert response.headers["Content-Type"].startswith("application/json")
 
@@ -153,6 +155,7 @@ class TestGetDAGSource:
                 "content": dag_content2,
                 "dag_id": TEST_DAG_ID,
                 "version_number": 2,
+                "dag_display_name": TEST_DAG_DISPLAY_NAME,
             }
 
     def test_should_respond_406_unsupport_mime_type(self, test_client, test_dag):

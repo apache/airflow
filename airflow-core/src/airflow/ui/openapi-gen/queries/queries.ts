@@ -4739,6 +4739,57 @@ export const useDagServiceDeleteDag = <
     TContext
   >({ mutationFn: ({ dagId }) => DagService.deleteDag({ dagId }) as unknown as Promise<TData>, ...options });
 /**
+ * Delete Task Instance
+ * Delete a task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns null Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceDeleteTaskInstance = <
+  TData = Common.TaskInstanceServiceDeleteTaskInstanceMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex?: number;
+        taskId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex?: number;
+      taskId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, mapIndex, taskId }) =>
+      TaskInstanceService.deleteTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Delete Pool
  * Delete a pool entry.
  * @param data The data for the request.

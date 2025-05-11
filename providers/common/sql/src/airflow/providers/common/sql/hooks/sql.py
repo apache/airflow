@@ -54,7 +54,7 @@ from airflow.providers.common.sql.hooks import handlers
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
-    from pandas import DataFrame
+    from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
     from sqlalchemy.engine import URL, Engine, Inspector
 
@@ -391,7 +391,7 @@ class DbApiHook(BaseHook):
         sql,
         parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
-    ) -> DataFrame:
+    ) -> PandasDataFrame:
         """
         Execute the sql and returns a pandas dataframe.
 
@@ -399,7 +399,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
-        return self._get_pandas_df(sql, parameters, **kwargs)
+        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
 
     @deprecated(
         reason="Replaced by function `get_df_by_chunks`.",
@@ -413,17 +413,37 @@ class DbApiHook(BaseHook):
         *,
         chunksize: int,
         **kwargs,
-    ) -> Generator[DataFrame, None, None]:
-        return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+    ) -> Generator[PandasDataFrame, None, None]:
+        return self.get_df_by_chunks(sql, parameters, chunksize=chunksize, df_type="pandas", **kwargs)
+
+    @overload
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["pandas"] = "pandas",
+        **kwargs: Any,
+    ) -> PandasDataFrame: ...
+
+    @overload
+    def get_df(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["polars"],
+        **kwargs: Any,
+    ) -> PolarsDataFrame: ...
 
     def get_df(
         self,
-        sql,
+        sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
         df_type: Literal["pandas", "polars"] = "pandas",
         **kwargs,
-    ) -> DataFrame | PolarsDataFrame:
+    ) -> PandasDataFrame | PolarsDataFrame:
         """
         Execute the sql and returns a dataframe.
 
@@ -442,7 +462,7 @@ class DbApiHook(BaseHook):
         sql,
         parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
-    ) -> DataFrame:
+    ) -> PandasDataFrame:
         """
         Execute the sql and returns a pandas dataframe.
 
@@ -492,15 +512,37 @@ class DbApiHook(BaseHook):
 
             return pl.read_database(sql, connection=conn, execute_options=execute_options, **kwargs)
 
+    @overload
     def get_df_by_chunks(
         self,
-        sql,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        df_type: Literal["pandas"] = "pandas",
+        **kwargs,
+    ) -> Generator[PandasDataFrame, None, None]: ...
+
+    @overload
+    def get_df_by_chunks(
+        self,
+        sql: str | list[str],
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        df_type: Literal["polars"],
+        **kwargs,
+    ) -> Generator[PolarsDataFrame, None, None]: ...
+
+    def get_df_by_chunks(
+        self,
+        sql: str | list[str],
         parameters: list | tuple | Mapping[str, Any] | None = None,
         *,
         chunksize: int,
         df_type: Literal["pandas", "polars"] = "pandas",
         **kwargs,
-    ) -> Generator[DataFrame | PolarsDataFrame, None, None]:
+    ) -> Generator[PandasDataFrame | PolarsDataFrame, None, None]:
         """
         Execute the sql and return a generator.
 
@@ -522,7 +564,7 @@ class DbApiHook(BaseHook):
         *,
         chunksize: int,
         **kwargs,
-    ) -> Generator[DataFrame, None, None]:
+    ) -> Generator[PandasDataFrame, None, None]:
         """
         Execute the sql and return a generator.
 

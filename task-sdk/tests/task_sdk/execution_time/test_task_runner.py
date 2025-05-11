@@ -970,6 +970,37 @@ def test_execute_task_exports_env_vars(
     assert os.environ["AIRFLOW_CTX_TASK_ID"] == "test_env_task"
 
 
+def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
+    """Test that the map index is rendered in the task context."""
+
+    def test_function():
+        return "test function"
+
+    task = PythonOperator(
+        task_id="test_task",
+        python_callable=test_function,
+        map_index_template="Hello! {{ run_id }}",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_map_index_template")
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == "Hello! test_run"
+
+
+def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
+    """Test that the map index is rendered in the task context."""
+
+    task = BaseOperator(task_id="test_task", map_index_template="Hello! {{ run_id }}")
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_map_index_template")
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == "Hello! test_run"
+
+
 class TestRuntimeTaskInstance:
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
         """Test get_template_context without ti_context_from_server."""

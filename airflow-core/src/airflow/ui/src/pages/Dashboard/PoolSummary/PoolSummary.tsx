@@ -75,7 +75,7 @@ export const PoolSummary = () => {
           </Heading>
         </Flex>
         {hasPoolsAccess ? (
-          <Link asChild color="fg.info" display="flex" fontSize="xs" gap={1}>
+          <Link asChild color="fg.info" fontSize="xs" h={4}>
             <RouterLink to="/pools">Manage Pools</RouterLink>
           </Link>
         ) : undefined}

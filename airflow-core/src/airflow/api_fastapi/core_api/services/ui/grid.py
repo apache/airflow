@@ -18,9 +18,6 @@
 from __future__ import annotations
 
 import contextlib
-from functools import cache
-from operator import methodcaller
-from typing import Callable
 from uuid import UUID
 
 import structlog
@@ -38,7 +35,6 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 from airflow.api_fastapi.core_api.datamodels.ui.structure import (
     StructureDataResponse,
 )
-from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator as DBBaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskmap import TaskMap
@@ -49,18 +45,9 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import task_group_to_dict
+from airflow.utils.task_group import get_task_group_children_getter, task_group_to_dict
 
 log = structlog.get_logger(logger_name=__name__)
-
-
-@cache
-def get_task_group_children_getter() -> Callable:
-    """Get the Task Group Children Getter for the DAG."""
-    sort_order = conf.get("webserver", "grid_view_sorting_order")
-    if sort_order == "topological":
-        return methodcaller("topological_sort")
-    return methodcaller("hierarchical_alphabetical_sort")
 
 
 def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
@@ -262,7 +249,7 @@ def fill_task_instance_summaries(
 
 def get_structure_from_dag(dag: DAG) -> StructureDataResponse:
     """If we do not have TIs, we just get the structure from the DAG."""
-    nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+    nodes = [task_group_to_dict(child) for child in get_task_group_children_getter()(dag.task_group)]
     return StructureDataResponse(nodes=nodes, edges=[])
 
 
@@ -299,7 +286,7 @@ def get_combined_structure(task_instances, session):
         if serdag:
             dags.append(serdag.dag)
     for dag in dags:
-        nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+        nodes = [task_group_to_dict(child) for child in get_task_group_children_getter()(dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
 
     return StructureDataResponse(nodes=merged_nodes, edges=[])

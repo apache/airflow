@@ -54,6 +54,8 @@ REGULAR_IMAGE_PROVIDERS = [
     if not provider_id.startswith("#")
 ]
 
+testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", False)
+
 
 class TestCommands:
     def test_without_command(self, default_docker_image):
@@ -86,12 +88,10 @@ class TestCommands:
 
 class TestPythonPackages:
     def test_required_providers_are_installed(self, default_docker_image):
-        if os.environ.get("TEST_SLIM_IMAGE"):
+        if testing_slim_image:
             packages_to_install = set(SLIM_IMAGE_PROVIDERS)
-            package_file = "hatch_build.py"
         else:
             packages_to_install = set(REGULAR_IMAGE_PROVIDERS)
-            package_file = PROD_IMAGE_PROVIDERS_FILE_PATH
         assert len(packages_to_install) != 0
         output = run_bash_in_docker(
             "airflow providers list --output json",
@@ -102,9 +102,18 @@ class TestPythonPackages:
         packages_installed = set(d["package_name"] for d in providers)
         assert len(packages_installed) != 0
 
-        assert packages_to_install == packages_installed, (
-            f"List of expected installed packages and image content mismatch. Check {package_file} file."
-        )
+        message = "List of expected installed packages and image content mismatch.\n"
+        message += f"Expected packages: {sorted(packages_to_install)}\n"
+        message += f"Installed packages: {sorted(packages_installed)}\n"
+        if testing_slim_image:
+            message += (
+                f"Please check the {AIRFLOW_CORE_PYPROJECT_TOML} file for the "
+                f"'apache-airflow-providers-' packages in `dependencies`.\n"
+            )
+        else:
+            message += f"Please check the {PROD_IMAGE_PROVIDERS_FILE_PATH} file for the expected packages.\n"
+
+        assert packages_to_install == packages_installed, message
 
     def test_pip_dependencies_conflict(self, default_docker_image):
         try:
@@ -113,7 +122,7 @@ class TestPythonPackages:
             display_dependency_conflict_message()
             raise
 
-    PACKAGE_IMPORTS = {
+    REGULAR_PACKAGE_IMPORTS: dict[str, list[str]] = {
         "amazon": ["boto3", "botocore", "watchtower"],
         "async": ["gevent", "eventlet", "greenlet"],
         "azure": [
@@ -174,10 +183,17 @@ class TestPythonPackages:
         "sftp/ssh": ["paramiko", "sshtunnel"],
         "slack": ["slack_sdk"],
         "statsd": ["statsd"],
+        "providers": [provider[len("apache-") :].replace("-", ".") for provider in REGULAR_IMAGE_PROVIDERS],
     }
 
-    @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
-    @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
+    SLIM_PACKAGE_IMPORTS: dict[str, list[str]] = {
+        "providers": [provider[len("apache-") :].replace("-", ".") for provider in SLIM_IMAGE_PROVIDERS]
+    }
+
+    @pytest.mark.parametrize(
+        "package_name,import_names",
+        SLIM_PACKAGE_IMPORTS.items() if testing_slim_image else REGULAR_PACKAGE_IMPORTS.items(),
+    )
     def test_check_dependencies_imports(self, package_name, import_names, default_docker_image):
         run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 

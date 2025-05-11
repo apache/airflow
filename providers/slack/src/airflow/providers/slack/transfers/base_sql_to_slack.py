@@ -70,15 +70,13 @@ class BaseSqlToSlackOperator(BaseOperator):
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
         hook = conn.get_hook(hook_params=self.sql_hook_params)
-        if not callable(getattr(hook, "get_pandas_df", None)):
-            raise AirflowException(
-                "This hook is not supported. The hook class must have get_pandas_df method."
-            )
+        if not callable(getattr(hook, "get_df", None)):
+            raise AirflowException("This hook is not supported. The hook class must have get_df method.")
         return hook
 
     def _get_query_results(self) -> pd.DataFrame:
         sql_hook = self._get_hook()
 
         self.log.info("Running SQL query: %s", self.sql)
-        df = sql_hook.get_pandas_df(self.sql, parameters=self.parameters)
+        df = sql_hook.get_df(self.sql, parameters=self.parameters)
         return df

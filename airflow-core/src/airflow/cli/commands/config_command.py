@@ -496,6 +496,10 @@ CONFIGS_CHANGES = [
         breaking=True,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "expose_config"),
+        renamed_to=ConfigParameter("api", "expose_config"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "cookie_secure"),
         was_deprecated=False,
     ),

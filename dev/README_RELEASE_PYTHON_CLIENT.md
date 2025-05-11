@@ -478,7 +478,7 @@ and allows you to test the client in a real environment.
 
 ```shell
 export AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
-export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+export AIRFLOW__API__EXPOSE_CONFIG=True
 ```
 
 
@@ -487,7 +487,7 @@ or `http://localhost:28080` from the host) and you should be able to access the 
 with `admin`/`admin` credentials. The `http://localhost:8080` and `admin`/`admin` credentials are
 default in the `clients/python/test_python_client.py` test.
 
-The ``AIRFLOW__WEBSERVER__EXPOSE_CONFIG`` is optional - the script will also succeed when
+The ``AIRFLOW__API__EXPOSE_CONFIG`` is optional - the script will also succeed when
 (default setting) exposing configuration is disabled.
 
 2. Start Airflow in Breeze with example dags enabled:

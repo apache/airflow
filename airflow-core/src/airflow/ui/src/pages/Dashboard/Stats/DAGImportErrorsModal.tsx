@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text, HStack, Input } from "@chakra-ui/react";
+import { Heading, Text, HStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
+import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { Accordion, Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
@@ -59,17 +60,18 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
 
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="xl">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
+      <Dialog.Content backdrop p={4}>
+        <Dialog.Header display="flex" justifyContent="space-between">
           <HStack fontSize="xl">
             <LuFileWarning />
             <Heading>Dag Import Errors</Heading>
           </HStack>
-          <Input
-            mt={4}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search by file"
-            value={searchQuery}
+          <SearchBar
+            buttonProps={{ disabled: true }}
+            defaultValue={searchQuery}
+            hideAdvanced
+            onChange={setSearchQuery}
+            placeHolder="Search by file"
           />
         </Dialog.Header>
 
