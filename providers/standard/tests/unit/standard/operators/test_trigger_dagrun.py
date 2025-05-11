@@ -27,6 +27,7 @@ import time_machine
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
 from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
@@ -75,7 +76,8 @@ class TestDagRunOperator:
         self.f_name = f.name
 
         with create_session() as session:
-            session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
+            session.add(DagBundleModel(name="dags-folder"))
+            session.add(DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name="dags-folder", fileloc=self._tmpfile))
             session.commit()
 
     def teardown_method(self):

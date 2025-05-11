@@ -35,7 +35,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     TaskDeferred,
 )
-from airflow.models import DAG, DagModel, DagRun, TaskInstance
+from airflow.models import DAG, DagBundleModel, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -126,7 +126,8 @@ def create_context(task, persist_to_db=False, map_index=None):
         task_instance.map_index = map_index
     if persist_to_db:
         with create_session() as session:
-            session.add(DagModel(dag_id=dag.dag_id))
+            session.add(DagBundleModel(name="dags-folder"))
+            session.add(DagModel(dag_id=dag.dag_id, bundle_name="dags-folder"))
             session.add(dag_run)
             session.add(task_instance)
             session.commit()

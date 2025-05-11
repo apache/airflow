@@ -33,6 +33,7 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
@@ -128,6 +129,8 @@ def _delete_dag_permissions(dag_id, security_manager):
 
 
 def _create_dag_model(dag_id, session, security_manager):
+    bundle = DagBundleModel(name="dags-folder")
+    session.add(bundle)
     dag_model = DagModel(dag_id=dag_id, bundle_name="dags-folder")
     session.add(dag_model)
     session.commit()
