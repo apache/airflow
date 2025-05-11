@@ -45,7 +45,9 @@ requires-python = "~=3.9"
 
 dependencies = [
     "black>=23.11.0",
-    "click>=8.1.8",
+    # TODO: Click 8.2.0 is Python 3.10+ only by mistake (should be ~3.8) so we should limit it
+    #       until this is fixed https://github.com/pallets/click/issues/2896
+    "click>=8.1.8, <8.2.0",
     "filelock>=3.13.0",
     "flit>=3.12.0",
     "flit-core>=3.12.0",
