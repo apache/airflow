@@ -19,7 +19,7 @@
 Pythonic DAGs with the TaskFlow API
 ===================================
 
-In the first tutorial, you built your first Airflow DAG using traditional Operators like ``PythonOperator``.
+In the first tutorial, you built your first Airflow DAG using traditional Operators like ``BashOperator``.
 Now let's look at a more modern and Pythonic way to write workflows using the **TaskFlow API** — introduced in Airflow
 2.0.
 
