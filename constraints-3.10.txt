@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-11T21:10:32.289926
+# This constraints file was automatically generated on 2025-05-11T21:49:57.521269
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -754,7 +754,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.4.0
 userpath==1.9.2
-uv==0.6.14
+uv==0.7.3
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
