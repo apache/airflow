@@ -163,7 +163,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         root_parent_job_name=task_instance.dag_id,
         root_parent_job_namespace=namespace(),
     )
-    client = get_openlineage_listener().adapter.get_or_create_openlineage_client()
+    adapter = get_openlineage_listener().adapter
 
     # process each step in loop, sending generated events in the same order as steps
     for counter, artifacts in enumerate(step_artifacts, 1):
@@ -193,7 +193,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         log.debug("Found %s OpenLineage events for artifact no. %s.", len(events), counter)
 
         for event in events:
-            client.emit(event=event)
+            adapter.emit(event=event)
         log.debug("Emitted all OpenLineage events for artifact no. %s.", counter)
 
     log.info("OpenLineage has successfully finished processing information about DBT job run.")
