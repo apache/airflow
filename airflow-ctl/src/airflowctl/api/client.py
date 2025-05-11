@@ -264,7 +264,10 @@ def get_client(kind: ClientKind = ClientKind.CLI):
     api_client = None
     try:
         # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
-        credentials = Credentials().load()
+        if isinstance(Credentials().load(),Credentials):
+            credentials = Credentials().load()
+        else : 
+            credentials = Credentials(api_url=None,api_client=None,api_environment="production")
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
