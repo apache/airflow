@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 
 class SourceConfig(BaseModel):
-    """SourceConfig is a configuration class for OpenDAL file system operations."""
+    """SourceConfig for source operator configuration."""
 
     conn_id: str = "opendal_default"
     operator_args: dict[str, Any] | None = None
@@ -17,7 +17,7 @@ class SourceConfig(BaseModel):
 
 
 class DestinationConfig(BaseModel):
-    """DestinationConfig is a configuration class for OpenDAL file system operations."""
+    """DestinationConfig for destination operator configuration."""
 
     conn_id: str = None
     operator_args: dict[str, Any] | None = None
@@ -25,7 +25,8 @@ class DestinationConfig(BaseModel):
 
 
 class OpenDALConfig(BaseModel):
-    """OpenDALConfig is a configuration class for OpenDAL file system operations."""
+    """OpenDALConfig for source and destination configurations."""
+
     source_config: SourceConfig
     destination_config: DestinationConfig | None = None
 
@@ -50,6 +51,21 @@ class OpenDALBaseFileSystem:
     async def async_execute_opendal_task(self):
         pass
 
+    @property
+    def source_path(self) -> str:
+        """Get the path from the source operator."""
+
+        return self.opendal_config.get("source_config", {}).get("path")
+
+    @property
+    def destination_path(self) -> str | None:
+        """Get the path from the destination operator."""
+
+        if self.destination_operator:
+            return self.opendal_config.get("destination_config", {}).get("path")
+        return None
+
+
 
 class OpenDALRead(OpenDALBaseFileSystem):
     """OpenDALReader to read from file."""
@@ -59,11 +75,11 @@ class OpenDALRead(OpenDALBaseFileSystem):
 
     def execute_opendal_task(self):
 
-        return self.source_operator.read(self.opendal_config.get("source_config",{}).get("path", "/")).decode("utf-8")
+        return self.source_operator.read(self.source_path).decode("utf-8")
 
     async def async_execute_opendal_task(self):
 
-        data = await self.source_operator.read(self.opendal_config.get("source_config",{}).get("path", "/"))
+        data = await self.source_operator.read(self.source_path)
         return data.decode("utf-8")
 
 
@@ -77,13 +93,13 @@ class OpenDALWrite(OpenDALBaseFileSystem):
         if self.data and isinstance(self.data, str):
             self.data = self.data.encode("utf-8")
 
-        return self.source_operator.write(self.opendal_config.get("source_config", {}).get("path"), self.data)
+        return self.source_operator.write(self.source_path, self.data)
 
     async def async_execute_opendal_task(self):
         if self.data and isinstance(self.data, str):
             self.data = self.data.encode("utf-8")
 
-        return await self.source_operator.write(self.opendal_config.get("source_config", {}).get("path"), self.data)
+        return await self.source_operator.write(self.source_path, self.data)
 
 
 class OpenDALCopy(OpenDALBaseFileSystem):
@@ -93,9 +109,7 @@ class OpenDALCopy(OpenDALBaseFileSystem):
         super().__init__(**kwargs)
 
     def execute_opendal_task(self):
-        source = self.opendal_config.get("source_config", {}).get("path")
-        destination = self.opendal_config.get("destination_config", {}).get("path")
 
-        with self.destination_operator.open(destination, "wb") as f:
-            f.write(self.source_operator.read(source))
+        with self.destination_operator.open(self.destination_path, "wb") as f:
+            f.write(self.source_operator.read(self.source_path))
 

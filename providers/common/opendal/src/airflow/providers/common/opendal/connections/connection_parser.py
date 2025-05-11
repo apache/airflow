@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class OpenDALAirflowConnectionParser(ABC):
-    """OpenDALConnectionParser is a connection parser for OpenDAL."""
+    """OpenDALConnectionParser is a base class for OpenDAL connection parsers to parse Airflow connections."""
 
     airflow_conn_type: str
 
@@ -16,16 +16,26 @@ class OpenDALAirflowConnectionParser(ABC):
     def parse(self, conn: Connection) -> dict[str, Any]:
         pass
 
+    @staticmethod
+    def filter_none(params: dict[str, Any]) -> dict[str, Any]:
+        """
+
+        Filter out None values from the dictionary.
+        """
+
+        return {k: v for k, v in params.items() if v is not None}
+
 
 
 
 class S3ConnectionParser(OpenDALAirflowConnectionParser):
-    """S3ConnectionParser is a connection parser for S3."""
+    """S3ConnectionParser to parse AWS S3 connection."""
 
     airflow_conn_type = "aws"
 
     def parse(self, conn: Connection) -> dict[str, Any]:
-        """Parse the connection and return an OpenDAL operator."""
+        """Parse the connection and return an OpenDAL operator args for s3 scheme."""
+
         params = {}
 
         params.update({
@@ -36,17 +46,17 @@ class S3ConnectionParser(OpenDALAirflowConnectionParser):
             "endpoint": conn.extra_dejson.get("endpoint"),
         })
 
-        params = {k: v for k, v in params.items() if v is not None}
-        return {"scheme": "s3",  **params}
+        return {"scheme": "s3",  **self.filter_none(params)}
 
 
 class GCSConnectionParser(OpenDALAirflowConnectionParser):
-    """GCSConnectionParser is a connection parser for GCS."""
+    """GCSConnectionParser to parse google cloud storage connection."""
 
     airflow_conn_type = "google_cloud_platform"
 
     def parse(self, conn: Connection) -> dict[str, Any]:
-        """Parse the connection and return an OpenDAL operator."""
+        """Parse the connection and return an OpenDAL operator args for gcs scheme."""
+
         from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
         gcs_conn = GoogleBaseHook(gcp_conn_id=conn.conn_id)
 
@@ -60,12 +70,12 @@ class GCSConnectionParser(OpenDALAirflowConnectionParser):
             "token": gcs_conn._get_access_token(),
         })
 
-        params = {k: v for k, v in params.items() if v is not None}
-        return {"scheme": "gcs", **params}
+
+        return {"scheme": "gcs", **self.filter_none(params)}
 
 
 class OpenDALConnectionFactory:
-    """OpenDALConnectionFactory is a connection factory for OpenDAL."""
+    """OpenDALConnectionFactory for OpenDAL connection parsers."""
 
     _connection_parsers = []
 

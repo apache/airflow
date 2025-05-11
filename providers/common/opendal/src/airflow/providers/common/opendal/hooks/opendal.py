@@ -111,4 +111,5 @@ class OpenDALHook(BaseHook):
     @classmethod
     def register_parsers(cls, parser: OpenDALAirflowConnectionParser):
         """Register a custom connection parsers."""
+
         cls._opendal_conn_factory.register_connection_parser(parser)
