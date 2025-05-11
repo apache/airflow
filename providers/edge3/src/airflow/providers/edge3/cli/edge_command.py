@@ -813,9 +813,9 @@ ARG_UMASK = Arg(
     ("-u", "--umask"),
     help="Set the umask of edge worker in daemon mode",
 )
-ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
-ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
-ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
+ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file if run in daemon mode")
+ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file if run in daemon mode")
+ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file if run in daemon mode")
 
 EDGE_COMMANDS: list[ActionCommand] = [
     ActionCommand(
