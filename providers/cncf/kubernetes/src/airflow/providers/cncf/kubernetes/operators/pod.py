@@ -180,6 +180,7 @@ class KubernetesPodOperator(BaseOperator):
         If more than one secret is required, provide a
         comma separated list: secret_a,secret_b
     :param service_account_name: Name of the service account
+    :param automount_service_account_token: indicates whether pods running as this service account should have an API token automatically mounted
     :param hostnetwork: If True enable host networking on the pod.
     :param host_aliases: A list of host aliases to apply to the containers in the pod.
     :param tolerations: A list of kubernetes tolerations.
@@ -302,6 +303,7 @@ class KubernetesPodOperator(BaseOperator):
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
+        automount_service_account_token: bool = True,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -380,6 +382,7 @@ class KubernetesPodOperator(BaseOperator):
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
+        self.automount_service_account_token = automount_service_account_token
         self.hostnetwork = hostnetwork
         self.host_aliases = host_aliases
         self.tolerations = (
@@ -1175,6 +1178,7 @@ class KubernetesPodOperator(BaseOperator):
                 ],
                 image_pull_secrets=self.image_pull_secrets,
                 service_account_name=self.service_account_name,
+                automount_service_account_token=self.automount_service_account_token,
                 host_network=self.hostnetwork,
                 hostname=self.hostname,
                 subdomain=self.subdomain,
