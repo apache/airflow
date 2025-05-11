@@ -96,6 +96,9 @@ class JWTBearer(HTTPBearer):
 
 JWTBearerDep: TIToken = Depends(JWTBearer())
 
+# This checks that the UUID in the url matches the one in the token for us.
+JWTBearerTIPathDep = Depends(JWTBearer(path_param_name="task_instance_id"))
+
 
 class JWTReissuer:
     """Re-issue JWTs to requests when they are about to run out."""

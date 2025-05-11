@@ -83,13 +83,13 @@ In the following example, failures in any task call the ``task_failure_alert`` f
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         dagrun_timeout=datetime.timedelta(minutes=60),
         catchup=False,
-        on_success_callback=None,
-        on_failure_callback=task_failure_alert,
+        on_success_callback=dag_success_alert,
+        on_failure_callback=None,
         tags=["example"],
     ):
         task1 = EmptyOperator(task_id="task1")
         task2 = EmptyOperator(task_id="task2")
-        task3 = EmptyOperator(task_id="task3", on_success_callback=[dag_success_alert])
+        task3 = EmptyOperator(task_id="task3", on_failure_callback=[task_failure_alert])
         task1 >> task2 >> task3
 
 .. note::
