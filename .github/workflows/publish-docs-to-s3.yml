@@ -60,8 +60,8 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
       REF: ${{ inputs.ref }}
-      INCLUDE_DOCS: ${{ inputs.include_docs }}
-      EXCLUDE_DOCS: ${{ inputs.exclude_docs }}
+      INCLUDE_DOCS: ${{ inputs.include-docs }}
+      EXCLUDE_DOCS: ${{ inputs.exclude-docs }}
       DESTINATION_LOCATION: ${{ inputs.destination-location }}
     outputs:
       include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
