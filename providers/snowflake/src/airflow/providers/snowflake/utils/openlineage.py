@@ -110,9 +110,16 @@ def _get_logical_date(task_instance):
 
     return date
 
-    # todo: move this run_id logic into OpenLineage's listener to avoid differences
+
+def _get_dag_run_clear_number(task_instance):
+    # todo: remove when min airflow version >= 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun = task_instance.get_template_context()["dag_run"]
+        return dagrun.clear_number
+    return task_instance.dag_run.clear_number
 
 
+# todo: move this run_id logic into OpenLineage's listener to avoid differences
 def _get_ol_run_id(task_instance) -> str:
     """
     Get OpenLineage run_id from TaskInstance.
@@ -140,7 +147,7 @@ def _get_ol_dag_run_id(task_instance) -> str:
     return OpenLineageAdapter.build_dag_run_id(
         dag_id=task_instance.dag_id,
         logical_date=_get_logical_date(task_instance),
-        clear_number=task_instance.dag_run.clear_number,
+        clear_number=_get_dag_run_clear_number(task_instance),
     )
 
 
@@ -294,8 +301,9 @@ def emit_openlineage_events_for_snowflake_queries(
     # If real metadata is unavailable, we send events with eventTime=now
     default_event_time = timezone.utcnow()
     # If no query metadata is provided, we use task_instance's state when checking for success
-    default_state = str(task_instance.state) if hasattr(task_instance, "state") else ""
+    default_state = task_instance.state.value if hasattr(task_instance, "state") else ""
 
+    log.debug("Generating OpenLineage facets")
     common_run_facets = {"parent": _get_parent_run_facet(task_instance)}
     common_job_facets: dict[str, JobFacet] = {
         "jobType": job_type_job.JobTypeJobFacet(
