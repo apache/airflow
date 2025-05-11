@@ -1412,18 +1412,144 @@ workers:
     #           storage: "20Gi"
 
   kubernetes:
+    # Detailed default security context for pod-template-file for container and pod level
+    securityContexts:
+      pod: {}
+      container: {}
+
+    # Container level lifecycle hooks for pods created with pod-template-file
+    containerLifecycleHooks: {}
+
     # Create ServiceAccount for pods created with pod-template-file
     serviceAccount:
       # Auto mount service account token into the pod. Default value is true.
       # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
       automountServiceAccountToken: true
+
       # Specifies whether a ServiceAccount should be created
       create: true
+
       # The name of the ServiceAccount to use.
       # If not set and create is true, a name is generated using the release name.
       name: ~
+
       # Annotations to add to worker kubernetes service account
       annotations: {}
+
+    # Kerberos sidecar configuration for pods created with pod-template-file
+    kerberosSidecar:
+      # Enable kerberos sidecar
+      enabled: false
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberosSidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
+    # Kerberos init container configuration for pods created with pod-template-file
+    kerberosInitContainer:
+      # Enable kerberos init container
+      enabled: false
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberosSidecar on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
+
+    # Resource configuration for pods created with pod-template-file
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    # It is used in pod-template-file
+    terminationGracePeriodSeconds: 600
+
+    # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
+    # It is used in pod-template-file
+    safeToEvict: false
+
+    # Launch additional containers into pods created with pod-template-file (templated)
+    # Note: You are responsible for signaling sidecars to exit when the main
+    # container finishes so Airflow can continue the worker shutdown process!
+    extraContainers: []
+    # Add additional init containers into pod-template-file (templated)
+    extraInitContainers: []
+
+    # Additional volumes attached to the pods created with pod-template-file
+    extraVolumes: []
+    # Mount additional volumes. It can be templated like in the following example:
+    #   extraVolumes:
+    #     - name: my-templated-extra-volume
+    #       secret:
+    #          secretName: '{{ include "my_secret_template" . }}'
+    #          defaultMode: 0640
+    #          optional: true
+
+    # Additional volume mounts attached to the pods created with pod-template-file
+    extraVolumeMounts: []
+    # Mount additional volume mounts. It can be templated like in the following example:
+    #   extraVolumeMounts:
+    #     - name: my-templated-extra-volume
+    #       mountPath: "{{ .Values.my_custom_path }}"
+    #       readOnly: true
+
+    # Select certain nodes for pods created with pod-template-file
+    nodeSelector: {}
+
+    runtimeClassName: ~
+
+    priorityClassName: ~
+
+    affinity: {}
+
+    tolerations: []
+
+    topologySpreadConstraints: []
+
+    # hostAliases to use in pods created with pod-template-file
+    # See:
+    # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+    hostAliases: []
+    # - ip: "127.0.0.2"
+    #   hostnames:
+    #   - "test.hostname.one"
+    # - ip: "127.0.0.3"
+    #   hostnames:
+    #   - "test.hostname.two"
+
+    # Annotations for the pods created with pod-template-file
+    podAnnotations: {}
+
+    # Labels to add to pods created with pod-template-file
+    labels: {}
+
+    # Additional env variable configuration for pods created with pod-template-file
+    env: []
 
 # Airflow scheduler settings
 scheduler:
