@@ -1198,11 +1198,6 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
   - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
-  - airflow.providers.google.cloud.links.automl.AutoMLDatasetLink
-  - airflow.providers.google.cloud.links.automl.AutoMLDatasetListLink
-  - airflow.providers.google.cloud.links.automl.AutoMLModelLink
-  - airflow.providers.google.cloud.links.automl.AutoMLModelTrainLink
-  - airflow.providers.google.cloud.links.automl.AutoMLModelPredictLink
   - airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink
@@ -1244,7 +1239,6 @@ extra-links:
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink
-
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
