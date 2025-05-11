@@ -517,10 +517,7 @@ def _launch_worker(args):
 @providers_configuration_loaded
 def worker(args):
     """Start Airflow Edge Worker."""
-    if args.umask:
-        umask = args.umask
-    else:
-        umask = conf.get("edge", "worker_umask", fallback=settings.DAEMON_UMASK)
+    umask = args.umask or conf.get("edge", "worker_umask", fallback=settings.DAEMON_UMASK)
 
     run_command_with_daemon_option(
         args=args,
