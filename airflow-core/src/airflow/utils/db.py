@@ -732,6 +732,14 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="opendal_default",
+            conn_type="opendal",
+            extra='{"source_config":{"path":"", "conn_id":"opendal_default", "operator_args": {}}}',
+        ),
+        session,
+    )
 
 
 def _create_db_from_orm(session):

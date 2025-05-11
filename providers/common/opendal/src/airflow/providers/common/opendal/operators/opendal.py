@@ -1,17 +1,17 @@
-import importlib
-from typing import Any
+from __future__ import annotations
 
-from airflow.hooks.base import BaseHook
-from airflow.sdk import Context
+import importlib
+from typing import TYPE_CHECKING, Any
+
+from airflow.providers.common.opendal.hooks.opendal import OpenDALHook
 from airflow.sdk.bases.operator import BaseOperator
 
-from airflow.providers.common.opendal.connections.connection_parser import OpenDALOperatorFactory
-from airflow.providers.common.opendal.filesystem.opendal_fs import OpenDALConfig
-from airflow.providers.common.opendal.hooks.opendal import OpenDALHook
+if TYPE_CHECKING:
+    from airflow.providers.common.opendal.filesystem.opendal_fs import OpenDALConfig
+    from airflow.sdk import Context
 
 
 class OpenDALTaskOperator(BaseOperator):
-
     """
     OpenDALTaskOperator is a base operator for OpenDAL tasks.
 
@@ -24,27 +24,32 @@ class OpenDALTaskOperator(BaseOperator):
     def __init__(self,
                  *,
                  opendal_config: OpenDALConfig,
+                 opendal_conn_id: str = "opendal_default",
                  data: str | bytes = None,
                  **kwargs
                  ):
         super().__init__(**kwargs)
         self.opendal_config = opendal_config
         self.data = data
+        self.opendal_conn_id = opendal_conn_id
+        self.source_operator = None
+        self.destination_operator = None
 
     def execute(self, context: Context) -> Any:
 
         action = self.opendal_config.get("action")
 
-        source_operator = self.hook(self.opendal_config.get("source_config")).get_operator
-        destination_operator = self.hook(self.opendal_config.get("destination_config"), "destination").get_operator if self.opendal_config.get("destination_config") else None
+        self.source_operator = self.hook(self.opendal_config.get("source_config")).get_operator
+        self.destination_operator = self.hook(self.opendal_config.get("destination_config"), "destination").get_operator if self.opendal_config.get("destination_config") else None
 
-        module = importlib.import_module(f"airflow.providers.common.opendal.filesystem.opendal_fs")
+        module = importlib.import_module("airflow.providers.common.opendal.filesystem.opendal_fs")
         operator_class = getattr(module, f"OpenDAL{action.capitalize()}")
+
 
         opendal_operator = operator_class(
             opendal_config=self.opendal_config,
-            source_operator=source_operator,
-            destination_operator=destination_operator,
+            source_operator=self.source_operator,
+            destination_operator=self.destination_operator,
             data=self.data,
         )
 
@@ -56,12 +61,14 @@ class OpenDALTaskOperator(BaseOperator):
         """
         Create a hook for OpenDAL tasks.
 
-        :param config: The OpenDAL configuration.
+        :param config: The OpenDAL input configuration. either source_config or destination_config.
         :param config_type: The type of OpenDAL configuration (source or destination).
         :return: The OpenDAL hook.
 
         """
-        return OpenDALHook(config, config_type=config_type)
+        return OpenDALHook(config=config,
+                            opendal_conn_id=self.opendal_conn_id,
+                           config_type=config_type)
 
 
 

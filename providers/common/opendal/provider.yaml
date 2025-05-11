@@ -29,3 +29,7 @@ source-date-epoch: 1741121853
 # to be done in the same PR
 versions:
   - 1.0.0
+
+connection-types:
+  - hook-class-name: airflow.providers.common.opendal.hooks.opendal.OpenDALHook
+    connection-type: opendal
