@@ -219,6 +219,14 @@ class ElasticsearchSQLHook(DbApiHook):
 
         return uri
 
+    def _get_polars_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ):
+        raise NotImplementedError("Polars is not supported for Elasticsearch")
+
 
 class ElasticsearchPythonHook(BaseHook):
     """
