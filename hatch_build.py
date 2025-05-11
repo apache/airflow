@@ -160,7 +160,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
         "checksumdir>=1.2.0; python_version >= '3.9'",
         "click>=8.1.8; python_version >= '3.9'",
         "docutils>=0.21; python_version >= '3.9'",
-        "sphinx-airflow-theme>=0.1.0; python_version >= '3.9'",
+        "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.2.3/sphinx_airflow_theme-0.2.3-py3-none-any.whl",
         "sphinx-argparse>=0.4.0; python_version >= '3.9'",
         "sphinx-autoapi>=3; python_version >= '3.9'",
         "sphinx-copybutton>=0.5.2; python_version >= '3.9'",
