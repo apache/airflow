@@ -22,18 +22,17 @@
 
 - [Main branch is Airflow 3](#main-branch-is-airflow-3)
 - [Contributors](#contributors)
-  - [Developing for providers and Helm chart](#developing-for-providers-and-helm-chart)
-  - [Developing for Airflow 3 and 2.10.x / 2.11.x](#developing-for-airflow-3-and-210x--211x)
+  - [Developing for Providers and the Helm Chart](#developing-for-providers-and-the-helm-chart)
+  - [Developing for Airflow 3 and 2.11.x](#developing-for-airflow-3-and-211x)
   - [Developing for Airflow 3](#developing-for-airflow-3)
-  - [Developing for Airflow 2.10.x](#developing-for-airflow-210x)
-  - [Developing for Airflow 2.11](#developing-for-airflow-211)
+  - [Developing for Airflow 2.11.x](#developing-for-airflow-211x)
 - [Committers / PMCs](#committers--pmcs)
   - [Merging PRs for providers and Helm chart](#merging-prs-for-providers-and-helm-chart)
   - [Merging PRs targeted for Airflow 3.0 (bugfixes/CI changes)](#merging-prs-targeted-for-airflow-30-bugfixesci-changes)
-  - [Merging PR for Airflow 3 and 2.10.x / 2.11.x](#merging-pr-for-airflow-3-and-210x--211x)
+  - [Merging PR for Airflow 3 and 2.11.x](#merging-pr-for-airflow-3-and-211x)
   - [How to backport PR with GitHub Actions](#how-to-backport-pr-with-github-actions)
   - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
-  - [Merging PRs 2.10.x](#merging-prs-210x)
+  - [Merging PRs for Airflow 2](#merging-prs-for-airflow-2)
   - [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
   - [Merging PRs for Airflow 2.11](#merging-prs-for-airflow-211)
 - [Milestones for PR](#milestones-for-pr)
@@ -55,8 +54,8 @@ The following section explains which branches you should target with your PR.
 
 ## Developing for Providers and the Helm Chart
 
-PRs should target the `main` branch.  
-Make sure your changes are only related to Providers or the Helm chart.  
+PRs should target the `main` branch.
+Make sure your changes are only related to Providers or the Helm chart.
 Avoid mixing core changes into the same PR.
 
 > [!NOTE]
@@ -93,10 +92,10 @@ PRs should target `main` branch.
 
 ## Developing for Airflow 2.11.x
 
-If a PR can be cleanly cherry-picked from `main` to `v2-11-test`, it should target the `main` branch and include the `backport-to-v2-11-test` label to automate the backport.  
+If a PR can be cleanly cherry-picked from `main` to `v2-11-test`, it should target the `main` branch and include the `backport-to-v2-11-test` label to automate the backport.
 If the PR cannot be cherry-picked without conflicts, you must manually create a PR targeting the `v2-11-test` branch.
 
-When preparing a new 2.11.x release, the release manager will sync the `v2-11-test` branch to `v2-11-stable` and cut the release from the stable branch.  
+When preparing a new 2.11.x release, the release manager will sync the `v2-11-test` branch to `v2-11-stable` and cut the release from the stable branch.
 PRs should **never** target `v2-11-stable` directly unless explicitly instructed by the release manager.
 
 Only features relevant to the Airflow 3 bridge should be backported to 2.11. Other features from the `main` branch will not be backported.
