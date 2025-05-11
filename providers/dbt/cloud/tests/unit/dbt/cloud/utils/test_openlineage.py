@@ -177,17 +177,15 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_task_instance.dag_id = DAG_ID
         mock_task_instance.dag_run.clear_number = 0
 
-        mock_client = MagicMock()
+        mock_adapter = MagicMock()
 
-        mock_client.emit.side_effect = emit_event
-        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value = (
-            mock_client
-        )
+        mock_adapter.emit.side_effect = emit_event
+        mock_get_openlineage_listener.return_value.adapter = mock_adapter
 
         mock_build_task_instance_run_id.return_value = TASK_UUID
         mock_build_dag_run_id.return_value = DAG_UUID
         generate_openlineage_events_from_dbt_cloud_run(mock_operator, task_instance=mock_task_instance)
-        assert mock_client.emit.call_count == 4
+        assert mock_adapter.emit.call_count == 4
 
     def test_do_not_raise_error_if_runid_not_set_on_operator(self):
         operator = DbtCloudRunJobOperator(task_id="dbt-job-runid-taskid", job_id=1500)
