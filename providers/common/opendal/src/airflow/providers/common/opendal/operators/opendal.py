@@ -15,21 +15,23 @@ class OpenDALTaskOperator(BaseOperator):
     """
     OpenDALTaskOperator is a base operator for OpenDAL tasks.
 
-    :param task_id: The task ID.
-    :param dag_id: The DAG ID.
-    :param open_dal_task: The OpenDAL task to execute.
-    :param open_dal_config: The OpenDAL configuration.
+    :param opendal_config: The OpenDAL input configuration. either source_config or destination_config.
+    :param action: The action to be performed. This can be one of the following: read, write, copy, delete, move.
+    :param opendal_conn_id: The connection ID for OpenDAL. This is the default opendal_default.
+    :param data: The data to be used in the OpenDAL task. This can be either a string or bytes.
     """
 
     def __init__(self,
                  *,
                  opendal_config: OpenDALConfig,
+                 action: str,
                  opendal_conn_id: str = "opendal_default",
                  data: str | bytes = None,
                  **kwargs
                  ):
         super().__init__(**kwargs)
         self.opendal_config = opendal_config
+        self.action = action
         self.data = data
         self.opendal_conn_id = opendal_conn_id
         self.source_operator = None
@@ -37,13 +39,12 @@ class OpenDALTaskOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
 
-        action = self.opendal_config.get("action")
 
         self.source_operator = self.hook(self.opendal_config.get("source_config")).get_operator
         self.destination_operator = self.hook(self.opendal_config.get("destination_config"), "destination").get_operator if self.opendal_config.get("destination_config") else None
 
         module = importlib.import_module("airflow.providers.common.opendal.filesystem.opendal_fs")
-        operator_class = getattr(module, f"OpenDAL{action.capitalize()}")
+        operator_class = getattr(module, f"OpenDAL{self.action.capitalize()}")
 
 
         opendal_operator = operator_class(

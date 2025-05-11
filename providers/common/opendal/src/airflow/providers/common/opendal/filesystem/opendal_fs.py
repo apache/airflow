@@ -26,8 +26,6 @@ class DestinationConfig(BaseModel):
 
 class OpenDALConfig(BaseModel):
     """OpenDALConfig is a configuration class for OpenDAL file system operations."""
-
-    action: Literal["read", "write", "copy"]
     source_config: SourceConfig
     destination_config: DestinationConfig | None = None
 
