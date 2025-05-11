@@ -225,6 +225,9 @@ class ElasticsearchSQLHook(DbApiHook):
         parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
     ):
+        # TODO: Custom ElasticsearchSQLCursor is incompatible with polars.read_database.
+        # To support: either adapt cursor to polars._executor interface or create custom polars reader.
+        # https://github.com/apache/airflow/pull/50454
         raise NotImplementedError("Polars is not supported for Elasticsearch")
 
 
