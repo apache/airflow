@@ -220,7 +220,7 @@ function determine_airflow_to_use() {
             echo "${COLOR_BLUE}Uninstalling all packages first${COLOR_RESET}"
             echo
             # shellcheck disable=SC2086
-            ${PACKAGING_TOOL_CMD} freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | \
+            ${PACKAGING_TOOL_CMD} freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | grep -v "@" | \
                 xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
             # Now install rich ad click first to use the installation script
             # shellcheck disable=SC2086
