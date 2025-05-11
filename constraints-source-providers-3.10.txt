@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-11T07:49:25.237476
+# This constraints file was automatically generated on 2025-05-11T13:51:14.278314
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -152,7 +152,7 @@ ciso8601==2.3.2
 click-didyoumean==0.3.1
 click-plugins==1.1.1
 click-repl==0.3.0
-click==8.2.0
+click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
 cohere==5.15.0
