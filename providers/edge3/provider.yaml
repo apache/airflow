@@ -123,3 +123,15 @@ config:
         type: integer
         example: ~
         default: "524288"
+      worker_umask:
+        description: |
+          The default umask to use for edge worker when run in daemon mode
+
+          This controls the file-creation mode mask which determines the initial value of file permission bits
+          for newly created files.
+
+          This value is treated as an octal-integer.
+        version_added: ~
+        type: string
+        default: ~
+        example: ~
