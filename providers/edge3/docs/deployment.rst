@@ -66,6 +66,18 @@ subcommand
 
     airflow edge worker
 
+You can also start this worker in the background by running
+it as a daemonized process. Additionally, you can redirect stdout
+and stderr to their respective files.
+
+Make sure to set umask in [worker_umask] to set permissions
+for newly created files by workers.
+
+.. code-block:: bash
+
+    airflow edge worker -D --stdout edge-worker.o.log --stderr edge-worker.e.log
+
+
 Your worker should start picking up tasks as soon as they get fired in
 its direction. To stop a worker running on a machine you can use:
 

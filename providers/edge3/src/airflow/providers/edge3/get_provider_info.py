@@ -93,6 +93,13 @@ def get_provider_info():
                         "example": None,
                         "default": "524288",
                     },
+                    "worker_umask": {
+                        "description": "The default umask to use for edge worker when run in daemon mode\n\nThis controls the file-creation mode mask which determines the initial value of file permission bits\nfor newly created files.\n\nThis value is treated as an octal-integer.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "default": None,
+                        "example": None,
+                    },
                 },
             }
         },
