@@ -40,6 +40,27 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
+    dialect_name = op.get_context().dialect.name
+    if dialect_name == "postgresql":
+        op.execute("""
+                    INSERT INTO dag_bundle (name) VALUES
+                      ('example_dags'),
+                      ('dags-folder')
+                    ON CONFLICT (name) DO NOTHING;
+                    """)
+    if dialect_name == "mysql":
+        op.execute("""
+                    INSERT IGNORE INTO dag_bundle (name) VALUES
+                      ('example_dags'),
+                      ('dags-folder');
+                    """)
+    if dialect_name == "sqlite":
+        op.execute("""
+                    INSERT OR IGNORE INTO dag_bundle (name) VALUES
+                      ('example_dags'),
+                      ('dags-folder');
+                    """)
+
     conn = op.get_bind()
     with op.batch_alter_table("dag", schema=None) as batch_op:
         conn.execute(

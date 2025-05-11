@@ -584,7 +584,7 @@ class TestCliDags:
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        session.add(DM(dag_id=key))
+        session.add(DM(dag_id=key, bundle_name="test_bundle"))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
         assert session.query(DM).filter_by(dag_id=key).count() == 0
@@ -600,7 +600,7 @@ class TestCliDags:
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        session.add(DM(dag_id=key, fileloc=os.fspath(path)))
+        session.add(DM(dag_id=key, bundle_name="test_bundle", fileloc=os.fspath(path)))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
         assert session.query(DM).filter_by(dag_id=key).count() == 0
