@@ -66,7 +66,7 @@ const TimezoneSelector: React.FC = () => {
           value={options.find((option) => option.value === selectedTimezone)}
         />
       </Field.Root>
-      <Box borderRadius="md" boxShadow="md" p={6}>
+      <Box borderRadius="md" boxShadow="sm" display="flex" flexDirection="column" gap={2} p={6}>
         <Text fontSize="lg" fontWeight="bold">
           Current time in {selectedTimezone}:
         </Text>
