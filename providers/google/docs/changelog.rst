@@ -56,7 +56,6 @@ Breaking changes
   * ``Remove AutoMLModelTrainLink use TranslationLegacyModelTrainLink instead``
   * ``Remove AutoMLModelPredictLink use TranslationLegacyModelPredictLink``
 
-* ``Remove deprecated for December 2024 and April 2025 in providers/google. #50021``
 
 15.1.0
 ......
