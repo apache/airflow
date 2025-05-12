@@ -854,13 +854,15 @@ def prepare_provider_documentation(
             ):
                 if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
-                    with_breaking_changes, maybe_with_new_features = update_release_notes(
-                        provider_id,
-                        reapply_templates_only=reapply_templates_only,
-                        base_branch=base_branch,
-                        regenerate_missing_docs=reapply_templates_only,
-                        non_interactive=non_interactive,
-                        only_min_version_update=only_min_version_update,
+                    with_breaking_changes, maybe_with_new_features, with_min_airflow_version_bump = (
+                        update_release_notes(
+                            provider_id,
+                            reapply_templates_only=reapply_templates_only,
+                            base_branch=base_branch,
+                            regenerate_missing_docs=reapply_templates_only,
+                            non_interactive=non_interactive,
+                            only_min_version_update=only_min_version_update,
+                        )
                     )
                 update_min_airflow_version_and_build_files(
                     provider_id=provider_id,
@@ -880,6 +882,7 @@ def prepare_provider_documentation(
                         with_breaking_changes=with_breaking_changes,
                         maybe_with_new_features=maybe_with_new_features,
                         only_min_version_update=only_min_version_update,
+                        with_min_airflow_version_bump=with_min_airflow_version_bump,
                     )
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
