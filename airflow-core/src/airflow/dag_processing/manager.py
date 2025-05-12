@@ -710,7 +710,7 @@ class DagFileProcessorManager(LoggingMixin):
                 )
 
         # Sort by longest last runtime. (Can't sort None values in python3)
-        rows.sort(key=lambda x: x[5] or 0.0, reverse=True)
+        rows.sort(key=lambda x: x[6] or 0.0, reverse=True)
 
         formatted_rows = []
         for (
