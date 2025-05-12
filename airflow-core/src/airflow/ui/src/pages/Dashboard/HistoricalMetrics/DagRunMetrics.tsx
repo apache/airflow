@@ -47,7 +47,7 @@ export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRu
       </RouterLink>
       <Heading size="md">Dag Runs</Heading>
     </HStack>
-    <Separator my={2} />
+    <Separator my={3} />
     <Stack gap={4}>
       {DAGRUN_STATES.map((state) => (
         <MetricSection

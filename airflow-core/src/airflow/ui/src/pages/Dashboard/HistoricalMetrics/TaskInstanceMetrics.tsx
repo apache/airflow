@@ -66,7 +66,7 @@ export const TaskInstanceMetrics = ({
       </RouterLink>
       <Heading size="md">Task Instances</Heading>
     </HStack>
-    <Separator my={2} />
+    <Separator my={3} />
     <Stack gap={4}>
       {TASK_STATES.sort((stateA, stateB) =>
         taskInstanceStates[stateA] > taskInstanceStates[stateB] ? -1 : 1,
