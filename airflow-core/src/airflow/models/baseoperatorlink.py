@@ -19,12 +19,12 @@
 
 from __future__ import annotations
 
-import warnings
-
 from airflow.sdk.bases.operatorlink import BaseOperatorLink as BaseOperatorLink
+from airflow.utils.deprecation_tools import add_deprecated_classes
 
-warnings.warn(
-    "The module 'airflow.models.baseoperatorlink' is deprecated. Please import it from 'airflow.sdk.bases.operatorlink'.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+__deprecated_classes = {
+    "baseoperatorlink": {
+        "BaseOperatorLink": "airflow.sdk.bases.operatorlink.BaseOperatorLink",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)

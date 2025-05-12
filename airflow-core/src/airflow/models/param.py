@@ -19,12 +19,14 @@
 
 from __future__ import annotations
 
-import warnings
-
 from airflow.sdk.definitions.param import Param as Param, ParamsDict as ParamsDict
+from airflow.utils.deprecation_tools import add_deprecated_classes
 
-warnings.warn(
-    "The module 'airflow.models.param' is deprecated. Please import it from 'airflow.sdk.definitions.param'.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+__deprecated_classes = {
+    "param": {
+        "Param": "airflow.sdk.definitions.param.Param",
+        "ParamsDict": "airflow.sdk.definitions.param.ParamsDict",
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)
