@@ -43,7 +43,6 @@
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
-  - [Wait and make sure documentation is published on the website before proceeding](#wait-and-make-sure-documentation-is-published-on-the-website-before-proceeding)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -819,53 +818,33 @@ breeze prod-image verify --image-name apache/airflow:${VERSION}
 ## Publish documentation
 
 Documentation is an essential part of the product and should be made available to users.
-In our cases, documentation for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
+In our cases, documentation for the released versions is published in S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
 
-Documentation for providers can be found in the ``/docs/apache-airflow`` directory.
+There are two steps to publish the documentation:
 
-- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+1. Publish the documentation to S3 bucket.
 
-    ```shell script
-    git clone https://github.com/apache/airflow-site.git airflow-site
-    cd airflow-site
-    git checkout -b ${VERSION}-docs
-    export AIRFLOW_SITE_DIRECTORY="$(pwd)"
-    ```
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
 
-- Then you can go to the directory and build the necessary documentation packages
+You can specify the tag to use to build the docs and 'apache-airflow docker-stack' passed as packages to be
+built.
 
-    ```shell script
-    cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs apache-airflow docker-stack --clean-build
-    ```
+After that step, the provider documentation should be available under the usual urls (same as in PyPI packages)
+but stable links and drop-down boxes should not be updated.
 
-- Now you can preview the documentation.
+2. Update version drop-down and stable links with the new versions of the documentation.
 
-    ```shell script
-    ./docs/start_doc_server.sh
-    ```
+In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository.
 
-- Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
-
-    ```shell script
-    breeze release-management publish-docs apache-airflow docker-stack
-    breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
-    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force --all-combinations --run-in-parallel
-    cd "${AIRFLOW_SITE_DIRECTORY}"
-    git add .
-    git commit -m "Add documentation for Apache Airflow ${VERSION}"
-    git push
-    # and finally open a PR
-    ```
-
-The `--run-in-parallel` switch allows to speed up SBOM generation significantly, but it might take a lot
-of memory - if you are running into memory issues you can limit parallelism by setting `--parallelism N`
-where N is a number of parallel `cdxgen` servers that should be started.
-
-## Wait and make sure documentation is published on the website before proceeding
-
-This is important as it takes time for the documentation to be published. You should exercise some patient
-here before proceeding with the next steps.
+After that workflow completes, the new version should be available in the drop-down list and stable links
+should be updated.
 
 
 ## Notify developers of release

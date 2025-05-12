@@ -35,7 +35,15 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^\.github/.*\.md|^airflow-core/tests/system/README\.md$
+          (?x)
+          ^README\.md$|
+          ^UPDATING.*\.md$|
+          ^chart/UPDATING.*\.md$|
+          ^dev/.*\.md$|
+          ^dev/.*\.rst$|
+          ^docs/README\.md$|
+          ^\.github/.*\.md$|
+          ^airflow-core/tests/system/README\.md$
         args:
           - "--maxlevel"
           - "2"
@@ -479,7 +487,10 @@ repos:
         name: Generate airflow diagrams
         entry: ./scripts/ci/pre_commit/generate_airflow_diagrams.py
         language: python
-        files: ^airflow-core/docs/.*/diagram_[^/]*\.py$
+        files: >
+          (?x)
+          ^airflow-core/docs/.*/diagram_[^/]*\.py$|
+          ^docs/images/.*\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4', 'diagrams>=0.23.4']
       - id: generate-volumes-for-sources
