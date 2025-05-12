@@ -22,8 +22,8 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
     QueryLimit,

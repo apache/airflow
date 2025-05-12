@@ -27,7 +27,7 @@ import pytest
 from itsdangerous.url_safe import URLSafeSerializer
 from uuid6 import uuid7
 
-from airflow.api_fastapi.common.deps import _get_dag_bag
+from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -109,10 +109,10 @@ class TestTaskInstancesLog:
             session.flush()
         session.flush()
 
-        dagbag = _get_dag_bag()
+        dagbag = create_dag_bag()
         dagbag.bag_dag(dag)
         dagbag.bag_dag(dummy_dag)
-        test_client.app.dependency_overrides[_get_dag_bag] = lambda: dagbag
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
@@ -266,11 +266,11 @@ class TestTaskInstancesLog:
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         # Recreate DAG without tasks
-        dagbag = _get_dag_bag()
+        dagbag = create_dag_bag()
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
         dagbag.bag_dag(dag=dag)
 
-        self.app.dependency_overrides[_get_dag_bag] = lambda: dagbag
+        self.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
         key = self.app.state.secret_key
         serializer = URLSafeSerializer(key)
