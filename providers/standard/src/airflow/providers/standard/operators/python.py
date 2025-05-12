@@ -21,6 +21,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -35,6 +36,9 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
 
 import lazy_object_proxy
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import InvalidSpecifier
+from packaging.version import InvalidVersion
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -848,10 +852,38 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
-        if self.system_site_packages or "apache-airflow" in self.requirements:
+
+        found_airflow = found_pendulum = False
+
+        if self.system_site_packages:
+            # If we're using system packages, assume both are present
+            found_airflow = found_pendulum = True
+        else:
+            for raw_str in self.requirements:
+                line = raw_str.strip()
+                # Skip blank lines and full‐line comments
+                if not line or line.startswith("#"):
+                    continue
+
+                # Strip off any inline comment
+                # e.g. turn "foo==1.2.3  # comment" → "foo==1.2.3"
+                req_str = re.sub(r"#.*$", "", line).strip()
+
+                try:
+                    req = Requirement(req_str)
+                except (InvalidRequirement, InvalidSpecifier, InvalidVersion) as e:
+                    raise ValueError(f"Invalid requirement '{raw_str}': {e}") from e
+
+                if req.name == "apache-airflow":
+                    found_airflow = found_pendulum = True
+                    break
+                elif req.name == "pendulum":
+                    found_pendulum = True
+
+        if found_airflow:
             yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
-        elif "pendulum" in self.requirements:
+        elif found_pendulum:
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
 
