@@ -423,6 +423,26 @@ class TestPodManager:
                 startup_timeout=0,
             )
 
+    def test_start_pod_raises_fast_error_on_image_error(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        container_statuse = mock.MagicMock()
+        waiting_state = mock.MagicMock()
+        waiting_state.reason = "ErrImagePull"
+        waiting_state.message = "Test error"
+        container_statuse.state.waiting = waiting_state
+        pod_response.status.container_statuses = [container_statuse]
+
+        self.mock_kube_client.read_namespaced_pod.return_value = pod_response
+        expected_msg = f"Pod docker image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        mock_pod = MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            self.pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=60,
+                startup_timeout=60,
+            )
+
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.time.sleep")
     def test_start_pod_startup_interval_seconds(self, mock_time_sleep, caplog):
         condition_scheduled = mock.MagicMock()
