@@ -160,13 +160,16 @@ class TestAPIServerDeployment:
 
     def test_should_add_volume_and_volume_mount_when_exist_webserver_config(self):
         docs = render_chart(
-            values={"apiServer": {"apiServerConfig": "CSRF_ENABLED = True"}, "airflowVersion": "2.10.5"},
+            values={
+                "apiServer": {"apiServerConfig": "CSRF_ENABLED = True"},
+                "airflowVersion": "3.0.0",
+            },
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert {
-            "name": "api-config",
-            "configMap": {"name": "release-name-apiserver-config"},
+            "name": "api-server-config",
+            "configMap": {"name": "release-name-api-server-config"},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
         assert {
