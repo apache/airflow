@@ -79,8 +79,8 @@ Here's the list of all the extra dependencies of Apache Airflow.
 Core Airflow extras
 -------------------
 
-These are core Airflow extras that extend capabilities of core Airflow. They usually do not install provider
-packages (with the exception of ``celery`` and ``cncf.kubernetes`` extras), they just install necessary
+These are core Airflow extras that extend capabilities of core Airflow. They do not install provider
+packages, they just install necessary
 python dependencies for the provided package. The same extras are available as ``airflow-core`` package extras.
 
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
