@@ -33,26 +33,52 @@ class TestBigQueryDataframeResultsSystem(GoogleSystemTest):
     def setup_method(self):
         self.instance = hook.BigQueryHook()
 
-    def test_output_is_dataframe_with_valid_query(self):
-        import pandas as pd
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_output_is_dataframe_with_valid_query(self, df_type):
+        df = self.instance.get_df("select 1", df_type=df_type)
+        if df_type == "polars":
+            import polars as pl
 
-        df = self.instance.get_pandas_df("select 1")
-        assert isinstance(df, pd.DataFrame)
+            assert isinstance(df, pl.DataFrame)
+        else:
+            import pandas as pd
 
-    def test_throws_exception_with_invalid_query(self):
+            assert isinstance(df, pd.DataFrame)
+
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_throws_exception_with_invalid_query(self, df_type):
         with pytest.raises(Exception) as ctx:
-            self.instance.get_pandas_df("from `1`")
+            self.instance.get_df("from `1`", df_type=df_type)
         assert "Reason: " in str(ctx.value), ""
 
-    def test_succeeds_with_explicit_legacy_query(self):
-        df = self.instance.get_pandas_df("select 1", dialect="legacy")
-        assert df.iloc(0)[0][0] == 1
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_succeeds_with_explicit_legacy_query(self, df_type):
+        df = self.instance.get_df("select 1", df_type=df_type)
+        if df_type == "polars":
+            assert df.item(0, 0) == 1
+        else:
+            assert df.iloc[0][0] == 1
 
-    def test_succeeds_with_explicit_std_query(self):
-        df = self.instance.get_pandas_df("select * except(b) from (select 1 a, 2 b)", dialect="standard")
-        assert df.iloc(0)[0][0] == 1
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_succeeds_with_explicit_std_query(self, df_type):
+        df = self.instance.get_df(
+            "select * except(b) from (select 1 a, 2 b)",
+            parameters=None,
+            dialect="standard",
+            df_type=df_type,
+        )
+        if df_type == "polars":
+            assert df.item(0, 0) == 1
+        else:
+            assert df.iloc[0][0] == 1
 
-    def test_throws_exception_with_incompatible_syntax(self):
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_throws_exception_with_incompatible_syntax(self, df_type):
         with pytest.raises(Exception) as ctx:
-            self.instance.get_pandas_df("select * except(b) from (select 1 a, 2 b)", dialect="legacy")
+            self.instance.get_df(
+                "select * except(b) from (select 1 a, 2 b)",
+                parameters=None,
+                dialect="legacy",
+                df_type=df_type,
+            )
         assert "Reason: " in str(ctx.value), ""
