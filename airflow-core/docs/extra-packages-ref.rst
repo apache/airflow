@@ -105,8 +105,8 @@ Meta-airflow package extras
 ---------------------------
 
 Airflow 3 is released in several packages. the ``apache-airflow`` package is a meta-package that installs
-all the other packages when you run airflow as a standalone installation, and it also has several extras
-that are not extending airflow core functionality, but they are useful for the users who want to install
+all the other packages when you run Airflow as a standalone installation, and it also has several extras
+that are not extending Airflow core functionality, but they are useful for the users who want to install
 other packages that can be used by airflow or some of its providers.
 
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
