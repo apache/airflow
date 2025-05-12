@@ -151,7 +151,14 @@ def search_param_factory(
     pattern_name: str,
     skip_none: bool = True,
 ) -> Callable[[str | None], _SearchParam]:
-    def depends_search(value: str | None = Query(alias=pattern_name, default=None)) -> _SearchParam:
+    DESCRIPTION = (
+        "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
+        "Regular expressions are **not** supported."
+    )
+
+    def depends_search(
+        value: str | None = Query(alias=pattern_name, default=None, description=DESCRIPTION),
+    ) -> _SearchParam:
         search_parm = _SearchParam(attribute, skip_none)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
