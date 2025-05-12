@@ -31,6 +31,7 @@ import type { PartialEventContext } from "chartjs-plugin-annotation";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
 import { Bar } from "react-chartjs-2";
+import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
@@ -64,6 +65,8 @@ export const DurationChart = ({
   readonly entries: Array<RunResponse> | undefined;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
+  const navigate = useNavigate();
+
   if (!entries) {
     return undefined;
   }
@@ -141,6 +144,33 @@ export const DurationChart = ({
         }}
         datasetIdKey="id"
         options={{
+          onClick: (_event, elements) => {
+            const [element] = elements;
+
+            if (!element) {
+              return;
+            }
+
+            const entry = entries[element.index];
+            const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.dag_run_id}`;
+
+            switch (kind) {
+              case "Dag Run": {
+                navigate(baseUrl);
+                break;
+              }
+              case "Task Instance": {
+                const taskInstance = entry as TaskInstanceResponse;
+
+                navigate(`${baseUrl}/tasks/${taskInstance.task_id}`);
+                break;
+              }
+              default:
+            }
+          },
+          onHover: (_event, elements, chart) => {
+            chart.canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
+          },
           plugins: {
             annotation: {
               annotations: {
@@ -158,7 +188,6 @@ export const DurationChart = ({
               },
               title: { align: "end", display: true, text: "Run After" },
             },
-
             y: {
               title: { align: "end", display: true, text: "Duration (seconds)" },
             },
