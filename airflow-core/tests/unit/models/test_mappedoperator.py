@@ -32,7 +32,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import setup, task, task_group, teardown
-from airflow.sdk.execution_time.comms import XComCountResponse, XComResult
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -334,7 +333,7 @@ def _create_mapped_with_name_template_classic(*, task_id, map_names, template):
 
 
 def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
     @task(task_id=task_id, map_index_template=template)
     def task1(map_name):
@@ -360,7 +359,7 @@ def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, te
 
 
 def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, template):
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
     @task(task_id=task_id, map_index_template=template)
     def task1(map_name):
@@ -1270,21 +1269,7 @@ class TestMappedSetupTeardown:
         tg1, tg2 = dag.task_group.children.values()
         tg1 >> tg2
 
-        with mock.patch(
-            "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-        ) as supervisor_comms:
-            # TODO: TaskSDK: this is a bit of a hack that we need to stub this at all. `dag.test()` should
-            # really work without this!
-            supervisor_comms.get_message.side_effect = [
-                XComCountResponse(len=3),
-                XComResult(key="return_value", value=1),
-                XComCountResponse(len=3),
-                XComResult(key="return_value", value=2),
-                XComCountResponse(len=3),
-                XComResult(key="return_value", value=3),
-            ]
-            dr = dag.test()
-            assert supervisor_comms.get_message.call_count == 6
+        dr = dag.test()
         states = self.get_states(dr)
         expected = {
             "tg_1.my_pre_setup": "success",

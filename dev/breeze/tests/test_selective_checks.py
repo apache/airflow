@@ -343,48 +343,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/standard/src/airflow/providers/standard/operators/python.py",),
-                {
-                    "selected-providers-list-as-string": None,
-                    "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                    "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                    "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                    "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                    "ci-image-build": "true",
-                    "prod-image-build": "false",
-                    "needs-helm-tests": "false",
-                    "run-tests": "true",
-                    "run-amazon-tests": "false",
-                    "docs-build": "true",
-                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
-                    "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "Always", "test_types": "Always"}]
-                    ),
-                    "providers-test-types-list-as-strings-in-json": json.dumps(
-                        [
-                            {
-                                "description": "common.compat...standard",
-                                "test_types": "Providers[common.compat] Providers[standard]",
-                            }
-                        ]
-                    ),
-                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
-                        [
-                            {
-                                "description": "common.compat...standard",
-                                "test_types": "Providers[common.compat] Providers[standard]",
-                            }
-                        ]
-                    ),
-                    "needs-mypy": "true",
-                    "mypy-checks": "['mypy-providers']",
-                },
-                id="Only Python tests",
-            )
-        ),
-        (
-            pytest.param(
                 ("airflow-core/src/airflow/serialization/python.py",),
                 {
                     "selected-providers-list-as-string": None,
@@ -933,6 +891,84 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
         pytest.param(
+            ("providers/amazon/src/airflow/providers/amazon/pyproject.toml",),
+            {
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
+                "mongo mysql openlineage postgres salesforce ssh teradata",
+                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                "ci-image-build": "true",
+                "prod-image-build": "false",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "docs-build": "true",
+                # no python files changed so flynt should not run
+                "skip-pre-commits": "flynt," + ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                "run-kubernetes-tests": "false",
+                "upgrade-to-newer-dependencies": "false",
+                "run-amazon-tests": "true",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always", "test_types": "Always"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "amazon...google",
+                            "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
+                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
+                            "Providers[google]",
+                        }
+                    ]
+                ),
+                "needs-mypy": "true",
+                "mypy-checks": "['mypy-providers']",
+            },
+            id="Providers tests run including amazon tests if only amazon pyproject.toml files changed",
+        ),
+        pytest.param(
+            ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
+            {
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
+                "mongo mysql openlineage postgres salesforce ssh teradata",
+                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                "ci-image-build": "true",
+                "prod-image-build": "false",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "docs-build": "true",
+                # no python files changed so flynt should not run
+                "skip-pre-commits": "flynt," + ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                "run-kubernetes-tests": "false",
+                "upgrade-to-newer-dependencies": "false",
+                "run-amazon-tests": "true",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always", "test_types": "Always"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "amazon...google",
+                            "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
+                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
+                            "Providers[google]",
+                        }
+                    ]
+                ),
+                "needs-mypy": "true",
+                "mypy-checks": "['mypy-providers']",
+            },
+            id="Providers tests run including amazon tests if only amazon provider.yaml files changed",
+        ),
+        pytest.param(
             ("providers/airbyte/tests/airbyte/__init__.py",),
             {
                 "selected-providers-list-as-string": "airbyte",
@@ -1038,68 +1074,25 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/standard/src/airflow/providers/standard/operators/bash.py",),
             {
-                "selected-providers-list-as-string": "common.compat standard",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
-                "prod-image-build": "false",
-                "needs-helm-tests": "false",
+                "prod-image-build": "true",
+                "needs-helm-tests": "true",
                 "run-tests": "true",
-                "run-amazon-tests": "false",
+                "run-amazon-tests": "true",
                 "docs-build": "true",
-                "run-kubernetes-tests": "false",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
+                "run-kubernetes-tests": "true",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "Always...Serialization", "test_types": "Always Core Serialization"}]
-                ),
-                "providers-test-types-list-as-strings-in-json": json.dumps(
-                    [
-                        {
-                            "description": "common.compat...standard",
-                            "test_types": "Providers[common.compat] Providers[standard]",
-                        }
-                    ]
-                ),
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-providers']",
+                "mypy-checks": ALL_MYPY_CHECKS,
             },
-            id="Providers standard tests and Serialization tests to run when airflow bash.py changed",
-        ),
-        pytest.param(
-            ("providers/standard/src/airflow/providers/standard/operators/bash.py",),
-            {
-                "selected-providers-list-as-string": None,
-                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                "ci-image-build": "true",
-                "prod-image-build": "false",
-                "needs-helm-tests": "false",
-                "run-tests": "true",
-                "run-amazon-tests": "false",
-                "docs-build": "true",
-                "run-kubernetes-tests": "false",
-                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
-                "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "Always...Serialization", "test_types": "Always Core Serialization"}]
-                ),
-                "providers-test-types-list-as-strings-in-json": json.dumps(
-                    [
-                        {
-                            "description": "common.compat...standard",
-                            "test_types": "Providers[common.compat] Providers[standard]",
-                        }
-                    ]
-                ),
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-providers']",
-            },
-            id="Force Core and Serialization tests to run when tests bash changed",
+            id="All tests to run when standard operator changed",
         ),
         (
             pytest.param(
