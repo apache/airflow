@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Liter
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
-from rich.console import Console
 
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
@@ -67,8 +66,6 @@ ToDagProcessor = Annotated[
     Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse, OKResponse],
     Field(discriminator="type"),
 ]
-
-console = Console()
 
 
 def _parse_file_entrypoint():
