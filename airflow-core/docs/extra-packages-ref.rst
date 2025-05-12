@@ -79,16 +79,42 @@ Here's the list of all the extra dependencies of Apache Airflow.
 Core Airflow extras
 -------------------
 
-These are core Airflow extras that extend capabilities of core Airflow. They usually do not install provider
-packages (with the exception of ``celery`` and ``cncf.kubernetes`` extras), they just install necessary
-python dependencies for the provided package.
+These are core Airflow extras that extend capabilities of core Airflow. They do not install provider
+packages, they just install necessary
+python dependencies for the provided package. The same extras are available as ``airflow-core`` package extras.
+
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| extra               | install command                                     | enables                                                                    |
++=====================+=====================================================+============================================================================+
+| async               | ``pip install 'apache-airflow[async]'``             | Async worker classes for Gunicorn                                          |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting DAG to graphical output                   |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| otel                | ``pip install 'apache-airflow[otel]'``              | Required for OpenTelemetry metrics                                         |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                      |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| standard            | ``pip install apache-airflow[standard]'``           | Standard hooks and operators                                               |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                   |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+
+Meta-airflow package extras
+---------------------------
+
+Airflow 3 is released in several packages. The ``apache-airflow`` package is a meta-package that installs
+all the other packages when you run Airflow as a standalone installation, and it also has several extras
+that are not extending Airflow core functionality, but they are useful for the users who want to install
+other packages that can be used by airflow or some of its providers.
 
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | extra               | install command                                     | enables                                                                    |
 +=====================+=====================================================+============================================================================+
 | aiobotocore         | ``pip install 'apache-airflow[aiobotocore]'``       | Support for asynchronous (deferrable) operators for Amazon integration     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| async               | ``pip install 'apache-airflow[async]'``             | Async worker classes for Gunicorn                                          |
+| cloudpickle         | ``pip install apache-airflow[cloudpickle]``         | Cloudpickle hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | github-enterprise   | ``pip install 'apache-airflow[github-enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -96,13 +122,9 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting DAG to graphical output                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | leveldb             | ``pip install 'apache-airflow[leveldb]'``           | Required for use leveldb extra in google provider                          |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| otel                | ``pip install 'apache-airflow[otel]'``              | Required for OpenTelemetry metrics                                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | pandas              | ``pip install 'apache-airflow[pandas]'``            | Install Pandas library compatible with Airflow                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -110,19 +132,11 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | rabbitmq            | ``pip install 'apache-airflow[rabbitmq]'``          | RabbitMQ support as a Celery backend                                       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                      |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | s3fs                | ``pip install 'apache-airflow[s3fs]'``              | Support for S3 as Airflow FS                                               |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| saml                | ``pip install 'apache-airflow[saml]'``              | Support for SAML authentication in Airflow                                 |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| standard            | ``pip install apache-airflow[standard]'``           | Standard hooks and operators                                               |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                   |
+| saml                | ``pip install 'apache-airflow[saml]'``              | Support for SAML authentication in Amazon provider                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | uv                  | ``pip install 'apache-airflow[uv]'``                | Install uv - fast, Rust-based package installer (experimental)             |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| cloudpickle         | ``pip install apache-airflow[cloudpickle]``         | Cloudpickle hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 
 
