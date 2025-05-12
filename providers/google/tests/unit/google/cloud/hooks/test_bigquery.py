@@ -153,9 +153,22 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert result is False
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.read_gbq")
-    def test_get_pandas_df(self, mock_read_gbq):
-        self.hook.get_pandas_df("select 1")
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_get_df(self, mock_read_gbq, df_type):
+        import pandas as pd
+        import polars as pl
 
+        mock_read_gbq.return_value = pd.DataFrame({"a": [1, 2, 3]})
+        result = self.hook.get_df("select 1", df_type=df_type)
+
+        expected_type = pd.DataFrame if df_type == "pandas" else pl.DataFrame
+        assert isinstance(result, expected_type)
+        assert result.shape == (3, 1)
+        assert result.columns == ["a"]
+        if df_type == "pandas":
+            assert result["a"].tolist() == [1, 2, 3]
+        else:
+            assert result.to_series().to_list() == [1, 2, 3]
         mock_read_gbq.assert_called_once_with(
             "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID
         )

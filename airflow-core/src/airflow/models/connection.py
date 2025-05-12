@@ -478,7 +478,6 @@ class Connection(Base, LoggingMixin):
                 return conn
             except AirflowRuntimeError as e:
                 if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-                    log.debug("Unable to retrieve connection from MetastoreBackend using Task SDK")
                     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
                 raise
 
@@ -498,7 +497,7 @@ class Connection(Base, LoggingMixin):
                     SecretCache.save_connection_uri(conn_id, conn.get_uri())
                     return conn
             except Exception:
-                log.debug(
+                log.exception(
                     "Unable to retrieve connection from secrets backend (%s). "
                     "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
