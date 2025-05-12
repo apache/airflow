@@ -27,7 +27,7 @@ from unittest.mock import PropertyMock, patch
 import pytest
 from databricks.sql.types import Row
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
@@ -435,3 +435,72 @@ def test_create_timeout_thread_no_timeout(
     thread = create_timeout_thread(cur=cur, execution_timeout=None)
     mock_timer.assert_not_called()
     assert thread is None
+
+
+def test_get_openlineage_default_schema_with_no_schema_set():
+    hook = DatabricksSqlHook()
+    assert hook.get_openlineage_default_schema() == "default"
+
+
+def test_get_openlineage_default_schema_with_schema_set():
+    hook = DatabricksSqlHook(schema="my-schema")
+    assert hook.get_openlineage_default_schema() == "my-schema"
+
+
+def test_get_openlineage_database_specific_lineage_with_no_query_id():
+    hook = DatabricksSqlHook()
+    hook.query_ids = []
+
+    result = hook.get_openlineage_database_specific_lineage(None)
+    assert result is None
+
+
+def test_get_openlineage_database_specific_lineage_with_single_query_id():
+    from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    hook = DatabricksSqlHook()
+    hook.query_ids = ["query1"]
+    hook.get_connection = mock.MagicMock()
+    hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+
+    result = hook.get_openlineage_database_specific_lineage(None)
+    assert result == OperatorLineage(
+        run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="query1", source="scheme://auth")}
+    )
+
+
+@mock.patch("airflow.providers.databricks.utils.openlineage.emit_openlineage_events_for_databricks_queries")
+def test_get_openlineage_database_specific_lineage_with_multiple_query_ids(mock_emit):
+    hook = DatabricksSqlHook()
+    hook.query_ids = ["query1", "query2"]
+    hook.get_connection = mock.MagicMock()
+    hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+
+    ti = mock.MagicMock()
+
+    result = hook.get_openlineage_database_specific_lineage(ti)
+    mock_emit.assert_called_once_with(
+        **{
+            "hook": hook,
+            "query_ids": ["query1", "query2"],
+            "query_source_namespace": "scheme://auth",
+            "task_instance": ti,
+        }
+    )
+    assert result is None
+
+
+@mock.patch("importlib.metadata.version", return_value="1.99.0")
+def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider(mock_version):
+    hook = DatabricksSqlHook()
+    hook.query_ids = ["query1", "query2"]
+    hook.get_connection = mock.MagicMock()
+    hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+
+    expected_err = (
+        "OpenLineage provider version `1.99.0` is lower than required `2.3.0`, "
+        "skipping function `emit_openlineage_events_for_databricks_queries` execution"
+    )
+    with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+        hook.get_openlineage_database_specific_lineage(mock.MagicMock())
