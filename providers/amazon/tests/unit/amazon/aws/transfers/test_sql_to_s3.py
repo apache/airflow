@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from tempfile import NamedTemporaryFile
+import gzip
+import io
 from unittest import mock
 
 import pandas as pd
@@ -29,9 +30,8 @@ from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 
 class TestSqlToS3Operator:
-    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.NamedTemporaryFile")
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
-    def test_execute_csv(self, mock_s3_hook, temp_mock):
+    def test_execute_csv(self, mock_s3_hook):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -40,74 +40,65 @@ class TestSqlToS3Operator:
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
         get_df_mock = mock_dbapi_hook.return_value.get_df
         get_df_mock.return_value = test_df
-        with NamedTemporaryFile() as f:
-            temp_mock.return_value.__enter__.return_value.name = f.name
 
-            op = SqlToS3Operator(
-                query=query,
-                s3_bucket=s3_bucket,
-                s3_key=s3_key,
-                sql_conn_id="mysql_conn_id",
-                aws_conn_id="aws_conn_id",
-                task_id="task_id",
-                replace=True,
-                pd_kwargs={"index": False, "header": False},
-                dag=None,
-            )
-            op._get_hook = mock_dbapi_hook
-            op.execute(None)
-            mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+        op = SqlToS3Operator(
+            query=query,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            replace=True,
+            pd_kwargs={"index": False, "header": False},
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
 
-            get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
+        assert isinstance(file_obj, io.BytesIO)
+        mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
+            file_obj=file_obj, key=s3_key, bucket_name=s3_bucket, replace=True
+        )
 
-            temp_mock.assert_called_once_with(mode="r+", suffix=".csv")
-            mock_s3_hook.return_value.load_file.assert_called_once_with(
-                filename=f.name,
-                key=s3_key,
-                bucket_name=s3_bucket,
-                replace=True,
-            )
-
-    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.NamedTemporaryFile")
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
-    def test_execute_parquet(self, mock_s3_hook, temp_mock):
+    def test_execute_parquet(self, mock_s3_hook):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
 
         mock_dbapi_hook = mock.Mock()
-
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
+
         get_df_mock = mock_dbapi_hook.return_value.get_df
         get_df_mock.return_value = test_df
-        with NamedTemporaryFile() as f:
-            temp_mock.return_value.__enter__.return_value.name = f.name
 
-            op = SqlToS3Operator(
-                query=query,
-                s3_bucket=s3_bucket,
-                s3_key=s3_key,
-                sql_conn_id="mysql_conn_id",
-                aws_conn_id="aws_conn_id",
-                task_id="task_id",
-                file_format="parquet",
-                replace=False,
-                dag=None,
-            )
-            op._get_hook = mock_dbapi_hook
-            op.execute(None)
-            mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+        op = SqlToS3Operator(
+            query=query,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            file_format="parquet",
+            replace=True,
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
 
-            get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
+        assert isinstance(file_obj, io.BytesIO)
+        mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
+            file_obj=file_obj, key=s3_key, bucket_name=s3_bucket, replace=True
+        )
 
-            temp_mock.assert_called_once_with(mode="rb+", suffix=".parquet")
-            mock_s3_hook.return_value.load_file.assert_called_once_with(
-                filename=f.name, key=s3_key, bucket_name=s3_bucket, replace=False
-            )
-
-    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.NamedTemporaryFile")
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
-    def test_execute_json(self, mock_s3_hook, temp_mock):
+    def test_execute_json(self, mock_s3_hook):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -116,34 +107,69 @@ class TestSqlToS3Operator:
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
         get_df_mock = mock_dbapi_hook.return_value.get_df
         get_df_mock.return_value = test_df
-        with NamedTemporaryFile() as f:
-            temp_mock.return_value.__enter__.return_value.name = f.name
 
-            op = SqlToS3Operator(
-                query=query,
-                s3_bucket=s3_bucket,
-                s3_key=s3_key,
-                sql_conn_id="mysql_conn_id",
-                aws_conn_id="aws_conn_id",
-                task_id="task_id",
-                file_format="json",
-                replace=True,
-                pd_kwargs={"date_format": "iso", "lines": True, "orient": "records"},
-                dag=None,
-            )
-            op._get_hook = mock_dbapi_hook
-            op.execute(None)
-            mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+        op = SqlToS3Operator(
+            query=query,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            file_format="json",
+            replace=True,
+            pd_kwargs={"date_format": "iso", "lines": True, "orient": "records"},
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
 
-            get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
+        assert isinstance(file_obj, io.BytesIO)
+        mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
+            file_obj=file_obj, key=s3_key, bucket_name=s3_bucket, replace=True
+        )
 
-            temp_mock.assert_called_once_with(mode="r+", suffix=".json")
-            mock_s3_hook.return_value.load_file.assert_called_once_with(
-                filename=f.name,
-                key=s3_key,
-                bucket_name=s3_bucket,
-                replace=True,
-            )
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_execute_gzip_with_bytesio(self, mock_s3_hook):
+        query = "query"
+        s3_bucket = "bucket"
+        s3_key = "key.csv.gz"
+
+        mock_dbapi_hook = mock.Mock()
+        test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
+        get_df_mock = mock_dbapi_hook.return_value.get_df
+        get_df_mock.return_value = test_df
+
+        op = SqlToS3Operator(
+            query=query,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            sql_conn_id="mysql_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            replace=True,
+            pd_kwargs={"index": False, "compression": "gzip"},
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
+
+        mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+        get_df_mock.assert_called_once_with(sql=query, parameters=None, df_type="pandas")
+        file_obj = mock_s3_hook.return_value.load_file_obj.call_args[1]["file_obj"]
+        assert isinstance(file_obj, io.BytesIO)
+        mock_s3_hook.return_value.load_file_obj.assert_called_once_with(
+            file_obj=file_obj, key=s3_key, bucket_name=s3_bucket, replace=True
+        )
+
+        file_obj.seek(0)
+        with gzip.GzipFile(fileobj=file_obj, mode="rb") as gz:
+            decompressed_buf = io.BytesIO(gz.read())
+        decompressed_buf.seek(0)
+        read_df = pd.read_csv(decompressed_buf, dtype={"a": str, "b": str})
+        assert read_df.equals(test_df)
 
     @pytest.mark.parametrize(
         "params",
