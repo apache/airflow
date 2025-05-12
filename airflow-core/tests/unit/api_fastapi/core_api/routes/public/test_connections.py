@@ -921,8 +921,7 @@ class TestBulkConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
         "actions, expected_results",
         [
-            # Test successful create
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -943,9 +942,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         "errors": [],
                     }
                 },
+                id="test_successful_create",
             ),
-            # Test successful create with skip
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -970,9 +969,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         "errors": [],
                     }
                 },
+                id="test_successful_create_with_skip",
             ),
-            # Test create with overwrite
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -994,9 +993,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         "errors": [],
                     }
                 },
+                id="test_create_with_overwrite",
             ),
-            # Test create conflict
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -1026,9 +1025,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         ],
                     }
                 },
+                id="test_create_conflict",
             ),
-            # Test successful update
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -1050,9 +1049,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         "errors": [],
                     }
                 },
+                id="test_successful_update",
             ),
-            # Test update with skip
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -1073,9 +1072,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         "errors": [],
                     }
                 },
+                id="test_update_with_skip",
             ),
-            # Test update with fail
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -1101,9 +1100,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         ],
                     }
                 },
+                id="test_update_with_fail",
             ),
-            # Test successful delete
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -1118,9 +1117,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         "errors": [],
                     }
                 },
+                id="test_successful_delete",
             ),
-            # Test delete with skip
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -1136,9 +1135,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         "errors": [],
                     }
                 },
+                id="test_delete_with_skip",
             ),
-            # Test delete not found
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -1159,9 +1158,9 @@ class TestBulkConnections(TestConnectionEndpoint):
                         ],
                     }
                 },
+                id="test_delete_not_found",
             ),
-            # Test Create, Update, Delete
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -1206,6 +1205,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                         "errors": [],
                     },
                 },
+                id="test_create_update_delete",
             ),
         ],
     )
