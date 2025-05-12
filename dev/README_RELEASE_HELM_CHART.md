@@ -686,62 +686,34 @@ git push apache helm-chart/${VERSION}
 
 ## Publish documentation
 
-In our cases, documentation for the released versions is published in a separate repository -
-[`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and
-build tools are available in the `apache/airflow` repository, so you have to coordinate
-between the two repositories to be able to build the documentation.
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
 
-- First, copy the airflow-site repository, create branch, and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+There are two steps to publish the documentation:
 
-    ```shell
-    git clone https://github.com/apache/airflow-site.git airflow-site
-    cd airflow-site
-    git checkout -b helm-${VERSION}-docs
-    export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
-    ```
+1. Publish the documentation to S3 bucket.
 
-- Then you can go to the directory and build the necessary documentation packages
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
 
-    ```shell
-    cd "${AIRFLOW_REPO_ROOT}"
-    git checkout helm-chart/${VERSION}
-    breeze build-docs helm-chart --clean-build
-    ```
+You can specify the tag to use to build the docs and 'helm-chart' passed as packages to be built.
 
-- Now you can preview the documentation.
+After that step, the provider documentation should be available under the usual urls (same as in PyPI packages)
+but stable links and drop-down boxes should not be updated.
 
-    ```shell
-    ./docs/start_doc_server.sh
-    ```
+2. Update version drop-down and stable links with the new versions of the documentation.
 
-- Copy the documentation to the ``airflow-site`` repository.
+In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository.
 
-    ```shell
-    breeze release-management publish-docs helm-chart
-    ```
+After that workflow completes, the new version should be available in the drop-down list and stable links
+should be updated.
 
-- Update `index.yaml`
-
-  Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add apache-airflow https://airflow.apache.org`.
-
-    ```shell
-    breeze release-management add-back-references helm-chart
-    cd "${AIRFLOW_SITE_DIRECTORY}"
-    curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/index.yaml -o index.yaml
-    cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
-    helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/${VERSION}"
-    rm airflow-${VERSION}.tgz
-    mv index.yaml landing-pages/site/static/index.yaml
-    ```
-
-- Commit new docs, push, and open PR
-
-    ```shell
-    git add .
-    git commit -m "Add documentation for Apache Airflow Helm Chart ${VERSION}"
-    git push
-    # and finally open a PR
-    ```
 
 ## Notify developers of release
 

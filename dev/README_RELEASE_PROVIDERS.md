@@ -37,7 +37,6 @@
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
   - [Add tags in git](#add-tags-in-git)
-  - [Prepare documentation](#prepare-documentation)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
   - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
@@ -46,8 +45,8 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
-  - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
+  - [Publish documentation](#publish-documentation)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
@@ -484,137 +483,6 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ```shell script
 breeze release-management tag-providers
-```
-
-## Prepare documentation
-
-Documentation is an essential part of the product and should be made available to users.
-In our cases, documentation  for the released versions is published in a separate repository -
-[`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code
-and build tools are available in the `apache/airflow` repository, so you have to coordinate between
-the two repositories to be able to build the documentation.
-
-Documentation for providers can be found in the `/docs/apache-airflow-providers` directory
-and the `/docs/apache-airflow-providers-*/` directory. The first directory contains the package contents
-lists and should be updated every time a new version of Provider distributions is released.
-
-- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
-
-```shell script
-git clone https://github.com/apache/airflow-site.git airflow-site
-cd airflow-site
-export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
-```
-
-Note if this is not the first time you clone the repo make sure main branch is rebased:
-
-```shell script
-cd "${AIRFLOW_SITE_DIRECTORY}"
-git checkout main
-git pull --rebase
-```
-
-- Then you can go to the directory and build the necessary documentation packages
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build apache-airflow-providers all-providers --include-removed-providers --include-commits
-```
-
-Usually when we release packages we also build documentation for the "documentation-only" packages. This
-means that unless we release just few selected packages or if we need to deliberately skip some packages
-we should release documentation for all Provider distributions and the above command is the one to use.
-
-If we want to just release some providers you can release them using package names:
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build --include-commits
-```
-
-Alternatively, if you have set the environment variable: `DISTRIBUTIONS_LIST` above, just run the command:
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --include-commits
-```
-
-Or using `--distributions-list` argument:
-
-```shell script
-breeze build-docs --distributions-list PACKAGE1,PACKAGE2 --include-commits
-```
-
-- Now you can preview the documentation.
-
-```shell script
-./docs/start_doc_server.sh
-```
-
-If you encounter error like:
-
-```shell script
-airflow git:(main) ./docs/start_doc_server.sh
-./docs/start_doc_server.sh: line 22: cd: /Users/eladkal/PycharmProjects/airflow/docs/_build: No such file or directory
-```
-
-That probably means that the doc folder is empty thus it can not build the doc server.
-This indicates that previous step of building the docs did not work.
-
-- Copy the documentation to the ``airflow-site`` repository
-
-All providers (including overriding documentation for doc-only changes) - note that publishing is
-way faster on multi-cpu machines when you are publishing multiple providers:
-
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-breeze release-management publish-docs apache-airflow-providers all-providers --include-removed-providers \
-    --override-versioned --run-in-parallel
-
-breeze release-management add-back-references all-providers
-```
-
-If you have providers as list of provider ids because you just released them you can build them with
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-breeze release-management publish-docs amazon apache.beam google ....
-breeze release-management add-back-references all-providers
-```
-
-Alternatively, if you have set the environment variable: `DISTRIBUTIONS_LIST` above, just run the command:
-
-```shell script
-breeze release-management publish-docs
-breeze release-management add-back-references all-providers
-```
-
-Or using `--distributions-list` argument:
-
-```shell script
-breeze release-management publish-docs --distributions-list PACKAGE1,PACKAGE2
-breeze release-management add-back-references all-providers
-```
-
-
-Review the state of removed, suspended, new packages in
-[the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
-
-- If you publish a new package, you must add it to the list of packages in the index.
-- If there are changes to suspension or removal status of a package  you must move it appropriate section.
-
-- Create the commit and push changes.
-
-```shell script
-cd "${AIRFLOW_SITE_DIRECTORY}"
-branch="add-documentation-$(date "+%Y-%m-%d%n")"
-git checkout -b "${branch}"
-git add .
-git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
-git push --set-upstream origin "${branch}"
 ```
 
 ## Prepare issue in GitHub to keep status of testing
@@ -1253,21 +1121,6 @@ Copy links to updated packages, sort it alphabetically and save it on the side. 
 
 * Again, confirm that the packages are available under the links printed.
 
-## Publish documentation prepared before
-
-Merge the PR that you prepared before with the documentation.
-
-If you decided to remove some packages from the release make sure to do amend the commit in this way:
-
-* find the packages you removed in `docs-archive/apache-airflow-providers-<PROVIDER>`
-* remove the latest version (the one you were releasing)
-* update `stable.txt` to the previous version
-* in the (unlikely) event you are removing first version of package:
-   * remove whole `docs-archive/apache-airflow-providers-<PROVIDER>` folder
-   * remove package from `docs-archive/apache-airflow-providers/core-extensions/index.html` (2 places)
-   * remove package from `docs-archive/apache-airflow-providers/core-extensions/connections.html` (2 places)
-   * remove package from `docs-archive/apache-airflow-providers/core-extensions/extra-links.html` (2 places)
-   * remove package from `docs-archive/apache-airflow-providers/core-extensions/packages-ref.html` (5 places)
 
 ## Add tags in git
 
@@ -1282,6 +1135,61 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 ```shell script
 breeze release-management tag-providers
 ```
+
+## Publish documentation
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
+
+There are two steps to publish the documentation:
+
+1. Publish the documentation to S3 bucket.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+
+You can specify the tag to use to build the docs and list of providers to publish (separated by spaces) or
+``all-providers`` in case you want to publish all providers (optionally you can exclude
+some of those providers)
+
+After that step, the provider documentation should be available under the usual urls (same as in PyPI packages)
+but stable links and drop-down boxes should not be updated.
+
+Use "live" S3 to publish the final documentation.
+
+2. Update version drop-down and stable links with the new versions of the documentation.
+
+Before doing it - review the state of removed, suspended, new packages in
+[the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+
+- If you publish a new package, you must add it to the list of packages in the index.
+- If there are changes to suspension or removal status of a package  you must move it appropriate section.
+
+- In case you need to make any changes - create the commit and push changes and merge it to main branch.
+  in [airflow-site](https://github.com/apache/airflow-site) repository.
+
+```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
+branch="add-documentation-$(date "+%Y-%m-%d%n")"
+git checkout -b "${branch}"
+git add .
+git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
+git push --set-upstream origin "${branch}"
+```
+
+Merging the PR with the index changes to main will trigger site publishing.
+
+If you do not need to merge a PR, you can manually run the
+[Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository.
+
+After that build from PR or workflow completes, the new version should be available in the drop-down
+list and stable links should be updated.
 
 ## Update providers metadata
 
