@@ -38,6 +38,12 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.common.opendal.hooks.opendal"],
             }
         ],
+        "triggers": [
+            {
+                "integration-name": "Apache Opendal",
+                "python-modules": ["airflow.providers.common.opendal.triggers.opendal"],
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.common.opendal.hooks.opendal.OpenDALHook",

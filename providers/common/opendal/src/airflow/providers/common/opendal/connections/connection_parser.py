@@ -36,12 +36,17 @@ class S3ConnectionParser(OpenDALAirflowConnectionParser):
     def parse(self, conn: Connection) -> dict[str, Any]:
         """Parse the connection and return an OpenDAL operator args for s3 scheme."""
 
+        from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+        s3_conn = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
+        creds = s3_conn.get_credentials()
+
         params = {}
 
         params.update({
             "bucket": conn.extra_dejson.get("bucket"),
-            "access_key_id": conn.login or conn.extra_dejson.get("aws_access_key_id"),
-            "secret_access_key": conn.password or conn.extra_dejson.get("aws_secret_access_key"),
+            "access_key_id": conn.login or creds.access_key,
+            "secret_access_key": conn.password or creds.secret_key,
+            "session_token": creds.token if creds.token else None,
             "region": conn.extra_dejson.get("region"),
             "endpoint": conn.extra_dejson.get("endpoint"),
         })
