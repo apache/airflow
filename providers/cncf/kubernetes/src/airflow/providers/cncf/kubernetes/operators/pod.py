@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 import logging
@@ -602,12 +603,20 @@ class KubernetesPodOperator(BaseOperator):
 
     def await_pod_start(self, pod: k8s.V1Pod) -> None:
         try:
-            self.pod_manager.await_pod_start(
-                pod=pod,
-                schedule_timeout=self.schedule_timeout_seconds,
-                startup_timeout=self.startup_timeout_seconds,
-                check_interval=self.startup_check_interval_seconds,
+            loop = asyncio.get_event_loop()
+            events_task = asyncio.ensure_future(
+                self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
             )
+            loop.run_until_complete(
+                self.pod_manager.await_pod_start(
+                    pod=pod,
+                    schedule_timeout=self.schedule_timeout_seconds,
+                    startup_timeout=self.startup_timeout_seconds,
+                    check_interval=self.startup_check_interval_seconds,
+                )
+            )
+            loop.run_until_complete(events_task)
+            loop.close()
         except PodLaunchFailedException:
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)

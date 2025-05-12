@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from typing import Callable
 from unittest import mock
 
@@ -81,6 +82,12 @@ HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 @pytest.mark.db_test
 class TestKubernetesDecoratorsBase:
     @pytest.fixture(autouse=True)
+    def event_loop(self):
+        loop = asyncio.new_event_loop()
+        yield loop
+        loop.close()
+
+    @pytest.fixture(autouse=True)
     def setup(self, dag_maker):
         self.dag_maker = dag_maker
 
@@ -90,7 +97,18 @@ class TestKubernetesDecoratorsBase:
         self.dag = dag
 
         self.mock_create_pod = mock.patch(f"{POD_MANAGER_CLASS}.create_pod").start()
-        self.mock_await_pod_start = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start").start()
+        self.mock_watch_pod_events_patch = mock.patch(
+            f"{POD_MANAGER_CLASS}.watch_pod_events", new_callable=mock.AsyncMock
+        )
+        self.mock_watch_pod_events = self.mock_watch_pod_events_patch.start()
+        self.mock_watch_pod_events.return_value = asyncio.Future()
+        self.mock_watch_pod_events.return_value.set_result(None)
+        self.mock_await_pod_start_patch = mock.patch(
+            f"{POD_MANAGER_CLASS}.await_pod_start", new_callable=mock.AsyncMock
+        )
+        self.mock_await_pod_start = self.mock_await_pod_start_patch.start()
+        self.mock_await_pod_start.return_value = asyncio.Future()
+        self.mock_await_pod_start.return_value.set_result(None)
         self.mock_await_xcom_sidecar_container_start = mock.patch(
             f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start"
         ).start()

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import datetime
 import re
 from contextlib import contextmanager, nullcontext
@@ -143,13 +144,25 @@ def create_context(task, persist_to_db=False, map_index=None):
 @pytest.mark.execution_timeout(300)
 class TestKubernetesPodOperator:
     @pytest.fixture(autouse=True)
+    def event_loop(self):
+        loop = asyncio.new_event_loop()
+        yield loop
+        loop.close()
+
+    @pytest.fixture(autouse=True)
     def setup_tests(self, dag_maker):
         self.create_pod_patch = patch(f"{POD_MANAGER_CLASS}.create_pod")
-        self.await_pod_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_start")
+        self.watch_pod_events = patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new_callable=mock.AsyncMock)
+        self.await_pod_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_start", new_callable=mock.AsyncMock)
         self.await_pod_completion_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
         self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self.watch_pod_events_mock = self.watch_pod_events.start()
+        self.watch_pod_events_mock.return_value = asyncio.Future()
+        self.watch_pod_events_mock.return_value.set_result(None)
         self.create_mock = self.create_pod_patch.start()
         self.await_start_mock = self.await_pod_patch.start()
+        self.await_start_mock.return_value = asyncio.Future()
+        self.await_start_mock.return_value.set_result(None)
         self.await_pod_mock = self.await_pod_completion_patch.start()
         self._default_client_mock = self._default_client_patch.start()
         self.dag_maker = dag_maker

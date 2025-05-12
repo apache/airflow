@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -110,6 +111,12 @@ def mock_get_connection():
 @pytest.mark.execution_timeout(180)
 @pytest.mark.usefixtures("mock_get_connection")
 class TestKubernetesPodOperatorSystem:
+    @pytest.fixture(autouse=True)
+    def event_loop(self):
+        loop = asyncio.new_event_loop()
+        yield loop
+        loop.close()
+
     @pytest.fixture(autouse=True)
     def setup_tests(self, test_label):
         self.api_client = ApiClient()
