@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI
 from starlette.routing import Mount
 
+from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_error_handlers,
@@ -79,12 +80,16 @@ def create_app(apps: str = "all") -> FastAPI:
         version="2",
     )
 
+    dag_bag = create_dag_bag()
+
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
+        task_exec_api_app.state.dag_bag = dag_bag
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
     if "core" in apps_list or "all" in apps_list:
+        app.state.dag_bag = dag_bag
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
