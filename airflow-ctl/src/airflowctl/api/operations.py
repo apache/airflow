@@ -416,7 +416,7 @@ class DagOperations(BaseOperations):
 
     def list_import_error(self) -> ImportErrorCollectionResponse | ServerResponseError:
         try:
-            self.response = self.client.get("fimportErrors")
+            self.response = self.client.get("importErrors")
             return ImportErrorCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
