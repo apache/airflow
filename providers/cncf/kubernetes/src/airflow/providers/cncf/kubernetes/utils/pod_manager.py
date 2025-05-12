@@ -46,6 +46,8 @@ from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
+    from kubernetes.client.models.v1_container_state import V1ContainerState
+    from kubernetes.client.models.v1_container_state_waiting import V1ContainerStateWaiting
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_pod import V1Pod
     from kubernetes.client.models.v1_pod_condition import V1PodCondition
@@ -423,6 +425,19 @@ class PodManager(LoggingMixin):
                     raise PodLaunchFailedException(
                         f"Pod took too long to be scheduled on the cluster, giving up. More than {schedule_timeout}s. Check the pod events in kubernetes."
                     )
+
+            # Check for general problems to terminate early - ErrImagePull
+            if pod_status.container_statuses:
+                for container_status in pod_status.container_statuses:
+                    container_state: V1ContainerState = container_status.state
+                    container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+                    if container_waiting:
+                        if container_waiting.reason in ["ErrImagePull", "InvalidImageName"]:
+                            self.log.info("::endgroup::")
+                            raise PodLaunchFailedException(
+                                f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
+                                f"\n{container_waiting.message}"
+                            )
 
             time.sleep(check_interval)
 
