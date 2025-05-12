@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import collections
 import itertools
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
@@ -29,6 +30,11 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
 T = TypeVar("T")
+
+# This is used to wrap values from the API so the structure is compatible with
+# ``XCom.deserialize_value``. We don't want to wrap the API values in a nested
+# {"value": value} dict since it wastes bandwidth.
+_XComWrapper = collections.namedtuple("_XComWrapper", "value")
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -132,7 +138,7 @@ class LazyXComSequence(Sequence[T]):
                 raise IndexError(key)
             if not isinstance(msg, XComSequenceIndexResponse):
                 raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg}")
-            return BaseXCom.deserialize_value(msg.root)
+            return BaseXCom.deserialize_value(_XComWrapper(msg.root))
 
         if isinstance(key, slice):
             start, stop, step = _coerce_slice(key)
@@ -153,7 +159,7 @@ class LazyXComSequence(Sequence[T]):
                 msg = SUPERVISOR_COMMS.get_message()
                 if not isinstance(msg, XComSequenceSliceResponse):
                     raise TypeError(f"Got unexpected response to GetXComSequenceSlice: {msg}")
-            return [BaseXCom.deserialize_value(value) for value in msg.root]
+            return [BaseXCom.deserialize_value(_XComWrapper(value)) for value in msg.root]
 
         raise TypeError(f"Sequence indices must be integers or slices, not {type(key).__name__}")
 
