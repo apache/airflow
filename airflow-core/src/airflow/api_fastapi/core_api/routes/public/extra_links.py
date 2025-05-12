@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.sql import select
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc

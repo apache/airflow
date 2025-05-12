@@ -23,7 +23,7 @@ from typing import cast
 from fastapi import Depends, HTTPException, status
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.deps import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.tasks import TaskCollectionResponse, TaskResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc

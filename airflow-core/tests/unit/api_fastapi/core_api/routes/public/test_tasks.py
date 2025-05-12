@@ -21,7 +21,7 @@ from datetime import datetime
 
 import pytest
 
-from airflow.api_fastapi.common.deps import _get_dag_bag
+from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -70,7 +70,7 @@ class TestTaskEndpoint:
             mapped_dag.dag_id: mapped_dag,
             unscheduled_dag.dag_id: unscheduled_dag,
         }
-        test_client.app.dependency_overrides[_get_dag_bag] = lambda: dag_bag
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
     @staticmethod
     def clear_db():
@@ -240,7 +240,7 @@ class TestGetTask(TestTaskEndpoint):
         SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
-        test_client.app.dependency_overrides[_get_dag_bag] = lambda: dag_bag
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         expected = {
             "class_ref": {

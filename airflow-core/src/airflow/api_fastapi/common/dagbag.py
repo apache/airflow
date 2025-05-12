@@ -14,22 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import os
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
 from airflow.models.dagbag import DagBag
 from airflow.settings import DAGS_FOLDER
 
 
-def _get_dag_bag() -> DagBag:
-    if os.environ.get("SKIP_DAGS_PARSING") == "True":
-        return DagBag(os.devnull, include_examples=False)
+def create_dag_bag() -> DagBag:
+    """Create DagBag to retrieve DAGs from the database."""
     return DagBag(DAGS_FOLDER, read_dags_from_db=True)
 
 
-DagBagDep = Annotated[DagBag, Depends(_get_dag_bag)]
+def dag_bag_from_app(request: Request) -> DagBag:
+    """
+    FastAPI dependency resolver that returns the shared DagBag instance from app.state.
+
+    This ensures that all API routes using DagBag via dependency injection receive the same
+    singleton instance that was initialized at app startup.
+    """
+    return request.app.state.dag_bag
+
+
+DagBagDep = Annotated[DagBag, Depends(dag_bag_from_app)]

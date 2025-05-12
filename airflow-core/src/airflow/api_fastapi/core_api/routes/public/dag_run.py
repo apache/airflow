@@ -32,8 +32,8 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,

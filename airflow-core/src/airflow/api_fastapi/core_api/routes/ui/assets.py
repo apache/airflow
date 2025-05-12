@@ -20,8 +20,8 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, func, select
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
 from airflow.models import DagModel

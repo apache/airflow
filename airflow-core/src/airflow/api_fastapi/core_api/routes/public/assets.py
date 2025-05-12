@@ -24,8 +24,8 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
     FilterParam,

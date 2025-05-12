@@ -26,8 +26,8 @@ from pydantic import PositiveInt
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
