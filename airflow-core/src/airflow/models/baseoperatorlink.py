@@ -19,4 +19,12 @@
 
 from __future__ import annotations
 
+import warnings
+
 from airflow.sdk.bases.operatorlink import BaseOperatorLink as BaseOperatorLink
+
+warnings.warn(
+    "The module 'airflow.models.baseoperatorlink' is deprecated. Please import it from 'airflow.sdk.bases.operatorlink'.",
+    DeprecationWarning,
+    stacklevel=2,
+)

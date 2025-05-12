@@ -19,4 +19,12 @@
 
 from __future__ import annotations
 
+import warnings
+
 from airflow.sdk.definitions.param import Param as Param, ParamsDict as ParamsDict
+
+warnings.warn(
+    "The module 'airflow.models.param' is deprecated. Please import it from 'airflow.sdk.definitions.param'.",
+    DeprecationWarning,
+    stacklevel=2,
+)

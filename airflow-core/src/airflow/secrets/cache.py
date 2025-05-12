@@ -19,4 +19,12 @@
 
 from __future__ import annotations
 
+import warnings
+
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
+
+warnings.warn(
+    "The module 'airflow.secrets.cache' is deprecated. Please import it from 'airflow.sdk.execution_time.cache'.",
+    DeprecationWarning,
+    stacklevel=2,
+)
