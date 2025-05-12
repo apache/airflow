@@ -239,6 +239,7 @@ class TestAssetModelOperation:
 
 
 @pytest.mark.db_test
+@pytest.mark.want_activate_assets(False)
 class TestAssetModelOperationSyncAssetActive:
     @staticmethod
     def clean_db():
