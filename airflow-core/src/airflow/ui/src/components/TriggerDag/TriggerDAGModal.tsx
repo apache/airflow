@@ -62,14 +62,17 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   );
 
   const hasSchedule = dag?.timetable_summary !== null;
+  const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
+  const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header paddingBottom={0}>
-          <VStack align="start" gap={2} width="100%">
+          <VStack align="start" gap={2} width="100%" wordBreak="break-all">
             <Heading size="xl">
-              {runMode === RunMode.SINGLE ? "Trigger DAG" : "Run Backfill"} - {dagDisplayName}
+              {runMode === RunMode.SINGLE ? "Trigger DAG" : "Run Backfill"} -{" "}
+              {nameOverflowing ? <br /> : undefined} {dagDisplayName}
             </Heading>
           </VStack>
         </Dialog.Header>

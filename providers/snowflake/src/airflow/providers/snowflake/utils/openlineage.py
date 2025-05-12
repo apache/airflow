@@ -280,6 +280,7 @@ def emit_openlineage_events_for_snowflake_queries(
     from airflow.providers.common.compat.openlineage.facet import (
         ErrorMessageRunFacet,
         ExternalQueryRunFacet,
+        RunFacet,
         SQLJobFacet,
     )
     from airflow.providers.openlineage.conf import namespace
@@ -303,7 +304,6 @@ def emit_openlineage_events_for_snowflake_queries(
     # If no query metadata is provided, we use task_instance's state when checking for success
     default_state = task_instance.state.value if hasattr(task_instance, "state") else ""
 
-    log.debug("Generating OpenLineage facets")
     common_run_facets = {"parent": _get_parent_run_facet(task_instance)}
     common_job_facets: dict[str, JobFacet] = {
         "jobType": job_type_job.JobTypeJobFacet(
@@ -325,12 +325,11 @@ def emit_openlineage_events_for_snowflake_queries(
             query_metadata if query_metadata else "not found",
         )
 
-        # TODO(potiuk): likely typing here needs to be fixed
-        query_specific_run_facets = {  # type : ignore[assignment]
+        query_specific_run_facets: dict[str, RunFacet] = {
             "externalQuery": ExternalQueryRunFacet(externalQueryId=query_id, source=query_source_namespace)
         }
         if query_metadata.get("ERROR_MESSAGE"):
-            query_specific_run_facets["error"] = ErrorMessageRunFacet(  # type: ignore[assignment]
+            query_specific_run_facets["error"] = ErrorMessageRunFacet(
                 message=f"{query_metadata.get('ERROR_CODE')} : {query_metadata['ERROR_MESSAGE']}",
                 programmingLanguage="SQL",
             )
@@ -353,9 +352,9 @@ def emit_openlineage_events_for_snowflake_queries(
         events.extend(event_batch)
 
     log.debug("Generated %s OpenLineage events; emitting now.", len(events))
-    client = get_openlineage_listener().adapter.get_or_create_openlineage_client()
+    adapter = get_openlineage_listener().adapter
     for event in events:
-        client.emit(event)
+        adapter.emit(event)
 
     log.info("OpenLineage has successfully finished processing information about Snowflake queries.")
     return

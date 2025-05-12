@@ -1277,7 +1277,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
         api = in_process_api_server()
         if dag is not None:
-            from airflow.api_fastapi.common.deps import _get_dag_bag
+            from airflow.api_fastapi.common.dagbag import dag_bag_from_app
             from airflow.serialization.serialized_objects import SerializedDAG
 
             # This is needed since the Execution API server uses the DagBag in its "state".
@@ -1286,7 +1286,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
             # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
             dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-            api.app.dependency_overrides[_get_dag_bag] = lambda: dag_bag
+            api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
@@ -1320,15 +1320,22 @@ def set_supervisor_comms(temp_comms):
     """
     from airflow.sdk.execution_time import task_runner
 
-    old = getattr(task_runner, "SUPERVISOR_COMMS", None)
-    task_runner.SUPERVISOR_COMMS = temp_comms
+    sentinel = object()
+    old = getattr(task_runner, "SUPERVISOR_COMMS", sentinel)
+
+    if temp_comms is not None:
+        task_runner.SUPERVISOR_COMMS = temp_comms
+    elif old is not sentinel:
+        delattr(task_runner, "SUPERVISOR_COMMS")
+
     try:
         yield
     finally:
-        if old is not None:
-            task_runner.SUPERVISOR_COMMS = old
+        if old is sentinel:
+            if hasattr(task_runner, "SUPERVISOR_COMMS"):
+                delattr(task_runner, "SUPERVISOR_COMMS")
         else:
-            delattr(task_runner, "SUPERVISOR_COMMS")
+            task_runner.SUPERVISOR_COMMS = old
 
 
 def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
