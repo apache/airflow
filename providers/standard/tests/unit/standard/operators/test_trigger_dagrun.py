@@ -77,6 +77,7 @@ class TestDagRunOperator:
 
         with create_session() as session:
             session.add(DagBundleModel(name="dags-folder"))
+            session.flush()
             session.add(DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name="dags-folder", fileloc=self._tmpfile))
             session.commit()
 

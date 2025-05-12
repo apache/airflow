@@ -57,6 +57,7 @@ from airflow.models.dag import (
     ExecutorLoader,
     get_asset_triggered_next_run_info,
 )
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -2209,9 +2210,10 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="dags-folder",
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=None,
             next_dagrun_create_after=None,
@@ -2219,7 +2221,7 @@ class TestDagModel:
         )
         # assert max_active_runs updated
         assert orm_dag.max_active_runs == 16
-        session.add(orm_dag)
+        session.add_all([orm_dag_bundle, orm_dag])
         session.flush()
         assert orm_dag.max_active_runs is not None
 
@@ -2234,15 +2236,16 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="dags-folder",
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_stale=False,
         )
-        session.add(orm_dag)
+        session.add_all([orm_dag_bundle, orm_dag])
         session.flush()
 
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2267,16 +2270,17 @@ class TestDagModel:
         dag = DAG(dag_id="test_dags", schedule=None, start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="dags-folder",
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_stale=False,
         )
         assert not orm_dag.has_import_errors
-        session.add(orm_dag)
+        session.add_all([orm_dag_bundle, orm_dag])
         session.flush()
 
         query, _ = DagModel.dags_needing_dagruns(session)
