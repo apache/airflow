@@ -37,6 +37,7 @@
     Connection <connections/kafka>
     Hooks <hooks>
     Operators <operators/index>
+    Message Queues <message-queues/index>
     Sensors <sensors>
     Triggers <triggers>
 

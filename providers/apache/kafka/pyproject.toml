@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-kafka"
-version = "1.8.1"
+version = "1.9.0"
 description = "Provider package apache-airflow-providers-apache-kafka for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -68,12 +68,16 @@ dependencies = [
 "google" = [
     "apache-airflow-providers-google"
 ]
+"common.messaging" = [
+    "apache-airflow-providers-common-messaging>=1.0.1"
+]
 
 [dependency-groups]
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-google",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
@@ -104,8 +108,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.8.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.8.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.9.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.9.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
