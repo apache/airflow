@@ -744,6 +744,7 @@ def update_release_notes(
     maybe_with_new_features = False
     original_provider_yaml_content: str | None = None
     marked_for_release = False
+    with_min_airflow_version_bump = False
     if not reapply_templates_only:
         if proceed:
             if non_interactive:
@@ -775,7 +776,6 @@ def update_release_notes(
             table_iter = 0
             global SHORT_HASH_TO_TYPE_DICT
             type_of_current_package_changes: list[TypeOfChange] = []
-            with_min_airflow_version_bump = False
             while table_iter < change_table_len:
                 get_console().print()
                 formatted_message = format_message_for_classification(
