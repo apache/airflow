@@ -129,7 +129,6 @@ class TestDagFileProcessor:
         assert resp.import_errors is not None
         assert "a.py" in resp.import_errors
 
-    # @pytest.mark.execution_timeout(10)
     def test_top_level_variable_access(
         self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ):
@@ -271,9 +270,7 @@ class TestDagFileProcessor:
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "test_my_conn"
 
-    def test_top_level_connection_access_not_found(
-        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_top_level_connection_access_not_found(self, tmp_path: pathlib.Path):
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -296,6 +293,35 @@ class TestDagFileProcessor:
         assert result.import_errors != {}
         if result.import_errors:
             assert "CONNECTION_NOT_FOUND" in next(iter(result.import_errors.values()))
+
+    def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path):
+        tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
+
+        dag1_path = tmp_path.joinpath("dag1.py")
+        dag1_code = """
+        from util import NAME
+
+        from airflow.sdk import DAG
+
+        with DAG(NAME):
+            pass
+        """
+        dag1_path.write_text(textwrap.dedent(dag1_code))
+
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=dag1_path,
+            bundle_path=tmp_path,
+            callbacks=[],
+            logger_filehandle=MagicMock(),
+        )
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "dag_name"
 
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
