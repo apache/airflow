@@ -157,8 +157,9 @@ class KubernetesPodOperator(BaseOperator):
     :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
         during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
-    :param startup_timeout_seconds: timeout in seconds to startup the pod.
+    :param startup_timeout_seconds: timeout in seconds to startup the pod after pod was scheduled.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
+    :param schedule_timeout_seconds: timeout in seconds to schedule pod in cluster.
     :param get_logs: get the stdout of the base container as logs of the tasks.
     :param init_container_logs: list of init containers whose logs will be published to stdout
         Takes a sequence of containers, a single container name or True. If True,
@@ -290,6 +291,7 @@ class KubernetesPodOperator(BaseOperator):
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
         startup_check_interval_seconds: int = 5,
+        schedule_timeout_seconds: int | None = None,
         get_logs: bool = True,
         base_container_name: str | None = None,
         base_container_status_polling_interval: float = 1,
@@ -349,6 +351,8 @@ class KubernetesPodOperator(BaseOperator):
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
         self.startup_check_interval_seconds = startup_check_interval_seconds
+        # New parameter startup_timeout_seconds adds breaking change, to handle this as smooth as possible just reuse startup time
+        self.schedule_timeout_seconds = schedule_timeout_seconds or startup_timeout_seconds
         env_vars = convert_env_vars(env_vars) if env_vars else []
         self.env_vars = env_vars
         pod_runtime_info_envs = (
@@ -577,8 +581,9 @@ class KubernetesPodOperator(BaseOperator):
         try:
             self.pod_manager.await_pod_start(
                 pod=pod,
+                schedule_timeout=self.schedule_timeout_seconds,
                 startup_timeout=self.startup_timeout_seconds,
-                startup_check_interval=self.startup_check_interval_seconds,
+                check_interval=self.startup_check_interval_seconds,
             )
         except PodLaunchFailedException:
             if self.log_events_on_failure:
