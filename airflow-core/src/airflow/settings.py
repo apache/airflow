@@ -563,12 +563,6 @@ def prepare_syspath_for_config_and_plugins():
         sys.path.append(PLUGINS_FOLDER)
 
 
-def prepare_syspath_for_dags_folder():
-    """Update sys.path to include the DAGs folder."""
-    if DAGS_FOLDER not in sys.path:
-        sys.path.append(DAGS_FOLDER)
-
-
 def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
@@ -615,7 +609,6 @@ def initialize():
     # in airflow_local_settings to take precendec
     load_policy_plugins(POLICY_PLUGIN_MANAGER)
     import_local_settings()
-    prepare_syspath_for_dags_folder()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
 
