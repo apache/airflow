@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import os
-import unittest
 from datetime import datetime
 
 import pytest
 
+from airflow.api_fastapi.common.deps import _get_dag_bag
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -70,7 +70,7 @@ class TestTaskEndpoint:
             mapped_dag.dag_id: mapped_dag,
             unscheduled_dag.dag_id: unscheduled_dag,
         }
-        test_client.app.state.dag_bag = dag_bag
+        test_client.app.dependency_overrides[_get_dag_bag] = lambda: dag_bag
 
     @staticmethod
     def clear_db():
@@ -229,13 +229,18 @@ class TestGetTask(TestTaskEndpoint):
 
     def test_should_respond_200_serialized(self, test_client, testing_dag_bundle):
         # Get the dag out of the dagbag before we patch it to an empty one
-        dag = test_client.app.state.dag_bag.get_dag(self.dag_id)
+
+        with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:
+            task1 = EmptyOperator(task_id=self.task_id, params={"foo": "bar"})
+            task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
+
+            task1 >> task2
+
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
-        patcher = unittest.mock.patch.object(test_client.app.state, "dag_bag", dag_bag)
-        patcher.start()
+        test_client.app.dependency_overrides[_get_dag_bag] = lambda: dag_bag
 
         expected = {
             "class_ref": {
@@ -281,7 +286,6 @@ class TestGetTask(TestTaskEndpoint):
         )
         assert response.status_code == 200
         assert response.json() == expected
-        patcher.stop()
 
     def test_should_respond_404(self, test_client):
         task_id = "xxxx_not_existing"
