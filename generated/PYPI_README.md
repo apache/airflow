@@ -142,6 +142,11 @@ pip install 'apache-airflow[postgres,google]==3.0.0' \
 For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
+
+## macOS Setup Instructions
+
+If you're a macOS user looking to install or run Airflow locally, see the [INSTALLING.md](./INSTALLING.md) file
+
 ## Official source code
 
 Apache Airflow is an [Apache Software Foundation](https://www.apache.org) (ASF) project,
