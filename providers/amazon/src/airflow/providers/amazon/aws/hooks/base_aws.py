@@ -59,6 +59,7 @@ from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionW
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -605,10 +606,15 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if self.aws_conn_id:
             try:
                 connection = self.get_connection(self.aws_conn_id)
-            except AirflowNotFoundException:
-                self.log.warning(
-                    "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
-                )
+            except (AirflowNotFoundException, AirflowRuntimeError) as e:
+                if isinstance(
+                    e, AirflowNotFoundException
+                ) or f"Connection with ID {self.aws_conn_id} not found" in str(e):
+                    self.log.warning(
+                        "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
+                    )
+                else:
+                    raise
 
         return AwsConnectionWrapper(
             conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
