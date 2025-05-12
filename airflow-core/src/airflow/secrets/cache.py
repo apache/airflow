@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {

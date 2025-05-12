@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-from airflow.sdk.bases.operatorlink import BaseOperatorLink as BaseOperatorLink
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {

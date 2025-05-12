@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-from airflow.sdk.definitions.param import Param as Param, ParamsDict as ParamsDict
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
