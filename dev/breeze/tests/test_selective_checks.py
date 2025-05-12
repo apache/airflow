@@ -2029,7 +2029,7 @@ def test_expected_output_push(
             ),
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
-                "dbt.cloud ftp google microsoft.mssql mysql "
+                "databricks dbt.cloud ftp google microsoft.mssql mysql "
                 "openlineage postgres sftp snowflake trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -2040,7 +2040,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql "
-                "dbt.cloud ftp google microsoft.mssql mysql "
+                "databricks dbt.cloud ftp google microsoft.mssql mysql "
                 "openlineage postgres sftp snowflake trino",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
@@ -2051,7 +2051,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
-                            "dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,"
+                            "databricks,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,"
                             "postgres,sftp,snowflake,trino] Providers[google]",
                         }
                     ]
