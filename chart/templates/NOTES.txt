@@ -22,7 +22,7 @@ Thank you for installing Apache {{ title .Chart.Name }} {{ .Values.airflowVersio
 
 Your release is named {{ .Release.Name }}.
 
-{{- if or .Values.ingress.web.enabled .Values.ingress.flower.enabled .Values.ingress.enabled }}
+{{- if or .Values.ingress.web.enabled .Values.ingress.flower.enabled .Values.ingress.enabled .Values.ingress.apiServer.enabled }}
 You can now access your service(s) by following defined Ingress urls:
 
 {{- if .Values.ingress.web.host }}
@@ -30,6 +30,14 @@ You can now access your service(s) by following defined Ingress urls:
 DEPRECATION WARNING:
    `ingress.web.host` has been renamed to `ingress.web.hosts` and is now an array.
    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.ingress.web.hosts }}
+
+DEPRECATION ERROR:
+   `ingress.web.hosts` has been renamed to `ingress.apiServer.hosts` as per Airflow v3.
+   Please change your values as the service has been renamed.
 
 {{- end }}
 
@@ -68,6 +76,7 @@ DEPRECATION WARNING:
 {{- end }}
 
 {{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
+
 Airflow Webserver:
 {{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
       {{- $tlsEnabled := $.Values.ingress.web.tls.enabled -}}
@@ -78,10 +87,29 @@ Airflow Webserver:
       {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.web.path }}/
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.web.path }}
 {{- end }}
 {{- end }}
+
+{{- if .Values.ingress.apiServer.enabled }}
+
+Airflow API Server:
+{{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
+      {{- $tlsEnabled := $.Values.ingress.apiServer.tls.enabled -}}
+      {{- $hostname := $.Values.ingress.apiServer.host -}}
+      {{- if . | kindIs "string" | not }}
+      {{- if .tls }}
+      {{- $tlsEnabled = .tls.enabled -}}
+      {{- $hostname = .name -}}
+      {{- end }}
+      {{- end }}
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.apiServer.path }}
+
+{{- end }}
+{{- end }}
+
 {{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+
 Flower dashboard:
 {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
       {{- $tlsEnabled := $.Values.ingress.flower.tls.enabled -}}
@@ -92,13 +120,18 @@ Flower dashboard:
       {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.flower.path }}/
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.flower.path }}
 {{- end }}
 {{- end }}
 {{- else }}
+
 You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
+{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
 Airflow Webserver:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-webserver {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+{{- else }}
+Airflow API Server:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-api-server {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+{{- end }}
 
 {{- if .Values.flower.enabled }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)}}
@@ -110,12 +143,15 @@ Flower dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . 
 
 
 {{- if .Values.webserver.defaultUser.enabled}}
+
 Default Webserver (Airflow UI) Login credentials:
     username: {{ .Values.webserver.defaultUser.username }}
     password: {{ .Values.webserver.defaultUser.password }}
+
 {{- end }}
 
 {{- if .Values.postgresql.enabled }}
+
 Default Postgres connection credentials:
     username: {{ .Values.data.metadataConnection.user }}
     password: {{ .Values.data.metadataConnection.pass }}
