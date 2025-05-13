@@ -39,7 +39,7 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 # NOTE: If you change the below line, specifically removing the amazon extra, please ensure boto3 is
 # installed via another method. Boto3 is required for the Lambda executor to function properly.
 # hadolint ignore=SC2102
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir apache-airflow[amazon,postgres]==2.10.5
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir apache-airflow[amazon,postgres]
 # /tmp is the only writable directory in Lambda, so we need to set the AIRFLOW_HOME there.
 ENV AIRFLOW_HOME=/tmp/airflow
 # Dags are read-only, so they can be stored in opt (or another path provided).

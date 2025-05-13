@@ -1184,14 +1184,14 @@ def get_provider_info():
                         "default": "3",
                     },
                     "queue_url": {
-                        "description": "The name of the SQS queue to use for the Lambda executor. Required.\nThe Lambda executor will poll this queue for results of the lambda function's Airflow Task.\n",
+                        "description": "The URL of the SQS queue to use for the Lambda executor. Required.\nThe Lambda executor will poll this queue for results of the lambda function's Airflow Task.\n",
                         "version_added": "9.7.0",
                         "type": "string",
                         "example": "airflow-lambda-executor-results-queue",
                         "default": None,
                     },
                     "dead_letter_queue_url": {
-                        "description": "The name of the SQS dead letter queue to use for the Lambda function. The Lambda executor\nwill poll this queue for timeout/exception results of the lambda function. Required\n",
+                        "description": "The URL of the SQS dead letter queue to use for the Lambda function. The Lambda executor\nwill poll this queue for timeout/exception results of the lambda function. Required\n",
                         "version_added": "9.7.0",
                         "type": "string",
                         "example": "airflow-lambda-executor-dlq",

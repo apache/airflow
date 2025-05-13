@@ -59,9 +59,9 @@ publish a message to the SQS results queue with the same task key it received as
 the return code of the airflow task execution process. The Lambda executor periodically
 polls this SQS results queue for messages and updates its internal state with the results
 it receives. The Lambda function must also be configured with a Dead Letter Queue (DLQ) to
-which Lambda will automatically send messages to for invocations that fail to be processed
-(timeout, crashes, etc). The Lambda executor will also poll this DLQ for messages and update
-the internal state with the results it receives.
+which Lambda will automatically send messages to for invocations that fail to be processed,
+for example due to the 15 minute max timeout of Lambda functions. The Lambda executor will
+also poll this DLQ for messages and update the internal state with the results it receives.
 
 .. image:: ../img/lambda_executor.png
 

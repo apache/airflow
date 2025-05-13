@@ -1042,7 +1042,7 @@ config:
         default: "3"
       queue_url:
         description: |
-          The name of the SQS queue to use for the Lambda executor. Required.
+          The URL of the SQS queue to use for the Lambda executor. Required.
           The Lambda executor will poll this queue for results of the lambda function's Airflow Task.
         version_added: "9.7.0"
         type: string
@@ -1050,7 +1050,7 @@ config:
         default: ~
       dead_letter_queue_url:
         description: |
-          The name of the SQS dead letter queue to use for the Lambda function. The Lambda executor
+          The URL of the SQS dead letter queue to use for the Lambda function. The Lambda executor
           will poll this queue for timeout/exception results of the lambda function. Required
         version_added: "9.7.0"
         type: string
