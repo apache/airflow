@@ -32,10 +32,17 @@ def get_provider_info():
                 "options": {
                     "access_denied_message": {
                         "description": "The message displayed when a user attempts to execute actions beyond their authorised privileges.\n",
-                        "version_added": "2.0.2",
+                        "version_added": "2.0.3",
                         "type": "string",
                         "example": None,
                         "default": "Access is Denied",
+                    },
+                    "expose_hostname": {
+                        "description": "Expose hostname in the web server\n",
+                        "version_added": "2.0.3",
+                        "type": "string",
+                        "example": None,
+                        "default": "False",
                     },
                     "auth_rate_limited": {
                         "description": "Boolean for enabling rate limiting on authentication endpoints.\n",
