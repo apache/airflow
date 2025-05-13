@@ -384,6 +384,10 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "access_denied_message"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "expose_hostname"),
+        renamed_to=ConfigParameter("fab", "expose_hostname"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "base_url"),
         renamed_to=ConfigParameter("api", "base_url"),
     ),
