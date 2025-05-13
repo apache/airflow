@@ -71,7 +71,7 @@ dependencies = [
     # Every time we update FAB version here, please make sure that you review the classes and models in
     # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
-    "flask-appbuilder==4.5.3",
+    "flask-appbuilder==4.6.3",
     "flask-login>=0.6.2",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.

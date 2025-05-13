@@ -353,7 +353,7 @@ def test_verify_default_anon_user_has_no_accessible_dag_ids(
         mock_is_logged_in.return_value = False
         user = AnonymousUser()
         app.config["AUTH_ROLE_PUBLIC"] = "Public"
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         with _create_dag_model_context("test_dag_id", session, security_manager):
             security_manager.sync_roles()
@@ -365,7 +365,7 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
     with app.app_context():
         user = AnonymousUser()
         app.config["AUTH_ROLE_PUBLIC"] = "Public"
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         dag_id = "test_dag_id"
         with _create_dag_model_context(dag_id, session, security_manager):
@@ -392,7 +392,7 @@ def test_verify_anon_user_with_admin_role_has_all_dag_access(
         mock_is_logged_in.return_value = False
         user = AnonymousUser()
 
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         security_manager.sync_roles()
 
@@ -408,7 +408,7 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
 
         # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
         user.roles = security_manager.get_user_roles(user)
-        assert user.roles == {security_manager.get_public_role()}
+        assert user.roles == [security_manager.get_public_role()]
 
         test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3", "test_dag_id_4.with_dot"]
 
@@ -425,8 +425,8 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
 def test_get_user_roles(app_builder, security_manager):
     user = mock.MagicMock()
     roles = app_builder.sm.find_role("Admin")
-    user.roles = roles
-    assert security_manager.get_user_roles(user) == roles
+    user.roles = [roles]
+    assert security_manager.get_user_roles(user) == [roles]
 
 
 def test_get_user_roles_for_anonymous_user(app, security_manager):

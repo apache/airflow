@@ -55,6 +55,7 @@ from flask_appbuilder.security.views import (
     AuthOIDView,
     AuthRemoteUserView,
     RegisterUserModelView,
+    UserGroupModelView,
 )
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
@@ -71,6 +72,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag
 from airflow.providers.fab.auth_manager.models import (
     Action,
+    Group,
     Permission,
     RegisterUser,
     Resource,
@@ -100,10 +102,7 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
-from airflow.providers.fab.www.session import (
-    AirflowDatabaseSessionInterface,
-    AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
-)
+from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
 from airflow.security.permissions import RESOURCE_BACKFILL
 
 if TYPE_CHECKING:
@@ -149,6 +148,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """ Models """
     user_model = User
     role_model = Role
+    group_model = Group
     action_model = Action
     resource_model = Resource
     permission_model = Permission
@@ -173,6 +173,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     actionmodelview = ActionModelView
     permissionmodelview = PermissionPairModelView
     rolemodelview = CustomRoleModelView
+    groupmodelview = UserGroupModelView
     registeruser_model = RegisterUser
     registerusermodelview = RegisterUserModelView
     resourcemodelview = ResourceModelView
@@ -450,7 +451,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         role_view = self.appbuilder.add_view(
             self.rolemodelview,
             "List Roles",
-            icon="fa-group",
+            icon="fa-user-gear",
             label=lazy_gettext("List Roles"),
             category="Security",
             category_icon="fa-cogs",
@@ -532,12 +533,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.update_user(user)
 
     def reset_user_sessions(self, user: User) -> None:
-        if isinstance(
-            self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface
-        ) or isinstance(
-            self.appbuilder.get_app.session_interface,
-            FabAirflowDatabaseSessionInterface,
-        ):
+        if isinstance(self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface):
             interface = self.appbuilder.get_app.session_interface
             session = interface.db.session
             user_session_model = interface.sql_session_model
@@ -859,6 +855,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.registerusermodelview.datamodel = SQLAInterface(self.registeruser_model)
 
         self.rolemodelview.datamodel = SQLAInterface(self.role_model)
+        self.groupmodelview.datamodel = SQLAInterface(self.group_model)
         self.actionmodelview.datamodel = SQLAInterface(self.action_model)
         self.resourcemodelview.datamodel = SQLAInterface(self.resource_model)
         self.permissionmodelview.datamodel = SQLAInterface(self.permission_model)
@@ -875,7 +872,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         try:
             engine = self.get_session.get_bind(mapper=None, clause=None)
             inspector = inspect(engine)
-            if "ab_user" not in inspector.get_table_names():
+            existing_tables = inspector.get_table_names()
+            if "ab_user" not in existing_tables or "ab_group" not in existing_tables:
                 log.info(const.LOGMSG_INF_SEC_NO_DB)
                 Base.metadata.create_all(engine)
                 log.info(const.LOGMSG_INF_SEC_ADD_DB)
@@ -1311,15 +1309,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def add_user(
         self,
-        username,
-        first_name,
-        last_name,
-        email,
-        role,
-        password="",
-        hashed_password="",
+        username: str,
+        first_name: str,
+        last_name: str,
+        email: str,
+        role: list[Role] | Role | None = None,
+        password: str = "",
+        hashed_password: str = "",
+        groups: list[Group] | None = None,
     ):
         """Create a user."""
+        roles: list[Role] = []
+        if role:
+            roles = role if isinstance(role, list) else [role]
+
         try:
             user = self.user_model()
             user.first_name = first_name
@@ -1328,7 +1331,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user.email = email
             user.active = True
             self.get_session.add(user)
-            user.roles = role if isinstance(role, list) else [role]
+            user.roles = roles
+            user.groups = groups or []
             if hashed_password:
                 user.password = hashed_password
             else:
@@ -1692,7 +1696,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         if user is None:
             user = g.user
-        return user.roles
+        return user.roles + [role for group in user.groups for role in group.roles]
 
     """
     --------------------
