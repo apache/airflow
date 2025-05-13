@@ -17,7 +17,7 @@
 # under the License.
 
 
-function cleanup_docker {
+function prepare_and_cleanup_runner {
     local target_docker_volume_location="/mnt/var-lib-docker"
     echo "Checking free space!"
     df -H
@@ -34,4 +34,4 @@ function cleanup_docker {
     sudo systemctl start docker
 }
 
-cleanup_docker
+prepare_and_cleanup_runner
