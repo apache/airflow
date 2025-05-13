@@ -61,7 +61,7 @@ log = logging.getLogger(__name__)
 
 
 def get_access_denied_message():
-    return conf.get("webserver", "access_denied_message")
+    return conf.get("fab", "access_denied_message")
 
 
 def has_access_with_pk(f):
