@@ -394,7 +394,6 @@ class TestMongoHook:
         self.hook.get_conn = lambda: mock_client
         self.hook.connection.schema = "test_db"
 
-        # 不帶 timeseries 的建立，就能在 mongomock 裡跑通
         collection = self.hook.create_collection(mongo_collection="plain_collection")
         assert collection.name == "plain_collection"
         assert "plain_collection" in mock_client["test_db"].list_collection_names()
@@ -412,7 +411,6 @@ class TestMongoHook:
 
 
     def test_create_if_exists_false_raises(self):
-        # Patch get_conn → mongomock client，並指定預設 DB
         mock_client = mongomock.MongoClient()
         self.hook.get_conn = lambda: mock_client
         self.hook.connection.schema = "test_db"
