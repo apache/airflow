@@ -274,6 +274,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "id": mock.ANY,
                 "version_number": expected_version_number,
                 "dag_id": "dag_with_multiple_versions",
+                "dag_display_name": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
                 "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
@@ -1976,6 +1977,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "bundle_version": f"some_commit_hash{expected_version_number}",
                 "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
+                "dag_display_name": "dag_with_multiple_versions",
             },
         }
 
@@ -3044,6 +3046,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "bundle_version": f"some_commit_hash{expected_version_number}",
                 "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
+                "dag_display_name": "dag_with_multiple_versions",
             },
         }
 

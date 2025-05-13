@@ -193,7 +193,7 @@ class DAGDetailsResponse(DAGResponse):
     @property
     def latest_dag_version(self) -> DagVersionResponse | None:
         """Return the latest DagVersion."""
-        latest_dag_version = DagVersion.get_latest_version(self.dag_id)
+        latest_dag_version = DagVersion.get_latest_version(self.dag_id, load_dag_model=True)
         if latest_dag_version is None:
             return latest_dag_version
         return DagVersionResponse.model_validate(latest_dag_version)

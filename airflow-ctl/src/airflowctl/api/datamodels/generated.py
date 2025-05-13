@@ -443,6 +443,7 @@ class DagVersionResponse(BaseModel):
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     bundle_url: Annotated[str | None, Field(title="Bundle Url")] = None
 
 

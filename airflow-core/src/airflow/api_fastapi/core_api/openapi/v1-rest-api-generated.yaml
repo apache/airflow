@@ -8887,6 +8887,9 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         bundle_url:
           anyOf:
           - type: string
@@ -8901,6 +8904,7 @@ components:
       - bundle_name
       - bundle_version
       - created_at
+      - dag_display_name
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.

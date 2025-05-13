@@ -749,6 +749,7 @@ export type DagVersionResponse = {
   bundle_name: string | null;
   bundle_version: string | null;
   created_at: string;
+  dag_display_name: string;
   readonly bundle_url: string | null;
 };
 
