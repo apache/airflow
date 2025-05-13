@@ -475,6 +475,10 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_ids:
             refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
+            if not refreshed_dag_info:
+                raise ExternalDagNotFoundError(
+                    f"The external DAG {self.external_dag_id} could not be loaded."
+                )
             for external_task_id in self.external_task_ids:
                 if not refreshed_dag_info.has_task(external_task_id):
                     raise ExternalTaskNotFoundError(
@@ -483,6 +487,10 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_group_id:
             refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
+            if not refreshed_dag_info:
+                raise ExternalDagNotFoundError(
+                    f"The external DAG {self.external_dag_id} could not be loaded."
+                )
             if not refreshed_dag_info.has_task_group(self.external_task_group_id):
                 raise ExternalTaskGroupNotFoundError(
                     f"The external task group '{self.external_task_group_id}' in "

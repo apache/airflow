@@ -27,6 +27,7 @@ import pytest
 
 from airflow import settings
 from airflow.exceptions import (
+    AirflowException,
     AirflowSensorTimeout,
     AirflowSkipException,
     TaskDeferred,
@@ -759,15 +760,16 @@ exit 0
             )
 
     def test_external_task_sensor_waits_for_task_check_existence(self):
+        self.add_time_sensor()
         op = ExternalTaskSensor(
             task_id="test_external_task_sensor_check",
-            external_dag_id="example_bash_operator",
+            external_dag_id=TEST_DAG_ID,
             external_task_id="non-existing-task",
             check_existence=True,
             dag=self.dag,
         )
 
-        with pytest.raises(ExternalTaskNotFoundError):
+        with pytest.raises(ExternalDagNotFoundError):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_waits_for_dag_check_existence(self):
@@ -1737,7 +1739,7 @@ def test_external_task_marker_future(dag_bag_ext):
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for 3.0+")
 def test_external_task_marker_exception(dag_bag_ext):
     """
-    Clearing across multiple DAGs should raise ExternalDagFailedError if more levels are being cleared
+    Clearing across multiple DAGs should raise AirflowException if more levels are being cleared
     than allowed by the recursion_depth of the first ExternalTaskMarker being cleared.
     """
     run_tasks(dag_bag_ext)
@@ -1745,7 +1747,7 @@ def test_external_task_marker_exception(dag_bag_ext):
     task_a_0 = dag_0.get_task("task_a_0")
     task_b_0 = dag_0.get_task("task_b_0")
     task_b_0.recursion_depth = 2
-    with pytest.raises(ExternalDagFailedError, match="Maximum recursion depth 2"):
+    with pytest.raises(AirflowException, match="Maximum recursion depth 2"):
         clear_tasks(dag_bag_ext, dag_0, task_a_0)
 
 
@@ -1825,14 +1827,14 @@ def dag_bag_cyclic():
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for 3.0+")
 def test_external_task_marker_cyclic_deep(dag_bag_cyclic):
     """
-    Tests clearing across multiple DAGs that have cyclic dependencies. ExternalDagFailedError should be
+    Tests clearing across multiple DAGs that have cyclic dependencies. AirflowException should be
     raised.
     """
     dag_bag = dag_bag_cyclic(10)
     run_tasks(dag_bag)
     dag_0 = dag_bag.get_dag("dag_0")
     task_a_0 = dag_0.get_task("task_a_0")
-    with pytest.raises(ExternalDagFailedError, match="Maximum recursion depth 3"):
+    with pytest.raises(AirflowException, match="Maximum recursion depth 3"):
         clear_tasks(dag_bag, dag_0, task_a_0)
 
 
