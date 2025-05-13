@@ -25,12 +25,12 @@ from pydantic import ValidationError
 from sqlalchemy import select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
-from airflow.api_fastapi.common.deps import DagBagDep
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,

@@ -283,11 +283,27 @@ class TestConfigOperations:
         )
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/section/{self.section}/option/{self.option}"
+            assert request.url.path == f"/api/v2/config/section/{self.section}/option/{self.option}"
             return httpx.Response(200, json=response_config.model_dump())
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.configs.get(section=self.section, option=self.option)
+        assert response == response_config
+
+    def test_list(self):
+        response_config = Config(
+            sections=[
+                ConfigSection(name="section-1", options=[ConfigOption(key="option-1", value="value-1")]),
+                ConfigSection(name="section-2", options=[ConfigOption(key="option-2", value="value-2")]),
+            ]
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/config"
+            return httpx.Response(200, json=response_config.model_dump())
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.configs.list()
         assert response == response_config
 
 
