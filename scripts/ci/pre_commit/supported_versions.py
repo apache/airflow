@@ -34,7 +34,7 @@ HEADERS = (
 )
 
 SUPPORTED_VERSIONS = (
-    ("3", "3.0.0", "Supported", "Apr 22, 2025", "TBD", "TBD"),
+    ("3", "3.0.1", "Supported", "Apr 22, 2025", "TBD", "TBD"),
     ("2", "2.10.5", "Supported", "Dec 17, 2020", "TBD", "TBD"),
     ("1.10", "1.10.15", "EOL", "Aug 27, 2018", "Dec 17, 2020", "June 17, 2021"),
     ("1.9", "1.9.0", "EOL", "Jan 03, 2018", "Aug 27, 2018", "Aug 27, 2018"),
