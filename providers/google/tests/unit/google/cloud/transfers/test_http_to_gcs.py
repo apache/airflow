@@ -24,7 +24,7 @@ from airflow.providers.google.cloud.transfers.http_to_gcs import HttpToGCSOperat
 
 TASK_ID = "test-http-to-gcs-operator"
 GCP_CONN_ID = "GCP_CONN_ID"
-HTTP_CONN_ID = "HTPP_CONN_ID"
+HTTP_CONN_ID = "HTTP_CONN_ID"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 TEST_BUCKET = "test-bucket"
@@ -33,6 +33,11 @@ ENDPOINT = "/"
 HEADERS = {"header_key": "header_value"}
 DATA = {"some": "data"}
 EXTRA_OPTIONS = {"check_response": False}
+DEFAULT_HTTP_METHOD = "GET"
+NUM_MAX_ATTEMPTS = 3
+TCP_KEEP_ALIVE_IDLE = 120
+TCP_KEEP_ALIVE_COUNT = 20
+TCP_KEEP_ALIVE_INTERVAL = 30
 
 
 class TestHttpToGCSOperator:
@@ -76,14 +81,22 @@ class TestHttpToGCSOperator:
             encoding=task.http_hook.run.return_value.encoding,
             chunk_size=None,
             timeout=None,
-            num_max_attempts=3,
+            num_max_attempts=NUM_MAX_ATTEMPTS,
             metadata=None,
             cache_control=None,
             user_project=None,
         )
 
         # HTTP
-        http_hook.assert_called_once_with(HTTP_CONN_ID)
+        http_hook.assert_called_once_with(
+            DEFAULT_HTTP_METHOD,
+            http_conn_id=HTTP_CONN_ID,
+            auth_type=None,
+            tcp_keep_alive=True,
+            tcp_keep_alive_idle=TCP_KEEP_ALIVE_IDLE,
+            tcp_keep_alive_count=TCP_KEEP_ALIVE_COUNT,
+            tcp_keep_alive_interval=TCP_KEEP_ALIVE_INTERVAL,
+        )
         task.http_hook.run.assert_called_once_with(
             endpoint=ENDPOINT, headers=HEADERS, data=DATA, extra_options=EXTRA_OPTIONS
         )
