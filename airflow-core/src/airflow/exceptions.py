@@ -558,3 +558,14 @@ class DeserializingResultError(ValueError):
 
 class UnknownExecutorException(ValueError):
     """Raised when an attempt is made to load an executor which is not configured."""
+
+
+class DeserializationError(Exception):
+    """Raised when a DAG cannot be deserialized."""
+
+    def __init__(self, dag_id: str, original_error: Exception, error_type: str = "general"):
+        self.dag_id = dag_id
+        self.original_error = original_error
+        self.error_type = error_type
+        message = f"Failed to deserialize DAG '{dag_id}': {str(original_error)}"
+        super().__init__(message)

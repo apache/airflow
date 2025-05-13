@@ -26,6 +26,7 @@ from pydantic import PositiveInt
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
+from airflow.api.common.utils import get_dag_from_dag_bag
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
@@ -35,7 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.log import ExternalLogUrlResponse, 
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
-from airflow.models import TaskInstance, Trigger
+from airflow.models import DAG, TaskInstance, Trigger
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.log.log_reader import TaskLogReader
 
@@ -131,7 +132,8 @@ def get_log(
         metadata["end_of_log"] = True
         raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
 
-    dag = dag_bag.get_dag(dag_id)
+    dag: DAG | None = get_dag_from_dag_bag(dag_bag, dag_id)
+
     if dag:
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
