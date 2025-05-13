@@ -1707,13 +1707,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    expose_hostname:
-      description: |
-        Expose hostname in the web server
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "False"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
