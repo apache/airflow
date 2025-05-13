@@ -435,6 +435,11 @@ spec:
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
+        {{- if .Values.devMode.enabled }}
+        - name: code
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_code_volume_claim" . }}
+        {{- end }}
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

@@ -330,6 +330,11 @@ spec:
         {{- if .Values.scheduler.extraVolumes }}
           {{- tpl (toYaml .Values.scheduler.extraVolumes) . | nindent 8 }}
         {{- end }}
+        {{- if .Values.devMode.enabled }}
+        - name: code
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_code_volume_claim" . }}
+        {{- end }}
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

@@ -289,7 +289,7 @@ spec:
         {{- end }}
         {{- end }}
         {{- if .Values.devMode.persistence.enabled }}
-        - name: logs
+        - name: code
           persistentVolumeClaim:
             claimName: {{ template "airflow_code_volume_claim" . }}
         {{- end }}
