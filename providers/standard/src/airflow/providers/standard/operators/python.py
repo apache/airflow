@@ -859,7 +859,14 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             # If we're using system packages, assume both are present
             found_airflow = found_pendulum = True
         else:
-            for raw_str in self.requirements:
+            requirements_iterable = []
+            if isinstance(self.requirements, str):
+                requirements_iterable = self.requirements.splitlines()
+            else:
+                for item in self.requirements:
+                    requirements_iterable.extend(item.splitlines())
+
+            for raw_str in requirements_iterable:
                 line = raw_str.strip()
                 # Skip blank lines and full‐line comments
                 if not line or line.startswith("#"):
