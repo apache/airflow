@@ -20,6 +20,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
@@ -59,7 +60,11 @@ def get_dag_version(
     session: SessionDep,
 ) -> DagVersionResponse:
     """Get one Dag Version."""
-    dag_version = session.scalar(select(DagVersion).filter_by(dag_id=dag_id, version_number=version_number))
+    dag_version = session.scalar(
+        select(DagVersion)
+        .filter_by(dag_id=dag_id, version_number=version_number)
+        .options(joinedload(DagVersion.dag_model))
+    )
 
     if dag_version is None:
         raise HTTPException(
@@ -104,7 +109,7 @@ def get_dag_versions(
 
     This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
     """
-    query = select(DagVersion)
+    query = select(DagVersion).options(joinedload(DagVersion.dag_model))
 
     if dag_id != "~":
         dag: DAG = dag_bag.get_dag(dag_id)

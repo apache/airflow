@@ -59,7 +59,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-compat>=1.6.0",
-    "apache-airflow-providers-common-sql>=1.21.0",
+    "apache-airflow-providers-common-sql>=1.27.0",
     "requests>=2.31.0,<3",
     "databricks-sql-connector>=3.0.0",
     "databricks-sqlalchemy>=1.0.2",
@@ -101,6 +101,7 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "deltalake>=0.12.0",
     "apache-airflow-providers-microsoft-azure",
+    "apache-airflow-providers-common-sql[pandas,polars]",
 ]
 
 # To build docs:
