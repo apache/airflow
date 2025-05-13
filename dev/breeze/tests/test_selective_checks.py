@@ -709,8 +709,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "amazon...apache.livy,d",
-                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
+                                "description": "amazon...google",
+                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http] Providers[google]",
                             }
                         ]
                     ),
