@@ -24,6 +24,8 @@ from datetime import timedelta
 from unittest import mock
 from unittest.mock import PropertyMock, patch
 
+import pandas as pd
+import polars as pl
 import pytest
 from databricks.sql.types import Row
 
@@ -504,3 +506,57 @@ def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider
     )
     with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
         hook.get_openlineage_database_specific_lineage(mock.MagicMock())
+
+
+@pytest.mark.parametrize(
+    "df_type, df_class, description",
+    [
+        pytest.param("pandas", pd.DataFrame, [(("col",))], id="pandas-dataframe"),
+        pytest.param(
+            "polars",
+            pl.DataFrame,
+            [(("col", None, None, None, None, None, None))],
+            id="polars-dataframe",
+        ),
+    ],
+)
+def test_get_df(df_type, df_class, description):
+    hook = DatabricksSqlHook()
+    statement = "SQL"
+    column = "col"
+    result_sets = [("row1",), ("row2",)]
+
+    with mock.patch(
+        "airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook.get_conn"
+    ) as mock_get_conn:
+        if df_type == "pandas":
+            # Setup for pandas test case
+            mock_cursor = mock.MagicMock()
+            mock_cursor.description = description
+            mock_cursor.fetchall.return_value = result_sets
+            mock_get_conn.return_value.cursor.return_value = mock_cursor
+        else:
+            # Setup for polars test case
+            mock_execute = mock.MagicMock()
+            mock_execute.description = description
+            mock_execute.fetchall.return_value = result_sets
+
+            mock_cursor = mock.MagicMock()
+            mock_cursor.execute.return_value = mock_execute
+            mock_get_conn.return_value.cursor.return_value = mock_cursor
+
+        df = hook.get_df(statement, df_type=df_type)
+        mock_cursor.execute.assert_called_once_with(statement)
+
+        if df_type == "pandas":
+            mock_cursor.fetchall.assert_called_once_with()
+            assert df.columns[0] == column
+            assert df.iloc[0][0] == "row1"
+            assert df.iloc[1][0] == "row2"
+        else:
+            mock_execute.fetchall.assert_called_once_with()
+            assert df.columns[0] == column
+            assert df.row(0)[0] == result_sets[0][0]
+            assert df.row(1)[0] == result_sets[1][0]
+
+        assert isinstance(df, df_class)
