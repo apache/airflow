@@ -323,7 +323,12 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
 
         mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
-        assert view_access in dataset.access_entries
+        assert any(
+            entry.role == view_access.role
+            and entry.entity_type == view_access.entity_type
+            and entry.entity_id == view_access.entity_id
+            for entry in dataset.access_entries
+        ), f"View access entry not found in {dataset.access_entries}"
         mock_update.assert_called_once_with(
             fields=["access"],
             dataset_resource=dataset.to_api_repr(),
