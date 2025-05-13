@@ -31,8 +31,6 @@ Example Lambda function to execute an Airflow command or workload. Use or modify
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
-# Create an SQS client. Credentials and region are automatically picked up from the environment.
-sqs_client = boto3.client("sqs")
 
 # Get the SQS queue URL from the environment variable. Set either on the Lambda function or
 # in the image used for the lambda invocations.
@@ -87,12 +85,18 @@ def run_and_report(command, task_key):
     if QUEUE_URL:
         message = json.dumps({TASK_KEY_KEY: task_key, RETURN_CODE_KEY: return_code})
         try:
+            sqs_client = get_sqs_client()
             sqs_client.send_message(QueueUrl=QUEUE_URL, MessageBody=message)
             log.info("Sent result to SQS %s", message)
         except Exception:
             log.exception("Failed to send message to SQS for task %s", task_key)
     else:
         raise RuntimeError("QUEUE_URL not provided in environment; unable to send task result.")
+
+
+def get_sqs_client():
+    """Create an SQS client. Credentials and region are automatically picked up from the environment."""
+    return boto3.client("sqs")
 
 
 def fetch_dags_from_s3(s3_uri):

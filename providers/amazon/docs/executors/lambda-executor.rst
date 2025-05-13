@@ -159,7 +159,7 @@ The Docker image is built upon the ``public.ecr.aws/lambda/python`` image.
 This base image contains the necessary components for the Lambda function to
 run. Apache Airflow is installed into the image via pip. You can modify the
 Dockerfile to install additional packages or different versions of Airflow as
-needed for your usecase.
+needed for your use case.
 
 It is also possible to build the image based of ``apache/airflow:latest``
  and the Lambda runtime can be included separately (follow steps `here <https://docs.aws.amazon.com/lambda/latest/dg/images-create.html#images-ric>`__).
