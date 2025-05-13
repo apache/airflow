@@ -250,6 +250,39 @@ ARG_POOL_FILE = Arg(
     ),
 )
 
+# Config arguments
+ARG_CONFIG_SECTION = Arg(
+    flags=("--section",),
+    type=str,
+    dest="section",
+    help="The section of the configuration",
+)
+ARG_CONFIG_OPTION = Arg(
+    flags=("--option",),
+    type=str,
+    dest="option",
+    help="The option of the configuration",
+)
+ARG_CONFIG_IGNORE_SECTION = Arg(
+    flags=("--ignore-section",),
+    type=str,
+    dest="ignore_section",
+    help="The configuration section being ignored",
+)
+ARG_CONFIG_IGNORE_OPTION = Arg(
+    flags=("--ignore-option",),
+    type=str,
+    dest="ignore_option",
+    help="The configuration option being ignored",
+)
+ARG_CONFIG_VERBOSE = Arg(
+    flags=(
+        "-v",
+        "--verbose",
+    ),
+    help="Enables detailed output, including the list of ignored sections and options",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -643,6 +676,22 @@ POOL_COMMANDS = (
     ),
 )
 
+CONFIG_COMMANDS = (
+    ActionCommand(
+        name="lint",
+        help="Lint options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
+        description="Lint options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
+        func=lazy_load_command("airflowctl.ctl.commands.config_command.lint"),
+        args=(
+            ARG_CONFIG_SECTION,
+            ARG_CONFIG_OPTION,
+            ARG_CONFIG_IGNORE_SECTION,
+            ARG_CONFIG_IGNORE_OPTION,
+            ARG_CONFIG_VERBOSE,
+        ),
+    ),
+)
+
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
@@ -674,6 +723,11 @@ core_commands: list[CLICommand] = [
         name="variables",
         help="Manage Airflow variables",
         subcommands=VARIABLE_COMMANDS,
+    ),
+    GroupCommand(
+        name="config",
+        help="View, lint and update configurations.",
+        subcommands=CONFIG_COMMANDS,
     ),
 ]
 # Add generated group commands
