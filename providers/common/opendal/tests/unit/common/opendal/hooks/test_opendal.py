@@ -1,6 +1,7 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
+from opendal import Operator
 
 from airflow.providers.common.opendal.hooks.opendal import OpenDALHook
 
@@ -78,11 +79,65 @@ class TestOpenDALHook:
         assert hook.get_connection.call_args_list[0][0][0] == "opendal_default"
         assert hook.get_connection.call_args_list[1][0][0] == "aws_default"
 
-
-    def test_get_operator(self):
+    @pytest.mark.parametrize("config_type", ["source", "destination"])
+    @patch("airflow.providers.common.opendal.hooks.opendal.OpenDALHook.fetch_conn")
+    def test_get_operator_use_operator_args_from_conn(self, mock_fetch_conn, config_type):
         """
         Test the get_operator method of OpenDALHook.
         """
+
+        hook = OpenDALHook(config_type=config_type, opendal_conn_id="opendal_default")
+        hook.config = {
+            "operator_args": {},
+            "path": "/tmp/file/hello.txt"
+        }
+
+        mock_fetch_conn.return_value = Mock(
+            conn_type="opendal",
+            extra_dejson={
+                "source_config": {
+                    "operator_args": {"scheme": "fs", "root": "/tmp/"},
+                },
+                "destination_config": {
+                    "operator_args": {"scheme": "fs", "root": "/tmp/"},
+                },
+            }
+        )
+        operator = hook.get_operator
+        assert isinstance(operator, Operator)
+        assert repr(operator) == 'Operator("fs", root="/tmp")'
+
+    @pytest.mark.parametrize("config_type", ["source", "destination"])
+    @patch("airflow.providers.common.opendal.hooks.opendal.OpenDALHook.fetch_conn")
+    def test_get_operator_use_operator_args_from_input_config(self, mock_fetch_conn, config_type):
+        """
+        Test the get_operator method of OpenDALHook.
+        """
+
+        hook = OpenDALHook(config_type=config_type, opendal_conn_id="opendal_default")
+        hook.config = {
+            "operator_args": {"scheme": "fs", "root": "/tmp/"},
+            "path": "/tmp/file/hello.txt"
+        }
+
+        mock_fetch_conn.return_value = Mock(
+            conn_type="opendal",
+            extra_dejson={
+                "source_config": {
+                    "operator_args": {},
+                },
+                "destination_config": {
+                    "operator_args": {},
+                },
+            }
+        )
+        operator = hook.get_operator
+        assert isinstance(operator, Operator)
+        assert repr(operator) == 'Operator("fs", root="/tmp")'
+
+
+
+
 
 
 
