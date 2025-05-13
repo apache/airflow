@@ -61,6 +61,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                     "dag_id": "ANOTHER_DAG_ID",
                     "id": mock.ANY,
                     "version_number": 1,
+                    "dag_display_name": "ANOTHER_DAG_ID",
                 },
             ],
             [
@@ -74,6 +75,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 1,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
             [
@@ -87,6 +89,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 2,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
             [
@@ -100,6 +103,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 3,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
         ],
@@ -144,6 +148,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "ANOTHER_DAG_ID",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "ANOTHER_DAG_ID",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -153,6 +158,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -162,6 +168,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 2,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -171,6 +178,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 3,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                     ],
                     "total_entries": 4,
@@ -188,6 +196,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -197,6 +206,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 2,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
@@ -206,6 +216,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 3,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                     ],
                     "total_entries": 3,
