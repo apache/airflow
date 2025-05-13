@@ -173,7 +173,7 @@ documentation at the start of your DAG file.
 
 Setting up Dependencies
 -----------------------
-In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can defined
+In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can define
 their dependencies in several ways:
 
 .. code-block:: python

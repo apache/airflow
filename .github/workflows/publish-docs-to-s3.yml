@@ -31,7 +31,7 @@ on:  # yamllint disable-line rule:truthy
           eg: amazon common.messaging apache.kafka
 
         required: false
-        default: "all"
+        default: "all-providers"
         type: string
       exclude-docs:
         description: "Comma separated list of docs to exclude"
