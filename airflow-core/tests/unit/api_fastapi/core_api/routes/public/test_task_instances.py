@@ -274,6 +274,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "id": mock.ANY,
                 "version_number": expected_version_number,
                 "dag_id": "dag_with_multiple_versions",
+                "dag_display_name": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
                 "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
@@ -1976,6 +1977,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "bundle_version": f"some_commit_hash{expected_version_number}",
                 "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
+                "dag_display_name": "dag_with_multiple_versions",
             },
         }
 
@@ -2271,8 +2273,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
         # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
-        mock_clearti.assert_called_once_with([], mock.ANY, mock.ANY, DagRunState.QUEUED)
-        assert mock_clearti.call_args[0][2].dag_id == dag_id
+        mock_clearti.assert_called_once_with([], mock.ANY, DagRunState.QUEUED)
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
         """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""
@@ -3045,6 +3046,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "bundle_version": f"some_commit_hash{expected_version_number}",
                 "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
+                "dag_display_name": "dag_with_multiple_versions",
             },
         }
 

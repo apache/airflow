@@ -107,7 +107,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         self.verify = verify
         self.deferrable = deferrable
         self.use_regex = use_regex
-        self.metadata_keys = metadata_keys if metadata_keys else ["Size"]
+        self.metadata_keys = metadata_keys if metadata_keys else ["Size", "Key"]
 
     def _check_key(self, key, context: Context):
         bucket_name, key = self.hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
@@ -116,7 +116,8 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         """
         Set variable `files` which contains a list of dict which contains attributes defined by the user
         Format: [{
-            'Size': int
+            'Size': int,
+            'Key': str,
         }]
         """
         if self.wildcard_match:

@@ -35,7 +35,15 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^\.github/.*\.md|^airflow-core/tests/system/README\.md$
+          (?x)
+          ^README\.md$|
+          ^UPDATING.*\.md$|
+          ^chart/UPDATING.*\.md$|
+          ^dev/.*\.md$|
+          ^dev/.*\.rst$|
+          ^docs/README\.md$|
+          ^\.github/.*\.md$|
+          ^airflow-core/tests/system/README\.md$
         args:
           - "--maxlevel"
           - "2"
@@ -314,7 +322,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.5.2
@@ -425,7 +433,7 @@ repos:
       - id: check-airflow-providers-bug-report-template
         name: Sort airflow-bug-report provider list
         language: python
-        files: ^\.github/ISSUE_TEMPLATE/airflow_providers_bug_report\.yml$
+        files: ^\.github/ISSUE_TEMPLATE/3-airflow_providers_bug_report\.yml$
         require_serial: true
         entry: ./scripts/ci/pre_commit/check_airflow_bug_report_template.py
         additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2']
@@ -479,7 +487,10 @@ repos:
         name: Generate airflow diagrams
         entry: ./scripts/ci/pre_commit/generate_airflow_diagrams.py
         language: python
-        files: ^airflow-core/docs/.*/diagram_[^/]*\.py$
+        files: >
+          (?x)
+          ^airflow-core/docs/.*/diagram_[^/]*\.py$|
+          ^docs/images/.*\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4', 'diagrams>=0.23.4']
       - id: generate-volumes-for-sources
@@ -648,7 +659,7 @@ repos:
           ^.*commits\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start\.rst$|
-          ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
           git|
           ^airflow-core/newsfragments/43349\.significant\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|

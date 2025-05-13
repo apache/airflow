@@ -374,6 +374,7 @@ Dagbag
 dagbag
 dagbags
 DagCallbackRequest
+dagfile
 DagFileProcessorManager
 dagfolder
 dagmodel
