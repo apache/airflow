@@ -146,7 +146,7 @@ jobs:
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >
-          breeze build-docs ${INCLUDE_DOCS} --docs-only
+          breeze build-docs ${INCLUDE_DOCS} --docs-only --include-commits
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
