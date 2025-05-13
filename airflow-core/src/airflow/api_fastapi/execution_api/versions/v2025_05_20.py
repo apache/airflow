@@ -40,7 +40,7 @@ class DowngradeUpstreamMapIndexes(VersionChange):
 
         Ensures that the field is only a dictionary of  [str, int] (old format).
         """
-        resp = response.body["upstream_map_indexes"]
+        resp = response.body.get("upstream_map_indexes")
         if isinstance(resp, dict):
             downgraded = {}
             for k, v in resp.items():
