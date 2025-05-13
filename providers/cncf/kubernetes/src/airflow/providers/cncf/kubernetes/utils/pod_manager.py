@@ -46,8 +46,11 @@ from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
+    from kubernetes.client.models.v1_container_state import V1ContainerState
+    from kubernetes.client.models.v1_container_state_waiting import V1ContainerStateWaiting
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_pod import V1Pod
+    from kubernetes.client.models.v1_pod_condition import V1PodCondition
     from urllib3.response import HTTPResponse
 
 
@@ -375,30 +378,68 @@ class PodManager(LoggingMixin):
         return self.run_pod_async(pod)
 
     def await_pod_start(
-        self, pod: V1Pod, startup_timeout: int = 120, startup_check_interval: int = 1
+        self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: int = 1
     ) -> None:
         """
         Wait for the pod to reach phase other than ``Pending``.
 
         :param pod:
+        :param schedule_timeout: Timeout (in seconds) for pod stay in schedule state
+            (if pod is taking to long in schedule state, fails task)
         :param startup_timeout: Timeout (in seconds) for startup of the pod
-            (if pod is pending for too long, fails task)
-        :param startup_check_interval: Interval (in seconds) between checks
+            (if pod is pending for too long after being scheduled, fails task)
+        :param check_interval: Interval (in seconds) between checks
         :return:
         """
-        curr_time = time.time()
+        self.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
+        pod_was_scheduled = False
+        start_check_time = time.time()
         while True:
             remote_pod = self.read_pod(pod)
-            if remote_pod.status.phase != PodPhase.PENDING:
+            pod_status = remote_pod.status
+            if pod_status.phase != PodPhase.PENDING:
+                self.keep_watching_for_events = False
+                self.log.info("::endgroup::")
                 break
-            self.log.warning("Pod not yet started: %s", pod.metadata.name)
-            if time.time() - curr_time >= startup_timeout:
-                msg = (
-                    f"Pod took longer than {startup_timeout} seconds to start. "
-                    "Check the pod events in kubernetes to determine why."
-                )
-                raise PodLaunchFailedException(msg)
-            time.sleep(startup_check_interval)
+
+            # Check for timeout
+            pod_conditions: list[V1PodCondition] = pod_status.conditions
+            if pod_conditions and any(
+                (condition.type == "PodScheduled" and condition.status == "True")
+                for condition in pod_conditions
+            ):
+                if not pod_was_scheduled:
+                    # POD was initially scheduled update timeout for getting POD launched
+                    pod_was_scheduled = True
+                    start_check_time = time.time()
+                    self.log.info("Waiting %ss to get the POD running...", startup_timeout)
+
+                if time.time() - start_check_time >= startup_timeout:
+                    self.log.info("::endgroup::")
+                    raise PodLaunchFailedException(
+                        f"Pod took too long to start. More than {startup_timeout}s. Check the pod events in kubernetes."
+                    )
+            else:
+                if time.time() - start_check_time >= schedule_timeout:
+                    self.log.info("::endgroup::")
+                    raise PodLaunchFailedException(
+                        f"Pod took too long to be scheduled on the cluster, giving up. More than {schedule_timeout}s. Check the pod events in kubernetes."
+                    )
+
+            # Check for general problems to terminate early - ErrImagePull
+            if pod_status.container_statuses:
+                for container_status in pod_status.container_statuses:
+                    container_state: V1ContainerState = container_status.state
+                    container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+                    if container_waiting:
+                        if container_waiting.reason in ["ErrImagePull", "InvalidImageName"]:
+                            self.log.info("::endgroup::")
+                            raise PodLaunchFailedException(
+                                f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
+                                f"\n{container_waiting.message}"
+                            )
+
+            time.sleep(check_interval)
 
     def fetch_container_logs(
         self,

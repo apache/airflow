@@ -503,6 +503,10 @@
         "9.6.1": {
             "associated_airflow_version": "3.0.0",
             "date_released": "2025-04-19T17:32:22Z"
+        },
+        "9.7.0": {
+            "associated_airflow_version": "3.0.0",
+            "date_released": "2025-05-10T12:38:32Z"
         }
     },
     "apache.beam": {
@@ -9755,6 +9759,10 @@
         "6.2.2": {
             "associated_airflow_version": "3.0.0",
             "date_released": "2025-04-19T17:32:22Z"
+        },
+        "6.3.0": {
+            "associated_airflow_version": "3.0.0",
+            "date_released": "2025-05-10T12:38:32Z"
         }
     },
     "sqlite": {

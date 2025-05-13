@@ -679,7 +679,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         rows = []
         utcnow = timezone.utcnow()
-        now = time.time()
+        now = time.monotonic()
 
         for files in known_files.values():
             for file in files:
@@ -710,7 +710,7 @@ class DagFileProcessorManager(LoggingMixin):
                 )
 
         # Sort by longest last runtime. (Can't sort None values in python3)
-        rows.sort(key=lambda x: x[5] or 0.0, reverse=True)
+        rows.sort(key=lambda x: x[6] or 0.0, reverse=True)
 
         formatted_rows = []
         for (
@@ -806,7 +806,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             # Collect the DAGS and import errors into the DB, emit metrics etc.
             self._file_stats[file] = process_parse_results(
-                run_duration=time.time() - proc.start_time,
+                run_duration=time.monotonic() - proc.start_time,
                 finish_time=timezone.utcnow(),
                 run_count=self._file_stats[file].run_count,
                 bundle_name=file.bundle_name,

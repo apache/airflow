@@ -2890,6 +2890,10 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     bundle_url: {
       anyOf: [
         {
@@ -2904,7 +2908,16 @@ export const $DagVersionResponse = {
     },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
+  required: [
+    "id",
+    "version_number",
+    "dag_id",
+    "bundle_name",
+    "bundle_version",
+    "created_at",
+    "dag_display_name",
+    "bundle_url",
+  ],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;
@@ -3957,9 +3970,13 @@ export const $QueuedEventResponse = {
       format: "date-time",
       title: "Created At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["dag_id", "asset_id", "created_at"],
+  required: ["dag_id", "asset_id", "created_at", "dag_display_name"],
   title: "QueuedEventResponse",
   description: "Queued Event serializer for responses..",
 } as const;

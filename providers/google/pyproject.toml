@@ -59,7 +59,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-compat>=1.4.0",
-    "apache-airflow-providers-common-sql>=1.20.0",
+    "apache-airflow-providers-common-sql>=1.27.0",
     "asgiref>=3.5.2",
     "dill>=0.2.3",
     "gcloud-aio-auth>=5.2.0",
@@ -129,11 +129,6 @@ dependencies = [
     # See https://github.com/looker-open-source/sdk-codegen/issues/1518
     "looker-sdk>=22.4.0,!=24.18.0",
     "pandas-gbq>=0.7.0",
-    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-    # In addition FAB also limit sqlalchemy to < 2.0
-    "pandas>=2.1.2,<2.2",
     # A transient dependency of google-cloud-bigquery-datatransfer, but we
     # further constrain it since older versions are buggy.
     "proto-plus>=1.19.6",
@@ -233,6 +228,7 @@ dev = [
     "apache-airflow-providers-trino",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-apache-kafka",
+    "apache-airflow-providers-common-sql[pandas,polars]",
 ]
 
 # To build docs:
