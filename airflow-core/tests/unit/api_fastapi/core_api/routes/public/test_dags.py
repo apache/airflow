@@ -461,7 +461,6 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_logical_date": None,
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
-            "owner_links": {"airflow": "https://airflow.apache.org"},
             "params": {
                 "foo": {
                     "__class": "airflow.sdk.definitions.param.Param",
