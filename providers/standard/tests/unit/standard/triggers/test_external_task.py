@@ -153,14 +153,8 @@ class TestWorkflowTrigger:
                     run_ids=[self.RUN_ID],
                     states=["success", "fail"],
                 ),
-                mock.call(
-                    dag_id="external_task",
-                    task_ids=["external_task_op"],
-                    logical_dates=[self.LOGICAL_DATE],
-                    run_ids=[self.RUN_ID],
-                    states=["success", "fail"],
-                ),
             ]
+            * 2
         )
 
         # test that it returns after yielding
@@ -519,14 +513,8 @@ class TestWorkflowTriggerAF2:
                     external_dag_id="external_task",
                     states=["success", "fail"],
                 ),
-                mock.call(
-                    dttm_filter=value,
-                    external_task_ids=["external_task_op"],
-                    external_task_group_id=None,
-                    external_dag_id="external_task",
-                    states=["success", "fail"],
-                ),
             ]
+            * 2
         )
 
         mock_sleep.assert_not_called()
