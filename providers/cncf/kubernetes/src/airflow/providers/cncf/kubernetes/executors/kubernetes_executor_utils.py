@@ -399,7 +399,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     "-m",
                     "airflow.sdk.execution_time.execute_workload",
                     "--json-string",
-                    "temp",
+                    ser_input,
                 ]
             else:
                 raise ValueError(
@@ -427,7 +427,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             date=None,
             run_id=run_id,
             args=list(command),
-            content_json_for_volume=ser_input,
+            content_json=ser_input,
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,

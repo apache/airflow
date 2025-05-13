@@ -203,7 +203,7 @@ class TestPodGenerator:
             base_worker_pod=worker_config,
             namespace="namespace",
             scheduler_job_id="uuid",
-            content_json_for_volume=content_json,
+            content_json=content_json,
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
 

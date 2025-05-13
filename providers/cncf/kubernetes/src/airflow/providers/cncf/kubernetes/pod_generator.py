@@ -287,7 +287,7 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
-        content_json_for_volume: str = "",
+        content_json: str = "",
         *,
         with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
@@ -355,10 +355,10 @@ class PodGenerator:
             containers=[main_container],
         )
 
-        if content_json_for_volume:
+        if content_json:
             import shlex
 
-            escaped_json = shlex.quote(content_json_for_volume)
+            escaped_json = shlex.quote(content_json)
             main_container.command = args[:-1]
             main_container.args = escaped_json
 
