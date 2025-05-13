@@ -264,8 +264,8 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.9.0"),
-        ("fab", "3.0.0"),
+        ("amazon", "2.10.0"),
+        ("fab", "3.0.2"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
