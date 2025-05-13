@@ -21,17 +21,20 @@ from datetime import timedelta
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from fastapi import status
+from sqlalchemy import select, update
 
 from airflow.models import DagBag
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task_group
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -1408,3 +1411,29 @@ class TestGetGridDataEndpoint:
                 },
             ],
         }
+
+    def test_grid_missing_dag_id_in_serialized_data(self, test_client):
+        """
+        Test /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries endpoint
+        when serialized DAG is missing dag_id (should return 400 error).
+        """
+
+        test_dag = DAG(dag_id=DAG_ID, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id=TASK_ID, dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=DAG_ID)
+        with create_session() as session:
+            dag_model = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == DAG_ID))
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == DAG_ID).values(_data=data)
+            )
+            session.commit()
+        response = test_client.get(
+            f"/grid/{DAG_ID}",
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert f"An unexpected error occurred while trying to deserialize DAG '{DAG_ID}'." == response.json()["detail"]
