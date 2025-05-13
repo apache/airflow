@@ -607,9 +607,14 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Get the Airflow Connection object and wrap it in helper (cached)."""
         connection = None
         if self.aws_conn_id:
+            possible_exceptions = (
+                (AirflowNotFoundException, AirflowRuntimeError)
+                if AIRFLOW_V_3_0_PLUS
+                else (AirflowNotFoundException,)
+            )
             try:
                 connection = self.get_connection(self.aws_conn_id)
-            except (AirflowNotFoundException, AirflowRuntimeError) as e:
+            except possible_exceptions as e:
                 if isinstance(
                     e, AirflowNotFoundException
                 ) or f"Connection with ID {self.aws_conn_id} not found" in str(e):
