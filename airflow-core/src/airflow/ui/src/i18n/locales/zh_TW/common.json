@@ -1,0 +1,20 @@
+{
+  "defaultToGraphView": "預設使用圖形視圖",
+  "defaultToGridView": "預設使用網格視圖",
+  "logout": "登出",
+  "switchToDarkMode": "切換到深色模式",
+  "switchToLightMode": "切換到淺色模式",
+  "user": "使用者",
+  "language": {
+    "chinese": "繁體中文",
+    "english": "英文",
+    "select": "選擇語言"
+  },
+  "nav": {
+    "home": "首頁",
+    "assets": "資產",
+    "browse": "瀏覽",
+    "admin": "管理",
+    "docs": "文檔"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "welcome": "Welcome",
+  "stats": "Stats",
+  "failedDags": "Failed DAGs",
+  "runningDags": "Running DAGs",
+  "activeDags": "Active DAGs",
+  "health": "Health",
+  "poolSlots": "Pool Slots",
+  "managePools": "Manage Pools",
+  "history": "History",
+  "dagRuns": "DAG Runs",
+  "queued": "Queued",
+  "running": "Running",
+  "success": "Success",
+  "failed": "Failed",
+  "taskInstances": "Task Instances",
+  "upstreamFailed": "Upstream Failed",
+  "assetEvents": "Asset Events",
+  "noAssetEvents": "No Asset Events found."
+}
