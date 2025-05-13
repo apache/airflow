@@ -35,6 +35,7 @@ source-date-epoch: 1745478857
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.0.3
   - 2.0.2
   - 2.0.1
   - 2.0.0
@@ -59,6 +60,13 @@ config:
   fab:
     description: This section contains configs specific to FAB provider.
     options:
+      access_denied_message:
+        description: |
+          The message displayed when a user attempts to execute actions beyond their authorised privileges.
+        version_added: 2.0.2
+        type: string
+        example: ~
+        default: "Access is Denied"
       auth_rate_limited:
         description: |
           Boolean for enabling rate limiting on authentication endpoints.
