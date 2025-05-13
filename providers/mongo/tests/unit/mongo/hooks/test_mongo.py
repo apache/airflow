@@ -22,14 +22,13 @@ from typing import TYPE_CHECKING
 
 import pymongo
 import pytest
+from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 
 from tests_common.test_utils.compat import connection_as_json
-
-from pymongo.errors import CollectionInvalid
 
 pytestmark = pytest.mark.db_test
 
@@ -408,7 +407,6 @@ class TestMongoHook:
 
         assert first.full_name == second.full_name
         assert "foo" in mock_client["test_db"].list_collection_names()
-
 
     def test_create_if_exists_false_raises(self):
         mock_client = mongomock.MongoClient()

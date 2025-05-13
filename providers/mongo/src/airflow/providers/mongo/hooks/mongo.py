@@ -226,7 +226,11 @@ class MongoHook(BaseHook):
         return mongo_conn.get_database(mongo_db).get_collection(mongo_collection)
 
     def create_collection(
-        self, mongo_collection: str, mongo_db: str | None = None, create_if_exists: bool = True, **create_kwargs: Any,
+        self,
+        mongo_collection: str,
+        mongo_db: str | None = None,
+        create_if_exists: bool = True,
+        **create_kwargs: Any,
     ) -> MongoCollection:
         """
         Create the collection (optionally a time‑series collection) and return it.
