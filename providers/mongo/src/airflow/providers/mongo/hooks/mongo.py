@@ -225,6 +225,35 @@ class MongoHook(BaseHook):
 
         return mongo_conn.get_database(mongo_db).get_collection(mongo_collection)
 
+    def create_collection(
+        self, mongo_collection: str, mongo_db: str | None = None, create_if_exists: bool = True, **create_kwargs: Any,
+    ) -> MongoCollection:
+        """
+        Create the collection (optionally a time‑series collection) and return it.
+
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/database.html#pymongo.database.Database.create_collection
+
+        :param mongo_collection: Name of the collection.
+        :param mongo_db: Target database; defaults to the schema in the connection string.
+        :param create_if_exists: If True and the collection already exists, return it instead of raising.
+        :param create_kwargs: Additional keyword arguments forwarded to ``db.create_collection()``,
+                                  e.g. ``timeseries={...}``, ``capped=True``.
+        """
+        from pymongo.errors import CollectionInvalid
+
+        mongo_db = mongo_db or self.connection.schema
+        mongo_conn: MongoClient = self.get_conn()
+        db = mongo_conn.get_database(mongo_db)
+
+        try:
+            db.create_collection(mongo_collection, **create_kwargs)
+        except CollectionInvalid:
+            if not create_if_exists:
+                raise
+            # Collection already exists – fall through and fetch it.
+
+        return db.get_collection(mongo_collection)
+
     def aggregate(
         self, mongo_collection: str, aggregate_query: list, mongo_db: str | None = None, **kwargs
     ) -> CommandCursor:
