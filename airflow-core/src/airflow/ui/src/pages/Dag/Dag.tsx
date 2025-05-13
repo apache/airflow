@@ -26,6 +26,7 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
+import { UIAlertAccordion } from "src/components/UIAlertAccordion";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -80,6 +81,7 @@ export const Dag = () => {
 
   return (
     <ReactFlowProvider>
+      <UIAlertAccordion />
       <DetailsLayout
         dag={dag}
         error={error ?? runsError}

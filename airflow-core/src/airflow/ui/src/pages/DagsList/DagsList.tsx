@@ -41,6 +41,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
+import { UIAlertAccordion } from "src/components/UIAlertAccordion";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
@@ -231,43 +232,46 @@ export const DagsList = () => {
   );
 
   return (
-    <DagsLayout>
-      <VStack alignItems="none">
-        <SearchBar
-          buttonProps={{ disabled: true }}
-          defaultValue={dagDisplayNamePattern ?? ""}
-          onChange={handleSearchChange}
-          placeHolder="Search Dags"
-        />
-        <DagsFilters />
-        <HStack justifyContent="space-between">
-          <HStack>
-            <Heading py={3} size="md">
-              {pluralize("Dag", data.total_entries)}
-            </Heading>
-            <DAGImportErrors iconOnly />
+    <>
+      <UIAlertAccordion />
+      <DagsLayout>
+        <VStack alignItems="none">
+          <SearchBar
+            buttonProps={{ disabled: true }}
+            defaultValue={dagDisplayNamePattern ?? ""}
+            onChange={handleSearchChange}
+            placeHolder="Search Dags"
+          />
+          <DagsFilters />
+          <HStack justifyContent="space-between">
+            <HStack>
+              <Heading py={3} size="md">
+                {pluralize("Dag", data.total_entries)}
+              </Heading>
+              <DAGImportErrors iconOnly />
+            </HStack>
+            {display === "card" ? (
+              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+            ) : undefined}
           </HStack>
-          {display === "card" ? (
-            <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-          ) : undefined}
-        </HStack>
-      </VStack>
-      <ToggleTableDisplay display={display} setDisplay={setDisplay} />
-      <Box overflow="auto">
-        <DataTable
-          cardDef={cardDef}
-          columns={columns}
-          data={data.dags}
-          displayMode={display}
-          errorMessage={<ErrorAlert error={error} />}
-          initialState={tableURLState}
-          isLoading={isLoading}
-          modelName="Dag"
-          onStateChange={setTableURLState}
-          skeletonCount={display === "card" ? 5 : undefined}
-          total={data.total_entries}
-        />
-      </Box>
-    </DagsLayout>
+        </VStack>
+        <ToggleTableDisplay display={display} setDisplay={setDisplay} />
+        <Box overflow="auto">
+          <DataTable
+            cardDef={cardDef}
+            columns={columns}
+            data={data.dags}
+            displayMode={display}
+            errorMessage={<ErrorAlert error={error} />}
+            initialState={tableURLState}
+            isLoading={isLoading}
+            modelName="Dag"
+            onStateChange={setTableURLState}
+            skeletonCount={display === "card" ? 5 : undefined}
+            total={data.total_entries}
+          />
+        </Box>
+      </DagsLayout>
+    </>
   );
 };

@@ -18,11 +18,22 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import * as configHooks from "src/queries/useConfig";
 import { AppWrapper } from "src/utils/AppWrapper";
 
 describe("Dag Filters", () => {
+  beforeEach(() => {
+    vi.spyOn(configHooks, "useConfig").mockImplementation((key) => {
+      if (key === "dashboard_alert") {
+        return [];
+      }
+
+      return false;
+    });
+  });
+
   it("Filter by selected last run state", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
