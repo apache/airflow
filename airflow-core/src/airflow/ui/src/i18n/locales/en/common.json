@@ -4,6 +4,7 @@
   "logout": "Logout",
   "switchToDarkMode": "Switch to Dark Mode",
   "switchToLightMode": "Switch to Light Mode",
+  "timezone": "timezone",
   "user": "User",
   "language": {
     "chinese": "Traditional Chinese",

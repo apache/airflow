@@ -21,13 +21,15 @@ import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { useState } from "react";
-import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
+import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
 import { useTimezone } from "src/context/timezone";
+import { supportedLanguages } from "src/i18n/config";
 
 import LogoutModal from "./LogoutModal";
 import { NavButton } from "./NavButton";
@@ -37,6 +39,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export const UserSettingsButton = () => {
+  const { i18n, t: translate } = useTranslation();
   const { colorMode, toggleColorMode } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
@@ -45,22 +48,44 @@ export const UserSettingsButton = () => {
 
   const [time, setTime] = useState(dayjs());
 
+  const current = supportedLanguages.find((lang) => lang.code === i18n.language);
+
   return (
     <Menu.Root onOpenChange={() => setTime(dayjs())} positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
         <NavButton icon={<FiUser size="1.75rem" />} title="User" />
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item value="language">
+          <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
+          <Menu.Root>
+            <Menu.Trigger asChild>
+              <span>{current?.name ?? translate("common.language.select")}</span>
+            </Menu.Trigger>
+            <Menu.Content>
+              {supportedLanguages.map((lang) => (
+                <Menu.Item
+                  disabled={lang.code === i18n.language}
+                  key={lang.code}
+                  onClick={() => void i18n.changeLanguage(lang.code)}
+                  value={lang.code}
+                >
+                  {lang.name}
+                </Menu.Item>
+              ))}
+            </Menu.Content>
+          </Menu.Root>
+        </Menu.Item>
         <Menu.Item onClick={toggleColorMode} value="color-mode">
           {colorMode === "light" ? (
             <>
               <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
-              Switch to Dark Mode
+              {translate("switchToDarkMode")}
             </>
           ) : (
             <>
               <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
-              Switch to Light Mode
+              {translate("switchToLightMode")}
             </>
           )}
         </Menu.Item>
@@ -71,22 +96,22 @@ export const UserSettingsButton = () => {
           {dagView === "grid" ? (
             <>
               <MdOutlineAccountTree size="1.25rem" style={{ marginRight: "8px" }} />
-              Default to graph view
+              {translate("defaultToGraphView")}
             </>
           ) : (
             <>
               <FiGrid size="1.25rem" style={{ marginRight: "8px" }} />
-              Default to grid view
+              {translate("defaultToGridView")}
             </>
           )}
         </Menu.Item>
         <Menu.Item onClick={onOpenTimezone} value="timezone">
           <FiClock size="1.25rem" style={{ marginRight: "8px" }} />
-          {dayjs(time).tz(selectedTimezone).format("HH:mm z (Z)")}
+          {translate("timezone")}: {dayjs(time).tz(selectedTimezone).format("HH:mm z (Z)")}
         </Menu.Item>
         <Menu.Item onClick={onOpenLogout} value="logout">
           <FiLogOut size="1.25rem" style={{ marginRight: "8px" }} />
-          Logout
+          {translate("logout")}
         </Menu.Item>
       </Menu.Content>
       <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />

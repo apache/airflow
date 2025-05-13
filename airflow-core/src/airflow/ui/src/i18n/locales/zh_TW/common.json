@@ -4,6 +4,7 @@
   "logout": "登出",
   "switchToDarkMode": "切換到深色模式",
   "switchToLightMode": "切換到淺色模式",
+  "timezone": "時區",
   "user": "使用者",
   "language": {
     "chinese": "繁體中文",
