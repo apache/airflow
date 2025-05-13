@@ -30,7 +30,7 @@ type Props = {
 
 export const Schedule = ({ dag }: Props) =>
   Boolean(dag.timetable_summary) ? (
-    Boolean(dag.asset_expression) ? (
+    Boolean(dag.asset_expression) || dag.timetable_summary === "Asset" ? (
       <AssetSchedule dag={dag} />
     ) : (
       <Tooltip content={dag.timetable_description}>

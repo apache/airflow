@@ -256,6 +256,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert actual_xcoms == expected_xcoms
 
 
+@pytest.mark.need_serialized_dag
 def test_assign_unassigned(session, create_task_instance):
     """
     Tests that unassigned triggers of all appropriate states are assigned.
@@ -352,6 +353,7 @@ def test_assign_unassigned(session, create_task_instance):
     )
 
 
+@pytest.mark.need_serialized_dag
 def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
     """
     Tests that triggers are sorted by the creation_date if they have the same priority.
@@ -416,6 +418,7 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     assert trigger_ids_query == [(trigger_old.id,), (trigger_new.id,), (trigger_asset.id,)]
 
 
+@pytest.mark.need_serialized_dag
 def test_get_sorted_triggers_different_priority_weights(session, create_task_instance):
     """
     Tests that triggers are sorted by the priority_weight.

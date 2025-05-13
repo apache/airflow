@@ -16,21 +16,14 @@
 # under the License.
 #
 ---
-name: Tests
+name: Tests ARM
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '28 1,7,13,19 * * *'
+    - cron: '28 3,9,15,21 * * *'
   push:
     branches:
       - v[0-9]+-[0-9]+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-  pull_request:
-    branches:
-      - main
-      - v[0-9]+-[0-9]+-test
-      - v[0-9]+-[0-9]+-stable
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
@@ -43,7 +36,7 @@ env:
   VERBOSE: "true"
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-arm-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -173,7 +166,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/basic-tests.yml
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
@@ -194,9 +187,8 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/amd64"
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       push-image: "false"
       upload-image-artifact: "true"
       upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
@@ -219,8 +211,8 @@ jobs:
       id-token: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -241,7 +233,8 @@ jobs:
     uses: ./.github/workflows/generate-constraints.yml
     if: needs.build-info.outputs.ci-image-build == 'true'
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
@@ -249,37 +242,6 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
-  ci-image-checks:
-    name: "CI image checks"
-    needs: [build-info, build-ci-images]
-    uses: ./.github/workflows/ci-image-checks.yml
-    permissions:
-      id-token: write
-      contents: read
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
-      mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
-      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      docs-list-as-string: ${{ needs.build-info.outputs.docs-list-as-string }}
-      latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
-      basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
-      ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      docs-build: ${{ needs.build-info.outputs.docs-build }}
-      needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-    secrets:
-      DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
-      DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
 
   providers:
     name: "provider distributions tests"
@@ -290,10 +252,10 @@ jobs:
       packages: read
     if: >
       needs.build-info.outputs.skip-providers-tests != 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true' &&
-      needs.build-info.outputs.run-tests == 'true'
+      needs.build-info.outputs.latest-versions-only != 'true'
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -315,7 +277,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -332,7 +295,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -359,7 +323,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -378,61 +343,6 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
-  tests-mysql-core:
-    name: "MySQL tests: core"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, build-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      backend: "mysql"
-      test-name: "MySQL"
-      test-scope: "DB"
-      test-group: "core"
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      excludes: ${{ needs.build-info.outputs.mysql-exclude }}
-      test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      run-migration-tests: "true"
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-mysql-providers:
-    name: "MySQL tests: providers"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, build-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      backend: "mysql"
-      test-name: "MySQL"
-      test-scope: "DB"
-      test-group: "providers"
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      excludes: ${{ needs.build-info.outputs.mysql-exclude }}
-      test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      run-migration-tests: "true"
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-
   tests-sqlite-core:
     name: "Sqlite tests: core"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -441,7 +351,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -470,7 +381,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -500,7 +412,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -528,7 +441,8 @@ jobs:
       contents: read
       packages: read
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -548,115 +462,6 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.run-tests == 'true'
 
-  tests-special:
-    name: "Special tests"
-    uses: ./.github/workflows/special-tests.yml
-    needs: [build-info, build-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    if: >
-      needs.build-info.outputs.run-tests == 'true' &&
-      (needs.build-info.outputs.canary-run == 'true' ||
-       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
-       needs.build-info.outputs.full-tests-needed == 'true')
-    with:
-      default-branch: ${{ needs.build-info.outputs.default-branch }}
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      core-test-types-list-as-strings-in-json: >
-        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
-      providers-test-types-list-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-
-  tests-integration-system:
-    name: Integration and System Tests
-    needs: [build-info, build-ci-images]
-    uses: ./.github/workflows/integration-system-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
-      testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
-      run-system-tests: ${{ needs.build-info.outputs.run-tests }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-with-lowest-direct-resolution-core:
-    name: "Low dep tests:core"
-    needs: [build-info, build-ci-images]
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    if: >
-      needs.build-info.outputs.run-tests == 'true'
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      test-name: "LowestDeps"
-      force-lowest-dependencies: "true"
-      test-scope: "All"
-      test-group: "core"
-      backend: "sqlite"
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
-      excluded-providers-as-string: ""
-      excludes: "[]"
-      test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      monitor-delay-time-in-seconds: 120
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-
-  tests-with-lowest-direct-resolution-providers:
-    name: "Low dep tests: providers"
-    needs: [build-info, build-ci-images]
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    if: needs.build-info.outputs.run-tests == 'true'
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      test-name: "LowestDeps"
-      force-lowest-dependencies: "true"
-      test-scope: "All"
-      test-group: "providers"
-      backend: "sqlite"
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      excludes: "[]"
-      test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.individual-providers-test-types-list-as-strings-in-json }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      monitor-delay-time-in-seconds: 120
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-
   build-prod-images:
     name: Build PROD images
     needs: [build-info, build-ci-images, generate-constraints]
@@ -667,9 +472,9 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       build-type: "Regular"
-      platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"
       upload-package-artifact: "true"
@@ -683,22 +488,6 @@ jobs:
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       prod-image-build: ${{ needs.build-info.outputs.prod-image-build }}
 
-  additional-prod-image-tests:
-    name: "Additional PROD image tests"
-    needs: [build-info, build-prod-images, generate-constraints]
-    uses: ./.github/workflows/additional-prod-image-tests.yml
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      default-branch: ${{ needs.build-info.outputs.default-branch }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.prod-image-build == 'true'
-
   tests-kubernetes:
     name: "Kubernetes tests"
     uses: ./.github/workflows/k8s-tests.yml
@@ -707,8 +496,8 @@ jobs:
       contents: read
       packages: read
     with:
-      platform: "linux/amd64"
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -717,48 +506,6 @@ jobs:
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.needs-helm-tests == 'true')
-
-  tests-task-sdk:
-    name: "Task SDK tests"
-    uses: ./.github/workflows/airflow-distributions-tests.yml
-    needs: [build-info, build-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      distribution-name: "task-sdk"
-      distribution-cmd-format: "prepare-task-sdk-distributions"
-      test-type: "task-sdk-tests"
-    if: >
-      ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true')
-
-  tests-airflow-ctl:
-    name: "Airflow CTL tests"
-    uses: ./.github/workflows/airflow-distributions-tests.yml
-    needs: [build-info, build-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      distribution-name: "airflow-ctl"
-      distribution-cmd-format: "prepare-airflow-ctl-distributions"
-      test-type: "airflow-ctl-tests"
-    if: >
-      ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true')
 
   finalize-tests:
     name: Finalize tests
@@ -769,33 +516,24 @@ jobs:
     if: always() && !failure() && !cancelled()
     needs:
       - additional-ci-image-checks
-      - additional-prod-image-tests
       - basic-tests
       - build-info
-      - build-prod-images
-      - ci-image-checks
+      - basic-tests
       - generate-constraints
+      - build-prod-images
       - providers
       - tests-helm
-      - tests-integration-system
       - tests-kubernetes
-      - tests-mysql-core
-      - tests-mysql-providers
       - tests-non-db-core
       - tests-non-db-providers
       - tests-postgres-core
       - tests-postgres-providers
-      # - tests-special
       - tests-sqlite-core
       - tests-sqlite-providers
-      - tests-task-sdk
-      - tests-airflow-ctl
-      - tests-with-lowest-direct-resolution-core
-      - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
     with:
-      amd-runners: ${{ needs.build-info.outputs.amd-runners }}
-      arm-runners: ${{ needs.build-info.outputs.arm-runners }}
+      runners: ${{ needs.build-info.outputs.arm-runners }}
+      platform: "linux/arm64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -825,10 +563,10 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨🕒 Scheduled CI Failure Alert (ARM) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨🕒 Scheduled CI Failure Alert (ARM) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length

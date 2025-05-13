@@ -20,12 +20,8 @@ name: Push image cache
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
-        description: "The array of labels (in json form) determining public AMD runners."
-        required: true
-        type: string
-      arm-runners:
-        description: "The array of labels (in json form) determining public ARM runners."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
       cache-type:
@@ -83,11 +79,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
-    # NOTE!!!!! This has to be put in one line for runs-on to recognize the "fromJSON" properly !!!!
-    # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
-    # instead of an array of strings.
-    # yamllint disable-line rule:line-length
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.amd-runners) || fromJSON(inputs.arm-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     permissions:
       contents: read
       packages: write
@@ -158,11 +150,7 @@ jobs:
 
   push-prod-image-cache:
     name: "Push PROD ${{ inputs.cache-type }}:${{ matrix.python }} image cache"
-    # NOTE!!!!! This has to be put in one line for runs-on to recognize the "fromJSON" properly !!!!
-    # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
-    # instead of an array of strings.
-    # yamllint disable-line rule:line-length
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.amd-runners) || fromJSON(inputs.arm-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     permissions:
       contents: read
       packages: write

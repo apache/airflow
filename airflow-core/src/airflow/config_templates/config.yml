@@ -1284,6 +1284,15 @@ secrets:
 api:
   description: ~
   options:
+    expose_config:
+      description: |
+        Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
+        except those that have security implications. ``True`` shows all values. ``False`` hides the
+        configuration completely.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
@@ -1705,15 +1714,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    expose_config:
-      description: |
-        Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
-        except those that have security implications. ``True`` shows all values. ``False`` hides the
-        configuration completely.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     expose_hostname:
       description: |
         Expose hostname in the web server

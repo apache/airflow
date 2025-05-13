@@ -153,9 +153,22 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert result is False
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.read_gbq")
-    def test_get_pandas_df(self, mock_read_gbq):
-        self.hook.get_pandas_df("select 1")
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_get_df(self, mock_read_gbq, df_type):
+        import pandas as pd
+        import polars as pl
 
+        mock_read_gbq.return_value = pd.DataFrame({"a": [1, 2, 3]})
+        result = self.hook.get_df("select 1", df_type=df_type)
+
+        expected_type = pd.DataFrame if df_type == "pandas" else pl.DataFrame
+        assert isinstance(result, expected_type)
+        assert result.shape == (3, 1)
+        assert result.columns == ["a"]
+        if df_type == "pandas":
+            assert result["a"].tolist() == [1, 2, 3]
+        else:
+            assert result.to_series().to_list() == [1, 2, 3]
         mock_read_gbq.assert_called_once_with(
             "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID
         )
@@ -310,7 +323,12 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
 
         mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
-        assert view_access in dataset.access_entries
+        assert any(
+            entry.role == view_access.role
+            and entry.entity_type == view_access.entity_type
+            and entry.entity_id == view_access.entity_id
+            for entry in dataset.access_entries
+        ), f"View access entry not found in {dataset.access_entries}"
         mock_update.assert_called_once_with(
             fields=["access"],
             dataset_resource=dataset.to_api_repr(),

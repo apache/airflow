@@ -90,6 +90,7 @@ export type AssetResponse = {
   consuming_dags: Array<DagScheduleAssetReference>;
   producing_tasks: Array<TaskOutletAssetReference>;
   aliases: Array<AssetAliasResponse>;
+  last_asset_event?: LastAssetEventResponse | null;
 };
 
 /**
@@ -748,6 +749,7 @@ export type DagVersionResponse = {
   bundle_name: string | null;
   bundle_version: string | null;
   created_at: string;
+  dag_display_name: string;
   readonly bundle_url: string | null;
 };
 
@@ -908,6 +910,14 @@ export type JobResponse = {
 export type JsonValue = unknown;
 
 /**
+ * Last asset event response serializer.
+ */
+export type LastAssetEventResponse = {
+  id?: number | null;
+  timestamp?: string | null;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type PatchTaskInstanceBody = {
@@ -1037,6 +1047,7 @@ export type QueuedEventResponse = {
   dag_id: string;
   asset_id: number;
   created_at: string;
+  dag_display_name: string;
 };
 
 /**
@@ -1783,10 +1794,16 @@ export type category = "info" | "warning" | "error";
 export type GetAssetsData = {
   dagIds?: Array<string>;
   limit?: number;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   namePattern?: string | null;
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   uriPattern?: string | null;
 };
 
@@ -1794,6 +1811,9 @@ export type GetAssetsResponse = AssetCollectionResponse;
 
 export type GetAssetAliasesData = {
   limit?: number;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   namePattern?: string | null;
   offset?: number;
   orderBy?: string;
@@ -1968,6 +1988,9 @@ export type PatchConnectionData = {
 export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   connectionIdPattern?: string | null;
   limit?: number;
   offset?: number;
@@ -2119,7 +2142,13 @@ export type ListDagWarningsData = {
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagDisplayNamePattern?: string | null;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagIdPattern?: string | null;
   dagRunEndDateGte?: string | null;
   dagRunEndDateLte?: string | null;
@@ -2140,6 +2169,9 @@ export type GetDagsData = {
 export type GetDagsResponse = DAGCollectionResponse;
 
 export type PatchDagsData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagIdPattern?: string | null;
   excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
@@ -2185,6 +2217,9 @@ export type GetDagTagsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   tagNamePattern?: string | null;
 };
 
@@ -2356,6 +2391,9 @@ export type GetTaskInstancesData = {
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   taskDisplayNamePattern?: string | null;
   taskId?: string | null;
   updatedAtGte?: string | null;
@@ -2509,6 +2547,9 @@ export type GetPoolsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   poolNamePattern?: string | null;
 };
 
@@ -2614,6 +2655,9 @@ export type GetVariablesData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   variableKeyPattern?: string | null;
 };
 
@@ -2675,7 +2719,13 @@ export type LogoutResponse = unknown;
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type RecentDagRunsData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagDisplayNamePattern?: string | null;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagIdPattern?: string | null;
   dagIds?: Array<string> | null;
   dagRunsLimit?: number;

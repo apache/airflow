@@ -23,7 +23,7 @@ from pathlib import Path
 from airflow import DAG
 from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensorAsync
 
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -34,46 +34,32 @@ def my_task(task_number):
 
 
 def check_start_amount_func():
-    start_sensor_key = "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds.event.start"  # type: ignore[union-attr]
-    events = Variable.get(start_sensor_key, deserialize_json=True)
+    events = Variable.get(key="openlineage_basic_defer_dag.wait.event.start", deserialize_json=True)
     if len(events) < 2:
         raise ValueError(f"Expected at least 2 events, got {len(events)}")
 
 
 with DAG(
-    dag_id="openlineage_sensor_mapped_tasks_dag",
+    dag_id="openlineage_basic_defer_dag",
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
 ) as dag:
-    wait_for_10_seconds = TimeDeltaSensor(
-        task_id="wait_for_10_seconds",
-        mode="reschedule",
-        poke_interval=5,
-        delta=timedelta(seconds=10),
-    )
+    # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
+    # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
+    wait = TimeDeltaSensorAsync(task_id="wait", delta=timedelta(seconds=180))
 
-    mapped_tasks = [
-        PythonOperator(
-            task_id=f"mapped_task_{i}",
-            python_callable=my_task,
-            op_args=[i],
-        )
-        for i in range(2)
-    ]
-
-    check_start_amount = PythonOperator(
-        task_id="check_order",
-        python_callable=check_start_amount_func,
+    check_start_events_amount = PythonOperator(
+        task_id="check_start_events_amount", python_callable=check_start_amount_func
     )
 
     check_events = OpenLineageTestOperator(
         task_id="check_events",
-        file_path=str(Path(__file__).parent / "example_openlineage_mapped_sensor.json"),
+        file_path=str(Path(__file__).parent / "example_openlineage_defer.json"),
         allow_duplicate_events=True,
     )
 
-    wait_for_10_seconds >> mapped_tasks >> check_start_amount >> check_events
+    wait >> check_start_events_amount >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

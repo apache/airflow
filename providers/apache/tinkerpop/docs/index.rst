@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-apache-tinkerpop``
+``apache-airflow-providers-apache-tinkerpop``
 =====================================================
 
 .. toctree::

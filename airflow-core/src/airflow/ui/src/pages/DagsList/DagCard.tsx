@@ -43,7 +43,7 @@ export const DagCard = ({ dag }: Props) => {
 
   return (
     <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">
-      <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={2}>
+      <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={1}>
         <HStack>
           <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
             <Link asChild color="fg.info" fontWeight="bold">
@@ -63,7 +63,7 @@ export const DagCard = ({ dag }: Props) => {
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>
-      <SimpleGrid columns={4} gap={1} height={20} px={3}>
+      <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>
         <Stat label="Schedule">
           <Schedule dag={dag} />
         </Stat>

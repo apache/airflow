@@ -38,6 +38,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
+    normalize_platform_machine,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -468,10 +469,18 @@ option_version_suffix = click.option(
     default="",
 )
 
+
+def _normalize_platform(ctx: click.core.Context, param: click.core.Option, value: str):
+    if not value:
+        return value
+    return normalize_platform_machine(value)
+
+
 option_platform_single = click.option(
     "--platform",
     help="Platform for Airflow image.",
     default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
     envvar="PLATFORM",
+    callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
 )

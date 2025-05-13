@@ -62,7 +62,7 @@ PIP package                                  Version required
 ===========================================  ======================================
 ``apache-airflow``                           ``>=2.10.0``
 ``apache-airflow-providers-common-compat``   ``>=1.4.0``
-``apache-airflow-providers-common-sql``      ``>=1.20.0``
+``apache-airflow-providers-common-sql``      ``>=1.27.0``
 ``asgiref``                                  ``>=3.5.2``
 ``dill``                                     ``>=0.2.3``
 ``gcloud-aio-auth``                          ``>=5.2.0``

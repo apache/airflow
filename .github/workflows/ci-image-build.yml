@@ -20,12 +20,8 @@ name: Build CI images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      amd-runners:
-        description: "The array of labels (in json form) determining public AMD runners."
-        required: true
-        type: string
-      arm-runners:
-        description: "The array of labels (in json form) determining public ARM runners."
+      runners:
+        description: "The array of labels (in json form) determining runners."
         required: true
         type: string
       target-commit-sha:
@@ -106,11 +102,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.python-versions) || fromJSON('[""]') }}
     timeout-minutes: 110
     name: "Build CI ${{ inputs.platform }} image ${{ matrix.python-version }}"
-    # NOTE!!!!! This has to be put in one line for runs-on to recognize the "fromJSON" properly !!!!
-    # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
-    # instead of an array of strings.
-    # yamllint disable-line rule:line-length
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.amd-runners) || fromJSON(inputs.arm-runners) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}

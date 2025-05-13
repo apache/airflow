@@ -96,7 +96,10 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
 
   useEffect(() => {
     if (conf) {
-      reset({ conf });
+      reset((prevValues) => ({
+        ...prevValues,
+        conf,
+      }));
     }
   }, [conf, reset]);
 
@@ -240,7 +243,12 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Spacer />
         {dag.is_paused ? (
           <>
-            <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
+            <Checkbox
+              checked={unpause}
+              colorPalette="blue"
+              onChange={() => setUnpause(!unpause)}
+              wordBreak="break-all"
+            >
               Unpause {dag.dag_display_name} on trigger
             </Checkbox>
             <Spacer />
