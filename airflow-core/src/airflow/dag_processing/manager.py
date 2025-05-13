@@ -48,6 +48,7 @@ from tabulate import tabulate
 from uuid6 import uuid7
 
 import airflow.models
+from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
@@ -80,6 +81,7 @@ if TYPE_CHECKING:
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.sdk.api.client import Client
 
 
 class DagParsingStat(NamedTuple):
@@ -212,6 +214,9 @@ class DagFileProcessorManager(LoggingMixin):
     """Last time we checked if any bundles are ready to be refreshed"""
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
+
+    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
+    """API server to interact with Metadata DB"""
 
     def register_exit_signals(self):
         """Register signals that stop child processes."""
@@ -867,6 +872,15 @@ class DagFileProcessorManager(LoggingMixin):
             underlying_logger, processors=processors, logger_name="processor"
         ).bind(), logger_filehandle
 
+    @functools.cached_property
+    def client(self) -> Client:
+        from airflow.sdk.api.client import Client
+
+        client = Client(base_url=None, token="", dry_run=True, transport=self._api_server.transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
     def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
         id = uuid7()
 
@@ -881,6 +895,7 @@ class DagFileProcessorManager(LoggingMixin):
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,
+            client=self.client,
         )
 
     def _start_new_processes(self):

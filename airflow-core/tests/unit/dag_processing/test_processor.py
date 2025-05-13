@@ -29,6 +29,7 @@ import pytest
 import structlog
 from pydantic import TypeAdapter
 
+from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import (
@@ -40,6 +41,7 @@ from airflow.dag_processing.processor import (
 from airflow.models import DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk.api.client import Client
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -65,6 +67,15 @@ def disable_load_example():
     with conf_vars({("core", "load_examples"): "false"}):
         with env_vars({"AIRFLOW__CORE__LOAD_EXAMPLES": "false"}):
             yield
+
+
+@pytest.fixture
+def inprocess_client():
+    """Provides an in-process Client backed by a single API server."""
+    api = InProcessExecutionAPI()
+    client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+    client.base_url = "http://in-process.invalid/"  # type: ignore[assignment]
+    return client
 
 
 @pytest.mark.usefixtures("disable_load_example")
@@ -130,7 +141,7 @@ class TestDagFileProcessor:
         assert "a.py" in resp.import_errors
 
     def test_top_level_variable_access(
-        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
     ):
         logger_filehandle = MagicMock()
 
@@ -144,7 +155,12 @@ class TestDagFileProcessor:
 
         monkeypatch.setenv("AIRFLOW_VAR_MYVAR", "abc")
         proc = DagFileProcessorProcess.start(
-            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
         )
 
         while not proc.is_ready:
@@ -156,7 +172,7 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "test_abc"
 
     def test_top_level_variable_access_not_found(
-        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
     ):
         logger_filehandle = MagicMock()
 
@@ -168,7 +184,12 @@ class TestDagFileProcessor:
 
         path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
         proc = DagFileProcessorProcess.start(
-            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
         )
 
         while not proc.is_ready:
@@ -180,7 +201,7 @@ class TestDagFileProcessor:
         if result.import_errors:
             assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
 
-    def test_top_level_variable_set(self, tmp_path: pathlib.Path):
+    def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
 
         logger_filehandle = MagicMock()
@@ -194,7 +215,12 @@ class TestDagFileProcessor:
 
         path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
         proc = DagFileProcessorProcess.start(
-            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
         )
 
         while not proc.is_ready:
@@ -210,7 +236,7 @@ class TestDagFileProcessor:
             assert len(all_vars) == 1
             assert all_vars[0].key == "mykey"
 
-    def test_top_level_variable_delete(self, tmp_path: pathlib.Path):
+    def test_top_level_variable_delete(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
 
         logger_filehandle = MagicMock()
@@ -230,7 +256,12 @@ class TestDagFileProcessor:
 
         path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
         proc = DagFileProcessorProcess.start(
-            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
         )
 
         while not proc.is_ready:
@@ -245,7 +276,9 @@ class TestDagFileProcessor:
             all_vars = session.query(VariableORM).all()
             assert len(all_vars) == 0
 
-    def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
+    def test_top_level_connection_access(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, inprocess_client
+    ):
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -259,7 +292,12 @@ class TestDagFileProcessor:
 
         monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", '{"conn_type": "aws"}')
         proc = DagFileProcessorProcess.start(
-            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
         )
 
         while not proc.is_ready:
@@ -270,7 +308,7 @@ class TestDagFileProcessor:
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "test_my_conn"
 
-    def test_top_level_connection_access_not_found(self, tmp_path: pathlib.Path):
+    def test_top_level_connection_access_not_found(self, tmp_path: pathlib.Path, inprocess_client):
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -282,7 +320,12 @@ class TestDagFileProcessor:
 
         path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
         proc = DagFileProcessorProcess.start(
-            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
         )
 
         while not proc.is_ready:
@@ -294,7 +337,7 @@ class TestDagFileProcessor:
         if result.import_errors:
             assert "CONNECTION_NOT_FOUND" in next(iter(result.import_errors.values()))
 
-    def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path):
+    def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path, inprocess_client):
         tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
 
         dag1_path = tmp_path.joinpath("dag1.py")
@@ -314,6 +357,7 @@ class TestDagFileProcessor:
             bundle_path=tmp_path,
             callbacks=[],
             logger_filehandle=MagicMock(),
+            client=inprocess_client,
         )
         while not proc.is_ready:
             proc._service_subprocess(0.1)
