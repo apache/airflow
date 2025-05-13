@@ -49,5 +49,6 @@ class DowngradeUpstreamMapIndexes(VersionChange):
                 elif isinstance(v, list) and v and all(isinstance(i, int) for i in v):
                     downgraded[k] = v[0]
                 else:
-                    downgraded[k] = 0
+                    # for cases like None, make it -1
+                    downgraded[k] = -1
             response.body["upstream_map_indexes"] = downgraded
