@@ -449,8 +449,8 @@ Refactored Internal Utilities
 
 Several core components have been moved to more intuitive or stable locations:
 
-- The ``SecretsMasker`` class has been relocated to ``airflow.utils.secrets_masker``.
-- The ``ObjectStoragePath`` utility previously located under ``airflow.io`` is now available via ``airflow.utils.object_storage_path``.
+- The ``SecretsMasker`` class has been relocated to ``airflow.sdk.execution_time.secrets_masker``.
+- The ``ObjectStoragePath`` utility previously located under ``airflow.io`` is now available via ``airflow.sdk``.
 
 These changes simplify imports and reflect broader efforts to stabilize utility interfaces across the Airflow codebase.
 
@@ -554,6 +554,19 @@ The Airflow CLI has been split into two distinct interfaces:
 - Remote functionality, including triggering DAGs or managing connections in service-mode environments, is now handled by a separate CLI called ``airflowctl``, distributed via the ``apache-airflow-client`` package.
 
 This change improves security and modularity for deployments that use Airflow in a distributed or API-first context.
+
+REST API v2 replaces v1
+"""""""""""""""""""""""
+
+The legacy REST API v1, previously built with Connexion and Marshmallow, has been replaced by a modern FastAPI-based REST API v2.
+
+This new implementation improves performance, aligns more closely with web standards, and provides a consistent developer experience across the API and UI.
+
+Key changes include stricter validation (422 errors instead of 400), the removal of the ``execution_date`` parameter in favor of ``logical_date``, and more consistent query parameter handling.
+
+The v2 API is now the stable, fully supported interface for programmatic access to Airflow, and also powers the new UI - achieving full feature parity between the UI and API.
+
+For details, see the :doc:`Airflow REST API v2 </stable-rest-api-ref>` documentation.
 
 REST API: DAG Trigger Behavior Updated
 """"""""""""""""""""""""""""""""""""""

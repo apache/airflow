@@ -90,6 +90,7 @@ export type AssetResponse = {
   consuming_dags: Array<DagScheduleAssetReference>;
   producing_tasks: Array<TaskOutletAssetReference>;
   aliases: Array<AssetAliasResponse>;
+  last_asset_event?: LastAssetEventResponse | null;
 };
 
 /**
@@ -132,6 +133,7 @@ export type BackfillResponse = {
   created_at: string;
   completed_at: string | null;
   updated_at: string;
+  dag_display_name: string;
 };
 
 /**
@@ -471,6 +473,9 @@ export type DAGDetailsResponse = {
   template_search_path: Array<string> | null;
   timezone: string | null;
   last_parsed: string | null;
+  default_args: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Return file token.
    */
@@ -607,6 +612,7 @@ export type DAGSourceResponse = {
   content: string | null;
   dag_id: string;
   version_number: number | null;
+  dag_display_name: string;
 };
 
 /**
@@ -743,6 +749,7 @@ export type DagVersionResponse = {
   bundle_name: string | null;
   bundle_version: string | null;
   created_at: string;
+  dag_display_name: string;
   readonly bundle_url: string | null;
 };
 
@@ -792,6 +799,7 @@ export type EventLogResponse = {
   logical_date: string | null;
   owner: string | null;
   extra: string | null;
+  dag_display_name?: string | null;
 };
 
 /**
@@ -896,6 +904,17 @@ export type JobResponse = {
   executor_class: string | null;
   hostname: string | null;
   unixname: string | null;
+  dag_display_name?: string | null;
+};
+
+export type JsonValue = unknown;
+
+/**
+ * Last asset event response serializer.
+ */
+export type LastAssetEventResponse = {
+  id?: number | null;
+  timestamp?: string | null;
 };
 
 /**
@@ -1028,6 +1047,7 @@ export type QueuedEventResponse = {
   dag_id: string;
   asset_id: number;
   created_at: string;
+  dag_display_name: string;
 };
 
 /**
@@ -1323,7 +1343,7 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  value: string;
+  value: JsonValue;
   description?: string | null;
 };
 
@@ -1381,6 +1401,7 @@ export type XComResponse = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
 };
 
 /**
@@ -1394,6 +1415,7 @@ export type XComResponseNative = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
   value: unknown;
 };
 
@@ -1408,6 +1430,7 @@ export type XComResponseString = {
   task_id: string;
   dag_id: string;
   run_id: string;
+  dag_display_name: string;
   value: string | null;
 };
 
@@ -1593,6 +1616,16 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
+ * Dashboard DAG Stats serializer for responses.
+ */
+export type DashboardDagStatsResponse = {
+  active_dag_count: number;
+  failed_dag_count: number;
+  running_dag_count: number;
+  queued_dag_count: number;
+};
+
+/**
  * Edge serializer for responses.
  */
 export type EdgeResponse = {
@@ -1761,10 +1794,16 @@ export type category = "info" | "warning" | "error";
 export type GetAssetsData = {
   dagIds?: Array<string>;
   limit?: number;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   namePattern?: string | null;
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   uriPattern?: string | null;
 };
 
@@ -1772,6 +1811,9 @@ export type GetAssetsResponse = AssetCollectionResponse;
 
 export type GetAssetAliasesData = {
   limit?: number;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   namePattern?: string | null;
   offset?: number;
   orderBy?: string;
@@ -1946,6 +1988,9 @@ export type PatchConnectionData = {
 export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   connectionIdPattern?: string | null;
   limit?: number;
   offset?: number;
@@ -2097,7 +2142,13 @@ export type ListDagWarningsData = {
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagDisplayNamePattern?: string | null;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagIdPattern?: string | null;
   dagRunEndDateGte?: string | null;
   dagRunEndDateLte?: string | null;
@@ -2118,6 +2169,9 @@ export type GetDagsData = {
 export type GetDagsResponse = DAGCollectionResponse;
 
 export type PatchDagsData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagIdPattern?: string | null;
   excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
@@ -2163,6 +2217,9 @@ export type GetDagTagsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   tagNamePattern?: string | null;
 };
 
@@ -2220,6 +2277,15 @@ export type PatchTaskInstanceData = {
 };
 
 export type PatchTaskInstanceResponse = TaskInstanceResponse;
+
+export type DeleteTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+};
+
+export type DeleteTaskInstanceResponse = null;
 
 export type GetMappedTaskInstancesData = {
   dagId: string;
@@ -2325,6 +2391,9 @@ export type GetTaskInstancesData = {
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   taskDisplayNamePattern?: string | null;
   taskId?: string | null;
   updatedAtGte?: string | null;
@@ -2478,6 +2547,9 @@ export type GetPoolsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   poolNamePattern?: string | null;
 };
 
@@ -2583,6 +2655,9 @@ export type GetVariablesData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   variableKeyPattern?: string | null;
 };
 
@@ -2644,7 +2719,13 @@ export type LogoutResponse = unknown;
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type RecentDagRunsData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagDisplayNamePattern?: string | null;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
   dagIdPattern?: string | null;
   dagIds?: Array<string> | null;
   dagRunsLimit?: number;
@@ -2672,6 +2753,8 @@ export type HistoricalMetricsData = {
 };
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
+
+export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type StructureDataData = {
   dagId: string;
@@ -4251,6 +4334,31 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+    delete: {
+      req: DeleteTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped": {
     get: {
@@ -5532,6 +5640,16 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dashboard/dag_stats": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DashboardDagStatsResponse;
       };
     };
   };

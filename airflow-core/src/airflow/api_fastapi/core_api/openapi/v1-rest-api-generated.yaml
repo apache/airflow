@@ -40,7 +40,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: uri_pattern
         in: query
         required: false
@@ -48,7 +52,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Uri Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: dag_ids
         in: query
         required: false
@@ -135,7 +143,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: order_by
         in: query
         required: false
@@ -1392,7 +1404,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Connection Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -2651,7 +2667,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -2659,7 +2679,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -2828,7 +2852,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -3910,7 +3938,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -4567,6 +4599,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Task Instance
+      summary: Delete Task Instance
+      description: Delete a task instance.
+      operationId: delete_task_instance
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Delete Task Instance
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -5368,7 +5466,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Task Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: state
         in: query
         required: false
@@ -6209,7 +6311,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Variable Key Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -6591,7 +6697,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Tag Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -7082,6 +7192,10 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+        last_asset_event:
+          anyOf:
+          - $ref: '#/components/schemas/LastAssetEventResponse'
+          - type: 'null'
       type: object
       required:
       - id
@@ -7191,6 +7305,9 @@ components:
           type: string
           format: date-time
           title: Updated At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - id
@@ -7204,6 +7321,7 @@ components:
       - created_at
       - completed_at
       - updated_at
+      - dag_display_name
       title: BackfillResponse
       description: Base serializer for Backfill.
     BaseInfoResponse:
@@ -7993,6 +8111,12 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed
+        default_args:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Default Args
         file_token:
           type: string
           title: File Token
@@ -8047,6 +8171,7 @@ components:
       - template_search_path
       - timezone
       - last_parsed
+      - default_args
       - file_token
       - concurrency
       - latest_dag_version
@@ -8467,11 +8592,15 @@ components:
           - type: integer
           - type: 'null'
           title: Version Number
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - content
       - dag_id
       - version_number
+      - dag_display_name
       title: DAGSourceResponse
       description: DAG Source serializer for responses.
     DAGTagCollectionResponse:
@@ -8758,6 +8887,9 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         bundle_url:
           anyOf:
           - type: string
@@ -8772,6 +8904,7 @@ components:
       - bundle_name
       - bundle_version
       - created_at
+      - dag_display_name
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
@@ -8883,6 +9016,11 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
       type: object
       required:
       - event_log_id
@@ -9115,6 +9253,11 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
       type: object
       required:
       - id
@@ -9129,6 +9272,24 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    JsonValue: {}
+    LastAssetEventResponse:
+      properties:
+        id:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Id
+        timestamp:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp
+      type: object
+      title: LastAssetEventResponse
+      description: Last asset event response serializer.
     PatchTaskInstanceBody:
       properties:
         new_state:
@@ -9458,11 +9619,15 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - dag_id
       - asset_id
       - created_at
+      - dag_display_name
       title: QueuedEventResponse
       description: Queued Event serializer for responses..
     ReprocessBehavior:
@@ -10407,8 +10572,7 @@ components:
           maxLength: 250
           title: Key
         value:
-          type: string
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
         description:
           anyOf:
           - type: string
@@ -10538,6 +10702,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - key
@@ -10547,6 +10714,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -10576,6 +10744,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         value:
           title: Value
       type: object
@@ -10587,6 +10758,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -10617,6 +10789,9 @@ components:
         run_id:
           type: string
           title: Run Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         value:
           anyOf:
           - type: string
@@ -10631,6 +10806,7 @@ components:
       - task_id
       - dag_id
       - run_id
+      - dag_display_name
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

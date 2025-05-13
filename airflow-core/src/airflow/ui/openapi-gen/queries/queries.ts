@@ -66,8 +66,8 @@ import * as Common from "./common";
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
- * @param data.uriPattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.dagIds
  * @param data.onlyActive
  * @param data.orderBy
@@ -122,7 +122,7 @@ export const useAssetServiceGetAssets = <
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.orderBy
  * @returns AssetAliasCollectionResponse Successful Response
  * @throws ApiError
@@ -529,7 +529,7 @@ export const useConnectionServiceGetConnection = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.connectionIdPattern
+ * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -959,8 +959,8 @@ export const useDagWarningServiceListDagWarnings = <
  * @param data.tags
  * @param data.tagsMatchMode
  * @param data.owners
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
@@ -1118,7 +1118,7 @@ export const useDagServiceGetDagDetails = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.tagNamePattern
+ * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns DAGTagCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1738,7 +1738,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
  * @param data.updatedAtLte
  * @param data.durationGte
  * @param data.durationLte
- * @param data.taskDisplayNamePattern
+ * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.state
  * @param data.pool
  * @param data.queue
@@ -2291,7 +2291,7 @@ export const usePoolServiceGetPool = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.poolNamePattern
+ * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2545,7 +2545,7 @@ export const useVariableServiceGetVariable = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.variableKeyPattern
+ * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2781,8 +2781,8 @@ export const useAuthLinksServiceGetAuthMenus = <
  * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIds
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
@@ -2912,6 +2912,25 @@ export const useDashboardServiceHistoricalMetrics = <
   useQuery<TData, TError>({
     queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    ...options,
+  });
+/**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceDagStats = <
+  TData = Common.DashboardServiceDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(queryKey),
+    queryFn: () => DashboardService.dagStats() as TData,
     ...options,
   });
 /**
@@ -3914,7 +3933,7 @@ export const useDagRunServicePatchDagRun = <
  * @param data.tags
  * @param data.tagsMatchMode
  * @param data.owners
- * @param data.dagIdPattern
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
@@ -4719,6 +4738,57 @@ export const useDagServiceDeleteDag = <
     },
     TContext
   >({ mutationFn: ({ dagId }) => DagService.deleteDag({ dagId }) as unknown as Promise<TData>, ...options });
+/**
+ * Delete Task Instance
+ * Delete a task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns null Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceDeleteTaskInstance = <
+  TData = Common.TaskInstanceServiceDeleteTaskInstanceMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex?: number;
+        taskId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex?: number;
+      taskId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, mapIndex, taskId }) =>
+      TaskInstanceService.deleteTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
 /**
  * Delete Pool
  * Delete a pool entry.
