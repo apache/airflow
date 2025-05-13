@@ -147,6 +147,7 @@ class TestDagFileProcessorManager:
             stdin=write_end,
             requests_fd=123,
             logger_filehandle=logger_filehandle,
+            client=MagicMock(),
         )
         if start_time:
             ret.start_time = start_time
@@ -899,6 +900,7 @@ class TestDagFileProcessorManager:
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
+                    client=mock.ANY,
                 ),
                 mock.call(
                     id=mock.ANY,
@@ -908,6 +910,7 @@ class TestDagFileProcessorManager:
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
+                    client=mock.ANY,
                 ),
             ]
             # And removed from the queue
