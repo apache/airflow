@@ -63,6 +63,7 @@ class TestHttpToGCSOperator:
             endpoint=ENDPOINT,
             headers=HEADERS,
             data=DATA,
+            extra_options=EXTRA_OPTIONS,
             object_name=DESTINATION_PATH_FILE,
             bucket_name=TEST_BUCKET,
             gcp_conn_id=GCP_CONN_ID,
