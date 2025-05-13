@@ -48,6 +48,7 @@ if TYPE_CHECKING:
         QuerySearchReturnType,
         ReferenceInputs,
     )
+    from weaviate.collections.classes.batch import ErrorReference
     from weaviate.collections.classes.types import Properties
     from weaviate.types import UUID
 
@@ -267,6 +268,43 @@ class WeaviateHook(BaseHook):
             if isinstance(data, pandas.DataFrame):
                 data = json.loads(data.to_json(orient="records"))
         return cast("list[dict[str, Any]]", data)
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        retry=(
+            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+        ),
+    )
+    def batch_create_links(
+        self, 
+        collection_name: str,
+        from_property: str,
+        from_uuid: UUID,
+        to: UUID
+    ) -> list[ErrorReference] | None:
+        """
+        Batch create links from an object to another other object through cross-references. This method 
+        returns failed references if there is any.
+
+        :param collection_name: The name of the Weaviate collection (class) containing the objects.
+        :param from_property: The name of the cross-reference property that links the objects.
+        :param from_uuid: The UUID of the source object (the one holding the reference).
+        :param to: The UUID of the target object (the one being referenced).
+        """
+        collection = self.get_collection(collection_name)
+
+        with collection.batch.dynamic() as batch:
+            batch.add_reference(
+                from_property=from_property,
+                from_uuid=from_uuid,
+                to=to,
+            )
+        
+        failed_references = collection.batch.failed_references
+        if failed_references:
+            return failed_references
 
     def batch_data(
         self,
