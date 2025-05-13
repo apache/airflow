@@ -237,6 +237,11 @@ spec:
         {{- end }}
         {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- end }}
+        {{- if .Values.devMode.enabled }}
+        - name: code
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_code_volume_claim" . }}
+        {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:
