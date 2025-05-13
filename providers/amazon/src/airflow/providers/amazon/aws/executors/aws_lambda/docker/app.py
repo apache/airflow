@@ -32,14 +32,6 @@ log = logging.getLogger()
 log.setLevel(logging.INFO)
 
 
-# Get the SQS queue URL from the environment variable. Set either on the Lambda function or
-# in the image used for the lambda invocations.
-QUEUE_URL = os.environ.get("AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL", os.environ.get("QUEUE_URL", None))
-if not QUEUE_URL:
-    raise RuntimeError(
-        "No Queue URL detected (either AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL or "
-        "QUEUE_URL); Will be unable to send task results. Exiting!"
-    )
 # Get the S3 URI from the environment variable. Set either on the Lambda function or in the
 # docker image used for the lambda invocations.
 S3_URI = os.environ.get("S3_URI", None)
@@ -82,21 +74,34 @@ def run_and_report(command, task_key):
         log.exception("Error executing task %s: ", task_key)
         return_code = 1  # Non-zero indicates failure to run the task
 
-    if QUEUE_URL:
-        message = json.dumps({TASK_KEY_KEY: task_key, RETURN_CODE_KEY: return_code})
-        try:
-            sqs_client = get_sqs_client()
-            sqs_client.send_message(QueueUrl=QUEUE_URL, MessageBody=message)
-            log.info("Sent result to SQS %s", message)
-        except Exception:
-            log.exception("Failed to send message to SQS for task %s", task_key)
-    else:
-        raise RuntimeError("QUEUE_URL not provided in environment; unable to send task result.")
+    queue_url = get_queue_url()
+    message = json.dumps({TASK_KEY_KEY: task_key, RETURN_CODE_KEY: return_code})
+    try:
+        sqs_client = get_sqs_client()
+        sqs_client.send_message(QueueUrl=queue_url, MessageBody=message)
+        log.info("Sent result to SQS %s", message)
+    except Exception:
+        log.exception("Failed to send message to SQS for task %s", task_key)
 
 
 def get_sqs_client():
     """Create an SQS client. Credentials and region are automatically picked up from the environment."""
     return boto3.client("sqs")
+
+
+def get_queue_url():
+    """
+    Get the SQS queue URL from the environment variable.
+
+    Set either on the Lambda function or in the image used for the lambda invocations.
+    """
+    queue_url = os.environ.get("AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL", os.environ.get("QUEUE_URL", None))
+    if not queue_url:
+        raise RuntimeError(
+            "No Queue URL detected (either AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL or "
+            "QUEUE_URL); Will be unable to send task results. Exiting!"
+        )
+    return queue_url
 
 
 def fetch_dags_from_s3(s3_uri):
