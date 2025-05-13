@@ -296,7 +296,7 @@ def find_installation_spec(
 
 ALLOWED_PACKAGE_FORMAT = ["wheel", "sdist", "both"]
 ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
-ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
+ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests", "selected"]
 
 
 @click.command()
