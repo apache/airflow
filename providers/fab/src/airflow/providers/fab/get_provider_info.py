@@ -37,6 +37,13 @@ def get_provider_info():
                         "example": None,
                         "default": "Access is Denied",
                     },
+                    "expose_hostname": {
+                        "description": "Expose hostname in the web server\n",
+                        "version_added": "2.0.3",
+                        "type": "string",
+                        "example": None,
+                        "default": "False",
+                    },
                     "auth_rate_limited": {
                         "description": "Boolean for enabling rate limiting on authentication endpoints.\n",
                         "version_added": "1.0.2",
