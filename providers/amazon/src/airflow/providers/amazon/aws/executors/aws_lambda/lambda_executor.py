@@ -69,7 +69,6 @@ class AwsLambdaExecutor(BaseExecutor):
     MAX_INVOKE_ATTEMPTS = conf.get(
         CONFIG_GROUP_NAME,
         AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS,
-        fallback=3,
     )
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
@@ -92,9 +91,7 @@ class AwsLambdaExecutor(BaseExecutor):
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
-        check_health = conf.getboolean(
-            CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
-        )
+        check_health = conf.getboolean(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
 
         if not check_health:
             return
@@ -163,7 +160,7 @@ class AwsLambdaExecutor(BaseExecutor):
         :param check_connection: If True, check the health of the connection after loading it.
         """
         self.log.info("Loading Connections")
-        aws_conn_id = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID, fallback="aws_default")
+        aws_conn_id = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID)
         region_name = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME, fallback=None)
         self.sqs_client = SqsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.lambda_client = LambdaHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
@@ -464,7 +461,7 @@ class AwsLambdaExecutor(BaseExecutor):
         :param heartbeat_interval: The interval in seconds to wait between checks for task completion.
         """
         self.log.info("Received signal to end, waiting for outstanding tasks to finish.")
-        time_to_wait = int(conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT, fallback="0"))
+        time_to_wait = int(conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT))
         start_time = timezone.utcnow()
         while True:
             if time_to_wait:
