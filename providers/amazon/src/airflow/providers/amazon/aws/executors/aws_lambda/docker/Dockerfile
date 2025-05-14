@@ -18,10 +18,10 @@
 # Use the official AWS Lambda Python base image.
 FROM public.ecr.aws/lambda/python:3.12
 
-# hadolint ignore=DL3033
-RUN yum -y install unzip \
-    && yum clean all \
-    && rm -rf /var/cache/yum
+# hadolint ignore=DL3041
+RUN dnf -y install unzip \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
 
 # Install the AWS CLI.
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
