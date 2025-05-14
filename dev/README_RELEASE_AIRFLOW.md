@@ -352,7 +352,7 @@ You should specify 'apache-airflow docker-stack' passed as packages to be
 built.
 
 After that step, the provider documentation should be available under https://airflow.stage.apache.org//
-URLa (RC PyPI packages are build with the staging urls) but stable links and drop-down boxes are not updated yet.
+URL (RC PyPI packages are build with the staging urls) but stable links and drop-down boxes are not updated yet.
 
 2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
 
