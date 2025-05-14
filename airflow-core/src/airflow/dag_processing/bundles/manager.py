@@ -166,14 +166,13 @@ class DagBundlesManager(LoggingMixin):
 
         if inactive_bundle_names and active_bundle_names:
             new_bundle_name = sorted(active_bundle_names)[0]
-            updated_rows = (
-                session.query(DagVersion)
-                .filter(DagVersion.bundle_name.in_(inactive_bundle_names))
-                .update(
-                    {DagVersion.bundle_name: new_bundle_name},
-                    synchronize_session=False,
+            
+            updated_rows = session.execute(
+                update(DagVersion)
+                .where(DagVersion.bundle_name.in_(inactive_bundle_names))
+                .values({DagVersion.bundle_name: new_bundle_name})
+                .execution_options(synchronize_session=False)
                 )
-            )
 
             self.log.info(
                 "Updated %d DAG versions from inactive bundles to active bundle %s",

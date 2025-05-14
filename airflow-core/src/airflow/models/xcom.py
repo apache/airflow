@@ -142,11 +142,12 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        query = select(cls).where(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
-            query = query.filter_by(map_index=map_index)
-
-        for xcom in query:
+           
+            query = query.where(map_index=map_index)
+        
+        for xcom in session.scalars(query)
             # print(f"Clearing XCOM {xcom} with value {xcom.value}")
             session.delete(xcom)
 
@@ -289,74 +290,44 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-<<<<<<< HEAD
-        query = session.query(cls).join(XComModel.dag_run)
+        query = select(cls).join(XComModel.dag_run)
 
         if key:
-            query = query.filter(XComModel.key == key)
+            query = query.where(XComModel.key == key)
 
         if is_container(task_ids):
-            query = query.filter(cls.task_id.in_(task_ids))
+            query = query.where(cls.task_id.in_(task_ids))
         elif task_ids is not None:
-            query = query.filter(cls.task_id == task_ids)
+            query = query.where(cls.task_id == task_ids)
 
         if is_container(dag_ids):
-            query = query.filter(cls.dag_id.in_(dag_ids))
+
+            query = query.where(cls.dag_id.in_(dag_ids))
+
         elif dag_ids is not None:
-            query = query.filter(cls.dag_id == dag_ids)
+            query = query.where(cls.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
-            query = query.filter(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
+        
+            query = query.where(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
         elif is_container(map_indexes):
-            query = query.filter(cls.map_index.in_(map_indexes))
+            query = query.where(cls.map_index.in_(map_indexes))
         elif map_indexes is not None:
-            query = query.filter(cls.map_index == map_indexes)
+            query = query.where(cls.map_index == map_indexes)
 
         if include_prior_dates:
-            dr = (
-                session.query(
-                    func.coalesce(DagRun.logical_date, DagRun.run_after).label("logical_date_or_run_after")
-                )
-                .filter(DagRun.run_id == run_id)
+
+            dr = (select(func.coalesce(DagRun.logical_date,DagRun.run_after)
+                .label("logical_date_or_run_after"))
+                .where(DagRun.run_id == run_id)
                 .subquery()
             )
 
-            query = query.filter(
+            query = query.where(
                 func.coalesce(DagRun.logical_date, DagRun.run_after) <= dr.c.logical_date_or_run_after
             )
         else:
-            query = query.filter(cls.run_id == run_id)
-=======
-        query = select(BaseXCom).join(BaseXCom.dag_run)
-
-        if key:
-            query = query.where(BaseXCom.key == key)
-
-        if is_container(task_ids):
-            query = query.where(BaseXCom.task_id.in_(task_ids))
-        elif task_ids is not None:
-            query = query.where(BaseXCom.task_id == task_ids)
-
-        if is_container(dag_ids):
-            query = query.where(BaseXCom.dag_id.in_(dag_ids))
-        elif dag_ids is not None:
-            query = query.where(BaseXCom.dag_id == dag_ids)
-
-        if isinstance(map_indexes, range) and map_indexes.step == 1:
-            query = query.where(
-                BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
-            )
-        elif is_container(map_indexes):
-            query = query.where(BaseXCom.map_index.in_(map_indexes))
-        elif map_indexes is not None:
-            query = query.where(BaseXCom.map_index == map_indexes)
-
-        if include_prior_dates:
-            dr = select(DagRun.logical_date).where(DagRun.run_id == run_id).subquery()
-            query = query.where(BaseXCom.logical_date <= dr.c.logical_date)
-        else:
-            query = query.where(BaseXCom.run_id == run_id)
->>>>>>> 1c65940b75 (remove usage of session-query from /airflow)
+            query = query.where(cls.run_id == run_id)
 
         query = query.order_by(DagRun.logical_date.desc(), cls.timestamp.desc())
         if limit:
