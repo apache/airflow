@@ -179,8 +179,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: "Prepare breeze & CI image: 3.9"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: 3.9
+          use-uv: true
       - name: "Checkout ${{ inputs.ref }}"
         run: |
           git clone https://github.com/apache/airflow.git "${AIRFLOW_ROOT_PATH}"
@@ -200,12 +204,6 @@ jobs:
         run: |
           sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
            echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/" >> "$GITHUB_ENV"
-      - name: "Prepare breeze & CI image: 3.9"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: "linux/amd64"
-          python: 3.9
-          use-uv: true
       - name: "Publish docs to tmp directory"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}

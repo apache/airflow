@@ -20,7 +20,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
@@ -35,15 +34,10 @@ class TestDagVersionEndpoint:
         clear_db_serialized_dags()
 
         with dag_maker(
-            "ANOTHER_DAG_ID",
-        ) as dag:
+            dag_id="ANOTHER_DAG_ID", bundle_version="some_commit_hash", bundle_name="another_bundle_name"
+        ):
             EmptyOperator(task_id="task_1")
             EmptyOperator(task_id="task_2")
-
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(
-            dag, bundle_name="another_bundle_name", bundle_version="some_commit_hash"
-        )
 
 
 class TestGetDagVersion(TestDagVersionEndpoint):

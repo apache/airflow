@@ -396,15 +396,22 @@ class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name, start_date",
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z"),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z"),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_dag_details(
-        self, test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        expected_status_code,
+        dag_display_name,
+        start_date,
+        owner_links,
     ):
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
         assert response.status_code == expected_status_code
@@ -461,6 +468,7 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_logical_date": None,
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
+            "owner_links": {},
             "params": {
                 "foo": {
                     "__class": "airflow.sdk.definitions.param.Param",

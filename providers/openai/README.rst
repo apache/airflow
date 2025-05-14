@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-openai``
 
-Release: ``1.5.4``
+Release: ``1.6.0``
 
 
 `OpenAI <https://platform.openai.com/docs/introduction>`__
@@ -36,7 +36,7 @@ This is a provider package for ``openai`` provider. All classes for this provide
 are in ``airflow.providers.openai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openai/1.5.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openai/1.6.0/>`_.
 
 Installation
 ------------
@@ -58,4 +58,4 @@ PIP package          Version required
 ===================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openai/1.5.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openai/1.6.0/changelog.html>`_.
