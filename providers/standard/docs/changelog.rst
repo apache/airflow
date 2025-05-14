@@ -35,6 +35,40 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Flattening the 'requirements' input for python venv operators (#50521)``
+* ``Preserve all context keys during serialization (#50446)``
+* ``Use latest bundle version when clearing / re-running dag (#50040)``
+* ``Update 'WorkflowTrigger' to forward failed_stat (#50487)``
+
+Misc
+~~~~
+
+* ``Adding deprecation notice for get_current_context in std provider (#50301)``
+* ``Refactor Branch Operators to use 'BaseBranchOperator' (#48979)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``refactor: Removed duplicate test_generic_transfer from wrong standard provider (#49786)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add back missing '[sources]' link in generated documentation's includes (#49978)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 1.1.0
 .....
 
