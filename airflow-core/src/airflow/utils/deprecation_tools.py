@@ -79,6 +79,21 @@ def add_deprecated_classes(
     :param override_deprecated_classes: override target classes with deprecated ones. If module +
        target class is found in the dictionary, it will be displayed in the warning message.
     :param extra_message: extra message to display in the warning or import error message
+
+    Example:
+        add_deprecated_classes(
+            {"basenotifier": {"BaseNotifier": "airflow.sdk.bases.notifier.BaseNotifier"}},
+            package=__name__,
+        )
+
+    This makes 'from airflow.notifications.basenotifier import BaseNotifier' still work,
+    even if 'basenotifier.py' was removed, and shows a warning with the new path.
+
+    Note that "add_deprecated_classes method should be called in the `__init__.py` file in the package
+    where the deprecated classes are located - this way the module `.py` files should be removed and what
+    remains in the package is just the `__init__.py` file.
+
+    See for example `airflow/decorators/__init__.py` file.
     """
     for module_name, imports in module_imports.items():
         full_module_name = f"{package}.{module_name}"

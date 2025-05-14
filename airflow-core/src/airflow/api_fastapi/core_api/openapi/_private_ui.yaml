@@ -171,7 +171,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -179,7 +183,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -1285,6 +1293,9 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         bundle_url:
           anyOf:
           - type: string
@@ -1299,6 +1310,7 @@ components:
       - bundle_name
       - bundle_version
       - created_at
+      - dag_display_name
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.

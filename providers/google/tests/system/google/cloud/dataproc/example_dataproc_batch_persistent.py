@@ -55,7 +55,7 @@ CLUSTER_GENERATOR_CONFIG_FOR_PHS = ClusterGenerator(
     worker_machine_type="n1-standard-4",
     num_workers=0,
     properties={
-        "spark:spark.history.fs.logDirectory": f"gs://{BUCKET_NAME}/logging",
+        "spark:spark.history.fs.logDirectory": f"gs://{BUCKET_NAME}",
     },
     enable_component_gateway=True,
 ).make()

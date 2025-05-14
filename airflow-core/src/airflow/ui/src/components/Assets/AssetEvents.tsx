@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, HStack, Skeleton } from "@chakra-ui/react";
+import { Box, Heading, Flex, HStack, Skeleton, Separator } from "@chakra-ui/react";
 import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { FiDatabase } from "react-icons/fi";
@@ -65,8 +65,8 @@ export const AssetEvents = ({
   });
 
   return (
-    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2} {...rest}>
-      <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
+    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2} p={4} py={2} {...rest}>
+      <Flex alignItems="center" justify="space-between">
         <HStack>
           <StateBadge colorPalette="blue" fontSize="md" variant="solid">
             <FiDatabase />
@@ -83,6 +83,7 @@ export const AssetEvents = ({
             data-testid="asset-sort-duration"
             defaultValue={["-timestamp"]}
             onValueChange={(option) => setOrderBy(option.value[0] as string)}
+            size="sm"
             width={130}
           >
             <Select.Trigger>
@@ -99,6 +100,7 @@ export const AssetEvents = ({
           </Select.Root>
         )}
       </Flex>
+      <Separator mt={2.5} />
       <DataTable
         cardDef={cardDef(assetId)}
         columns={[]}

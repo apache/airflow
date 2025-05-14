@@ -37,6 +37,7 @@ from requests import HTTPError
 
 from airflow import __version__ as airflow_version, settings
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.providers.edge3 import __version__ as edge_provider_version
@@ -166,7 +167,6 @@ class _EdgeWorkerCli:
     """Flag if job processing should be completed and no new jobs fetched for maintenance mode. """
     maintenance_comments: str | None = None
     """Comments for maintenance mode."""
-
     edge_instance: _EdgeWorkerCli | None = None
     """Singleton instance of the worker."""
 
@@ -178,6 +178,7 @@ class _EdgeWorkerCli:
         concurrency: int,
         job_poll_interval: int,
         heartbeat_interval: int,
+        daemon: bool = False,
     ):
         self.pid_file_path = pid_file_path
         self.job_poll_interval = job_poll_interval
@@ -186,6 +187,7 @@ class _EdgeWorkerCli:
         self.queues = queues
         self.concurrency = concurrency
         self.free_concurrency = concurrency
+        self.daemon = daemon
 
         _EdgeWorkerCli.edge_instance = self
 
@@ -342,7 +344,8 @@ class _EdgeWorkerCli:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 raise SystemExit("Error: API endpoint is not ready, please set [edge] api_enabled=True.")
             raise SystemExit(str(e))
-        _write_pid_to_pidfile(self.pid_file_path)
+        if not self.daemon:
+            _write_pid_to_pidfile(self.pid_file_path)
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
         signal.signal(SIG_STATUS, _EdgeWorkerCli.signal_handler)
         signal.signal(signal.SIGTERM, self.shutdown_handler)
@@ -368,7 +371,8 @@ class _EdgeWorkerCli:
             except EdgeWorkerVersionException:
                 logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
         finally:
-            remove_existing_pidfile(self.pid_file_path)
+            if not self.daemon:
+                remove_existing_pidfile(self.pid_file_path)
 
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
@@ -492,10 +496,8 @@ class _EdgeWorkerCli:
                 return
 
 
-@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
-def worker(args):
-    """Start Airflow Edge Worker."""
+def _launch_worker(args):
     print(settings.HEADER)
     print(EDGE_WORKER_HEADER)
 
@@ -506,8 +508,25 @@ def worker(args):
         concurrency=args.concurrency,
         job_poll_interval=conf.getint("edge", "job_poll_interval"),
         heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
+        daemon=args.daemon,
     )
     edge_worker.start()
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def worker(args):
+    """Start Airflow Edge Worker."""
+    umask = args.umask or conf.get("edge", "worker_umask", fallback=settings.DAEMON_UMASK)
+
+    run_command_with_daemon_option(
+        args=args,
+        process_name=EDGE_WORKER_PROCESS_NAME,
+        callback=lambda: _launch_worker(args),
+        should_setup_logging=True,
+        pid_file=_pid_file_path(args.pid),
+        umask=umask,
+    )
 
 
 @cli_utils.action_cli(check_db=False)
@@ -787,6 +806,17 @@ ARG_STATE = Arg(
     help="State of the edge worker",
 )
 
+ARG_DAEMON = Arg(
+    ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
+)
+ARG_UMASK = Arg(
+    ("-u", "--umask"),
+    help="Set the umask of edge worker in daemon mode",
+)
+ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file if run in daemon mode")
+ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file if run in daemon mode")
+ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file if run in daemon mode")
+
 EDGE_COMMANDS: list[ActionCommand] = [
     ActionCommand(
         name=worker.__name__,
@@ -798,6 +828,11 @@ EDGE_COMMANDS: list[ActionCommand] = [
             ARG_EDGE_HOSTNAME,
             ARG_PID,
             ARG_VERBOSE,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+            ARG_UMASK,
         ),
     ),
     ActionCommand(

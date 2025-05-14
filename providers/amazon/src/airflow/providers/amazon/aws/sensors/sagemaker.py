@@ -18,18 +18,18 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class SageMakerBaseSensor(BaseSensorOperator):
+class SageMakerBaseSensor(AwsBaseSensor[SageMakerHook]):
     """
     Contains general sensor behavior for SageMaker.
 
@@ -37,16 +37,12 @@ class SageMakerBaseSensor(BaseSensorOperator):
     Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE methods.
     """
 
+    aws_hook_class = SageMakerHook
     ui_color = "#ededed"
 
-    def __init__(self, *, aws_conn_id: str | None = "aws_default", resource_type: str = "job", **kwargs):
+    def __init__(self, *, resource_type: str = "job", **kwargs):
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.resource_type = resource_type  # only used for logs, to say what kind of resource we are sensing
-
-    @cached_property
-    def hook(self) -> SageMakerHook:
-        return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
     def poke(self, context: Context):
         response = self.get_sagemaker_response()
@@ -96,7 +92,9 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
     :param endpoint_name: Name of the endpoint instance to watch.
     """
 
-    template_fields: Sequence[str] = ("endpoint_name",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "endpoint_name",
+    )
     template_ext: Sequence[str] = ()
 
     def __init__(self, *, endpoint_name, **kwargs):
@@ -131,7 +129,9 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     :param job_name: Name of the transform job to watch.
     """
 
-    template_fields: Sequence[str] = ("job_name",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+    )
     template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name: str, **kwargs):
@@ -166,7 +166,9 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     :param job_name: Name of the tuning instance to watch.
     """
 
-    template_fields: Sequence[str] = ("job_name",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+    )
     template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name: str, **kwargs):
@@ -202,7 +204,9 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     :param print_log: Prints the cloudwatch log if True; Defaults to True.
     """
 
-    template_fields: Sequence[str] = ("job_name",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+    )
     template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name, print_log=True, **kwargs):
@@ -281,7 +285,9 @@ class SageMakerPipelineSensor(SageMakerBaseSensor):
             Defaults to true, consider turning off for pipelines that have thousands of steps.
     """
 
-    template_fields: Sequence[str] = ("pipeline_exec_arn",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "pipeline_exec_arn",
+    )
 
     def __init__(self, *, pipeline_exec_arn: str, verbose: bool = True, **kwargs):
         super().__init__(resource_type="pipeline", **kwargs)
@@ -313,7 +319,9 @@ class SageMakerAutoMLSensor(SageMakerBaseSensor):
     :param job_name: unique name of the AutoML job to watch.
     """
 
-    template_fields: Sequence[str] = ("job_name",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+    )
 
     def __init__(self, *, job_name: str, **kwargs):
         super().__init__(resource_type="autoML job", **kwargs)
@@ -344,7 +352,9 @@ class SageMakerProcessingSensor(SageMakerBaseSensor):
     :param job_name: Name of the processing job to watch.
     """
 
-    template_fields: Sequence[str] = ("job_name",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+    )
     template_ext: Sequence[str] = ()
 
     def __init__(self, *, job_name: str, **kwargs):

@@ -22,6 +22,7 @@ from __future__ import annotations
 import csv
 import json
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from databricks.sql.utils import ParamEscaper
@@ -106,7 +107,8 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         self.catalog = catalog
         self.schema = schema
 
-    def get_db_hook(self) -> DatabricksSqlHook:
+    @cached_property
+    def _hook(self) -> DatabricksSqlHook:
         hook_params = {
             "http_path": self.http_path,
             "session_configuration": self.session_configuration,
@@ -119,6 +121,9 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             **self.hook_params,
         }
         return DatabricksSqlHook(self.databricks_conn_id, **hook_params)
+
+    def get_db_hook(self) -> DatabricksSqlHook:
+        return self._hook
 
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push or bool(self._output_path)
