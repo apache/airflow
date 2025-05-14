@@ -32,6 +32,7 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 import airflow.example_dags
 from airflow import settings
@@ -480,7 +481,7 @@ class TestDagBag:
         assert dag_id == dag.dag_id
         assert dagbag.process_file_calls == 2
 
-    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path):
+    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path, session):
         """
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
@@ -493,14 +494,31 @@ class TestDagBag:
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
             EmptyOperator(task_id="task_1")
-        dag_maker.create_dagrun()
+
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
         dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
         dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
         dagbag.dags_hash = {dag.dag_id: mock.ANY}
 
+        # observe we have serdag and dag is in dagbag
+        assert SerializedDagModel.has_dag(dag.dag_id) is True
+        assert dagbag.get_dag(dag.dag_id) is not None
+
+        # now delete serdags for this dag
+        SDM = SerializedDagModel
+        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag.dag_id))
+        for sdm in sdms:
+            session.delete(sdm)
+        session.commit()
+
+        # first, confirm that serdags are gone for this dag
         assert SerializedDagModel.has_dag(dag.dag_id) is False
 
+        # now see the dag is still in dagbag
+        assert dagbag.get_dag(dag.dag_id) is not None
+
+        # but, let's recreate the dagbag and see if the dag will be there
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
         assert dagbag.get_dag(dag.dag_id) is None
         assert dag.dag_id not in dagbag.dags
         assert dag.dag_id not in dagbag.dags_last_fetched

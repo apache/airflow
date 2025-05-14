@@ -163,8 +163,6 @@ def test_sync_bundles_to_db(clear_db, dag_maker):
     # Create DAG version with 'my-test-bundle'
     with dag_maker(dag_id="test_dag", schedule=None):
         EmptyOperator(task_id="mytask")
-    with create_session() as session:
-        session.add(DagVersion(dag_id="test_dag", version_number=1, bundle_name="my-test-bundle"))
 
     # simulate bundle config change (now 'dags-folder' is active, 'my-test-bundle' becomes inactive)
     manager = DagBundlesManager()

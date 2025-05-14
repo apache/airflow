@@ -894,7 +894,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def __exit__(self, type, value, traceback):
             from airflow.configuration import conf
             from airflow.models import DagModel
-            from airflow.models.serialized_dag import SerializedDagModel
 
             dag = self.dag
             dag.__exit__(type, value, traceback)
@@ -903,7 +902,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             if AIRFLOW_V_3_0_PLUS:
-                dag.bulk_write_to_db(self.bundle_name, None, [dag], session=self.session)
+                dag.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
             else:
                 dag.sync_to_db(session=self.session)
 
@@ -916,46 +915,45 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
-            if self.want_serialized:
-                self.serialized_model = SerializedDagModel(dag)
-                sdm = self.session.scalar(
-                    select(SerializedDagModel).where(
-                        SerializedDagModel.dag_id == dag.dag_id,
-                        SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
-                    )
+            self._make_serdag(dag)
+            self._bag_dag_compat(self.dag)
+
+        def _make_serdag(self, dag):
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            self.serialized_model = SerializedDagModel(dag)
+            sdm = self.session.scalar(
+                select(SerializedDagModel).where(
+                    SerializedDagModel.dag_id == dag.dag_id,
+                    SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
                 )
+            )
+            if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
+                from airflow.models.dag_version import DagVersion
+                from airflow.models.dagcode import DagCode
 
-                if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
-                    from airflow.models.dag_version import DagVersion
-                    from airflow.models.dagcode import DagCode
-
-                    dagv = DagVersion.write_dag(
-                        dag_id=dag.dag_id,
-                        bundle_name=self.dag_model.bundle_name,
-                        bundle_version=self.dag_model.bundle_version,
-                        session=self.session,
-                    )
-                    self.session.add(dagv)
-                    self.session.flush()
-                    dag_code = DagCode(dagv, dag.fileloc, "Source")
-                    self.session.merge(dag_code)
-                    self.serialized_model.dag_version = dagv
-                    if self.want_activate_assets:
-                        self._activate_assets()
-                if sdm:
-                    sdm._SerializedDagModel__data_cache = (
-                        self.serialized_model._SerializedDagModel__data_cache
-                    )
-                    sdm._data = self.serialized_model._data
-                    self.serialized_model = sdm
-                else:
-                    self.session.merge(self.serialized_model)
-                serialized_dag = self._serialized_dag()
-                self._bag_dag_compat(serialized_dag)
-
+                dagv = DagVersion.write_dag(
+                    dag_id=dag.dag_id,
+                    bundle_name=self.dag_model.bundle_name,
+                    bundle_version=self.dag_model.bundle_version,
+                    session=self.session,
+                )
+                self.session.add(dagv)
                 self.session.flush()
+                dag_code = DagCode(dagv, dag.fileloc, "Source")
+                self.session.merge(dag_code)
+                self.serialized_model.dag_version = dagv
+                if self.want_activate_assets:
+                    self._activate_assets()
+            if sdm:
+                sdm._SerializedDagModel__data_cache = self.serialized_model._SerializedDagModel__data_cache
+                sdm._data = self.serialized_model._data
+                self.serialized_model = sdm
             else:
-                self._bag_dag_compat(self.dag)
+                self.session.merge(self.serialized_model)
+            serialized_dag = self._serialized_dag()
+            self._bag_dag_compat(serialized_dag)
+            self.session.flush()
 
         def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
             from airflow.utils import timezone
@@ -1074,6 +1072,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             fileloc=None,
             relative_fileloc=None,
             bundle_name=None,
+            bundle_version=None,
             session=None,
             **kwargs,
         ):
@@ -1108,6 +1107,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
             self.bundle_name = bundle_name or "dag_maker"
+            self.bundle_version = bundle_version
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.models.dagbundle import DagBundleModel
 

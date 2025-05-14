@@ -4719,7 +4719,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         known_versions = []
 
-        with dag_maker(dag_id="test", session=session) as dag:
+        with dag_maker(dag_id="test_89eug7u6f7y", session=session) as dag:
 
             @dag.task
             def show(value, *, ti):
@@ -4727,9 +4727,8 @@ class TestMappedTaskInstanceReceiveValue:
                 known_versions.append(ti.dag_version_id)
 
             show.expand(value=[1, 2, 3])
-        # ensure that there is a dag_version record in the db
-        dag_version = session.merge(DagVersion(dag_id="test", bundle_name="test"))
-        session.commit()
+        # get the dag version for the dag
+        dag_version = session.scalar(select(DagVersion).where(DagVersion.dag_id == dag.dag_id))
         dag_maker.create_dagrun(session=session)
         task = dag.get_task("show")
         for ti in session.scalars(select(TI)):
