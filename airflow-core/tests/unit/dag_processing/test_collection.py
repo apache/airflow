@@ -121,7 +121,6 @@ class TestAssetModelOperation:
         yield
         self.clean_db()
 
-    @pytest.mark.xfail(reason="test fails on serialization of the watcher trigger kwargs")
     @pytest.mark.parametrize(
         "is_active, is_paused, expected_num_triggers",
         [
@@ -288,7 +287,6 @@ class TestAssetModelOperationSyncAssetActive:
         session.flush()
         assert orm_assets["myasset", "file://myasset/"].active is not None, "should pick up existing active"
 
-    @pytest.mark.xfail(reason="conflict not handled when serdag creation enabled")
     @pytest.mark.parametrize(
         "existing_assets",
         [
