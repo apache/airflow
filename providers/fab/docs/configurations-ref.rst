@@ -17,7 +17,5 @@
 
 .. include:: /../../../devel-common/src/sphinx_exts/includes/providers-configurations-ref.rst
 
-.. _config:fab__access_denied_message:
-.. _config:fab__expose_hostname:
 
 .. include:: /../../../devel-common/src/sphinx_exts/includes/sections-and-options.rst

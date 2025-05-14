@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+3.11.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix execution API server URL handling for relative paths (#49782)``
+
+Misc
+~~~~
+
+* ``Min provider version=2.10; use running_state freely (#49924)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``Make default execution server URL be relative to API Base URL (#49747)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Revert "Limit Celery to not include 5.5.2 (#49940)" (#49951)``
+   * ``Limit Celery to not include 5.5.2 (#49940)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``capitalize the term airflow (#49450)``
+   * ``Prepare docs for Apr 3rd wave of providers (#49338)``
+   * ``Move celery integration tests to celery provider. (#49178)``
+
 3.10.6
 ......
 

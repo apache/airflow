@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-pgvector``
 
-Release: ``1.4.1``
+Release: ``1.5.0``
 
 
 `pgvector <https://github.com/pgvector/pgvector>`__
@@ -36,7 +36,7 @@ This is a provider package for ``pgvector`` provider. All classes for this provi
 are in ``airflow.providers.pgvector`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.5.0/>`_.
 
 Installation
 ------------
@@ -79,4 +79,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.5.0/changelog.html>`_.
