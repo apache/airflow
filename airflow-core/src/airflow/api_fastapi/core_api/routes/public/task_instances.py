@@ -23,9 +23,9 @@ import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -292,17 +292,14 @@ def get_task_instance_tries(
     def _query(orm_object: Base) -> Select:
         query = (
             select(orm_object)
-            .join(DagRun, and_(orm_object.run_id == DagRun.run_id, orm_object.dag_id == DagRun.dag_id))
-            .options(
-                contains_eager(orm_object.dag_run).options(joinedload(DagRun.dag_model)),
-                joinedload(orm_object.dag_version),
-            )
             .where(
                 orm_object.dag_id == dag_id,
                 orm_object.run_id == dag_run_id,
                 orm_object.task_id == task_id,
                 orm_object.map_index == map_index,
             )
+            .options(joinedload(orm_object.dag_version))
+            .options(joinedload(orm_object.dag_run).options(joinedload(DagRun.dag_model)))
         )
         return query
 
