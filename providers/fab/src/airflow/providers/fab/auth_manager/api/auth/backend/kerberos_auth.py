@@ -26,7 +26,7 @@ import kerberos
 from flask import Response, current_app, g, make_response, request
 from requests_kerberos import HTTPKerberosAuth
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.auth_manager import get_auth_manager
 from airflow.configuration import conf
 from airflow.utils.net import getfqdn
 

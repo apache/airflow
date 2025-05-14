@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 
 from termcolor import colored
 
-from airflow.api_fastapi.app import create_auth_manager
+from airflow.api_fastapi.common.auth_manager import create_auth_manager
 from airflow.configuration import conf
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader

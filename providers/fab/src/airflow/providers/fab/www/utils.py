@@ -28,7 +28,7 @@ from flask_babel import lazy_gettext
 from sqlalchemy import types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.auth_manager import get_auth_manager
 from airflow.configuration import conf
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,

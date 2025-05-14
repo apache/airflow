@@ -24,7 +24,7 @@ from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func, select
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.auth_manager import get_auth_manager
 from airflow.providers.fab.auth_manager.models import Action, Role
 from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema import (
     ActionCollection,

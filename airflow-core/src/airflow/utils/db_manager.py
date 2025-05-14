@@ -23,7 +23,7 @@ from alembic import command
 from sqlalchemy import inspect
 
 from airflow import settings
-from airflow.api_fastapi.app import create_auth_manager
+from airflow.api_fastapi.common.auth_manager import get_auth_manager_cls
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -150,7 +150,7 @@ class RunDBManager(LoggingMixin):
         else:
             managers = managers_config.split(",")
         # Add DB manager specified by auth manager (if any)
-        auth_manager_db_manager = create_auth_manager().get_db_manager()
+        auth_manager_db_manager = get_auth_manager_cls().get_db_manager()
         if auth_manager_db_manager and auth_manager_db_manager not in managers:
             managers.append(auth_manager_db_manager)
         for module in managers:

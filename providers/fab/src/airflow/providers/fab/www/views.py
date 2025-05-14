@@ -29,8 +29,8 @@ from flask import (
 )
 from flask_appbuilder import IndexView, expose
 
-from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.common.auth_manager import get_auth_manager
 from airflow.configuration import conf
 
 # Following the release of https://github.com/python/cpython/issues/102153 in Python 3.9.17 on
