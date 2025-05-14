@@ -356,11 +356,8 @@ class PodGenerator:
         )
 
         if content_json:
-            import shlex
-
-            escaped_json = shlex.quote(content_json)
             main_container.command = args[:-1]
-            main_container.args = escaped_json
+            main_container.args = [content_json]
 
         dynamic_pod.spec = podspec
 
