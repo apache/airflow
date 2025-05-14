@@ -476,6 +476,9 @@ export type DAGDetailsResponse = {
   default_args: {
     [key: string]: unknown;
   } | null;
+  owner_links?: {
+    [key: string]: string;
+  } | null;
   /**
    * Return file token.
    */
