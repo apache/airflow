@@ -79,6 +79,7 @@ class TestTIUpdateState:
         time_machine,
         mock_indexes,
         expected_response_indexes,
+        get_execution_app,
     ):
         """
         Test that this version of the endpoint works.
@@ -101,7 +102,7 @@ class TestTIUpdateState:
         dag = ti.task.dag
         dagbag = create_dag_bag()
         dagbag.dags = {dag.dag_id: dag}
-        execution_app = next(route.app for route in ver_client.app.routes if route.path == "/execution")
+        execution_app = get_execution_app(ver_client)
         execution_app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
         session.commit()
 
