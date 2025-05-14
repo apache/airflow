@@ -1,20 +1,30 @@
 {
   "welcome": "歡迎",
-  "stats": "統計",
-  "failedDags": "失敗的 DAG",
-  "runningDags": "執行中的 DAG",
-  "activeDags": "活躍的 DAG",
-  "health": "健康狀態",
+  "stats": {
+    "stats": "統計",
+    "failedDags": "失敗的 DAGs",
+    "runningDags": "執行中的 DAGs",
+    "activeDags": "活躍的 DAGs"
+  },
+  "health": {
+    "health": "健康狀態",
+    "metaDatabase": "元資料庫",
+    "scheduler": "排程器",
+    "triggerer": "觸發器",
+    "dagProcessor": "DAG 處理器"
+  },
   "poolSlots": "資源池配額",
   "managePools": "管理資源池",
-  "history": "歷史記錄",
-  "dagRuns": "DAG 執行",
-  "queued": "等待中",
-  "running": "執行中",
-  "success": "成功",
-  "failed": "失敗",
-  "taskInstances": "任務實例",
-  "upstreamFailed": "上游失敗",
+  "history": {
+    "history": "歷史記錄",
+    "dagRuns": "DAG 執行",
+    "queued": "等待中",
+    "running": "執行中",
+    "success": "成功",
+    "failed": "失敗",
+    "taskInstances": "任務實例",
+    "upstreamFailed": "上游失敗"
+  },
   "assetEvents": "資產事件",
-  "noAssetEvents": "未找到資產事件。"
+  "noAssetEvents": "未找到資產事件"
 }
