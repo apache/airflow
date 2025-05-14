@@ -16,10 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-
-import functools
 import importlib
-
 import os
 import sys
 import traceback
@@ -111,7 +108,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         for module in iter_airflow_imports(msg.file):
             try:
                 importlib.import_module(module)
-            except Exception as e:
+            except ModuleNotFoundError as e:
                 log.warning(
                     "Error when trying to pre-import module '%s' found in %s: %s", module, msg.file, e
                 )
