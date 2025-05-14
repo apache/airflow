@@ -24,6 +24,7 @@
 - [Documentation configuration](#documentation-configuration)
 - [Architecture of documentation for Airflow](#architecture-of-documentation-for-airflow)
 - [Diagrams of the documentation architecture](#diagrams-of-the-documentation-architecture)
+- [Staging site](#staging-site)
 - [Typical workflows](#typical-workflows)
   - [Publishing the documentation by the release manager](#publishing-the-documentation-by-the-release-manager)
   - [Publishing changes to the website (including theme)](#publishing-changes-to-the-website-including-theme)
@@ -85,7 +86,22 @@ This is the diagram of live documentation architecture:
 
 ![Live documentation architecture](images/documentation_architecture.png)
 
-Staging documentation architecture is similar, but uses staging bucket and staging Apache Website.
+# Staging site
+
+Staging documentation architecture is similar, but uses staging bucket and staging Apache Website. The main
+differences are:
+
+* The staging bucket is `s3://staging-docs-airflow-apache-org/docs/`
+* The staging website is `https://airflow.staged.apache.org/docs/`
+* The staging site is deployed by merging PR or pushing `staging` branch in the `airflow-site` repository
+  rather than main. The `staging` branch should be periodically rebased to the `main` branch, but while
+  some changes are developed in `staging` it can diverge from `main` branch.
+* Merging into `staging` branch of `airflow-site` repository or pushing `staging` branch
+  will automatically trigger the build of the website and publish it to the `publish-staging` branch and
+  effectively to the staging site.
+
+Documentation of pre-release versions of Airflow distributions should be published to the staging s3
+bucket so that we can test the documentation before we publish it to the live bucket.
 
 # Typical workflows
 
@@ -96,6 +112,13 @@ There are a few typical workflows that we support:
 The release manager publishes the documentation using GitHub Actions workflow
 [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
 The same workflow can be used to publish Airflow, Helm chart and providers documentation.
+
+This workflow is used twice:
+
+* when pre-release distributions are prepared (alpha/beta/rc) - the documentation should be published to
+  the staging bucket and staging site should be built and published.
+* when final releases of distributions are prepared - the documentation should be published to the live
+  bucket and the live website should be built and published.
 
 The person who triggers the build (release manager) should specify the tag name of the docs to be published
 and the list of documentation packages to be published. Usually it is:
@@ -108,7 +131,9 @@ Optionally - specifically if we run `all-providers` and release manager wants to
 they can specify documentation packages to exclude. Leaving "no-docs-excluded" will publish all packages
 specified to be published without exclusions.
 
-You can also specify whether "live" or "staging" documentation should be published. The default is "live".
+You can also specify whether "live" or "staging" documentation should be published. The default is "live". In
+the future we might add `auto` setting that will publish to "live" or "staging" depending on the tag
+used to trigger the workflow.
 
 Example screenshot of the workflow triggered from the GitHub UI:
 
@@ -120,14 +145,20 @@ with direct URL (say https://apache.airflow.org/docs/apache-airflow/3.0.1/) but 
 point to previous version of the documentation as `stable` and the version drop-downs will not be updated.
 
 In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository. This will build the website and publish it to the `publish`
-branch of `airflow-site` repository, including refreshing of the version numbers in the drop-downs and
-stable links.
+workflow in `airflow-site` repository.
+
+For `live` site you should run the workflow in `main` branch. For `staging` site it should be staging branch.
+This will build the website and publish it to the `publish` branch of `airflow-site` repository (for `live`
+site) or `publish-staging` branch, (for `staging` site). The workflow will also update the website with
+including refreshing of the version numbers in the drop-downs and stable links.
 
 ![Publishing site](images/publish_site.png)
 
+This workflow also invalidates cache in Fastly that Apache Software Foundation uses to serve the website,
+so you should always run it after you modify the documentation for the website. Other than that Fastly is
+configured with 3600 seconds TTL - which means that changes will propagate to the website in ~1 hour.
 
-Some time after the workflow succeeds and documentation is published, in live bucket, the `airflow-site-archive`
+Shortly after the workflow succeeds and documentation is published, in live bucket, the `airflow-site-archive`
 repository is automatically synchronized with the live S3 bucket. TODO: IMPLEMENT THIS, FOR NOW IT HAS
 TO BE MANUALLY SYNCHRONIZED VIA [Sync s3 to GitHub](https://github.com/apache/airflow-site-archive/actions/workflows/s3-to-github.yml)
 workflow in `airflow-site-archive` repository. The `airflow-site-archive` essentially keeps the history of
