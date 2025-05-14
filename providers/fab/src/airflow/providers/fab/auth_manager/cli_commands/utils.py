@@ -31,7 +31,6 @@ import airflow
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
-from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
 from airflow.providers.fab.www.extensions.init_views import init_plugins
 
 if TYPE_CHECKING:
@@ -43,7 +42,6 @@ def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Return an appbuilder instance for the given app."""
     init_appbuilder(app, enable_plugins=False)
     init_plugins(app)
-    init_airflow_session_interface(app)
     return app.appbuilder  # type: ignore[attr-defined]
 
 

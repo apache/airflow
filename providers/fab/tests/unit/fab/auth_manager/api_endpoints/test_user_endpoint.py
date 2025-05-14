@@ -42,7 +42,7 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
 pytestmark = pytest.mark.db_test
 
 
-DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
+DEFAULT_TIME = "2020-06-11T18:00:00"
 
 
 @pytest.fixture(scope="module")
@@ -56,24 +56,26 @@ def configured_app(minimal_app_for_auth_api):
         }
     ):
         app = minimal_app_for_auth_api
-    create_user(
-        app,
-        username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
-        ],
-    )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
 
-    yield app
+        with app.app_context():
+            create_user(
+                app,
+                username="test",
+                role_name="Test",
+                permissions=[
+                    (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
+                ],
+            )
+            create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
 
-    delete_user(app, username="test")
-    delete_user(app, username="test_no_permissions")
-    delete_role(app, name="TestNoPermissions")
+            yield app
+
+            delete_user(app, username="test")
+            delete_user(app, username="test_no_permissions")
+            delete_role(app, name="TestNoPermissions")
 
 
 class TestUserEndpoint:
@@ -81,7 +83,7 @@ class TestUserEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
-        self.session = self.app.appbuilder.get_session
+        self.session = self.app.appbuilder.session
 
     def teardown_method(self) -> None:
         # Delete users that have our custom default time
