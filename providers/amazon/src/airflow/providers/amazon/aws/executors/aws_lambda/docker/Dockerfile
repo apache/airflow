@@ -16,6 +16,7 @@
 # under the License.
 
 # Use the official AWS Lambda Python base image.
+# If you wish to use a different Python version, please update the line below
 FROM public.ecr.aws/lambda/python:3.12
 
 # hadolint ignore=DL3041
