@@ -113,8 +113,21 @@ class AwsLambdaExecutor(BaseExecutor):
         """
         self.IS_BOTO_CONNECTION_HEALTHY = False
 
+        def _check_queue(queue_url):
+            sqs_get_queue_attrs_response = self.sqs_client.get_queue_attributes(
+                QueueUrl=queue_url, AttributeNames=["ApproximateNumberOfMessages"]
+            )
+            approx_num_msgs = sqs_get_queue_attrs_response.get("Attributes").get(
+                "ApproximateNumberOfMessages"
+            )
+            self.log.info(
+                "SQS connection is healthy and queue %s is present with %s messages.",
+                queue_url,
+                approx_num_msgs,
+            )
+
+        self.log.info("Checking Lambda and SQS connections")
         try:
-            self.log.info("Checking Lambda and SQS connections")
             # Check Lambda health
             lambda_get_response = self.lambda_client.get_function(FunctionName=self.lambda_function_name)
             if self.lambda_function_name not in lambda_get_response["Configuration"]["FunctionName"]:
@@ -122,22 +135,6 @@ class AwsLambdaExecutor(BaseExecutor):
             self.log.info(
                 "Lambda connection is healthy and function %s is present.", self.lambda_function_name
             )
-
-            def _check_queue(queue_url):
-                sqs_get_queue_attrs_response = self.sqs_client.get_queue_attributes(
-                    QueueUrl=queue_url, AttributeNames=["ApproximateNumberOfMessages"]
-                )
-                try:
-                    approx_num_msgs = sqs_get_queue_attrs_response.get("Attributes").get(
-                        "ApproximateNumberOfMessages"
-                    )
-                    self.log.info(
-                        "SQS connection is healthy and queue %s is present with %s messages.",
-                        queue_url,
-                        approx_num_msgs,
-                    )
-                except Exception:
-                    raise AirflowException("SQS queue %s not found.", queue_url)
 
             # Check SQS results queue
             _check_queue(self.sqs_queue_url)
