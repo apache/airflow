@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import functools
 import os
 import sys
 import traceback
@@ -239,6 +238,9 @@ class DagFileProcessorProcess(WatchedSubprocess):
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
+    client: Client
+    """The HTTP client to use for communication with the API server."""
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -247,9 +249,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         bundle_path: Path,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
+        client: Client,
         **kwargs,
     ) -> Self:
-        proc: Self = super().start(target=target, **kwargs)
+        proc: Self = super().start(target=target, client=client, **kwargs)
         proc._on_child_started(callbacks, path, bundle_path)
         return proc
 
@@ -266,15 +269,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
             callback_requests=callbacks,
         )
         self.send_msg(msg)
-
-    @functools.cached_property
-    def client(self) -> Client:
-        from airflow.sdk.api.client import Client
-
-        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
-        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
-        return client
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger) -> None:  # type: ignore[override]
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
