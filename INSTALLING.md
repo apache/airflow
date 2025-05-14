@@ -1,4 +1,25 @@
-## Setting up Apache Airflow on Apple Silicon (Mac M1/M2/M3/M4)
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
+## Local Development Setup
+
+This section outlines a recommended approach for setting up a local development environment for Apache Airflow on macOS and Linux, primarily using PyEnv for Python version management.
 
 > ⚠️ Avoid using either system-installed Python or Python from Homebrew, as these versions are often labeled `--externally-managed` resulting in restricted dependency installation.
 
@@ -8,11 +29,13 @@ If you are just installing airflow to run it locally, You can use other ways to 
 
 ### ✅ Setup using pyenv:
 
-1. **Install pyenv**:
+1. **Install pyenv (macOS and Linux)**:
 
 ```bash
 brew install pyenv
 ```
+
+(Note: Homebrew is the recommended method on macOS. For Linux, you can typically install pyenv using the `pyenv-installer` script as detailed in the official documentation: [https://github.com/pyenv/pyenv#installation](https://github.com/pyenv/pyenv#installation).)
 
 2. **Install Python**:
 

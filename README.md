@@ -58,6 +58,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
+- [Installation](#installation)
 - [Official source code](#official-source-code)
 - [Convenience packages](#convenience-packages)
 - [User Interface](#user-interface)
@@ -188,11 +189,12 @@ pip install 'apache-airflow[postgres,google]==3.0.0' \
 For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
-## macOS Setup Instructions
-
-If you're a macOS user looking to install or run Airflow locally, see the [INSTALLING.md](./INSTALLING.md) file
-
 <!-- END Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
+
+## Installation
+
+For comprehensive instructions on setting up your local development environment and installing Apache Airflow, please refer to the [INSTALLING.md](INSTALLING.md) file.
+
 <!-- START Official source code, please keep comment here to allow auto update of PyPI readme.md -->
 ## Official source code
 
