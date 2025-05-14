@@ -182,14 +182,12 @@ class TestPostgres:
 
 
 class TestGenericTransfer:
-    @classmethod
-    def setup_class(cls):
-        cls.mocked_source_hook = MagicMock(conn_name_attr="my_source_conn_id", spec=DbApiHook)
-        cls.mocked_destination_hook = MagicMock(conn_name_attr="my_destination_conn_id", spec=DbApiHook)
-        cls.mocked_hooks = {
-            "my_source_conn_id": cls.mocked_source_hook,
-            "my_destination_conn_id": cls.mocked_destination_hook,
-        }
+    mocked_source_hook = MagicMock(conn_name_attr="my_source_conn_id", spec=DbApiHook)
+    mocked_destination_hook = MagicMock(conn_name_attr="my_destination_conn_id", spec=DbApiHook)
+    mocked_hooks = {
+        "my_source_conn_id": mocked_source_hook,
+        "my_destination_conn_id": mocked_destination_hook,
+    }
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
