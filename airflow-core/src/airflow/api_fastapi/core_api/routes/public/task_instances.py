@@ -803,10 +803,13 @@ def patch_task_instance_dry_run(
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
-    map_index: int = -1,
+    map_index: int | None = None,
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
+    if map_index is None:
+        map_index = -1
+
     dag, ti, data = _patch_ti_validate_request(
         dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
     )
@@ -874,10 +877,13 @@ def patch_task_instance(
     body: PatchTaskInstanceBody,
     user: GetUserDep,
     session: SessionDep,
-    map_index: int = -1,
+    map_index: int | None = None,
     update_mask: list[str] | None = Query(None),
-) -> TaskInstanceResponse:
+) -> TaskInstanceCollectionResponse:
     """Update a task instance."""
+    if map_index is None:
+        map_index = -1
+
     dag, ti, data = _patch_ti_validate_request(
         dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
     )
@@ -924,7 +930,14 @@ def patch_task_instance(
                     ti.task_instance_note.user_id = user.get_id()
                 session.commit()
 
-    return TaskInstanceResponse.model_validate(ti)
+    return TaskInstanceCollectionResponse(
+        task_instances=[
+            TaskInstanceResponse.model_validate(
+                ti,
+            )
+        ],
+        total_entries=1,
+    )
 
 
 @task_instances_router.delete(
