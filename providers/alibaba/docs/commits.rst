@@ -30,6 +30,6 @@ Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.co
 
 
 This is detailed commit list of changes for versions provider package: ``alibaba``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::
