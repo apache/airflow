@@ -65,12 +65,6 @@ class AwsLambdaExecutor(BaseExecutor):
     to update task state in Airflow.
     """
 
-    # Maximum number of retries to invoke Lambda.
-    MAX_INVOKE_ATTEMPTS = conf.get(
-        CONFIG_GROUP_NAME,
-        AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS,
-    )
-
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.
         # TODO: TaskSDK: move this type change into BaseExecutor
@@ -84,6 +78,11 @@ class AwsLambdaExecutor(BaseExecutor):
         self.sqs_queue_url = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUEUE_URL)
         self.dlq_url = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.DLQ_URL)
         self.qualifier = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUALIFIER, fallback=None)
+        # Maximum number of retries to invoke Lambda.
+        self.max_invoke_attempts = conf.get(
+            CONFIG_GROUP_NAME,
+            AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS,
+        )
 
         self.attempts_since_last_successful_connection = 0
         self.IS_BOTO_CONNECTION_HEALTHY = False
@@ -309,8 +308,8 @@ class AwsLambdaExecutor(BaseExecutor):
                 failure_reasons.append(str(e))
 
             if failure_reasons:
-                # Make sure the number of attempts does not exceed MAX_INVOKE_ATTEMPTS
-                if int(attempt_number) < int(self.MAX_INVOKE_ATTEMPTS):
+                # Make sure the number of attempts does not exceed max invoke attempts
+                if int(attempt_number) < int(self.max_invoke_attempts):
                     task_to_run.attempt_number += 1
                     task_to_run.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
                         attempt_number

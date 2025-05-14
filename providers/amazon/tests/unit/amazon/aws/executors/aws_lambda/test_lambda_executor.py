@@ -204,7 +204,7 @@ class TestAwsLambdaExecutor:
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
 
         # No matter what, don't schedule until invoke becomes successful.
-        for _ in range(int(mock_executor.MAX_INVOKE_ATTEMPTS) * 2):
+        for _ in range(int(mock_executor.max_invoke_attempts) * 2):
             mock_executor.attempt_task_runs()
             # Task is not stored in running tasks
             assert len(mock_executor.running_tasks) == 0
@@ -261,7 +261,7 @@ class TestAwsLambdaExecutor:
 
         The executor should attempt each task exactly once per sync() iteration.
         It should preserve the order of tasks, and attempt each task up to
-        `MAX_INVOKE_ATTEMPTS` times before dropping the task.
+        `max_invoke_attempts` times before dropping the task.
         """
         airflow_keys = [
             TaskInstanceKey("a", "task_a", "c", 1, -1),
