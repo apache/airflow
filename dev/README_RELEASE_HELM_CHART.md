@@ -794,7 +794,7 @@ Don't forget to thank the folks who tested and close the issue tracking the test
 
 ## Update issue template with the new release
 
-Updating issue templates in `.github/ISSUE_TEMPLATE/airflow_helmchart_bug_report.yml` with the new version
+Updating issue templates in `.github/ISSUE_TEMPLATE/4-airflow_helmchart_bug_report.yml` with the new version
 
 ## Announce the release on the community slack
 
