@@ -33,14 +33,15 @@ pytestmark = pytest.mark.db_test
 class TestRoleCollectionItemSchema:
     @pytest.fixture(scope="class")
     def role(self, minimal_app_for_auth_api):
-        yield create_role(
-            minimal_app_for_auth_api,  # type: ignore
-            name="Test",
-            permissions=[
-                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
-            ],
-        )
-        delete_role(minimal_app_for_auth_api, "Test")
+        with minimal_app_for_auth_api.app_context():
+            yield create_role(
+                minimal_app_for_auth_api,  # type: ignore
+                name="Test",
+                permissions=[
+                    (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+                ],
+            )
+            delete_role(minimal_app_for_auth_api, "Test")
 
     @pytest.fixture(autouse=True)
     def _set_attrs(self, minimal_app_for_auth_api, role):
@@ -69,14 +70,15 @@ class TestRoleCollectionItemSchema:
 class TestRoleCollectionSchema:
     @pytest.fixture(scope="class")
     def role1(self, minimal_app_for_auth_api):
-        yield create_role(
-            minimal_app_for_auth_api,  # type: ignore
-            name="Test1",
-            permissions=[
-                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
-            ],
-        )
-        delete_role(minimal_app_for_auth_api, "Test1")
+        with minimal_app_for_auth_api.app_context():
+            yield create_role(
+                minimal_app_for_auth_api,  # type: ignore
+                name="Test1",
+                permissions=[
+                    (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+                ],
+            )
+            delete_role(minimal_app_for_auth_api, "Test1")
 
     @pytest.fixture(scope="class")
     def role2(self, minimal_app_for_auth_api):
