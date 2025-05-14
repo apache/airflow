@@ -91,27 +91,17 @@ class DatabricksSQLStatementsMixin:
     """
     Mixin class to be used by both the DatabricksSqlStatementsOperator, and the DatabricksSqlStatementSensor.
 
-        - _get_hook
         - _handle_operator_execution (renamed to _handle_execution)
         - _handle_deferrable_operator_execution (renamed to _handle_deferrable_execution)
+        - execute_complete
         - on_kill
     """
-
-    def _get_hook(self: GetHookHasFields, caller: str) -> DatabricksHook:
-        return DatabricksHook(
-            self.databricks_conn_id,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
-            retry_args=self.databricks_retry_args,
-            caller=caller,
-        )
 
     def _handle_execution(self: HandleExecutionHasFields) -> None:
         """Execute a SQL statement in non-deferrable mode."""
         # Determine the time at which the Task will timeout. The statement_state is defined here in the event
         # the while-loop is never entered
         end_time = time.time() + self.timeout
-        # statement_state:  SQLStatementState = SQLStatementState()
 
         while end_time > time.time():
             statement_state: SQLStatementState = self._hook.get_sql_statement_state(self.statement_id)
