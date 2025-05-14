@@ -20,6 +20,7 @@
    :depth: 1
 
 .. jinja:: config_ctx
+    {% set seen_labels = [] %}
 
     {% for section_name, section in configs.items() %}
 
@@ -37,7 +38,11 @@
     {% endif %}
 
     {% for option_name, option in section["options"].items() %}
-    .. _config:{{ section_name }}__{{ option_name }}:
+    {% set label = section_name ~ '__' ~ option_name %}
+    {% if label not in seen_labels %}
+    .. _config:{{ label }}:
+    {% do seen_labels.append(label) %}
+    {% endif %}
 
     {{ option_name }}
     {{ "-" * option_name|length }}
@@ -95,7 +100,12 @@
     {% if section_name in deprecated_options %}
 
     {% for deprecated_option_name, (new_section_name, new_option_name, since_version) in deprecated_options[section_name].items() %}
-    .. _config:{{ section_name }}__{{ deprecated_option_name }}:
+    {% set label = section_name ~ '__' ~ deprecated_option_name %}
+    {% if label not in seen_labels %}
+    .. _config:{{ label }}:
+    {% do seen_labels.append(label) %}
+    {% endif %}
+
 
     {{ deprecated_option_name }} (Deprecated)
     {{ "-" * (deprecated_option_name + " (Deprecated)")|length }}
