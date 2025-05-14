@@ -22,7 +22,7 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
+import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe, FiChevronRight } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -48,34 +48,31 @@ export const UserSettingsButton = () => {
 
   const [time, setTime] = useState(dayjs());
 
-  const current = supportedLanguages.find((lang) => lang.code === i18n.language);
-
   return (
     <Menu.Root onOpenChange={() => setTime(dayjs())} positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiUser size="1.75rem" />} title="User" />
+        <NavButton icon={<FiUser size="1.75rem" />} title={translate("user")} />
       </Menu.Trigger>
-      <Menu.Content>
-        <Menu.Item value="language">
-          <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
-          <Menu.Root>
-            <Menu.Trigger asChild>
-              <span>{current?.name ?? translate("common.language.select")}</span>
-            </Menu.Trigger>
-            <Menu.Content>
-              {supportedLanguages.map((lang) => (
-                <Menu.Item
-                  disabled={lang.code === i18n.language}
-                  key={lang.code}
-                  onClick={() => void i18n.changeLanguage(lang.code)}
-                  value={lang.code}
-                >
-                  {lang.name}
-                </Menu.Item>
-              ))}
-            </Menu.Content>
-          </Menu.Root>
-        </Menu.Item>
+      <Menu.Content position="right">
+        <Menu.Root>
+          <Menu.TriggerItem>
+            <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
+            {translate("language.select")}
+            <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
+          </Menu.TriggerItem>
+          <Menu.Content position="right">
+            {supportedLanguages.map((lang) => (
+              <Menu.Item
+                disabled={lang.code === i18n.language}
+                key={lang.code}
+                onClick={() => void i18n.changeLanguage(lang.code)}
+                value={lang.code}
+              >
+                {lang.name}
+              </Menu.Item>
+            ))}
+          </Menu.Content>
+        </Menu.Root>
         <Menu.Item onClick={toggleColorMode} value="color-mode">
           {colorMode === "light" ? (
             <>
