@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+9.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add in-memory buffer and gzip support in SqlToS3Operator (#50287)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add Key to default meta keys in S3KeySensor (#50122)``
+
+Misc
+~~~~
+
+* ``Update Sagemaker Operators and Sensors to inherit Base AWS classes (#50321)``
+* ``Use non-deprecated context in tests for Airflow 3 (#50391)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Handle exception when building amazon documentation (#50417)``
+   * ``AWS System Test Context: Don't set env_id at parse time (#50571)``
+
 9.7.0
 .....
 
