@@ -291,7 +291,8 @@ jobs:
       packages: read
     if: >
       needs.build-info.outputs.skip-providers-tests != 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
+      needs.build-info.outputs.latest-versions-only != 'true' &&
+      needs.build-info.outputs.run-tests == 'true'
     with:
       runners: ${{ needs.build-info.outputs.amd-runners }}
       platform: "linux/amd64"
