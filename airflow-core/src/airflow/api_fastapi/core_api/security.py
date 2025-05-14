@@ -327,7 +327,7 @@ def requires_authenticated() -> Callable:
 
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         pass
 
