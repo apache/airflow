@@ -26,6 +26,37 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``add root parent information to OpenLineage events (#49237)``
+* ``feat: Add DAG versioning information to OpenLineage events (#48741)``
+* ``Improve execution time messages for DAG or Task not found (#49352)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``nit: Remove duplicate warning when no OL metadata returned (#50350)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Fix clearing Variables for OpenLineage system tests (#50234)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Bump openlineage provider (#50230)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``tests: Fix OpenLineage VariableTransport's initialization (#49550)``
+   * ``Delete duplicate 'mock_supervisor_comms' pytest fixtures from OL provider (#49520)``
+   * ``Remove redundant fixtures in OL provider (#49357)``
+
 2.2.0
 .....
 

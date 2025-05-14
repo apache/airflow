@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-openfaas``
 
-Release: ``3.7.2``
+Release: ``3.8.0``
 
 
 `OpenFaaS <https://www.openfaas.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``openfaas`` provider. All classes for this provi
 are in ``airflow.providers.openfaas`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openfaas/3.7.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openfaas/3.8.0/>`_.
 
 Installation
 ------------
@@ -57,4 +57,4 @@ PIP package         Version required
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openfaas/3.7.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openfaas/3.8.0/changelog.html>`_.

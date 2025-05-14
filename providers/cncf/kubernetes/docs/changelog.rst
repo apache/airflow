@@ -28,6 +28,35 @@ Changelog
 ---------
 
 
+10.5.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add fast fail for ErrImagePull and InvalidImageName for KubernetesPodOperator (#49867)``
+* ``KubernetesPodOperator uses different timeouts to check for schedule timeout and startup timeout (#49784)``
+* ``Add configurable automountServiceAccountToken for the KubernetesPodOperator (#50223)``
+* ``Add 'test_connection' method to 'KubernetesHook' (#47881)``
+* ``Add '@task.kuberenetes_cmd'  (#46913)``
+
+Misc
+~~~~
+
+* ``Move SQS message queue to Amazon provider (#50057)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``capitalize the term airflow (#49450)``
+
 10.4.3
 ......
 

@@ -87,7 +87,7 @@ apache-airflow-providers-cncf-kubernetes package
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 10.4.3
+Release: 10.5.0
 
 Provider package
 ----------------
@@ -105,13 +105,13 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 ======================  =====================
 PIP package             Version required
 ======================  =====================
 ``aiofiles``            ``>=23.2.0``
-``apache-airflow``      ``>=2.9.0``
+``apache-airflow``      ``>=2.10.0``
 ``asgiref``             ``>=3.5.2``
 ``cryptography``        ``>=41.0.0``
 ``kubernetes``          ``>=29.0.0,<=31.0.0``

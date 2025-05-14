@@ -28,6 +28,32 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``add root parent information to OpenLineage events (#49237)``
+
+Misc
+~~~~
+
+* ``nit: Switch to emitting OL events with adapter and not client directly (#50398)``
+* ``fix: adjust dag_run extraction for Airflow 3 in OL utils (#50346)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``Use Label class from task sdk in providers (#49398)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 4.3.3
 .....
 

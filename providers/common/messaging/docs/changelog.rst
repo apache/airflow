@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+1.0.2
+.....
+
+Misc
+~~~~
+
+* ``AIP-82: Add KafkaMessageQueueProvider (#49938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+
 1.0.1
 .....
 

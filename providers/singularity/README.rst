@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-singularity``
 
-Release: ``3.7.1``
+Release: ``3.8.0``
 
 
 `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``singularity`` provider. All classes for this pr
 are in ``airflow.providers.singularity`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-singularity/3.7.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-singularity/3.8.0/>`_.
 
 Installation
 ------------
@@ -58,4 +58,4 @@ PIP package         Version required
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-singularity/3.7.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-singularity/3.8.0/changelog.html>`_.

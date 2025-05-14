@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+6.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Adjust OpenLineage task state check for Airflow 3 (#50380)``
+
+Misc
+~~~~
+
+* ``nit: Switch to emitting OL events with adapter and not client directly (#50398)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: remove stale warning about SnowflakeOperator (#50450)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Breeze unit test (#50395)``
+   * ``Use non-deprecated context in tests for Airflow 3 (#50391)``
+
 6.3.0
 .....
 

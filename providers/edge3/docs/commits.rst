@@ -26,10 +26,22 @@
 Package apache-airflow-providers-edge3
 ------------------------------------------------------
 
-Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
+Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
+
+When tasks need to be executed on remote sites where the connection need to pass through
+firewalls or other network restrictions, the Edge Worker can be deployed. The Edge Worker
+is a lightweight process with reduced dependencies. The worker only needs to be able to
+communicate with the central Airflow site via HTTPS.
+
+In the central Airflow site the EdgeExecutor is used to orchestrate the work. The EdgeExecutor
+is a custom executor which is used to schedule tasks on the edge workers. The EdgeExecutor can co-exist
+with other executors (for example CeleryExecutor or KubernetesExecutor) in the same Airflow site.
+
+Additional REST API endpoints are provided to distribute tasks and manage the edge workers. The endpoints
+are provided by the API server.
 
 
 This is detailed commit list of changes for versions provider package: ``edge3``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

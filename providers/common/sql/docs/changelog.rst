@@ -25,6 +25,20 @@
 Changelog
 ---------
 
+1.27.1
+......
+
+Misc
+~~~~
+
+* ``Update deprecated functions to use stable functions (#50275)``
+* ``Update type to follow newest tpying spec (#50229)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Add test for  overload (#50200)``
+
 1.27.0
 ......
 
