@@ -1742,6 +1742,20 @@ export const $DAGDetailsResponse = {
       ],
       title: "Default Args",
     },
+    owner_links: {
+      anyOf: [
+        {
+          additionalProperties: {
+            type: "string",
+          },
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Owner Links",
+    },
     file_token: {
       type: "string",
       title: "File Token",
