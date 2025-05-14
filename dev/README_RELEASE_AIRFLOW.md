@@ -346,7 +346,7 @@ There are two steps to publish the documentation:
 
 The release manager publishes the documentation using GitHub Actions workflow
 [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). You should
-specify the RC tag and choose `s3://staging..` bucket as destination
+specify the RC tag and choose `s3://staging-docs-airflow-apache-org/docs` bucket as destination
 
 You should specify 'apache-airflow docker-stack' passed as packages to be
 built.
