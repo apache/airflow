@@ -109,7 +109,9 @@ def flask_app():
             ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
         }
     ):
-        yield Flask(__name__)
+        app = Flask(__name__)
+        with app.app_context():
+            yield app
 
 
 @pytest.fixture
