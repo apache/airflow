@@ -1474,7 +1474,10 @@ class CreateTaskOfOperator(Protocol):
 @pytest.fixture
 def create_task_of_operator(dag_maker: DagMaker) -> CreateTaskOfOperator:
     def _create_task_of_operator(operator_class, *, dag_id, session=None, **operator_kwargs):
+        default_timeout = 7
         with dag_maker(dag_id=dag_id, session=session):
+            if "timeout" not in operator_kwargs:
+                operator_kwargs["timeout"] = default_timeout
             task = operator_class(**operator_kwargs)
         return task
 
