@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 
 import { Menu } from "src/components/ui";
@@ -48,6 +49,7 @@ export const DocsButton = ({
   readonly showAPI?: boolean;
   readonly version?: string;
 }) => {
+  const { t: translate } = useTranslation("common");
   const showAPIDocs = Boolean(useConfig("enable_swagger_ui")) && showAPI;
 
   const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;
@@ -55,7 +57,7 @@ export const DocsButton = ({
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiBookOpen size="1.75rem" />} title="Docs" />
+        <NavButton icon={<FiBookOpen size="1.75rem" />} title={translate("nav.docs")} />
       </Menu.Trigger>
       <Menu.Content>
         {links

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
 import { FiGlobe } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
@@ -36,6 +37,7 @@ const links = [
 ];
 
 export const BrowseButton = ({ authorizedMenuItems }: { readonly authorizedMenuItems: Array<MenuItem> }) => {
+  const { t: translate } = useTranslation("common");
   const menuItems = links
     .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
     .map((link) => (
@@ -53,7 +55,7 @@ export const BrowseButton = ({ authorizedMenuItems }: { readonly authorizedMenuI
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiGlobe size="1.75rem" />} title="Browse" />
+        <NavButton icon={<FiGlobe size="1.75rem" />} title={translate("nav.browse")} />
       </Menu.Trigger>
       <Menu.Content>{menuItems}</Menu.Content>
     </Menu.Root>

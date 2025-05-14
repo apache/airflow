@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
 import { FiSettings } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
@@ -52,6 +53,7 @@ const links = [
 ];
 
 export const AdminButton = ({ authorizedMenuItems }: { readonly authorizedMenuItems: Array<MenuItem> }) => {
+  const { t: translate } = useTranslation("common");
   const menuItems = links
     .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
     .map((link) => (
@@ -69,7 +71,7 @@ export const AdminButton = ({ authorizedMenuItems }: { readonly authorizedMenuIt
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiSettings size="1.75rem" />} title="Admin" />
+        <NavButton icon={<FiSettings size="1.75rem" />} title={translate("nav.admin")} />
       </Menu.Trigger>
       <Menu.Content>{menuItems}</Menu.Content>
     </Menu.Root>
