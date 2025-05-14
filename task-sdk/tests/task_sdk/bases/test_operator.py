@@ -898,3 +898,36 @@ class TestExecutorSafeguard:
                 "timestamp": mock.ANY,
             },
         ]
+
+
+def test_partial_default_args():
+    class MockOperator(BaseOperator):
+        def __init__(self, arg1, arg2, arg3, **kwargs):
+            self.arg1 = arg1
+            self.arg2 = arg2
+            self.arg3 = arg3
+            self.kwargs = kwargs
+            super().__init__(**kwargs)
+
+    with DAG(
+        dag_id="test_partial_default_args",
+        default_args={"queue": "THIS", "arg1": 1, "arg2": 2, "arg3": 3, "arg4": 4},
+    ):
+        t1 = BaseOperator(task_id="t1")
+        t2 = MockOperator.partial(task_id="t2", arg2="b").expand(arg1=t1.output)
+
+    # Only default_args recognized by BaseOperator are applied.
+    assert t2.partial_kwargs["queue"] == "THIS"
+    assert "arg1" not in t2.partial_kwargs
+    assert t2.partial_kwargs["arg2"] == "b"
+    assert "arg3" not in t2.partial_kwargs
+    assert "arg4" not in t2.partial_kwargs
+
+    # Simulate resolving mapped operator. This should apply all default_args.
+    op = t2.unmap({"arg1": "a"})
+    assert isinstance(op, MockOperator)
+    assert "arg4" not in op.kwargs  # Not recognized by any class; never passed.
+    assert op.arg1 == "a"
+    assert op.arg2 == "b"
+    assert op.arg3 == 3
+    assert op.queue == "THIS"

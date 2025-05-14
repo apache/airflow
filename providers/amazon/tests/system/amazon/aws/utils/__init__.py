@@ -113,13 +113,13 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
         log.info("No boto credentials found: %s", e)
     except ClientError as e:
         log.info("Client error when connecting to SSM: %s", e)
+    except hook.conn.exceptions.ParameterNotFound as e:
+        log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
         log.info(
             "SSM contains one parameter for this test, but not the requested value: %s",
             e,
         )
-    except Exception as e:
-        log.info("SSM does not contain any parameter for this test: %s", e)
     return value
 
 
@@ -188,7 +188,6 @@ class SystemTestContextBuilder:
 
     def __init__(self):
         self.variables = set()
-        self.env_id = set_env_id()
         self.test_name = _get_test_name()
 
     def add_variable(
@@ -229,7 +228,7 @@ class SystemTestContextBuilder:
 
         @task
         def variable_fetcher(ti=None):
-            ti.xcom_push(ENV_ID_KEY, self.env_id)
+            ti.xcom_push(ENV_ID_KEY, set_env_id())
             for variable in self.variables:
                 ti.xcom_push(variable.name, variable.get_value())
 

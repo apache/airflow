@@ -1169,6 +1169,7 @@ class DAGDetailsResponse(BaseModel):
     timezone: Annotated[str | None, Field(title="Timezone")] = None
     last_parsed: Annotated[datetime | None, Field(title="Last Parsed")] = None
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
+    owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int, Field(description="Return max_active_tasks as concurrency.", title="Concurrency")
