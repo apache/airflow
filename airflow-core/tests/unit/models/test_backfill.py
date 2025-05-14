@@ -284,7 +284,7 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
     query = (
         select(DagRun)
         .join(BackfillDagRun.dag_run)
-        .where(BackfillDagRun.backfill_id == b.id)
+        .where(BackfillDagRun.backfill_id == b.id, DagRun.dag_id == dag.dag_id)
         .order_by(BackfillDagRun.sort_ordinal)
     )
     # these are all the dag runs that are part of this backfill
