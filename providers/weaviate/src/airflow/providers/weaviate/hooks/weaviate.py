@@ -269,38 +269,56 @@ class WeaviateHook(BaseHook):
                 data = json.loads(data.to_json(orient="records"))
         return cast("list[dict[str, Any]]", data)
 
-    @retry(
-        reraise=True,
-        stop=stop_after_attempt(3),
-        retry=(
-            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-        ),
-    )
     def batch_create_links(
         self, 
         collection_name: str,
-        from_property: str,
-        from_uuid: UUID,
-        to: UUID
+        data: list[dict[str, Any]] | dict[str, Any],
+        retry_attempts_per_object: int = 5,
     ) -> list[ErrorReference] | None:
         """
-        Batch create links from an object to another other object through cross-references. This method 
-        returns failed references if there is any.
+        Batch create links from an object to another other object through cross-references. The method
+        returns the failed reference if any.
+        https://weaviate.io/developers/weaviate/manage-data/import#import-with-references
 
-        :param collection_name: The name of the Weaviate collection (class) containing the objects.
-        :param from_property: The name of the cross-reference property that links the objects.
-        :param from_uuid: The UUID of the source object (the one holding the reference).
-        :param to: The UUID of the target object (the one being referenced).
+        :param collection_name: The name of the collection that objects belongs to.
+        :param data: list of objects we want to create links. e.g., {"from_property": "writesFor", "from_uuid": 1234455, "to_uuid": 1245555}
+        :param retry_attempts_per_object: number of time to try in case of failure before giving up.
         """
+        # get the collection for creating the batch
         collection = self.get_collection(collection_name)
-
+        # convert a single dictionary to a list
+        if isinstance(data, dict):
+            data = [data]
+        # iterate through the objects and add reference
         with collection.batch.dynamic() as batch:
-            batch.add_reference(
-                from_property=from_property,
-                from_uuid=from_uuid,
-                to=to,
-            )
+            # Batch import all data
+            for data_obj in data:
+                for attempt in Retrying(
+                    stop=stop_after_attempt(retry_attempts_per_object),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
+                ):
+                    with attempt:
+                        
+                        from_property = data_obj.pop('from_property')
+                        from_uuid = data_obj.pop('from_uuid')
+                        to_uuid = data_obj.pop('to_uuid')
+
+                        self.log.debug(
+                            "Attempt %s of creating link from uuid %s to uuid %s from property %s",
+                            attempt.retry_state.attempt_number,
+                            from_uuid,
+                            to_uuid,
+                            from_property
+                        )
+                        batch.add_reference(
+                            from_property=from_property,
+                            from_uuid=from_uuid,
+                            to=to_uuid,
+                        )
+                        self.log.debug("Added link from uuid %s to uuid %s into batch", from_uuid, to_uuid)
         
         failed_references = collection.batch.failed_references
         if failed_references:
