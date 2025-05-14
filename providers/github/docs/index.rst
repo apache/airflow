@@ -77,7 +77,7 @@ apache-airflow-providers-github package
 `GitHub <https://www.github.com/>`__
 
 
-Release: 2.8.3
+Release: 2.9.0
 
 Provider package
 ----------------
@@ -95,11 +95,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
+``apache-airflow``  ``>=2.10.0``
 ``PyGithub``        ``>=2.1.1``
 ==================  ==================

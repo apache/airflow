@@ -28,14 +28,14 @@ description: |
 # For providers until we think it should be released.
 state: ready
 
-source-date-epoch: 1745478857
+source-date-epoch: 1747132761
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
-  - 2.0.3
+  - 2.1.0
   - 2.0.2
   - 2.0.1
   - 2.0.0
@@ -63,14 +63,14 @@ config:
       access_denied_message:
         description: |
           The message displayed when a user attempts to execute actions beyond their authorised privileges.
-        version_added: 2.0.3
+        version_added: 2.1.0
         type: string
         example: ~
         default: "Access is Denied"
       expose_hostname:
         description: |
           Expose hostname in the web server
-        version_added: 2.0.3
+        version_added: 2.1.0
         type: string
         example: ~
         default: "False"
