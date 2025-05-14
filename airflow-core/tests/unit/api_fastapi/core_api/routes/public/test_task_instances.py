@@ -25,6 +25,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from fastapi import status
 from sqlalchemy import select
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -33,12 +34,15 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.trigger import Trigger
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.platform import getuser
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -4170,3 +4174,65 @@ class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
                 remaining_tis = base_query.filter(TaskInstance.map_index != -1).all()
                 if expected_remaining is not None:
                     assert set(ti.map_index for ti in remaining_tis) == expected_remaining
+
+
+@pytest.mark.mock_plugin_manager(plugins=[])
+class TestTaskInstancesErrorHandling:
+    """Tests error handling logic of Task Instances API"""
+
+    @staticmethod
+    def _clear_db():
+        clear_db_runs()
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self._clear_db()
+        yield
+        self._clear_db()
+
+    def test_task_instances_endpoints_missing_dag_id_in_serialized_data(self, test_client):
+        """
+        Test task_instances endpoints when serialized DAG is missing dag_id.
+        """
+        from sqlalchemy import select, update
+
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        TEST_DAG_ID = "test_serialization_error"
+        test_dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id="test_task", dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=TEST_DAG_ID)
+
+        with create_session() as session:
+            dag_model = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == TEST_DAG_ID)
+            )
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == TEST_DAG_ID).values(_data=data)
+            )
+            session.commit()
+
+        response = test_client.get(f"/dags/{TEST_DAG_ID}/dagRuns/test_run/taskInstances/test_task/listMapped")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            f"An unexpected error occurred while trying to deserialize DAG '{TEST_DAG_ID}'."
+            == response.json()["detail"]
+        )
+
+        response = test_client.get(f"/dags/{TEST_DAG_ID}/dagRuns/test_run/taskInstances")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            f"An unexpected error occurred while trying to deserialize DAG '{TEST_DAG_ID}'."
+            == response.json()["detail"]
+        )
+
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/clearTaskInstances", json={"dry_run": True, "dag_run_id": "test_run"}
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]

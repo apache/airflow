@@ -28,6 +28,7 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
+from airflow.api.common.utils import get_dag_from_dag_bag
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -178,7 +179,7 @@ def get_mapped_task_instances(
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
     if unfiltered_total_count == 0:
-        dag = dag_bag.get_dag(dag_id)
+        dag: DAG | None = get_dag_from_dag_bag(dag_bag, dag_id)
         if not dag:
             error_message = f"DAG {dag_id} not found"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
@@ -255,8 +256,7 @@ def get_task_instance_dependencies(
     deps = []
 
     if ti.state in [None, TaskInstanceState.SCHEDULED]:
-        dag = dag_bag.get_dag(ti.dag_id)
-
+        dag: DAG | None = get_dag_from_dag_bag(dag_bag, ti.dag_id)
         if dag:
             try:
                 ti.task = dag.get_task(ti.task_id)
@@ -443,7 +443,7 @@ def get_task_instances(
     )
 
     if dag_id != "~":
-        dag = dag_bag.get_dag(dag_id)
+        dag: DAG | None = get_dag_from_dag_bag(dag_bag, dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: `{dag_id}` was not found")
         query = query.where(TI.dag_id == dag_id)
@@ -651,7 +651,7 @@ def post_clear_task_instances(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
-    dag = dag_bag.get_dag(dag_id)
+    dag: DAG | None = get_dag_from_dag_bag(dag_bag, dag_id)
     if not dag:
         error_message = f"DAG {dag_id} not found"
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
@@ -739,7 +739,7 @@ def _patch_ti_validate_request(
     map_index: int = -1,
     update_mask: list[str] | None = Query(None),
 ) -> tuple[DAG, TI, dict]:
-    dag = dag_bag.get_dag(dag_id)
+    dag: DAG | None = get_dag_from_dag_bag(dag_bag, dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
 
