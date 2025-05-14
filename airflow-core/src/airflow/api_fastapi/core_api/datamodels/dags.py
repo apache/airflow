@@ -155,6 +155,7 @@ class DAGDetailsResponse(DAGResponse):
     template_search_path: Iterable[str] | None
     timezone: str | None
     last_parsed: datetime | None
+    owner_links: dict[str, str] | None = None
 
     @field_validator("timezone", mode="before")
     @classmethod
