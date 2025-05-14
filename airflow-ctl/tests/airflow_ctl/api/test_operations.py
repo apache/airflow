@@ -543,6 +543,7 @@ class TestDagRunOperations:
                 bundle_name="bundle_name",
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                dag_display_name=dag_id,
             )
         ],
     )

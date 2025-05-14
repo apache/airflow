@@ -1693,13 +1693,6 @@ operators:
 webserver:
   description: ~
   options:
-    access_denied_message:
-      description: |
-        The message displayed when a user attempts to execute actions beyond their authorised privileges.
-      version_added: 2.7.0
-      type: string
-      example: ~
-      default: "Access is Denied"
     secret_key:
       description: |
         Secret key used to run your api server. It should be as random as possible. However, when running
@@ -1714,13 +1707,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    expose_hostname:
-      description: |
-        Expose hostname in the web server
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "False"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``

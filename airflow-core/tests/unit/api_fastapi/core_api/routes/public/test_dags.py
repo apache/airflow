@@ -448,6 +448,7 @@ class TestDagDetails(TestDagEndpoint):
                 "dag_id": "test_dag2",
                 "id": mock.ANY,
                 "version_number": 1,
+                "dag_display_name": dag_display_name,
             },
             "last_expired": None,
             "last_parsed": last_parsed,

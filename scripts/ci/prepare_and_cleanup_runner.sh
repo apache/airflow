@@ -17,8 +17,12 @@
 # under the License.
 
 
-function cleanup_docker {
+function prepare_and_cleanup_runner {
     local target_docker_volume_location="/mnt/var-lib-docker"
+    echo "Checking free space!"
+    df -H
+    echo "Cleaning /mnt just in case it is not empty"
+    sudo rm -rf /mnt/*
     echo "Checking free space!"
     df -H
     echo "Making sure that /mnt is writeable"
@@ -31,7 +35,8 @@ function cleanup_docker {
     sudo mkdir -p "${target_docker_volume_location}" /var/lib/docker
     sudo mount --bind "${target_docker_volume_location}" /var/lib/docker
     sudo chown -R 0:0 "${target_docker_volume_location}"
+
     sudo systemctl start docker
 }
 
-cleanup_docker
+prepare_and_cleanup_runner

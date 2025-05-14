@@ -146,7 +146,7 @@ jobs:
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >
-          breeze build-docs ${INCLUDE_DOCS} --docs-only
+          breeze build-docs ${INCLUDE_DOCS} --docs-only --include-commits
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
@@ -179,8 +179,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Checkout ${{ inputs.ref }}"
         run: |
           git clone https://github.com/apache/airflow.git "${AIRFLOW_ROOT_PATH}"
@@ -193,7 +193,7 @@ jobs:
           name: airflow-docs
           path: ${{ env.AIRFLOW_ROOT_PATH }}/generated/_build
       - name: Check disk space available
-        run: df -h
+        run: df -H
       # Here we will create temp airflow-site dir to publish
       # docs and for back-references
       - name: Create /mnt/airflow-site directory
@@ -213,7 +213,7 @@ jobs:
           breeze release-management publish-docs --override-versioned --run-in-parallel
           ${INCLUDE_DOCS}
       - name: Check disk space available
-        run: df -h
+        run: df -H
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
       - name: "Generate back references for apache-airflow"
@@ -243,4 +243,4 @@ jobs:
         run: |
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
-          --exclude-docs ${EXCLUDE_DOCS}
+          --exclude-docs ${EXCLUDE_DOCS} --overwrite
