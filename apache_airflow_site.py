@@ -14,9 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""Re exporting the new baseoperatorlink module from Task SDK for backward compatibility."""
-
-from __future__ import annotations
-
-from airflow.sdk.bases.operatorlink import BaseOperatorLink as BaseOperatorLink

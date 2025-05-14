@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Secrets framework provides means of getting connection objects from various sources.
+The Secrets framework provides a means of getting connection objects from various sources.
 
 The following sources are available:
 
@@ -26,6 +26,8 @@ The following sources are available:
 """
 
 from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __all__ = ["BaseSecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH", "DEFAULT_SECRETS_SEARCH_PATH_WORKERS"]
 
@@ -39,3 +41,11 @@ DEFAULT_SECRETS_SEARCH_PATH = [
 DEFAULT_SECRETS_SEARCH_PATH_WORKERS = [
     "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
 ]
+
+
+__deprecated_classes = {
+    "cache": {
+        "SecretCache": "airflow.sdk.execution_time.cache.SecretCache",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)
