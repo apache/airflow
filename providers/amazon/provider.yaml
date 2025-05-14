@@ -1015,28 +1015,28 @@ config:
       conn_id:
         description: |
           The Airflow connection (i.e. credentials) used by the Lambda executor to make API calls.
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: string
         example: "aws_default"
         default: "aws_default"
       region_name:
         description: |
           The name of the AWS Region where Amazon Lambda is configured.
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: string
         example: "us-east-1"
         default: ~
       check_health_on_startup:
         description: |
           Whether or not to check the Lambda Executor health on startup.
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: boolean
         example: "True"
         default: "True"
       max_run_task_attempts:
         description: |
           The maximum number of times the Lambda Executor should attempt to start an Airflow task.
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: integer
         example: "3"
         default: "3"
@@ -1044,7 +1044,7 @@ config:
         description: |
           The URL of the SQS queue to use for the Lambda executor. Required.
           The Lambda executor will poll this queue for results of the lambda function's Airflow Task.
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: string
         example: "airflow-lambda-executor-results-queue"
         default: ~
@@ -1052,21 +1052,21 @@ config:
         description: |
           The URL of the SQS dead letter queue to use for the Lambda function. The Lambda executor
           will poll this queue for timeout/exception results of the lambda function. Required
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: string
         example: "airflow-lambda-executor-dlq"
         default: ~
       function_name:
         description: |
           The name of the Lambda function to invoke. Required.
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: string
         example: "airflow-lambda-executor-function"
         default: ~
       qualifier:
         description: |
           The version or alias of the Lambda function to invoke. If not specified, the latest version is used.
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: string
         example: "1"
         default: ~
@@ -1074,7 +1074,7 @@ config:
         description: |
           The number of seconds to wait for all lambda executor invocations to complete when terminating the
           executor/scheduler. Default of 0 means wait indefinitely.
-        version_added: "9.7.0"
+        version_added: "9.9.0"
         type: integer
         example: "500"
         default: "0"
