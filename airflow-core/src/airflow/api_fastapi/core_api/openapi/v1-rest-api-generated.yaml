@@ -4484,8 +4484,9 @@ paths:
         in: query
         required: false
         schema:
-          type: integer
-          default: -1
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -4509,7 +4510,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5131,7 +5132,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -5155,7 +5158,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5724,7 +5727,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -5811,8 +5816,9 @@ paths:
         in: query
         required: false
         schema:
-          type: integer
-          default: -1
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
