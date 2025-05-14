@@ -3897,14 +3897,17 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         map_indexes = [1, 2, 3]
         tis = self.create_task_instances(session)
         for map_index in map_indexes:
-            ti = TaskInstance(task=tis[0].task, run_id=tis[0].run_id, map_index=map_index)
+            ti = TaskInstance(
+                task=tis[0].task,
+                run_id=tis[0].run_id,
+                map_index=map_index,
+                state="running",
+            )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             session.add(ti)
 
-        tis[0].map_index = 4
+        session.delete(tis[0])
         session.commit()
-
-        task_before = test_client.get(f"{self.ENDPOINT_URL}/{map_index}").json()
 
         response = test_client.patch(
             f"{self.ENDPOINT_URL}/dry_run",
@@ -3914,17 +3917,13 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         )
 
         assert response.status_code == 200
-        assert [ti["task_id"] for ti in response.json()["task_instances"]] == [
-            "print_the_context",
-            "print_the_context",
-            "print_the_context",
-            "print_the_context",
-        ]
+        assert response.json()["total_entries"] == len(map_indexes)
 
-        task_after = test_client.get(f"{self.ENDPOINT_URL}/{map_index}").json()
-
-        assert task_before == task_after
-        _check_task_instance_note(session, task_after["id"], None)
+        for map_index in map_indexes:
+            task_after = test_client.get(f"{self.ENDPOINT_URL}/{map_index}").json()
+            assert task_after["note"] is None
+            assert task_after["state"] == "running"
+            _check_task_instance_note(session, task_after["id"], None)
 
     @pytest.mark.parametrize(
         "error, code, payload",
