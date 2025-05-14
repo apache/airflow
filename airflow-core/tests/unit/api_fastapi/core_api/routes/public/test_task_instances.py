@@ -3092,7 +3092,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
-                    "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": None,
                     "dag_run_id": self.RUN_ID,
                     "logical_date": "2020-01-01T00:00:00Z",
@@ -3314,7 +3313,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "task_instances": [
                         {
                             "dag_id": "example_python_operator",
-                            "dag_display_name": "example_python_operator",
                             "dag_version": None,
                             "dag_run_id": "TEST_DAG_RUN_ID",
                             "logical_date": "2020-01-01T00:00:00Z",
@@ -3431,7 +3429,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
-                    "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": None,
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
@@ -3482,7 +3479,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
-                    "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": None,
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
@@ -3550,7 +3546,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "task_instances": [
                     {
                         "dag_id": self.DAG_ID,
-                        "dag_display_name": self.DAG_DISPLAY_NAME,
                         "dag_version": None,
                         "duration": 10000.0,
                         "end_date": "2020-01-03T00:00:00Z",
