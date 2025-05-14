@@ -1450,14 +1450,6 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
 
     backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
-    log = structlog.get_logger(logger_name="supervisor")
-
-    log.info(
-        "Secrets backends loaded for worker",
-        count=len(backends),
-        backend_classes=[type(b).__name__ for b in backends],
-    )
-
     return backends
 
 
@@ -1520,7 +1512,12 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    ensure_secrets_backend_loaded()
+    backends = ensure_secrets_backend_loaded()
+    log.info(
+        "Secrets backends loaded for worker",
+        count=len(backends),
+        backend_classes=[type(b).__name__ for b in backends],
+    )
 
     reset_secrets_masker()
 

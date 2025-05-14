@@ -27,6 +27,7 @@
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Publish release candidate documentation (staging)](#publish-release-candidate-documentation-staging)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
@@ -42,7 +43,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
-  - [Publish documentation](#publish-documentation)
+  - [Publish final documentation](#publish-final-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -329,6 +330,37 @@ pipx install -e ./dev/breeze
     breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
     --current-release ${VERSION}
     ```
+
+## Publish release candidate documentation (staging)
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the pre-release versions is published in staging S3 bucket.
+The documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
+
+There are two steps to publish the documentation:
+
+1. Publish the documentation to the staging S3 bucket.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). You should
+specify the RC tag and choose `s3://staging-docs-airflow-apache-org/docs` bucket as destination
+
+You should specify 'apache-airflow docker-stack' passed as packages to be
+built.
+
+After that step, the provider documentation should be available under https://airflow.stage.apache.org//
+URL (RC PyPI packages are build with the staging urls) but stable links and drop-down boxes are not updated yet.
+
+2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
+
+In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository - but make sure to use `staging` branch.
+
+After that workflow completes, the new version should be available in the drop-down list and stable links
+should be updated, also Fastly cache will be updated
 
 ## Prepare production Docker Image RC
 
@@ -815,10 +847,10 @@ docker pull apache/airflow:${VERSION}
 breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
-## Publish documentation
+## Publish final documentation
 
 Documentation is an essential part of the product and should be made available to users.
-In our cases, documentation for the released versions is published in S3 bucket, and the site is
+In our cases, documentation for the released versions is published in the live S3 bucket, and the site is
 kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
 but the documentation source code and build tools are available in the `apache/airflow` repository, so
 you need to run several workflows to publish the documentation. More details about it can be found in
@@ -832,20 +864,20 @@ There are two steps to publish the documentation:
 The release manager publishes the documentation using GitHub Actions workflow
 [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
 
-You can specify the tag to use to build the docs and 'apache-airflow docker-stack' passed as packages to be
-built.
+You should specify the final tag to build the docs and 'apache-airflow docker-stack' should be
+passed as packages to be built. The Live bucket should be selected as destination location.
 
-After that step, the provider documentation should be available under the usual urls (same as in PyPI packages)
-but stable links and drop-down boxes should not be updated.
+After that step, the provider documentation should be available under the https://airflow.apache.org/ URL
+(also linked directly from the PyPI packages) but stable links and drop-down boxes should not be yet updated.
+That allows the Release Manager to verify if the documentation is published.
 
-2. Update version drop-down and stable links with the new versions of the documentation.
+2. Invalidate Fastly Cache, update version drop-down and stable links with the new versions of the documentation.
 
 In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository.
+workflow in `airflow-site` repository. Make sure to use `main` as the branch to run the workflow.
 
 After that workflow completes, the new version should be available in the drop-down list and stable links
-should be updated.
-
+should be updated, also Fastly cache will be invalidated.
 
 ## Notify developers of release
 
