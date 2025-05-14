@@ -16,7 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+
+def get_release_date(package_name: str) -> str:
+    """Get the release date of the current version."""
+    if package_name == "":
+        return ""
+    import requests
+
+    resp = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+    release_date = resp.json()["urls"][0]["upload_time"]
+    return release_date
 
 
 def fix_provider_references(app, exception):
@@ -32,6 +44,15 @@ def fix_provider_references(app, exception):
             lines = path.read_text().splitlines(True)
             with path.open("w") as output_file:
                 for line in lines:
+                    if "PyPIReleaseDate:" in line:
+                        output_file.write(
+                            line.replace(
+                                "PyPIReleaseDate:",
+                                "Release Date: "
+                                + get_release_date(os.environ.get("AIRFLOW_PACKAGE_NAME", "")),
+                            )
+                        )
+                        continue
                     output_file.write(line.replace("|version|", app.config.version))
 
 
