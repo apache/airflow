@@ -2270,13 +2270,13 @@ export type GetTaskInstanceResponse = TaskInstanceResponse;
 export type PatchTaskInstanceData = {
   dagId: string;
   dagRunId: string;
-  mapIndex?: number;
+  mapIndex?: number | null;
   requestBody: PatchTaskInstanceBody;
   taskId: string;
   updateMask?: Array<string> | null;
 };
 
-export type PatchTaskInstanceResponse = TaskInstanceResponse;
+export type PatchTaskInstanceResponse = TaskInstanceCollectionResponse;
 
 export type DeleteTaskInstanceData = {
   dagId: string;
@@ -2363,13 +2363,13 @@ export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 export type PatchTaskInstanceByMapIndexData = {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
+  mapIndex: number | null;
   requestBody: PatchTaskInstanceBody;
   taskId: string;
   updateMask?: Array<string> | null;
 };
 
-export type PatchTaskInstanceByMapIndexResponse = TaskInstanceResponse;
+export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesData = {
   dagId: string;
@@ -2441,7 +2441,7 @@ export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 export type PatchTaskInstanceDryRunByMapIndexData = {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
+  mapIndex: number | null;
   requestBody: PatchTaskInstanceBody;
   taskId: string;
   updateMask?: Array<string> | null;
@@ -2452,7 +2452,7 @@ export type PatchTaskInstanceDryRunByMapIndexResponse = TaskInstanceCollectionRe
 export type PatchTaskInstanceDryRunData = {
   dagId: string;
   dagRunId: string;
-  mapIndex?: number;
+  mapIndex?: number | null;
   requestBody: PatchTaskInstanceBody;
   taskId: string;
   updateMask?: Array<string> | null;
@@ -4307,7 +4307,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: TaskInstanceResponse;
+        200: TaskInstanceCollectionResponse;
         /**
          * Bad Request
          */
@@ -4527,7 +4527,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: TaskInstanceResponse;
+        200: TaskInstanceCollectionResponse;
         /**
          * Bad Request
          */
