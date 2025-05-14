@@ -170,3 +170,15 @@ def dagbag():
 
     parse_and_sync_to_db(os.devnull, include_examples=True)
     return DagBag(read_dags_from_db=True)
+
+
+@pytest.fixture
+def get_execution_app():
+    def _get_execution_app(test_client):
+        test_app = test_client.app
+        for route in test_app.router.routes:
+            if route.path == "/execution":
+                return route.app
+        raise RuntimeError("Execution app not found at /execution")
+
+    return _get_execution_app
