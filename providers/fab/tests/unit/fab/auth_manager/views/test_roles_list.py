@@ -43,17 +43,18 @@ def fab_app():
 
 @pytest.fixture(scope="module")
 def user_roles_reader(fab_app):
-    yield create_user(
-        fab_app,
-        username="user_roles",
-        role_name="role_roles",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-        ],
-    )
+    with fab_app.app_context():
+        yield create_user(
+            fab_app,
+            username="user_roles",
+            role_name="role_roles",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            ],
+        )
 
-    delete_user(fab_app, "user_roles")
+        delete_user(fab_app, "user_roles")
 
 
 @pytest.fixture
