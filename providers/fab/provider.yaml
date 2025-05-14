@@ -64,6 +64,13 @@ config:
         type: string
         example: ~
         default: "Access is Denied"
+      expose_hostname:
+        description: |
+          Expose hostname in the web server
+        version_added: 2.0.3
+        type: string
+        example: ~
+        default: "False"
       auth_rate_limited:
         description: |
           Boolean for enabling rate limiting on authentication endpoints.

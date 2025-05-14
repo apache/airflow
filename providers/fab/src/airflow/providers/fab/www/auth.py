@@ -145,7 +145,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
         return (
             render_template(
                 "airflow/no_roles_permissions.html",
-                hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
+                hostname=get_hostname() if conf.getboolean("fab", "EXPOSE_HOSTNAME") else "",
                 logout_url=get_fab_auth_manager().get_url_logout(),
             ),
             403,
@@ -217,7 +217,7 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
                 return (
                     render_template(
                         "airflow/no_roles_permissions.html",
-                        hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
+                        hostname=get_hostname() if conf.getboolean("fab", "EXPOSE_HOSTNAME") else "",
                         logout_url=get_auth_manager().get_url_logout(),
                     ),
                     403,
