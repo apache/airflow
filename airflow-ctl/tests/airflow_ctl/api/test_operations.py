@@ -542,6 +542,7 @@ class TestDagOperations:
         bundle_name="bundle_name",
         bundle_version="1",
         created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        dag_display_name=dag_id,
     )
 
     dag_version_collection_response = DAGVersionCollectionResponse(
@@ -617,7 +618,7 @@ class TestDagOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dags.delete(dag_id="dag_id")
-        assert response == self.dag_response
+        assert response == self.dag_id
 
     def test_get_import_error(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -657,7 +658,7 @@ class TestDagOperations:
         response = client.dags.get_version(dag_id="dag_id", version_number="0")
         assert response == self.dag_version_response
 
-    def list_version(self):
+    def test_list_version(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id/dagVersions"
             return httpx.Response(
@@ -668,15 +669,15 @@ class TestDagOperations:
         response = client.dags.list_version(dag_id="dag_id")
         assert response == self.dag_version_collection_response
 
-    def list_warning(self):
+    def test_list_warning(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/dags/dag_id/dagWarnings"
+            assert request.url.path == "/api/v2/dagWarnings"
             return httpx.Response(
                 200, json=json.loads(self.dag_warning_collection_response.model_dump_json())
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.list_warning(dag_id="dag_id")
+        response = client.dags.list_warning()
         assert response == self.dag_warning_collection_response
 
 
