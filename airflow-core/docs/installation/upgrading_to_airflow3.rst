@@ -42,7 +42,7 @@ Step 2: Clean and back up your existing Airflow Instance
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
 - Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
-  be able to run ``airflow dags reserialize`` with no errors.  If you have have to resolve errors from dag processing,
+  be able to run ``airflow dags reserialize`` with no errors.  If you have to resolve errors from dag processing,
   ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
 
