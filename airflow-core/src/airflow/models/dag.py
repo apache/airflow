@@ -373,6 +373,19 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
+    :param deadline: Optional Deadline Alert for the DAG.
+        Specifies a time by which the DAG run should be complete, either in the form of a static datetime
+        or calculated relative to a reference timestamp.  If the deadline passes before completion, the
+        provided callback is triggered.
+
+        **Example**: To set the deadline for one hour after the DAG run starts you could use ::
+
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=timedelta(hours=1),
+                callback=my_callback,
+            )
+
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
@@ -1868,7 +1881,7 @@ class DagModel(Base):
 
     __tablename__ = "dag"
     """
-    These items are stored in the database for state related information
+    These items are stored in the database for state related information.
     """
     dag_id = Column(StringID(), primary_key=True)
     # A DAG can be paused from the UI / DB
@@ -1903,6 +1916,8 @@ class DagModel(Base):
     timetable_description = Column(String(1000), nullable=True)
     # Asset expression based on asset triggers
     asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    # DAG deadline information
+    deadline = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view
