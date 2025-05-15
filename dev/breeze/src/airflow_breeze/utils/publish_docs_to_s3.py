@@ -47,6 +47,7 @@ class S3DocsPublish:
         dry_run: bool = False,
         overwrite: bool = False,
         parallelism: int = 1,
+        skip_write_to_stable_folder: bool = False,
     ):
         self.source_dir_path = source_dir_path
         self.destination_location = destination_location
@@ -55,6 +56,7 @@ class S3DocsPublish:
         self.overwrite = overwrite
         self.parallelism = parallelism
         self.source_dest_mapping: list[tuple[str, str]] = []
+        self.skip_write_to_stable_folder = skip_write_to_stable_folder
 
     @cached_property
     def get_all_docs(self):
@@ -158,7 +160,9 @@ class S3DocsPublish:
                 source_dir_doc_path = f"{self.source_dir_path}/{doc}/{stable_version}/"
 
                 self.source_dest_mapping.append((source_dir_doc_path, dest_doc_versioned_folder))
-                self.source_dest_mapping.append((source_dir_doc_path, dest_doc_stable_folder))
+
+                if not self.skip_write_to_stable_folder:
+                    self.source_dest_mapping.append((source_dir_doc_path, dest_doc_stable_folder))
             else:
                 source_dir_doc_path = f"{self.source_dir_path}/{doc}/"
                 dest_doc_versioned_folder = f"{self.destination_location}/{doc}/"
