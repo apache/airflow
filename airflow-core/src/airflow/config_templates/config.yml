@@ -1412,6 +1412,14 @@ api:
       type: string
       example: ~
       default: "topological"
+    log_fetch_timeout_sec:
+      description: |
+        The amount of time (in secs) webserver will wait for initial handshake
+        while fetching logs from other worker machine
+      version_added: ~
+      type: string
+      example: ~
+      default: "5"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1722,6 +1730,13 @@ webserver:
       type: string
       example: ~
       default: "5"
+    grid_view_sorting_order:
+      description: |
+        Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "topological"
     hide_paused_dags_by_default:
       description: |
         By default, the webserver shows paused DAGs. Flip this to hide paused

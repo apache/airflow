@@ -359,6 +359,7 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "access_denied_message"): ("webserver", "access_denied_message", "3.0.2"),
         ("fab", "expose_hostname"): ("webserver", "expose_hostname", "3.0.2"),
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
+        ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
