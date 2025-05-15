@@ -281,6 +281,8 @@ ARG_CONFIG_VERBOSE = Arg(
         "--verbose",
     ),
     help="Enables detailed output, including the list of ignored sections and options",
+    default=False,
+    action="store_true",
 )
 
 
