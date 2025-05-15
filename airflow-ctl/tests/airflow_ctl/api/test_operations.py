@@ -20,8 +20,6 @@ from __future__ import annotations
 import datetime
 import json
 import uuid
-from contextlib import redirect_stdout
-from io import StringIO
 from typing import TYPE_CHECKING
 
 import httpx
@@ -75,6 +73,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
     from pydantic import NonNegativeInt
@@ -93,13 +92,10 @@ def make_api_client(
 class TestBaseOperations:
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
-        with (
-            pytest.raises(httpx.ConnectError),
-            redirect_stdout(StringIO()) as stdout,
+        with pytest.raises(
+            AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
-            client.connections.get(1)
-        stdout = stdout.getvalue()
-        assert "" in stdout
+            client.connections.get("1")
 
 
 class TestAssetsOperations:
