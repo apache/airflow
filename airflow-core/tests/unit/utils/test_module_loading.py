@@ -45,7 +45,7 @@ class TestModuleImport:
             pytest.param(".invalid.path", False, id="leading_dot_fails"),
             pytest.param("invalid.path.", False, id="trailing_dot_fails"),
             pytest.param("1invalid.path", False, id="leading_number_fails"),
-            pytest.param(42, False, id="not_a_string")
+            pytest.param(42, False, id="not_a_string"),
         ],
     )
     def test_is_valid_dotpath(self, path, expected):
