@@ -22,9 +22,6 @@ from os import environ
 
 import boto3
 
-from airflow.decorators import task, task_group
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateProvisionedModelThroughputOperator,
@@ -40,6 +37,11 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockCustomizeModelCompletedSensor,
     BedrockProvisionModelThroughputCompletedSensor,
 )
+
+# from airflow.decorators import task, task_group
+# from airflow.models.baseoperator import chain
+# from airflow.models.dag import DAG
+from airflow.sdk import DAG, chain, task, task_group
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
