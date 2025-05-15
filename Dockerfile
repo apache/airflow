@@ -56,7 +56,7 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.6.0
+ARG AIRFLOW_SETUPTOOLS_VERSION=80.7.1
 ARG AIRFLOW_UV_VERSION=0.7.3
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
