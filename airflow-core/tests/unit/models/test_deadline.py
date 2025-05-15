@@ -169,7 +169,7 @@ class TestDeadlineAlert:
     def test_get_callback_path_error_cases(self, callback_value, error_type):
         expected_message = ""
         if error_type is ImportError:
-            expected_message = "doesn't look like a callback path."
+            expected_message = "doesn't look like a valid dot path."
         elif error_type is AttributeError:
             expected_message = "is not callable."
 

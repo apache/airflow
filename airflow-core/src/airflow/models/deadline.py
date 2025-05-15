@@ -28,7 +28,6 @@ from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, is_valid_dotpath
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -39,7 +38,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class Deadline(Base, LoggingMixin):
+class Deadline(Base):
     """A Deadline is a 'need-by' date which triggers a callback if the provided time has passed."""
 
     __tablename__ = "deadline"
@@ -127,7 +126,7 @@ class DeadlineReference(Enum):
     DAGRUN_LOGICAL_DATE = "dagrun_logical_date"
 
 
-class DeadlineAlert(LoggingMixin):
+class DeadlineAlert:
     """Store Deadline values needed to calculate the need-by timestamp and the callback information."""
 
     def __init__(
@@ -137,7 +136,6 @@ class DeadlineAlert(LoggingMixin):
         callback: Callable | str,
         callback_kwargs: dict | None = None,
     ):
-        super().__init__()
         self.reference = reference
         self.interval = interval
         self.callback_kwargs = callback_kwargs
@@ -150,7 +148,7 @@ class DeadlineAlert(LoggingMixin):
             return f"{_callback.__module__}.{_callback.__qualname__}"
 
         if not isinstance(_callback, str) or not is_valid_dotpath(_callback.strip()):
-            raise ImportError(f"`{_callback}` doesn't look like a callback path.")
+            raise ImportError(f"`{_callback}` doesn't look like a valid dot path.")
 
         stripped_callback = _callback.strip()
 
