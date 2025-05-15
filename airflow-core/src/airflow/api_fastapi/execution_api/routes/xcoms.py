@@ -400,7 +400,7 @@ def set_xcom(
     if not run_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Run with ID: `{run_id}` was not found")
 
-    dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+    dag_run_id = session.execute(DagRun.id).where(dag_id=dag_id, run_id=run_id).scalar()
     if dag_run_id is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG run not found on DAG {dag_id} with ID {run_id}")
 

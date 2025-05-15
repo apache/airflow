@@ -246,11 +246,9 @@ def ti_run(
 
             xcom_keys = list(session.scalars(query))
         task_reschedule_count = (
-            session.query(
-                func.count(TaskReschedule.id)  # or any other primary key column
-            )
-            .filter(TaskReschedule.ti_id == ti_id_str)
-            .scalar()
+            session.execute(
+                select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == ti_id_str)
+            ).scalar()
             or 0
         )
 
