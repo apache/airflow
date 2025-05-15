@@ -144,10 +144,9 @@ class XComModel(TaskInstanceDependencies):
 
         query = select(cls).where(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
-           
             query = query.where(map_index=map_index)
-        
-        for xcom in session.scalars(query)
+
+        for xcom in session.scalars(query):
             # print(f"Clearing XCOM {xcom} with value {xcom.value}")
             session.delete(xcom)
 
@@ -301,14 +300,12 @@ class XComModel(TaskInstanceDependencies):
             query = query.where(cls.task_id == task_ids)
 
         if is_container(dag_ids):
-
             query = query.where(cls.dag_id.in_(dag_ids))
 
         elif dag_ids is not None:
             query = query.where(cls.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
-        
             query = query.where(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
         elif is_container(map_indexes):
             query = query.where(cls.map_index.in_(map_indexes))
@@ -316,9 +313,10 @@ class XComModel(TaskInstanceDependencies):
             query = query.where(cls.map_index == map_indexes)
 
         if include_prior_dates:
-
-            dr = (select(func.coalesce(DagRun.logical_date,DagRun.run_after)
-                .label("logical_date_or_run_after"))
+            dr = (
+                select(
+                    func.coalesce(DagRun.logical_date, DagRun.run_after).label("logical_date_or_run_after")
+                )
                 .where(DagRun.run_id == run_id)
                 .subquery()
             )
