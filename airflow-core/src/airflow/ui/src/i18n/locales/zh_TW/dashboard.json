@@ -5,7 +5,7 @@
     "failedDags": "失敗的 DAGs",
     "runningDags": "執行中的 DAGs",
     "activeDags": "活躍的 DAGs",
-    "queuedDags": "等待中的 DAGs"
+    "queuedDags": "排隊中的 DAGs"
   },
   "health": {
     "health": "健康狀態",
@@ -16,15 +16,23 @@
   },
   "poolSlots": "資源池配額",
   "managePools": "管理資源池",
-  "history": {
-    "history": "歷史記錄",
-    "dagRuns": "DAG 執行",
-    "queued": "等待中",
+  "history": "歷史記錄",
+  "dagRuns": "DAG 執行",
+  "taskInstances": "任務實例",
+  "states": {
+    "queued": "排隊中",
     "running": "執行中",
     "success": "成功",
     "failed": "失敗",
-    "taskInstances": "任務實例",
-    "upstreamFailed": "上游失敗"
+    "skipped": "已跳過",
+    "removed": "已移除",
+    "scheduled": "已排程",
+    "restarting": "重啟中",
+    "up_for_retry": "等待重試",
+    "up_for_reschedule": "等待重新排程",
+    "upstream_failed": "上游任務失敗",
+    "deferred": "已延後",
+    "no_status": "無狀態"
   },
   "assetEvents": "資產事件",
   "noAssetEvents": "未找到資產事件"

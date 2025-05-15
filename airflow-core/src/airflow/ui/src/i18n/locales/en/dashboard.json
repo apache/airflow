@@ -16,15 +16,23 @@
   },
   "poolSlots": "Pool Slots",
   "managePools": "Manage Pools",
-  "history": {
-    "history": "History",
-    "dagRuns": "DAG Runs",
+  "history": "History",
+  "dagRuns": "DAG Runs",
+  "taskInstances": "Task Instances",
+  "states": {
     "queued": "Queued",
     "running": "Running",
     "success": "Success",
     "failed": "Failed",
-    "taskInstances": "Task Instances",
-    "upstreamFailed": "Upstream Failed"
+    "skipped": "Skipped",
+    "removed": "Removed",
+    "scheduled": "Scheduled",
+    "restarting": "Restarting",
+    "up_for_retry": "Up For Retry",
+    "up_for_reschedule": "Up For Reschedule",
+    "upstream_failed": "Upstream Failed",
+    "deferred": "Deferred",
+    "no_status": "No Status"
   },
   "assetEvents": "Asset Events",
   "noAssetEvents": "No Asset Events found."

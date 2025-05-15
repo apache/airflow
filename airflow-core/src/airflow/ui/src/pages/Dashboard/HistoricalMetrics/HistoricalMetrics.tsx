@@ -73,7 +73,7 @@ export const HistoricalMetrics = () => {
       <Flex color="fg.muted" my={2}>
         <PiBooks />
         <Heading ml={1} size="xs">
-          {translate("history.history")}
+          {translate("history")}
         </Heading>
       </Flex>
       <ErrorAlert error={error} />

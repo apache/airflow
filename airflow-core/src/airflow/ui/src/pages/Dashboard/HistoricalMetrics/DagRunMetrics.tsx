@@ -49,7 +49,7 @@ export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRu
             {total}
           </StateBadge>
         </RouterLink>
-        <Heading size="md">{translate("history.dagRuns")}</Heading>
+        <Heading size="md">{translate("dagRuns")}</Heading>
       </HStack>
       <Separator my={3} />
       <Stack gap={4}>
