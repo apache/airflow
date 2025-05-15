@@ -28,8 +28,9 @@ def _get_db_manager(name):
     """Import the db manager class."""
     db_managers = conf.get("database", "external_db_managers")
     db_manager = None
-    for db_manager in db_managers.split(","):
-        if name in db_manager:
+    for manager in db_managers.split(","):
+        if name in manager:
+            db_manager = manager
             break
     if db_manager is None:
         raise SystemExit(f"DB manager {name} not found in configuration.")

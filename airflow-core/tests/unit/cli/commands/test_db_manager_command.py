@@ -23,6 +23,8 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import db_manager_command
 
+from tests_common.test_utils.config import conf_vars
+
 pytestmark = pytest.mark.db_test
 
 
@@ -68,3 +70,18 @@ class TestCliDbManager:
         )
         mock_get_db_manager.assert_called_once_with(manager_name)
         mock_run_db_downgrade_cmd.assert_called_once()
+
+    @conf_vars({("database", "external_db_managers"): "path.to.manager.TestDBManager"})
+    @mock.patch("airflow.cli.commands.db_manager_command.import_string")
+    def test_get_db_manager(self, mock_import_string):
+        manager_name = "TestDBManager"
+        db_manager = db_manager_command._get_db_manager(manager_name)
+        mock_import_string.assert_called_once_with("path.to.manager.TestDBManager")
+        assert db_manager is not None
+
+    @conf_vars({("database", "external_db_managers"): "path.to.manager.TestDBManager"})
+    @mock.patch("airflow.cli.commands.db_manager_command.import_string")
+    def test_get_db_manager_raises(self, mock_import_string):
+        manager_name = "NonExistentDBManager"
+        with pytest.raises(SystemExit):
+            db_manager_command._get_db_manager(manager_name)
