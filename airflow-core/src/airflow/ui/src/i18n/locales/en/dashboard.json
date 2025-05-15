@@ -4,7 +4,8 @@
     "stats": "Stats",
     "failedDags": "Failed DAGs",
     "runningDags": "Running DAGs",
-    "activeDags": "Active DAGs"
+    "activeDags": "Active DAGs",
+    "queuedDags": "Queued DAGs"
   },
   "health": {
     "health": "Health",

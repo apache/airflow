@@ -53,14 +53,14 @@ export const UserSettingsButton = () => {
       <Menu.Trigger asChild>
         <NavButton icon={<FiUser size="1.75rem" />} title={translate("user")} />
       </Menu.Trigger>
-      <Menu.Content position="right">
+      <Menu.Content>
         <Menu.Root>
           <Menu.TriggerItem>
             <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
             {translate("language.select")}
             <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
           </Menu.TriggerItem>
-          <Menu.Content position="right">
+          <Menu.Content>
             {supportedLanguages.map((lang) => (
               <Menu.Item
                 disabled={lang.code === i18n.language}

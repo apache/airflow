@@ -66,7 +66,7 @@ export const Stats = () => {
             colorScheme="queued"
             count={queuedDagsCount}
             isLoading={isStatsLoading}
-            label={translate("stats.runningDags")}
+            label={translate("stats.queuedDags")}
             link="dags?last_dag_run_state=queued"
             state="queued"
           />

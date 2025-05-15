@@ -4,7 +4,8 @@
     "stats": "統計",
     "failedDags": "失敗的 DAGs",
     "runningDags": "執行中的 DAGs",
-    "activeDags": "活躍的 DAGs"
+    "activeDags": "活躍的 DAGs",
+    "queuedDags": "等待中的 DAGs"
   },
   "health": {
     "health": "健康狀態",
