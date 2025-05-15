@@ -321,6 +321,7 @@ class WeaviateHook(BaseHook):
                         self.log.debug("Added link from uuid %s to uuid %s into batch", from_uuid, to_uuid)
         
         failed_references = collection.batch.failed_references
+        self.log.debug(f"Number of failed imports: {len(failed_references)}")
         if failed_references:
             return failed_references
 
