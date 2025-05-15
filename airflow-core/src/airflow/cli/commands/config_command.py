@@ -489,6 +489,11 @@ CONFIGS_CHANGES = [
         breaking=True,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "page_size"),
+        renamed_to=ConfigParameter("api", "page_size"),
+        breaking=True,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
         renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
         breaking=True,
