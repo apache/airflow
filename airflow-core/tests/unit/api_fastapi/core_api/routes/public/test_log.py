@@ -213,9 +213,7 @@ class TestTaskInstancesLog:
             ),
         ],
     )
-    def test_should_respond_200_text_plain(
-        self, request_url, expected_filename, extra_query_string, try_number
-    ):
+    def test_should_respond_200_ndjson(self, request_url, expected_filename, extra_query_string, try_number):
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         key = self.app.state.secret_key
@@ -225,7 +223,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             request_url,
             params={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 200
 
@@ -281,7 +279,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             request_url,
             params={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
 
         assert response.status_code == 200
@@ -316,7 +314,7 @@ class TestTaskInstancesLog:
             response = self.client.get(
                 f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
                 f"taskInstances/{self.TASK_ID}/logs/{try_number}?full_content=True",
-                headers={"Accept": "text/plain"},
+                headers={"Accept": "application/x-ndjson"},
             )
 
             assert "1st line" in response.content.decode("utf-8")
@@ -384,7 +382,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
             params={"token": token},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"
@@ -397,7 +395,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             params={"token": token, "map_index": 0},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"
