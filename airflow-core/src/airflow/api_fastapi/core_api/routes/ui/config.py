@@ -44,6 +44,10 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_text_hover_color",
 ]
 
+API_CONFIG_KEYS = [
+    "hide_paused_dags_by_default",
+]
+
 
 @config_router.get(
     "/config",
@@ -56,6 +60,8 @@ def get_configs() -> ConfigResponse:
 
     config = {key: conf_dict["webserver"].get(key) for key in WEBSERVER_CONFIG_KEYS}
 
+    config.update({key: conf_dict["api"].get(key) for key in API_CONFIG_KEYS})
+
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
         "instance_name": conf.get("webserver", "instance_name", fallback="Airflow"),
@@ -65,7 +71,6 @@ def get_configs() -> ConfigResponse:
         "dashboard_alert": DASHBOARD_UIALERTS,
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
-        "hide_paused_dags_by_default": conf.get("api", "hide_paused_dags_by_default"),
     }
 
     config.update({key: value for key, value in additional_config.items()})
