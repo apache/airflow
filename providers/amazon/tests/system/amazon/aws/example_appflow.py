@@ -17,9 +17,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRecordsShortCircuitOperator,
     AppflowRunAfterOperator,
@@ -27,7 +26,19 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunDailyOperator,
     AppflowRunFullOperator,
 )
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.standard.operators.bash import BashOperator
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import DAG, chain
+    else:
+        # Airflow 2.10 compat
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
