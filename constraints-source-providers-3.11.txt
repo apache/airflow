@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-15T12:27:45.184112
+# This constraints file was automatically generated on 2025-05-15T18:13:44.186540
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -207,7 +207,7 @@ google-api-python-client==2.169.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.1
-google-cloud-aiplatform==1.92.0
+google-cloud-aiplatform==1.93.0
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.3
@@ -222,11 +222,11 @@ google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.1
-google-cloud-dataplex==2.10.1
+google-cloud-dataplex==2.10.2
 google-cloud-dataproc-metastore==1.18.2
 google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
-google-cloud-kms==3.4.1
+google-cloud-kms==3.5.0
 google-cloud-language==2.17.1
 google-cloud-logging==3.12.1
 google-cloud-memcache==1.12.1
@@ -236,7 +236,7 @@ google-cloud-os-login==2.17.1
 google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
-google-cloud-run==0.10.17
+google-cloud-run==0.10.18
 google-cloud-secret-manager==2.23.3
 google-cloud-spanner==3.54.0
 google-cloud-speech==2.32.0
@@ -414,7 +414,7 @@ pinecone==6.0.2
 pinotdb==5.6.0
 pipdeptree==2.26.1
 platformdirs==4.3.8
-pluggy==1.5.0
+pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
 portalocker==2.10.1
@@ -506,7 +506,7 @@ rich-argparse==1.7.0
 rich-click==1.8.8
 rich==13.9.4
 roman-numerals-py==3.1.0
-rpds-py==0.24.0
+rpds-py==0.25.0
 rsa==4.9.1
 ruff==0.5.5
 s3fs==2025.3.2
