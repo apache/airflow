@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Link, Text } from "@chakra-ui/react";
+
 const DEFAULT_OWNERS: Array<string> = [];
 
 export const DagOwners = ({
@@ -24,32 +26,21 @@ export const DagOwners = ({
 }: {
   readonly ownerLinks?: Record<string, string> | null;
   readonly owners?: Array<string>;
-}) => {
-  const hasOwnerLinks = ownerLinks && Object.keys(ownerLinks).length > 0;
+}) => (
+  <>
+    {owners.map((owner) => {
+      const link = ownerLinks?.[owner];
+      const hasOwnerLinks = link !== undefined;
 
-  if (!hasOwnerLinks) {
-    return <span>{owners.join(", ")}</span>;
-  }
-
-  return (
-    <>
-      {owners.map((owner) => {
-        const trimmedOwner = owner.trim();
-        const link = ownerLinks[trimmedOwner];
-        const href = link ?? `?search=${encodeURIComponent(trimmedOwner)}`;
-
-        return (
-          <a
-            className="label label-default"
-            href={href}
-            key={trimmedOwner}
-            rel={link === undefined ? undefined : "noopener noreferrer"}
-            target={link === undefined ? undefined : "_blank"}
-          >
-            {trimmedOwner}
-          </a>
-        );
-      })}
-    </>
-  );
-};
+      return hasOwnerLinks ? (
+        <Link aria-label={`Owner link for ${owner}`} href={link} key={owner}>
+          {owner}
+        </Link>
+      ) : (
+        <Text as="span" key={owner}>
+          {owner}
+        </Text>
+      );
+    })}
+  </>
+);
