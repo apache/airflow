@@ -43,6 +43,7 @@ class BaseDBManager(LoggingMixin):
     version_table_name: str
     # Whether the database supports dropping tables when airflow tables are dropped
     supports_table_dropping: bool = False
+    revision_heads_map: dict[str, str] = {}
 
     def __init__(self, session):
         super().__init__()
@@ -97,6 +98,8 @@ class BaseDBManager(LoggingMixin):
         self.log.info("%s tables have been created from the ORM", self.__class__.__name__)
 
     def drop_tables(self, connection):
+        if not self.supports_table_dropping:
+            return
         self.metadata.drop_all(connection)
         version = self._get_migration_ctx()._version
         if inspect(connection).has_table(version.name):
@@ -222,6 +225,5 @@ class RunDBManager(LoggingMixin):
     def drop_tables(self, session, connection):
         """Drop the external database managers."""
         for manager in self._managers:
-            if manager.supports_table_dropping:
-                m = manager(session)
-                m.drop_tables(connection)
+            m = manager(session)
+            m.drop_tables(connection)

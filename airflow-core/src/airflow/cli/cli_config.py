@@ -594,6 +594,13 @@ ARG_DB_SKIP_INIT = Arg(
     default=False,
 )
 
+ARG_DB_MANAGER_NAME = Arg(
+    ("--name",),
+    help="The name of the database manager to use",
+    default=None,
+    required=True,
+)
+
 # api-server
 ARG_API_SERVER_PORT = Arg(
     ("-p", "--port"),
@@ -1724,7 +1731,59 @@ JOBS_COMMANDS = (
         ),
     ),
 )
-
+DB_MANAGERS_COMMANDS = (
+    ActionCommand(
+        name="reset",
+        help="Burn down and rebuild the metadata database",
+        func=lazy_load_command("airflow.cli.commands.db_managers_command.resetdb"),
+        args=(ARG_DB_MANAGER_NAME, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="migrate",
+        help="Migrates the metadata database to the latest version",
+        description=(
+            "Migrate the schema of the metadata database. "
+            "Create the database if it does not exist "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* Alembic revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_managers_command.migratedb"),
+        args=(
+            ARG_DB_MANAGER_NAME,
+            ARG_DB_REVISION__UPGRADE,
+            ARG_DB_VERSION__UPGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="downgrade",
+        help="Downgrade the schema of the metadata database.",
+        description=(
+            "Downgrade the schema of the metadata database. "
+            "You must provide either `--to-revision` or `--to-version`. "
+            "To print but not execute commands, use option `--show-sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* Alembic "
+            "revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_managers_command.downgrade"),
+        args=(
+            ARG_DB_MANAGER_NAME,
+            ARG_DB_REVISION__DOWNGRADE,
+            ARG_DB_VERSION__DOWNGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_YES,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_VERBOSE,
+        ),
+    ),
+)
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="dags",
@@ -1913,6 +1972,11 @@ core_commands: list[CLICommand] = [
         help="Run an all-in-one copy of Airflow",
         func=lazy_load_command("airflow.cli.commands.standalone_command.standalone"),
         args=(),
+    ),
+    GroupCommand(
+        name="db-manager",
+        help="Manage externally connected database managers",
+        subcommands=DB_MANAGERS_COMMANDS,
     ),
 ]
 
