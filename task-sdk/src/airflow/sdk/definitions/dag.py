@@ -74,8 +74,8 @@ if TYPE_CHECKING:
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.abstractoperator import Operator
+    from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
     from airflow.utils.types import EdgeInfoType

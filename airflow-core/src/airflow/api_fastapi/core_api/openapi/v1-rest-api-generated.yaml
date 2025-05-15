@@ -4543,8 +4543,9 @@ paths:
         in: query
         required: false
         schema:
-          type: integer
-          default: -1
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -4568,7 +4569,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5256,7 +5257,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -5280,7 +5283,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5853,7 +5856,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -5940,8 +5945,9 @@ paths:
         in: query
         required: false
         schema:
-          type: integer
-          default: -1
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -6489,7 +6495,7 @@ paths:
           type: string
           enum:
           - application/json
-          - text/plain
+          - application/x-ndjson
           - '*/*'
           default: '*/*'
           title: Accept
@@ -6500,10 +6506,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskInstancesLogResponse'
-            text/plain:
+            application/x-ndjson:
               schema:
                 type: string
-                example: 'content
+                example: '{"content": "content"}
+
+                  {"content": "content"}
 
                   '
         '401':
@@ -8117,6 +8125,13 @@ components:
             type: object
           - type: 'null'
           title: Default Args
+        owner_links:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Owner Links
         file_token:
           type: string
           title: File Token
