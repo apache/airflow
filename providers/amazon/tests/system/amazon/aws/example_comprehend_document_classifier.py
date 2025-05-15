@@ -18,9 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
-from airflow.decorators import task, task_group
-from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.operators.comprehend import (
     ComprehendCreateDocumentClassifierOperator,
@@ -34,6 +31,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendCreateDocumentClassifierCompletedSensor,
 )
+from airflow.sdk import DAG, chain, task, task_group
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

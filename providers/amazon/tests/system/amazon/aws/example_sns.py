@@ -20,10 +20,8 @@ from datetime import datetime
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
+from airflow.sdk import DAG, chain, task
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

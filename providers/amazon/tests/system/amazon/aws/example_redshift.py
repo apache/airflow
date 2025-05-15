@@ -20,8 +20,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftCreateClusterSnapshotOperator,
@@ -32,6 +30,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
 )
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
+from airflow.sdk import DAG, chain
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder

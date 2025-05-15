@@ -23,14 +23,12 @@ from io import BytesIO
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.lambda_function import (
     LambdaCreateFunctionOperator,
     LambdaInvokeFunctionOperator,
 )
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
+from airflow.sdk import DAG, chain, task
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
