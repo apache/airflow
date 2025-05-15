@@ -384,6 +384,10 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "access_denied_message"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "expose_hostname"),
+        renamed_to=ConfigParameter("fab", "expose_hostname"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "base_url"),
         renamed_to=ConfigParameter("api", "base_url"),
     ),
@@ -1007,7 +1011,7 @@ def update_config(args) -> None:
             console.print(f"  - {change_msg}")
         if dry_run:
             console.print(
-                "[blue]Dry-run is mode enabled. To apply above airflow.cfg run the command "
+                "[blue]Dry-run mode is enabled. To apply above airflow.cfg run the command "
                 "with `--fix`.[/blue]"
             )
     else:

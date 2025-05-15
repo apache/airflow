@@ -156,6 +156,7 @@ class DAGDetailsResponse(DAGResponse):
     timezone: str | None
     last_parsed: datetime | None
     default_args: abc.Mapping | None
+    owner_links: dict[str, str] | None = None
 
     @field_validator("timezone", mode="before")
     @classmethod

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-mssql``
 
-Release: ``4.2.2``
+Release: ``4.3.0``
 
 
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.mssql`` provider. All classes for thi
 are in ``airflow.providers.microsoft.mssql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.2.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.3.0/>`_.
 
 Installation
 ------------
@@ -80,4 +80,4 @@ Dependent package                                                               
 ==============================================================================================================  ===============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.2.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.3.0/changelog.html>`_.
