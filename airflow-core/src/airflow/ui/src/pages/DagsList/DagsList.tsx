@@ -70,7 +70,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
     },
   },
   {
-    accessorKey: "dag_id",
+    accessorKey: "dag_display_name",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
@@ -167,7 +167,7 @@ export const DagsList = () => {
   );
 
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-last_run_start_date";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
 
   const handleSearchChange = (value: string) => {
     if (value) {
