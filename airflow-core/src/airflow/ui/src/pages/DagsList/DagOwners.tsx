@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Link, Text } from "@chakra-ui/react";
+import React from "react";
 
 const DEFAULT_OWNERS: Array<string> = [];
 
@@ -28,18 +29,28 @@ export const DagOwners = ({
   readonly owners?: Array<string>;
 }) => (
   <>
-    {owners.map((owner) => {
+    {owners.map((owner, index) => {
       const link = ownerLinks?.[owner];
-      const hasOwnerLinks = link !== undefined;
+      const hasOwnerLink = link !== undefined;
+      const isLast = index === owners.length - 1;
 
-      return hasOwnerLinks ? (
-        <Link aria-label={`Owner link for ${owner}`} href={link} key={owner}>
-          {owner}
-        </Link>
-      ) : (
-        <Text as="span" key={owner}>
-          {owner}
-        </Text>
+      return (
+        <React.Fragment key={owner}>
+          {hasOwnerLink ? (
+              <Link aria-label={`Owner link for ${owner}`} href={link}>
+                {owner}
+              </Link>
+            ) : (
+              <Text as="span">
+                {owner}
+              </Text>
+            )}
+            {!isLast && (
+              <Text as="span">
+                {",\u00A0"}
+              </Text>
+            )}
+        </React.Fragment>
       );
     })}
   </>
