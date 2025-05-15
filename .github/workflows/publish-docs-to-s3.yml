@@ -46,6 +46,14 @@ on:  # yamllint disable-line rule:truthy
         options:
           - s3://live-docs-airflow-apache-org/docs
           - s3://staging-docs-airflow-apache-org/docs
+      skip-write-to-stable-folder:
+        description: |
+          Skip writing to stable version folder in S3,
+          enable this if your releasing preview version than current
+          stable version and don't want to overwrite stable version
+        required: false
+        default: false
+        type: boolean
 
 env:
   AIRFLOW_ROOT_PATH: "/home/runner/work/temp-airflow-repo-reference"  # checkout dir for referenced tag
@@ -65,6 +73,8 @@ jobs:
       DESTINATION_LOCATION: ${{ inputs.destination-location }}
     outputs:
       include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
+      # yamllint disable rule:line-length
+      skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder == 'true' && '--skip-write-to-stable-folder' || '' }}
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -238,7 +248,8 @@ jobs:
           DESTINATION_LOCATION: "${{ inputs.destination-location }}"
           SOURCE_DIR_PATH: "/mnt/airflow-site/docs-archive/"
           EXCLUDE_DOCS: "${{ inputs.exclude-docs }}"
+          SKIP_WRITE_TO_STABLE_FOLDER: "${{ needs.build-info.outputs.skip-write-to-stable-folder }}"
         run: |
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
-          --exclude-docs ${EXCLUDE_DOCS} --overwrite
+          --exclude-docs ${EXCLUDE_DOCS} --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
