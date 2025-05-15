@@ -182,6 +182,7 @@ export const DurationChart = ({
           responsive: true,
           scales: {
             x: {
+              display: false,
               stacked: true,
               ticks: {
                 maxTicksLimit: 3,
