@@ -1981,6 +1981,28 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             },
         }
 
+    def test_should_not_return_duplicate_runs(self, test_client, session):
+        """
+        Test that ensures the task instances query doesn't return duplicates due to the updated join/filter logic.
+        """
+        self.create_task_instances(session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True)
+        self.create_task_instances(
+            session,
+            dag_id="example_bash_operator",
+            task_instances=[{"state": State.SUCCESS}],
+            with_ti_history=True,
+        )
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
+        )
+
+        assert response.status_code == 200
+
+        response = response.json()
+
+        assert response["total_entries"] == 2
+
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
