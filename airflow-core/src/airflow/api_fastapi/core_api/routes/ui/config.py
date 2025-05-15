@@ -32,20 +32,20 @@ config_router = AirflowRouter(tags=["Config"])
 
 WEBSERVER_CONFIG_KEYS = [
     "navbar_color",
-    "page_size",
+    "navbar_text_color",
+    "navbar_hover_color",
+    "navbar_text_hover_color",
     "auto_refresh_interval",
     "warn_deployment_exposure",
     "default_wrap",
     "require_confirmation_dag_change",
     "enable_swagger_ui",
     "instance_name_has_markup",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
 ]
 
 API_CONFIG_KEYS = [
     "hide_paused_dags_by_default",
+    "page_size",
 ]
 
 

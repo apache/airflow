@@ -1428,6 +1428,13 @@ api:
       type: string
       example: ~
       default: "False"
+    page_size:
+      description: |
+        Consistent page size across all listing views in the UI
+      version_added: ~
+      type: string
+      example: ~
+      default: "50"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1745,13 +1752,6 @@ webserver:
       type: string
       example: ~
       default: "topological"
-    page_size:
-      description: |
-        Consistent page size across all listing views in the UI
-      version_added: ~
-      type: string
-      example: ~
-      default: "50"
     navbar_color:
       description: |
         Define the color of navigation bar
