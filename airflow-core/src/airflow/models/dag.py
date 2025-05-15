@@ -374,6 +374,17 @@ class DAG(TaskSDKDag, LoggingMixin):
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
     :param deadline: Optional Deadline Alert for the DAG.
+        Specifies a time by which the DAG run should be complete, either in the form of a static datetime
+        or calculated relative to a reference timestamp.  If the deadline passes before completion, the
+        provided callback is triggered.
+
+        **Example**: To set the deadline for one hour after the DAG run starts you could use:
+
+        DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+            interval=timedelta(hours=1),
+            callback=my_callback
+        )
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.

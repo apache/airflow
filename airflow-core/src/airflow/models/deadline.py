@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import sys
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Callable
@@ -29,11 +29,14 @@ from sqlalchemy_utils import UUIDType
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string, is_valid_dotpath
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 
 class Deadline(Base, LoggingMixin):
@@ -146,15 +149,30 @@ class DeadlineAlert(LoggingMixin):
             # Get the reference path to the callable in the form `airflow.models.deadline.get_from_db`
             return f"{_callback.__module__}.{_callback.__qualname__}"
 
-        # Check if the dotpath can resolve to a callable; store it or raise a ValueError
+        if not isinstance(_callback, str) or not is_valid_dotpath(_callback.strip()):
+            raise ImportError(f"`{_callback}` doesn't look like a callback path.")
+
+        stripped_callback = _callback.strip()
+
         try:
-            _callback_module, _callback_name = _callback.rsplit(".", 1)
-            getattr(sys.modules[_callback_module], _callback_name)
-            return _callback
-        except (KeyError, AttributeError):
-            # KeyError if the path is not valid
-            # AttributeError if the provided value can't be rsplit
-            raise ValueError("callback is not a path to a callable")
+            # The provided callback is a string which appears to be a valid dotpath, attempt to import it.
+            callback = import_string(stripped_callback)
+        except ImportError as e:
+            # Logging here instead of failing because it is possible that the code for the callable
+            # exists somewhere other than on the DAG processor. We are making a best effort to validate,
+            # but can't rule out that it may be available at runtime even if it can not be imported here.
+            logger.debug(
+                "Callback %s is formatted like a callable dotpath, but could not be imported.\n%s",
+                stripped_callback,
+                e,
+            )
+            return stripped_callback
+
+        # If we get this far then the input is a string which can be imported, check if it is a callable.
+        if not callable(callback):
+            raise AttributeError(f"Provided callback {callback} is not callable.")
+
+        return stripped_callback
 
     def serialize_deadline_alert(self):
         from airflow.serialization.serialized_objects import BaseSerialization
