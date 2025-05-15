@@ -37,6 +37,7 @@ from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
     _parse_file,
+    _pre_import_airflow_modules,
 )
 from airflow.models import DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
@@ -366,6 +367,60 @@ class TestDagFileProcessor:
         assert result is not None
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "dag_name"
+
+    def test_pre_import_airflow_modules(self):
+        mock_logger = MagicMock()
+
+        with (
+            patch("airflow.configuration.conf.getboolean", return_value=False),
+            patch("airflow.dag_processing.processor.iter_airflow_imports") as mock_iter_imports,
+        ):
+            _pre_import_airflow_modules("test.py", mock_logger)
+            mock_iter_imports.assert_not_called()
+            mock_logger.warning.assert_not_called()
+
+        with (
+            patch("airflow.configuration.conf.getboolean", return_value=True),
+            patch("airflow.dag_processing.processor.iter_airflow_imports", return_value=["airflow.models"]),
+            patch("airflow.dag_processing.processor.importlib.import_module") as mock_import,
+        ):
+            _pre_import_airflow_modules("test.py", mock_logger)
+            mock_import.assert_called_once_with("airflow.models")
+            mock_logger.warning.assert_not_called()
+
+        with (
+            patch("airflow.configuration.conf.getboolean", return_value=True),
+            patch(
+                "airflow.dag_processing.processor.iter_airflow_imports", return_value=["non_existent_module"]
+            ),
+            patch(
+                "airflow.dag_processing.processor.importlib.import_module",
+                side_effect=ModuleNotFoundError("No module named 'non_existent_module'"),
+            ),
+        ):
+            _pre_import_airflow_modules("test.py", mock_logger)
+            mock_logger.warning.assert_called_once()
+            warning_args = mock_logger.warning.call_args[0]
+            assert "Error when trying to pre-import module" in warning_args[0]
+            assert "non_existent_module" in warning_args[1]
+            assert "test.py" in warning_args[2]
+
+        mock_logger.reset_mock()
+        with (
+            patch("airflow.configuration.conf.getboolean", return_value=True),
+            patch(
+                "airflow.dag_processing.processor.iter_airflow_imports",
+                return_value=["airflow.models", "non_existent_module"],
+            ),
+            patch(
+                "airflow.dag_processing.processor.importlib.import_module",
+                side_effect=[None, ModuleNotFoundError("No module named 'non_existent_module'")],
+            ),
+        ):
+            _pre_import_airflow_modules("test.py", mock_logger)
+            assert mock_logger.warning.call_count == 1
+            warning_args = mock_logger.warning.call_args[0]
+            assert "non_existent_module" in warning_args[1]
 
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
