@@ -22,9 +22,11 @@ import os.path
 import tempfile
 from datetime import datetime
 from time import sleep
+from typing import TYPE_CHECKING
 from urllib.request import urlretrieve
 
 import boto3
+import packaging.version
 from botocore.exceptions import ClientError
 from opensearchpy import (
     AuthorizationException,
@@ -33,9 +35,7 @@ from opensearchpy import (
     RequestsHttpConnection,
 )
 
-from airflow import DAG
-from airflow.decorators import task, task_group
-from airflow.models.baseoperator import chain
+from airflow import __version__ as airflow_version
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -58,7 +58,23 @@ from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
 )
 from airflow.providers.amazon.aws.utils import get_botocore_version
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Label
+
+if TYPE_CHECKING:
+    from airflow.decorators import task, task_group
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+    from airflow.sdk import Label
+else:
+    if packaging.version.parse(
+        packaging.version.parse(airflow_version).base_version
+    ) > packaging.version.parse("2.10.0"):
+        from airflow.sdk import DAG, Label, chain, task, task_group
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task, task_group
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
+        from airflow.sdk import Label
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

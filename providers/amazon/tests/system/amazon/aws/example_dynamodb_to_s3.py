@@ -18,16 +18,31 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import boto3
+import packaging.version
 import tenacity
 from tenacity import before_log, before_sleep_log
 
-from airflow.decorators import task, task_group
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
+from airflow import __version__ as airflow_version
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
+
+if TYPE_CHECKING:
+    from airflow.decorators import task, task_group
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
+else:
+    if packaging.version.parse(
+        packaging.version.parse(airflow_version).base_version
+    ) > packaging.version.parse("2.10.0"):
+        from airflow.sdk import DAG, chain, task, task_group
+    else:
+        # Airflow 2.10 compat
+        from airflow.decorators import task, task_group
+        from airflow.models.baseoperator import chain
+        from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
