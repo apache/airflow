@@ -62,16 +62,13 @@ export const LimitedItemsList = ({
             ) : undefined}
           </React.Fragment>
         ))}
+        {shouldTruncate && displayItems.length > 0 ? <Text as="span">{separator}</Text> : undefined}
         {shouldTruncate ? (
-          remainingItems.length === 1 ? (
-            <Text as="span">{remainingItems[0]}</Text>
-          ) : (
-            <Tooltip content={remainingItemsList} interactive={interactive}>
-              <Text as="span" cursor="help">
-                +{remainingItems.length} more
-              </Text>
-            </Tooltip>
-          )
+          <Tooltip content={remainingItemsList} interactive={interactive}>
+            <Text as="span" cursor="help">
+              +{remainingItems.length} more
+            </Text>
+          </Tooltip>
         ) : undefined}
       </Box>
     </HStack>
