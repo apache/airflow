@@ -192,25 +192,24 @@ class TestPodGenerator:
                 "-m",
                 "airflow.sdk.execution_time.execute_workload",
                 "--json-string",
-                "temp",
+                content_json,
             ],
             pod_override_object=None,
             base_worker_pod=worker_config,
             namespace="namespace",
             scheduler_job_id="uuid",
-            content_json=content_json,
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
 
         main_container = sanitized_result["spec"]["containers"][0]
-        assert main_container["command"] == [
+
+        assert main_container["args"] == [
             "python",
             "-m",
             "airflow.sdk.execution_time.execute_workload",
             "--json-string",
+            expected,
         ]
-
-        assert main_container["args"] == [expected]
 
     def test_from_obj_pod_override_object(self):
         obj = {

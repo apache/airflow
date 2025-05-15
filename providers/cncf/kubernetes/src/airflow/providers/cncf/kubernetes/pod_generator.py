@@ -287,7 +287,6 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
-        content_json: str = "",
         *,
         with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
@@ -354,10 +353,6 @@ class PodGenerator:
         podspec = k8s.V1PodSpec(
             containers=[main_container],
         )
-
-        if content_json:
-            main_container.command = args[:-1]
-            main_container.args = [content_json]
 
         dynamic_pod.spec = podspec
 
