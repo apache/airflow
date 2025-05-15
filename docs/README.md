@@ -101,7 +101,7 @@ differences are:
   effectively to the staging site.
 
 Documentation of pre-release versions of Airflow distributions should be published to the staging s3
-bucket so that we can test the documentation before we publish it to the live bucket.
+bucket so that we can test the documentation before we publish it to the `live` bucket.
 
 # Typical workflows
 
@@ -116,9 +116,16 @@ The same workflow can be used to publish Airflow, Helm chart and providers docum
 This workflow is used twice:
 
 * when pre-release distributions are prepared (alpha/beta/rc) - the documentation should be published to
-  the staging bucket and staging site should be built and published.
-* when final releases of distributions are prepared - the documentation should be published to the live
-  bucket and the live website should be built and published.
+  the `staging` bucket and `staging` site should be built and published.
+* when final releases of distributions are prepared - the documentation should be published to the `live`
+  bucket and the `live` website should be built and published.
+
+When release manager publishes the documentation they choose `auto` destination by default - depending on the
+tag they use - `staging` will be used to publish from pre-release tag and `live` will be used ot publish
+from the release tag.
+
+You can also specify whether `live` or `staging` documentation should be published manually - overriding
+the auto-detection.
 
 The person who triggers the build (release manager) should specify the tag name of the docs to be published
 and the list of documentation packages to be published. Usually it is:
@@ -131,9 +138,6 @@ Optionally - specifically if we run `all-providers` and release manager wants to
 they can specify documentation packages to exclude. Leaving "no-docs-excluded" will publish all packages
 specified to be published without exclusions.
 
-You can also specify whether "live" or "staging" documentation should be published. The default is "live". In
-the future we might add `auto` setting that will publish to "live" or "staging" depending on the tag
-used to trigger the workflow.
 
 Example screenshot of the workflow triggered from the GitHub UI:
 
@@ -151,6 +155,8 @@ For `live` site you should run the workflow in `main` branch. For `staging` site
 This will build the website and publish it to the `publish` branch of `airflow-site` repository (for `live`
 site) or `publish-staging` branch, (for `staging` site). The workflow will also update the website with
 including refreshing of the version numbers in the drop-downs and stable links.
+
+The `staging` documentation is produced automatically with `staging` watermark added.
 
 ![Publishing site](images/publish_site.png)
 
