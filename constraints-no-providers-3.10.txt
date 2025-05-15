@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-12T07:49:49.732769
+# This constraints file was automatically generated on 2025-05-15T19:47:00.234473
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -79,7 +79,7 @@ opentelemetry-semantic-conventions==0.48b0
 packaging==24.2
 pathspec==0.12.1
 pendulum==3.1.0
-pluggy==1.5.0
+pluggy==1.6.0
 protobuf==4.25.7
 psutil==7.0.0
 pycparser==2.22
@@ -95,9 +95,9 @@ referencing==0.36.2
 requests==2.32.3
 retryhttp==1.3.3
 rich-argparse==1.7.0
-rich-toolkit==0.14.5
+rich-toolkit==0.14.6
 rich==13.9.4
-rpds-py==0.24.0
+rpds-py==0.25.0
 setproctitle==1.3.6
 shellingham==1.5.4
 six==1.17.0
@@ -110,8 +110,8 @@ tabulate==0.9.0
 tenacity==9.1.2
 termcolor==3.1.0
 text-unidecode==1.3
-typer==0.15.3
-types-requests==2.32.0.20250328
+typer==0.15.4
+types-requests==2.32.0.20250515
 typing-inspection==0.4.0
 typing_extensions==4.13.2
 tzdata==2025.2
@@ -119,7 +119,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==2.4.0
 uuid6==2024.7.10
-uv==0.7.2
+uv==0.7.3
 uvicorn==0.34.2
 uvloop==0.21.0
 watchfiles==1.0.5

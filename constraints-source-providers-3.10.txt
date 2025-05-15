@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-12T07:49:40.073667
+# This constraints file was automatically generated on 2025-05-15T19:46:50.097348
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -13,7 +13,7 @@ APScheduler==3.11.0
 Authlib==1.3.1
 Deprecated==1.2.18
 Events==0.5
-Flask-AppBuilder==4.5.3
+Flask-AppBuilder==4.6.3
 Flask-Babel==2.0.0
 Flask-JWT-Extended==4.7.1
 Flask-Limiter==3.12
@@ -80,7 +80,7 @@ annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.9.0
 apache-beam==2.59.0
-apispec==6.8.1
+apispec==6.8.2
 apprise==1.9.3
 argcomplete==3.6.2
 asana==5.1.0
@@ -102,7 +102,7 @@ azure-common==1.1.28
 azure-core==1.34.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
-azure-identity==1.22.0
+azure-identity==1.23.0
 azure-keyvault-secrets==4.9.0
 azure-kusto-data==5.0.3
 azure-mgmt-containerinstance==10.1.0
@@ -169,9 +169,10 @@ croniter==6.0.0
 cryptography==42.0.8
 curlify==2.2.1
 databricks-sql-connector==4.0.3
+databricks-sqlalchemy==1.0.5
 dataclasses-json==0.6.7
 datadog==0.51.0
-db-dtypes==1.4.2
+db-dtypes==1.4.3
 debugpy==1.8.14
 decorator==5.2.1
 defusedxml==0.7.1
@@ -187,13 +188,14 @@ docstring_parser==0.16
 docutils==0.21.2
 duckdb==1.2.2
 durationpy==0.9
+ecdsa==0.19.1
 elastic-transport==8.17.1
 elasticsearch==8.18.1
 email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
-eventlet==0.39.1
+eventlet==0.40.0
 exceptiongroup==1.3.0
 execnet==2.1.1
 executing==2.2.0
@@ -215,7 +217,7 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
 gcsfs==2025.3.2
 geomet==0.2.1.post1
-gevent==25.4.2
+gevent==25.5.1
 gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
@@ -224,15 +226,15 @@ google-api-python-client==2.169.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.1
-google-cloud-aiplatform==1.92.0
-google-cloud-alloydb==0.4.5
+google-cloud-aiplatform==1.93.0
+google-cloud-alloydb==0.4.6
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.3
 google-cloud-batch==0.17.35
 google-cloud-bigquery-datatransfer==3.19.1
 google-cloud-bigquery-storage==2.31.0
-google-cloud-bigquery==3.31.0
+google-cloud-bigquery==3.32.0
 google-cloud-bigtable==2.30.1
 google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
@@ -241,11 +243,11 @@ google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.1
-google-cloud-dataplex==2.10.1
+google-cloud-dataplex==2.10.2
 google-cloud-dataproc-metastore==1.18.2
 google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
-google-cloud-kms==3.4.1
+google-cloud-kms==3.5.0
 google-cloud-language==2.17.1
 google-cloud-logging==3.12.1
 google-cloud-managedkafka==0.1.10
@@ -256,7 +258,7 @@ google-cloud-os-login==2.17.1
 google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
-google-cloud-run==0.10.17
+google-cloud-run==0.10.18
 google-cloud-secret-manager==2.23.3
 google-cloud-spanner==3.54.0
 google-cloud-speech==2.32.0
@@ -290,7 +292,6 @@ h2==4.2.0
 hatch==1.14.1
 hatchling==1.27.0
 hdfs==2.7.3
-hf-xet==1.1.0
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -298,7 +299,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.31.1
+huggingface-hub==0.31.2
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -363,7 +364,7 @@ looker-sdk==25.6.0
 lxml==5.3.2
 lz4==4.4.4
 markdown-it-py==3.0.0
-marshmallow-sqlalchemy==0.28.2
+marshmallow-sqlalchemy==1.4.2
 marshmallow==3.26.1
 matplotlib-inline==0.1.7
 mdurl==0.1.2
@@ -408,7 +409,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.78.0
+openai==1.78.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 opencensus-context==0.1.3
@@ -433,8 +434,8 @@ ordered-set==4.1.0
 orjson==3.10.18
 oss2==2.19.1
 packaging==24.2
-pagerduty==2.0.0
-pandas-gbq==0.28.0
+pagerduty==2.1.1
+pandas-gbq==0.28.1
 pandas-stubs==2.2.3.250308
 pandas==2.1.4
 pandocfilters==1.5.1
@@ -453,7 +454,7 @@ pinecone==6.0.2
 pinotdb==5.6.0
 pipdeptree==2.26.1
 platformdirs==4.3.8
-pluggy==1.5.0
+pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
 polars==1.29.0
@@ -550,9 +551,9 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.7.0
 rich-click==1.8.8
-rich-toolkit==0.14.5
+rich-toolkit==0.14.6
 rich==13.9.4
-rpds-py==0.24.0
+rpds-py==0.25.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.10
@@ -567,7 +568,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.27.0
+sentry-sdk==2.28.0
 setproctitle==1.3.6
 shapely==2.1.0
 shellingham==1.5.4
@@ -580,7 +581,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==3.15.0
-snowflake-snowpark-python==1.31.1
+snowflake-snowpark-python==1.32.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.7
@@ -602,7 +603,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
-sqlalchemy-bigquery==1.14.0
+sqlalchemy-bigquery==1.14.1
 sqlalchemy-spanner==1.11.0
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
@@ -611,7 +612,7 @@ stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 starlette==0.46.2
 statsd==4.0.1
-std-uritemplate==2.0.3
+std-uritemplate==2.0.5
 strictyaml==1.7.3
 structlog==25.3.0
 svcs==25.1.0
@@ -620,7 +621,7 @@ tableauserverclient==0.37
 tabulate==0.9.0
 tenacity==9.1.2
 teradatasql==20.0.0.30
-teradatasqlalchemy==20.0.0.4
+teradatasqlalchemy==20.0.0.5
 termcolor==3.1.0
 text-unidecode==1.3
 threadpoolctl==3.6.0
@@ -639,7 +640,7 @@ traitlets==5.14.3
 trino==0.334.0
 trove-classifiers==2025.5.9.12
 twine==6.1.0
-typer==0.15.3
+typer==0.15.4
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415
 types-PyMySQL==1.1.0.20241103
@@ -648,7 +649,7 @@ types-aiofiles==24.1.0.20250326
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250326
 types-croniter==6.0.0.20250411
-types-docutils==0.21.0.20241128
+types-docutils==0.21.0.20250514
 types-paramiko==3.5.0.20240928
 types-protobuf==6.30.2.20250506
 types-pyOpenSSL==24.1.0.20240722
@@ -656,7 +657,7 @@ types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250326
 types-redis==4.6.0.20241004
-types-requests==2.32.0.20250328
+types-requests==2.32.0.20250515
 types-setuptools==80.4.0.20250511
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
@@ -671,7 +672,7 @@ uritemplate==4.1.1
 urllib3==2.4.0
 userpath==1.9.2
 uuid6==2024.7.10
-uv==0.7.2
+uv==0.7.3
 uvicorn==0.34.2
 uvloop==0.21.0
 validators==0.34.0
