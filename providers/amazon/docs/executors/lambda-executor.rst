@@ -88,9 +88,6 @@ In the case of conflicts, the order of precedence from lowest to highest is:
    environment variables. These are checked with Airflow's config
    precedence.
 
-.. note::
-   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and is passed directly to the Lambda function as the context input. This allows you to provide additional task-specific data or configuration that the Lambda function can access during execution.
-
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -111,9 +108,6 @@ Optional config options:
 For a more detailed description of available options, including type
 hints and examples, see the ``config_templates`` folder in the Amazon
 provider package.
-
-.. note::
-   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and is passed directly to the Lambda function as the context input. This allows you to provide additional task-specific data or configuration that the Lambda function can access during execution.
 
 .. _dockerfile_for_lambda_executor:
 

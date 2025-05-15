@@ -225,7 +225,7 @@ class AwsLambdaExecutor(BaseExecutor):
 
         :param key: A unique task key (typically a tuple identifying the task instance).
         :param command: The shell command string to execute.
-        :param executor_config: Passed along to the lambda function json serialized as the Context object.
+        :param executor_config:  (Unused) to keep the same signature as the base.
         :param queue: (Unused) to keep the same signature as the base.
         """
         if len(command) == 1:
@@ -264,7 +264,6 @@ class AwsLambdaExecutor(BaseExecutor):
             task_to_run = self.pending_tasks.popleft()
             task_key = task_to_run.key
             cmd = task_to_run.command
-            exec_config = task_to_run.executor_config
             attempt_number = task_to_run.attempt_number
             failure_reasons = []
             ser_task_key = json.dumps(task_key._asdict())
@@ -283,7 +282,6 @@ class AwsLambdaExecutor(BaseExecutor):
                     "FunctionName": self.lambda_function_name,
                     "InvocationType": "Event",
                     "Payload": json.dumps(payload),
-                    "ClientContext": json.dumps(exec_config),
                 }
                 if self.qualifier:
                     invoke_kwargs["Qualifier"] = self.qualifier
