@@ -85,9 +85,7 @@ const columns: Array<ColumnDef<ConnectionResponse>> = [
 ];
 
 export const Connections = () => {
-  const { setTableURLState, tableURLState } = useTableURLState({
-    sorting: [{ desc: false, id: "connection_id" }],
-  });
+  const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [connectionIdPattern, setConnectionIdPattern] = useState(
@@ -97,7 +95,7 @@ export const Connections = () => {
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-connection_id";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "connection_id";
   const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
     connectionIdPattern: connectionIdPattern ?? undefined,
     limit: pagination.pageSize,
