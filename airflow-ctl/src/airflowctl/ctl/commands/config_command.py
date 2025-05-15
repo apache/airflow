@@ -74,7 +74,6 @@ class ConfigChange:
                 return (
                     f"Changed default value of `{self.config.option}` in `{self.config.section}` "
                     f"from `{self.old_default}` to `{self.new_default}`. "
-                    f"You currently have `{value}` set. {self.suggestion}"
                 )
         if self.renamed_to:
             if self.config.section != self.renamed_to.section:
