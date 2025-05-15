@@ -141,6 +141,33 @@ newly created Job Role and  Execution role for the Job Definition.
    :start-after: .. BEGIN DOCKERFILE_AUTH_SECOND_METHOD
    :end-before: .. END DOCKERFILE_AUTH_SECOND_METHOD
 
+.. include:: general.rst
+  :start-after: .. BEGIN BASE_IMAGE
+  :end-before: .. END BASE_IMAGE
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_OVERVIEW
+  :end-before: .. END LOADING_DAGS_OVERVIEW
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_FROM_S3
+  :end-before: .. END LOADING_DAGS_FROM_S3
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOADING_DAGS_FROM_LOCAL
+  :end-before: .. END LOADING_DAGS_FROM_LOCAL
+
+.. include:: general.rst
+  :start-after: .. BEGIN DEPENDENCIES
+  :end-before: .. END DEPENDENCIES
+
+Building Image for AWS Batch Executor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Detailed instructions on how to use the Docker image, that you have
+created via this readme, with the Batch Executor can be found
+:ref:`here <batch_setup_guide>`.
+
 .. _batch_logging:
 
 .. include:: general.rst
