@@ -330,6 +330,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Download docs prepared as artifacts"
         uses: actions/download-artifact@v4
         with:
@@ -343,12 +349,6 @@ jobs:
         run: >
           git clone https://github.com/apache/airflow-site.git /mnt/airflow-site/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/airflow-site" >> "$GITHUB_ENV"
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: ${{ inputs.platform }}
-          python: ${{ inputs.default-python-version }}
-          use-uv: ${{ inputs.use-uv }}
       - name: "Publish docs"
         env:
           DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}

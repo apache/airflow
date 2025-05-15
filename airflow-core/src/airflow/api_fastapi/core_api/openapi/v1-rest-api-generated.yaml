@@ -6495,7 +6495,7 @@ paths:
           type: string
           enum:
           - application/json
-          - text/plain
+          - application/x-ndjson
           - '*/*'
           default: '*/*'
           title: Accept
@@ -6506,10 +6506,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskInstancesLogResponse'
-            text/plain:
+            application/x-ndjson:
               schema:
                 type: string
-                example: 'content
+                example: '{"content": "content"}
+
+                  {"content": "content"}
 
                   '
         '401':
@@ -8123,6 +8125,13 @@ components:
             type: object
           - type: 'null'
           title: Default Args
+        owner_links:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Owner Links
         file_token:
           type: string
           title: File Token

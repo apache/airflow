@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-facebook``
 
-Release: ``3.7.2``
+Release: ``3.8.0``
 
 
 `Facebook Ads <https://www.facebook.com/about/ads>`__
@@ -36,7 +36,7 @@ This is a provider package for ``facebook`` provider. All classes for this provi
 are in ``airflow.providers.facebook`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-facebook/3.7.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-facebook/3.8.0/>`_.
 
 Installation
 ------------
@@ -54,8 +54,8 @@ Requirements
 PIP package            Version required
 =====================  ==================
 ``apache-airflow``     ``>=2.10.0``
-``facebook-business``  ``>=15.0.2``
+``facebook-business``  ``>=22.0.0``
 =====================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-facebook/3.7.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-facebook/3.8.0/changelog.html>`_.
