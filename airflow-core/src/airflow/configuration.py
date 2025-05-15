@@ -360,6 +360,7 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "expose_hostname"): ("webserver", "expose_hostname", "3.0.2"),
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
         ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
+        ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).

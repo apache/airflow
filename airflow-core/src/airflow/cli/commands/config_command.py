@@ -484,6 +484,11 @@ CONFIGS_CHANGES = [
         breaking=True,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "hide_paused_dags_by_default"),
+        renamed_to=ConfigParameter("api", "hide_paused_dags_by_default"),
+        breaking=True,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
         renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
         breaking=True,
