@@ -26,25 +26,20 @@ type Props = {
 } & TaskNameProps;
 
 export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isMapped, ...rest }, ref) => {
-  const { dagId = "", runId, taskId } = useParams();
+  const { dagId = "", groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  if (isGroup && runId === undefined) {
-    return undefined;
-  }
-
-  const pathname = isGroup
-    ? `/dags/${dagId}/runs/${runId}/tasks/group/${id}`
-    : `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`;
+  const basePath = `/dags/${dagId}${runId === undefined ? "" : `/runs/${runId}`}`;
+  const taskPath = isGroup
+    ? groupId === id
+      ? ""
+      : `/tasks/group/${id}`
+    : taskId === id
+      ? ""
+      : `/tasks/${id}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`;
 
   return (
-    <RouterLink
-      ref={ref}
-      to={{
-        pathname,
-        search: searchParams.toString(),
-      }}
-    >
+    <RouterLink ref={ref} to={{ pathname: basePath + taskPath, search: searchParams.toString() }}>
       <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
     </RouterLink>
   );
