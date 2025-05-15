@@ -17,58 +17,70 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+import logging
 
 import pytest
+import time_machine
 from sqlalchemy import select
 
 from airflow.models import DagRun
-from airflow.models.deadline import Deadline
+from airflow.models.deadline import Deadline, DeadlineAlert
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
+from unit.models import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
 RUN_ID = 1
 
+TEST_CALLBACK_KWARGS = {"to": "the_boss@work.com"}
+TEST_CALLBACK_PATH = f"{__name__}.test_callback"
+UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
 
-def my_callback():
+
+def test_callback():
     """An empty Callable to use for the callback tests in this suite."""
     pass
 
 
-@pytest.mark.db_test
-class TestDeadline:
-    def setup_method(self):
-        self._clean_db()
+def _clean_db():
+    db.clear_db_dags()
+    db.clear_db_runs()
+    db.clear_db_deadline()
 
-    def teardown_method(self):
-        self._clean_db()
 
-    @staticmethod
-    def _clean_db():
-        db.clear_db_dags()
-        db.clear_db_runs()
-        db.clear_db_deadline()
-
-    @pytest.fixture
-    def create_dagrun(self, dag_maker, session):
-        with dag_maker(DAG_ID):
-            EmptyOperator(task_id="TASK_ID")
-        dag_maker.create_dagrun()
+@pytest.fixture
+def dagrun(session, dag_maker):
+    with dag_maker(DAG_ID):
+        EmptyOperator(task_id="TASK_ID")
+    with time_machine.travel(DEFAULT_DATE):
+        dag_maker.create_dagrun(state=DagRunState.QUEUED, logical_date=DEFAULT_DATE)
 
         session.commit()
         assert session.query(DagRun).count() == 1
-        return session.query(DagRun).one().id
 
-    def test_add_deadline(self, create_dagrun, session):
+        return session.query(DagRun).one()
+
+
+@pytest.mark.db_test
+class TestDeadline:
+    @staticmethod
+    def setup_method():
+        _clean_db()
+
+    @staticmethod
+    def teardown_method():
+        _clean_db()
+
+    def test_add_deadline(self, dagrun, session):
         assert session.query(Deadline).count() == 0
         deadline_orm = Deadline(
-            deadline=datetime(2024, 12, 4, 16, 00, 0),
-            callback=my_callback.__module__,
-            callback_kwargs={"to": "the_boss@work.com"},
+            deadline=DEFAULT_DATE,
+            callback=TEST_CALLBACK_PATH,
+            callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
-            dagrun_id=create_dagrun,
+            dagrun_id=dagrun.id,
         )
 
         Deadline.add_deadline(deadline_orm)
@@ -84,24 +96,24 @@ class TestDeadline:
 
     def test_orm(self):
         deadline_orm = Deadline(
-            deadline=datetime(2024, 12, 4, 16, 00, 0),
-            callback=my_callback.__module__,
-            callback_kwargs={"to": "the_boss@work.com"},
+            deadline=DEFAULT_DATE,
+            callback=TEST_CALLBACK_PATH,
+            callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
             dagrun_id=RUN_ID,
         )
 
-        assert deadline_orm.deadline == datetime(2024, 12, 4, 16, 00, 0)
-        assert deadline_orm.callback == my_callback.__module__
-        assert deadline_orm.callback_kwargs == {"to": "the_boss@work.com"}
+        assert deadline_orm.deadline == DEFAULT_DATE
+        assert deadline_orm.callback == TEST_CALLBACK_PATH
+        assert deadline_orm.callback_kwargs == TEST_CALLBACK_KWARGS
         assert deadline_orm.dag_id == DAG_ID
         assert deadline_orm.dagrun_id == RUN_ID
 
     def test_repr_with_callback_kwargs(self):
         deadline_orm = Deadline(
-            deadline=datetime(2024, 12, 4, 16, 00, 0),
-            callback=my_callback.__module__,
-            callback_kwargs={"to": "the_boss@work.com"},
+            deadline=DEFAULT_DATE,
+            callback=TEST_CALLBACK_PATH,
+            callback_kwargs=TEST_CALLBACK_KWARGS,
             dag_id=DAG_ID,
             dagrun_id=RUN_ID,
         )
@@ -109,13 +121,13 @@ class TestDeadline:
         assert (
             repr(deadline_orm)
             == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline} or run: {my_callback.__module__}({json.dumps(deadline_orm.callback_kwargs)})"
+            f"{deadline_orm.deadline} or run: {TEST_CALLBACK_PATH}({json.dumps(deadline_orm.callback_kwargs)})"
         )
 
     def test_repr_without_callback_kwargs(self):
         deadline_orm = Deadline(
-            deadline=datetime(2024, 12, 4, 16, 00, 0),
-            callback=my_callback.__module__,
+            deadline=DEFAULT_DATE,
+            callback=TEST_CALLBACK_PATH,
             dag_id=DAG_ID,
             dagrun_id=RUN_ID,
         )
@@ -124,5 +136,49 @@ class TestDeadline:
         assert (
             repr(deadline_orm)
             == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline} or run: {my_callback.__module__}()"
+            f"{deadline_orm.deadline} or run: {TEST_CALLBACK_PATH}()"
         )
+
+
+class TestDeadlineAlert:
+    @pytest.mark.parametrize(
+        "callback_value, expected_path",
+        [
+            pytest.param(test_callback, TEST_CALLBACK_PATH, id="valid_callable"),
+            pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
+            pytest.param(lambda x: x, None, id="lambda_function"),
+            pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
+            pytest.param(UNIMPORTABLE_DOT_PATH, UNIMPORTABLE_DOT_PATH, id="valid_format_not_importable"),
+        ],
+    )
+    def test_get_callback_path_happy_cases(self, callback_value, expected_path):
+        path = DeadlineAlert.get_callback_path(callback_value)
+        if expected_path is None:
+            assert path.endswith("<lambda>")
+        else:
+            assert path == expected_path
+
+    @pytest.mark.parametrize(
+        "callback_value, error_type",
+        [
+            pytest.param(42, ImportError, id="not_a_string"),
+            pytest.param("", ImportError, id="empty_string"),
+            pytest.param("os.path", AttributeError, id="non_callable_module"),
+        ],
+    )
+    def test_get_callback_path_error_cases(self, callback_value, error_type):
+        expected_message = ""
+        if error_type is ImportError:
+            expected_message = "doesn't look like a valid dot path."
+        elif error_type is AttributeError:
+            expected_message = "is not callable."
+
+        with pytest.raises(error_type, match=expected_message):
+            DeadlineAlert.get_callback_path(callback_value)
+
+    def test_log_unimportable_but_properly_formatted_callback(self, caplog):
+        with caplog.at_level(logging.DEBUG):
+            path = DeadlineAlert.get_callback_path(UNIMPORTABLE_DOT_PATH)
+
+            assert "could not be imported" in caplog.text
+            assert path == UNIMPORTABLE_DOT_PATH

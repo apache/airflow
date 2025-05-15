@@ -16,24 +16,29 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-from typing import TYPE_CHECKING
+import logging
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import TYPE_CHECKING, Callable
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Column, ForeignKey, Index, Integer, String
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string, is_valid_dotpath
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
 
-class Deadline(Base, LoggingMixin):
+
+class Deadline(Base):
     """A Deadline is a 'need-by' date which triggers a callback if the provided time has passed."""
 
     __tablename__ = "deadline"
@@ -45,7 +50,7 @@ class Deadline(Base, LoggingMixin):
     dagrun_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
-    deadline = Column(DateTime, nullable=False)
+    deadline = Column(UtcDateTime, nullable=False)
     # The Callback to be called when the Deadline has passed.
     callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
@@ -90,3 +95,91 @@ class Deadline(Base, LoggingMixin):
     def add_deadline(cls, deadline: Deadline, session: Session = NEW_SESSION):
         """Add the provided deadline to the table."""
         session.add(deadline)
+
+
+class DeadlineReference(Enum):
+    """
+    Store the calculation methods for the various Deadline Alert triggers.
+
+    TODO:  PLEASE NOTE This class is a placeholder and will be expanded in the next PR.
+
+    ------
+    Usage:
+    ------
+
+    Example use when defining a deadline in a DAG:
+
+    DAG(
+        dag_id='dag_with_deadline',
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+            interval=timedelta(hours=1),
+            callback=hello_callback,
+        )
+    )
+
+    To parse the deadline reference later we will use something like:
+
+    dag.deadline.reference.evaluate_with(dag_id=dag.dag_id)
+    """
+
+    DAGRUN_LOGICAL_DATE = "dagrun_logical_date"
+
+
+class DeadlineAlert:
+    """Store Deadline values needed to calculate the need-by timestamp and the callback information."""
+
+    def __init__(
+        self,
+        reference: DeadlineReference,
+        interval: timedelta,
+        callback: Callable | str,
+        callback_kwargs: dict | None = None,
+    ):
+        self.reference = reference
+        self.interval = interval
+        self.callback_kwargs = callback_kwargs
+        self.callback = self.get_callback_path(callback)
+
+    @staticmethod
+    def get_callback_path(_callback: str | Callable) -> str:
+        if callable(_callback):
+            # Get the reference path to the callable in the form `airflow.models.deadline.get_from_db`
+            return f"{_callback.__module__}.{_callback.__qualname__}"
+
+        if not isinstance(_callback, str) or not is_valid_dotpath(_callback.strip()):
+            raise ImportError(f"`{_callback}` doesn't look like a valid dot path.")
+
+        stripped_callback = _callback.strip()
+
+        try:
+            # The provided callback is a string which appears to be a valid dotpath, attempt to import it.
+            callback = import_string(stripped_callback)
+        except ImportError as e:
+            # Logging here instead of failing because it is possible that the code for the callable
+            # exists somewhere other than on the DAG processor. We are making a best effort to validate,
+            # but can't rule out that it may be available at runtime even if it can not be imported here.
+            logger.debug(
+                "Callback %s is formatted like a callable dotpath, but could not be imported.\n%s",
+                stripped_callback,
+                e,
+            )
+            return stripped_callback
+
+        # If we get this far then the input is a string which can be imported, check if it is a callable.
+        if not callable(callback):
+            raise AttributeError(f"Provided callback {callback} is not callable.")
+
+        return stripped_callback
+
+    def serialize_deadline_alert(self):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        return BaseSerialization.serialize(
+            {
+                "reference": self.reference,
+                "interval": self.interval,
+                "callback": self.callback,
+                "callback_kwargs": self.callback_kwargs,
+            }
+        )
