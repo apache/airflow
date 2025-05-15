@@ -22,6 +22,7 @@ import textwrap
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor
 from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 
@@ -29,6 +30,7 @@ from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSen
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 # [DAG name to be shown on Airflow UI]
 DAG_ID = "example_databricks_sensor"
+
 
 with DAG(
     dag_id=DAG_ID,
@@ -66,6 +68,18 @@ with DAG(
         timeout=60 * 2,
     )
     # [END howto_sensor_databricks_sql]
+
+    # [START howto_sensor_databricks_sql_statement]
+    # Example of using the DatabricksSQLStatementSensor to wait for a query
+    # to successfully run.
+    sql_statement_sensor = DatabricksSQLStatementsSensor(
+        task_id="sql_statement_sensor_task",
+        databricks_conn_id=connection_id,
+        warehouse_id="warehouse_id",
+        statement="select * from default.my_airflow_table",
+        # deferrable=True, # For using the operator in deferrable mode
+    )
+    # [END howto_sensor_databricks_sql_statement]
 
     # [START howto_sensor_databricks_partition]
     # Example of using the Databricks Partition Sensor to check the presence
