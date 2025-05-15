@@ -1197,7 +1197,7 @@ breeze release-management tag-providers
 ## Publish final documentation
 
 Documentation is an essential part of the product and should be made available to users.
-In our cases, documentation for the released versions is published in the live S3 bucket, and the site is
+In our cases, documentation for the released versions is published in the `live` S3 bucket, and the site is
 kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
 but the documentation source code and build tools are available in the `apache/airflow` repository, so
 you need to run several workflows to publish the documentation. More details about it can be found in
@@ -1213,8 +1213,13 @@ The release manager publishes the documentation using GitHub Actions workflow
 
 You should specify the final tag to use to build the docs and list of providers to publish
 (separated by spaces) or ``all-providers`` in case you want to publish all providers
-(optionally you can exclude some of those providers). You should use `live` bucket to publish the final
-release documentation.
+(optionally you can exclude some of those providers).
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+By default `auto` selection should publish to the `live` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
 
 After that step, the provider documentation should be available under the http://airflow.apache.org URL
 (also present in the PyPI packages) but stable links and drop-down boxes should not be yet updated.
