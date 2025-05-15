@@ -334,7 +334,7 @@ pipx install -e ./dev/breeze
 ## Publish release candidate documentation (staging)
 
 Documentation is an essential part of the product and should be made available to users.
-In our cases, documentation for the pre-release versions is published in staging S3 bucket.
+In our cases, documentation for the pre-release versions is published in `staging` S3 bucket.
 The documentation source code and build tools are available in the `apache/airflow` repository, so
 you need to run several workflows to publish the documentation. More details about it can be found in
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
@@ -342,11 +342,12 @@ emergency cases.
 
 There are two steps to publish the documentation:
 
-1. Publish the documentation to the staging S3 bucket.
+1. Publish the documentation to the `staging` S3 bucket.
 
 The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). You should
-specify the RC tag and choose `s3://staging-docs-airflow-apache-org/docs` bucket as destination
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default `auto` selection should publish to the `staging` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
 
 You should specify 'apache-airflow docker-stack' passed as packages to be
 built.
@@ -850,7 +851,7 @@ breeze prod-image verify --image-name apache/airflow:${VERSION}
 ## Publish final documentation
 
 Documentation is an essential part of the product and should be made available to users.
-In our cases, documentation for the released versions is published in the live S3 bucket, and the site is
+In our cases, documentation for the released versions is published in the `live` S3 bucket, and the site is
 kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
 but the documentation source code and build tools are available in the `apache/airflow` repository, so
 you need to run several workflows to publish the documentation. More details about it can be found in
@@ -864,8 +865,11 @@ There are two steps to publish the documentation:
 The release manager publishes the documentation using GitHub Actions workflow
 [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
 
-You should specify the final tag to build the docs and 'apache-airflow docker-stack' should be
-passed as packages to be built. The Live bucket should be selected as destination location.
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By
+default `auto` selection should publish to the `live` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
 
 After that step, the provider documentation should be available under the https://airflow.apache.org/ URL
 (also linked directly from the PyPI packages) but stable links and drop-down boxes should not be yet updated.

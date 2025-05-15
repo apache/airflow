@@ -293,12 +293,18 @@ emergency cases.
 
 There are two steps to publish the documentation:
 
-1. Publish the documentation to the staging S3 bucket.
+1. Publish the documentation to the `staging` S3 bucket.
 
 The release manager publishes the documentation using GitHub Actions workflow
 [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
 
 You can specify the RC tag to use to build the docs and 'helm-chart' passed as packages to be built.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By
+default `auto` selection should publish to the `staging` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
 
 After that step, the provider documentation should be available under the https://airflow.staged.apache.org
 (same as in the helm chart documentation).
@@ -727,12 +733,18 @@ emergency cases.
 
 There are two steps to publish the documentation:
 
-1. Publish the documentation to the live S3 bucket.
+1. Publish the documentation to the `live` S3 bucket.
 
 The release manager publishes the documentation using GitHub Actions workflow
 [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
 
-You can specify the tag to use to build the docs and 'helm-chart' passed as packages to be built.
+You should specify the tag to use to build the docs and 'helm-chart' passed as packages to be built.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default
+`auto` selection should publish to the `live` bucket - based on
+the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
+manually to be `live` or `staging`.
 
 After that step, the provider documentation should be available under the https://airflow.apache.org
 (same as in the helm chart documentation).
