@@ -69,65 +69,34 @@ const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Pr
       transition="background-color 0.2s"
       zIndex={1}
     >
-      {isGroup ? (
-        <Link
-          replace
-          to={{
-            pathname: `/dags/${dagId}/runs/${runId}/tasks/group/${taskId}`,
-            search,
-          }}
+      <Link
+        replace
+        to={{
+          pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
+          search,
+        }}
+      >
+        <Badge
+          borderRadius={4}
+          colorPalette={state === null ? "none" : state}
+          height="14px"
+          minH={0}
+          opacity={state === "success" ? 0.6 : 1}
+          p={0}
+          variant="solid"
+          width="14px"
         >
-          <Badge
-            borderRadius={4}
-            colorPalette={state === null ? "none" : state}
-            height="14px"
-            minH={0}
-            opacity={state === "success" ? 0.6 : 1}
-            p={0}
-            variant="solid"
-            width="14px"
-          >
-            {state === undefined ? undefined : (
-              <StateIcon
-                size={10}
-                state={state}
-                style={{
-                  marginLeft: "2px",
-                }}
-              />
-            )}
-          </Badge>
-        </Link>
-      ) : (
-        <Link
-          replace
-          to={{
-            pathname: `/dags/${dagId}/runs/${runId}/tasks/${taskId}${isMapped ? "/mapped" : ""}`,
-            search,
-          }}
-        >
-          <Badge
-            borderRadius={4}
-            colorPalette={state === null ? "none" : state}
-            height="14px"
-            minH={0}
-            opacity={state === "success" ? 0.6 : 1}
-            p={0}
-            variant="solid"
-            width="14px"
-          >
-            {state === undefined ? undefined : (
-              <StateIcon
-                size={10}
-                state={state}
-                style={{
-                  marginLeft: "2px",
-                }}
-              />
-            )}
-          </Badge>
-        </Link>
-      )}
+          {state === undefined ? undefined : (
+            <StateIcon
+              size={10}
+              state={state}
+              style={{
+                marginLeft: "2px",
+              }}
+            />
+          )}
+        </Badge>
+      </Link>
     </Flex>
   );
 };
