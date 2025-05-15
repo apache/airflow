@@ -517,7 +517,7 @@ def integrate_macros_plugins() -> None:
     if plugins is None:
         raise AirflowPluginException("Can't load plugins.")
 
-    log.debug("Integrate DAG plugins")
+    log.debug("Integrate Macros plugins")
 
     macros_modules = []
 
