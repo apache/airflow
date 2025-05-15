@@ -1420,6 +1420,14 @@ api:
       type: string
       example: ~
       default: "5"
+    hide_paused_dags_by_default:
+      description: |
+        By default, the webserver shows paused DAGs. Flip this to hide paused
+        DAGs by default
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1737,14 +1745,6 @@ webserver:
       type: string
       example: ~
       default: "topological"
-    hide_paused_dags_by_default:
-      description: |
-        By default, the webserver shows paused DAGs. Flip this to hide paused
-        DAGs by default
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     page_size:
       description: |
         Consistent page size across all listing views in the UI

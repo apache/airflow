@@ -34,7 +34,6 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_color",
     "page_size",
     "auto_refresh_interval",
-    "hide_paused_dags_by_default",
     "warn_deployment_exposure",
     "default_wrap",
     "require_confirmation_dag_change",
@@ -66,6 +65,7 @@ def get_configs() -> ConfigResponse:
         "dashboard_alert": DASHBOARD_UIALERTS,
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
+        "hide_paused_dags_by_default": conf.get("api", "hide_paused_dags_by_default"),
     }
 
     config.update({key: value for key, value in additional_config.items()})
