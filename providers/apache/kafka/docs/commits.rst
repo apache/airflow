@@ -30,6 +30,6 @@ Package apache-airflow-providers-apache-kafka
 
 
 This is detailed commit list of changes for versions provider package: ``apache.kafka``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

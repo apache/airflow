@@ -443,6 +443,7 @@ class DagVersionResponse(BaseModel):
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     bundle_url: Annotated[str | None, Field(title="Bundle Url")] = None
 
 
@@ -1168,6 +1169,7 @@ class DAGDetailsResponse(BaseModel):
     timezone: Annotated[str | None, Field(title="Timezone")] = None
     last_parsed: Annotated[datetime | None, Field(title="Last Parsed")] = None
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
+    owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int, Field(description="Return max_active_tasks as concurrency.", title="Concurrency")

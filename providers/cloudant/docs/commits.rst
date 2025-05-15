@@ -30,6 +30,6 @@ Package apache-airflow-providers-cloudant
 
 
 This is detailed commit list of changes for versions provider package: ``cloudant``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

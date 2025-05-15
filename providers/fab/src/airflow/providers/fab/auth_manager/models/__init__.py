@@ -102,9 +102,35 @@ assoc_permission_role = Table(
     "ab_permission_view_role",
     Model.metadata,
     Column("id", Integer, primary_key=True),
-    Column("permission_view_id", Integer, ForeignKey("ab_permission_view.id")),
-    Column("role_id", Integer, ForeignKey("ab_role.id")),
+    Column(
+        "permission_view_id",
+        Integer,
+        ForeignKey("ab_permission_view.id", ondelete="CASCADE"),
+    ),
+    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
     UniqueConstraint("permission_view_id", "role_id"),
+)
+
+assoc_user_group = Table(
+    "ab_user_group",
+    Model.metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
+    Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
+    UniqueConstraint("user_id", "group_id"),
+    Index("idx_user_id", "user_id"),
+    Index("idx_user_group_id", "group_id"),
+)
+
+assoc_group_role = Table(
+    "ab_group_role",
+    Model.metadata,
+    Column("id", Integer, primary_key=True),
+    Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
+    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
+    UniqueConstraint("group_id", "role_id"),
+    Index("idx_group_id", "group_id"),
+    Index("idx_group_role_id", "role_id"),
 )
 
 
@@ -115,7 +141,29 @@ class Role(Model):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(64), unique=True, nullable=False)
-    permissions = relationship("Permission", secondary=assoc_permission_role, backref="role", lazy="joined")
+    permissions = relationship(
+        "Permission",
+        secondary=assoc_permission_role,
+        backref="role",
+        lazy="joined",
+        passive_deletes=True,
+    )
+
+    def __repr__(self):
+        return self.name
+
+
+class Group(Model):
+    """Represents a user group."""
+
+    __tablename__ = "ab_group"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), unique=True, nullable=False)
+    label = Column(String(150))
+    description = Column(String(512))
+    users = relationship("User", secondary=assoc_user_group, backref="groups", passive_deletes=True)
+    roles = relationship("Role", secondary=assoc_group_role, backref="groups", passive_deletes=True)
 
     def __repr__(self):
         return self.name
@@ -148,8 +196,8 @@ assoc_user_role = Table(
     "ab_user_role",
     Model.metadata,
     Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("ab_user.id")),
-    Column("role_id", Integer, ForeignKey("ab_role.id")),
+    Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
+    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
     UniqueConstraint("user_id", "role_id"),
 )
 
@@ -170,7 +218,9 @@ class User(Model, BaseUser):
     last_login = Column(DateTime)
     login_count = Column(Integer)
     fail_login_count = Column(Integer)
-    roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="selectin")
+    roles = relationship(
+        "Role", secondary=assoc_user_role, backref="user", lazy="selectin", passive_deletes=True
+    )
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
 

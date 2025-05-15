@@ -38,14 +38,19 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: "Cleanup docker"
-      run: ./scripts/ci/cleanup_docker.sh
+    - name: "Prepare and cleanup runner"
+      run: ./scripts/ci/prepare_and_cleanup_runner.sh
       shell: bash
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       with:
         use-uv: ${{ inputs.use-uv }}
       id: breeze
+    - name: "Check free space"
+      shell: bash
+      run: |
+        echo "Checking free space!"
+        df -H
     - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
