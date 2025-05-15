@@ -57,6 +57,7 @@ from airflow.models.dag import (
     ExecutorLoader,
     get_asset_triggered_next_run_info,
 )
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -955,7 +956,13 @@ class TestDag:
             dr.update_state(session=session)
 
         dag_id = "dag_paused_after_limit"
-        dag = DAG(dag_id, schedule=None, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=2)
+        dag = DAG(
+            dag_id,
+            bundle_name="dags-folder",
+            schedule=None,
+            is_paused_upon_creation=False,
+            max_consecutive_failed_dag_runs=2,
+        )
         op1 = BashOperator(task_id="task", bash_command="exit 1;")
         dag.add_task(op1)
         session = settings.Session()
@@ -2060,6 +2067,7 @@ class TestDagModel:
         session = settings.Session()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="dags-folder",
             max_active_tasks=1,
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
@@ -2202,8 +2210,10 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=None,
             next_dagrun_create_after=None,
@@ -2211,7 +2221,7 @@ class TestDagModel:
         )
         # assert max_active_runs updated
         assert orm_dag.max_active_runs == 16
-        session.add(orm_dag)
+        session.add_all([orm_dag_bundle, orm_dag])
         session.flush()
         assert orm_dag.max_active_runs is not None
 
@@ -2226,14 +2236,16 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_stale=False,
         )
-        session.add(orm_dag)
+        session.add_all([orm_dag_bundle, orm_dag])
         session.flush()
 
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2258,15 +2270,17 @@ class TestDagModel:
         dag = DAG(dag_id="test_dags", schedule=None, start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_stale=False,
         )
         assert not orm_dag.has_import_errors
-        session.add(orm_dag)
+        session.add_all([orm_dag_bundle, orm_dag])
         session.flush()
 
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2849,6 +2863,7 @@ def test_get_next_data_interval(
     dag = DAG(dag_id="test_get_next_data_interval", schedule="@daily", start_date=DEFAULT_DATE)
     dag_model = DagModel(
         dag_id="test_get_next_data_interval",
+        bundle_name="dags-folder",
         next_dagrun=logical_date,
         next_dagrun_data_interval_start=data_interval_start,
         next_dagrun_data_interval_end=data_interval_end,

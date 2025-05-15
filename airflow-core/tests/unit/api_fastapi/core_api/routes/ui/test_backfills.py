@@ -62,6 +62,7 @@ class TestBackfillEndpoint:
         for num in range(1, count + 1):
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
+                bundle_name="dags-folder",
                 fileloc=f"/tmp/dag_{num}.py",
                 is_stale=False,
                 timetable_summary="0 0 * * *",
