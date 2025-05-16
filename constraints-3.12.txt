@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-15T19:59:58.283482
+# This constraints file was automatically generated on 2025-05-16T08:02:20.387862
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -450,7 +450,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==3.1.0
+oracledb==3.1.1
 ordered-set==4.1.0
 orjson==3.10.18
 oss2==2.19.1
@@ -544,7 +544,7 @@ python-ldap==3.4.4
 python-multipart==0.0.20
 python-on-whales==0.76.1
 python-slugify==8.0.4
-python-telegram-bot==22.0
+python-telegram-bot==22.1
 python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
@@ -638,7 +638,7 @@ strictyaml==1.7.3
 structlog==25.3.0
 svcs==25.1.0
 sympy==1.14.0
-tableauserverclient==0.37
+tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
 teradatasql==20.0.0.30
@@ -653,7 +653,7 @@ tinycss2==1.4.0
 tokenizers==0.21.1
 tomli_w==1.2.0
 tomlkit==0.13.2
-tornado==6.4.2
+tornado==6.5
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
@@ -663,22 +663,22 @@ twine==6.1.0
 typer==0.15.3
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415
-types-PyMySQL==1.1.0.20241103
-types-PyYAML==6.0.12.20250402
-types-aiofiles==24.1.0.20250326
+types-PyMySQL==1.1.0.20250516
+types-PyYAML==6.0.12.20250516
+types-aiofiles==24.1.0.20250516
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20250326
+types-cffi==1.17.0.20250516
 types-croniter==6.0.0.20250411
-types-docutils==0.21.0.20250514
-types-paramiko==3.5.0.20240928
-types-protobuf==6.30.2.20250506
+types-docutils==0.21.0.20250516
+types-paramiko==3.5.0.20250516
+types-protobuf==6.30.2.20250516
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20241206
+types-python-dateutil==2.9.0.20250516
 types-python-slugify==8.0.2.20240310
-types-pytz==2025.2.0.20250326
+types-pytz==2025.2.0.20250516
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20250515
-types-setuptools==80.4.0.20250511
+types-setuptools==80.7.0.20250516
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
