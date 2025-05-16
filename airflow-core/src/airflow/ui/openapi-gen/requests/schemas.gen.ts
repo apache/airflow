@@ -6039,10 +6039,6 @@ export const $ConfigResponse = {
       type: "boolean",
       title: "Default Wrap",
     },
-    warn_deployment_exposure: {
-      type: "boolean",
-      title: "Warn Deployment Exposure",
-    },
     audit_view_excluded_events: {
       type: "string",
       title: "Audit View Excluded Events",
@@ -6091,7 +6087,6 @@ export const $ConfigResponse = {
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",
-    "warn_deployment_exposure",
     "audit_view_excluded_events",
     "audit_view_included_events",
     "test_connection",

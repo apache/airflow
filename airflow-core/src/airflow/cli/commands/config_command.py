@@ -503,6 +503,10 @@ CONFIGS_CHANGES = [
         was_deprecated=False,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "warn_deployment_exposure"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "auto_refresh_interval"),
         renamed_to=ConfigParameter("api", "auto_refresh_interval"),
         breaking=True,
