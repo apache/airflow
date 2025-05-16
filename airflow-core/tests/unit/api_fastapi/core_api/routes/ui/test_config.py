@@ -31,7 +31,6 @@ mock_config_response = {
     "auto_refresh_interval": 3,
     "hide_paused_dags_by_default": True,
     "instance_name": "Airflow",
-    "instance_name_has_markup": False,
     "enable_swagger_ui": True,
     "require_confirmation_dag_change": False,
     "default_wrap": False,
