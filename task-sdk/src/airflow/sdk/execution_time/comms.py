@@ -451,6 +451,17 @@ class GetXComSequenceItem(BaseModel):
     type: Literal["GetXComSequenceItem"] = "GetXComSequenceItem"
 
 
+class GetXComSequenceSlice(BaseModel):
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    start: int
+    stop: int | None
+    step: int
+    type: Literal["GetXComSequenceSlice"] = "GetXComSequenceSlice"
+
+
 class SetXCom(BaseModel):
     key: str
     value: Annotated[
@@ -616,6 +627,7 @@ ToSupervisor = Annotated[
         GetXCom,
         GetXComCount,
         GetXComSequenceItem,
+        GetXComSequenceSlice,
         PutVariable,
         RescheduleTask,
         RetryTask,
