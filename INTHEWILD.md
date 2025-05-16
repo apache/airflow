@@ -187,7 +187,7 @@ Currently, **officially** using Airflow:
 1. [Disney](https://www.disney.com/) [[@coolbeans201](https://github.com/coolbeans201)]
 1. [Docsity](https://www.docsity.com/)
 1. [Doctrine](https://www.doctrine.fr/)[[@anteverse](https://github.com/anteverse)]
-1. [DoorDash](https://www.doordash.com/)
+1. [DoorDash](https://www.doordash.com/) [[@chiragtodarka](https://github.com/chiragtodarka)]
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
 1. [Dropbox](https://www.dropbox.com) [[@AlexeySanko](https://github.com/AlexeySanko)]
