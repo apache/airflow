@@ -17,5 +17,12 @@
     "browse": "瀏覽",
     "admin": "管理者",
     "docs": "文件"
+  },
+  "timeRange": {
+    "duration": "時間範圍",
+    "lastHour": "最近 1 小時",
+    "last12Hours": "最近 12 小時",
+    "last24Hours": "最近 24 小時",
+    "pastWeek": "過去一週"
   }
 }

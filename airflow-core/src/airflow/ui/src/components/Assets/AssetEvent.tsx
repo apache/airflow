@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Text, HStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
@@ -34,6 +35,7 @@ export const AssetEvent = ({
   readonly assetId?: number;
   readonly event: AssetEventResponse;
 }) => {
+  const { t: translate } = useTranslation("dashboard");
   let source = "";
 
   const { from_rest_api: fromRestAPI, from_trigger: fromTrigger, ...extra } = event.extra ?? {};
@@ -57,8 +59,14 @@ export const AssetEvent = ({
           <Tooltip
             content={
               <div>
-                <Text> group: {event.group ?? ""} </Text>
-                <Text> uri: {event.uri ?? ""} </Text>
+                <Text>
+                  {" "}
+                  {translate("group")}: {event.group ?? ""}{" "}
+                </Text>
+                <Text>
+                  {" "}
+                  {translate("uri")}: {event.uri ?? ""}{" "}
+                </Text>
               </div>
             }
             showArrow

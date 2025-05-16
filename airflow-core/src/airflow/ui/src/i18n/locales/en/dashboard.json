@@ -38,5 +38,12 @@
     "deferred": "Deferred",
     "no_status": "No Status"
   },
-  "noAssetEvents": "No Asset Events found."
+  "noAssetEvents": "No Asset Events found.",
+  "sortBy": {
+    "newestFirst": "Newest First",
+    "oldestFirst": "Oldest First"
+  },
+  "source": "Source",
+  "group": "Group",
+  "uri": "Uri"
 }

@@ -17,5 +17,12 @@
     "browse": "Browse",
     "admin": "Admin",
     "docs": "Docs"
+  },
+  "timeRange": {
+    "duration": "Duration",
+    "lastHour": "Last Hour",
+    "last12Hours": "Last 12 Hours",
+    "last24Hours": "Last 24 Hours",
+    "pastWeek": "Past Week"
   }
 }

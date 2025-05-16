@@ -57,13 +57,13 @@ export const AssetEvents = ({
   title,
   ...rest
 }: AssetEventProps & BoxProps) => {
+  const { t: translate } = useTranslation("dashboard");
   const assetSortOptions = createListCollection({
     items: [
-      { label: "Newest first", value: "-timestamp" },
-      { label: "Oldest first", value: "timestamp" },
+      { label: translate("sortBy.newestFirst"), value: "-timestamp" },
+      { label: translate("sortBy.oldestFirst"), value: "timestamp" },
     ],
   });
-  const { t: translate } = useTranslation("dashboard");
 
   return (
     <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2} p={4} py={2} {...rest}>
