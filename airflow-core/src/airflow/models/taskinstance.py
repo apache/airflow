@@ -78,11 +78,8 @@ from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
-    AirflowFailException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
-    AirflowSensorTimeout,
-    AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
     TaskDeferralError,
@@ -118,7 +115,6 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -1692,161 +1688,33 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :param session: SQLAlchemy ORM Session
         """
-        if TYPE_CHECKING:
-            assert self.task
+        from airflow.sdk.api.datamodels._generated import TaskInstance as TaskInstanceSDK
+        from airflow.sdk.execution_time.supervisor import run_task_in_process
 
-        if TYPE_CHECKING:
-            assert isinstance(self.task, BaseOperator)
+        self.set_state(TaskInstanceState.QUEUED)
 
-        self.test_mode = test_mode
-        self.refresh_from_task(self.task, pool_override=pool)
-        self.refresh_from_db(session=session)
-        self.hostname = get_hostname()
-        self.pid = os.getpid()
-        if not test_mode:
-            TaskInstance.save_to_db(ti=self, session=session)
-        actual_start_date = timezone.utcnow()
-        Stats.incr(f"ti.start.{self.task.dag_id}.{self.task.task_id}", tags=self.stats_tags)
-        # Same metric with tagging
-        Stats.incr("ti.start", tags=self.stats_tags)
-        # Initialize final state counters at zero
-        for state in State.task_states:
-            Stats.incr(
-                f"ti.finish.{self.task.dag_id}.{self.task.task_id}.{state}",
-                count=0,
-                tags=self.stats_tags,
-            )
-            # Same metric with tagging
-            Stats.incr(
-                "ti.finish",
-                count=0,
-                tags={**self.stats_tags, "state": str(state)},
-            )
-        with set_current_task_instance_session(session=session):
-            self.task = self.task.prepare_for_execution()
-            context = self.get_template_context(ignore_param_exceptions=False, session=session)
+        if mark_success:
+            self.set_state(TaskInstanceState.SUCCESS)
+            log.info("[DAG TEST] Marking success for %s ", self.task_id)
+            return
 
-            try:
-                if self.task:
-                    from airflow.sdk.definitions.asset import Asset
+        taskrun_result = run_task_in_process(
+            ti=TaskInstanceSDK(
+                id=self.id,
+                task_id=self.task_id,
+                dag_id=self.task.dag_id,
+                run_id=self.run_id,
+                try_number=self.try_number,
+                map_index=self.map_index,
+            ),
+            task=self.task,
+        )
 
-                    inlets = [asset.asprofile() for asset in self.task.inlets if isinstance(asset, Asset)]
-                    outlets = [asset.asprofile() for asset in self.task.outlets if isinstance(asset, Asset)]
-                    TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
-                if not mark_success:
-                    TaskInstance._execute_task_with_callbacks(
-                        self=self,  # type: ignore[arg-type]
-                        context=context,
-                        test_mode=test_mode,
-                        session=session,
-                    )
-                if not test_mode:
-                    self.refresh_from_db(lock_for_update=True, session=session, keep_local_changes=True)
-                self.state = TaskInstanceState.SUCCESS
-            except TaskDeferred as defer:
-                # The task has signalled it wants to defer execution based on
-                # a trigger.
-                if raise_on_defer:
-                    raise
-                self.defer_task(exception=defer, session=session)
-                self.log.info(
-                    "Pausing task as DEFERRED. dag_id=%s, task_id=%s, run_id=%s, logical_date=%s, start_date=%s",
-                    self.dag_id,
-                    self.task_id,
-                    self.run_id,
-                    _date_or_empty(task_instance=self, attr="logical_date"),
-                    _date_or_empty(task_instance=self, attr="start_date"),
-                )
-                return TaskReturnCode.DEFERRED
-            except AirflowSkipException as e:
-                # Recording SKIP
-                # log only if exception has any arguments to prevent log flooding
-                if e.args:
-                    self.log.info(e)
-                if not test_mode:
-                    self.refresh_from_db(lock_for_update=True, session=session, keep_local_changes=True)
-                self.state = TaskInstanceState.SKIPPED
-                _run_finished_callback(callbacks=self.task.on_skipped_callback, context=context)
-                TaskInstance.save_to_db(ti=self, session=session)
-            except AirflowRescheduleException as reschedule_exception:
-                self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
-                self.log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
-                return None
-            except (AirflowFailException, AirflowSensorTimeout) as e:
-                # If AirflowFailException is raised, task should not retry.
-                # If a sensor in reschedule mode reaches timeout, task should not retry.
-                self.handle_failure(
-                    e, test_mode, context, force_fail=True, session=session
-                )  # already saves to db
-                raise
-            except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated) as e:
-                if not test_mode:
-                    self.refresh_from_db(lock_for_update=True, session=session)
-                # for case when task is marked as success/failed externally
-                # or dagrun timed out and task is marked as skipped
-                # current behavior doesn't hit the callbacks
-                if self.state in State.finished:
-                    self.clear_next_method_args()
-                    TaskInstance.save_to_db(ti=self, session=session)
-                    return None
-                self.handle_failure(e, test_mode, context, session=session)
-                raise
-            except SystemExit as e:
-                # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
-                # Therefore, here we must handle only error codes.
-                msg = f"Task failed due to SystemExit({e.code})"
-                self.handle_failure(msg, test_mode, context, session=session)
-                raise AirflowException(msg)
-            except BaseException as e:
-                self.handle_failure(e, test_mode, context, session=session)
-                raise
-            finally:
-                # Print a marker post execution for internals of post task processing
-                log.info("::group::Post task execution logs")
+        if taskrun_result.state != TaskInstanceState.QUEUED:
+            self.set_state(taskrun_result.state)
 
-                Stats.incr(
-                    f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}",
-                    tags=self.stats_tags,
-                )
-                # Same metric with tagging
-                Stats.incr("ti.finish", tags={**self.stats_tags, "state": str(self.state)})
-
-            # Recording SKIPPED or SUCCESS
-            self.clear_next_method_args()
-            self.end_date = timezone.utcnow()
-            _log_state(task_instance=self)
-            self.set_duration()
-
-            # run on_success_callback before db committing
-            # otherwise, the LocalTaskJob sees the state is changed to `success`,
-            # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-            if self.state == TaskInstanceState.SUCCESS:
-                _run_finished_callback(callbacks=self.task.on_success_callback, context=context)
-
-            if not test_mode:
-                _add_log(event=self.state, task_instance=self, session=session)
-                if self.state == TaskInstanceState.SUCCESS:
-                    from airflow.sdk.execution_time.task_runner import (
-                        _build_asset_profiles,
-                        _serialize_outlet_events,
-                    )
-
-                    TaskInstance.register_asset_changes_in_db(
-                        self,
-                        list(_build_asset_profiles(self.task.outlets)),
-                        list(_serialize_outlet_events(context["outlet_events"])),
-                        session=session,
-                    )
-
-                TaskInstance.save_to_db(ti=self, session=session)
-                if self.state == TaskInstanceState.SUCCESS:
-                    try:
-                        get_listener_manager().hook.on_task_instance_success(
-                            previous_state=TaskInstanceState.RUNNING, task_instance=self
-                        )
-                    except Exception:
-                        log.exception("error calling listener")
-            return None
+        if taskrun_result.error:
+            raise taskrun_result.error
 
     @staticmethod
     @provide_session

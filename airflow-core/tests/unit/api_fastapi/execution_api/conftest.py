@@ -20,10 +20,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
+from svcs import Registry
 
 from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.execution_api.app import lifespan
 
 
 @pytest.fixture
@@ -32,8 +32,51 @@ def client(request: pytest.FixtureRequest):
 
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
         auth = AsyncMock(spec=JWTValidator)
-        auth.avalidated_claims.return_value = {"sub": "edb09971-4e0e-4221-ad3f-800852d38085"}
 
-        # Inject our fake JWTValidator object. Can be over-ridden by tests if they want
-        lifespan.registry.register_value(JWTValidator, auth)
+        # Create a side_effect function that dynamically extracts the task instance ID from validators
+        def smart_validated_claims(cred, validators=None):
+            # Extract task instance ID from validators if present
+            # This handles the JWTBearerTIPathDep case where the validator contains the task ID from the path
+            if (
+                validators
+                and "sub" in validators
+                and isinstance(validators["sub"], dict)
+                and "value" in validators["sub"]
+            ):
+                return {
+                    "sub": validators["sub"]["value"],
+                    "exp": 9999999999,  # Far future expiration
+                    "iat": 1000000000,  # Past issuance time
+                    "aud": "test-audience",
+                }
+
+            # For other cases (like JWTBearerDep) where no specific validators are provided
+            # Return a default UUID with all required claims
+            return {
+                "sub": "00000000-0000-0000-0000-000000000000",
+                "exp": 9999999999,  # Far future expiration
+                "iat": 1000000000,  # Past issuance time
+                "aud": "test-audience",
+            }
+
+        # Set the side_effect for avalidated_claims
+        auth.avalidated_claims.side_effect = smart_validated_claims
+
+        # Get the execution API app from the mounted app
+        execution_app = next(route.app for route in app.routes if route.path == "/execution")
+
+        # Create a new registry
+        registry = Registry()
+        registry.register_value(JWTValidator, auth)
+
+        # Set up the lifespan context
+        async def setup_lifespan():
+            execution_app.state.svcs_registry = registry
+            execution_app.state.lifespan_called = True
+
+        # Run the lifespan setup
+        import asyncio
+
+        asyncio.run(setup_lifespan())
+
         yield client
