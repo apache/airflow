@@ -140,10 +140,9 @@ class LazyXComSequence(Sequence[T]):
         #     if not reverse:
         #         rows.reverse()
         # return rows
-
-        from airflow.sdk.bases.xcom import BaseXCom
         from airflow.sdk.execution_time.comms import GetXComSequenceItem, XComResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.xcom import XCom
 
         with SUPERVISOR_COMMS.lock:
             source = (xcom_arg := self._xcom_arg).operator
@@ -161,7 +160,7 @@ class LazyXComSequence(Sequence[T]):
 
         if not isinstance(msg, XComResult):
             raise IndexError(key)
-        return BaseXCom.deserialize_value(msg)
+        return XCom.deserialize_value(msg)
 
 
 def _coerce_index(value: Any) -> int | None:
