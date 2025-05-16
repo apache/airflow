@@ -35,7 +35,6 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",
-    "require_confirmation_dag_change",
     "enable_swagger_ui",
 ]
 
@@ -44,6 +43,7 @@ API_CONFIG_KEYS = [
     "page_size",
     "default_wrap",
     "auto_refresh_interval",
+    "require_confirmation_dag_change",
 ]
 
 

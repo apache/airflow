@@ -1450,6 +1450,16 @@ api:
       type: integer
       example: ~
       default: "3"
+    require_confirmation_dag_change:
+      description: |
+        Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
+        to a DAG that may be running on sensitive environments like production.
+        When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
+        Trigger a DAG
+      version_added: 2.9.0
+      type: boolean
+      example: ~
+      default: "False"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1834,16 +1844,6 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    require_confirmation_dag_change:
-      description: |
-        Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
-        to a DAG that may be running on sensitive environments like production.
-        When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
-        Trigger a DAG
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
 email:
   description: |
     Configuration email backend and whether to

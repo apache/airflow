@@ -499,6 +499,11 @@ CONFIGS_CHANGES = [
         breaking=True,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "require_confirmation_dag_change"),
+        renamed_to=ConfigParameter("api", "require_confirmation_dag_change"),
+        breaking=True,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "instance_name_has_markup"),
         was_deprecated=False,
     ),
