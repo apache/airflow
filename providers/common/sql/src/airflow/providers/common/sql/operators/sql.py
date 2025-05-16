@@ -121,6 +121,32 @@ def default_output_processor(results: list[Any], descriptions: list[Sequence[Seq
     return results
 
 
+def default_output_processor_with_column_names(
+    results: list[Any], descriptions: list[Sequence[Sequence] | None]
+) -> list[tuple[Any, list[str] | None]]:
+    """
+    Return both the data and column names of one or more queries executed with the SQLExecuteQueryOperator.
+
+    This method needs to be set as the value of the output_processor parameter.
+
+    Args:
+        results (list[Any]): The data outputs of the executed queries.
+        descriptions (list[Sequence[Sequence] | None]): The column descriptions of the executed queries (description attribute of the corresponding cursor).
+
+    Returns:
+        list[tuple[Any, list[str] | None]]: A list with an item for each SQL statement that was executed.
+        Each list item is a tuple of 1. the data and 2. the corresponding column names resulting from the SQL statement in question.
+    """
+    column_names = [
+        [str(single_col_desc[0]) for single_col_desc in query_col_desc]
+        if query_col_desc is not None
+        else None
+        for query_col_desc in descriptions
+    ]
+    output = list(zip(results, column_names))
+    return output
+
+
 class BaseSQLOperator(BaseOperator):
     """
     This is a base class for generic SQL Operator to get a DB Hook.
@@ -221,7 +247,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
     :param output_processor: (optional) the function that will be applied to the result
-        (default: default_output_processor).
+        (default: default_output_processor, alternative: default_output_processor_with_column_names).
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
     :param conn_id: the connection ID used to connect to the database
