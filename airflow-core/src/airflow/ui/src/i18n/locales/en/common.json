@@ -37,5 +37,10 @@
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
     "pastWeek": "Past Week"
+  },
+  "docs": {
+    "documentation": "Documentation",
+    "githubRepo": "GitHub Repo",
+    "restApiReference": "REST API Reference"
   }
 }

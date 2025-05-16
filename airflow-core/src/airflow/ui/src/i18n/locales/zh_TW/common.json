@@ -37,5 +37,10 @@
     "last12Hours": "最近 12 小時",
     "last24Hours": "最近 24 小時",
     "pastWeek": "過去一週"
+  },
+  "docs": {
+    "documentation": "文件",
+    "githubRepo": "GitHub 倉庫",
+    "restApiReference": "REST API 參考"
   }
 }

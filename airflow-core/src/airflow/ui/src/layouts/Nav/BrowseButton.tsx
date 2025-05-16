@@ -43,7 +43,7 @@ export const BrowseButton = ({ authorizedMenuItems }: { readonly authorizedMenuI
   const menuItems = links
     .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
     .map((link) => (
-      <Menu.Item asChild key={link.title} value={link.title}>
+      <Menu.Item asChild key={link.key} value={translate(`browse.${link.key}`)}>
         <Link aria-label={translate(`browse.${link.key}`)} to={link.href}>
           {translate(`browse.${link.key}`)}
         </Link>

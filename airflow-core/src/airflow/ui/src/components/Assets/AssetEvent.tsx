@@ -80,7 +80,7 @@ export const AssetEvent = ({
         </HStack>
       )}
       <HStack>
-        <Box>Source: </Box>
+        <Box>{translate("source")}: </Box>
         {source === "" ? (
           <Link
             to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}

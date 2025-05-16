@@ -30,15 +30,15 @@ const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/"
 const links = [
   {
     href: "https://airflow.apache.org/docs/",
-    title: "Documentation",
+    key: "documentation",
   },
   {
     href: "https://github.com/apache/airflow",
-    title: "GitHub Repo",
+    key: "githubRepo",
   },
   {
     href: new URL("docs", baseUrl).href,
-    title: "REST API Reference",
+    key: "restApiReference",
   },
 ];
 
@@ -63,9 +63,14 @@ export const DocsButton = ({
         {links
           .filter((link) => !(!showAPIDocs && link.href === "/docs"))
           .map((link) => (
-            <Menu.Item asChild key={link.title} value={link.title}>
-              <Link aria-label={link.title} href={link.href} rel="noopener noreferrer" target="_blank">
-                {link.title}
+            <Menu.Item asChild key={link.key} value={translate(`docs.${link.key}`)}>
+              <Link
+                aria-label={translate(`docs.${link.key}`)}
+                href={link.href}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {translate(`docs.${link.key}`)}
               </Link>
             </Menu.Item>
           ))}
