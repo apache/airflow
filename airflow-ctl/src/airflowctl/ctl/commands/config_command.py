@@ -92,7 +92,7 @@ class ConfigChange:
                 f"{self.suggestion}"
             )
         if self.is_invalid_if is not None:
-            value = api_client.configs.get(self.config.section, self.config.option)
+            value = api_client.configs.get(section=self.config.section, option=self.config.option)
             if value == self.is_invalid_if:
                 return (
                     f"Invalid value `{self.is_invalid_if}` set for `{self.config.option}` configuration parameter "
