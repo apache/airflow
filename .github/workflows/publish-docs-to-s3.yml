@@ -34,13 +34,8 @@ on:  # yamllint disable-line rule:truthy
           - live
           - staging
       include-docs:
-        description: |
-          Space separated list of docs to build.
-          To publish docs for nested provider packages, provide the package name with `.`
-          eg: amazon common.messaging apache.kafka
-
-        required: false
-        default: "all-providers"
+        description: "Space separated list of packages to build"
+        required: true
         type: string
       exclude-docs:
         description: "Comma separated list of docs to exclude"
@@ -48,16 +43,11 @@ on:  # yamllint disable-line rule:truthy
         default: "no-docs-excluded"
         type: string
       skip-write-to-stable-folder:
-        description: |
-          Skip writing to stable version folder in S3,
-          enable this if your releasing preview version than current
-          stable version and don't want to overwrite stable version
+        description: "Do not override stable version"
         required: false
         default: false
         type: boolean
 
-env:
-  AIRFLOW_ROOT_PATH: "/home/runner/work/temp-airflow-repo-reference"  # checkout dir for referenced tag
 permissions:
   contents: read
 jobs:
@@ -72,10 +62,12 @@ jobs:
       INCLUDE_DOCS: ${{ inputs.include-docs }}
       EXCLUDE_DOCS: ${{ inputs.exclude-docs }}
       DESTINATION: ${{ inputs.destination }}
+      SKIP_WRITE_TO_STABLE_FOLDER: ${{ inputs.skip-write-to-stable-folder }}
     outputs:
       include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
       destination-location: ${{ steps.parameters.outputs.destination-location }}
       destination: ${{ steps.parameters.outputs.destination }}
+      extra-build-options: ${{ steps.parameters.outputs.extra-build-options }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder == 'true' && '--skip-write-to-stable-folder' || '' }}
     if: contains(fromJSON('[
@@ -99,6 +91,7 @@ jobs:
           echo "Included docs : '${INCLUDE_DOCS}'"
           echo "Exclude docs: '${EXCLUDE_DOCS}'"
           echo "Destination: '${DESTINATION}'"
+          echo "Skip write to stable folder: '${SKIP_WRITE_TO_STABLE_FOLDER}'"
           if [[ "${DESTINATION}" == "auto" ]]; then
              if [[ "${REF}" =~ ^.*[0-9]*\.[0-9]*\.[0-9]*$ ]]; then
                 echo "${REF} looks like final release, using live destination"
@@ -114,32 +107,14 @@ jobs:
           else
              echo "destination-location=s3://staging-docs-airflow-apache-org/docs/" >> ${GITHUB_OUTPUT}
           fi
-
-  build-ci-images:
-    name: Build CI images
-    uses: ./.github/workflows/ci-image-build.yml
-    needs: [build-info]
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      packages: write
-    with:
-      runners: '["ubuntu-22.04"]'
-      platform: "linux/amd64"
-      push-image: "false"
-      upload-image-artifact: "true"
-      upload-mount-cache-artifact: false
-      python-versions: "['3.9']"
-      branch: ${{ inputs.ref }}
-      use-uv: true
-      upgrade-to-newer-dependencies: false
-      constraints-branch: "constraints-main"
-      docker-cache: registry
-      disable-airflow-repo-cache: false
+          if [[ "${REF}" =~ 2.* ]]; then
+             echo "extra-build-options=" >> ${GITHUB_OUTPUT}
+          else
+             echo "extra-build-options=--include-commits" >> ${GITHUB_OUTPUT}
+          fi
 
   build-docs:
-    needs: [build-ci-images, build-info]
+    needs: [build-info]
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ubuntu-latest
@@ -151,36 +126,54 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: false
       PYTHON_MAJOR_MINOR_VERSION: 3.9
       VERBOSE: "true"
+      EXTRA_BUILD_OPTIONS: ${{ needs.build-info.outputs.extra-build-options }}
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} "
+      # Check out the repo first to run cleanup - in sub-folder
+      - name: "Checkout current version first to clean-up stuff"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Checkout from ${{ inputs.ref }} to build docs"
-        run: |
-          git clone https://github.com/apache/airflow.git "${AIRFLOW_ROOT_PATH}"
-          cd "${AIRFLOW_ROOT_PATH}" && git checkout ${REF}
-        env:
-          REF: ${{ inputs.ref }}
-      - name: "Prepare breeze & CI image: 3.9"
-        uses: ./.github/actions/prepare_breeze_and_image
+          path: current-version
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+        working-directory: current-version
+        # We are checking repo for both - breeze and docs from the ref provided as input
+        # This will take longer as we need to rebuild CI image and it will not use cache
+        # but it will build the CI image from the version of Airflow that is used to check out things
+      - name: "Checkout ${{ inputs.ref }} "
+        uses: actions/checkout@v4
         with:
-          platform: "linux/amd64"
-          python: 3.9
-          use-uv: true
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: "Building docs with --docs-only flag"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
         run: >
-          breeze build-docs ${INCLUDE_DOCS} --docs-only --include-commits
+          breeze build-docs ${INCLUDE_DOCS} --docs-only ${EXTRA_BUILD_OPTIONS}
+      - name: Check disk space available
+        run: df -H
+      # Here we will create temp airflow-site dir to publish docs
+      - name: Create /mnt/airflow-site directory
+        run: |
+          sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
+          echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/" >> "$GITHUB_ENV"
+      - name: "Publish docs to /mnt/airflow-site directory"
+        env:
+          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+        run: >
+          breeze release-management publish-docs --override-versioned --run-in-parallel ${INCLUDE_DOCS}
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
           name: airflow-docs
-          path: ${{ env.AIRFLOW_ROOT_PATH }}/generated/_build
+          path: /mnt/airflow-site
           retention-days: '7'
           if-no-files-found: 'error'
           overwrite: 'true'
@@ -204,57 +197,33 @@ jobs:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} "
+        # We are checking repo for both - breeze and docs from the "workflow' branch
+        # This will take longer as we need to rebuild CI image and it will not use cache
+        # but it will build the CI image from the version of Airflow that is used to check out things
+      - name: "Checkout ${{ inputs.ref }} "
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Checkout ${{ inputs.ref }}"
-        run: |
-          git clone https://github.com/apache/airflow.git "${AIRFLOW_ROOT_PATH}"
-          cd "${AIRFLOW_ROOT_PATH}" && git checkout ${REF}
-        env:
-          REF: ${{ inputs.ref }}
-      - name: "Prepare breeze & CI image: 3.9"
-        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
         with:
-          platform: "linux/amd64"
-          python: 3.9
-          use-uv: true
+          use-uv: ${{ inputs.use-uv }}
       - name: "Download docs prepared as artifacts"
         uses: actions/download-artifact@v4
         with:
           name: airflow-docs
-          path: ${{ env.AIRFLOW_ROOT_PATH }}/generated/_build
+          path: /mnt/airflow-site
       - name: Check disk space available
         run: df -H
-      # Here we will create temp airflow-site dir to publish
-      # docs and for back-references
-      - name: Create /mnt/airflow-site directory
-        run: |
-          sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
-           echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/" >> "$GITHUB_ENV"
-      - name: "Publish docs to tmp directory"
-        env:
-          INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
-        run: >
-          breeze release-management publish-docs --override-versioned --run-in-parallel
-          ${INCLUDE_DOCS}
-      - name: Check disk space available
-        run: df -H
-      - name: "Generate back references for providers"
-        run: breeze release-management add-back-references all-providers
-      - name: "Generate back references for apache-airflow"
-        run: breeze release-management add-back-references apache-airflow
-      - name: "Generate back references for docker-stack"
-        run: breeze release-management add-back-references docker-stack
-      - name: "Generate back references for helm-chart"
-        run: breeze release-management add-back-references helm-chart
       - name: "Update watermarks"
         env:
           SOURCE_DIR_PATH: "/mnt/airflow-site/docs-archive/"
         # yamllint disable rule:line-length
         run: |
-          curl -sSf -o add_watermark.py https://raw.githubusercontent.com/apache/airflow-site/refs/heads/main/.github/scripts/add_watermark.py
+          curl -sSf -o add_watermark.py https://raw.githubusercontent.com/apache/airflow-site/refs/heads/main/.github/scripts/add_watermark.py \
+          --header "Authorization: Bearer ${{ github.token }} " --header "X-GitHub-Api-Version: 2022-11-28"
           chmod a+x add_watermark.py
           mkdir -p images
           curl -sSf -o images/staging.png https://raw.githubusercontent.com/apache/airflow-site/refs/heads/main/.github/scripts/images/staging.png
