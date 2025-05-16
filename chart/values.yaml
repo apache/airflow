@@ -1405,7 +1405,7 @@ apiServer:
   # your image instead or specify a configmap containing the
   # webserver_config.py.
   apiServerConfig: ~
-  # webserverConfig: |
+  # apiServerConfig: |
   #   from airflow import configuration as conf
 
   #   # The SQLAlchemy connection string.
