@@ -57,6 +57,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
     from airflowctl.api.client import Client
@@ -104,7 +105,9 @@ def _check_flag_and_exit_if_server_response_error(func):
                 return _exit_if_server_response_error(response=func(self, *args, **kwargs))
             return func(self, *args, **kwargs)
         except httpx.ConnectError as e:
-            raise e
+            if "Connection refused" in str(e):
+                raise AirflowCtlConnectionException("Connection refused. Is the API server running?")
+            raise AirflowCtlConnectionException(f"Connection error: {e}")
 
     return wrapped
 
