@@ -503,6 +503,11 @@ CONFIGS_CHANGES = [
         was_deprecated=False,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "auto_refresh_interval"),
+        renamed_to=ConfigParameter("api", "auto_refresh_interval"),
+        breaking=True,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
         renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
         breaking=True,

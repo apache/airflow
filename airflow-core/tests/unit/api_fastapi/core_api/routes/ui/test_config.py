@@ -55,7 +55,6 @@ def mock_config_data():
             ("webserver", "navbar_text_color"): "#51504f",
             ("webserver", "navbar_hover_color"): "#eee",
             ("webserver", "navbar_text_hover_color"): "#51504f",
-            ("webserver", "auto_refresh_interval"): "3",
             ("webserver", "instance_name"): "Airflow",
             ("webserver", "instance_name_has_markup"): "false",
             ("webserver", "enable_swagger_ui"): "true",
@@ -64,6 +63,7 @@ def mock_config_data():
             ("api", "hide_paused_dags_by_default"): "true",
             ("api", "page_size"): "100",
             ("api", "default_wrap"): "false",
+            ("api", "auto_refresh_interval"): "3",
         }
     ):
         yield
