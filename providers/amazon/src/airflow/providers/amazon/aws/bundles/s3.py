@@ -70,7 +70,7 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
         with self.lock():
             if not self.s3_dags_dir.exists():
                 self.log.info("Creating local DAGs directory: %s", self.s3_dags_dir)
-                os.makedirs(self.s3_dags_dir, exist_ok=True)
+                os.makedirs(self.s3_dags_dir)
 
             if not self.s3_dags_dir.is_dir():
                 raise AirflowException(f"Local DAGs path: {self.s3_dags_dir} is not a directory.")
