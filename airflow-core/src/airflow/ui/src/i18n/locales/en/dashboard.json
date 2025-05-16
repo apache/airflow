@@ -2,10 +2,10 @@
   "welcome": "Welcome",
   "stats": {
     "stats": "Stats",
-    "failedDags": "Failed DAGs",
-    "runningDags": "Running DAGs",
-    "activeDags": "Active DAGs",
-    "queuedDags": "Queued DAGs"
+    "failedDags": "Failed Dags",
+    "runningDags": "Running Dags",
+    "activeDags": "Active Dags",
+    "queuedDags": "Queued Dags"
   },
   "health": {
     "health": "Health",
@@ -17,7 +17,7 @@
   "poolSlots": "Pool Slots",
   "managePools": "Manage Pools",
   "history": "History",
-  "dagRuns": "DAG Runs",
+  "dagRuns": "Dag Runs",
   "taskInstances": "Task Instances",
   "states": {
     "queued": "Queued",
