@@ -45,6 +45,6 @@ Extras (optional)
     Specify custom proxies in json format.
     Following default requests parameters are taken into account:
 
-    * ``proxies`` 
-    
+    * ``proxies``
+
     Example: ``{"http": "http://proxy.example.com:8080", "https": "http://proxy.example.com:8080"}``
