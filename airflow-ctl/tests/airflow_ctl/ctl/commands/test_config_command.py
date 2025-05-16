@@ -104,6 +104,114 @@ class TestCliConfigLint:
         calls = [call[0][0] for call in mock_rich_print.call_args_list]
         assert "[red]Found issues in your airflow.cfg:[/red]" in calls[0]
         assert (
-            "  - [yellow]Removed deprecated `test_option` configuration parameter from `test_section` section. [/yellow]"
+            "Removed deprecated `test_option` configuration parameter from `test_section` section."
+            in calls[1]
+        )
+
+    @patch("airflowctl.api.client.Credentials.load")
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_CONFIG"})
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section_1", "test_option"),
+                renamed_to=ConfigParameter("test_section_2", "test_option"),
+            ),
+        ],
+    )
+    def test_lint_detects_renamed_configs_different_section(self, mock_rich_print, api_client_maker):
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section_1",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value",
+                        )
+                    ],
+                ),
+                ConfigSection(
+                    name="test_section_2",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value",
+                        )
+                    ],
+                ),
+            ]
+        )
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        api_client.configs.list.return_value = response_config
+
+        config_command.lint(
+            self.parser.parse_args(["config", "lint"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert "[red]Found issues in your airflow.cfg:[/red]" in calls[0]
+        assert (
+            "`test_option` configuration parameter moved from `test_section_1` section to `test_section_2` section as `test_option`."
+            in calls[1]
+        )
+
+    @patch("airflowctl.api.client.Credentials.load")
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_CONFIG"})
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option_1"),
+                renamed_to=ConfigParameter("test_section", "test_option_2"),
+            ),
+        ],
+    )
+    def test_lint_detects_renamed_configs_same_section(self, mock_rich_print, api_client_maker):
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option_1",
+                            value="test_value_1",
+                        ),
+                        ConfigOption(
+                            key="test_option_2",
+                            value="test_value_2",
+                        ),
+                    ],
+                )
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        api_client.configs.list.return_value = response_config
+
+        config_command.lint(
+            self.parser.parse_args(["config", "lint"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert "[red]Found issues in your airflow.cfg:[/red]" in calls[0]
+        assert (
+            "`test_option_1` configuration parameter renamed to `test_option_2` in the `test_section` section."
             in calls[1]
         )
