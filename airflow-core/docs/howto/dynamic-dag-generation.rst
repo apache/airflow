@@ -158,7 +158,6 @@ If you do not wish to have dags auto-registered, you can disable the behavior by
     ``with DAG(...)`` context manager are automatically registered, and no longer need to be stored in a
     global variable.
 
-
 Optimizing DAG parsing delays during execution
 ----------------------------------------------
 
@@ -218,3 +217,74 @@ of the context are set to ``None``.
 
       with DAG(dag_id=dag_id, ...):
           ...
+
+
+Abstraction of DAG objects generation
+.....................................
+
+Assume you want to create a *DAG template* which you can use for:
+
+  - Hiding the logics of your DAG from a viewer
+  - Dynamic DAG generation without a need for writing main logics of a DAG inside cycles
+  - Convenient testing.
+
+Then you can create a special function which takes a `DAG` object as an argument
+and returns the same `DAG` object as the result.
+
+For example, assume you store the following `DAG` generating function inside your ``reusables/reusable_dag.py`` module file:
+
+.. code-block:: python
+
+  import datetime
+
+  from airflow.decorators import task
+  from airflow import DAG
+
+  DEFAULT_DAG_CONFIG = {
+      'schedule': None,
+      'catchup': False,
+      'start_date': datetime.datetime.fromisoformat('2025-04-29'),
+      'default_args': {
+          'depends_on_past': False
+      },
+      'max_active_tasks': 1,
+      'max_active_runs': 1
+  }
+
+  def reusable_dag_generator(
+          dag_obj: DAG,
+          printable_msg: str
+  ):
+     """Reusable dag generator used as a template for DAG generation"""
+
+      with dag_obj:
+
+          @task()
+          def start_dag():
+              pass
+
+          @task()
+          def print_msg():
+              print(printable_msg)
+
+          @task()
+          def finish_dag():
+              pass
+
+          start_dag() >> print_msg() >> finish_dag()
+      return dag_obj
+
+Then you can import a ``reusable_dag_generator`` function in your DAG file and use it:
+
+.. code-block:: python
+
+  from airflow import DAG
+  from reusables.reusable_dag import reusable_dag_generator, DEFAULT_DAG_CONFIG
+
+  dag = reusable_dag_generator(
+      dag_obj=DAG(
+          dag_id='test0',
+          **DEFAULT_DAG_CONFIG
+      ),
+      printable_msg='Hello DAG0!'
+  )
