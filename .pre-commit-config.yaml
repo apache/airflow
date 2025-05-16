@@ -597,7 +597,6 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^clients/python/openapi_v1.yaml$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
