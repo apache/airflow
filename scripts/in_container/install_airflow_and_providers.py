@@ -430,7 +430,7 @@ def find_installation_spec(
 
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
 ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
-ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
+ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests", "selected"]
 
 INIT_CONTENT = '__path__ = __import__("pkgutil").extend_path(__path__, __name__) # type: ignore'
 FUTURE_CONTENT = "from __future__ import annotations"
