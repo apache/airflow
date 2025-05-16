@@ -1405,6 +1405,13 @@ api:
       version_added: 2.7.0
       example: ~
       default: "False"
+    grid_view_sorting_order:
+      description: |
+        Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "topological"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1707,13 +1714,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    grid_view_sorting_order:
-      description: |
-        Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
-      version_added: 2.7.0
-      type: string
-      example: ~
-      default: "topological"
     log_fetch_timeout_sec:
       description: |
         The amount of time (in secs) webserver will wait for initial handshake

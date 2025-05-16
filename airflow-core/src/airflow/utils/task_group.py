@@ -36,7 +36,7 @@ MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup
 @cache
 def get_task_group_children_getter() -> Callable:
     """Get the Task Group Children Getter for the DAG."""
-    sort_order = conf.get("webserver", "grid_view_sorting_order")
+    sort_order = conf.get("api", "grid_view_sorting_order")
     if sort_order == "topological":
         return methodcaller("topological_sort")
     return methodcaller("hierarchical_alphabetical_sort")

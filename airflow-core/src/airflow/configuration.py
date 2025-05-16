@@ -358,6 +358,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "expose_config"): ("webserver", "expose_config", "3.0.1"),
         ("fab", "access_denied_message"): ("webserver", "access_denied_message", "3.0.2"),
         ("fab", "expose_hostname"): ("webserver", "expose_hostname", "3.0.2"),
+        ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -409,7 +410,7 @@ class AirflowConfigParser(ConfigParser):
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
-        ("webserver", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
+        ("api", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
     }
 
     upgraded_values: dict[tuple[str, str], str]

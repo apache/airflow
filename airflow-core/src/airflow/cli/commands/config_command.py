@@ -426,6 +426,11 @@ CONFIGS_CHANGES = [
         breaking=True,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "grid_view_sorting_order"),
+        renamed_to=ConfigParameter("api", "grid_view_sorting_order"),
+        breaking=True,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "error_logfile"),
         was_deprecated=False,
     ),
