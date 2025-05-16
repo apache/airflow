@@ -494,6 +494,11 @@ CONFIGS_CHANGES = [
         breaking=True,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "default_wrap"),
+        renamed_to=ConfigParameter("api", "default_wrap"),
+        breaking=True,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
         renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
         breaking=True,

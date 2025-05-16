@@ -1435,6 +1435,13 @@ api:
       type: string
       example: ~
       default: "50"
+    default_wrap:
+      description: |
+        Default setting for wrap toggle on DAG code and TI log views.
+      version_added: 1.10.4
+      type: boolean
+      example: ~
+      default: "False"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1780,13 +1787,6 @@ webserver:
       type: string
       example: ~
       default: "#51504f"
-    default_wrap:
-      description: |
-        Default setting for wrap toggle on DAG code and TI log views.
-      version_added: 1.10.4
-      type: boolean
-      example: ~
-      default: "False"
     x_frame_enabled:
       description: |
         Allow the UI to be rendered in a frame
