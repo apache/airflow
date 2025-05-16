@@ -570,7 +570,8 @@ class DagRun(Base, LoggingMixin):
             .group_by(DagRun.dag_id, DagRun.backfill_id)
             .cte()
         )
-
+        effective_max_runs = coalesce(Backfill.max_active_runs, DagModel.max_active_runs)
+        now_running = coalesce(running_drs.c.num_running, text("0"))
         priority_order = [
             nulls_first(BackfillDagRun.sort_ordinal, session=session),
             nulls_first(cls.last_scheduling_decision, session=session),
@@ -648,12 +649,15 @@ class DagRun(Base, LoggingMixin):
                 isouter=True,
             )
             .where(
-                coalesce(inner_query.c.backfill_rank, inner_query.c.dag_rank) - coalesce(running_drs.c.num_running, text("0"))
-                < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
+                and_(
+                    inner_query.c.backfill_rank + now_running <= effective_max_runs,
+                    inner_query.c.dag_rank + now_running <= effective_max_runs
+                )
             )
             .order_by(*priority_order)
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
+        
         query = query.where(DagRun.run_after <= func.now())
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
