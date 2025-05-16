@@ -73,7 +73,7 @@ class ConfigChange:
             if value != self.new_default:
                 return (
                     f"Changed default value of `{self.config.option}` in `{self.config.section}` "
-                    f"from `{self.old_default}` to `{self.new_default}`. "
+                    f"from `{self.old_default}` to `{self.new_default}`."
                 )
         if self.renamed_to:
             if self.config.section != self.renamed_to.section:
@@ -88,7 +88,7 @@ class ConfigChange:
         if self.was_removed and not self.remove_if_equals:
             return (
                 f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
-                f"from `{self.config.section}` section. "
+                f"from `{self.config.section}` section."
                 f"{self.suggestion}"
             )
         if self.is_invalid_if is not None:
