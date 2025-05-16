@@ -49,13 +49,13 @@ from sqlalchemy import (
     not_,
     or_,
     text,
-    update
+    update,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates, aliased
+from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
@@ -655,9 +655,6 @@ class DagRun(Base, LoggingMixin):
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
         query = query.where(DagRun.run_after <= func.now())
-
-        print("SQL query is: \n%s", str(query))
-
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
     @classmethod
