@@ -550,7 +550,7 @@ class DagRun(Base, LoggingMixin):
         """
         Return the next queued DagRuns that the scheduler should attempt to schedule.
 
-        Uses a window function to select up to max_active_runs per DAG/backfill, removing the need for 
+        Uses a window function to select up to max_active_runs per DAG/backfill, removing the need for
         post-query filtering.
 
         :meta private:
@@ -576,20 +576,20 @@ class DagRun(Base, LoggingMixin):
             nulls_first(BackfillDagRun.sort_ordinal, session=session),
             nulls_first(cls.last_scheduling_decision, session=session),
             cls.run_after,
-            nulls_first(running_drs.c.num_running, session=session)  # many running -> lower priority)
+            nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority)
         ]
 
         # Assign a row number per dag_id
-        dag_row_number = func.row_number().over(
-            partition_by=(DagRun.dag_id),
-            order_by=priority_order
-        ).label("dag_rank")
+        dag_row_number = (
+            func.row_number().over(partition_by=(DagRun.dag_id), order_by=priority_order).label("dag_rank")
+        )
 
         # Assign a row number per backfill_id
-        backfill_row_number = func.row_number().over(
-            partition_by=(coalesce(DagRun.backfill_id, text("-1"))),
-            order_by=priority_order
-        ).label("backfill_rank")
+        backfill_row_number = (
+            func.row_number()
+            .over(partition_by=(coalesce(DagRun.backfill_id, text("-1"))), order_by=priority_order)
+            .label("backfill_rank")
+        )
 
         inner_query = (
             select(cls, dag_row_number, backfill_row_number)
@@ -651,13 +651,13 @@ class DagRun(Base, LoggingMixin):
             .where(
                 and_(
                     inner_query.c.backfill_rank + now_running <= effective_max_runs,
-                    inner_query.c.dag_rank + now_running <= effective_max_runs
+                    inner_query.c.dag_rank + now_running <= effective_max_runs,
                 )
             )
             .order_by(*priority_order)
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
-        
+
         query = query.where(DagRun.run_after <= func.now())
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 

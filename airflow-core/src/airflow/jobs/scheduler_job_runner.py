@@ -1731,7 +1731,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
-            
+
             if span.is_recording():
                 span.add_event(
                     name="dag_run",
