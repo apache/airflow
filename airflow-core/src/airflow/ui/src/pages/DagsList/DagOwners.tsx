@@ -35,7 +35,13 @@ export const DagOwners = ({
     const hasOwnerLink = link !== undefined;
 
     return hasOwnerLink ? (
-      <Link aria-label={`Owner link for ${owner}`} href={link} key={owner}>
+      <Link
+        aria-label={`Owner link for ${owner}`}
+        href={link}
+        key={owner}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
         {owner}
       </Link>
     ) : (
