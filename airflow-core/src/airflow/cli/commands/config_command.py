@@ -499,6 +499,10 @@ CONFIGS_CHANGES = [
         breaking=True,
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "instance_name_has_markup"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
         renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
         breaking=True,

@@ -6027,10 +6027,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Instance Name",
     },
-    instance_name_has_markup: {
-      type: "boolean",
-      title: "Instance Name Has Markup",
-    },
     enable_swagger_ui: {
       type: "boolean",
       title: "Enable Swagger Ui",
@@ -6092,7 +6088,6 @@ export const $ConfigResponse = {
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
     "instance_name",
-    "instance_name_has_markup",
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",

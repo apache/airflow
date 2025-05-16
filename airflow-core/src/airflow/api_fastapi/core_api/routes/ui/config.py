@@ -39,7 +39,6 @@ WEBSERVER_CONFIG_KEYS = [
     "warn_deployment_exposure",
     "require_confirmation_dag_change",
     "enable_swagger_ui",
-    "instance_name_has_markup",
 ]
 
 API_CONFIG_KEYS = [

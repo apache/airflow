@@ -1801,13 +1801,6 @@ webserver:
       type: string
       example: ~
       default:
-    instance_name_has_markup:
-      description: |
-        Whether the custom page title for the DAGs overview page contains any Markup language
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "False"
     auto_refresh_interval:
       description: |
         How frequently, in seconds, the DAG data will auto-refresh in graph or grid view

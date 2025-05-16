@@ -28,7 +28,6 @@ export const handlers: Array<HttpHandler> = [
       enable_swagger_ui: true,
       hide_paused_dags_by_default: false,
       instance_name: "Airflow",
-      instance_name_has_markup: false,
       navbar_color: "#fff",
       navbar_hover_color: "#eee",
       navbar_text_color: "#51504f",
