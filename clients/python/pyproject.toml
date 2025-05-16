@@ -51,7 +51,7 @@ classifiers = [
 
 dependencies = [
     "python-dateutil",
-    "urllib3 >= 1.25.3",
+    "urllib3 >= 2.1.0",
 ]
 
 [project.urls]
@@ -65,7 +65,7 @@ Homepage = "https://airflow.apache.org/"
 [tool.hatch.envs.test]
 dependencies = [
     "pytest-cov>=2.8.1",
-    "urllib3 >= 1.25.3",
+    "urllib3 >= 2.1.0",
 ]
 
 [tool.hatch.envs.test.scripts]

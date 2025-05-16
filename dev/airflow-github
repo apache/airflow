@@ -408,7 +408,7 @@ def api_clients_policy(previous_version, target_version):
         repo,
         previous_version,
         target_version,
-        files=[f"{repo.working_dir}/clients/python/openapi_v1.yaml"],
+        files=[f"{repo.working_dir}/airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml"],
     )
 
     clients_need_release = False
