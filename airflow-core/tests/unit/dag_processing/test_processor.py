@@ -373,7 +373,7 @@ class TestDagFileProcessor:
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "dag_name"
 
-    def test_skips_pre_import_when_disabled(self, mock_logger):
+    def test__pre_import_airflow_modules_when_disabled(self, mock_logger):
         with (
             patch("airflow.configuration.conf.getboolean", return_value=False),
             patch("airflow.dag_processing.processor.iter_airflow_imports") as mock_iter,
@@ -383,7 +383,7 @@ class TestDagFileProcessor:
         mock_iter.assert_not_called()
         mock_logger.warning.assert_not_called()
 
-    def test_imports_models_when_enabled(self, mock_logger):
+    def test__pre_import_airflow_modules_when_enabled(self, mock_logger):
         with (
             patch("airflow.configuration.conf.getboolean", return_value=True),
             patch("airflow.dag_processing.processor.iter_airflow_imports", return_value=["airflow.models"]),
@@ -394,7 +394,7 @@ class TestDagFileProcessor:
         mock_import.assert_called_once_with("airflow.models")
         mock_logger.warning.assert_not_called()
 
-    def test_warns_on_missing_module(self, mock_logger):
+    def test__pre_import_airflow_modules_warns_on_missing_module(self, mock_logger):
         with (
             patch("airflow.configuration.conf.getboolean", return_value=True),
             patch(
@@ -412,7 +412,7 @@ class TestDagFileProcessor:
         assert "non_existent_module" in warning_args[1]
         assert "test.py" in warning_args[2]
 
-    def test_partial_success_and_warning(self, mock_logger):
+    def test__pre_import_airflow_modules_partial_success_and_warning(self, mock_logger):
         with (
             patch("airflow.configuration.conf.getboolean", return_value=True),
             patch(
