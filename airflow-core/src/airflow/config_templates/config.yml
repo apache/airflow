@@ -1809,13 +1809,6 @@ webserver:
       type: string
       example: ~
       default:
-    warn_deployment_exposure:
-      description: |
-        Boolean for displaying warning for publicly viewable deployment
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "True"
     audit_view_excluded_events:
       description: |
         Comma separated string of view events to exclude from dag audit view.

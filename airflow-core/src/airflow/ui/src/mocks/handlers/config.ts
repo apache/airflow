@@ -35,7 +35,6 @@ export const handlers: Array<HttpHandler> = [
       page_size: 15,
       require_confirmation_dag_change: false,
       test_connection: "Disabled",
-      warn_deployment_exposure: true,
     }),
   ),
 ];

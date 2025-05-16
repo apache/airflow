@@ -35,7 +35,6 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",
-    "warn_deployment_exposure",
     "require_confirmation_dag_change",
     "enable_swagger_ui",
 ]
