@@ -58,8 +58,8 @@ export const AdminButton = ({ authorizedMenuItems }: { readonly authorizedMenuIt
     .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
     .map((link) => (
       <Menu.Item asChild key={link.title} value={link.title}>
-        <Link aria-label={link.title} to={link.href}>
-          {link.title}
+        <Link aria-label={translate(`admin.${link.title}`)} to={link.href}>
+          {translate(`admin.${link.title}`)}
         </Link>
       </Menu.Item>
     ));

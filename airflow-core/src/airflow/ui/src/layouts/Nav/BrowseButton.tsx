@@ -28,10 +28,12 @@ import { NavButton } from "./NavButton";
 const links = [
   {
     href: "/events",
+    key: "auditLog",
     title: "Audit Log",
   },
   {
     href: "/xcoms",
+    key: "xcoms",
     title: "XComs",
   },
 ];
@@ -42,8 +44,8 @@ export const BrowseButton = ({ authorizedMenuItems }: { readonly authorizedMenuI
     .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
     .map((link) => (
       <Menu.Item asChild key={link.title} value={link.title}>
-        <Link aria-label={link.title} to={link.href}>
-          {link.title}
+        <Link aria-label={translate(`browse.${link.key}`)} to={link.href}>
+          {translate(`browse.${link.key}`)}
         </Link>
       </Menu.Item>
     ));

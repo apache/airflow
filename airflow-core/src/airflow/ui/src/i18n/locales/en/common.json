@@ -16,7 +16,20 @@
     "assets": "Assets",
     "browse": "Browse",
     "admin": "Admin",
-    "docs": "Docs"
+    "docs": "Docs",
+    "plugins": "Plugins"
+  },
+  "browse": {
+    "auditLog": "Audit Log",
+    "xcoms": "XComs"
+  },
+  "admin": {
+    "Variables": "Variables",
+    "Pools": "Pools",
+    "Providers": "Providers",
+    "Plugins": "Plugins",
+    "Connections": "Connections",
+    "Config": "Config"
   },
   "timeRange": {
     "duration": "Duration",

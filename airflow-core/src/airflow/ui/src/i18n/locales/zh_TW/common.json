@@ -16,7 +16,20 @@
     "assets": "資源",
     "browse": "瀏覽",
     "admin": "管理者",
-    "docs": "文件"
+    "docs": "文件",
+    "plugins": "插件"
+  },
+  "browse": {
+    "auditLog": "審計日誌",
+    "xcoms": "Xcoms"
+  },
+  "admin": {
+    "Variables": "變數",
+    "Pools": "資源池",
+    "Providers": "Providers",
+    "Plugins": "插件",
+    "Connections": "連結",
+    "Config": "設定"
   },
   "timeRange": {
     "duration": "時間範圍",
