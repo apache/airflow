@@ -61,10 +61,10 @@ def mock_config_data():
             ("webserver", "instance_name_has_markup"): "false",
             ("webserver", "enable_swagger_ui"): "true",
             ("webserver", "require_confirmation_dag_change"): "false",
-            ("webserver", "default_wrap"): "false",
             ("webserver", "warn_deployment_exposure"): "false",
             ("api", "hide_paused_dags_by_default"): "true",
             ("api", "page_size"): "100",
+            ("api", "default_wrap"): "false",
         }
     ):
         yield

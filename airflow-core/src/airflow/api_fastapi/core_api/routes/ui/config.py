@@ -37,7 +37,6 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_text_hover_color",
     "auto_refresh_interval",
     "warn_deployment_exposure",
-    "default_wrap",
     "require_confirmation_dag_change",
     "enable_swagger_ui",
     "instance_name_has_markup",
@@ -46,6 +45,7 @@ WEBSERVER_CONFIG_KEYS = [
 API_CONFIG_KEYS = [
     "hide_paused_dags_by_default",
     "page_size",
+    "default_wrap",
 ]
 
 
