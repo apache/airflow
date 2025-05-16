@@ -698,3 +698,14 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
             ),
         ]
     )
+
+
+def test_set_owner() -> None:
+    op = MockOperator.partial(
+        task_id="a",
+        arg1="a",
+        owner="old_owner",
+    ).expand(arg2=["a", "b", "c"])
+    assert op.owner == "old_owner"
+    op.owner = "new_owner"
+    assert op.owner == "new_owner"
