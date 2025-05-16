@@ -68,7 +68,7 @@ export const TaskInstanceMetrics = ({
             {total}
           </StateBadge>
         </RouterLink>
-        <Heading size="md">{translate("taskInstances", { count: total })}</Heading>
+        <Heading size="md">{translate("taskInstance", { count: total })}</Heading>
       </HStack>
       <Separator my={3} />
       <Stack gap={4}>

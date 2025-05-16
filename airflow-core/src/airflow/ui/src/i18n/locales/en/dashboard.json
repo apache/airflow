@@ -17,8 +17,12 @@
   "poolSlots": "Pool Slots",
   "managePools": "Manage Pools",
   "history": "History",
-  "dagRuns": "Dag Runs",
-  "taskInstances": "Task Instances",
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "taskInstance_one": "Task Instance",
+  "taskInstance_other": "Task Instances",
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
   "states": {
     "queued": "Queued",
     "running": "Running",
@@ -34,6 +38,5 @@
     "deferred": "Deferred",
     "no_status": "No Status"
   },
-  "assetEvents": "Asset Events",
   "noAssetEvents": "No Asset Events found."
 }

@@ -19,12 +19,12 @@
 import { Box, Heading, Flex, HStack, Skeleton, Separator } from "@chakra-ui/react";
 import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import type { AssetEventCollectionResponse, AssetEventResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
-import { pluralize } from "src/utils";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
@@ -63,6 +63,7 @@ export const AssetEvents = ({
       { label: "Oldest first", value: "timestamp" },
     ],
   });
+  const { t: translate } = useTranslation("dashboard");
 
   return (
     <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} ml={2} p={4} py={2} {...rest}>
@@ -73,7 +74,7 @@ export const AssetEvents = ({
             {data?.total_entries ?? " "}
           </StateBadge>
           <Heading marginEnd="auto" size="md">
-            {pluralize(title ?? "Asset Event", data?.total_entries ?? 0, undefined, true)}
+            {translate("assetEvent", { count: data?.total_entries ?? 0 })}
           </Heading>
         </HStack>
         {setOrderBy === undefined ? undefined : (
