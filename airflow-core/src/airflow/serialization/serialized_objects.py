@@ -100,7 +100,7 @@ if TYPE_CHECKING:
     from inspect import Parameter
 
     from airflow.models import DagRun
-    from airflow.models.expandinput import ExpandInput
+    from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.types import Operator
@@ -557,7 +557,7 @@ class _ExpandInputRef(NamedTuple):
         possible ExpandInput cases.
         """
 
-    def deref(self, dag: DAG) -> ExpandInput:
+    def deref(self, dag: DAG) -> SchedulerExpandInput:
         """
         De-reference into a concrete ExpandInput object.
 

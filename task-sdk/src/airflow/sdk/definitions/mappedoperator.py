@@ -64,12 +64,12 @@ if TYPE_CHECKING:
         TaskStateChangeCallback,
     )
     from airflow.models.expandinput import (
-        ExpandInput,
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.definitions.xcom_arg import XComArg
