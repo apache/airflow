@@ -164,9 +164,21 @@ class TestS3DagBundle:
         bundle = S3DagBundle(
             name="test",
             aws_conn_id=AWS_CONN_ID_WITH_REGION,
-            prefix="project1_dags",
+            prefix=S3_BUCKET_PREFIX,
             bucket_name=S3_BUCKET_NAME,
         )
+        # initialize succeeds, with correct prefix and bucket
+        bundle.initialize()
+        assert bundle.s3_hook.region_name == AWS_CONN_ID_REGION
+
+        bundle = S3DagBundle(
+            name="test",
+            aws_conn_id=AWS_CONN_ID_WITH_REGION,
+            prefix="",
+            bucket_name=S3_BUCKET_NAME,
+        )
+        # initialize succeeds, with empty prefix
+        bundle.initialize()
         assert bundle.s3_hook.region_name == AWS_CONN_ID_REGION
 
     def _upload_fixtures(self, bucket: str, fixtures_dir: str) -> None:
@@ -235,6 +247,41 @@ class TestS3DagBundle:
             level="DEBUG",
             regex=r"Deleted stale local file.*dag_should_be_deleted.py.*",
         )
+
+    @pytest.mark.db_test
+    def test_refresh_without_prefix(self, s3_bucket, s3_client, caplog):
+        caplog.set_level(logging.ERROR)
+        caplog.set_level(logging.DEBUG, logger="airflow.providers.amazon.aws.bundles.s3.S3DagBundle")
+        bundle = S3DagBundle(
+            name="test",
+            aws_conn_id=AWS_CONN_ID_WITH_REGION,
+            bucket_name=S3_BUCKET_NAME,
+        )
+        assert bundle.prefix == ""
+        bundle.initialize()
+
+        self.assert_log_matches_regex(
+            caplog=caplog,
+            level="DEBUG",
+            regex=rf"Downloaded.*subproject1/dag_a.py.*{bundle.s3_dags_dir.as_posix()}.*subproject1/dag_a.py.*",
+        )
+        s3_client.put_object(Bucket=s3_bucket.name, Key=S3_BUCKET_PREFIX + "/dag_03.py", Body=b"test data")
+        bundle.refresh()
+        assert caplog.text.count("Downloading DAGs from s3") == 3
+        self.assert_log_matches_regex(
+            caplog=caplog,
+            level="DEBUG",
+            regex=rf"Local file.*/s3/{bundle.name}.*/dag_a.py.*is up-to-date with S3 object.*dag_a.py.*",
+        )
+        self.assert_log_matches_regex(
+            caplog=caplog,
+            level="DEBUG",
+            regex=rf"Downloaded.*dag_03.py.*/s3/{bundle.name}.*/dag_03.py",
+        )
+        # we are using s3 bucket rood but the dag file is in sub folder, project1/dags/dag_03.py
+        assert bundle.s3_dags_dir.joinpath("project1/dags/dag_03.py").read_text() == "test data"
+        bundle.s3_dags_dir.joinpath("dag_should_be_deleted.py").write_text("test dag")
+        bundle.s3_dags_dir.joinpath("dag_should_be_deleted_folder").mkdir(exist_ok=True)
 
     def assert_log_matches_regex(self, caplog, level, regex):
         """Helper function to assert if a log message matches a regex."""

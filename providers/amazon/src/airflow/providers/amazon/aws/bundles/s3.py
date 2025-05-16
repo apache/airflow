@@ -78,10 +78,14 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
             if not self.s3_hook.check_for_bucket(bucket_name=self.bucket_name):
                 raise AirflowException(f"S3 bucket '{self.bucket_name}' does not exist.")
 
-            if not self.s3_hook.check_for_prefix(
-                bucket_name=self.bucket_name, prefix=self.prefix, delimiter="/"
-            ):
-                raise AirflowException(f"S3 prefix 's3://{self.bucket_name}/{self.prefix}' does not exist.")
+            if self.prefix:
+                # don't check when prefix is "" or None
+                if not self.s3_hook.check_for_prefix(
+                    bucket_name=self.bucket_name, prefix=self.prefix, delimiter="/"
+                ):
+                    raise AirflowException(
+                        f"S3 prefix 's3://{self.bucket_name}/{self.prefix}' does not exist."
+                    )
 
             self._download_s3_dags()
         self.refresh()
