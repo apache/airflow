@@ -57,11 +57,11 @@ def mock_config_data():
             ("webserver", "instance_name"): "Airflow",
             ("webserver", "instance_name_has_markup"): "false",
             ("webserver", "enable_swagger_ui"): "true",
-            ("webserver", "require_confirmation_dag_change"): "false",
             ("api", "hide_paused_dags_by_default"): "true",
             ("api", "page_size"): "100",
             ("api", "default_wrap"): "false",
             ("api", "auto_refresh_interval"): "3",
+            ("api", "require_confirmation_dag_change"): "false",
         }
     ):
         yield

@@ -364,6 +364,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
         ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
+        ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
