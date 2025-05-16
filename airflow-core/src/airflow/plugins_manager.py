@@ -525,7 +525,7 @@ def integrate_macros_plugins() -> None:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
-        macros_module = make_module(f"airflow.sdk.definitions.{plugin.name}", plugin.macros)
+        macros_module = make_module(f"airflow.sdk.macros.{plugin.name}", plugin.macros)
 
         if macros_module:
             macros_modules.append(macros_module)

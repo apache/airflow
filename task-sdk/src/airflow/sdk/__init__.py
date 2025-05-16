@@ -53,6 +53,7 @@ __all__ = [
     "task",
     "task_group",
     "teardown",
+    "macros",
 ]
 
 __version__ = "1.1.0"
@@ -62,6 +63,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.definitions import macros
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
@@ -112,6 +114,7 @@ __lazy_imports: dict[str, str] = {
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",
     "teardown": ".definitions.decorators",
+    "macros": ".definitions.macros",
 }
 
 
