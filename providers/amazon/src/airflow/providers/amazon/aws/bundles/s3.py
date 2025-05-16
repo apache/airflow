@@ -62,7 +62,7 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
         self.s3_dags_dir: Path = self.s3_dags_root_dir.joinpath(self.name)
 
         try:
-            self.s3_hook: S3Hook = S3Hook(aws_conn_id=self.aws_conn_id, extra_args={})  # Initialize S3 hook.
+            self.s3_hook: S3Hook = S3Hook(aws_conn_id=self.aws_conn_id)  # Initialize S3 hook.
         except AirflowException as e:
             self.log.warning("Could not create S3Hook for connection %s: %s", self.aws_conn_id, e)
 
