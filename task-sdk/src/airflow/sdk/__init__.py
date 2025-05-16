@@ -123,7 +123,7 @@ def __getattr__(name: str):
         import importlib
 
         mod = importlib.import_module(module_path, __name__)
-        val = getattr(mod, name)
+        val = getattr(mod, name, mod)
 
         # Store for next time
         globals()[name] = val

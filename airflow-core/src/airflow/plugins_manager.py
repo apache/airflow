@@ -507,7 +507,7 @@ def integrate_macros_plugins() -> None:
     global plugins
     global macros_modules
 
-    from airflow.sdk.definitions import macros
+    from airflow.sdk import macros
 
     if macros_modules is not None:
         return
