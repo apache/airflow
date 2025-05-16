@@ -363,6 +363,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
         ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
         ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
+        ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
