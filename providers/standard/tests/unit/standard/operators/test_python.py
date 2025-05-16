@@ -1451,6 +1451,99 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
+    @pytest.mark.parametrize(
+        "requirements, system_site, want_airflow, want_pendulum",
+        [
+            # nothing → just base keys
+            ([], False, False, False),
+            # site-packages → base keys + pendulum keys
+            ([], True, True, True),
+            # apache-airflow / no version constraint
+            (["apache-airflow"], False, True, True),
+            # specific version
+            (["apache-airflow==2.10.2"], False, True, True),
+            # minimum version
+            (["apache-airflow>=2.10"], False, True, True),
+            # pendulum / no version constraint
+            (["pendulum"], False, False, True),
+            # compatible release
+            (["pendulum~=2.1.0"], False, False, True),
+            # other package
+            (["foo==1.0.0"], False, False, False),
+            # with other package
+            (["apache-airflow", "foo"], False, True, True),
+            # full-line comment only
+            (["# comment"], False, False, False),
+            # inline comment after requirement
+            (["apache-airflow==2.10.2  # comment"], False, True, True),
+            # blank line + requirement
+            (["", "pendulum"], False, False, True),
+            # indented comment + requirement
+            (["  # comment", "pendulum~=2.1.0"], False, False, True),
+        ],
+    )
+    def test_iter_serializable_context_keys(self, requirements, system_site, want_airflow, want_pendulum):
+        def func():
+            return "test_return_value"
+
+        op = PythonVirtualenvOperator(
+            task_id="task",
+            python_callable=func,
+            requirements=requirements,
+            system_site_packages=system_site,
+        )
+        keys = set(op._iter_serializable_context_keys())
+
+        base_keys = set(op.BASE_SERIALIZABLE_CONTEXT_KEYS)
+        airflow_keys = set(op.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS)
+        pendulum_keys = set(op.PENDULUM_SERIALIZABLE_CONTEXT_KEYS)
+
+        # BASE keys always present
+        assert base_keys <= keys
+
+        # AIRFLOW keys only when expected
+        if want_airflow:
+            assert airflow_keys <= keys, f"expected AIRFLOW keys for requirements: {requirements}"
+        else:
+            assert not (airflow_keys & keys), f"unexpected AIRFLOW keys for requirements: {requirements}"
+
+        # PENDULUM keys only when expected
+        if want_pendulum:
+            assert pendulum_keys <= keys, f"expected PENDULUM keys for requirements: {requirements}"
+        else:
+            assert not (pendulum_keys & keys), f"unexpected PENDULUM keys for requirements: {requirements}"
+
+    @pytest.mark.parametrize(
+        "invalid_requirement",
+        [
+            # invalid version format
+            "pendulum==3..0",
+            # invalid operator (=< instead of <=)
+            "apache-airflow=<2.0",
+            # same invalid operator on pendulum
+            "pendulum=<3.0",
+            # totally malformed
+            "invalid requirement",
+        ],
+    )
+    def test_iter_serializable_context_keys_invalid_requirement(self, invalid_requirement):
+        def func():
+            return "test_return_value"
+
+        op = PythonVirtualenvOperator(
+            task_id="task",
+            python_callable=func,
+            requirements=[invalid_requirement],
+            system_site_packages=False,
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            # Consume the generator to trigger parsing
+            list(op._iter_serializable_context_keys())
+
+        msg = str(exc_info.value)
+        assert f"Invalid requirement '{invalid_requirement}'" in msg
+
 
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
@@ -1946,7 +2039,7 @@ class TestShortCircuitWithTeardown:
     def test_short_circuit_with_teardowns(
         self, dag_maker, ignore_downstream_trigger_rules, should_skip, with_teardown, expected
     ):
-        with dag_maker() as dag:
+        with dag_maker(serialized=True):
             op1 = ShortCircuitOperator(
                 task_id="op1",
                 python_callable=lambda: not should_skip,
@@ -1959,21 +2052,20 @@ class TestShortCircuitWithTeardown:
                 op4.as_teardown()
             op1 >> op2 >> op3 >> op4
             op1.skip = MagicMock()
-            dagrun = dag_maker.create_dagrun()
-            tis = dagrun.get_task_instances()
-            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-            ti._run_raw_task()
-            expected_tasks = {dag.task_dict[x] for x in expected}
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
+        ti._run_raw_task()
         if should_skip:
             # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
-            assert actual_skipped == expected_tasks
+            actual_skipped = set(x.task_id for x in op1.skip.call_args.kwargs["tasks"])
+            assert actual_skipped == set(expected)
         else:
             op1.skip.assert_not_called()
 
     @pytest.mark.parametrize("config", ["sequence", "parallel"])
     def test_short_circuit_with_teardowns_complicated(self, dag_maker, config):
-        with dag_maker():
+        with dag_maker(serialized=True):
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
             s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
             op1 = ShortCircuitOperator(
@@ -1990,16 +2082,16 @@ class TestShortCircuitWithTeardown:
             else:
                 raise ValueError("unexpected")
             op1.skip = MagicMock()
-            dagrun = dag_maker.create_dagrun()
-            tis = dagrun.get_task_instances()
-            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-            ti._run_raw_task()
-            # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
-            assert actual_skipped == {s2, op2}
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
+        ti._run_raw_task()
+        # we can't use assert_called_with because it's a set and therefore not ordered
+        actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
+        assert actual_skipped == {s2, op2}
 
     def test_short_circuit_with_teardowns_complicated_2(self, dag_maker):
-        with dag_maker():
+        with dag_maker(serialized=True):
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
             s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
             op1 = ShortCircuitOperator(
@@ -2017,14 +2109,14 @@ class TestShortCircuitWithTeardown:
             # in this case we don't want to skip t2 since it should run
             op1 >> t2
             op1.skip = MagicMock()
-            dagrun = dag_maker.create_dagrun()
-            tis = dagrun.get_task_instances()
-            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-            ti._run_raw_task()
-            # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_kwargs = op1.skip.call_args.kwargs
-            actual_skipped = set(actual_kwargs["tasks"])
-            assert actual_skipped == {op3}
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
+        ti._run_raw_task()
+        # we can't use assert_called_with because it's a set and therefore not ordered
+        actual_kwargs = op1.skip.call_args.kwargs
+        actual_skipped = set(actual_kwargs["tasks"])
+        assert actual_skipped == {op3}
 
     @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
     def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db):
@@ -2032,7 +2124,7 @@ class TestShortCircuitWithTeardown:
         When logging is debug we convert to a list to log the tasks skipped
         before passing them to the skip method.
         """
-        with dag_maker():
+        with dag_maker(serialized=True):
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
             s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
             op1 = ShortCircuitOperator(
@@ -2051,18 +2143,18 @@ class TestShortCircuitWithTeardown:
             # in this case we don't want to skip t2 since it should run
             op1 >> t2
             op1.skip = MagicMock()
-            dagrun = dag_maker.create_dagrun()
-            tis = dagrun.get_task_instances()
-            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-            ti._run_raw_task()
-            # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_kwargs = op1.skip.call_args.kwargs
-            actual_skipped = actual_kwargs["tasks"]
-            if level <= logging.DEBUG:
-                assert isinstance(actual_skipped, list)
-            else:
-                assert isinstance(actual_skipped, Generator)
-            assert set(actual_skipped) == {op3}
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
+        ti._run_raw_task()
+        # we can't use assert_called_with because it's a set and therefore not ordered
+        actual_kwargs = op1.skip.call_args.kwargs
+        actual_skipped = actual_kwargs["tasks"]
+        if level <= logging.DEBUG:
+            assert isinstance(actual_skipped, list)
+        else:
+            assert isinstance(actual_skipped, Generator)
+        assert set(actual_skipped) == {op3}
 
 
 @pytest.mark.parametrize(

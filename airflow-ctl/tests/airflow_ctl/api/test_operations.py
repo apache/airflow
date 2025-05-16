@@ -20,8 +20,6 @@ from __future__ import annotations
 import datetime
 import json
 import uuid
-from contextlib import redirect_stdout
-from io import StringIO
 from typing import TYPE_CHECKING
 
 import httpx
@@ -75,6 +73,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
     from pydantic import NonNegativeInt
@@ -93,13 +92,10 @@ def make_api_client(
 class TestBaseOperations:
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
-        with (
-            pytest.raises(httpx.ConnectError),
-            redirect_stdout(StringIO()) as stdout,
+        with pytest.raises(
+            AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
-            client.connections.get(1)
-        stdout = stdout.getvalue()
-        assert "" in stdout
+            client.connections.get("1")
 
 
 class TestAssetsOperations:
@@ -283,11 +279,27 @@ class TestConfigOperations:
         )
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/section/{self.section}/option/{self.option}"
+            assert request.url.path == f"/api/v2/config/section/{self.section}/option/{self.option}"
             return httpx.Response(200, json=response_config.model_dump())
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.configs.get(section=self.section, option=self.option)
+        assert response == response_config
+
+    def test_list(self):
+        response_config = Config(
+            sections=[
+                ConfigSection(name="section-1", options=[ConfigOption(key="option-1", value="value-1")]),
+                ConfigSection(name="section-2", options=[ConfigOption(key="option-2", value="value-2")]),
+            ]
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/config"
+            return httpx.Response(200, json=response_config.model_dump())
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.configs.list()
         assert response == response_config
 
 
@@ -527,6 +539,7 @@ class TestDagRunOperations:
                 bundle_name="bundle_name",
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                dag_display_name=dag_id,
             )
         ],
     )

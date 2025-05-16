@@ -57,6 +57,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
     from airflowctl.api.client import Client
@@ -104,7 +105,9 @@ def _check_flag_and_exit_if_server_response_error(func):
                 return _exit_if_server_response_error(response=func(self, *args, **kwargs))
             return func(self, *args, **kwargs)
         except httpx.ConnectError as e:
-            raise e
+            if "Connection refused" in str(e):
+                raise AirflowCtlConnectionException("Connection refused. Is the API server running?")
+            raise AirflowCtlConnectionException(f"Connection error: {e}")
 
     return wrapped
 
@@ -253,7 +256,15 @@ class ConfigOperations(BaseOperations):
     def get(self, section: str, option: str) -> Config | ServerResponseError:
         """Get a config from the API server."""
         try:
-            self.response = self.client.get(f"/section/{section}/option/{option}")
+            self.response = self.client.get(f"/config/section/{section}/option/{option}")
+            return Config.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list(self) -> Config | ServerResponseError:
+        """List all configs from the API server."""
+        try:
+            self.response = self.client.get("/config")
             return Config.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e

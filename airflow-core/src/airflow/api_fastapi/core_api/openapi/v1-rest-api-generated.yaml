@@ -40,7 +40,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: uri_pattern
         in: query
         required: false
@@ -48,7 +52,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Uri Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: dag_ids
         in: query
         required: false
@@ -135,7 +143,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: order_by
         in: query
         required: false
@@ -1392,7 +1404,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Connection Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -2651,7 +2667,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -2659,7 +2679,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -2828,7 +2852,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -3910,7 +3938,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -4511,8 +4543,9 @@ paths:
         in: query
         required: false
         schema:
-          type: integer
-          default: -1
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -4536,7 +4569,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5224,7 +5257,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -5248,7 +5283,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5434,7 +5469,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Task Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: state
         in: query
         required: false
@@ -5817,7 +5856,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -5904,8 +5945,9 @@ paths:
         in: query
         required: false
         schema:
-          type: integer
-          default: -1
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: update_mask
         in: query
@@ -6275,7 +6317,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Variable Key Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -6449,7 +6495,7 @@ paths:
           type: string
           enum:
           - application/json
-          - text/plain
+          - application/x-ndjson
           - '*/*'
           default: '*/*'
           title: Accept
@@ -6460,10 +6506,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskInstancesLogResponse'
-            text/plain:
+            application/x-ndjson:
               schema:
                 type: string
-                example: 'content
+                example: '{"content": "content"}
+
+                  {"content": "content"}
 
                   '
         '401':
@@ -6657,7 +6705,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Tag Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -8073,6 +8125,13 @@ components:
             type: object
           - type: 'null'
           title: Default Args
+        owner_links:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Owner Links
         file_token:
           type: string
           title: File Token
@@ -8843,6 +8902,9 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         bundle_url:
           anyOf:
           - type: string
@@ -8857,6 +8919,7 @@ components:
       - bundle_name
       - bundle_version
       - created_at
+      - dag_display_name
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
@@ -9571,11 +9634,15 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - dag_id
       - asset_id
       - created_at
+      - dag_display_name
       title: QueuedEventResponse
       description: Queued Event serializer for responses..
     ReprocessBehavior:

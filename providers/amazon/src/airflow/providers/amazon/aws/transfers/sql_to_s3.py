@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import enum
+import gzip
+import io
 from collections import namedtuple
 from collections.abc import Iterable, Mapping, Sequence
-from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, cast
 
 from typing_extensions import Literal
@@ -191,16 +192,29 @@ class SqlToS3Operator(BaseOperator):
         self.log.info("Data from SQL obtained")
         self._fix_dtypes(data_df, self.file_format)
         file_options = FILE_OPTIONS_MAP[self.file_format]
-        for group_name, df in self._partition_dataframe(df=data_df):
-            with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
-                self.log.info("Writing data to temp file")
-                getattr(df, file_options.function)(tmp_file.name, **self.pd_kwargs)
 
-                self.log.info("Uploading data to S3")
-                object_key = f"{self.s3_key}_{group_name}" if group_name else self.s3_key
-                s3_conn.load_file(
-                    filename=tmp_file.name, key=object_key, bucket_name=self.s3_bucket, replace=self.replace
-                )
+        for group_name, df in self._partition_dataframe(df=data_df):
+            buf = io.BytesIO()
+            self.log.info("Writing data to in-memory buffer")
+            object_key = f"{self.s3_key}_{group_name}" if group_name else self.s3_key
+
+            if self.pd_kwargs.get("compression") == "gzip":
+                pd_kwargs = {k: v for k, v in self.pd_kwargs.items() if k != "compression"}
+                with gzip.GzipFile(fileobj=buf, mode="wb", filename=object_key) as gz:
+                    getattr(df, file_options.function)(gz, **pd_kwargs)
+            else:
+                if self.file_format == FILE_FORMAT.PARQUET:
+                    getattr(df, file_options.function)(buf, **self.pd_kwargs)
+                else:
+                    text_buf = io.TextIOWrapper(buf, encoding="utf-8", write_through=True)
+                    getattr(df, file_options.function)(text_buf, **self.pd_kwargs)
+                    text_buf.flush()
+            buf.seek(0)
+
+            self.log.info("Uploading data to S3")
+            s3_conn.load_file_obj(
+                file_obj=buf, key=object_key, bucket_name=self.s3_bucket, replace=self.replace
+            )
 
     def _partition_dataframe(self, df: pd.DataFrame) -> Iterable[tuple[str, pd.DataFrame]]:
         """Partition dataframe using pandas groupby() method."""

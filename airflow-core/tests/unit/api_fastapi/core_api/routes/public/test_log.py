@@ -27,7 +27,7 @@ import pytest
 from itsdangerous.url_safe import URLSafeSerializer
 from uuid6 import uuid7
 
-from airflow.api_fastapi.common.deps import _get_dag_bag
+from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -37,7 +37,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 class TestTaskInstancesLog:
@@ -109,10 +109,10 @@ class TestTaskInstancesLog:
             session.flush()
         session.flush()
 
-        dagbag = _get_dag_bag()
+        dagbag = create_dag_bag()
         dagbag.bag_dag(dag)
         dagbag.bag_dag(dummy_dag)
-        test_client.app.dependency_overrides[_get_dag_bag] = lambda: dagbag
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
@@ -211,9 +211,7 @@ class TestTaskInstancesLog:
             ),
         ],
     )
-    def test_should_respond_200_text_plain(
-        self, request_url, expected_filename, extra_query_string, try_number
-    ):
+    def test_should_respond_200_ndjson(self, request_url, expected_filename, extra_query_string, try_number):
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         key = self.app.state.secret_key
@@ -223,7 +221,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             request_url,
             params={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 200
 
@@ -266,11 +264,11 @@ class TestTaskInstancesLog:
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         # Recreate DAG without tasks
-        dagbag = _get_dag_bag()
+        dagbag = create_dag_bag()
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
         dagbag.bag_dag(dag=dag)
 
-        self.app.dependency_overrides[_get_dag_bag] = lambda: dagbag
+        self.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
         key = self.app.state.secret_key
         serializer = URLSafeSerializer(key)
@@ -279,7 +277,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             request_url,
             params={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
 
         assert response.status_code == 200
@@ -314,7 +312,7 @@ class TestTaskInstancesLog:
             response = self.client.get(
                 f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
                 f"taskInstances/{self.TASK_ID}/logs/{try_number}?full_content=True",
-                headers={"Accept": "text/plain"},
+                headers={"Accept": "application/x-ndjson"},
             )
 
             assert "1st line" in response.content.decode("utf-8")
@@ -382,7 +380,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
             params={"token": token},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"
@@ -395,7 +393,7 @@ class TestTaskInstancesLog:
         response = self.client.get(
             f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             params={"token": token, "map_index": 0},
-            headers={"Accept": "text/plain"},
+            headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"

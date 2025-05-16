@@ -20,6 +20,36 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add back ProxyFix Middleware for flask app builder (#49942)``
+* ``Move access_denied_message webserver config to fab (#50208)``
+* ``Move webserver expose_hostname config to fab (#50269)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#50312)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#50035)``
+* ``Upgrade 'flask-appbuilder' to 4.6.3 in FAB provider (#50513)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Update oauth keycloak example with new security manager (#50284)``
+* ``docs: conditionally render section‐move links in sections‐and‐options include (#50582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Fix main - Generate FAB assets (#50546)``
+   * ``Fix Fab docs (#50594)``
+
 2.0.2
 .....
 

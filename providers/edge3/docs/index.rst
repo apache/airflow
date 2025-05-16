@@ -75,10 +75,22 @@
 apache-airflow-providers-edge3 package
 ------------------------------------------------------
 
-Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
+Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
+
+When tasks need to be executed on remote sites where the connection need to pass through
+firewalls or other network restrictions, the Edge Worker can be deployed. The Edge Worker
+is a lightweight process with reduced dependencies. The worker only needs to be able to
+communicate with the central Airflow site via HTTPS.
+
+In the central Airflow site the EdgeExecutor is used to orchestrate the work. The EdgeExecutor
+is a custom executor which is used to schedule tasks on the edge workers. The EdgeExecutor can co-exist
+with other executors (for example CeleryExecutor or KubernetesExecutor) in the same Airflow site.
+
+Additional REST API endpoints are provided to distribute tasks and manage the edge workers. The endpoints
+are provided by the API server.
 
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -98,13 +110,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-==================  ===================
-PIP package         Version required
-==================  ===================
-``apache-airflow``  ``>=2.10.0``
-``pydantic``        ``>=2.11.0``
-``retryhttp``       ``>=1.2.0,!=1.3.0``
-==================  ===================
+================================  ===================
+PIP package                       Version required
+================================  ===================
+``apache-airflow``                ``>=2.10.0``
+``apache-airflow-providers-fab``  ``>=1.5.3``
+``pydantic``                      ``>=2.11.0``
+``retryhttp``                     ``>=1.2.0,!=1.3.0``
+================================  ===================
 
 Cross provider package dependencies
 -----------------------------------
@@ -131,5 +144,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-edge3 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-edge3 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-edge3 1.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-edge3 1.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.1.0-py3-none-any.whl.sha512>`__)

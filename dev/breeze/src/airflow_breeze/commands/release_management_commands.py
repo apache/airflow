@@ -240,7 +240,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.2"
+AIRFLOW_UV_VERSION = "0.7.3"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -854,13 +854,15 @@ def prepare_provider_documentation(
             ):
                 if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
-                    with_breaking_changes, maybe_with_new_features = update_release_notes(
-                        provider_id,
-                        reapply_templates_only=reapply_templates_only,
-                        base_branch=base_branch,
-                        regenerate_missing_docs=reapply_templates_only,
-                        non_interactive=non_interactive,
-                        only_min_version_update=only_min_version_update,
+                    with_breaking_changes, maybe_with_new_features, with_min_airflow_version_bump = (
+                        update_release_notes(
+                            provider_id,
+                            reapply_templates_only=reapply_templates_only,
+                            base_branch=base_branch,
+                            regenerate_missing_docs=reapply_templates_only,
+                            non_interactive=non_interactive,
+                            only_min_version_update=only_min_version_update,
+                        )
                     )
                 update_min_airflow_version_and_build_files(
                     provider_id=provider_id,
@@ -880,6 +882,7 @@ def prepare_provider_documentation(
                         with_breaking_changes=with_breaking_changes,
                         maybe_with_new_features=maybe_with_new_features,
                         only_min_version_update=only_min_version_update,
+                        with_min_airflow_version_bump=with_min_airflow_version_bump,
                     )
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
@@ -3785,6 +3788,11 @@ def generate_issue_content(
     is_flag=True,
     help="Publish all the stable versions of the docs in the source directory.",
 )
+@click.option(
+    "--skip-write-to-stable-folder",
+    is_flag=True,
+    help="Skip writing stable versions folder.",
+)
 @option_parallelism
 def publish_docs_to_s3(
     source_dir_path: str,
@@ -3795,6 +3803,7 @@ def publish_docs_to_s3(
     parallelism: int,
     publish_all_docs: bool,
     stable_versions: bool,
+    skip_write_to_stable_folder: bool,
 ):
     from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
 
@@ -3817,6 +3826,7 @@ def publish_docs_to_s3(
         overwrite=overwrite,
         destination_location=destination_location,
         parallelism=parallelism,
+        skip_write_to_stable_folder=skip_write_to_stable_folder,
     )
     if publish_all_docs:
         docs_to_s3.publish_all_docs()
