@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from weaviate.collections import Collection
     from weaviate.collections.classes.batch import ErrorReference
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
+    from weaviate.collections.classes.filters import _Filters
     from weaviate.collections.classes.internal import (
         Object,
         QueryReturnType,
@@ -194,7 +195,7 @@ class WeaviateHook(BaseHook):
     def delete_by_property(
         self,
         collection_names: list[str] | str,
-        filter_criteria: Filter,
+        filter_criteria: _Filters,
         if_error: str = "stop",
         dry_run: bool = False,
         verbose: bool = False,
@@ -222,8 +223,6 @@ class WeaviateHook(BaseHook):
         >>>     if_error="stop"
         >>> )
         """
-        client = self.get_conn()
-
         collection_names = [collection_names] if isinstance(collection_names, str) else collection_names
 
         failed_collection_list = []
@@ -240,8 +239,8 @@ class WeaviateHook(BaseHook):
                 ):
                     with attempt:
                         self.log.info(attempt)
-                        collection = client.collections.get(collection_name)
-                        collection.data.delete_many(where=filter_criteria, dry_run=dry_run, verbose=verbose)
+                        collection = self.get_collection(collection_name)
+                        collection.data.delete_many(where=filter_criteria, verbose=verbose, dry_run=dry_run)
             except Exception as e:
                 if if_error == "continue":
                     self.log.error(e)
