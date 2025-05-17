@@ -21,6 +21,8 @@ from unittest.mock import ANY, Mock, call
 
 import pytest
 
+import airflow
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
@@ -30,6 +32,9 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
 )
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.xcom import resolve_xcom_backend
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture
@@ -50,6 +55,12 @@ def mock_ti():
 @pytest.fixture
 def lazy_sequence(mock_xcom_arg, mock_ti):
     return LazyXComSequence(mock_xcom_arg, mock_ti)
+
+
+class CustomXCom(BaseXCom):
+    @classmethod
+    def deserialize_value(cls, xcom):
+        return f"Made with CustomXCom: {xcom.value}"
 
 
 def test_len(mock_supervisor_comms, lazy_sequence):
@@ -95,6 +106,29 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
 def test_getitem_index(mock_supervisor_comms, lazy_sequence):
     mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value="f")
     assert lazy_sequence[4] == "f"
+    assert mock_supervisor_comms.send_request.mock_calls == [
+        call(
+            log=ANY,
+            msg=GetXComSequenceItem(
+                key="return_value",
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                offset=4,
+            ),
+        ),
+    ]
+
+
+@conf_vars({("core", "xcom_backend"): "task_sdk.execution_time.test_lazy_sequence.CustomXCom"})
+def test_getitem_calls_correct_deserialise(mock_supervisor_comms, lazy_sequence):
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value="some-value")
+
+    xcom = resolve_xcom_backend()
+    assert xcom.__name__ == "CustomXCom"
+    airflow.sdk.execution_time.xcom.XCom = xcom
+
+    assert lazy_sequence[4] == "Made with CustomXCom: some-value"
     assert mock_supervisor_comms.send_request.mock_calls == [
         call(
             log=ANY,

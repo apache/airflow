@@ -87,6 +87,8 @@ class TestGetConfig:
         response = unauthenticated_test_client.get("/config")
         assert response.status_code == 401
 
-    def test_get_config_should_response_403(self, unauthorized_test_client):
+    def test_get_config_just_authenticated(self, mock_config_data, unauthorized_test_client):
+        """Just being authenticated is enough to access the endpoint."""
         response = unauthorized_test_client.get("/config")
-        assert response.status_code == 403
+        assert response.status_code == 200
+        assert response.json() == mock_config_response

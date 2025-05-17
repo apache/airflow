@@ -101,7 +101,11 @@
     {{ "-" * (deprecated_option_name + " (Deprecated)")|length }}
 
     .. deprecated:: {{ since_version }}
+    {% if new_section_name in configs %}
      The option has been moved to :ref:`{{ new_section_name }}.{{ new_option_name }} <config:{{ new_section_name }}__{{ new_option_name }}>`
+    {% else %}
+     The option has been moved to ``{{ new_section_name }}.{{ new_option_name }}``
+    {% endif %}
     {% endfor %}
     {% endif %}
 

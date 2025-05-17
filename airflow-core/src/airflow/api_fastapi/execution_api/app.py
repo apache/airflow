@@ -225,7 +225,11 @@ class InProcessExecutionAPI:
     def app(self):
         if not self._app:
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-            from airflow.api_fastapi.execution_api.deps import JWTBearerDep, JWTRefresherDep
+            from airflow.api_fastapi.execution_api.deps import (
+                JWTBearerDep,
+                JWTBearerTIPathDep,
+                JWTRefresherDep,
+            )
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
@@ -235,6 +239,7 @@ class InProcessExecutionAPI:
             async def always_allow(): ...
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
+            self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
             self._app.dependency_overrides[JWTRefresherDep.dependency] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow

@@ -38,6 +38,7 @@ import Time from "src/components/Time";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
+import DeleteRunButton from "src/pages/DeleteRunButton";
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
@@ -53,7 +54,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
     ? []
     : [
         {
-          accessorKey: "dag_id",
+          accessorKey: "dag_display_name",
           enableSorting: false,
           header: "Dag ID",
         },
@@ -122,6 +123,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
       <Flex justifyContent="end">
         <ClearRunButton dagRun={row.original} withText={false} />
         <MarkRunAsButton dagRun={row.original} withText={false} />
+        <DeleteRunButton dagRun={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,

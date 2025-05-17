@@ -20,8 +20,6 @@ from __future__ import annotations
 import datetime
 import json
 import uuid
-from contextlib import redirect_stdout
-from io import StringIO
 from typing import TYPE_CHECKING
 
 import httpx
@@ -34,6 +32,7 @@ from airflowctl.api.datamodels.generated import (
     AssetAliasResponse,
     AssetCollectionResponse,
     AssetResponse,
+    BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
     BulkAction,
@@ -74,6 +73,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
     from pydantic import NonNegativeInt
@@ -92,13 +92,10 @@ def make_api_client(
 class TestBaseOperations:
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
-        with (
-            pytest.raises(httpx.ConnectError),
-            redirect_stdout(StringIO()) as stdout,
+        with pytest.raises(
+            AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
-            client.connections.get(1)
-        stdout = stdout.getvalue()
-        assert "" in stdout
+            client.connections.get("1")
 
 
 class TestAssetsOperations:
@@ -170,39 +167,96 @@ class TestAssetsOperations:
 
 class TestBackfillOperations:
     backfill_id: NonNegativeInt = 1
+    backfill_body = BackfillPostBody(
+        dag_id="dag_id",
+        from_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        to_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_backwards=False,
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.COMPLETED,
+        max_active_runs=1,
+    )
+    backfill_response = BackfillResponse(
+        id=backfill_id,
+        dag_id="dag_id",
+        from_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        to_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        dag_run_conf={},
+        is_paused=False,
+        reprocess_behavior=ReprocessBehavior.COMPLETED,
+        max_active_runs=1,
+        created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        completed_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        dag_display_name="TEST_DAG_1",
+    )
+    backfills_collection_response = BackfillCollectionResponse(
+        backfills=[backfill_response],
+        total_entries=1,
+    )
 
     def test_create(self):
-        backfill_body = BackfillPostBody(
-            dag_id="dag_id",
-            from_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
-            to_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            run_backwards=False,
-            dag_run_conf={},
-            reprocess_behavior=ReprocessBehavior.COMPLETED,
-            max_active_runs=1,
-        )
-        backfill_response = BackfillResponse(
-            id=self.backfill_id,
-            dag_id="dag_id",
-            from_date=datetime.datetime(2024, 12, 31, 23, 59, 59),
-            to_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            dag_run_conf={},
-            is_paused=False,
-            reprocess_behavior=ReprocessBehavior.COMPLETED,
-            max_active_runs=1,
-            created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
-            completed_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            dag_display_name="TEST_DAG_1",
-        )
-
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/backfills"
-            return httpx.Response(200, json=json.loads(backfill_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.create(backfill=backfill_body)
-        assert response == backfill_response
+        response = client.backfills.create(backfill=self.backfill_body)
+        assert response == self.backfill_response
+
+    def test_create_dry_run(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/backfills/dry_run"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.create_dry_run(backfill=self.backfill_body)
+        assert response == self.backfill_response
+
+    def test_get(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/backfills/{self.backfill_id}"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.get(self.backfill_id)
+        assert response == self.backfill_response
+
+    def test_list(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/backfills"
+            return httpx.Response(200, json=json.loads(self.backfills_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.list()
+        assert response == self.backfills_collection_response
+
+    def test_pause(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/pause"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.pause(self.backfill_id)
+        assert response == self.backfill_response
+
+    def test_unpause(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/unpause"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.unpause(self.backfill_id)
+        assert response == self.backfill_response
+
+    def test_cancel(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/cancel"
+            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.backfills.cancel(self.backfill_id)
+        assert response == self.backfill_response
 
 
 class TestConfigOperations:
@@ -225,11 +279,27 @@ class TestConfigOperations:
         )
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/section/{self.section}/option/{self.option}"
+            assert request.url.path == f"/api/v2/config/section/{self.section}/option/{self.option}"
             return httpx.Response(200, json=response_config.model_dump())
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.configs.get(section=self.section, option=self.option)
+        assert response == response_config
+
+    def test_list(self):
+        response_config = Config(
+            sections=[
+                ConfigSection(name="section-1", options=[ConfigOption(key="option-1", value="value-1")]),
+                ConfigSection(name="section-2", options=[ConfigOption(key="option-2", value="value-2")]),
+            ]
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/config"
+            return httpx.Response(200, json=response_config.model_dump())
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.configs.list()
         assert response == response_config
 
 
@@ -469,6 +539,7 @@ class TestDagRunOperations:
                 bundle_name="bundle_name",
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                dag_display_name=dag_id,
             )
         ],
     )

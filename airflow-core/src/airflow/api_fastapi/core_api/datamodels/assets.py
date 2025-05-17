@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field, NonNegativeInt, field_validator
+from pydantic import AliasPath, Field, NonNegativeInt, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.sdk.execution_time.secrets_masker import redact
@@ -140,6 +140,7 @@ class QueuedEventResponse(BaseModel):
     dag_id: str
     asset_id: int
     created_at: datetime
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
 
 class QueuedEventCollectionResponse(BaseModel):

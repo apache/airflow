@@ -115,9 +115,7 @@ class WorkflowTrigger(BaseTrigger):
                 if failed_count > 0:
                     yield TriggerEvent({"status": "failed"})
                     return
-                else:
-                    yield TriggerEvent({"status": "success"})
-                    return
+
             if self.skipped_states:
                 skipped_count = await get_count_func(self.skipped_states)
                 if skipped_count > 0:

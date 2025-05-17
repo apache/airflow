@@ -188,7 +188,6 @@ class SystemTestContextBuilder:
 
     def __init__(self):
         self.variables = set()
-        self.env_id = set_env_id()
         self.test_name = _get_test_name()
 
     def add_variable(
@@ -229,7 +228,7 @@ class SystemTestContextBuilder:
 
         @task
         def variable_fetcher(ti=None):
-            ti.xcom_push(ENV_ID_KEY, self.env_id)
+            ti.xcom_push(ENV_ID_KEY, set_env_id())
             for variable in self.variables:
                 ti.xcom_push(variable.name, variable.get_value())
 

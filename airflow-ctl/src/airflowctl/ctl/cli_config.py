@@ -36,7 +36,11 @@ import rich
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
-from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlNotFoundException
+from airflowctl.exceptions import (
+    AirflowCtlConnectionException,
+    AirflowCtlCredentialNotFoundException,
+    AirflowCtlNotFoundException,
+)
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -59,6 +63,8 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     try:
         function(args)
     except AirflowCtlCredentialNotFoundException as e:
+        rich.print(f"command failed due to {e}")
+    except AirflowCtlConnectionException as e:
         rich.print(f"command failed due to {e}")
     except AirflowCtlNotFoundException as e:
         rich.print(f"command failed due to {e}")
@@ -216,7 +222,28 @@ class GroupCommand(NamedTuple):
     epilog: str | None = None
 
 
-CLICommand = Union[ActionCommand, GroupCommand]
+class GroupCommandParser(NamedTuple):
+    """ClI command with subcommands."""
+
+    name: str
+    help: str
+    subcommands: Iterable
+    description: str | None = None
+    epilog: str | None = None
+
+    @classmethod
+    def from_group_command(cls, group_command: GroupCommand) -> GroupCommandParser:
+        """Create GroupCommandParser from GroupCommand."""
+        return cls(
+            name=group_command.name,
+            help=group_command.help,
+            subcommands=group_command.subcommands,
+            description=group_command.description,
+            epilog=group_command.epilog,
+        )
+
+
+CLICommand = Union[ActionCommand, GroupCommand, GroupCommandParser]
 
 
 class CommandFactory:
@@ -355,7 +382,7 @@ class CommandFactory:
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
                         arg_type=field_type.annotation,
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
-                        arg_help=f"Argument Type: {field_type.annotation}, {field} for {parameter_key} operation",
+                        arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
                     )
                 )
@@ -370,7 +397,7 @@ class CommandFactory:
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
                         arg_type=annotation,
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
-                        arg_help=f"Argument Type: {annotation}, {field} for {parameter_key} operation",
+                        arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
                     )
                 )
@@ -390,7 +417,7 @@ class CommandFactory:
                                 arg_action=argparse.BooleanOptionalAction
                                 if type(parameter_type) is bool
                                 else None,
-                                arg_help=f"Argument Type: {type(parameter_type)}, {parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
+                                arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
                                 arg_default=False if type(parameter_type) is bool else None,
                             )
                         )

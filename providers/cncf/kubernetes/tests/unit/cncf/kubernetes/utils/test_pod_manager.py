@@ -392,39 +392,91 @@ class TestPodManager:
 
         assert mock_run_pod_async.call_count == 3
 
-    def test_start_pod_raises_informative_error_on_timeout(self):
+    def test_start_pod_raises_informative_error_on_scheduled_timeout(self):
         pod_response = mock.MagicMock()
         pod_response.status.phase = "Pending"
         self.mock_kube_client.read_namespaced_pod.return_value = pod_response
-        expected_msg = "Check the pod events in kubernetes"
+        expected_msg = "Pod took too long to be scheduled on the cluster, giving up. More than 0s. Check the pod events in kubernetes."
         mock_pod = MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):
             self.pod_manager.await_pod_start(
                 pod=mock_pod,
+                schedule_timeout=0,
                 startup_timeout=0,
             )
 
+    def test_start_pod_raises_informative_error_on_startup_timeout(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        condition = mock.MagicMock()
+        condition.type = "PodScheduled"
+        condition.status = "True"
+        pod_response.status.conditions = [condition]
+
+        self.mock_kube_client.read_namespaced_pod.return_value = pod_response
+        expected_msg = "Pod took too long to start. More than 0s. Check the pod events in kubernetes."
+        mock_pod = MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            self.pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=0,
+                startup_timeout=0,
+            )
+
+    def test_start_pod_raises_fast_error_on_image_error(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        container_statuse = mock.MagicMock()
+        waiting_state = mock.MagicMock()
+        waiting_state.reason = "ErrImagePull"
+        waiting_state.message = "Test error"
+        container_statuse.state.waiting = waiting_state
+        pod_response.status.container_statuses = [container_statuse]
+
+        self.mock_kube_client.read_namespaced_pod.return_value = pod_response
+        expected_msg = f"Pod docker image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        mock_pod = MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            self.pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=60,
+                startup_timeout=60,
+            )
+
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.time.sleep")
-    def test_start_pod_startup_interval_seconds(self, mock_time_sleep):
+    def test_start_pod_startup_interval_seconds(self, mock_time_sleep, caplog):
+        condition_scheduled = mock.MagicMock()
+        condition_scheduled.type = "PodScheduled"
+        condition_scheduled.status = "True"
+
         pod_info_pending = mock.MagicMock(**{"status.phase": PodPhase.PENDING})
+        pod_info_pending_scheduled = mock.MagicMock(
+            **{"status.phase": PodPhase.PENDING, "status.conditions": [condition_scheduled]}
+        )
         pod_info_succeeded = mock.MagicMock(**{"status.phase": PodPhase.SUCCEEDED})
 
         def pod_state_gen():
             yield pod_info_pending
-            yield pod_info_pending
+            yield pod_info_pending_scheduled
+            yield pod_info_pending_scheduled
             while True:
                 yield pod_info_succeeded
 
         self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
         startup_check_interval = 10  # Any value is fine, as time.sleep is mocked to do nothing
+        schedule_timeout = 30
+        startup_timeout = 60
         mock_pod = MagicMock()
         self.pod_manager.await_pod_start(
             pod=mock_pod,
-            startup_timeout=60,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
-            startup_check_interval=startup_check_interval,
+            schedule_timeout=schedule_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
+            startup_timeout=startup_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
+            check_interval=startup_check_interval,
         )
         mock_time_sleep.assert_called_with(startup_check_interval)
-        assert mock_time_sleep.call_count == 2
+        assert mock_time_sleep.call_count == 3
+        assert f"::group::Waiting until {schedule_timeout}s to get the POD scheduled..." in caplog.text
+        assert f"Waiting {startup_timeout}s to get the POD running..." in caplog.text
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):

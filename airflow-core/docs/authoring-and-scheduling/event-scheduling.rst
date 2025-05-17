@@ -55,7 +55,7 @@ main scenarios for working with triggers in this context:
 1. **Creating a new event-driven trigger**: If you need a new trigger for an unsupported event source, you should create
 a new class inheriting from ``BaseEventTrigger`` and implement its logic.
 
-2. **Adapting an existing compatible trigger**: If an existing trigger (inheriting from ``BaseEvent``) is proven to be
+2. **Adapting an existing compatible trigger**: If an existing trigger (inheriting from ``BaseTrigger``) is proven to be
 already compatible with event-driven scheduling, then you just need to change the base class from ``BaseTrigger`` to
 ``BaseEventTrigger``.
 

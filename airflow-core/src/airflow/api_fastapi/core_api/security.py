@@ -322,6 +322,18 @@ def requires_access_asset_alias(method: ResourceMethod) -> Callable:
     return inner
 
 
+def requires_authenticated() -> Callable:
+    """Just ensure the user is authenticated - no need to check any specific permissions."""
+
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        pass
+
+    return inner
+
+
 def _requires_access(
     *,
     is_authorized_callback: Callable[[], bool],

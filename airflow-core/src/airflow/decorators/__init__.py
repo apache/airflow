@@ -17,8 +17,6 @@
 from __future__ import annotations
 
 from airflow.sdk.definitions.decorators import (
-    TaskDecorator as TaskDecorator,
-    TaskDecoratorCollection as TaskDecoratorCollection,
     dag as dag,
     setup as setup,
     task as task,
@@ -32,6 +30,7 @@ __deprecated_classes = {
         "DecoratedMappedOperator": "airflow.sdk.bases.decorator.DecoratedMappedOperator",
         "DecoratedOperator": "airflow.sdk.bases.decorator.DecoratedOperator",
         "TaskDecorator": "airflow.sdk.bases.decorator.TaskDecorator",
+        "TaskDecoratorCollection": "airflow.sdk.definitions.decorators.TaskDecoratorCollection",
         "get_unique_task_id": "airflow.sdk.bases.decorator.get_unique_task_id",
         "task_decorator_factory": "airflow.sdk.bases.decorator.task_decorator_factory",
     },

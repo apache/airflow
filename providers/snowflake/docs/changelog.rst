@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+6.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Adjust OpenLineage task state check for Airflow 3 (#50380)``
+
+Misc
+~~~~
+
+* ``nit: Switch to emitting OL events with adapter and not client directly (#50398)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: remove stale warning about SnowflakeOperator (#50450)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Breeze unit test (#50395)``
+   * ``Use non-deprecated context in tests for Airflow 3 (#50391)``
+
 6.3.0
 .....
 
@@ -53,9 +76,11 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix SnowflakeSqlApiHook backwards compatibility for get_oauth_token method (#49482)``
 * ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
+* ``Fix SnowflakeSqlApiHook backwards compatibility for get_oauth_token method (#49482)``
 * ``Fix mypy for get_oauth_token signature in SnowflakeSqlApiHook (#49449)``
+* ``Fix infinite recursive call of _get_conn_params while getting oauth token from snowflake (#50344)``
+* ``Fix: adjust dag_run extraction for Airflow 3 in OL utils (#50346)``
 
 Misc
 ~~~~
@@ -64,10 +89,13 @@ Misc
 * ``Bump min Airflow version in providers to 2.10 (#49843)``
 * ``enhance: logs SQL before execution in 'snowflake' and 'databricks_sql' (#48942)``
 * ``chore: import paths use the stable functions (#49460)``
+* ``add root parent information to OpenLineage events (#49237)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Avoid committing history for providers (#49907)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Prepare ad hoc release for providers May 2025 (#50166)``
 
 6.2.2
 .....

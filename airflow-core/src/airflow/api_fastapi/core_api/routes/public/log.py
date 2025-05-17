@@ -26,8 +26,9 @@ from pydantic import PositiveInt
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
+from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrNdjson
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.log import ExternalLogUrlResponse, TaskInstancesLogResponse
@@ -42,13 +43,14 @@ task_instances_log_router = AirflowRouter(
     tags=["Task Instance"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
 )
 
-text_example_response_for_get_log = {
-    Mimetype.TEXT: {
+ndjson_example_response_for_get_log = {
+    Mimetype.NDJSON: {
         "schema": {
             "type": "string",
             "example": textwrap.dedent(
                 """\
-    content
+    {"content": "content"}
+    {"content": "content"}
     """
             ),
         }
@@ -62,7 +64,7 @@ text_example_response_for_get_log = {
         **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
         status.HTTP_200_OK: {
             "description": "Successful Response",
-            "content": text_example_response_for_get_log,
+            "content": ndjson_example_response_for_get_log,
         },
     },
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_LOGS))],
@@ -74,8 +76,9 @@ def get_log(
     dag_run_id: str,
     task_id: str,
     try_number: PositiveInt,
-    accept: HeaderAcceptJsonOrText,
+    accept: HeaderAcceptJsonOrNdjson,
     request: Request,
+    dag_bag: DagBagDep,
     session: SessionDep,
     full_content: bool = False,
     map_index: int = -1,
@@ -129,7 +132,7 @@ def get_log(
         metadata["end_of_log"] = True
         raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
 
-    dag = request.app.state.dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag(dag_id)
     if dag:
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)

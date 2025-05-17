@@ -313,11 +313,16 @@ class TestDbApiHook:
     @pytest.mark.parametrize(
         "df_type, expected_type",
         [
+            ("test_default_df_type", pd.DataFrame),
             ("pandas", pd.DataFrame),
             ("polars", pl.DataFrame),
         ],
     )
     def test_get_df_with_df_type(db, df_type, expected_type):
         dbapi_hook = mock_db_hook(DbApiHook)
-        df = dbapi_hook.get_df("SQL", df_type=df_type)
-        assert isinstance(df, expected_type)
+        if df_type == "test_default_df_type":
+            df = dbapi_hook.get_df("SQL")
+            assert isinstance(df, pd.DataFrame)
+        else:
+            df = dbapi_hook.get_df("SQL", df_type=df_type)
+            assert isinstance(df, expected_type)

@@ -163,7 +163,7 @@ export const Events = () => {
     <Box>
       <Flex alignItems="center" justifyContent="space-between">
         <Heading>Audit Log Events</Heading>
-        <ButtonGroup attached size="sm" variant="surface">
+        <ButtonGroup attached mt="1" size="sm" variant="surface">
           <IconButton
             aria-label="Expand all extra json"
             onClick={onOpen}

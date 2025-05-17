@@ -85,7 +85,7 @@ def create_back_reference_html(back_ref_url: str, target_path: Path):
     version_match = re.compile(r"[0-9]+.[0-9]+.[0-9]+")
     target_path_as_posix = target_path.as_posix()
     if "/stable/" in target_path_as_posix:
-        prefix, postfix = target_path_as_posix.split("/stable/")
+        prefix, postfix = target_path_as_posix.split("/stable/", maxsplit=1)
         base_folder = Path(prefix)
         for folder in base_folder.iterdir():
             if folder.is_dir() and version_match.match(folder.name):
@@ -96,7 +96,7 @@ def create_back_reference_html(back_ref_url: str, target_path: Path):
 
 def generate_back_references(link: str, base_path: Path):
     if not base_path.exists():
-        get_console().print("[blue]The provider is not yet released.Skipping.")
+        get_console().print(f"[blue]The folder {base_path} does not exist. Skipping.")
         return
     is_downloaded, file_name = download_file(link)
     if not is_downloaded:
@@ -130,7 +130,10 @@ def generate_back_references(link: str, base_path: Path):
                 create_back_reference_html(relative_path, dest_file_path)
 
 
-def start_generating_back_references(airflow_site_directory: Path, short_provider_ids: list[str]):
+def start_generating_back_references(
+    airflow_site_directory: Path,
+    short_provider_ids: list[str],
+):
     docs_archive_path = airflow_site_directory / "docs-archive"
     airflow_docs_path = docs_archive_path / "apache-airflow"
     helm_docs_path = docs_archive_path / "helm-chart"

@@ -198,7 +198,7 @@ keep_warnings = True
 # a list of builtin themes.
 html_theme = "sphinx_airflow_theme"
 
-html_title = "Airflow Documentation"
+html_title = f"Airflow {PACKAGE_VERSION} Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = ""
@@ -349,8 +349,8 @@ spelling_ignore_importable_modules = True
 
 graphviz_output_format = "svg"
 
-main_openapi_path = Path(main_openapi_file).parent.joinpath("v1-rest-api-generated.yaml")
-sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v1-simple-auth-manager-generated.yaml")
+main_openapi_path = Path(main_openapi_file).parent.joinpath("v2-rest-api-generated.yaml")
+sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v2-simple-auth-manager-generated.yaml")
 redoc = [
     {
         "name": "Simple auth manager token API",

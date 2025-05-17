@@ -187,7 +187,7 @@ Currently, **officially** using Airflow:
 1. [Disney](https://www.disney.com/) [[@coolbeans201](https://github.com/coolbeans201)]
 1. [Docsity](https://www.docsity.com/)
 1. [Doctrine](https://www.doctrine.fr/)[[@anteverse](https://github.com/anteverse)]
-1. [DoorDash](https://www.doordash.com/)
+1. [DoorDash](https://www.doordash.com/) [[@chiragtodarka](https://github.com/chiragtodarka)]
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
 1. [Dropbox](https://www.dropbox.com) [[@AlexeySanko](https://github.com/AlexeySanko)]
@@ -210,6 +210,7 @@ Currently, **officially** using Airflow:
 1. [Estrategia Educacional](https://github.com/estrategiahq) [[@jonasrla](https://github.com/jonasrla)]
 1. [Etsy](https://www.etsy.com) [[@mchalek](https://github.com/mchalek)]
 1. [EUIGS - Admiral Group](https://www.linkedin.com/company/euiitglobalservices) [[@emilioego](https://github.com/emilioego)]
+1. [Europace](https://www.europace.de/)
 1. [Europcar](https://www.europcar.com/en-us) [[@Conformist101](https://github.com/Conformist101) & [@davidpr91](https://github.com/davidpr91) & [@jcarbonell](https://github.com/jcarbonell)& [@marc-rf](https://github.com/marc-rf)& [@VictorGeaGarcia](https://github.com/VictorGeaGarcia)]
 1. [Everis](https://www.everis.com) [[@diegobenedicto](https://github.com/diegobenedicto)]
 1. [Everlane](https://everlane.com) [[@NickBenthem](https://github.com/NickBenthem)]

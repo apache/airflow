@@ -49,12 +49,12 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 
 export const TaskNames = ({ nodes }: Props) => {
   const { toggleGroupId } = useOpenGroups();
-  const { dagId = "", taskId } = useParams();
+  const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
   return nodes.map((node) => (
     <Box
-      bg={node.id === taskId ? "blue.muted" : undefined}
+      bg={node.id === taskId || node.id === groupId ? "blue.muted" : undefined}
       borderBottomWidth={1}
       borderColor={node.isGroup ? "border.emphasized" : "border.muted"}
       id={node.id.replaceAll(".", "-")}
@@ -65,17 +65,26 @@ export const TaskNames = ({ nodes }: Props) => {
       transition="background-color 0.2s"
     >
       {node.isGroup ? (
-        <Flex>
-          <TaskName
-            display="inline"
-            fontSize="sm"
-            fontWeight="normal"
-            isGroup={true}
-            isMapped={Boolean(node.is_mapped)}
-            label={node.label}
-            paddingLeft={node.depth * 3 + 2}
-            setupTeardownType={node.setup_teardown_type}
-          />
+        <Flex alignItems="center">
+          <Link data-testid={node.id} display="inline">
+            <RouterLink
+              replace
+              to={{
+                pathname: `/dags/${dagId}/tasks/group/${node.id}`,
+                search: searchParams.toString(),
+              }}
+            >
+              <TaskName
+                fontSize="sm"
+                fontWeight="normal"
+                isGroup={true}
+                isMapped={Boolean(node.is_mapped)}
+                label={node.label}
+                paddingLeft={node.depth * 3 + 2}
+                setupTeardownType={node.setup_teardown_type}
+              />
+            </RouterLink>
+          </Link>
           <chakra.button
             aria-label="Toggle group"
             display="inline"

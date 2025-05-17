@@ -27,6 +27,44 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support For Edge Worker in Daemon Mode (#50425)``
+* ``Trigger remote shutdown of edge worker (#50278)``
+* ``Extend Edge Worker CLI commands operate on remote edge workers (#49915)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Edge worker maintenance state is remembered if worker crashes (#50338)``
+* ``Fix execution API server URL handling for relative paths (#49782)``
+* ``Make default execution server URL be relative to API Base URL (#49747)``
+* ``Make Edge3 Intergation Test DAG working in 2.10 (#49474)``
+* ``Ensure fab provider is installed when running EdgeExecutor (#49473)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Update some missing config settings in edge executor (#49758)``
+
+Doc-only
+~~~~~~~~
+
+* ``Enhance Edge3 Provider docs (#49859)``
+* ``Minor doc fix in edge_executor (#49755)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Cleanup Edge3 provider changelog (#49960)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Bump min Airflow version in providers to 2.10 (#49843)``
+
 1.0.0
 .....
 
