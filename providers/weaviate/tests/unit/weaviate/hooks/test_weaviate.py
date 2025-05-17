@@ -599,6 +599,51 @@ def test_batch_data_retry(weaviate_hook):
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
+def test_delete_by_properties_retry(get_conn, weaviate_hook):
+    mock_collection = MagicMock()
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
+    get_conn.return_value.collections.get.return_value = mock_collection
+
+    response = requests.Response()
+    response.status_code = 429
+    error = requests.exceptions.HTTPError()
+    error.response = response
+    side_effect = [error, error, None]
+
+    mock_collection.data.delete_many.side_effect = side_effect
+
+    weaviate_hook.delete_by_properties(collection_names="collection_a", property_name="title", operator="equal", value="Object", if_error="continue")
+
+    assert mock_collection.data.delete_many.call_count == len(
+        side_effect
+    )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
+def test_delete_by_properties_get_exception(get_conn, weaviate_hook):
+    collection_names = ["collection_a", "collection_b"]
+
+    mock_collection = MagicMock()
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+    mock_collection.data.delete_many.return_value = None
+
+    get_conn.return_value.collections.get.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        mock_collection,
+    ]
+    
+    error_list = weaviate_hook.delete_by_properties(collection_names=collection_names, property_name="title", operator="equal", value="Object", if_error="continue")
+    assert error_list == ["collection_a"]
+
+    get_conn.return_value.collections.get.side_effect = weaviate.UnexpectedStatusCodeException(
+        "something failed", requests.Response()
+    )
+    with pytest.raises(weaviate.UnexpectedStatusCodeException):
+        weaviate_hook.delete_by_properties(collection_names="collection_a", property_name="title", operator="equal", value="Object", if_error="stop")
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
 def test_delete_collections(get_conn, weaviate_hook):
     collection_names = ["collection_a", "collection_b"]
     get_conn.return_value.collections.delete.side_effect = [
