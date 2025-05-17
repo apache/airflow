@@ -1971,12 +1971,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
             try:
                 for ti in stuck_tis:
-                    executor.revoke_task(ti=ti)
-                    self._maybe_requeue_stuck_ti(
-                        ti=ti,
-                        session=session,
-                    )
-                    session.commit()
+                    if ti.state == TaskInstanceState.QUEUED:
+                        executor.revoke_task(ti=ti)
+                        self._maybe_requeue_stuck_ti(
+                            ti=ti,
+                            session=session,
+                        )
+                        session.commit()
             except NotImplementedError:
                 continue
 
