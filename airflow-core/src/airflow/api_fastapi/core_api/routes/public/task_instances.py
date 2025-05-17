@@ -753,6 +753,8 @@ def _patch_ti_validate_request(
     )
     if map_index is not None:
         query = query.where(TI.map_index == map_index)
+    else:
+        query = query.order_by(TI.map_index)
 
     tis = session.scalars(query).all()
 
