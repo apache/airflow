@@ -3682,10 +3682,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         response_data = response.json()
 
         assert response_data["total_entries"] == 3
-        # Sort by map index for a more predictable order of accessing in the loop below
-        response_data["task_instances"] = sorted(
-            response_data["task_instances"], key=lambda x: x["map_index"]
-        )
+
         for map_index in range(1, 3):
             response_ti = response_data["task_instances"][map_index]
             assert response_ti == {
