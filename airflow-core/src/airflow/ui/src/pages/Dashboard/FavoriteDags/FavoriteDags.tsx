@@ -16,18 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, Text } from "@chakra-ui/react";
-import { useMemo, useState } from "react";
+import { Box, Flex, Heading, SimpleGrid, Text } from "@chakra-ui/react";
+import { useEffect, useMemo, useState } from "react";
 import { FiStar } from "react-icons/fi";
 
 import { useDagServiceGetFavoriteDags } from "openapi/queries";
 
 import { FavoriteDagCard } from "./FavoriteDagCard";
+import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 
 const MAX_VISIBLE = 5;
 
 export const FavoriteDags = () => {
+  const queryClient = useQueryClient();
+  const location = useLocation();
+
   const { data: favorites } = useDagServiceGetFavoriteDags();
+
+  useEffect(() => {
+    queryClient.refetchQueries({ queryKey: ['DagServiceGetFavoriteDags'] });
+  }, [location.key, queryClient]);
 
   const [showAll, setShowAll] = useState(false);
 
@@ -40,7 +49,7 @@ export const FavoriteDags = () => {
   }, [favorites, showAll]);
 
   if (!favorites) {
-    return undefined;
+    return null;
   }
 
   return (
@@ -51,24 +60,34 @@ export const FavoriteDags = () => {
           Favorite Dags
         </Heading>
       </Flex>
-      <HStack align="end">
-        {visibleFavorites.map((dag) => (
-          <FavoriteDagCard dagId={dag.dag_id} key={dag.dag_id} />
-        ))}
-      </HStack>
-      {favorites.total_entries > MAX_VISIBLE && (
-        <Box mt={2}>
-          <Text
-            _hover={{ textDecoration: "underline" }}
-            as="span"
-            color="blue.500"
-            cursor="pointer"
-            fontSize="sm"
-            onClick={() => setShowAll(!showAll)}
-          >
-            {showAll ? "Show Less" : "Show More"}
-          </Text>
-        </Box>
+
+      {favorites.dags.length === 0 ? (
+        <Text color="gray.500" fontSize="sm" ml={1}>
+          No favorites yet. Click the star icon next to a DAG in the list to add it to your favorites.
+        </Text>
+      ) : (
+        <>
+          <SimpleGrid columns={10} columnGap={1} rowGap={4} alignItems="end">
+            {visibleFavorites.map((dag) => (
+              <FavoriteDagCard dagId={dag.dag_id} key={dag.dag_id} />
+            ))}
+          </SimpleGrid>
+
+          {favorites.total_entries > MAX_VISIBLE && (
+            <Box mt={2}>
+              <Text
+                _hover={{ textDecoration: "underline" }}
+                as="span"
+                color="blue.500"
+                cursor="pointer"
+                fontSize="sm"
+                onClick={() => setShowAll(!showAll)}
+              >
+                {showAll ? "Show Less" : "Show More"}
+              </Text>
+            </Box>
+          )}
+        </>
       )}
     </Box>
   );
