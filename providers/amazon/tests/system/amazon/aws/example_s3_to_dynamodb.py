@@ -21,15 +21,17 @@ from datetime import datetime
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.transfers.s3_to_dynamodb import S3ToDynamoDBOperator
+
+# from airflow.decorators import task
+# from airflow.models.baseoperator import chain
+# from airflow.models.dag import DAG
+from airflow.sdk import DAG, chain, task
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder

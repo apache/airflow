@@ -18,14 +18,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerCreateNotebookOperator,
     SageMakerDeleteNotebookOperator,
     SageMakerStartNoteBookOperator,
     SageMakerStopNotebookOperator,
 )
+
+# from airflow.models.baseoperator import chain
+# from airflow.models.dag import DAG
+from airflow.sdk import DAG, chain
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 

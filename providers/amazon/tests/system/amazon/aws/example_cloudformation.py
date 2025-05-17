@@ -19,8 +19,6 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.cloud_formation import (
     CloudFormationCreateStackOperator,
     CloudFormationDeleteStackOperator,
@@ -29,6 +27,10 @@ from airflow.providers.amazon.aws.sensors.cloud_formation import (
     CloudFormationCreateStackSensor,
     CloudFormationDeleteStackSensor,
 )
+
+# from airflow.models.baseoperator import chain
+# from airflow.models.dag import DAG
+from airflow.sdk import DAG, chain
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

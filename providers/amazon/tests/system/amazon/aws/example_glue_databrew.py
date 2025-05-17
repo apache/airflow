@@ -19,9 +19,6 @@ from __future__ import annotations
 import boto3
 import pendulum
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.glue_databrew import (
     GlueDataBrewStartJobOperator,
 )
@@ -30,6 +27,11 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
+
+# from airflow.decorators import task
+# from airflow.models.baseoperator import chain
+# from airflow.models.dag import DAG
+from airflow.sdk import DAG, chain, task
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
