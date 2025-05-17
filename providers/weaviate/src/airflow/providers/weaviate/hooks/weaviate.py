@@ -206,7 +206,7 @@ class WeaviateHook(BaseHook):
         :param filter_criteria: A `Filter` object defining the filter criteria for deletion.
         :param if_error: define the actions to be taken if there is an error while deleting objects, possible
          options are `stop` and `continue`
-        :param dry_run: Use dryRun to check how many objects would be deleted, without actually performing the deletion.
+        :param dry_run: Use 'dry_run' to check how many objects would be deleted, without actually performing the deletion.
         :param verbose: Set output to 'verbose' to see more details (ID and deletion status) for each deletion
         :return: If `if_error="continue"`, returns list of failed collection names. Else, returns None.
 
