@@ -363,7 +363,7 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
         "v1-flask-api.yaml"
     )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
-        "v1-fab-auth-manager-generated.yaml"
+        "v2-fab-auth-manager-generated.yaml"
     )
     redoc = [
         {
