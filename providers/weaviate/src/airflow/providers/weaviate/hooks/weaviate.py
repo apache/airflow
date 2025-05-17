@@ -190,6 +190,68 @@ class WeaviateHook(BaseHook):
         client = self.conn
         return client.collections.get(name)
 
+    def delete_by_property(
+        self,
+        collection_names: list[str] | str,
+        filter_criteria: Filter,
+        if_error: str = "stop",
+        dry_run: bool = False,
+        verbose: bool = False,
+    ) -> list[str] | None:
+        """
+        Delete objects in collections using a provided Filter object.
+
+        :param collection_names: The name(s) of the collection(s) to delete from.
+        :param filter_criteria: A `Filter` object defining the filter criteria for deletion.
+        :param if_error: define the actions to be taken if there is an error while deleting objects, possible
+         options are `stop` and `continue`
+        :param dry_run: Use 'dry_run' to check how many objects would be deleted, without actually performing the deletion.
+        :param verbose: Set output to 'verbose' to see more details (ID and deletion status) for each deletion
+        :return: If `if_error="continue"`, returns list of failed collection names. Else, returns None.
+
+        Example:
+        >>> from weaviate.classes.query import Filter
+        >>> my_filter = (
+        >>>     Filter.by_property("round").equal("Double Jeopardy!") &
+        >>>     Filter.by_property("points").less_than(600)
+        >>> )
+        >>> delete_by_filter(
+        >>>     collection_names=["collection_a", "collection_b"],
+        >>>     filter_criteria=my_filter,
+        >>>     if_error="stop"
+        >>> )
+        """
+        client = self.get_conn()
+
+        collection_names = [collection_names] if isinstance(collection_names, str) else collection_names
+
+        failed_collection_list = []
+        for collection_name in collection_names:
+            try:
+                self.log.info("Attempting to delete objects from '%s'", collection_name)
+
+                for attempt in Retrying(
+                    stop=stop_after_attempt(3),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
+                ):
+                    with attempt:
+                        self.log.info(attempt)
+                        collection = client.collections.get(collection_name)
+                        collection.data.delete_many(where=filter_criteria, dry_run=dry_run, verbose=verbose)
+            except Exception as e:
+                if if_error == "continue":
+                    self.log.error(e)
+                    failed_collection_list.append(collection_name)
+                elif if_error == "stop":
+                    raise e
+
+        if if_error == "continue":
+            return failed_collection_list
+        return None
+
     def delete_collections(
         self, collection_names: list[str] | str, if_error: str = "stop"
     ) -> list[str] | None:
