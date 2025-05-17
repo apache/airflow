@@ -265,15 +265,17 @@ def _update_import_errors(
     # Add the errors of the processed files
     for filename, stacktrace in import_errors.items():
         if (filename, bundle_name) in existing_import_error_files:
-            session.query(ParseImportError).where(
-                ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name
-            ).update(
-                {
-                    "filename": filename,
-                    "bundle_name": bundle_name,
-                    "timestamp": utcnow(),
-                    "stacktrace": stacktrace,
-                },
+            session.execute(
+                update(ParseImportError)
+                .where(ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name)
+                .values(
+                    {
+                        "filename": filename,
+                        "bundle_name": bundle_name,
+                        "timestamp": utcnow(),
+                        "stacktrace": stacktrace,
+                    },
+                )
             )
             # sending notification when an existing dag import error occurs
             try:
