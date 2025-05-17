@@ -1504,11 +1504,9 @@ export type ConfigResponse = {
   auto_refresh_interval: number;
   hide_paused_dags_by_default: boolean;
   instance_name: string;
-  instance_name_has_markup: boolean;
   enable_swagger_ui: boolean;
   require_confirmation_dag_change: boolean;
   default_wrap: boolean;
-  warn_deployment_exposure: boolean;
   audit_view_excluded_events: string;
   audit_view_included_events: string;
   test_connection: string;
