@@ -1250,3 +1250,18 @@ class TestWebserverServiceAccount:
             show_only=["templates/webserver/webserver-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestWebserverSecretKeySecret:
+    """Tests webserver secret key secret."""
+
+    def test_should_add_annotations_to_webserver_secret_key_secret(self):
+        docs = render_chart(
+            values={
+                "webserverSecretAnnotations": {"test_annotation": "test_annotation_value"},
+            },
+            show_only=["templates/secrets/webserver-secret-key-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
