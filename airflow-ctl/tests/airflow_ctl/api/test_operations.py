@@ -51,14 +51,26 @@ from airflowctl.api.datamodels.generated import (
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
+    DAGCollectionResponse,
     DAGDetailsResponse,
+    DAGPatchBody,
     DAGResponse,
     DAGRunCollectionResponse,
     DAGRunResponse,
     DagRunState,
     DagRunTriggeredByType,
     DagRunType,
+    DagStatsCollectionResponse,
+    DagStatsResponse,
+    DagStatsStateResponse,
+    DAGTagCollectionResponse,
+    DAGVersionCollectionResponse,
     DagVersionResponse,
+    DAGWarningCollectionResponse,
+    DAGWarningResponse,
+    DagWarningType,
+    ImportErrorCollectionResponse,
+    ImportErrorResponse,
     JobCollectionResponse,
     JobResponse,
     PoolBody,
@@ -425,8 +437,9 @@ class TestConnectionsOperations:
 
 
 class TestDagOperations:
+    dag_id = "dag_id"
     dag_response = DAGResponse(
-        dag_id="dag_id",
+        dag_id=dag_id,
         dag_display_name="dag_display_name",
         is_paused=False,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
@@ -453,7 +466,7 @@ class TestDagOperations:
     )
 
     dag_details_response = DAGDetailsResponse(
-        dag_id="dag_id",
+        dag_id=dag_id,
         dag_display_name="dag_display_name",
         is_paused=False,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
@@ -492,6 +505,67 @@ class TestDagOperations:
         is_stale=False,
     )
 
+    dag_tag_collection_response = DAGTagCollectionResponse(
+        tags=["tag"],
+        total_entries=1,
+    )
+
+    dag_collection_response = DAGCollectionResponse(
+        dags=[dag_response],
+        total_entries=1,
+    )
+
+    import_error_response = ImportErrorResponse(
+        import_error_id=0,
+        timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        filename="filename",
+        bundle_name="bundle_name",
+        stack_trace="stack_trace",
+    )
+
+    import_error_collection_response = ImportErrorCollectionResponse(
+        import_errors=[import_error_response],
+        total_entries=1,
+    )
+
+    dag_stats_collection_response = DagStatsCollectionResponse(
+        dags=[
+            DagStatsResponse(dag_id=dag_id, stats=[DagStatsStateResponse(state=DagRunState.RUNNING, count=1)])
+        ],
+        total_entries=1,
+    )
+
+    dag_version_response = DagVersionResponse(
+        id=uuid.uuid4(),
+        version_number=1,
+        dag_id=dag_id,
+        bundle_name="bundle_name",
+        bundle_version="1",
+        created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        dag_display_name=dag_id,
+    )
+
+    dag_version_collection_response = DAGVersionCollectionResponse(
+        dag_versions=[dag_version_response],
+        total_entries=1,
+    )
+
+    dag_warning_collection_response = DAGWarningCollectionResponse(
+        dag_warnings=[
+            DAGWarningResponse(
+                dag_id=dag_id,
+                warning_type=DagWarningType.NON_EXISTENT_POOL,
+                message="message",
+                timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            )
+        ],
+        total_entries=1,
+    )
+
+    dag_patch_body = DAGPatchBody(
+        is_paused=True,
+    )
+
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id"
@@ -509,6 +583,102 @@ class TestDagOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dags.get_details("dag_id")
         assert response == self.dag_details_response
+
+    def test_get_tags(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dagTags"
+            return httpx.Response(200, json=json.loads(self.dag_tag_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.get_tags()
+        assert response == self.dag_tag_collection_response
+
+    def test_list(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags"
+            return httpx.Response(200, json=json.loads(self.dag_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.list()
+        assert response == self.dag_collection_response
+
+    def test_patch(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id"
+            return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.patch(dag_id="dag_id", dag_body=self.dag_patch_body)
+        assert response == self.dag_response
+
+    def test_delete(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id"
+            return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.delete(dag_id="dag_id")
+        assert response == self.dag_id
+
+    def test_get_import_error(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/importErrors/0"
+            return httpx.Response(200, json=json.loads(self.import_error_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.get_import_error(import_error_id=0)
+        assert response == self.import_error_response
+
+    def test_list_import_error(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/importErrors"
+            return httpx.Response(
+                200, json=json.loads(self.import_error_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.list_import_error()
+        assert response == self.import_error_collection_response
+
+    def test_get_stats(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dagStats"
+            return httpx.Response(200, json=json.loads(self.dag_stats_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.get_stats(dag_ids=["dag_id"])
+        assert response == self.dag_stats_collection_response
+
+    def test_get_version(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id/dagVersions/0"
+            return httpx.Response(200, json=json.loads(self.dag_version_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.get_version(dag_id="dag_id", version_number="0")
+        assert response == self.dag_version_response
+
+    def test_list_version(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id/dagVersions"
+            return httpx.Response(
+                200, json=json.loads(self.dag_version_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.list_version(dag_id="dag_id")
+        assert response == self.dag_version_collection_response
+
+    def test_list_warning(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dagWarnings"
+            return httpx.Response(
+                200, json=json.loads(self.dag_warning_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.list_warning()
+        assert response == self.dag_warning_collection_response
 
 
 class TestDagRunOperations:
