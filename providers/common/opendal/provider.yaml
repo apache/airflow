@@ -21,7 +21,7 @@ name: Common OpenDAL
 description: |
   ``Common OpenDAL (Open Data Access Layer) Provider``
 
-state: ready
+state: not-ready
 source-date-epoch: 1741121853
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -29,6 +29,22 @@ source-date-epoch: 1741121853
 # to be done in the same PR
 versions:
   - 1.0.0
+
+integrations:
+  - integration-name: Apache OpenDAL
+    external-doc-url: https://opendal.apache.org/
+    logo: /docs/integration-logos/opendal.svg
+    tags: [apache]
+
+operators:
+  - integration-name: Common OpenDAL
+    python-modules:
+      - airflow.providers.common.opendal.operators.opendal
+
+hooks:
+  - integration-name: Common OpenDAL
+    python-modules:
+      - airflow.providers.common.opendal.hooks.opendal
 
 connection-types:
   - hook-class-name: airflow.providers.common.opendal.hooks.opendal.OpenDALHook

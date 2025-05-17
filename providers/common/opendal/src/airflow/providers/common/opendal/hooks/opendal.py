@@ -1,10 +1,26 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from __future__ import annotations
 
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from asgiref.sync import sync_to_async
-from opendal import AsyncOperator, Operator
+from opendal import Operator
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.opendal.connections.connection_parser import (
@@ -34,16 +50,18 @@ class OpenDALHook(BaseHook):
 
     _opendal_conn_factory = OpenDALConnectionFactory()
 
-    def __init__(self,
-                 opendal_conn_id: str | None = default_conn_name,
-                 config: dict[str, Any] = None,
-                 config_type: str = "source"):
+    def __init__(
+        self,
+        opendal_conn_id: str = default_conn_name,
+        config: dict[str, Any] | None = None,
+        config_type: str = "source",
+    ):
         super().__init__()
         self.opendal_conn_id = opendal_conn_id
         self.config_type = config_type
         self.config = config or {}
 
-    def fetch_conn(self) -> Connection:
+    def fetch_conn(self) -> Connection | None:
         """
 
         Fetch the connection object from the Airflow connection.
@@ -72,23 +90,32 @@ class OpenDALHook(BaseHook):
         """
         conn_id_from_opendal_input_config = self.config.get("conn_id")
 
-        conn_id = None
-
         if not conn_id_from_opendal_input_config:
+            self.log.info(
+                "No conn_id provided in the input opendal_config for %s config, using the default opendal_conn_id: %s",
+                self.config_type,
+                self.opendal_conn_id,
+            )
+
             conn = self.get_connection(self.opendal_conn_id)
             connection_id_from_opendal_connection = conn.extra_dejson.get(
-                f"{self.config_type}_config", {}).get("conn_id")
+                f"{self.config_type}_config", {}
+            ).get("conn_id")
 
             conn_id = connection_id_from_opendal_connection or self.opendal_conn_id
 
+            if conn_id:
+                return self.get_connection(conn_id)
 
-        return self.get_connection(conn_id_from_opendal_input_config or conn_id)
+        if conn_id_from_opendal_input_config:
+            return self.get_connection(conn_id_from_opendal_input_config)
 
+        return None
 
     @cached_property
     def get_operator(self) -> Operator:
-
         conn = self.fetch_conn()
+        self.log.info("Fetching OpenDAL operator args for %s config", self.config_type)
 
         op_args = self._opendal_conn_factory.get_opendal_operator_args(
             conn,
@@ -96,20 +123,11 @@ class OpenDALHook(BaseHook):
             self.config_type,
         )
 
-        return Operator(**op_args)
+        self.log.info("Creating OpenDAL operator %s", op_args.get("scheme"))
 
-    @cached_property
-    async def async_get_operator(self) -> Operator:
-        conn = await sync_to_async(self.fetch_conn)()
-        op_args = await sync_to_async(self._opendal_conn_factory.get_opendal_operator_args)(
-            conn,
-            self.config.get("operator_args"),
-            self.config_type,
-        )
-        return AsyncOperator(**op_args)
+        return Operator(**op_args)
 
     @classmethod
     def register_parsers(cls, parser: OpenDALAirflowConnectionParser):
         """Register a custom connection parsers."""
-
         cls._opendal_conn_factory.register_connection_parser(parser)

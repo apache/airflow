@@ -24,24 +24,26 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-common-opendal",
-        "name": "Common Messaging",
+        "name": "Common OpenDAL",
         "description": "``Common OpenDAL (Open Data Access Layer) Provider``\n",
+        "integrations": [
+            {
+                "integration-name": "Apache OpenDAL",
+                "external-doc-url": "https://opendal.apache.org/",
+                "logo": "/docs/integration-logos/opendal.svg",
+                "tags": ["apache"],
+            }
+        ],
         "operators": [
             {
-                "integration-name": "Apache Opendal",
+                "integration-name": "Common OpenDAL",
                 "python-modules": ["airflow.providers.common.opendal.operators.opendal"],
             }
         ],
         "hooks": [
             {
-                "integration-name": "Apache Opendal",
+                "integration-name": "Common OpenDAL",
                 "python-modules": ["airflow.providers.common.opendal.hooks.opendal"],
-            }
-        ],
-        "triggers": [
-            {
-                "integration-name": "Apache Opendal",
-                "python-modules": ["airflow.providers.common.opendal.triggers.opendal"],
             }
         ],
         "connection-types": [

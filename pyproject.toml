@@ -181,11 +181,11 @@ packages = []
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=1.0.1" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
+"common.opendal" = [
+    "apache-airflow-providers-common-opendal"
+]
 "common.sql" = [
     "apache-airflow-providers-common-sql>=1.18.0"
-]
-"common.opendal" = [
-    "apache-airflow-providers-common-opendal>=1.0.0"
 ]
 "databricks" = [
     "apache-airflow-providers-databricks>=6.11.0"
@@ -415,7 +415,7 @@ packages = []
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=1.0.1", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
-    "apache-airflow-providers-common-opendal>=1.0.0",
+    "apache-airflow-providers-common-opendal",
     "apache-airflow-providers-common-sql>=1.18.0",
     "apache-airflow-providers-databricks>=6.11.0",
     "apache-airflow-providers-datadog>=3.8.0",
@@ -1043,6 +1043,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/messaging/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/messaging/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/opendal/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/opendal/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/sql/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/sql/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/databricks/src",
