@@ -58,6 +58,38 @@ ndjson_example_response_for_get_log = {
 }
 
 
+def _find_task_instance_for_try_number(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    try_number: PositiveInt,
+    session: SessionDep,
+    map_index: int,
+) -> TaskInstance | TaskInstanceHistory:
+    query = (
+        select(TaskInstance)
+        .where(
+            TaskInstance.task_id == task_id,
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == dag_run_id,
+            TaskInstance.map_index == map_index,
+        )
+        .join(TaskInstance.dag_run)
+        .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
+    )
+    ti = session.scalar(query)
+    if ti is None or ti.try_number != try_number:
+        query = select(TaskInstanceHistory).where(
+            TaskInstanceHistory.task_id == task_id,
+            TaskInstanceHistory.dag_id == dag_id,
+            TaskInstanceHistory.run_id == dag_run_id,
+            TaskInstanceHistory.map_index == map_index,
+            TaskInstanceHistory.try_number == try_number,
+        )
+        ti = session.scalar(query)
+    return ti
+
+
 @task_instances_log_router.get(
     "/{task_id}/logs/{try_number}",
     responses={
@@ -105,28 +137,14 @@ def get_log(
     if not task_log_reader.supports_read:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Task log handler does not support read logs.")
 
-    query = (
-        select(TaskInstance)
-        .where(
-            TaskInstance.task_id == task_id,
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == dag_run_id,
-            TaskInstance.map_index == map_index,
-        )
-        .join(TaskInstance.dag_run)
-        .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
-        .options(joinedload(TaskInstance.dag_model))
+    ti = _find_task_instance_for_try_number(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        try_number=try_number,
+        session=session,
+        map_index=map_index,
     )
-    ti = session.scalar(query)
-    if ti is None:
-        query = select(TaskInstanceHistory).where(
-            TaskInstanceHistory.task_id == task_id,
-            TaskInstanceHistory.dag_id == dag_id,
-            TaskInstanceHistory.run_id == dag_run_id,
-            TaskInstanceHistory.map_index == map_index,
-            TaskInstanceHistory.try_number == try_number,
-        )
-        ti = session.scalar(query)
 
     if ti is None:
         metadata["end_of_log"] = True

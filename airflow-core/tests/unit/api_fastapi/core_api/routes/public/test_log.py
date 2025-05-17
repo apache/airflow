@@ -28,8 +28,11 @@ from itsdangerous.url_safe import URLSafeSerializer
 from uuid6 import uuid7
 
 from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
+from airflow.api_fastapi.core_api.routes.public.log import _find_task_instance_for_try_number
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
 from airflow.utils import timezone
@@ -449,3 +452,16 @@ class TestTaskInstancesLog:
 
             assert response.status_code == expected_status
             assert response.json() == expected_response
+
+    @pytest.mark.parametrize("try_number", [1, 2])
+    def test_find_task_instance_for_try_number(self, try_number, session):
+        ti = _find_task_instance_for_try_number(
+            self.DAG_ID,
+            self.RUN_ID,
+            self.TASK_ID,
+            try_number,
+            session=session,
+            map_index=-1,
+        )
+
+        assert isinstance(ti, TaskInstanceHistory) if try_number == 1 else TaskInstance
