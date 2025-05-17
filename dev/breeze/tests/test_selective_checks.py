@@ -689,7 +689,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord http",
+                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord google http",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -709,8 +709,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "amazon...apache.livy,d",
-                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
+                                "description": "amazon...google",
+                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http] Providers[google]",
                             }
                         ]
                     ),
@@ -723,6 +723,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {"description": "dbt.cloud", "test_types": "Providers[dbt.cloud]"},
                             {"description": "dingding", "test_types": "Providers[dingding]"},
                             {"description": "discord", "test_types": "Providers[discord]"},
+                            {"description": "google", "test_types": "Providers[google]"},
                             {"description": "http", "test_types": "Providers[http]"},
                         ]
                     ),
@@ -1941,7 +1942,7 @@ def test_expected_output_push(
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql "
-                "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
+                "facebook google hashicorp http microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1952,7 +1953,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
+                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
@@ -1967,7 +1968,7 @@ def test_expected_output_push(
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
-                            "hashicorp,microsoft.azure,microsoft.mssql,mysql,"
+                            "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
                             "Providers[google]",
                         }
@@ -2229,7 +2230,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/google/docs/some_file.rst",),
             {
                 "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
-                "cncf.kubernetes common.compat common.sql facebook google hashicorp "
+                "cncf.kubernetes common.compat common.sql facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh trino",
             },
