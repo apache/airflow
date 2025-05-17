@@ -83,6 +83,7 @@ class MySqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.local_infile = kwargs.pop("local_infile", False)
         self.init_command = kwargs.pop("init_command", None)
+        self.region_name = kwargs.pop("region_name", None)
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """
@@ -302,7 +303,7 @@ class MySqlHook(DbApiHook):
         else:
             port = conn.port
         client = aws_hook.get_conn()
-        token = client.generate_db_auth_token(conn.host, port, conn.login)
+        token = client.generate_db_auth_token(conn.host, port, conn.login, Region=self.region_name)
         return token, port
 
     def bulk_load_custom(
