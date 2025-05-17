@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-16T08:02:20.387862
+# This constraints file was automatically generated on 2025-05-17T14:07:25.906776
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -208,7 +208,7 @@ docopt==0.6.2
 docstring_parser==0.16
 docutils==0.21.2
 duckdb==1.2.2
-durationpy==0.9
+durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
 elasticsearch==8.18.1
@@ -378,7 +378,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.11.0
 libcst==1.7.0
-limits==5.1.0
+limits==5.2.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.6.0
@@ -430,7 +430,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.78.1
+openai==1.79.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 opencensus-context==0.1.3
@@ -485,7 +485,7 @@ pre-commit-uv==4.1.4
 pre_commit==4.2.0
 presto-python-client==0.8.4
 prison==0.2.1
-prometheus_client==0.21.1
+prometheus_client==0.22.0
 prompt_toolkit==3.0.51
 propcache==0.3.1
 proto-plus==1.26.1
@@ -692,7 +692,7 @@ uritemplate==4.1.1
 urllib3==2.4.0
 userpath==1.9.2
 uuid6==2024.7.10
-uv==0.7.4
+uv==0.7.5
 uvicorn==0.34.2
 uvloop==0.21.0
 validators==0.34.0
@@ -716,7 +716,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.0
 ydb-dbapi==0.1.11
-ydb==3.21.1
+ydb==3.21.2
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
