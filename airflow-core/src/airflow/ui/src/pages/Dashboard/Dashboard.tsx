@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Heading, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import type { UIAlert } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
@@ -30,6 +31,7 @@ import { Stats } from "./Stats";
 
 export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
+  const { t: translate } = useTranslation("dashboard");
 
   return (
     <Box overflow="auto" px={4}>
@@ -56,7 +58,7 @@ export const Dashboard = () => {
           </Accordion.Root>
         ) : undefined}
         <Heading mb={2} size="2xl">
-          Welcome
+          {translate("welcome")}
         </Heading>
       </VStack>
       <Box>

@@ -1,0 +1,49 @@
+{
+  "welcome": "Welcome",
+  "stats": {
+    "stats": "Stats",
+    "failedDags": "Failed Dags",
+    "runningDags": "Running Dags",
+    "activeDags": "Active Dags",
+    "queuedDags": "Queued Dags"
+  },
+  "health": {
+    "health": "Health",
+    "metaDatabase": "MetaDatabase",
+    "scheduler": "Scheduler",
+    "triggerer": "Triggerer",
+    "dagProcessor": "Dag Processor"
+  },
+  "poolSlots": "Pool Slots",
+  "managePools": "Manage Pools",
+  "history": "History",
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "taskInstance_one": "Task Instance",
+  "taskInstance_other": "Task Instances",
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
+  "states": {
+    "queued": "Queued",
+    "running": "Running",
+    "success": "Success",
+    "failed": "Failed",
+    "skipped": "Skipped",
+    "removed": "Removed",
+    "scheduled": "Scheduled",
+    "restarting": "Restarting",
+    "up_for_retry": "Up For Retry",
+    "up_for_reschedule": "Up For Reschedule",
+    "upstream_failed": "Upstream Failed",
+    "deferred": "Deferred",
+    "no_status": "No Status"
+  },
+  "noAssetEvents": "No Asset Events found.",
+  "sortBy": {
+    "newestFirst": "Newest First",
+    "oldestFirst": "Oldest First"
+  },
+  "source": "Source",
+  "group": "Group",
+  "uri": "Uri"
+}
