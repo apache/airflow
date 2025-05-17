@@ -18,9 +18,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from flask_appbuilder import Model
+
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.providers.fab.auth_manager.models import metadata
 from airflow.utils.db import _offline_migration, print_happy_cat
 from airflow.utils.db_manager import BaseDBManager
 
@@ -42,13 +43,13 @@ def _get_flask_db(sql_database_uri):
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db = SQLAlchemy(flask_app)
     AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
-    return db
+    return db, flask_app
 
 
 class FABDBManager(BaseDBManager):
     """Manages FAB database."""
 
-    metadata = metadata
+    metadata = Model.metadata
     version_table_name = "alembic_version_fab"
     migration_dir = (PACKAGE_DIR / "migrations").as_posix()
     alembic_file = (PACKAGE_DIR / "alembic.ini").as_posix()
@@ -56,7 +57,9 @@ class FABDBManager(BaseDBManager):
 
     def create_db_from_orm(self):
         super().create_db_from_orm()
-        _get_flask_db(settings.SQL_ALCHEMY_CONN).create_all()
+        db, flask_app = _get_flask_db(settings.SQL_ALCHEMY_CONN)
+        with flask_app.app_context():
+            db.create_all()
 
     def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
         """Upgrade the database."""
@@ -120,4 +123,6 @@ class FABDBManager(BaseDBManager):
 
     def drop_tables(self, connection):
         super().drop_tables(connection)
-        _get_flask_db(settings.SQL_ALCHEMY_CONN).drop_all()
+        db, flask_app = _get_flask_db(settings.SQL_ALCHEMY_CONN)
+        with flask_app.app_context():
+            db.drop_all()

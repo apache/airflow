@@ -22,7 +22,6 @@ from unittest import mock
 
 import pytest
 from flask.sessions import SecureCookieSessionInterface
-from flask_appbuilder import SQLA
 
 from airflow import settings
 from airflow.providers.fab.www import app as application
@@ -86,7 +85,6 @@ class TestSecurity:
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm
         self.delete_roles()
-        self.db = SQLA(self.app)
 
         self.client = self.app.test_client()  # type:ignore
 
@@ -214,7 +212,8 @@ class TestResetUserSessions:
         self.model = self.interface.sql_session_model
         self.serializer = self.interface.serializer
         self.db = self.interface.db
-        self.db.session.query(self.model).delete()
+        with self.app.app_context():
+            self.db.session.query(self.model).delete()
         self.db.session.commit()
         self.db.session.flush()
         self.user_1 = create_user(
@@ -260,7 +259,8 @@ class TestResetUserSessions:
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 
-        self.security_manager.reset_password(self.user_1.id, "new_password")
+        with self.app.app_context():
+            self.security_manager.reset_password(self.user_1.id, "new_password")
         self.db.session.commit()
         self.db.session.flush()
         if user_sessions_deleted:
@@ -288,7 +288,8 @@ class TestResetUserSessions:
         assert self.db.session.query(self.model).count() == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
-        self.security_manager.reset_password(self.user_1.id, "new_password")
+        with self.app.app_context():
+            self.security_manager.reset_password(self.user_1.id, "new_password")
         assert flash_mock.called
         assert (
             "The old sessions for user user_to_delete_1 have <b>NOT</b> been deleted!"
@@ -304,7 +305,8 @@ class TestResetUserSessions:
     )
     def test_warn_securecookie(self, _mock_has_context, flash_mock):
         self.app.session_interface = SecureCookieSessionInterface()
-        self.security_manager.reset_password(self.user_1.id, "new_password")
+        with self.app.app_context():
+            self.security_manager.reset_password(self.user_1.id, "new_password")
         assert flash_mock.called
         assert (
             "Since you are using `securecookie` session backend mechanism, we cannot"
@@ -323,7 +325,8 @@ class TestResetUserSessions:
         assert self.db.session.query(self.model).count() == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
-        self.security_manager.reset_password(self.user_1.id, "new_password")
+        with self.app.app_context():
+            self.security_manager.reset_password(self.user_1.id, "new_password")
         assert log_mock.warning.called
         assert (
             "The old sessions for user user_to_delete_1 have *NOT* been deleted!\n"
@@ -336,7 +339,8 @@ class TestResetUserSessions:
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_warn_securecookie_cli(self, log_mock):
         self.app.session_interface = SecureCookieSessionInterface()
-        self.security_manager.reset_password(self.user_1.id, "new_password")
+        with self.app.app_context():
+            self.security_manager.reset_password(self.user_1.id, "new_password")
         assert log_mock.warning.called
         assert (
             "Since you are using `securecookie` session backend mechanism, we cannot"
