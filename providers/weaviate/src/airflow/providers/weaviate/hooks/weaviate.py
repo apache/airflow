@@ -194,13 +194,13 @@ class WeaviateHook(BaseHook):
     def delete_by_properties(
         self,
         collection_names: list[str] | str,
-        property_names: list[str] | str,
+        property_name: str,
         operator: str,
         value: Any,
         if_error: str = "stop"
     ) -> bool:
         """
-        Delete objects from a collection using dynamic filtering with retry logic and error handling.
+        Delete objects in collections based on various filtering criteria
 
         :param collection_name: The name of the collection to delete from.
         :param property_name: The property to filter by.
@@ -216,48 +216,44 @@ class WeaviateHook(BaseHook):
         collection_names = (
             [collection_names] if collection_names and isinstance(collection_names, str) else collection_names
         )
-        property_names = (
-            [property_names] if property_names and isinstance(property_names, str) else property_names
-        )
 
         failed_collection_list = []
         for collection_name in collection_names:
-            for property_name in property_names:
-                try:
-                    # dynamically get the filter method to allow deleting objects in collections based on various filtering criteria,
-                    # when there is a filter criteria added/removed from the API, this should adapt to that change.
-                    filter_obj = Filter.by_property(property_name)
-                    if not hasattr(filter_obj, operator):
-                        raise ValueError(
-                            f"Unsupported filter operator '{operator}'. Expected one of: "
-                            f"{', '.join([m for m in dir(filter_obj) if not m.startswith('_')])}"
-                        )
-                    filter_method = getattr(filter_obj, operator)
-                    filter_criteria = filter_method(value)
-
-                    # Log the deletion attempt
-                    self.log.info(
-                        f"Attempting to delete from '{collection_name}' where '{property_name}' {operator} '{value}'"
+            try:
+                # dynamically get the filter method to allow deleting objects in collections based on various filtering criteria,
+                # when there is a filter criteria added/removed from the API, this should adapt to that change.
+                filter_obj = Filter.by_property(property_name)
+                if not hasattr(filter_obj, operator):
+                    raise ValueError(
+                        f"Unsupported filter operator '{operator}'. Expected one of: "
+                        f"{', '.join([m for m in dir(filter_obj) if not m.startswith('_')])}"
                     )
+                filter_method = getattr(filter_obj, operator)
+                filter_criteria = filter_method(value)
 
-                    # Retry logic
-                    for attempt in Retrying(
-                        stop=stop_after_attempt(3),
-                        retry=(
-                            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                        ),
-                    ):
-                        with attempt:
-                            self.log.info(attempt)
-                            collection = client.collections.get(collection_name)
-                            collection.data.delete_many(where=filter_criteria)
-                except Exception as e:
-                    if if_error == "continue":
-                        self.log.error(e)
-                        failed_collection_list.append(collection_name)
-                    elif if_error == "stop":
-                        raise e
+                # Log the deletion attempt
+                self.log.info(
+                    f"Attempting to delete from '{collection_name}' where '{property_name}' {operator} '{value}'"
+                )
+
+                # Retry logic
+                for attempt in Retrying(
+                    stop=stop_after_attempt(3),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
+                ):
+                    with attempt:
+                        self.log.info(attempt)
+                        collection = client.collections.get(collection_name)
+                        collection.data.delete_many(where=filter_criteria)
+            except Exception as e:
+                if if_error == "continue":
+                    self.log.error(e)
+                    failed_collection_list.append(collection_name)
+                elif if_error == "stop":
+                    raise e
 
         if if_error == "continue":
             return failed_collection_list
