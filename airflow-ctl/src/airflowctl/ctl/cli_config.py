@@ -25,6 +25,7 @@ import ast
 import getpass
 import inspect
 import os
+import textwrap
 from argparse import Namespace
 from collections.abc import Iterable
 from functools import partial
@@ -197,6 +198,31 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
+
+ARG_OUTPUT = Arg(
+    flags=("-o", "--output"),
+    type=str,
+    default="json",
+    help="Output format. Only json format is supported (default: json)",
+)
+
+# Pool Commands Args
+ARG_POOL_IMPORT = Arg(
+    ("file",),
+    metavar="FILEPATH",
+    help="Import pools from JSON file. Example format::\n"
+    + textwrap.indent(
+        textwrap.dedent(
+            """
+            {
+                "pool_1": {"slots": 5, "description": "", "include_deferred": true},
+                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
+            }"""
+        ),
+        " " * 4,
+    ),
+)
+ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to JSON file")
 
 
 class ActionCommand(NamedTuple):
@@ -563,6 +589,8 @@ def merge_commands(
 
 command_factory = CommandFactory()
 
+AUTH_ARGS = ()
+
 AUTH_COMMANDS = (
     ActionCommand(
         name="login",
@@ -573,6 +601,23 @@ AUTH_COMMANDS = (
     ),
 )
 
+POOL_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import pools",
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.import"),
+        args=(ARG_POOL_IMPORT,),
+    ),
+    ActionCommand(
+        name="export",
+        help="Export all pools",
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
+        args=(
+            ARG_POOL_EXPORT,
+            ARG_OUTPUT,
+        ),
+    ),
+)
 
 core_commands: list[CLICommand] = [
     GroupCommand(
@@ -580,6 +625,11 @@ core_commands: list[CLICommand] = [
         help="Manage authentication for CLI. "
         "Either pass token from environment variable/parameter or pass username and password.",
         subcommands=AUTH_COMMANDS,
+    ),
+    GroupCommand(
+        name="pools",
+        help="Manage Airflow pools",
+        subcommands=POOL_COMMANDS,
     ),
 ]
 # Add generated group commands
