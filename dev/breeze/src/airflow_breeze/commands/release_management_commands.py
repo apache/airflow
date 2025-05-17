@@ -3079,7 +3079,7 @@ REPRODUCIBLE_BUILD_YAML = AIRFLOW_ROOT_PATH / "reproducible_build.yaml"
 
 VERSION_FILE = PYTHON_CLIENT_DIR_PATH / "version.txt"
 SOURCE_API_YAML_PATH = (
-    AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml"
+    AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
 OPENAPI_GENERATOR_CLI_VER = "7.13.0"

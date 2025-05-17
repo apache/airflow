@@ -92,7 +92,7 @@ echo "${VERSION}" > clients/python/version.txt
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml
+git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml
 ```
 
 - Update CHANGELOG.md with the details.

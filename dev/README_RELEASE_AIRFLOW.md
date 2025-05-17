@@ -1061,7 +1061,7 @@ Clients can be found here:
 ### API Clients versioning policy
 
 Clients and Core versioning are completely decoupled. Clients also follow SemVer and are updated when core introduce changes relevant to the clients.
-Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml) has
+Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml) has
 changed, clients need to be released.
 
 To determine if you should release API clients, you can run from the airflow repository:
