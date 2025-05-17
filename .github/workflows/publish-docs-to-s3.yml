@@ -107,11 +107,6 @@ jobs:
           else
              echo "destination-location=s3://staging-docs-airflow-apache-org/docs/" >> ${GITHUB_OUTPUT}
           fi
-          if [[ "${REF}" =~ 2.* ]]; then
-             echo "extra-build-options=" >> ${GITHUB_OUTPUT}
-          else
-             echo "extra-build-options=--include-commits" >> ${GITHUB_OUTPUT}
-          fi
 
   build-docs:
     needs: [build-info]
@@ -155,8 +150,9 @@ jobs:
       - name: "Building docs with --docs-only flag"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+          INCLUDE_COMMITS: "true"
         run: >
-          breeze build-docs ${INCLUDE_DOCS} --docs-only ${EXTRA_BUILD_OPTIONS}
+          breeze build-docs ${INCLUDE_DOCS} --docs-only
       - name: Check disk space available
         run: df -H
       # Here we will create temp airflow-site dir to publish docs
