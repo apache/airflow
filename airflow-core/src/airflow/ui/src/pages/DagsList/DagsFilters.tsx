@@ -25,7 +25,7 @@ import {
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 
@@ -63,8 +63,10 @@ export const DagsFilters = () => {
   const isFailed = state === "failed";
   const isSuccess = state === "success";
 
+  const [pattern, setPattern] = useState<string>("");
   const { data } = useDagServiceGetDagTags({
     orderBy: "name",
+    tagNamePattern: pattern,
   });
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -218,6 +220,7 @@ export const DagsFilters = () => {
             isMulti
             noOptionsMessage={() => "No tags found"}
             onChange={handleSelectTagsChange}
+            onInputChange={(newValue) => setPattern(`${newValue}%`)}
             options={
               data?.tags.map((tag) => ({
                 label: tag,
