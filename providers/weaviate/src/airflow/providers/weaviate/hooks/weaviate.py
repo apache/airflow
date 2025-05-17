@@ -197,6 +197,7 @@ class WeaviateHook(BaseHook):
         property_name: str,
         operator: str,
         value: Any,
+        by_property_length: bool = False,
         if_error: str = "stop"
     ) -> bool:
         """
@@ -204,8 +205,9 @@ class WeaviateHook(BaseHook):
 
         :param collection_name: The name of the collection to delete from.
         :param property_name: The property to filter by.
-        :param operator: The filter operator (e.g., 'equal', 'like', 'greater_than').
+        :param operator: The filter operator (contains_all, contains_any, equal, greater_or_equal, greater_than, is_none, less_or_equal, less_than, like, not_equal, within_geo_range)
         :param value: The value for the filter operation.
+        :param by_property_length: True to filter by the length of the property. This filter requires the property length to be indexed.
         :param if_error: define the actions to be taken if there is an error while deleting a collection, possible
          options are `stop` and `continue`
         :return: if `if_error=continue` return list of collections which we failed to delete.
@@ -222,7 +224,7 @@ class WeaviateHook(BaseHook):
             try:
                 # dynamically get the filter method to allow deleting objects in collections based on various filtering criteria,
                 # when there is a filter criteria added/removed from the API, this should adapt to that change.
-                filter_obj = Filter.by_property(property_name)
+                filter_obj = Filter.by_property(property_name, length=by_property_length)
                 if not hasattr(filter_obj, operator):
                     raise ValueError(
                         f"Unsupported filter operator '{operator}'. Expected one of: "
