@@ -37,7 +37,7 @@ CHART_DIR = Path(__file__).resolve().parents[3] / "chart"
 
 DEFAULT_KUBERNETES_VERSION = "1.29.1"
 BASE_URL_SPEC = (
-    f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/"
+    f"https://api.github.com/repos/yannh/kubernetes-json-schema/contents/"
     f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
 )
 
@@ -63,14 +63,17 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
     else:
         url = f"{BASE_URL_SPEC}/{kind}-{api_version}.json"
 
-    headers = {}
+    headers = {
+        "Accept": "application/vnd.github.v3.raw",
+    }
     if GITHUB_TOKEN:
         headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
         headers["X-GitHub-Api-Version"] = "2022-11-28"
-    request = requests.get(url, headers=headers)
-    request.raise_for_status()
+
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
     schema = json.loads(
-        request.text.replace(
+        response.text.replace(
             "kubernetesjsonschema.dev", "raw.githubusercontent.com/yannh/kubernetes-json-schema/master"
         )
     )
