@@ -22,7 +22,7 @@ from flask import g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.auth_manager import get_auth_manager
 from airflow.providers.fab.www.utils import CustomSQLAInterface, get_method_from_fab_action_map
 from airflow.utils.log.logging_mixin import LoggingMixin
 

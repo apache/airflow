@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, cast
 from starlette import status
 from starlette.exceptions import HTTPException
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.auth_manager import get_auth_manager
 from airflow.configuration import conf
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
 

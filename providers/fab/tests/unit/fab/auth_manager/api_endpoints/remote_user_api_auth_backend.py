@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 from flask import Response, request
 from flask_login import login_user
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from requests.auth import AuthBase

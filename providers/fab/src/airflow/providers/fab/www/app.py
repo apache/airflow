@@ -26,7 +26,7 @@ from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.auth_manager import get_auth_manager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging

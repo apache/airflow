@@ -24,11 +24,11 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
-from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagDetails,
 )
+from airflow.api_fastapi.common.auth_manager import AuthManagerDep
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -67,6 +67,7 @@ def get_import_error(
     import_error_id: int,
     session: SessionDep,
     user: GetUserDep,
+    auth_manager: AuthManagerDep,
 ) -> ImportErrorResponse:
     """Get an import error."""
     error = session.scalar(select(ParseImportError).where(ParseImportError.id == import_error_id))
@@ -77,7 +78,6 @@ def get_import_error(
         )
     session.expunge(error)
 
-    auth_manager = get_auth_manager()
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
     if can_read_all_dags:
         # Early return if the user has access to all DAGs
@@ -128,6 +128,7 @@ def get_import_errors(
     ],
     session: SessionDep,
     user: GetUserDep,
+    auth_manager: AuthManagerDep,
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
@@ -138,7 +139,6 @@ def get_import_errors(
         session=session,
     )
 
-    auth_manager = get_auth_manager()
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
     if can_read_all_dags:
         # Early return if the user has access to all DAGs
