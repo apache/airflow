@@ -190,55 +190,47 @@ class WeaviateHook(BaseHook):
         """
         client = self.conn
         return client.collections.get(name)
-    
-    def delete_by_properties(
+
+    def delete_by_property(
         self,
         collection_names: list[str] | str,
-        property_name: str,
-        operator: str,
-        value: Any,
-        by_property_length: bool = False,
-        if_error: str = "stop"
-    ) -> bool:
+        filter_criteria: Filter,
+        if_error: str = "stop",
+        dry_run: bool = False,
+        verbose: bool = False,
+    ) -> list[str] | None:
         """
-        Delete objects in collections based on various filtering criteria
+        Delete objects in collections using a provided Filter object.
 
-        :param collection_name: The name of the collection to delete from.
-        :param property_name: The property to filter by.
-        :param operator: The filter operator (contains_all, contains_any, equal, greater_or_equal, greater_than, is_none, less_or_equal, less_than, like, not_equal, within_geo_range)
-        :param value: The value for the filter operation.
-        :param by_property_length: True to filter by the length of the property. This filter requires the property length to be indexed.
-        :param if_error: define the actions to be taken if there is an error while deleting a collection, possible
+        :param collection_names: The name(s) of the collection(s) to delete from.
+        :param filter_criteria: A `Filter` object defining the filter criteria for deletion.
+        :param if_error: define the actions to be taken if there is an error while deleting objects, possible
          options are `stop` and `continue`
-        :return: if `if_error=continue` return list of collections which we failed to delete.
-            if `if_error=stop` returns None.
+        :param dry_run: Use dryRun to check how many objects would be deleted, without actually performing the deletion.
+        :param verbose: Set output to 'verbose' to see more details (ID and deletion status) for each deletion
+        :return: If `if_error="continue"`, returns list of failed collection names. Else, returns None.
+
+        Example:
+        >>> from weaviate.classes.query import Filter
+        >>> my_filter = (
+        >>>     Filter.by_property("round").equal("Double Jeopardy!") &
+        >>>     Filter.by_property("points").less_than(600)
+        >>> )
+        >>> delete_by_filter(
+        >>>     collection_names=["collection_a", "collection_b"],
+        >>>     filter_criteria=my_filter,
+        >>>     if_error="stop"
+        >>> )
         """
         client = self.get_conn()
 
-        collection_names = (
-            [collection_names] if collection_names and isinstance(collection_names, str) else collection_names
-        )
+        collection_names = [collection_names] if isinstance(collection_names, str) else collection_names
 
         failed_collection_list = []
         for collection_name in collection_names:
             try:
-                # dynamically get the filter method to allow deleting objects in collections based on various filtering criteria,
-                # when there is a filter criteria added/removed from the API, this should adapt to that change.
-                filter_obj = Filter.by_property(property_name, length=by_property_length)
-                if not hasattr(filter_obj, operator):
-                    raise ValueError(
-                        f"Unsupported filter operator '{operator}'. Expected one of: "
-                        f"{', '.join([m for m in dir(filter_obj) if not m.startswith('_')])}"
-                    )
-                filter_method = getattr(filter_obj, operator)
-                filter_criteria = filter_method(value)
+                self.log.info("Attempting to delete objects from '%s'", collection_name)
 
-                # Log the deletion attempt
-                self.log.info(
-                    f"Attempting to delete from '{collection_name}' where '{property_name}' {operator} '{value}'"
-                )
-
-                # Retry logic
                 for attempt in Retrying(
                     stop=stop_after_attempt(3),
                     retry=(
@@ -249,7 +241,7 @@ class WeaviateHook(BaseHook):
                     with attempt:
                         self.log.info(attempt)
                         collection = client.collections.get(collection_name)
-                        collection.data.delete_many(where=filter_criteria)
+                        collection.data.delete_many(where=filter_criteria, dry_run=dry_run, verbose=verbose)
             except Exception as e:
                 if if_error == "continue":
                     self.log.error(e)
