@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-17T14:04:28.789886
+# This constraints file was automatically generated on 2025-05-17T19:56:57.500366
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -500,14 +500,14 @@ pure_eval==0.2.3
 py-partiql-parser==0.6.1
 py-spy==0.4.0
 py4j==0.10.9.7
-pyOpenSSL==25.0.0
+pyOpenSSL==25.1.0
 pyarrow-hotfix==0.7
 pyarrow==16.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
-pycryptodome==3.22.0
+pycryptodome==3.23.0
 pydantic==2.11.4
 pydantic_core==2.33.2
 pydata-google-auth==1.9.1

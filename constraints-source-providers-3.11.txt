@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-17T13:54:19.909700
+# This constraints file was automatically generated on 2025-05-17T19:46:41.855064
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -186,7 +186,7 @@ docopt==0.6.2
 docstring_parser==0.16
 docutils==0.21.2
 duckdb==1.2.2
-durationpy==0.9
+durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
 elasticsearch==8.18.1
@@ -476,14 +476,14 @@ pure_eval==0.2.3
 py-partiql-parser==0.6.1
 py-spy==0.4.0
 py4j==0.10.9.7
-pyOpenSSL==25.0.0
+pyOpenSSL==25.1.0
 pyarrow-hotfix==0.7
 pyarrow==16.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
-pycryptodome==3.22.0
+pycryptodome==3.23.0
 pydantic==2.11.4
 pydantic_core==2.33.2
 pydata-google-auth==1.9.1
