@@ -794,7 +794,7 @@ class DagFileProcessorManager(LoggingMixin):
                 if not processor:
                     continue
                 self.log.warning("Stopping processor for %s", file)
-                Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "stop"})
+                Stats.decr("dag_processing.processes", tags={"file_path": str(file.absolute_path), "action": "stop"})
                 processor.kill(signal.SIGKILL)
                 processor.logger_filehandle.close()
                 self._file_stats.pop(file, None)
@@ -884,32 +884,52 @@ class DagFileProcessorManager(LoggingMixin):
     def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
         id = uuid7()
 
-        callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
+        callbacks = self._callback_to_execute.pop(dag_file, [])
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
 
-        return DagFileProcessorProcess.start(
-            id=id,
-            path=dag_file.absolute_path,
-            bundle_path=cast("Path", dag_file.bundle_path),
-            callbacks=callback_to_execute_for_file,
-            selector=self.selector,
-            logger=logger,
-            logger_filehandle=logger_filehandle,
-            client=self.client,
-        )
+        try:
+            # Attempt to start the subprocess for parsing
+            processor = DagFileProcessorProcess.start(
+                id=proc_id,
+                path=dag_file.absolute_path,
+                bundle_path=cast("Path", dag_file.bundle_path),
+                callbacks=callbacks,
+                selector=self.selector,
+                logger=logger,
+                logger_filehandle=logger_filehandle,
+            )
+            return processor
+        except Exception as e:
+            # Clean up resources on failure to start
+            logger_filehandle.close()
+            self.log.error("Failed to start DAG processor for %s: %s", dag_file, e, exc_info=True)
+            # Mark a failed parsing attempt in the stats to avoid immediate retry
+            stat = DagFileStat(
+                num_dags=0,
+                import_errors=1,
+                last_finish_time=timezone.utcnow(),
+                last_duration=0.0,
+                run_count=self._file_stats[dag_file].run_count + 1,
+                last_num_of_db_queries=0,
+            )
+            self._file_stats[dag_file] = stat
+            return None  # signal failure to caller
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         while self._parallelism > len(self._processors) and self._file_queue:
-            file = self._file_queue.popleft()
-            # Stop creating duplicate processor i.e. processor with the same filepath
-            if file in self._processors:
+            dag_file = self._file_queue.popleft()
+            # Prevent duplicate processors for the same file
+            if dag_file in self._processors:
                 continue
-
-            processor = self._create_process(file)
-            Stats.incr("dag_processing.processes", tags={"file_path": file, "action": "start"})
-
-            self._processors[file] = processor
+            processor = self._create_process(dag_file)
+            if processor is None:
+                # Process failed to start; skip adding to _processors
+                continue
+            # Record that a process was started for this file
+            Stats.incr("dag_processing.processes",
+                       tags={"file_path": str(dag_file.absolute_path), "action": "start"})
+            self._processors[dag_file] = processor
             Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def add_files_to_queue(self, known_files: dict[str, set[DagFileInfo]]):
@@ -1008,18 +1028,18 @@ class DagFileProcessorManager(LoggingMixin):
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
         now = time.monotonic()
-        processors_to_remove = []
+        processors_to_remove: list[DagFileInfo] = []
         for file, processor in self._processors.items():
             duration = now - processor.start_time
             if duration > self.processor_timeout:
                 self.log.error(
-                    "Processor for %s with PID %s started %d ago killing it.",
+                    "Processor for %s (PID %s) has timed out after %d seconds; killing it.",
                     file,
                     processor.pid,
                     duration,
                 )
-                Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "timeout"})
-                Stats.incr("dag_processing.processor_timeouts", tags={"file_path": file})
+                Stats.decr("dag_processing.processes", tags={"file_path": str(file.absolute_path), "action": "timeout"})
+                Stats.incr("dag_processing.processor_timeouts", tags={"file_path": str(file.absolute_path)})
                 processor.kill(signal.SIGKILL)
 
                 processors_to_remove.append(file)
@@ -1034,10 +1054,11 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 self._file_stats[file] = stat
 
-        # Clean up `self._processors` after iterating over it
+        # Clean up timed-out `self._processors` after iterating over it
         for proc in processors_to_remove:
-            processor = self._processors.pop(proc)
-            processor.logger_filehandle.close()
+            processor = self._processors.pop(proc, None)
+            if processor:
+                processor.logger_filehandle.close()
 
     def _add_files_to_queue(self, files: list[DagFileInfo], add_at_front: bool):
         """Add stuff to the back or front of the file queue, unless it's already present."""
