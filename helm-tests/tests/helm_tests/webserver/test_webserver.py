@@ -1089,23 +1089,41 @@ class TestWebserverConfigmap:
     def test_no_webserver_config_configmap_with_configmap_name(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": "my-configmap",
-                }
+                },
             },
             show_only=["templates/configmaps/webserver-configmap.yaml"],
         )
         assert len(docs) == 0
 
-    def test_webserver_config_configmap(self):
+    @pytest.mark.parametrize(
+        "airflow_version, config, expected_configmap_name",
+        [
+            (
+                "2.10.5",
+                {"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+                "release-name-webserver-config",
+            ),
+            (
+                "3.0.0",
+                {"apiServer": {"apiServerConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+                "release-name-api-server-config",
+            ),
+        ],
+    )
+    def test_webserver_config_configmap(self, airflow_version, config, expected_configmap_name):
         docs = render_chart(
-            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+            values={
+                "airflowVersion": airflow_version,
+                **config,
+            },
             show_only=["templates/configmaps/webserver-configmap.yaml"],
         )
-
         assert docs[0]["kind"] == "ConfigMap"
-        assert jmespath.search("metadata.name", docs[0]) == "release-name-webserver-config"
+        assert jmespath.search("metadata.name", docs[0]) == expected_configmap_name
         assert (
             jmespath.search('data."webserver_config.py"', docs[0]).strip()
             == "CSRF_ENABLED = True  # release-name"
