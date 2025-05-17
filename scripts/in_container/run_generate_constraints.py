@@ -364,6 +364,12 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     distributions_to_exclude_from_constraints = get_locally_build_distribution_specs()
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(PYPI_PROVIDERS_CONSTRAINTS_PREFIX)
+        if distributions_to_exclude_from_constraints:
+            console.print(
+                "[yellow]Excluding some distributions because we install them locally from build .wheels"
+                "- those versions are missing from PyPI, so we need to exclude them from PyPI constraints."
+            )
+            # the command below prints detailed list of excluded distributions
         freeze_distributions_to_file(
             config_params, constraints_file, distributions_to_exclude_from_constraints
         )
