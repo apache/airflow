@@ -49,7 +49,7 @@ class OpenDALConfig(BaseModel):
 
 
 class OpenDALBaseFileSystem:
-    """OpenDALBaseFileSystem is a base class for OpenDAL file system operations."""
+    """OpenDALBaseFileSystem for OpenDAL file system operations."""
 
     def __init__(
         self,
@@ -77,7 +77,6 @@ class OpenDALBaseFileSystem:
     @property
     def destination_path(self) -> str | None:
         """Get the path from the destination operator."""
-        print(self.opendal_config)
 
         if self.destination_operator:
             return self.opendal_config.get("destination_config", {}).get("path")  # type: ignore[union-attr]

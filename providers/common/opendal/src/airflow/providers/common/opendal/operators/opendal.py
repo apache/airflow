@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class OpenDALTaskOperator(BaseOperator):
     """
-    OpenDALTaskOperator is a base operator for OpenDAL operations.
+    OpenDALTaskOperator for OpenDAL operations write, read, copy etc.
 
     :param opendal_config: The OpenDAL input configuration. either source_config or destination_config.
     :param action: The action to be performed. This can be one of the following: read, write, copy, delete, move.
