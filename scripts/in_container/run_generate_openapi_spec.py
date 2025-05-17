@@ -29,12 +29,12 @@ from airflow.api_fastapi.core_api import __file__ as CORE_API_PATH
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import console, generate_openapi_file, validate_openapi_file
 
-OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "v1-rest-api-generated.yaml"
+OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "v2-rest-api-generated.yaml"
 # We need a "combined" spec file to generate the UI code with, but we don't want to include this in the repo
 # nor in the rendered docs, so we make this a separate file which is gitignored
 OPENAPI_UI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "_private_ui.yaml"
 SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE = (
-    Path(SIMPLE_AUTH_MANAGER_PATH).parent / "openapi" / "v1-simple-auth-manager-generated.yaml"
+    Path(SIMPLE_AUTH_MANAGER_PATH).parent / "openapi" / "v2-simple-auth-manager-generated.yaml"
 )
 
 # Generate main application openapi spec

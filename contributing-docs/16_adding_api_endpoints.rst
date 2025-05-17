@@ -74,7 +74,7 @@ Step 4: Run Pre-commit Hooks
 -----------------------------
 1. Ensure all code meets the project's quality standards by running pre-commit hooks.
 2. Pre-commit hooks include static code checks, formatting, and other validations.
-3. Persisted openapi spec is located in ``v1-rest-api-generated.yaml` and a hook will take care of updating it based on your new endpoint, you just need to add and commit the change.
+3. Persisted openapi spec is located in ``v2-rest-api-generated.yaml` and a hook will take care of updating it based on your new endpoint, you just need to add and commit the change.
 4. Run the following command to execute all pre-commit hooks:
 
 .. code-block:: bash
