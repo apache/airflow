@@ -90,7 +90,7 @@ class _MockPopen(Popen):
         return self.generated_returncode
 
 
-class TestEdgeWorkerCli:
+class TestEdgeWorker:
     parser: argparse.ArgumentParser
 
     @classmethod
