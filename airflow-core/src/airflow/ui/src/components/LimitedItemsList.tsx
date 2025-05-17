@@ -57,21 +57,20 @@ export const LimitedItemsList = ({
           // eslint-disable-next-line react/no-array-index-key
           <React.Fragment key={index}>
             <Text as="span">{item}</Text>
-            {index < displayItems.length - 1 || (shouldTruncate && remainingItems.length > 1) ? (
-              <Text as="span">{separator}</Text>
-            ) : undefined}
+            {index < displayItems.length - 1 && <Text as="span">{separator}</Text>}
           </React.Fragment>
         ))}
+
+        {shouldTruncate && remainingItems.length > 0 && displayItems.length > 0 ? (
+          <Text as="span">{separator}</Text>
+        ) : undefined}
+
         {shouldTruncate ? (
-          remainingItems.length === 1 ? (
-            <Text as="span">{remainingItems[0]}</Text>
-          ) : (
-            <Tooltip content={remainingItemsList} interactive={interactive}>
-              <Text as="span" cursor="help">
-                +{remainingItems.length} more
-              </Text>
-            </Tooltip>
-          )
+          <Tooltip content={remainingItemsList} interactive={interactive}>
+            <Text as="span" cursor="help">
+              +{remainingItems.length} more
+            </Text>
+          </Tooltip>
         ) : undefined}
       </Box>
     </HStack>
