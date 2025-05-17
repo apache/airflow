@@ -298,7 +298,7 @@ class InfoJsonEncodable(dict):
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
         if isinstance(value, (set, list, tuple)):
-            return str(list(value))
+            return json.dumps(list(value))
         return value
 
     def _rename_fields(self):
