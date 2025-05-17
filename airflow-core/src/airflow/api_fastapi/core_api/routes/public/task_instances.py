@@ -746,6 +746,8 @@ def _patch_ti_validate_request(
         query = query.where(or_(TI.map_index == -1, TI.map_index is None))
     else:
         query = query.where(TI.map_index == map_index)
+    else:
+        query = query.order_by(TI.map_index)
 
     try:
         ti = session.scalar(query)
