@@ -1061,9 +1061,13 @@ class TestPodTemplateFile:
             ({"kerberosInitContainer": {"enabled": True}}, True),
         ],
     )
-    def test_webserver_config_for_kerberos(self, workers_values, kerberos_init_container):
+    def test_webserver_config_for_kerberos_pre_v3(self, workers_values, kerberos_init_container):
         docs = render_chart(
-            values={"workers": workers_values, "webserver": {"webserverConfigConfigMapName": "config"}},
+            values={
+                "airflowVersion": "2.10.5",
+                "workers": workers_values,
+                "webserver": {"webserverConfigConfigMapName": "config"},
+            },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1076,6 +1080,33 @@ class TestPodTemplateFile:
         print(volume_mounts_names)
         assert "webserver-config" in volume_mounts_names
         assert "webserver-config" in jmespath.search("spec.volumes[*].name", docs[0])
+
+    @pytest.mark.parametrize(
+        "workers_values, kerberos_init_container",
+        [
+            ({"kerberosSidecar": {"enabled": True}}, False),
+            ({"kerberosInitContainer": {"enabled": True}}, True),
+        ],
+    )
+    def test_webserver_config_for_kerberos(self, workers_values, kerberos_init_container):
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.0.0",
+                "workers": workers_values,
+                "apiServer": {"apiServerConfigConfigMapName": "config"},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        kerberos_container = "spec.containers[1].volumeMounts[*].name"
+        if kerberos_init_container:
+            kerberos_container = "spec.initContainers[0].volumeMounts[*].name"
+
+        volume_mounts_names = jmespath.search(kerberos_container, docs[0])
+        print(volume_mounts_names)
+        assert "api-server-config" in volume_mounts_names
+        assert "api-server-config" in jmespath.search("spec.volumes[*].name", docs[0])
 
     @pytest.mark.parametrize(
         "workers_values",
