@@ -137,7 +137,7 @@ use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
 
-input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml"
+input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 output = "src/airflowctl/api/datamodels/generated.py"
 
 ## pytest settings ##

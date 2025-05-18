@@ -44,7 +44,7 @@ def download_file_from_github(
     tag: str, path: str, output_file: Path, github_token: str | None = None, timeout: int = 60
 ) -> bool:
     """
-    Downloads a file from GitHub repository of Apache Airflow
+    Downloads a file from the GitHub repository of Apache Airflow using the GitHub API.
 
     :param tag: tag to download from
     :param path: path of the file relative to the repository root
@@ -55,21 +55,21 @@ def download_file_from_github(
     """
     import requests
 
-    url = f"https://raw.githubusercontent.com/apache/airflow/{tag}/{path}"
+    url = f"https://api.github.com/repos/apache/airflow/contents/{path}?ref={tag}"
     get_console().print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
+        headers = {"Accept": "application/vnd.github.v3.raw"}
+        if github_token:
+            headers["Authorization"] = f"Bearer {github_token}"
+            headers["X-GitHub-Api-Version"] = "2022-11-28"
         try:
-            # add github token to the request if provided
-            headers = {}
-            if github_token:
-                headers["Authorization"] = f"Bearer {github_token}"
-                headers["X-GitHub-Api-Version"] = "2022-11-28"
             response = requests.get(url, headers=headers, timeout=timeout)
             if response.status_code == 403:
                 get_console().print(
-                    f"[error]The {url} is not accessible.This may be caused by either of:\n"
-                    f"   1. network issues or VPN settings\n"
-                    f"   2. Github rate limit"
+                    f"[error]Access denied to {url}. This may be caused by:\n"
+                    f"   1. Network issues or VPN settings\n"
+                    f"   2. GitHub API rate limiting\n"
+                    f"   3. Invalid or missing GitHub token"
                 )
                 return False
             if response.status_code == 404:
