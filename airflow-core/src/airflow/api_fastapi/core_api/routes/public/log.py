@@ -118,7 +118,7 @@ def get_log(
         .options(joinedload(TaskInstance.dag_model))
     )
     ti = session.scalar(query)
-    if ti is None:
+    if ti is None or ti.try_number != try_number:
         query = select(TaskInstanceHistory).where(
             TaskInstanceHistory.task_id == task_id,
             TaskInstanceHistory.dag_id == dag_id,
