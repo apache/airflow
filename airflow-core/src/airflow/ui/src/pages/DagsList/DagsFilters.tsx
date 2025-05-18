@@ -28,6 +28,7 @@ import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
 import { useCallback, useState } from "react";
 import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -51,6 +52,8 @@ const enabledOptions = createListCollection({
     { label: "Disabled", value: "true" },
   ],
 });
+
+const debounceDelay = 200;
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -123,6 +126,8 @@ export const DagsFilters = () => {
     },
     [searchParams, setSearchParams],
   );
+
+  const handleInputChange = useDebouncedCallback((newValue) => setPattern(`${newValue}%`), debounceDelay);
 
   const onClearFilters = () => {
     searchParams.delete(PAUSED_PARAM);
@@ -220,7 +225,7 @@ export const DagsFilters = () => {
             isMulti
             noOptionsMessage={() => "No tags found"}
             onChange={handleSelectTagsChange}
-            onInputChange={(newValue) => setPattern(`${newValue}%`)}
+            onInputChange={handleInputChange}
             options={
               data?.tags.map((tag) => ({
                 label: tag,
