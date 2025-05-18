@@ -320,7 +320,7 @@ class WeaviateHook(BaseHook):
 
         failed_references = collection.batch.failed_references
         if failed_references:
-            print(f"Number of failed imports: {len(failed_references)}")
+            self.log.error("Number of failed imports: %s", len(failed_references))
 
         return failed_references
 
