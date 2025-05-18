@@ -53,6 +53,7 @@ dependencies:
   - oss2>=2.14.0
   - alibabacloud_adb20211201>=1.0.0
   - alibabacloud_tea_openapi>=0.3.7
+  - apscheduler<3.11.0; python_version >= "3.8"
 
 integrations:
   - integration-name: Alibaba Cloud OSS

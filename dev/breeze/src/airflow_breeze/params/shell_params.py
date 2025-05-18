@@ -513,7 +513,9 @@ class ShellParams:
             _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         if self.executor == EDGE_EXECUTOR:
             _set_var(
-                _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
+                _env,
+                "AIRFLOW__CORE__EXECUTOR",
+                "airflow.providers.edge3.executors.edge_executor.EdgeExecutor",
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
 
@@ -527,11 +529,8 @@ class ShellParams:
                 "attempt={{ try_number|default(ti.try_number) }}.log",
             )
 
-            # Dev Airflow 3 runs API on FastAPI transitional
-            port = 9091
-            if self.use_airflow_version and self.use_airflow_version.startswith("2."):
-                # Airflow 2.10 runs it in the webserver atm
-                port = 8080
+            # Airflow 2.10 runs it in the webserver atm
+            port = 8080
             _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "BACKEND", self.backend)

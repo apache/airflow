@@ -42,7 +42,7 @@ from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.utils.jwt_signer import JWTSigner
+from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -178,7 +178,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     auth = request.headers.get("Authorization", "")
     clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
     signer = JWTSigner(
-        secret_key=conf.get("core", "internal_api_secret_key"),
+        secret_key=get_signing_key("core", "internal_api_secret_key"),
         expiration_time_in_seconds=clock_grace,
         leeway_in_seconds=clock_grace,
         audience="api",

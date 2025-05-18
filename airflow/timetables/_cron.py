@@ -108,6 +108,8 @@ class CronMixin:
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
+        if TYPE_CHECKING:
+            assert isinstance(scheduled, datetime.datetime)
         if not _covers_every_hour(cron):
             return convert_to_utc(make_aware(scheduled, self._timezone))
         delta = scheduled - naive
@@ -118,6 +120,8 @@ class CronMixin:
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
+        if TYPE_CHECKING:
+            assert isinstance(scheduled, datetime.datetime)
         if not _covers_every_hour(cron):
             return convert_to_utc(make_aware(scheduled, self._timezone))
         delta = naive - scheduled

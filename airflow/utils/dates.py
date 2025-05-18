@@ -113,7 +113,8 @@ def date_range(
                 dates.append(start_date)
 
             if delta_iscron:
-                start_date = cron.get_next(datetime)
+                # get_next returns float or datetime, depending on parameter - mypy does not see it
+                start_date = cron.get_next(datetime)  # type: ignore[assignment]
             else:
                 start_date += abs_delta
     else:
@@ -125,7 +126,8 @@ def date_range(
                 dates.append(start_date)
 
             if delta_iscron and num_entries > 0:
-                start_date = cron.get_next(datetime)
+                # get_next returns float or datetime, depending on parameter - mypy does not see it
+                start_date = cron.get_next(datetime)  # type: ignore[assignment]
             elif delta_iscron:
                 start_date = cron.get_prev(datetime)
             elif num_entries > 0:

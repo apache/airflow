@@ -25,7 +25,7 @@ from collections import defaultdict
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Dict, List, TypeVar
+from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -128,7 +128,7 @@ ALL_PROVIDERS_SENTINEL = AllProvidersSentinel()
 T = TypeVar("T", FileGroupForCi, SelectiveCoreTestType)
 
 
-class HashableDict(Dict[T, List[str]]):
+class HashableDict(dict[T, list[str]]):
     def __hash__(self):
         return hash(frozenset(self))
 

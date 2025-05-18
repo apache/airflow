@@ -296,7 +296,7 @@ def find_installation_spec(
 
 ALLOWED_PACKAGE_FORMAT = ["wheel", "sdist", "both"]
 ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
-ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
+ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests", "selected"]
 
 
 @click.command()
@@ -404,7 +404,7 @@ ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
 )
 @click.option(
     "--python-version",
-    default="3.8",
+    default="3.9",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
     show_default=True,
     help="Python version to use",

@@ -85,10 +85,8 @@ from airflow_breeze.commands.testing_commands import (
 )
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
-    ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
     ALLOWED_TTY,
-    CELERY_INTEGRATION,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -585,12 +583,8 @@ def start_airflow(
     )
 
     if not executor:
-        if CELERY_INTEGRATION in integration:
-            # Default to a celery executor if that's the integration being used
-            executor = ALLOWED_CELERY_EXECUTORS[0]
-        else:
-            # Otherwise default to LocalExecutor
-            executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
+        # Otherwise default to LocalExecutor
+        executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
 
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
@@ -639,12 +633,6 @@ def start_airflow(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
-    if CELERY_INTEGRATION in integration and executor not in ALLOWED_CELERY_EXECUTORS:
-        get_console().print(
-            "[warning]A non-Celery executor was used with start-airflow in combination with the Celery "
-            "integration, this will lead to some processes failing to start (e.g.  celery worker)\n"
-        )
-
     sys.exit(result.returncode)
 
 

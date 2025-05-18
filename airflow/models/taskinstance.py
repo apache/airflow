@@ -173,6 +173,14 @@ if TYPE_CHECKING:
 
 PAST_DEPENDS_MET = "past_depends_met"
 
+timer_unit_consistency = conf.getboolean("metrics", "timer_unit_consistency")
+if not timer_unit_consistency:
+    warnings.warn(
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.",
+        RemovedInAirflow3Warning,
+        stacklevel=2,
+    )
+
 
 class TaskReturnCode(Enum):
     """
@@ -828,8 +836,11 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.trigger_id = source.trigger_id
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
+    # These checks are required to make sure that note and rendered_map_index are not
+    # reset during refresh_from_db as DB still contains None values and would reset the fields
     if source.note and isinstance(source, TaskInstancePydantic):
         target.note = source.note
+    if source.rendered_map_index and isinstance(source, TaskInstancePydantic):
         target.rendered_map_index = source.rendered_map_index
 
     if include_dag_run:
@@ -2263,7 +2274,7 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
-        base_date = quote(self.execution_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
+        base_date = quote(self.execution_date.strftime("%Y-%m-%dT%H:%M:%S.%f%z"))
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
         map_index = f"&map_index={self.map_index}" if self.map_index >= 0 else ""
         return (
@@ -2957,7 +2968,10 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.queued_dttm
+            if timer_unit_consistency:
+                timing = timezone.utcnow() - self.queued_dttm
+            else:
+                timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2970,7 +2984,10 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.start_date
+            if timer_unit_consistency:
+                timing = timezone.utcnow() - self.start_date
+            else:
+                timing = (timezone.utcnow() - self.start_date).total_seconds()
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 

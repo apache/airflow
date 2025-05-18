@@ -117,8 +117,6 @@ def build_airflow_packages(package_format: str):
                             tmpdir,
                             "--no-deps",
                             "--no-cache",
-                            "--no-binary",
-                            ":all:",
                             file.as_posix(),
                         ],
                         check=False,

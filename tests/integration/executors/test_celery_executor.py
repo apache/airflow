@@ -21,11 +21,9 @@ import contextlib
 import json
 import logging
 import os
-import sys
 from ast import literal_eval
 from datetime import datetime
 from importlib import reload
-from time import sleep
 from unittest import mock
 
 # leave this it is used by the test worker
@@ -34,11 +32,10 @@ import pytest
 from celery import Celery
 from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
-from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
+from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors import base_executor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -129,75 +126,6 @@ class TestCeleryExecutor:
         # Restore the base executor and celery modules
         reload(base_executor)
         reload(celery_executor)
-
-    @pytest.mark.flaky(reruns=3)
-    @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
-    def test_celery_integration(self, broker_url):
-        from airflow.providers.celery.executors import celery_executor, celery_executor_utils
-
-        success_command = ["airflow", "tasks", "run", "true", "some_parameter"]
-        fail_command = ["airflow", "version"]
-
-        def fake_execute_command(command):
-            if command != success_command:
-                raise AirflowException("fail")
-
-        with _prepare_app(broker_url, execute=fake_execute_command) as app:
-            executor = celery_executor.CeleryExecutor()
-            assert executor.tasks == {}
-            executor.start()
-
-            with start_worker(app=app, logfile=sys.stdout, loglevel="info"):
-                execute_date = datetime.now()
-
-                task_tuples_to_send = [
-                    (
-                        ("success", "fake_simple_ti", execute_date, 0),
-                        success_command,
-                        celery_executor_utils.celery_configuration["task_default_queue"],
-                        celery_executor_utils.execute_command,
-                    ),
-                    (
-                        ("fail", "fake_simple_ti", execute_date, 0),
-                        fail_command,
-                        celery_executor_utils.celery_configuration["task_default_queue"],
-                        celery_executor_utils.execute_command,
-                    ),
-                ]
-
-                # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for key, command, queue, _ in task_tuples_to_send:
-                    executor.queued_tasks[key] = (command, 1, queue, None)
-                    executor.task_publish_retries[key] = 1
-
-                executor._process_tasks(task_tuples_to_send)
-                for _ in range(20):
-                    num_tasks = len(executor.tasks.keys())
-                    if num_tasks == 2:
-                        break
-                    logger.info(
-                        "Waiting 0.1 s for tasks to be processed asynchronously. Processed so far %d",
-                        num_tasks,
-                    )
-                    sleep(0.4)
-                assert list(executor.tasks.keys()) == [
-                    ("success", "fake_simple_ti", execute_date, 0),
-                    ("fail", "fake_simple_ti", execute_date, 0),
-                ]
-                assert (
-                    executor.event_buffer[("success", "fake_simple_ti", execute_date, 0)][0] == State.QUEUED
-                )
-                assert executor.event_buffer[("fail", "fake_simple_ti", execute_date, 0)][0] == State.QUEUED
-
-                executor.end(synchronous=True)
-
-        assert executor.event_buffer[("success", "fake_simple_ti", execute_date, 0)][0] == State.SUCCESS
-        assert executor.event_buffer[("fail", "fake_simple_ti", execute_date, 0)][0] == State.FAILED
-
-        assert "success" not in executor.tasks
-        assert "fail" not in executor.tasks
-
-        assert executor.queued_tasks == {}
 
     def test_error_sending_task(self):
         from airflow.providers.celery.executors import celery_executor

@@ -342,10 +342,9 @@ You can read more about auth managers and how to write your own in :doc:`core-co
 Authentication Backends
 -----------------------
 
-Authentication backends can extend the way how Airflow authentication mechanism works. You can find out more
-about authentication in :doc:`apache-airflow-providers:core-extensions/auth-backends` that also shows available
-Authentication backends implemented in the community providers. In case of authentication backend implemented in a
-provider, it is then part of the provider's public interface and not Airflow's.
+Authentication backends can extend the way how Airflow authentication mechanism works. Those auth_backends
+were available in airflow 2 and has been moved to "FAB" provider authentication backends.
+You can read more about authentication backends in :doc:`apache-airflow-providers-fab:index`
 
 Connections
 -----------

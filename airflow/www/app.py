@@ -35,6 +35,7 @@ from airflow.logging_config import configure_logging
 from airflow.models import import_all_models
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.json import AirflowJsonProvider
+from airflow.utils.jwt_signer import get_signing_key
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -73,7 +74,7 @@ csrf = CSRFProtect()
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app."""
     flask_app = Flask(__name__)
-    flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
+    flask_app.secret_key = get_signing_key("webserver", "SECRET_KEY")
 
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
 

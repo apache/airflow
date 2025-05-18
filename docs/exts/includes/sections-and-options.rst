@@ -86,7 +86,11 @@
     {{ "-" * (deprecated_option_name + " (Deprecated)")|length }}
 
     .. deprecated:: {{ since_version }}
+     {% if new_section_name != "celery" %}
      The option has been moved to :ref:`{{ new_section_name }}.{{ new_option_name }} <config:{{ new_section_name }}__{{ new_option_name }}>`
+     {% else %}
+     The option has been moved to Celery Provider :doc:`apache-airflow-providers-celery:index`
+     {% endif %}
     {% endfor %}
     {% endif %}
 

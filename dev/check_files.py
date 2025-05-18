@@ -33,7 +33,7 @@ RUN rm -rf /opt/airflow/airflow/providers
 """
 
 AIRFLOW_DOCKER = """\
-FROM python:3.8
+FROM python:3.9
 
 # Upgrade
 RUN pip install "apache-airflow=={}"

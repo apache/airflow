@@ -38,6 +38,6 @@ Examples:
 
 from __future__ import annotations
 
-AIRFLOW_BRANCH = "v2-10-test"
-DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-2-10"
+AIRFLOW_BRANCH = "v2-11-test"
+DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-2-11"
 DEBIAN_VERSION = "bookworm"
