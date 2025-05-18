@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from weaviate.auth import AuthCredentials
     from weaviate.collections import Collection
+    from weaviate.collections.classes.batch import ErrorReference
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
     from weaviate.collections.classes.internal import (
         Object,
@@ -48,7 +49,6 @@ if TYPE_CHECKING:
         QuerySearchReturnType,
         ReferenceInputs,
     )
-    from weaviate.collections.classes.batch import ErrorReference
     from weaviate.collections.classes.types import Properties
     from weaviate.types import UUID
 
@@ -270,7 +270,7 @@ class WeaviateHook(BaseHook):
         return cast("list[dict[str, Any]]", data)
 
     def batch_create_links(
-        self, 
+        self,
         collection_name: str,
         data: list[dict[str, Any]] | pd.DataFrame | None,
         from_property_col: str = "from_property",
@@ -279,8 +279,7 @@ class WeaviateHook(BaseHook):
         retry_attempts_per_object: int = 5,
     ) -> list[ErrorReference] | None:
         """
-        Batch create links from an object to another other object through cross-references.
-        https://weaviate.io/developers/weaviate/manage-data/import#import-with-references
+        Batch create links from an object to another other object through cross-references (https://weaviate.io/developers/weaviate/manage-data/import#import-with-references).
 
         :param collection_name: The name of the collection containing the source objects.
         :param data: list or dataframe of objects we want to create links.
@@ -311,18 +310,18 @@ class WeaviateHook(BaseHook):
                             attempt.retry_state.attempt_number,
                             from_uuid,
                             to_uuid,
-                            from_property
+                            from_property,
                         )
                         batch.add_reference(
                             from_property=from_property,
                             from_uuid=from_uuid,
                             to=to_uuid,
                         )
-        
+
         failed_references = collection.batch.failed_references
         if failed_references:
             print(f"Number of failed imports: {len(failed_references)}")
-        
+
         return failed_references
 
     def batch_data(
