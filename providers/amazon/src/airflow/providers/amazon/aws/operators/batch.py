@@ -120,6 +120,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         "job_definition",
         "job_queue",
         "container_overrides",
+        "overrides",
         "array_properties",
         "ecs_properties_override",
         "eks_properties_override",
@@ -134,6 +135,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     )
     template_fields_renderers = {
         "container_overrides": "json",
+        "overrides": "json",
         "parameters": "json",
         "ecs_properties_override": "json",
         "eks_properties_override": "json",
@@ -190,6 +192,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         awslogs_enabled: bool = False,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
         submit_job_timeout: int | None = None,
+        overrides: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -215,6 +218,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         self.awslogs_enabled = awslogs_enabled
         self.awslogs_fetch_interval = awslogs_fetch_interval
         self.submit_job_timeout = submit_job_timeout
+        self.overrides = overrides or container_overrides
 
         # params for hook
         self.max_retries = max_retries
@@ -294,6 +298,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         if self.container_overrides:
             self.log.info("AWS Batch job - container overrides: %s", self.container_overrides)
+        if self.overrides:
+            self.log.info("AWS Batch job - container overrides: %s", self.overrides)
         if self.array_properties:
             self.log.info("AWS Batch job - array properties: %s", self.array_properties)
         if self.ecs_properties_override:
@@ -310,7 +316,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             "arrayProperties": self.array_properties,
             "parameters": self.parameters,
             "tags": self.tags,
-            "containerOverrides": self.container_overrides,
+            "containerOverrides": self.overrides,
             "ecsPropertiesOverride": self.ecs_properties_override,
             "eksPropertiesOverride": self.eks_properties_override,
             "nodeOverrides": self.node_overrides,
