@@ -220,20 +220,20 @@ def upgrade():
         op.execute(update_query)
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        if dialect_name == "mysql":
+            batch_op.drop_constraint("task_instance_pkey", type_="primary")
+        elif dialect_name == "mssql":
+            constraints = get_mssql_table_constraints(conn, "task_instance")
+            pk, _ = constraints["PRIMARY KEY"].popitem()
+            batch_op.drop_constraint(pk, type_="primary")
+        elif dialect_name == "sqlite":
+            try:
+                with op.batch_alter_table(table, schema=None) as batch_op:
+                    batch_op.drop_constraint("task_instance_pkey", type_="primary")
+            except ValueError:
+                pass
+
         if dialect_name != "postgresql":
-            # TODO: Is this right for non-postgres?
-            if dialect_name == "mssql":
-                constraints = get_mssql_table_constraints(conn, "task_instance")
-                pk, _ = constraints["PRIMARY KEY"].popitem()
-                batch_op.drop_constraint(pk, type_="primary")
-            elif dialect_name == "mysql":
-                batch_op.drop_constraint("task_instance_pkey", type_="primary")
-            elif dialect_name == "sqlite":
-                try:
-                    with op.batch_alter_table(table, schema=None) as batch_op:
-                        batch_op.drop_constraint("task_instance_pkey", type_="primary")
-                except ValueError:
-                    pass
             batch_op.drop_index("ti_dag_date")
             batch_op.drop_index("ti_state_lkp")
             batch_op.drop_column("execution_date")
