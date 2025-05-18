@@ -226,7 +226,6 @@ def upgrade():
                 constraints = get_mssql_table_constraints(conn, "task_instance")
                 pk, _ = constraints["PRIMARY KEY"].popitem()
                 batch_op.drop_constraint(pk, type_="primary")
-            batch_op.drop_constraint("task_instance_pkey", type_="primary")
             batch_op.drop_index("ti_dag_date")
             batch_op.drop_index("ti_state_lkp")
             batch_op.drop_column("execution_date")
