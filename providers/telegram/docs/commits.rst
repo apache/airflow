@@ -30,6 +30,6 @@ Package apache-airflow-providers-telegram
 
 
 This is detailed commit list of changes for versions provider package: ``telegram``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

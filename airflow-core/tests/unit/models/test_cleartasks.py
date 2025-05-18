@@ -700,13 +700,17 @@ class TestClearTasks:
         ti1, ti2 = sorted(dr.get_task_instances(session=session), key=lambda ti: ti.task_id)
         ti1.task = op1
         ti2.task = op2
-
-        session.get(TaskInstance, ti2.id).try_number += 1
+        ti2.refresh_from_db(session=session)
+        ti2.try_number += 1
         session.commit()
-        ti2.run(session=session)
+
         # Dependency not met
         assert ti2.try_number == 1
         assert ti2.max_tries == 1
+
+        ti1.refresh_from_db(session=session)
+        assert ti1.max_tries == 0
+        assert ti1.try_number == 0
 
         op2.clear(upstream=True, session=session)
         ti1.refresh_from_db(session)
@@ -716,14 +720,9 @@ class TestClearTasks:
         # max tries will be set to retries + curr try number == 1 + 1 == 2
         assert ti2.max_tries == 2
 
-        ti1.try_number += 1
-        session.merge(ti1)
-        session.commit()
-
-        ti1.run(session=session)
         ti1.refresh_from_db(session)
         ti2.refresh_from_db(session)
-        assert ti1.try_number == 1
+        assert ti1.try_number == 0
 
         ti2 = _get_ti(ti2)
         ti2.try_number += 1

@@ -15,8 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Re exporting the new param module from Task SDK for backward compatibility."""
+# References
+cli-ref.rst cli-and-env-variables-ref.rst
+Quick Start start.rst
+changelog.rst changelog.rst
 
-from __future__ import annotations
+# Installation.rst
+installation/index.rst
 
-from airflow.sdk.definitions.param import Param as Param, ParamsDict as ParamsDict
+# How to
+howto/index.rst

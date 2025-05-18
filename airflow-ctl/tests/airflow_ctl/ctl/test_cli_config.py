@@ -46,7 +46,7 @@ def test_args():
         (
             "--dag-id",
             {
-                "help": "Argument Type: <class 'str'>, dag_id for backfill operation",
+                "help": "dag_id for backfill operation",
                 "action": None,
                 "default": None,
                 "type": str,
@@ -56,7 +56,7 @@ def test_args():
         (
             "--from-date",
             {
-                "help": "Argument Type: <class 'datetime.datetime'>, from_date for backfill operation",
+                "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
                 "type": datetime.datetime,
@@ -66,7 +66,7 @@ def test_args():
         (
             "--to-date",
             {
-                "help": "Argument Type: <class 'datetime.datetime'>, to_date for backfill operation",
+                "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
                 "type": datetime.datetime,
@@ -76,7 +76,7 @@ def test_args():
         (
             "--run-backwards",
             {
-                "help": "Argument Type: <class 'bool'>, run_backwards for backfill operation",
+                "help": "run_backwards for backfill operation",
                 "action": BooleanOptionalAction,
                 "default": False,
                 "type": bool,
@@ -86,7 +86,7 @@ def test_args():
         (
             "--dag-run-conf",
             {
-                "help": "Argument Type: dict[str, typing.Any], dag_run_conf for backfill operation",
+                "help": "dag_run_conf for backfill operation",
                 "action": None,
                 "default": None,
                 "type": dict[str, Any],
@@ -96,7 +96,7 @@ def test_args():
         (
             "--reprocess-behavior",
             {
-                "help": "Argument Type: <enum 'ReprocessBehavior'>, reprocess_behavior for backfill operation",
+                "help": "reprocess_behavior for backfill operation",
                 "action": None,
                 "default": None,
                 "type": ReprocessBehavior,
@@ -106,7 +106,7 @@ def test_args():
         (
             "--max-active-runs",
             {
-                "help": "Argument Type: <class 'int'>, max_active_runs for backfill operation",
+                "help": "max_active_runs for backfill operation",
                 "action": None,
                 "default": None,
                 "type": int,

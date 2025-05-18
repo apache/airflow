@@ -1993,7 +1993,7 @@ export const useTaskInstanceServiceGetLog = <
     token,
     tryNumber,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "application/json" | "*/*" | "application/x-ndjson";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -4066,7 +4066,7 @@ export const useDagServicePatchDag = <
  * @param data.requestBody
  * @param data.mapIndex
  * @param data.updateMask
- * @returns TaskInstanceResponse Successful Response
+ * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServicePatchTaskInstance = <
@@ -4125,7 +4125,7 @@ export const useTaskInstanceServicePatchTaskInstance = <
  * @param data.mapIndex
  * @param data.requestBody
  * @param data.updateMask
- * @returns TaskInstanceResponse Successful Response
+ * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <
