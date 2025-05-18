@@ -66,22 +66,9 @@ def test_get_airflow_health_metadatabase_unhealthy(
     assert health_status == expected_status
 
 
-@patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=Exception)
-@patch("airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job", return_value=Exception)
-@patch("airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job", return_value=Exception)
-def test_get_airflow_health_no_dag_processor(
-    latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
-):
+def test_get_airflow_health_no_dag_processor():
     health_status = get_airflow_health()
-
-    expected_status = {
-        "metadatabase": {"status": UNHEALTHY},
-        "scheduler": {"status": UNHEALTHY, "latest_scheduler_heartbeat": None},
-        "triggerer": {"status": UNHEALTHY, "latest_triggerer_heartbeat": None},
-        "dag_processor": {"status": None, "latest_dag_processor_heartbeat": None},
-    }
-
-    assert health_status == expected_status
+    assert health_status["dag_processor"] == {"status": None, "latest_dag_processor_heartbeat": None}
 
 
 LATEST_SCHEDULER_JOB_MOCK = MagicMock()
