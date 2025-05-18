@@ -31,6 +31,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
+from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
@@ -859,14 +860,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             # If we're using system packages, assume both are present
             found_airflow = found_pendulum = True
         else:
-            requirements_iterable = []
-            if isinstance(self.requirements, str):
-                requirements_iterable = self.requirements.splitlines()
-            else:
-                for item in self.requirements:
-                    requirements_iterable.extend(item.splitlines())
-
-            for raw_str in requirements_iterable:
+            for raw_str in chain.from_iterable(req.splitlines() for req in self.requirements):
                 line = raw_str.strip()
                 # Skip blank lines and full‐line comments
                 if not line or line.startswith("#"):
