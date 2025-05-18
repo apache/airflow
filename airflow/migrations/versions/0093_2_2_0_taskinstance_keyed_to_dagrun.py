@@ -226,6 +226,8 @@ def upgrade():
                 constraints = get_mssql_table_constraints(conn, "task_instance")
                 pk, _ = constraints["PRIMARY KEY"].popitem()
                 batch_op.drop_constraint(pk, type_="primary")
+            elif dialect_name == "mysql":
+                batch_op.drop_constraint("task_instance_pkey", type_="primary")
             elif dialect_name == "sqlite":
                 try:
                     with op.batch_alter_table(table, schema=None) as batch_op:
