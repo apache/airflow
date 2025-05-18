@@ -272,27 +272,29 @@ class WeaviateHook(BaseHook):
     def batch_create_links(
         self, 
         collection_name: str,
-        data: list[dict[str, Any]] | dict[str, Any],
+        data: list[dict[str, Any]] | pd.DataFrame | None,
+        from_property_col: str = "from_property",
+        from_uuid_col: str = "from_uuid",
+        to_uuid_col: str = "to",
         retry_attempts_per_object: int = 5,
     ) -> list[ErrorReference] | None:
         """
-        Batch create links from an object to another other object through cross-references. The method
-        returns the failed reference if any.
+        Batch create links from an object to another other object through cross-references.
         https://weaviate.io/developers/weaviate/manage-data/import#import-with-references
 
-        :param collection_name: The name of the collection that objects belongs to.
-        :param data: list of objects we want to create links. e.g., {"from_property": "writesFor", "from_uuid": 1234455, "to_uuid": 1245555}
+        :param collection_name: The name of the collection containing the source objects.
+        :param data: list or dataframe of objects we want to create links.
+        :param from_property_col: name of the reference property column.
+        :param from_uuid_col: Name of the column containing the from UUID.
+        :param to_uuid_col: Name of the column containing the target UUID.
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
         """
-        # get the collection for creating the batch
+        converted_data = self._convert_dataframe_to_list(data)
         collection = self.get_collection(collection_name)
-        # convert a single dictionary to a list
-        if isinstance(data, dict):
-            data = [data]
-        # iterate through the objects and add reference
+
         with collection.batch.dynamic() as batch:
-            # Batch import all data
-            for data_obj in data:
+            # Batch create links
+            for data_obj in converted_data:
                 for attempt in Retrying(
                     stop=stop_after_attempt(retry_attempts_per_object),
                     retry=(
@@ -301,13 +303,11 @@ class WeaviateHook(BaseHook):
                     ),
                 ):
                     with attempt:
-                        
-                        from_property = data_obj.pop('from_property')
-                        from_uuid = data_obj.pop('from_uuid')
-                        to_uuid = data_obj.pop('to_uuid')
-
+                        from_property = data_obj.pop(from_property_col, None)
+                        from_uuid = data_obj.pop(from_uuid_col, None)
+                        to_uuid = data_obj.pop(to_uuid_col, None)
                         self.log.debug(
-                            "Attempt %s of creating link from uuid %s to uuid %s from property %s",
+                            "Attempt %s of create links between %s and %s using reference property %s",
                             attempt.retry_state.attempt_number,
                             from_uuid,
                             to_uuid,
@@ -318,12 +318,12 @@ class WeaviateHook(BaseHook):
                             from_uuid=from_uuid,
                             to=to_uuid,
                         )
-                        self.log.debug("Added link from uuid %s to uuid %s into batch", from_uuid, to_uuid)
         
         failed_references = collection.batch.failed_references
-        self.log.debug(f"Number of failed imports: {len(failed_references)}")
         if failed_references:
-            return failed_references
+            print(f"Number of failed imports: {len(failed_references)}")
+        
+        return failed_references
 
     def batch_data(
         self,
