@@ -1480,6 +1480,10 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             (["", "pendulum"], False, False, True),
             # indented comment + requirement
             (["  # comment", "pendulum~=2.1.0"], False, False, True),
+            # requirements passed as multi-line strings
+            ("funcsigs==0.4\nattrs==23.1.0", False, False, False),
+            (["funcsigs==0.4\nattrs==23.1.0"], False, False, False),
+            ("pendulum==2.1.2  # pinned version\nattrs==23.1.0  # optional", False, False, True),
         ],
     )
     def test_iter_serializable_context_keys(self, requirements, system_site, want_airflow, want_pendulum):
