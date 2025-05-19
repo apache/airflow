@@ -112,7 +112,7 @@ class RunningRetryAttemptType:
 
 class BaseExecutor(LoggingMixin):
     """
-    Base class to inherit for concrete executors such as Celery, Kubernetes, Local, Sequential, etc.
+    Base class to inherit for concrete executors such as Celery, Kubernetes, Local, etc.
 
     :param parallelism: how many jobs should run at one time.
     """
