@@ -22,11 +22,10 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import Any
 
-from airflow import settings
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.http_to_gcs import HttpToGCSOperator
@@ -34,6 +33,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -55,20 +55,6 @@ sleep 2
 exit 0
 """
 
-
-@task
-def create_connection(conn_id_name: str):
-    conn = Connection(
-        conn_id=conn_id_name,
-        conn_type="http",
-        host="localhost",
-        port=8083,
-    )
-    session = settings.Session()
-    session.add(conn)
-    session.commit()
-
-
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -79,6 +65,14 @@ with DAG(
     conn_id_name = f"{ENV_ID}-http-conn-id"
 
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+
+    @task(task_id="create_connection")
+    def create_connection(conn_id_name: str):
+        connection: dict[str, Any] = {"conn_type": "http", "host": "localhost", "port": 8083}
+        create_airflow_connection(
+            connection_id=conn_id_name,
+            connection_conf=connection,
+        )
 
     set_up_connection = create_connection(conn_id_name)
 
@@ -104,6 +98,12 @@ with DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    @task(task_id="delete_connection", trigger_rule=TriggerRule.ALL_DONE)
+    def delete_connection(connection_id: str) -> None:
+        delete_airflow_connection(connection_id=connection_id)
+
+    delete_connection_task = delete_connection(connection_id=conn_id_name)
+
     chain(
         # TEST SETUP
         create_bucket,
@@ -114,6 +114,7 @@ with DAG(
         # TEST TEARDOWN
         stop_server,
         delete_bucket,
+        delete_connection_task,
     )
 
     from tests_common.test_utils.watcher import watcher
