@@ -2668,6 +2668,7 @@ export const useDagVersionServiceGetDagVersions = <
  * Get Db Stats
  * @param data The data for the request.
  * @param data.tables List of tables to include
+ * @param data.skipRecordCount Skip record count
  * @returns MetadataDBStatsResponse Successful Response
  * @throws ApiError
  */
@@ -2677,16 +2678,18 @@ export const useMaintenanceServiceGetDbStats = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    skipRecordCount,
     tables,
   }: {
+    skipRecordCount?: boolean;
     tables?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ tables }, queryKey),
-    queryFn: () => MaintenanceService.getDbStats({ tables }) as TData,
+    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ skipRecordCount, tables }, queryKey),
+    queryFn: () => MaintenanceService.getDbStats({ skipRecordCount, tables }) as TData,
     ...options,
   });
 /**

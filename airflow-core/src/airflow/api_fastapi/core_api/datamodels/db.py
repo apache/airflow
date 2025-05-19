@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -24,8 +26,8 @@ class TableStats(BaseModel):
     """Table stats serializer for responses."""
 
     table_name: str
-    record_count: int
-    oldest_record: str | None
+    record_count: int | None
+    oldest_record: datetime | None
 
 
 class MetadataDBStatsResponse(BaseModel):

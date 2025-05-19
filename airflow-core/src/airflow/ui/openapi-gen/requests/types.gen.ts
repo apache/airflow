@@ -1084,7 +1084,7 @@ export type StructuredLogMessage = {
  */
 export type TableStats = {
   table_name: string;
-  record_count: number;
+  record_count: number | null;
   oldest_record: string | null;
 };
 
@@ -2682,6 +2682,10 @@ export type GetDagVersionsData = {
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
 
 export type GetDbStatsData = {
+  /**
+   * Skip record count
+   */
+  skipRecordCount?: boolean;
   /**
    * List of tables to include
    */

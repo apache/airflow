@@ -6847,6 +6847,15 @@ paths:
           description: List of tables to include
           title: Tables
         description: List of tables to include
+      - name: skip_record_count
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Skip record count
+          default: false
+          title: Skip Record Count
+        description: Skip record count
       responses:
         '200':
           description: Successful Response
@@ -9682,11 +9691,14 @@ components:
           type: string
           title: Table Name
         record_count:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Record Count
         oldest_record:
           anyOf:
           - type: string
+            format: date-time
           - type: 'null'
           title: Oldest Record
       type: object

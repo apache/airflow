@@ -19,7 +19,7 @@ from __future__ import annotations
 from sqlalchemy import func
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.parameters import QueryTablesFilter
+from airflow.api_fastapi.common.parameters import QuerySkipRecordCount, QueryTablesFilter
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.db import MetadataDBStatsResponse, TableStats
 from airflow.utils.db import reflect_tables
@@ -29,7 +29,11 @@ db_router = AirflowRouter(tags=["Maintenance"], prefix="/maintenance/db")
 
 
 @db_router.get("/stats", dependencies=[])
-def get_db_stats(tables: QueryTablesFilter, session: SessionDep) -> MetadataDBStatsResponse:
+def get_db_stats(
+    tables: QueryTablesFilter,
+    session: SessionDep,
+    skip_record_count: QuerySkipRecordCount = False,
+) -> MetadataDBStatsResponse:
     existing_tables = reflect_tables(tables=None, session=session).tables
     _, effective_config_dict = _effective_table_names(table_names=tables)
     stats = []
@@ -39,11 +43,11 @@ def get_db_stats(tables: QueryTablesFilter, session: SessionDep) -> MetadataDBSt
         orm_model = table_config.orm_model
         rec_col = table_config.recency_column
 
-        # 1. Oldest record:
         oldest_ts = session.query(func.min(rec_col)).select_from(orm_model).scalar()
 
-        # 2. Total row count:
-        total_rows = session.query(func.count()).select_from(orm_model).scalar()
+        total_rows = (
+            session.query(func.count()).select_from(orm_model).scalar() if not skip_record_count else None
+        )
 
         stats.append(
             TableStats(

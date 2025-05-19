@@ -3415,6 +3415,7 @@ export class MaintenanceService {
    * Get Db Stats
    * @param data The data for the request.
    * @param data.tables List of tables to include
+   * @param data.skipRecordCount Skip record count
    * @returns MetadataDBStatsResponse Successful Response
    * @throws ApiError
    */
@@ -3424,6 +3425,7 @@ export class MaintenanceService {
       url: "/api/v2/maintenance/db/stats",
       query: {
         tables: data.tables,
+        skip_record_count: data.skipRecordCount,
       },
       errors: {
         401: "Unauthorized",

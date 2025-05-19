@@ -716,8 +716,8 @@ class TableStats(BaseModel):
     """
 
     table_name: Annotated[str, Field(title="Table Name")]
-    record_count: Annotated[int, Field(title="Record Count")]
-    oldest_record: Annotated[str | None, Field(title="Oldest Record")] = None
+    record_count: Annotated[int | None, Field(title="Record Count")] = None
+    oldest_record: Annotated[datetime | None, Field(title="Oldest Record")] = None
 
 
 class TaskDependencyResponse(BaseModel):

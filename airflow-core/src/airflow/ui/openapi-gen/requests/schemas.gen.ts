@@ -4046,13 +4046,21 @@ export const $TableStats = {
       title: "Table Name",
     },
     record_count: {
-      type: "integer",
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Record Count",
     },
     oldest_record: {
       anyOf: [
         {
           type: "string",
+          format: "date-time",
         },
         {
           type: "null",

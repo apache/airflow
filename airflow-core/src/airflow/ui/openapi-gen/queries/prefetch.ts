@@ -2241,20 +2241,23 @@ export const prefetchUseDagVersionServiceGetDagVersions = (
  * Get Db Stats
  * @param data The data for the request.
  * @param data.tables List of tables to include
+ * @param data.skipRecordCount Skip record count
  * @returns MetadataDBStatsResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseMaintenanceServiceGetDbStats = (
   queryClient: QueryClient,
   {
+    skipRecordCount,
     tables,
   }: {
+    skipRecordCount?: boolean;
     tables?: string[];
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ tables }),
-    queryFn: () => MaintenanceService.getDbStats({ tables }),
+    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ skipRecordCount, tables }),
+    queryFn: () => MaintenanceService.getDbStats({ skipRecordCount, tables }),
   });
 /**
  * Get Health

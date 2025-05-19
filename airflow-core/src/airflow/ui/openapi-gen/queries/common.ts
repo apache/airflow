@@ -1611,12 +1611,14 @@ export type MaintenanceServiceGetDbStatsQueryResult<
 export const useMaintenanceServiceGetDbStatsKey = "MaintenanceServiceGetDbStats";
 export const UseMaintenanceServiceGetDbStatsKeyFn = (
   {
+    skipRecordCount,
     tables,
   }: {
+    skipRecordCount?: boolean;
     tables?: string[];
   } = {},
   queryKey?: Array<unknown>,
-) => [useMaintenanceServiceGetDbStatsKey, ...(queryKey ?? [{ tables }])];
+) => [useMaintenanceServiceGetDbStatsKey, ...(queryKey ?? [{ skipRecordCount, tables }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<
   TData = MonitorServiceGetHealthDefaultResponse,
