@@ -60,7 +60,7 @@ class TestDBTaskInstance:
             ti.try_number = 2
             ti.hostname = "localhost"
             session.merge(ti)
-            session.flush()
+        session.commit()
 
     def teardown_method(self):
         clear_db_runs()
