@@ -134,7 +134,6 @@ class TestKubernetesPodOperatorSystem:
             },
             "spec": {
                 "affinity": {},
-                "automountServiceAccountToken": True,
                 "containers": [
                     {
                         "image": "ubuntu:16.04",
