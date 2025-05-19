@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-19T19:00:48.970697
+# This constraints file was automatically generated on 2025-05-19T22:10:50.089424
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -611,7 +611,7 @@ restructuredtext_lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.7.0
-rich-click==1.8.8
+rich-click==1.8.9
 rich==13.9.4
 roman-numerals-py==3.1.0
 rpds-py==0.25.0
