@@ -292,6 +292,7 @@ repos:
           ^.*airflow\.template\.yaml$|
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
+          ^helm-tests/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -632,6 +633,7 @@ repos:
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^chart/values.schema\.json$|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
+          ^helm-tests/tests/chart_utils/ingress-networking-v1beta1\.json$|
           ^dev/|
           ^devel-common/src/docs/README\.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
