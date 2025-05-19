@@ -38,7 +38,6 @@ export const PoolSummary = () => {
   const totalSlots = pools?.reduce((sum, pool) => sum + pool.slots, 0) ?? 0;
   const aggregatePool: Slots = {
     deferred_slots: 0,
-    occupied_slots: 0,
     open_slots: 0,
     queued_slots: 0,
     running_slots: 0,
@@ -47,7 +46,6 @@ export const PoolSummary = () => {
 
   const poolsWithSlotType: Slots = {
     deferred_slots: 0,
-    occupied_slots: 0,
     open_slots: 0,
     queued_slots: 0,
     running_slots: 0,
