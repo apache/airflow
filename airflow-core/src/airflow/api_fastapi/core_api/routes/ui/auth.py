@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.auth_manager import AuthManagerDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     MenuItemCollectionResponse,
@@ -29,10 +29,11 @@ auth_router = AirflowRouter(tags=["Auth Links"])
 
 @auth_router.get("/auth/menus")
 def get_auth_menus(
+    auth_manager: AuthManagerDep,
     user: GetUserDep,
 ) -> MenuItemCollectionResponse:
-    authorized_menu_items = get_auth_manager().get_authorized_menu_items(user=user)
-    extra_menu_items = get_auth_manager().get_extra_menu_items(user=user)
+    authorized_menu_items = auth_manager.get_authorized_menu_items(user=user)
+    extra_menu_items = auth_manager.get_extra_menu_items(user=user)
 
     return MenuItemCollectionResponse(
         authorized_menu_items=authorized_menu_items,

@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
-from airflow.api_fastapi.app import get_auth_manager_cls
+from airflow.api_fastapi.common.auth_manager import get_auth_manager_cls
 from airflow.cli.cli_config import (
     DAG_CLI_DICT,
     ActionCommand,

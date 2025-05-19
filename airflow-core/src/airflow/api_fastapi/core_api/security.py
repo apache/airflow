@@ -25,7 +25,6 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
-from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
@@ -39,6 +38,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.common.auth_manager import AuthManagerDep
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagRun, DagTag
@@ -49,7 +49,7 @@ from airflow.models.xcom import XComModel
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
-    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 auth_description = (
     "To authenticate Airflow API requests, clients must include a JWT (JSON Web Token) in "
@@ -64,9 +64,12 @@ auth_description = (
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description)
 
 
-async def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
+async def get_user(
+    auth_manager: AuthManagerDep,
+    token_str: Annotated[str, Depends(oauth2_scheme)],
+) -> BaseUser:
     try:
-        return await get_auth_manager().get_user_from_token(token_str)
+        return await auth_manager.get_user_from_token(token_str)
     except ExpiredSignatureError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token Expired")
     except InvalidTokenError:
@@ -98,12 +101,13 @@ def requires_access_dag(
 ) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
+        auth_manager: AuthManagerDep,
         user: GetUserDep,
     ) -> None:
         dag_id: str | None = request.path_params.get("dag_id")
 
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
+            is_authorized_callback=lambda: auth_manager.is_authorized_dag(
                 method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
             )
         )
@@ -164,10 +168,9 @@ def permitted_dag_filter_factory(
     """
 
     def depends_permitted_dags_filter(
-        request: Request,
+        auth_manager: AuthManagerDep,
         user: GetUserDep,
     ) -> PermittedDagFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
         return filter_class(authorized_dags)
 
@@ -197,12 +200,13 @@ ReadableTagsFilterDep = Annotated[
 def requires_access_backfill(method: ResourceMethod) -> Callable:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        auth_manager: AuthManagerDep,
+        user: GetUserDep,
     ) -> None:
         backfill_id: NonNegativeInt | None = request.path_params.get("backfill_id")
 
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_backfill(
+            is_authorized_callback=lambda: auth_manager.is_authorized_backfill(
                 method=method, details=BackfillDetails(id=backfill_id), user=user
             ),
         )
@@ -213,12 +217,13 @@ def requires_access_backfill(method: ResourceMethod) -> Callable:
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
+        auth_manager: AuthManagerDep,
         user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
 
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
+            is_authorized_callback=lambda: auth_manager.is_authorized_pool(
                 method=method, details=PoolDetails(name=pool_name), user=user
             )
         )
@@ -229,12 +234,13 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
 def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
+        auth_manager: AuthManagerDep,
         user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
 
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
+            is_authorized_callback=lambda: auth_manager.is_authorized_connection(
                 method=method, details=ConnectionDetails(conn_id=connection_id), user=user
             )
         )
@@ -245,12 +251,13 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
 def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        auth_manager: AuthManagerDep,
+        user: GetUserDep,
     ) -> None:
         section: str | None = request.query_params.get("section") or request.path_params.get("section")
 
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_configuration(
+            is_authorized_callback=lambda: auth_manager.is_authorized_configuration(
                 method=method,
                 details=ConfigurationDetails(section=section),
                 user=user,
@@ -263,12 +270,13 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
 def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        auth_manager: AuthManagerDep,
+        user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
 
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
+            is_authorized_callback=lambda: auth_manager.is_authorized_variable(
                 method=method, details=VariableDetails(key=variable_key), user=user
             ),
         )
@@ -279,12 +287,13 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
 def requires_access_asset(method: ResourceMethod) -> Callable:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        auth_manager: AuthManagerDep,
+        user: GetUserDep,
     ) -> None:
         asset_id = request.path_params.get("asset_id")
 
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
+            is_authorized_callback=lambda: auth_manager.is_authorized_asset(
                 method=method, details=AssetDetails(id=asset_id), user=user
             ),
         )
@@ -294,11 +303,11 @@ def requires_access_asset(method: ResourceMethod) -> Callable:
 
 def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser | None], None]:
     def inner(
-        request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        auth_manager: AuthManagerDep,
+        user: GetUserDep,
     ) -> None:
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
+            is_authorized_callback=lambda: auth_manager.is_authorized_view(
                 access_view=access_view, user=user
             ),
         )
@@ -309,12 +318,13 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
 def requires_access_asset_alias(method: ResourceMethod) -> Callable:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        auth_manager: AuthManagerDep,
+        user: GetUserDep,
     ) -> None:
         asset_alias_id: str | None = request.path_params.get("asset_alias_id")
 
         _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_asset_alias(
+            is_authorized_callback=lambda: auth_manager.is_authorized_asset_alias(
                 method=method, details=AssetAliasDetails(id=asset_alias_id), user=user
             ),
         )

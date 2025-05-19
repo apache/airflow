@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from fastapi import HTTPException, status
 
-from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.auth_manager import AuthManagerDep
 from airflow.configuration import conf
 
 
@@ -31,7 +31,9 @@ class SimpleAuthManagerLogin:
 
     @staticmethod
     def create_token(
-        body: LoginBody, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
+        auth_manager: AuthManagerDep,
+        body: LoginBody,
+        expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
     ) -> str:
         """
         Authenticate user with given configuration.
@@ -70,9 +72,7 @@ class SimpleAuthManagerLogin:
             role=found_users[0]["role"],
         )
 
-        return get_auth_manager().generate_jwt(
-            user=user, expiration_time_in_seconds=expiration_time_in_seconds
-        )
+        return auth_manager.generate_jwt(user=user, expiration_time_in_seconds=expiration_time_in_seconds)
 
     @staticmethod
     def create_token_all_admins(
@@ -91,12 +91,11 @@ class SimpleAuthManagerLogin:
 
     @staticmethod
     def _create_anonymous_admin_user(
+        auth_manager: AuthManagerDep,
         expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
     ) -> str:
         user = SimpleAuthManagerUser(
             username="Anonymous",
             role="ADMIN",
         )
-        return get_auth_manager().generate_jwt(
-            user=user, expiration_time_in_seconds=expiration_time_in_seconds
-        )
+        return auth_manager.generate_jwt(user=user, expiration_time_in_seconds=expiration_time_in_seconds)
