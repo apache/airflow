@@ -28,9 +28,9 @@ import logging
 import os
 import random
 from datetime import datetime
+from typing import Any
 
 from airflow.decorators import task
-from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
@@ -43,8 +43,9 @@ from airflow.providers.google.cloud.operators.managed_kafka import (
     ManagedKafkaListConsumerGroupsOperator,
     ManagedKafkaUpdateConsumerGroupOperator,
 )
-from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.api_client_helpers import create_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -74,6 +75,7 @@ CONSUMER_GROUP_ID = f"consumer_group_{DAG_ID}_{ENV_ID}".replace("_", "-")
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 PORT = "9092"
 BOOTSTRAP_URL = f"bootstrap.{CLUSTER_ID}.{LOCATION}.managedkafka.{PROJECT_ID}.cloud.goog:{PORT}"
+
 
 log = logging.getLogger(__name__)
 
@@ -128,10 +130,6 @@ with DAG(
 
     @task
     def create_connection(connection_id: str):
-        conn = Connection(
-            conn_id=connection_id,
-            conn_type="kafka",
-        )
         conn_extra = {
             "bootstrap.servers": BOOTSTRAP_URL,
             "security.protocol": "SASL_SSL",
@@ -139,16 +137,11 @@ with DAG(
             "group.id": CONSUMER_GROUP_ID,
         }
         conn_extra_json = json.dumps(conn_extra)
-        conn.set_extra(conn_extra_json)
-
-        session = Session()
-        log.info("Removing connection %s if it exists", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-
-        session.add(conn)
-        session.commit()
-        log.info("Connection %s created", connection_id)
+        connection: dict[str, Any] = {"conn_type": "kafka", "extra": conn_extra_json}
+        create_airflow_connection(
+            connection_id=connection_id,
+            connection_conf=connection,
+        )
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
