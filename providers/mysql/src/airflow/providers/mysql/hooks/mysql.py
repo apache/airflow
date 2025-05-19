@@ -327,9 +327,14 @@ class MySqlHook(DbApiHook):
 
             .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
         """
+        import re 
+        
         conn = self.get_conn()
         cursor = conn.cursor()
 
+        if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
+            raise ValueError(f"Invalid table name: {table}")
+        
         cursor.execute(
             f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
             (tmp_file, duplicate_key_handling, extra_options),
