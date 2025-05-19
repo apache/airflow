@@ -23,6 +23,7 @@ import {
   ImportErrorService,
   JobService,
   LoginService,
+  MaintenanceService,
   MonitorService,
   PluginService,
   PoolService,
@@ -2235,6 +2236,25 @@ export const prefetchUseDagVersionServiceGetDagVersions = (
         orderBy,
         versionNumber,
       }),
+  });
+/**
+ * Get Db Stats
+ * @param data The data for the request.
+ * @param data.tables List of tables to include
+ * @returns MetadataDBStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseMaintenanceServiceGetDbStats = (
+  queryClient: QueryClient,
+  {
+    tables,
+  }: {
+    tables?: string[];
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ tables }),
+    queryFn: () => MaintenanceService.getDbStats({ tables }),
   });
 /**
  * Get Health

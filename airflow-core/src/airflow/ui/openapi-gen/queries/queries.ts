@@ -24,6 +24,7 @@ import {
   ImportErrorService,
   JobService,
   LoginService,
+  MaintenanceService,
   MonitorService,
   PluginService,
   PoolService,
@@ -2661,6 +2662,31 @@ export const useDagVersionServiceGetDagVersions = <
         orderBy,
         versionNumber,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Db Stats
+ * @param data The data for the request.
+ * @param data.tables List of tables to include
+ * @returns MetadataDBStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const useMaintenanceServiceGetDbStats = <
+  TData = Common.MaintenanceServiceGetDbStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    tables,
+  }: {
+    tables?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ tables }, queryKey),
+    queryFn: () => MaintenanceService.getDbStats({ tables }) as TData,
     ...options,
   });
 /**

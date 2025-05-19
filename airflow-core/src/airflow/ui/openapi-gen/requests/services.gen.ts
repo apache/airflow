@@ -203,6 +203,8 @@ import type {
   GetDagVersionResponse,
   GetDagVersionsData,
   GetDagVersionsResponse,
+  GetDbStatsData,
+  GetDbStatsResponse,
   GetHealthResponse,
   GetVersionResponse,
   LoginData,
@@ -3402,6 +3404,30 @@ export class DagVersionService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class MaintenanceService {
+  /**
+   * Get Db Stats
+   * @param data The data for the request.
+   * @param data.tables List of tables to include
+   * @returns MetadataDBStatsResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDbStats(data: GetDbStatsData = {}): CancelablePromise<GetDbStatsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v2/maintenance/db/stats",
+      query: {
+        tables: data.tables,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });

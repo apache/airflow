@@ -3498,6 +3498,22 @@ export const $LastAssetEventResponse = {
   description: "Last asset event response serializer.",
 } as const;
 
+export const $MetadataDBStatsResponse = {
+  properties: {
+    tables: {
+      items: {
+        $ref: "#/components/schemas/TableStats",
+      },
+      type: "array",
+      title: "Tables",
+    },
+  },
+  type: "object",
+  required: ["tables"],
+  title: "MetadataDBStatsResponse",
+  description: "Metadata DB stats serializer for responses.",
+} as const;
+
 export const $PatchTaskInstanceBody = {
   properties: {
     new_state: {
@@ -4021,6 +4037,34 @@ export const $StructuredLogMessage = {
   required: ["event"],
   title: "StructuredLogMessage",
   description: "An individual log message.",
+} as const;
+
+export const $TableStats = {
+  properties: {
+    table_name: {
+      type: "string",
+      title: "Table Name",
+    },
+    record_count: {
+      type: "integer",
+      title: "Record Count",
+    },
+    oldest_record: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Oldest Record",
+    },
+  },
+  type: "object",
+  required: ["table_name", "record_count", "oldest_record"],
+  title: "TableStats",
+  description: "Table stats serializer for responses.",
 } as const;
 
 export const $TaskCollectionResponse = {

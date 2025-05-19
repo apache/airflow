@@ -23,6 +23,7 @@ import {
   ImportErrorService,
   JobService,
   LoginService,
+  MaintenanceService,
   MonitorService,
   PluginService,
   PoolService,
@@ -2638,6 +2639,31 @@ export const useDagVersionServiceGetDagVersionsSuspense = <
         orderBy,
         versionNumber,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Db Stats
+ * @param data The data for the request.
+ * @param data.tables List of tables to include
+ * @returns MetadataDBStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const useMaintenanceServiceGetDbStatsSuspense = <
+  TData = Common.MaintenanceServiceGetDbStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    tables,
+  }: {
+    tables?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ tables }, queryKey),
+    queryFn: () => MaintenanceService.getDbStats({ tables }) as TData,
     ...options,
   });
 /**

@@ -710,6 +710,16 @@ class StructuredLogMessage(BaseModel):
     event: Annotated[str, Field(title="Event")]
 
 
+class TableStats(BaseModel):
+    """
+    Table stats serializer for responses.
+    """
+
+    table_name: Annotated[str, Field(title="Table Name")]
+    record_count: Annotated[int, Field(title="Record Count")]
+    oldest_record: Annotated[str | None, Field(title="Oldest Record")] = None
+
+
 class TaskDependencyResponse(BaseModel):
     """
     Task Dependency serializer for responses.
@@ -1350,6 +1360,14 @@ class JobCollectionResponse(BaseModel):
 
     jobs: Annotated[list[JobResponse], Field(title="Jobs")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class MetadataDBStatsResponse(BaseModel):
+    """
+    Metadata DB stats serializer for responses.
+    """
+
+    tables: Annotated[list[TableStats], Field(title="Tables")]
 
 
 class PatchTaskInstanceBody(BaseModel):

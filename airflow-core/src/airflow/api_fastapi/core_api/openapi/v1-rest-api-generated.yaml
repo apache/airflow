@@ -6830,6 +6830,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/maintenance/db/stats:
+    get:
+      tags:
+      - Maintenance
+      summary: Get Db Stats
+      operationId: get_db_stats
+      parameters:
+      - name: tables
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: List of tables to include
+          title: Tables
+        description: List of tables to include
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataDBStatsResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/monitor/health:
     get:
       tags:
@@ -9242,6 +9284,18 @@ components:
       type: object
       title: LastAssetEventResponse
       description: Last asset event response serializer.
+    MetadataDBStatsResponse:
+      properties:
+        tables:
+          items:
+            $ref: '#/components/schemas/TableStats'
+          type: array
+          title: Tables
+      type: object
+      required:
+      - tables
+      title: MetadataDBStatsResponse
+      description: Metadata DB stats serializer for responses.
     PatchTaskInstanceBody:
       properties:
         new_state:
@@ -9622,6 +9676,26 @@ components:
       - event
       title: StructuredLogMessage
       description: An individual log message.
+    TableStats:
+      properties:
+        table_name:
+          type: string
+          title: Table Name
+        record_count:
+          type: integer
+          title: Record Count
+        oldest_record:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Oldest Record
+      type: object
+      required:
+      - table_name
+      - record_count
+      - oldest_record
+      title: TableStats
+      description: Table stats serializer for responses.
     TaskCollectionResponse:
       properties:
         tasks:
