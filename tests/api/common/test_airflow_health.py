@@ -47,11 +47,12 @@ def test_get_airflow_health_only_metadatabase_healthy(
     assert health_status == expected_status
 
 
+@patch("airflow.api.common.airflow_health.conf.getboolean", return_value=True)
 @patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=Exception)
 @patch("airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job", return_value=Exception)
 @patch("airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job", return_value=Exception)
 def test_get_airflow_health_metadatabase_unhealthy(
-    latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
+    get_boolean_mock, latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
 ):
     health_status = get_airflow_health()
 
@@ -63,6 +64,11 @@ def test_get_airflow_health_metadatabase_unhealthy(
     }
 
     assert health_status == expected_status
+
+
+def test_get_airflow_health_no_dag_processor():
+    health_status = get_airflow_health()
+    assert health_status["dag_processor"] == {"status": None, "latest_dag_processor_heartbeat": None}
 
 
 LATEST_SCHEDULER_JOB_MOCK = MagicMock()
@@ -103,6 +109,7 @@ LATEST_DAG_PROCESSOR_JOB_MOCK.latest_heartbeat = datetime.now()
 LATEST_DAG_PROCESSOR_JOB_MOCK.is_alive = MagicMock(return_value=True)
 
 
+@patch("airflow.api.common.airflow_health.conf.getboolean", return_value=True)
 @patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=None)
 @patch(
     "airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job",
@@ -113,7 +120,7 @@ LATEST_DAG_PROCESSOR_JOB_MOCK.is_alive = MagicMock(return_value=True)
     return_value=LATEST_DAG_PROCESSOR_JOB_MOCK,
 )
 def test_get_airflow_health_triggerer_healthy_no_scheduler_job_record(
-    latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
+    get_boolean_mock, latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
 ):
     health_status = get_airflow_health()
 
