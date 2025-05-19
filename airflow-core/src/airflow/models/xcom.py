@@ -332,68 +332,6 @@ class XComModel(TaskInstanceDependencies):
             return query.limit(limit)
         return query
 
-    @classmethod
-    @provide_session
-    def delete(cls, xcoms: XCom | Iterable[XCom], session: Session) -> None:
-        """Delete one or multiple XCom entries."""
-        if isinstance(xcoms, XCom):
-            xcoms = [xcoms]
-        for xcom in xcoms:
-            if not isinstance(xcom, XCom):
-                raise TypeError(f"Expected XCom; received {xcom.__class__.__name__}")
-            XCom.purge(xcom, session)
-            session.delete(xcom)
-        session.commit()
-
-    @staticmethod
-    def purge(xcom: XCom, session: Session) -> None:
-        """Purge an XCom entry from underlying storage implementations."""
-        pass
-
-    @staticmethod
-    @provide_session
-    def clear(
-        *,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Clear all XCom data from the database for the given task instance.
-
-        :param dag_id: ID of DAG to clear the XCom for.
-        :param task_id: ID of task to clear the XCom for.
-        :param run_id: ID of DAG run to clear the XCom for.
-        :param map_index: If given, only clear XCom from this particular mapped
-            task. The default ``None`` clears *all* XComs from the task.
-        :param session: Database session. If not given, a new session will be
-            created for this function.
-        """
-        # Given the historic order of this function (logical_date was first argument) to add a new optional
-        # param we need to add default values for everything :(
-        if dag_id is None:
-            raise TypeError("clear() missing required argument: dag_id")
-        if task_id is None:
-            raise TypeError("clear() missing required argument: task_id")
-
-        if not run_id:
-            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
-
-        query = select(BaseXCom).where(
-            BaseXCom.dag_id == dag_id, BaseXCom.task_id == task_id, BaseXCom.run_id == run_id
-        )
-        if map_index is not None:
-            query = query.where(BaseXCom.map_index == map_index)
-
-        for xcom in session.execute(query).all():
-            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
-            XCom.purge(xcom, session)
-            session.delete(xcom)
-
-        session.commit()
-
     @staticmethod
     def serialize_value(
         value: Any,
