@@ -23,7 +23,7 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.markup import escape
 
@@ -32,12 +32,55 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_dry_run
 
+if TYPE_CHECKING:
+    from requests import Response
+
 
 def get_ga_output(name: str, value: Any) -> str:
     output_name = name.replace("_", "-")
     printed_value = str(value).lower() if isinstance(value, bool) else value
     get_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
     return f"{output_name}={printed_value}"
+
+
+def log_github_rate_limit_error(response: Response) -> None:
+    """
+    Logs info about GitHub rate limit errors (primary or secondary).
+    """
+    if response.status_code not in (403, 429):
+        print(f"Not a rate limit error (status {response.status_code}).")
+        return
+
+    remaining = response.headers.get("x-rateLimit-remaining")
+    reset = response.headers.get("x-rateLimit-reset")
+    retry_after = response.headers.get("retry-after")
+
+    try:
+        message = response.json().get("message", "")
+    except Exception:
+        message = response.text or ""
+
+    remaining_int = int(remaining) if remaining and remaining.isdigit() else None
+
+    if reset and reset.isdigit():
+        reset_dt = datetime.fromtimestamp(int(reset), tz=timezone.utc)
+        reset_time = reset_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    else:
+        reset_time = "unknown"
+
+    if remaining_int == 0:
+        print(f"Primary rate limit exceeded. No requests remaining. Reset at {reset_time}.")
+        return
+
+    # Message for secondary looks like: "You have exceeded a secondary rate limit"
+    if "secondary rate limit" in message.lower():
+        if retry_after and retry_after.isdigit():
+            print(f"Secondary rate limit exceeded. Retry after {retry_after} seconds.")
+        else:
+            print(f"Secondary rate limit exceeded. Please wait until {reset_time} or at least 60 seconds.")
+        return
+
+    print(f"Rate limit error. Status: {response.status_code}, Message: {message}")
 
 
 def download_file_from_github(
@@ -64,6 +107,7 @@ def download_file_from_github(
             headers["X-GitHub-Api-Version"] = "2022-11-28"
         try:
             response = requests.get(url, headers=headers, timeout=timeout)
+            log_github_rate_limit_error(response)
             if response.status_code == 403:
                 get_console().print(
                     f"[error]Access denied to {url}. This may be caused by:\n"
