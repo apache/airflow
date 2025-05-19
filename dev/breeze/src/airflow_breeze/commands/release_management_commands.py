@@ -3069,7 +3069,7 @@ VERSION_FILE = PYTHON_CLIENT_DIR_PATH / "version.txt"
 SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml"
 )
-TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
+TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
 OPENAPI_GENERATOR_CLI_VER = "7.13.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
@@ -3078,7 +3078,6 @@ GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("test"),
 ]
 FILES_TO_COPY_TO_CLIENT_REPO = [
-    ".gitignore",
     ".openapi-generator-ignore",
     "CHANGELOG.md",
     "README.md",
@@ -3420,11 +3419,19 @@ def prepare_python_client(
         )
         spec_dir = python_client_repo / "spec"
         spec_dir.mkdir(parents=True, exist_ok=True)
-        source_spec_file = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
-        target_spec_file = spec_dir / "v1.yaml"
+        source_spec_file = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
+        target_spec_file = spec_dir / "v2.yaml"
         get_console().print(f"[info]  Copying {source_spec_file} to {target_spec_file}[/]")
         shutil.copy(source_spec_file, target_spec_file)
         get_console().print(f"[success]  Copied {source_spec_file} to {target_spec_file}[/]")
+
+        # Copy gitignore file
+        source_gitignore_file = PYTHON_CLIENT_DIR_PATH / "python-client.gitignore"
+        target_gitignore_file = python_client_repo / ".gitignore"
+        get_console().print(f"[info]  Copying {source_gitignore_file} to {target_gitignore_file}[/]")
+        shutil.copy(source_gitignore_file, target_gitignore_file)
+        get_console().print(f"[success]  Copied {source_gitignore_file} to {target_gitignore_file}[/]")
+
         get_console().print(
             f"[success]Copied client code from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]\n"
         )
