@@ -67,7 +67,7 @@ describe("DagCard", () => {
     expect(screen.queryByTestId("dag-tag")).toBeNull();
   });
 
-  it("DagCard should show +X more text if there is only +1 over the limit", () => {
+  it("DagCard should show +1 more text if there is only +1 over the limit", () => {
     const tags = [
       { dag_id: "id", name: "tag1" },
       { dag_id: "id", name: "tag2" },
@@ -82,8 +82,11 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
-    expect(screen.queryByText("tag4")).toBeInTheDocument();
-    expect(screen.queryByText(", +1 more")).not.toBeNull();
+
+    expect(screen.getByText("tag1")).toBeInTheDocument();
+    expect(screen.getByText("tag2")).toBeInTheDocument();
+    expect(screen.getByText("tag3")).toBeInTheDocument();
+    expect(screen.getByText("+1 more")).toBeInTheDocument();
   });
 
   it("DagCard should show +X more text if there are more than 3 tags", () => {
