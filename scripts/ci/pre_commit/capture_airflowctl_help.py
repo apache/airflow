@@ -23,7 +23,7 @@ import os
 import sys
 from pathlib import Path
 
-from common_precommit_utils import AIRFLOW_CTL_ROOT_PATH
+from common_precommit_utils import AIRFLOW_CTL_ROOT_PATH, AIRFLOW_CTL_SOURCES_PATH
 from rich.console import Console
 from rich.terminal_theme import SVG_EXPORT_THEME
 from rich.text import Text
@@ -56,14 +56,12 @@ SUBCOMMANDS = [
 def get_airflowctl_command_hash_dict(commands):
     hash_dict = {}
     for command in commands:
-        help_text = os.popen(f"airflowctl {command} -h").read()
+        help_text = os.popen(f"python {AIRFLOW_CTL_SOURCES_PATH}/airflowctl/__main__.py {command} -h").read()
         hash_dict[command if command != "" else "main"] = hashlib.md5(help_text.encode("utf-8")).hexdigest()
     return hash_dict
 
 
-def regenerate_help_images_for_all_airflowctl_commands(
-    commands: list[str], check_only: bool, force: bool
-) -> int:
+def regenerate_help_images_for_all_airflowctl_commands(commands: list[str]) -> int:
     HASH_FILE = AIRFLOWCTL_IMAGES_PATH / "command_hashes.txt"
     os.makedirs(AIRFLOWCTL_IMAGES_PATH, exist_ok=True)
     console = Console(color_system="standard", record=True)
@@ -89,10 +87,7 @@ def regenerate_help_images_for_all_airflowctl_commands(
         if old_hash_dict.get(command_key) != new_hash_dict[command_key]:
             changed_commands.append(command)
 
-    if check_only:
-        if changed_commands:
-            console.print("[yellow]The hash files differ. Returning 1")
-            return 1
+    if not changed_commands:
         console.print("[bright_blue]The hash dumps old/new are the same. Returning with return code 0.")
         return 0
 
@@ -117,4 +112,4 @@ def regenerate_help_images_for_all_airflowctl_commands(
     return 0
 
 
-regenerate_help_images_for_all_airflowctl_commands(COMMANDS + SUBCOMMANDS, check_only=False, force=False)
+regenerate_help_images_for_all_airflowctl_commands(COMMANDS + SUBCOMMANDS)
