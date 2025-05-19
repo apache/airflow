@@ -229,7 +229,7 @@ class TestPluginsManager:
         Tests whether macros that originate from plugins are being registered correctly.
         """
         from airflow.plugins_manager import integrate_macros_plugins
-        from airflow.sdk import macros
+        from airflow.sdk.definitions import macros
 
         def cleanup_macros():
             """Reloads the macros module such that the symbol table is reset after the test."""
@@ -256,7 +256,7 @@ class TestPluginsManager:
             # Ensure the macros for the plugin have been integrated.
             integrate_macros_plugins()
             # Test whether the modules have been created as expected.
-            plugin_macros = importlib.import_module(f"airflow.sdk.macros.{MacroPlugin.name}")
+            plugin_macros = importlib.import_module(f"airflow.sdk.definitions.macros.{MacroPlugin.name}")
             for macro in MacroPlugin.macros:
                 # Verify that the macros added by the plugin are being set correctly
                 # on the plugin's macro module.

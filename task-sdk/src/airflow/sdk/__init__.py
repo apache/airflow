@@ -114,7 +114,6 @@ __lazy_imports: dict[str, str] = {
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",
     "teardown": ".definitions.decorators",
-    "macros": ".definitions.macros",
 }
 
 
@@ -123,7 +122,7 @@ def __getattr__(name: str):
         import importlib
 
         mod = importlib.import_module(module_path, __name__)
-        val = getattr(mod, name, mod)
+        val = getattr(mod, name)
 
         # Store for next time
         globals()[name] = val
