@@ -25,6 +25,7 @@ from urllib.parse import quote_plus, urlunsplit
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
+from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
 from airflow.hooks.base import BaseHook
@@ -243,8 +244,6 @@ class MongoHook(BaseHook):
         :param create_kwargs: Additional keyword arguments forwarded to ``db.create_collection()``,
                                   e.g. ``timeseries={...}``, ``capped=True``.
         """
-        from pymongo.errors import CollectionInvalid
-
         mongo_db = mongo_db or self.connection.schema
         mongo_conn: MongoClient = self.get_conn()
         db = mongo_conn.get_database(mongo_db)
