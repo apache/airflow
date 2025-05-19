@@ -93,7 +93,7 @@ class TestCredentials:
 
         assert os.path.exists(self.default_config_dir)
         with open(os.path.join(self.default_config_dir, f"{env}.json")) as f:
-            credentials = Credentials().load()
+            credentials = Credentials(client_kind=cli_client).load()
             assert json.load(f) == {
                 "api_url": credentials.api_url,
             }
@@ -111,20 +111,19 @@ class TestCredentials:
         )
         credentials.save()
         with open(os.path.join(self.default_config_dir, f"{env}.json")) as f:
-            credentials = Credentials().load()
+            credentials = Credentials(client_kind=cli_client).load()
             assert json.load(f) == {
-                "api_url": credential.api_url,
+                "api_url": credentials.api_url,
             }
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch("airflowctl.api.client.keyring")
-    def test_load_auth_kind(self,mock_keyring):
+    def test_load_auth_kind(self, mock_keyring):
         mock_keyring.set_password.return_value = MagicMock()
         mock_keyring.get_password.return_value = "NO_TOKEN"
-        env = "TEST_LOAD"
         auth_client = ClientKind.AUTH
-        credentials = Credentials(client_kind = auth_client)
+        credentials = Credentials(client_kind=auth_client)
         assert credentials.api_url is None
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_CREDENTIALS"})
