@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-15T19:03:30.037781
+# This constraints file was automatically generated on 2025-05-19T10:00:45.250181
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -31,7 +31,7 @@ Jinja2==3.1.6
 Mako==1.3.10
 Markdown==3.8
 MarkupSafe==3.0.2
-PyAthena==3.13.0
+PyAthena==3.14.0
 PyGithub==2.6.1
 PyHive==0.7.0
 PyJWT==2.10.1
@@ -188,7 +188,7 @@ exceptiongroup==1.3.0
 execnet==2.1.1
 executing==2.2.0
 facebook_business==22.0.5
-fastavro==1.10.0
+fastavro==1.11.1
 fasteners==0.19
 fastjsonschema==2.21.1
 filelock==3.18.0
@@ -305,7 +305,7 @@ jaraco.context==6.0.1
 jaraco.functools==4.1.0
 jedi==0.19.2
 jeepney==0.9.0
-jiter==0.9.0
+jiter==0.10.0
 jmespath==0.10.0
 joserfc==1.0.4
 jpype1==1.5.2
@@ -376,7 +376,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.78.1
+openai==1.79.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.32.1
@@ -394,7 +394,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==3.1.0
+oracledb==3.1.1
 ordered-set==4.1.0
 orjson==3.10.18
 oss2==2.19.1
@@ -425,7 +425,7 @@ pprintpp==0.4.0
 pre_commit==4.2.0
 presto-python-client==0.8.4
 prison==0.2.1
-prometheus_client==0.21.1
+prometheus_client==0.22.0
 prompt_toolkit==3.0.51
 propcache==0.3.1
 proto-plus==1.26.1
@@ -437,14 +437,14 @@ pure-sasl==0.6.2
 pure_eval==0.2.3
 py-partiql-parser==0.5.5
 py4j==0.10.9.7
-pyOpenSSL==25.0.0
+pyOpenSSL==25.1.0
 pyarrow-hotfix==0.7
 pyarrow==16.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
-pycryptodome==3.22.0
+pycryptodome==3.23.0
 pydantic==2.11.4
 pydantic_core==2.33.2
 pydata-google-auth==1.9.1
@@ -481,7 +481,7 @@ python-jenkins==1.8.2
 python-ldap==3.4.4
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==22.0
+python-telegram-bot==22.1
 python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
@@ -575,7 +575,7 @@ time-machine==2.16.0
 tomli==2.2.1
 tomli_w==1.2.0
 tomlkit==0.13.2
-tornado==6.4.2
+tornado==6.5
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
@@ -584,22 +584,22 @@ trove-classifiers==2025.5.9.12
 twine==6.1.0
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415
-types-PyMySQL==1.1.0.20241103
-types-PyYAML==6.0.12.20250402
-types-aiofiles==24.1.0.20250326
+types-PyMySQL==1.1.0.20250516
+types-PyYAML==6.0.12.20250516
+types-aiofiles==24.1.0.20250516
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20250326
+types-cffi==1.17.0.20250516
 types-croniter==6.0.0.20250411
-types-docutils==0.21.0.20250514
-types-paramiko==3.5.0.20240928
-types-protobuf==6.30.2.20250506
+types-docutils==0.21.0.20250516
+types-paramiko==3.5.0.20250516
+types-protobuf==6.30.2.20250516
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20241206
+types-python-dateutil==2.9.0.20250516
 types-python-slugify==8.0.2.20240310
-types-pytz==2025.2.0.20250326
+types-pytz==2025.2.0.20250516
 types-redis==4.6.0.20241004
 types-requests==2.31.0.6
-types-setuptools==80.4.0.20250511
+types-setuptools==80.7.0.20250516
 types-tabulate==0.9.0.20241207
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -631,7 +631,7 @@ yamllint==1.37.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.0
-ydb==3.21.1
+ydb==3.21.2
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
