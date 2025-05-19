@@ -70,11 +70,11 @@ text_example_response_for_get_config = {
 
 def _check_expose_config() -> bool:
     display_sensitive: bool | None = None
-    if conf.get("api", "expose_config").lower() == "non-sensitive-only":
+    if conf.get("webserver", "expose_config").lower() == "non-sensitive-only":
         expose_config = True
         display_sensitive = False
     else:
-        expose_config = conf.getboolean("api", "expose_config")
+        expose_config = conf.getboolean("webserver", "expose_config")
         display_sensitive = True
 
     if not expose_config:
