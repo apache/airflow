@@ -752,6 +752,80 @@ class TestSparkKubernetesOperator:
         op.find_spark_job(context)
         mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
 
+    def test_adds_task_context_labels_to_driver_and_executor(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        task_name = "test_adds_task_context_labels"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+        op.execute(context)
+
+        task_context_labels = op._get_ti_pod_labels(context)
+
+        for component in ["driver", "executor"]:
+            for label_key, label_value in task_context_labels.items():
+                assert label_key in mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"]
+                assert mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"][label_key] == label_value
+
+    def test_reattach_on_restart_with_task_context_labels(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        task_name = "test_reattach_on_restart"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = f"{task_name}-driver"
+        mock_pod.metadata.labels = op._get_ti_pod_labels(context)
+        mock_pod.metadata.labels["spark-role"] = "driver"
+        mock_pod.metadata.labels["try_number"] = context["ti"].try_number
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+
+        op.execute(context)
+
+        label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
+        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+
+        mock_create_namespaced_crd.assert_not_called()
+
 
 @pytest.mark.db_test
 def test_template_body_templating(create_task_instance_of_operator, session):
