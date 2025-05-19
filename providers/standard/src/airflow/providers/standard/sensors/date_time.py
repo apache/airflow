@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils import timezone
 
 try:
     from airflow.triggers.base import StartTriggerArgs
@@ -40,8 +41,6 @@ except ImportError:
         next_kwargs: dict[str, Any] | None = None
         timeout: datetime.timedelta | None = None
 
-
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     try:
