@@ -56,7 +56,7 @@ from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import remove_local_version_suffix
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
-MIN_AIRFLOW_VERSION = "2.9.0"
+MIN_AIRFLOW_VERSION = "2.10.0"
 HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
@@ -82,12 +82,10 @@ class ProviderPackageDetails(NamedTuple):
     source_date_epoch: int
     full_package_name: str
     pypi_package_name: str
-    original_source_provider_distribution_path: Path
     root_provider_path: Path
     base_provider_package_path: Path
     documentation_provider_distribution_path: Path
-    previous_documentation_provider_distribution_path: Path
-    previous_source_provider_distribution_path: Path
+    possible_old_provider_paths: list[Path]
     changelog_path: Path
     provider_description: str
     dependencies: list[str]
@@ -431,21 +429,20 @@ def find_matching_long_package_names(
     )
 
 
-# !!!! We should not remove those old/original package paths as they are used to get changes
-# When documentation is generated using git_log
-def get_original_source_distribution_path(provider_id: str) -> Path:
-    return AIRFLOW_ORIGINAL_PROVIDERS_DIR.joinpath(*provider_id.split("."))
+def get_provider_root_path(provider_id: str) -> Path:
+    return AIRFLOW_PROVIDERS_ROOT_PATH / provider_id.replace(".", "/")
 
 
-def get_previous_source_providers_distribution_path(provider_id: str) -> Path:
-    return PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH.joinpath(*provider_id.split("."))
-
-
-def get_previous_documentation_distribution_path(provider_id: str) -> Path:
-    return DOCS_ROOT / f"apache-airflow-providers-{provider_id.replace('.', '-')}"
-
-
-# End of do not remove those package paths.
+def get_possible_old_provider_paths(provider_id: str) -> list[Path]:
+    # This is used to get historical commits for the provider
+    paths: list[Path] = []
+    paths.append(AIRFLOW_ORIGINAL_PROVIDERS_DIR.joinpath(*provider_id.split(".")))
+    paths.append(PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH.joinpath(*provider_id.split(".")))
+    paths.append(DOCS_ROOT / f"apache-airflow-providers-{provider_id.replace('.', '-')}")
+    if provider_id == "edge3":
+        paths.append(get_provider_root_path("edge"))
+        paths.append(get_provider_root_path("edgeexecutor"))
+    return paths
 
 
 def get_documentation_package_path(provider_id: str) -> Path:
@@ -565,13 +562,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         pypi_package_name=f"apache-airflow-providers-{provider_id.replace('.', '-')}",
         root_provider_path=root_provider_path,
         base_provider_package_path=base_provider_package_path,
-        original_source_provider_distribution_path=get_original_source_distribution_path(provider_id),
-        previous_documentation_provider_distribution_path=get_previous_documentation_distribution_path(
-            provider_id
-        ),
-        previous_source_provider_distribution_path=get_previous_source_providers_distribution_path(
-            provider_id
-        ),
+        possible_old_provider_paths=get_possible_old_provider_paths(provider_id),
         documentation_provider_distribution_path=documentation_provider_distribution_path,
         changelog_path=changelog_path,
         provider_description=provider_info["description"],
@@ -886,6 +877,9 @@ def regenerate_pyproject_toml(
             new_optional_dependencies.append(modified_dependency)
         optional_dependencies = new_optional_dependencies
     context["INSTALL_REQUIREMENTS"] = "\n".join(required_dependencies)
+    context["AIRFLOW_DOC_URL"] = (
+        "https://airflow.staged.apache.org" if version_suffix else "https://airflow.apache.org"
+    )
     cross_provider_ids = set(PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"])
     cross_provider_dependencies = []
     # Add cross-provider dependencies to the optional dependencies if they are missing
@@ -1049,22 +1043,30 @@ def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, py
     lines = pyproject_toml_path.read_text().splitlines()
     updated_lines = []
     for line in lines:
-        if line.startswith("version = "):
+        base_line, comment = line.split(" #", 1) if " #" in line else (line, "")
+        if comment:
+            comment = " #" + comment
+        if base_line.startswith("version = "):
             get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-            line = line.rstrip('"') + f'{version_suffix}"'
+            base_line = base_line.rstrip('"') + f'{version_suffix}"'
+        if "https://airflow.apache.org/" in base_line and version_suffix:
+            get_console().print(f"[info]Updating documentation link to staging for {line}.")
+            base_line = base_line.replace("https://airflow.apache.org/", "https://airflow.staged.apache.org/")
         # do not modify references for .post prefixes
         if not version_suffix.startswith(".post"):
-            if line.strip().startswith('"apache-airflow-') and ">=" in line:
+            if base_line.strip().startswith('"apache-airflow-') and ">=" in base_line:
                 floored_version_suffix = floor_version_suffix(version_suffix)
-                get_console().print(f"[info]Updating version suffix to {floored_version_suffix} for {line}.")
-                line = line.rstrip('",') + f'{floored_version_suffix}",'
-            if line.strip().startswith('"apache-airflow-core') and "==" in line:
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'{version_suffix}",'
-            if line.strip().startswith('"apache-airflow-task-sdk') and "==" in line:
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'{version_suffix}",'
-        updated_lines.append(line)
+                get_console().print(
+                    f"[info]Updating version suffix to {floored_version_suffix} for {base_line}."
+                )
+                base_line = base_line.rstrip('",') + f'{floored_version_suffix}",'
+            if base_line.strip().startswith('"apache-airflow-core') and "==" in base_line:
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
+                base_line = base_line.rstrip('",') + f'{version_suffix}",'
+            if base_line.strip().startswith('"apache-airflow-task-sdk') and "==" in base_line:
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
+                base_line = base_line.rstrip('",') + f'{version_suffix}",'
+        updated_lines.append(f"{base_line}{comment}")
     new_content = "\n".join(updated_lines) + "\n"
     get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
     pyproject_toml_path.write_text(new_content)

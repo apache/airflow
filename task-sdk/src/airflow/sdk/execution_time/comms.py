@@ -63,8 +63,8 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstance,
+    TaskInstanceState,
     TaskStatesResponse,
-    TerminalTIState,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
@@ -370,12 +370,13 @@ class TaskState(BaseModel):
     """
 
     state: Literal[
-        TerminalTIState.FAILED,
-        TerminalTIState.SKIPPED,
-        TerminalTIState.REMOVED,
+        TaskInstanceState.FAILED,
+        TaskInstanceState.SKIPPED,
+        TaskInstanceState.REMOVED,
     ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
+    rendered_map_index: str | None = None
 
 
 class SucceedTask(TISuccessStatePayload):
@@ -439,6 +440,15 @@ class GetXComCount(BaseModel):
     run_id: str
     task_id: str
     type: Literal["GetNumberXComs"] = "GetNumberXComs"
+
+
+class GetXComSequenceItem(BaseModel):
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    offset: int
+    type: Literal["GetXComSequenceItem"] = "GetXComSequenceItem"
 
 
 class SetXCom(BaseModel):
@@ -560,6 +570,7 @@ class GetTaskRescheduleStartDate(BaseModel):
 
 class GetTICount(BaseModel):
     dag_id: str
+    map_index: int | None = None
     task_ids: list[str] | None = None
     task_group_id: str | None = None
     logical_dates: list[AwareDatetime] | None = None
@@ -570,6 +581,7 @@ class GetTICount(BaseModel):
 
 class GetTaskStates(BaseModel):
     dag_id: str
+    map_index: int | None = None
     task_ids: list[str] | None = None
     task_group_id: str | None = None
     logical_dates: list[AwareDatetime] | None = None
@@ -603,6 +615,7 @@ ToSupervisor = Annotated[
         GetVariable,
         GetXCom,
         GetXComCount,
+        GetXComSequenceItem,
         PutVariable,
         RescheduleTask,
         RetryTask,

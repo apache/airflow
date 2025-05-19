@@ -48,6 +48,7 @@ GCS_STAGING = f"gs://{BUCKET_NAME}/staging/"
 GCS_PYTHON_SCRIPT = f"gs://{RESOURCE_DATA_BUCKET}/dataflow/python/streaming_wordcount.py"
 LOCATION = "europe-west3"
 TOPIC_ID = f"topic-{DAG_ID}"
+TOPIC_ID_2 = f"topic-2-{DAG_ID}"
 
 default_args = {
     "dataflow_default_options": {
@@ -60,7 +61,7 @@ with DAG(
     DAG_ID,
     default_args=default_args,
     schedule="@once",
-    start_date=datetime(2021, 1, 1),
+    start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=["example", "dataflow"],
 ) as dag:
@@ -68,6 +69,9 @@ with DAG(
 
     create_pub_sub_topic = PubSubCreateTopicOperator(
         task_id="create_topic", topic=TOPIC_ID, project_id=PROJECT_ID, fail_if_exists=False
+    )
+    create_pub_sub_topic_2 = PubSubCreateTopicOperator(
+        task_id="create_topic_2", topic=TOPIC_ID_2, project_id=PROJECT_ID, fail_if_exists=False
     )
 
     # [START howto_operator_start_streaming_python_job]
@@ -82,12 +86,32 @@ with DAG(
             "output_topic": f"projects/{PROJECT_ID}/topics/{TOPIC_ID}",
             "streaming": True,
         },
-        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_requirements=["apache-beam[gcp]==2.63.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={"location": LOCATION, "job_name": "start_python_job_streaming"},
     )
     # [END howto_operator_start_streaming_python_job]
+
+    # [START howto_operator_start_streaming_python_job_deferrable]
+    start_streaming_python_job_def = BeamRunPythonPipelineOperator(
+        runner=BeamRunnerType.DataflowRunner,
+        task_id="start_def_streaming_python_job",
+        py_file=GCS_PYTHON_SCRIPT,
+        py_options=[],
+        pipeline_options={
+            "temp_location": GCS_TMP,
+            "input_topic": "projects/pubsub-public-data/topics/taxirides-realtime",
+            "output_topic": f"projects/{PROJECT_ID}/topics/{TOPIC_ID_2}",
+            "streaming": True,
+        },
+        py_requirements=["apache-beam[gcp]==2.63.0"],
+        py_interpreter="python3",
+        py_system_site_packages=False,
+        dataflow_config={"location": LOCATION, "job_name": "start_python_job_streaming"},
+        deferrable=True,
+    )
+    # [END howto_operator_start_streaming_python_job_deferrable]
 
     stop_dataflow_job = DataflowStopJobOperator(
         task_id="stop_dataflow_job",
@@ -95,7 +119,18 @@ with DAG(
         job_id="{{ task_instance.xcom_pull(task_ids='start_streaming_python_job')['dataflow_job_id'] }}",
     )
 
+    stop_dataflow_job_deferrable = DataflowStopJobOperator(
+        task_id="stop_dataflow_job_deferrable",
+        location=LOCATION,
+        job_id="{{ task_instance.xcom_pull(task_ids='start_def_streaming_python_job', key='dataflow_job_id') }}",
+    )
+
     delete_topic = PubSubDeleteTopicOperator(task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID)
+    delete_topic.trigger_rule = TriggerRule.ALL_DONE
+
+    delete_topic_2 = PubSubDeleteTopicOperator(
+        task_id="delete_topic2", topic=TOPIC_ID_2, project_id=PROJECT_ID
+    )
     delete_topic.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = GCSDeleteBucketOperator(
@@ -106,11 +141,14 @@ with DAG(
         # TEST SETUP
         create_bucket
         >> create_pub_sub_topic
+        >> create_pub_sub_topic_2
         # TEST BODY
         >> start_streaming_python_job
+        >> start_streaming_python_job_def
         # TEST TEARDOWN
-        >> stop_dataflow_job
+        >> [stop_dataflow_job, stop_dataflow_job_deferrable]
         >> delete_topic
+        >> delete_topic_2
         >> delete_bucket
     )
 
@@ -119,7 +157,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

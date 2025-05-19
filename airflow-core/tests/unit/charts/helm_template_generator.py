@@ -47,6 +47,7 @@ crd_lookup = {
 }
 
 
+@cache
 def get_schema_k8s(api_version, kind, kubernetes_version):
     api_version = api_version.lower()
     kind = kind.lower()

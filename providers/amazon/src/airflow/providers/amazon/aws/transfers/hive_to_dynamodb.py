@@ -93,7 +93,7 @@ class HiveToDynamoDBOperator(BaseOperator):
         self.log.info("Extracting data from Hive")
         self.log.info(self.sql)
 
-        data = hive.get_pandas_df(self.sql, schema=self.schema)
+        data = hive.get_df(self.sql, schema=self.schema, df_type="pandas")
         dynamodb = DynamoDBHook(
             aws_conn_id=self.aws_conn_id,
             table_name=self.table_name,

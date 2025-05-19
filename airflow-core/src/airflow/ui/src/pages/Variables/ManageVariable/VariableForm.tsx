@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
+import { Box, Field, HStack, Input, Spacer, Textarea, Text } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { FiSave } from "react-icons/fi";
 
@@ -27,6 +27,16 @@ export type VariableBody = {
   description: string | undefined;
   key: string;
   value: string;
+};
+
+const isJsonString = (string: string) => {
+  try {
+    JSON.parse(string);
+  } catch {
+    return false;
+  }
+
+  return true;
 };
 
 type VariableFormProps = {
@@ -80,14 +90,28 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
       <Controller
         control={control}
         name="value"
-        render={({ field }) => (
-          <Field.Root mt={4}>
-            <Field.Label fontSize="md">
-              Value <Field.RequiredIndicator />
-            </Field.Label>
-            <Textarea {...field} size="sm" />
-          </Field.Root>
-        )}
+        render={({ field, fieldState }) => {
+          const showJsonWarning =
+            field.value.startsWith("{") || field.value.startsWith("[") ? !isJsonString(field.value) : false;
+
+          return (
+            <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
+              <Field.Label fontSize="md">
+                Value <Field.RequiredIndicator />
+              </Field.Label>
+              <Textarea {...field} size="sm" />
+              {showJsonWarning ? (
+                <Text color="fg.warning" fontSize="xs">
+                  Invalid JSON
+                </Text>
+              ) : undefined}
+              {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
+            </Field.Root>
+          );
+        }}
+        rules={{
+          required: "Value is required",
+        }}
       />
 
       <Controller

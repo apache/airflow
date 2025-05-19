@@ -37,7 +37,6 @@ from pytest import param
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload
 
-import airflow.example_dags
 from airflow import settings
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -75,6 +74,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from system import standard
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
@@ -104,7 +104,7 @@ PERF_DAGS_FOLDER = os.path.join(ROOT_FOLDER, "tests", "test_utils", "perf", "dag
 ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
-EXAMPLE_DAGS_FOLDER = airflow.example_dags.__path__[0]
+EXAMPLE_STANDARD_DAGS_FOLDER = standard.__path__[0]
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
@@ -4115,7 +4115,7 @@ class TestSchedulerJob:
         # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
         assert not custom_task.operator_extra_links
 
-    def test_scheduler_create_dag_runs_does_not_raise_error(self, caplog, dag_maker):
+    def test_scheduler_create_dag_runs_does_not_raise_error_when_no_serdag(self, caplog, dag_maker):
         """
         Test that scheduler._create_dag_runs does not raise an error when the DAG does not exist
         in serialized_dag table
@@ -4137,10 +4137,18 @@ class TestSchedulerJob:
                 logger="airflow.jobs.scheduler_job_runner",
             ),
         ):
+            self._clear_serdags(dag_id=dag_maker.dag.dag_id, session=session)
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
             assert caplog.messages == [
                 "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
             ]
+
+    def _clear_serdags(self, dag_id, session):
+        SDM = SerializedDagModel
+        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag_id))
+        for sdm in sdms:
+            session.delete(sdm)
+        session.commit()
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
@@ -5707,7 +5715,7 @@ class TestSchedulerJob:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_find_and_purge_task_instances_without_heartbeats(self, session, create_dagrun):
-        dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
+        dagfile = os.path.join(EXAMPLE_STANDARD_DAGS_FOLDER, "example_branch_operator.py")
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
@@ -5773,7 +5781,7 @@ class TestSchedulerJob:
         """
         Check that the task instance heartbeat timeout message comes out as expected
         """
-        dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
+        dagfile = os.path.join(EXAMPLE_STANDARD_DAGS_FOLDER, "example_branch_operator.py")
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))

@@ -30,6 +30,20 @@ def get_provider_info():
             "fab": {
                 "description": "This section contains configs specific to FAB provider.",
                 "options": {
+                    "access_denied_message": {
+                        "description": "The message displayed when a user attempts to execute actions beyond their authorised privileges.\n",
+                        "version_added": "2.1.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "Access is Denied",
+                    },
+                    "expose_hostname": {
+                        "description": "Expose hostname in the web server\n",
+                        "version_added": "2.1.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "False",
+                    },
                     "auth_rate_limited": {
                         "description": "Boolean for enabling rate limiting on authentication endpoints.\n",
                         "version_added": "1.0.2",
@@ -78,6 +92,48 @@ def get_provider_info():
                         "type": "integer",
                         "example": None,
                         "default": "43200",
+                    },
+                    "enable_proxy_fix": {
+                        "description": "Enable werkzeug ``ProxyFix`` middleware for reverse proxy\n",
+                        "version_added": "2.1.0",
+                        "type": "boolean",
+                        "example": None,
+                        "default": "False",
+                    },
+                    "proxy_fix_x_for": {
+                        "description": "Number of values to trust for ``X-Forwarded-For``.\nSee `Werkzeug: X-Forwarded-For Proxy Fix\n<https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.\n",
+                        "version_added": "2.1.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "1",
+                    },
+                    "proxy_fix_x_proto": {
+                        "description": "Number of values to trust for ``X-Forwarded-Proto``.\nSee `Werkzeug: X-Forwarded-For Proxy Fix\n<https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.\n",
+                        "version_added": "2.1.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "1",
+                    },
+                    "proxy_fix_x_host": {
+                        "description": "Number of values to trust for ``X-Forwarded-Host``.\nSee `Werkzeug: X-Forwarded-For Proxy Fix\n<https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.\n",
+                        "version_added": "2.1.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "1",
+                    },
+                    "proxy_fix_x_port": {
+                        "description": "Number of values to trust for ``X-Forwarded-Port``.\nSee `Werkzeug: X-Forwarded-For Proxy Fix\n<https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.\n",
+                        "version_added": "2.1.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "1",
+                    },
+                    "proxy_fix_x_prefix": {
+                        "description": "Number of values to trust for ``X-Forwarded-Prefix``.\nSee `Werkzeug: X-Forwarded-For Proxy Fix\n<https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.\n",
+                        "version_added": "2.1.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "1",
                     },
                 },
             }

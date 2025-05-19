@@ -48,9 +48,10 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRunState,
     TaskInstance,
-    TerminalTIState,
+    TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -74,6 +75,7 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    GetXComSequenceItem,
     OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
@@ -91,7 +93,15 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
 )
 from airflow.sdk.execution_time.secrets_masker import SecretsMasker
-from airflow.sdk.execution_time.supervisor import BUFFER_SIZE, ActivitySubprocess, mkpipe, supervise
+from airflow.sdk.execution_time.supervisor import (
+    BUFFER_SIZE,
+    ActivitySubprocess,
+    InProcessSupervisorComms,
+    InProcessTestSupervisor,
+    mkpipe,
+    set_supervisor_comms,
+    supervise,
+)
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
 
@@ -311,7 +321,7 @@ class TestWatchedSubprocess:
         @spy_agency.spy_for(ActivitySubprocess._on_child_started)
         def _on_child_started(self, *args, **kwargs):
             # Set it up so we are in overtime straight away
-            self._terminal_state = TerminalTIState.SUCCESS
+            self._terminal_state = TaskInstanceState.SUCCESS
             ActivitySubprocess._on_child_started.call_original(self, *args, **kwargs)
 
         heartbeat_spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
@@ -649,11 +659,11 @@ class TestWatchedSubprocess:
                 False,
                 id="no_terminal_state",
             ),
-            pytest.param(TerminalTIState.SUCCESS, 15.0, 10, False, id="below_threshold"),
-            pytest.param(TerminalTIState.SUCCESS, 9.0, 10, True, id="above_threshold"),
-            pytest.param(TerminalTIState.FAILED, 9.0, 10, True, id="above_threshold_failed_state"),
-            pytest.param(TerminalTIState.SKIPPED, 9.0, 10, True, id="above_threshold_skipped_state"),
-            pytest.param(TerminalTIState.SUCCESS, None, 20, False, id="task_end_datetime_none"),
+            pytest.param(TaskInstanceState.SUCCESS, 15.0, 10, False, id="below_threshold"),
+            pytest.param(TaskInstanceState.SUCCESS, 9.0, 10, True, id="above_threshold"),
+            pytest.param(TaskInstanceState.FAILED, 9.0, 10, True, id="above_threshold_failed_state"),
+            pytest.param(TaskInstanceState.SKIPPED, 9.0, 10, True, id="above_threshold_skipped_state"),
+            pytest.param(TaskInstanceState.SUCCESS, None, 20, False, id="task_end_datetime_none"),
         ],
     )
     def test_overtime_handling(
@@ -1180,10 +1190,10 @@ class TestHandleRequest:
                 OKResponse(ok=True),
                 id="delete_xcom",
             ),
-            # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
+            # we aren't adding all states under TaskInstanceState here, because this test's scope is only to check
             # if it can handle TaskState message
             pytest.param(
-                TaskState(state=TerminalTIState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                TaskState(state=TaskInstanceState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
                 b"",
                 "",
                 (),
@@ -1192,11 +1202,17 @@ class TestHandleRequest:
                 id="patch_task_instance_to_skipped",
             ),
             pytest.param(
-                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                RetryTask(
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test retry task"
+                ),
                 b"",
                 "task_instances.retry",
                 (),
-                {"id": TI_ID, "end_date": timezone.parse("2024-10-31T12:00:00Z")},
+                {
+                    "id": TI_ID,
+                    "end_date": timezone.parse("2024-10-31T12:00:00Z"),
+                    "rendered_map_index": "test retry task",
+                },
                 "",
                 id="up_for_retry",
             ),
@@ -1316,7 +1332,9 @@ class TestHandleRequest:
                 id="get_asset_events_by_asset_alias",
             ),
             pytest.param(
-                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                SucceedTask(
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
+                ),
                 b"",
                 "task_instances.succeed",
                 (),
@@ -1325,6 +1343,7 @@ class TestHandleRequest:
                     "outlet_events": None,
                     "task_outlets": None,
                     "when": timezone.parse("2024-10-31T12:00:00Z"),
+                    "rendered_map_index": "test success task",
                 },
                 "",
                 id="succeed_task",
@@ -1396,6 +1415,7 @@ class TestHandleRequest:
                 (),
                 {
                     "dag_id": "test_dag",
+                    "map_index": None,
                     "logical_dates": None,
                     "run_ids": None,
                     "states": None,
@@ -1426,6 +1446,7 @@ class TestHandleRequest:
                 (),
                 {
                     "dag_id": "test_dag",
+                    "map_index": None,
                     "task_ids": None,
                     "logical_dates": None,
                     "run_ids": None,
@@ -1433,6 +1454,36 @@ class TestHandleRequest:
                 },
                 TaskStatesResult(task_states={"run_id": {"task1": "success", "task2": "failed"}}),
                 id="get_task_states",
+            ),
+            pytest.param(
+                GetXComSequenceItem(
+                    key="test_key",
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    offset=0,
+                ),
+                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
+                "xcoms.get_sequence_item",
+                ("test_dag", "test_run", "test_task", "test_key", 0),
+                {},
+                XComResult(key="test_key", value="test_value"),
+                id="get_xcom_seq_item",
+            ),
+            pytest.param(
+                GetXComSequenceItem(
+                    key="test_key",
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    offset=2,
+                ),
+                b'{"error":"XCOM_NOT_FOUND","detail":null,"type":"ErrorResponse"}\n',
+                "xcoms.get_sequence_item",
+                ("test_dag", "test_run", "test_task", "test_key", 2),
+                {},
+                ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
+                id="get_xcom_seq_item_not_found",
             ),
         ],
     )
@@ -1558,3 +1609,84 @@ class TestHandleRequest:
             "message": str(error),
             "detail": error.response.json(),
         }
+
+
+class TestSetSupervisorComms:
+    class DummyComms:
+        pass
+
+    @pytest.fixture(autouse=True)
+    def cleanup_supervisor_comms(self):
+        # Ensure clean state before/after test
+        if hasattr(task_runner, "SUPERVISOR_COMMS"):
+            delattr(task_runner, "SUPERVISOR_COMMS")
+        yield
+        if hasattr(task_runner, "SUPERVISOR_COMMS"):
+            delattr(task_runner, "SUPERVISOR_COMMS")
+
+    def test_set_supervisor_comms_overrides_and_restores(self):
+        task_runner.SUPERVISOR_COMMS = self.DummyComms()
+        original = task_runner.SUPERVISOR_COMMS
+        replacement = self.DummyComms()
+
+        with set_supervisor_comms(replacement):
+            assert task_runner.SUPERVISOR_COMMS is replacement
+        assert task_runner.SUPERVISOR_COMMS is original
+
+    def test_set_supervisor_comms_sets_temporarily_when_not_set(self):
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+        replacement = self.DummyComms()
+
+        with set_supervisor_comms(replacement):
+            assert task_runner.SUPERVISOR_COMMS is replacement
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+
+    def test_set_supervisor_comms_unsets_temporarily_when_not_set(self):
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+
+        # This will delete an attribute that isn't set, and restore it likewise
+        with set_supervisor_comms(None):
+            assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+
+
+class TestInProcessTestSupervisor:
+    def test_inprocess_supervisor_comms_roundtrip(self):
+        """
+        Test that InProcessSupervisorComms correctly sends a message to the supervisor,
+        and that the supervisor's response is received via the message queue.
+
+        This verifies the end-to-end communication flow:
+        - send_request() dispatches a message to the supervisor
+        - the supervisor handles the request and appends a response via send_msg()
+        - get_message() returns the enqueued response
+
+        This test mocks the supervisor's `_handle_request()` method to simulate
+        a simple echo-style response, avoiding full task execution.
+        """
+
+        class MinimalSupervisor(InProcessTestSupervisor):
+            def _handle_request(self, msg, log):
+                resp = VariableResult(key=msg.key, value="value")
+                self.send_msg(resp)
+
+        supervisor = MinimalSupervisor(
+            id="test",
+            pid=123,
+            requests_fd=-1,
+            process=MagicMock(),
+            process_log=MagicMock(),
+            client=MagicMock(),
+        )
+        comms = InProcessSupervisorComms(supervisor=supervisor)
+        supervisor.comms = comms
+
+        test_msg = GetVariable(key="test_key")
+
+        comms.send_request(log=MagicMock(), msg=test_msg)
+
+        # Ensure we got back what we expect
+        response = comms.get_message()
+        assert isinstance(response, VariableResult)
+        assert response.value == "value"

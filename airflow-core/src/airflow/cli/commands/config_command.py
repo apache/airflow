@@ -380,6 +380,14 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "access_denied_message"),
+        renamed_to=ConfigParameter("fab", "access_denied_message"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "expose_hostname"),
+        renamed_to=ConfigParameter("fab", "expose_hostname"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "base_url"),
         renamed_to=ConfigParameter("api", "base_url"),
     ),
@@ -415,6 +423,11 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "access_logfile"),
         renamed_to=ConfigParameter("api", "access_logfile"),
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "grid_view_sorting_order"),
+        renamed_to=ConfigParameter("api", "grid_view_sorting_order"),
         breaking=True,
     ),
     ConfigChange(
@@ -467,27 +480,37 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_for"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_for"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_proto"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_proto"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_host"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_host"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_port"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_port"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_prefix"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_prefix"),
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "expose_config"),
+        renamed_to=ConfigParameter("api", "expose_config"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_secure"),
@@ -993,7 +1016,7 @@ def update_config(args) -> None:
             console.print(f"  - {change_msg}")
         if dry_run:
             console.print(
-                "[blue]Dry-run is mode enabled. To apply above airflow.cfg run the command "
+                "[blue]Dry-run mode is enabled. To apply above airflow.cfg run the command "
                 "with `--fix`.[/blue]"
             )
     else:

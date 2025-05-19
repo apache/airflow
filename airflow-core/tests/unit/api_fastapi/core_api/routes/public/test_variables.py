@@ -478,25 +478,6 @@ class TestPostVariable(TestVariableEndpoint):
             ]
         }
 
-    def test_post_should_respond_422_when_value_is_null(self, test_client):
-        body = {
-            "key": "null value key",
-            "value": None,
-            "description": "key too large",
-        }
-        response = test_client.post("/variables", json=body)
-        assert response.status_code == 422
-        assert response.json() == {
-            "detail": [
-                {
-                    "type": "string_type",
-                    "loc": ["body", "value"],
-                    "msg": "Input should be a valid string",
-                    "input": None,
-                }
-            ]
-        }
-
     @pytest.mark.parametrize(
         "body",
         [
@@ -521,8 +502,7 @@ class TestBulkVariables(TestVariableEndpoint):
     @pytest.mark.parametrize(
         "actions, expected_results",
         [
-            # Test successful create
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -536,9 +516,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {"create": {"success": ["new_var1", "new_var2"], "errors": []}},
+                id="test_successful_create",
             ),
-            # Test successful create with skip
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -556,9 +536,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {"create": {"success": ["new_var2"], "errors": []}},
+                id="test_successful_create_with_skip",
             ),
-            # Test successful create with overwrite
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -576,9 +556,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {"create": {"success": ["test_variable_key", "new_var2"], "errors": []}},
+                id="test_successful_create_with_overwrite",
             ),
-            # Test create conflict
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -605,9 +585,9 @@ class TestBulkVariables(TestVariableEndpoint):
                         ],
                     }
                 },
+                id="test_create_conflict",
             ),
-            # Test successful update
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -624,9 +604,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {"update": {"success": ["test_variable_key"], "errors": []}},
+                id="test_successful_update",
             ),
-            # Test update with skip
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -643,9 +623,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {"update": {"success": [], "errors": []}},
+                id="test_update_with_skip",
             ),
-            # Test update not found
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -672,9 +652,9 @@ class TestBulkVariables(TestVariableEndpoint):
                         ],
                     }
                 },
+                id="test_update_not_found",
             ),
-            # Test successful delete
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -685,9 +665,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {"delete": {"success": ["test_variable_key"], "errors": []}},
+                id="test_successful_delete",
             ),
-            # Test delete with skip
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -698,9 +678,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {"delete": {"success": [], "errors": []}},
+                id="test_delete_with_skip",
             ),
-            # Test delete not found
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -721,14 +701,20 @@ class TestBulkVariables(TestVariableEndpoint):
                         ],
                     }
                 },
+                id="test_delete_not_found",
             ),
-            # Test Create, Update, and Delete combined
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
                             "action": "create",
-                            "entities": [{"key": "new_var1", "value": "new_value1"}],
+                            "entities": [
+                                {"key": "new_var1", "value": "new_value1"},
+                                {"key": "new_var2", "value": ["new_value1"]},
+                                {"key": "new_var3", "value": 1},
+                                {"key": "new_var4", "value": None},
+                                {"key": "new_var5", "value": {"foo": "bar"}},
+                            ],
                             "action_on_existence": "skip",
                         },
                         {
@@ -750,13 +736,16 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {
-                    "create": {"success": ["new_var1"], "errors": []},
+                    "create": {
+                        "success": ["new_var1", "new_var2", "new_var3", "new_var4", "new_var5"],
+                        "errors": [],
+                    },
                     "update": {"success": ["test_variable_key"], "errors": []},
                     "delete": {"success": ["dictionary_password"], "errors": []},
                 },
+                id="test_create_update_delete_combined",
             ),
-            # Test Fail on conflicting create and handle others
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -801,9 +790,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     "update": {"success": ["dictionary_password"], "errors": []},
                     "delete": {"success": [], "errors": []},
                 },
+                id="test_fail_on_conflicting_create_and_handle_others",
             ),
-            # Test all skipping actions
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -840,9 +829,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     "update": {"success": [], "errors": []},
                     "delete": {"success": [], "errors": []},
                 },
+                id="test_all_skipping_actions",
             ),
-            # Test Dependent actions
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -879,9 +868,9 @@ class TestBulkVariables(TestVariableEndpoint):
                     "update": {"success": ["new_variable_key"], "errors": []},
                     "delete": {"success": ["new_variable_key"], "errors": []},
                 },
+                id="test_dependent_actions",
             ),
-            # Test Repeated actions
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -982,6 +971,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     },
                     "delete": {"success": ["dictionary_password"], "errors": []},
                 },
+                id="test_repeated_actions",
             ),
         ],
     )

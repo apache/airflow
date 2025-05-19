@@ -52,9 +52,8 @@ from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
     DagRunState,
-    IntermediateTIState,
     TaskInstance,
-    TerminalTIState,
+    TaskInstanceState,
 )
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
@@ -107,13 +106,13 @@ from airflow.sdk.execution_time.task_runner import (
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
+    get_log_url_from_ti,
     parse,
     run,
     startup,
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils import timezone
-from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet
 
 from tests_common.test_utils.mock_operators import AirflowLink
@@ -306,7 +305,9 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
 
     # Run the task
     ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
-    state, msg, err = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.state == TaskInstanceState.DEFERRED
 
     # send_request will only be called when the TaskDeferred exception is raised
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_defer_task, log=mock.ANY)
@@ -328,7 +329,7 @@ def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor
     context = ti.get_template_context()
     log = mock.MagicMock()
     run(ti, context=context, log=log)
-    finalize(ti, context=context, log=mock.MagicMock(), state=TerminalTIState.SUCCESS)
+    finalize(ti, context=context, log=mock.MagicMock(), state=TaskInstanceState.SUCCESS)
 
     assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
     log.info.assert_called_with("Skipping downstream tasks.")
@@ -360,6 +361,7 @@ def test_resume_from_deferred(time_machine, create_runtime_ti, mock_supervisor_c
     state, msg, err = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
     assert err is None
     assert state == TaskInstanceState.SUCCESS
+    assert ti.state == TaskInstanceState.SUCCESS
 
     spy_agency.assert_spy_called_with(spy, mock.ANY, event=instant)
 
@@ -381,8 +383,10 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TaskInstanceState.SKIPPED
+
     mock_supervisor_comms.send_request.assert_called_with(
-        msg=TaskState(state=TerminalTIState.SKIPPED, end_date=instant), log=mock.ANY
+        msg=TaskState(state=TaskInstanceState.SKIPPED, end_date=instant), log=mock.ANY
     )
 
 
@@ -401,9 +405,11 @@ def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervi
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TaskInstanceState.FAILED
+
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
-            state=TerminalTIState.FAILED,
+            state=TaskInstanceState.FAILED,
             end_date=instant,
         ),
         log=mock.ANY,
@@ -426,9 +432,11 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
     log = mock.MagicMock()
     run(ti, context=ti.get_template_context(), log=log)
 
+    assert ti.state == TaskInstanceState.FAILED
+
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
-            state=TerminalTIState.FAILED,
+            state=TaskInstanceState.FAILED,
             end_date=instant,
         ),
         log=mock.ANY,
@@ -455,9 +463,11 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TaskInstanceState.FAILED
+
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
-            state=TerminalTIState.FAILED,
+            state=TaskInstanceState.FAILED,
             end_date=instant,
         ),
         log=mock.ANY,
@@ -481,10 +491,12 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TaskInstanceState.FAILED
+
     # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
-            state=TerminalTIState.FAILED,
+            state=TaskInstanceState.FAILED,
             end_date=instant,
         ),
         log=mock.ANY,
@@ -526,6 +538,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
     spy_agency.assert_spy_called(task.prepare_for_execution)
     assert ti.task._lock_for_execution
     assert ti.task is not task, "ti.task should be a copy of the original task"
+    assert ti.state == TaskInstanceState.SUCCESS
 
     mock_supervisor_comms.send_request.assert_any_call(
         msg=SetRenderedFields(
@@ -644,7 +657,7 @@ def test_startup_and_run_dag_with_rtif(
         mock.call.send_request(
             msg=SucceedTask(
                 end_date=instant,
-                state=TerminalTIState.SUCCESS,
+                state=TaskInstanceState.SUCCESS,
                 task_outlets=[],
                 outlet_events=[],
             ),
@@ -699,9 +712,11 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TaskInstanceState.SUCCESS
+
     # Ensure the task is Successful
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=SucceedTask(state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
+        msg=SucceedTask(state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
         log=mock.ANY,
     )
 
@@ -747,8 +762,10 @@ def test_run_basic_failed(
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TaskInstanceState.FAILED
+
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.FAILED, end_date=instant), log=mock.ANY
+        msg=TaskState(state=TaskInstanceState.FAILED, end_date=instant), log=mock.ANY
     )
 
 
@@ -952,6 +969,37 @@ def test_execute_task_exports_env_vars(
 
     assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_dag_env_vars"
     assert os.environ["AIRFLOW_CTX_TASK_ID"] == "test_env_task"
+
+
+def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
+    """Test that the map index is rendered in the task context."""
+
+    def test_function():
+        return "test function"
+
+    task = PythonOperator(
+        task_id="test_task",
+        python_callable=test_function,
+        map_index_template="Hello! {{ run_id }}",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_map_index_template")
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == "Hello! test_run"
+
+
+def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
+    """Test that the map index is rendered in the task context."""
+
+    task = BaseOperator(task_id="test_task", map_index_template="Hello! {{ run_id }}")
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_map_index_template")
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == "Hello! test_run"
 
 
 class TestRuntimeTaskInstance:
@@ -1445,7 +1493,7 @@ class TestRuntimeTaskInstance:
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=SucceedTask(
-                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+                state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),
             log=mock.ANY,
         )
@@ -1454,7 +1502,7 @@ class TestRuntimeTaskInstance:
             finalize(
                 runtime_ti,
                 log=mock.MagicMock(),
-                state=TerminalTIState.SUCCESS,
+                state=TaskInstanceState.SUCCESS,
                 context=runtime_ti.get_template_context(),
             )
             mock_xcom_set.assert_called_once_with(
@@ -1491,7 +1539,7 @@ class TestRuntimeTaskInstance:
 
         finalize(
             runtime_ti,
-            state=TerminalTIState.SUCCESS,
+            state=TaskInstanceState.SUCCESS,
             context=runtime_ti.get_template_context(),
             log=mock.MagicMock(),
         )
@@ -1862,7 +1910,7 @@ class TestDagParamRuntime:
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=SucceedTask(
-                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+                state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),
             log=mock.ANY,
         )
@@ -1891,7 +1939,7 @@ class TestDagParamRuntime:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=SucceedTask(
-                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+                state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),
             log=mock.ANY,
         )
@@ -1918,7 +1966,7 @@ class TestDagParamRuntime:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=SucceedTask(
-                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+                state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),
             log=mock.ANY,
         )
@@ -1953,7 +2001,7 @@ class TestDagParamRuntime:
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=SucceedTask(
-                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+                state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),
             log=mock.ANY,
         )
@@ -1992,7 +2040,7 @@ class TestDagParamRuntime:
 
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=SucceedTask(
-                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+                state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),
             log=mock.ANY,
         )
@@ -2023,7 +2071,7 @@ class TestDagParamRuntime:
 
         mock_supervisor_comms.send_request.assert_any_call(
             msg=SucceedTask(
-                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+                state=TaskInstanceState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),
             log=mock.ANY,
         )
@@ -2097,6 +2145,8 @@ class TestTaskRunnerCallsListeners:
         mocked_parse(what, "basic_dag", task)
 
         runtime_ti, context, log = startup()
+        assert runtime_ti is not None
+        assert runtime_ti.log_url == get_log_url_from_ti(runtime_ti)
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
 
@@ -2195,28 +2245,28 @@ class TestTaskRunnerCallsCallbacks:
             pytest.param(
                 _execute_success,
                 False,
-                TerminalTIState.SUCCESS,
+                TaskInstanceState.SUCCESS,
                 ["on-execute callback", "execute success", "on-success callback"],
                 id="success",
             ),
             pytest.param(
                 _execute_skipped,
                 False,
-                TerminalTIState.SKIPPED,
+                TaskInstanceState.SKIPPED,
                 ["on-execute callback", "execute skipped", "on-skipped callback"],
                 id="skipped",
             ),
             pytest.param(
                 _execute_failure,
                 False,
-                TerminalTIState.FAILED,
+                TaskInstanceState.FAILED,
                 ["on-execute callback", "execute failure", "on-failure callback"],
                 id="failure",
             ),
             pytest.param(
                 _execute_failure,
                 True,
-                IntermediateTIState.UP_FOR_RETRY,
+                TaskInstanceState.UP_FOR_RETRY,
                 ["on-execute callback", "execute failure", "on-retry callback"],
                 id="retry",
             ),
@@ -2263,7 +2313,7 @@ class TestTaskRunnerCallsCallbacks:
                 "on_success_callback",
                 _execute_success,
                 False,
-                TerminalTIState.SUCCESS,
+                TaskInstanceState.SUCCESS,
                 ["on-execute 1", "on-execute 3", "execute success", "on-success 1", "on-success 3"],
                 [],
                 id="success",
@@ -2272,7 +2322,7 @@ class TestTaskRunnerCallsCallbacks:
                 "on_skipped_callback",
                 _execute_skipped,
                 False,
-                TerminalTIState.SKIPPED,
+                TaskInstanceState.SKIPPED,
                 ["on-execute 1", "on-execute 3", "execute skipped", "on-skipped 1", "on-skipped 3"],
                 [],
                 id="skipped",
@@ -2281,7 +2331,7 @@ class TestTaskRunnerCallsCallbacks:
                 "on_failure_callback",
                 _execute_failure,
                 False,
-                TerminalTIState.FAILED,
+                TaskInstanceState.FAILED,
                 ["on-execute 1", "on-execute 3", "execute failure", "on-failure 1", "on-failure 3"],
                 [(1, mock.call("Task failed with exception"))],
                 id="failure",
@@ -2290,7 +2340,7 @@ class TestTaskRunnerCallsCallbacks:
                 "on_retry_callback",
                 _execute_failure,
                 True,
-                IntermediateTIState.UP_FOR_RETRY,
+                TaskInstanceState.UP_FOR_RETRY,
                 ["on-execute 1", "on-execute 3", "execute failure", "on-retry 1", "on-retry 3"],
                 [(1, mock.call("Task failed with exception"))],
                 id="retry",
@@ -2555,7 +2605,7 @@ class TestTriggerDagRunOperator:
     @pytest.mark.parametrize(
         ["allowed_states", "failed_states", "intermediate_state"],
         [
-            ([DagRunState.SUCCESS], None, IntermediateTIState.DEFERRED),
+            ([DagRunState.SUCCESS], None, TaskInstanceState.DEFERRED),
         ],
     )
     def test_handle_trigger_dag_run_deferred(

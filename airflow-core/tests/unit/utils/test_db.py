@@ -34,6 +34,7 @@ from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Column, Integer, MetaData, Table, select
 
+from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.providers.fab.auth_manager.models.db import FABDBManager
 from airflow.settings import engine
@@ -295,10 +296,12 @@ class TestDb:
 
     @conf_vars({("core", "unit_test_mode"): "False"})
     @mock.patch("airflow.utils.db.inspect")
-    def test_upgradedb_raises_if_lower_than_v3_0_0(self, mock_inspect, caplog):
+    def test_downgrade_raises_if_lower_than_v3_0_0_and_no_ab_user(self, mock_inspect):
         mock_inspect.return_value.has_table.return_value = False
-        downgrade(to_revision=_REVISION_HEADS_MAP["2.7.0"])
-        assert (
+        msg = (
             "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
-            "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
-        ) in caplog.text
+            "Please add FabDBManager to [core] external_db_managers and run fab migrations before "
+            "proceeding"
+        )
+        with pytest.raises(AirflowException, match=re.escape(msg)):
+            downgrade(to_revision=_REVISION_HEADS_MAP["2.7.0"])

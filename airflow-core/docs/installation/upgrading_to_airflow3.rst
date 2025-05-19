@@ -23,7 +23,7 @@ Apache Airflow 3 is a major release and contains :ref:`breaking changes<breaking
 Step 1: Take care of prerequisites
 ----------------------------------
 
-- Make sure that you are on Airflow 2.7 or later.
+- Make sure that you are on Airflow 2.7 or later. It is recommended to upgrade to latest 2.x and then to Airflow 3.
 - Make sure that your Python version is in the supported list. Airflow 3.0.0 supports the following Python versions: Python 3.9, 3.10, 3.11 and 3.12.
 - Ensure that you are not using any features or functionality that have been :ref:`removed in Airflow 3<breaking-changes>`.
 
@@ -42,7 +42,7 @@ Step 2: Clean and back up your existing Airflow Instance
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
 - Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
-  be able to run ``airflow dags reserialize`` with no errors.  If you have have to resolve errors from dag processing,
+  be able to run ``airflow dags reserialize`` with no errors.  If you have to resolve errors from dag processing,
   ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
 
@@ -56,19 +56,22 @@ for dag incompatibilities that will need to be fixed before they will work as ex
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301
+    ruff check dag/ --select AIR301 --preview
 
 To preview the recommended fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --show-fixes
+    ruff check dag/ --select AIR301 --show-fixes --preview
 
 Some changes can be automatically fixed. To do so, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --fix
+    ruff check dag/ --select AIR301 --fix --preview
+
+
+You can also configure these flags through configuration files. See `Configuring Ruff <Configuring Ruff>`_ for details.
 
 Step 4: Install the Standard Providers
 --------------------------------------
@@ -137,8 +140,10 @@ These include:
 
 - **SubDAGs**: Replaced by TaskGroups, Assets, and Data Aware Scheduling.
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
+- **CeleryKubernetesExecutor and LocalKubernetesExecutor**: Replaced by `Multiple Executor Configuration <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
 - **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`DAG bundles </administration-and-deployment/dag-bundles>`.
+- **REST API** (``/api/v1``) replaced: Use the modern FastAPI-based stable ``/api/v2`` instead; see :doc:`Airflow API v2 </stable-rest-api-ref>` for details.
 - **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause dag errors:
   - ``tomorrow_ds``
   - ``tomorrow_ds_nodash``

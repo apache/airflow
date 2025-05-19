@@ -64,7 +64,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
@@ -1026,7 +1026,7 @@ class TestDagInfoAirflow2:
         }
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS or AIRFLOW_V_3_0_PLUS, reason="Airflow 2.10 tests")
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow < 3.0 tests")
 class TestDagInfoAirflow210:
     def test_dag_info_schedule_single_dataset_directly(self):
         dag = DAG(
@@ -1499,6 +1499,7 @@ def test_taskinstance_info_af3():
     runtime_ti.bundle_instance = bundle_instance
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
+        "log_url": None,
         "map_index": 2,
         "try_number": 1,
         "dag_bundle_version": "bundle_version",
