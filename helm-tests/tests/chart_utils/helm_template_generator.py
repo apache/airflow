@@ -29,6 +29,7 @@ import jmespath
 import jsonschema
 import requests
 import yaml
+from airflow_breeze.utils.github import log_github_rate_limit_error
 from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
@@ -71,6 +72,7 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
         headers["X-GitHub-Api-Version"] = "2022-11-28"
 
     response = requests.get(url, headers=headers)
+    log_github_rate_limit_error(response)
     response.raise_for_status()
     schema = json.loads(
         response.text.replace(
