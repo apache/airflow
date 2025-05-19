@@ -809,6 +809,7 @@ class S3Hook(AwsBaseHook):
         to_datetime: datetime | None = None,
         object_filter: Callable[..., list] | None = None,
         apply_wildcard: bool = False,
+        is_async: bool = False
     ) -> list:
         """
         List keys in a bucket under prefix and not containing delimiter.
@@ -828,6 +829,7 @@ class S3Hook(AwsBaseHook):
         :param object_filter: Function that receives the list of the S3 objects, from_datetime and
             to_datetime and returns the List of matched key.
         :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
+        :param is_async: whether to return a list of keys asynchronously
 
         **Example**: Returns the list of S3 object with LastModified attr greater than from_datetime
              and less than to_datetime:
@@ -872,12 +874,31 @@ class S3Hook(AwsBaseHook):
         )
 
         keys: list[str] = []
-        for page in response:
-            if "Contents" in page:
-                new_keys = page["Contents"]
-                if _apply_wildcard:
-                    new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
-                keys.extend(new_keys)
+
+        if is_async:
+            async def _filter_keys():
+                # keys_async
+                keys_async: list[str] = []
+                async for page_async in response:
+                    if "Contents" in page_async:
+                        new_keys_async = page_async["Contents"]
+                        if _apply_wildcard:
+                            new_keys_async = (
+                                k for k in new_keys_async if fnmatch.fnmatch(k["Key"], _original_prefix)
+                            )
+                        keys_async.extend(new_keys_async)
+                    return keys_async
+
+            keys.extend(asyncio.run(_filter_keys()))
+
+        else:
+            for page in response:
+                if "Contents" in page:
+                    new_keys = page["Contents"]
+                    if _apply_wildcard:
+                        new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
+                    keys.extend(new_keys)
+
         if object_filter_usr is not None:
             return object_filter_usr(keys, from_datetime, to_datetime)
 
