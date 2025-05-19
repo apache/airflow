@@ -359,6 +359,12 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "access_denied_message"): ("webserver", "access_denied_message", "3.0.2"),
         ("fab", "expose_hostname"): ("webserver", "expose_hostname", "3.0.2"),
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
+        ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
+        ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
+        ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
+        ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
+        ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
+        ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
