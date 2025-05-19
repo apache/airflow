@@ -93,8 +93,8 @@ def upgrade():
             / 1000
         )
         if curr_timeout > 0 and curr_timeout < 1800:
-            print("setting statement timeout to 1800s")
-            conn.execute(text("set statement_timeout='1800s'"))
+            print("setting local statement timeout to 1800s")
+            conn.execute(text("SET LOCAL statement_timeout='1800s'"))
 
     # Archive pickled data using the condition
     conn.execute(
