@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -73,6 +74,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param project_id: Google Cloud Project where the job is running
     """
 
     template_fields: Sequence[str] = (
@@ -93,6 +95,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         write_disposition: str = "WRITE_EMPTY",
         create_disposition: str = "CREATE_IF_NEEDED",
         gcp_conn_id: str = "google_cloud_default",
+        project_id: str = PROVIDE_PROJECT_ID,
         labels: dict | None = None,
         encryption_configuration: dict | None = None,
         location: str | None = None,
@@ -112,6 +115,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook: BigQueryHook | None = None
         self._job_conf: dict = {}
+        self.project_id = project_id
 
     def _prepare_job_configuration(self):
         self.source_project_dataset_tables = (
@@ -124,7 +128,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         for source_project_dataset_table in self.source_project_dataset_tables:
             source_project, source_dataset, source_table = self.hook.split_tablename(
                 table_input=source_project_dataset_table,
-                default_project_id=self.hook.project_id,
+                default_project_id=self.project_id,
                 var_name="source_project_dataset_table",
             )
             source_project_dataset_tables_fixup.append(
@@ -133,7 +137,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
         destination_project, destination_dataset, destination_table = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,
-            default_project_id=self.hook.project_id,
+            default_project_id=self.project_id,
         )
         configuration = {
             "copy": {
@@ -168,12 +172,12 @@ class BigQueryToBigQueryOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        if not self.hook.project_id:
-            raise ValueError("The project_id should be set")
+        if not self.project_id:
+            self.project_id = self.hook.project_id
 
         configuration = self._prepare_job_configuration()
         self._job_conf = self.hook.insert_job(
-            configuration=configuration, project_id=self.hook.project_id
+            configuration=configuration, project_id=self.project_id
         ).to_api_repr()
 
         dest_table_info = self._job_conf["configuration"]["copy"]["destinationTable"]
