@@ -229,8 +229,8 @@ class MongoHook(BaseHook):
         self,
         mongo_collection: str,
         mongo_db: str | None = None,
-        create_if_exists: bool = True,
-        **create_kwargs: dict[str, Any],
+        return_if_exists: bool = True,
+        **create_kwargs: Any,
     ) -> MongoCollection:
         """
         Create the collection (optionally a time‑series collection) and return it.
@@ -239,7 +239,7 @@ class MongoHook(BaseHook):
 
         :param mongo_collection: Name of the collection.
         :param mongo_db: Target database; defaults to the schema in the connection string.
-        :param create_if_exists: If True and the collection already exists, return it instead of raising.
+        :param return_if_exists: If True and the collection already exists, return it instead of raising.
         :param create_kwargs: Additional keyword arguments forwarded to ``db.create_collection()``,
                                   e.g. ``timeseries={...}``, ``capped=True``.
         """
@@ -252,7 +252,7 @@ class MongoHook(BaseHook):
         try:
             db.create_collection(mongo_collection, **create_kwargs)
         except CollectionInvalid:
-            if not create_if_exists:
+            if not return_if_exists:
                 raise
             # Collection already exists – fall through and fetch it.
 
