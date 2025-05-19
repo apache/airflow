@@ -70,10 +70,13 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
         sys.exit(1)
     elif breeze_installed_with_uv:
         subprocess.check_call(
-            ["uv", "tool", "install", "--force", "--reinstall", "-e", breeze_sources.as_posix()]
+            ["uv", "tool", "install", "--force", "--reinstall", "-e", breeze_sources.as_posix()],
+            stderr=subprocess.STDOUT,
         )
     elif breeze_installed_with_pipx:
-        subprocess.check_call(["pipx", "install", "-e", breeze_sources.as_posix(), "--force"])
+        subprocess.check_call(
+            ["pipx", "install", "-e", breeze_sources.as_posix(), "--force"], stderr=subprocess.STDOUT
+        )
 
     if re_run:
         # Make sure we don't loop forever if the metadata hash hasn't been updated yet (else it is tricky to
