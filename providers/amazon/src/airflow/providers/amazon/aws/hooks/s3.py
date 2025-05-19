@@ -815,7 +815,7 @@ class S3Hook(AwsBaseHook):
         from_datetime: datetime | None = None,
         to_datetime: datetime | None = None,
         object_filter: Callable[..., list] | None = None,
-        apply_wildcard: bool = False
+        apply_wildcard: bool = False,
     ) -> list:
         """
         List keys in a bucket under prefix and not containing delimiter.
@@ -879,14 +879,12 @@ class S3Hook(AwsBaseHook):
         )
 
         keys: list[str] = []
-
         for page in response:
             if "Contents" in page:
                 new_keys = page["Contents"]
                 if _apply_wildcard:
                     new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
                 keys.extend(new_keys)
-
         if object_filter_usr is not None:
             return object_filter_usr(keys, from_datetime, to_datetime)
 
