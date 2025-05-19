@@ -77,9 +77,24 @@ def upgrade():
     condition = condition_templates.get(dialect)
     if not condition:
         raise RuntimeError(f"Unsupported dialect: {dialect}")
-
     # Key is a reserved keyword in MySQL, so we need to quote it
     quoted_key = conn.dialect.identifier_preparer.quote("key")
+    if dialect == "postgresql":
+        curr_timeout = (
+            int(
+                list(  # noqa: RUF015
+                    conn.execute(
+                        text("""select setting
+        from pg_settings
+        where name = 'statement_timeout'""")
+                    )
+                )[0][0]
+            )
+            / 1000
+        )
+        if curr_timeout > 0 and curr_timeout < 1800:
+            print("setting statement timeout to 1800s")
+            conn.execute(text("set statement_timeout='1800s'"))
 
     # Archive pickled data using the condition
     conn.execute(
