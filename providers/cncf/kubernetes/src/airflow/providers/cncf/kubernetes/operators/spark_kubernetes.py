@@ -66,7 +66,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param success_run_history_limit: Number of past successful runs of the application to keep.
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param log_events_on_failure: Log the pod's events if a failure occurs
-    :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor.
+        When enabled, the operator automatically adds Airflow task context labels (dag_id, task_id, run_id)
+        to the driver and executor pods to enable finding them for reattachment.
     :param delete_on_termination: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
@@ -296,13 +298,27 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def execute(self, context: Context):
         self.name = self.create_job_name()
 
+        template_body = self.template_body
+
+        if self.reattach_on_restart:
+            task_context_labels = self._get_ti_pod_labels(context)
+
+            spark_dict = template_body.setdefault("spark", {})
+            spec_dict = spark_dict.setdefault("spec", {})
+
+            for component in ["driver", "executor"]:
+                component_dict = spec_dict.setdefault(component, {})
+                component_dict.setdefault("labels", {}).update(task_context_labels)
+
+            self.log.debug(f"Added task context labels to driver and executor pods: {task_context_labels}")
+
         self.log.info("Creating sparkApplication.")
         self.launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
             kube_client=self.client,
             custom_obj_api=self.custom_obj_api,
-            template_body=self.template_body,
+            template_body=template_body,
         )
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
         self.pod_request_obj = self.launcher.pod_spec
