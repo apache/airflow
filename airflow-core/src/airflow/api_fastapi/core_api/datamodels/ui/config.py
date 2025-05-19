@@ -32,11 +32,9 @@ class ConfigResponse(BaseModel):
     auto_refresh_interval: int
     hide_paused_dags_by_default: bool
     instance_name: str
-    instance_name_has_markup: bool
     enable_swagger_ui: bool
     require_confirmation_dag_change: bool
     default_wrap: bool
-    warn_deployment_exposure: bool
     audit_view_excluded_events: str
     audit_view_included_events: str
     test_connection: str
