@@ -230,7 +230,7 @@ class MongoHook(BaseHook):
         mongo_collection: str,
         mongo_db: str | None = None,
         create_if_exists: bool = True,
-        **create_kwargs: Any,
+        **create_kwargs: dict[str, Any],
     ) -> MongoCollection:
         """
         Create the collection (optionally a time‑series collection) and return it.
