@@ -21,23 +21,30 @@ import inspect
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
 import textwrap
 import types
+import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
+from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
 
 import lazy_object_proxy
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import InvalidSpecifier
+from packaging.version import InvalidVersion
 
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
+    AirflowProviderDeprecationWarning,
     AirflowSkipException,
     DeserializingResultError,
 )
@@ -846,10 +853,38 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
-        if self.system_site_packages or "apache-airflow" in self.requirements:
+
+        found_airflow = found_pendulum = False
+
+        if self.system_site_packages:
+            # If we're using system packages, assume both are present
+            found_airflow = found_pendulum = True
+        else:
+            for raw_str in chain.from_iterable(req.splitlines() for req in self.requirements):
+                line = raw_str.strip()
+                # Skip blank lines and full‐line comments
+                if not line or line.startswith("#"):
+                    continue
+
+                # Strip off any inline comment
+                # e.g. turn "foo==1.2.3  # comment" → "foo==1.2.3"
+                req_str = re.sub(r"#.*$", "", line).strip()
+
+                try:
+                    req = Requirement(req_str)
+                except (InvalidRequirement, InvalidSpecifier, InvalidVersion) as e:
+                    raise ValueError(f"Invalid requirement '{raw_str}': {e}") from e
+
+                if req.name == "apache-airflow":
+                    found_airflow = found_pendulum = True
+                    break
+                elif req.name == "pendulum":
+                    found_pendulum = True
+
+        if found_airflow:
             yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
-        elif "pendulum" in self.requirements:
+        elif found_pendulum:
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
 
@@ -1113,6 +1148,13 @@ def get_current_context() -> Mapping[str, Any]:
     was starting to execute.
     """
     if AIRFLOW_V_3_0_PLUS:
+        warnings.warn(
+            "Using get_current_context from standard provider is deprecated and will be removed."
+            "Please import `from airflow.sdk import get_current_context` and use it instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         from airflow.sdk import get_current_context
 
         return get_current_context()

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.providers.edge3.cli.edge_command import _EdgeWorkerCli
+from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
 from airflow.providers.edge3.worker_api.routes._v2_compat import HTTPException
@@ -41,8 +41,8 @@ pytestmark = pytest.mark.db_test
 
 class TestWorkerApiRoutes:
     @pytest.fixture
-    def cli_worker(self, tmp_path: Path) -> _EdgeWorkerCli:
-        test_worker = _EdgeWorkerCli(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
+    def cli_worker(self, tmp_path: Path) -> EdgeWorker:
+        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
         return test_worker
 
     @pytest.fixture(autouse=True)
@@ -77,7 +77,7 @@ class TestWorkerApiRoutes:
             pytest.param(["default", "default2"], id="with-queues"),
         ],
     )
-    def test_register(self, session: Session, input_queues: list[str] | None, cli_worker: _EdgeWorkerCli):
+    def test_register(self, session: Session, input_queues: list[str] | None, cli_worker: EdgeWorker):
         body = WorkerStateBody(
             state=EdgeWorkerState.STARTING,
             jobs_active=0,
@@ -143,6 +143,24 @@ class TestWorkerApiRoutes:
                 EdgeWorkerState.MAINTENANCE_REQUEST,
                 id="maintenance_starting",
             ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_MODE,
+                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                id="maintenance_crash",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_PENDING,
+                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                id="maintenance_crash_2",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                id="maintenance_crash_3",
+            ),
         ],
     )
     def test_redefine_state(
@@ -152,7 +170,7 @@ class TestWorkerApiRoutes:
 
         assert redefine_state(worker_state, body_state) == expected_state
 
-    def test_set_state(self, session: Session, cli_worker: _EdgeWorkerCli):
+    def test_set_state(self, session: Session, cli_worker: EdgeWorker):
         queues = ["default", "default2"]
         rwm = EdgeWorkerModel(
             worker_name="test2_worker",

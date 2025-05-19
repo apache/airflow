@@ -103,8 +103,8 @@ jobs:
         with:
           # Needed to perform push action
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
@@ -143,7 +143,7 @@ jobs:
       packages: write
     with:
       runners: ${{ inputs.runners }}
-      platform: ${ { inputs.platform }}
+      platform: ${{ inputs.platform }}
       cache-type: "Regular AMD"
       include-prod-images: "true"
       push-latest-images: "true"

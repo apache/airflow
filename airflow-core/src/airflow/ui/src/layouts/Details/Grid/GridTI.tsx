@@ -52,12 +52,12 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 };
 
 const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => {
-  const { taskId: selectedTaskId } = useParams();
+  const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
 
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId ? "blue.muted" : undefined}
+      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "blue.muted" : undefined}
       height="20px"
       id={taskId.replaceAll(".", "-")}
       justifyContent="center"
@@ -69,7 +69,13 @@ const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Pr
       transition="background-color 0.2s"
       zIndex={1}
     >
-      {isGroup ? (
+      <Link
+        replace
+        to={{
+          pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
+          search,
+        }}
+      >
         <Badge
           borderRadius={4}
           colorPalette={state === null ? "none" : state}
@@ -90,36 +96,7 @@ const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Pr
             />
           )}
         </Badge>
-      ) : (
-        <Link
-          replace
-          to={{
-            pathname: `/dags/${dagId}/runs/${runId}/tasks/${taskId}${isMapped ? "/mapped" : ""}`,
-            search,
-          }}
-        >
-          <Badge
-            borderRadius={4}
-            colorPalette={state === null ? "none" : state}
-            height="14px"
-            minH={0}
-            opacity={state === "success" ? 0.6 : 1}
-            p={0}
-            variant="solid"
-            width="14px"
-          >
-            {state === undefined ? undefined : (
-              <StateIcon
-                size={10}
-                state={state}
-                style={{
-                  marginLeft: "2px",
-                }}
-              />
-            )}
-          </Badge>
-        </Link>
-      )}
+      </Link>
     </Flex>
   );
 };

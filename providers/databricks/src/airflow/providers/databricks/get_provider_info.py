@@ -107,6 +107,7 @@ def get_provider_info():
             {
                 "integration-name": "Databricks",
                 "python-modules": [
+                    "airflow.providers.databricks.sensors.databricks",
                     "airflow.providers.databricks.sensors.databricks_sql",
                     "airflow.providers.databricks.sensors.databricks_partition",
                 ],
