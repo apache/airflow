@@ -305,13 +305,11 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("logging", "log_filename_template"),
         was_removed=True,
         remove_if_equals="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("logging", "log_filename_template"),
         was_removed=True,
         remove_if_equals="dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}attempt={{ try_number }}.log",
-        breaking=True,
     ),
     # metrics
     ConfigChange(
@@ -505,32 +503,26 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
         renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_for"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_for"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_proto"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_proto"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_host"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_host"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_port"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_port"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_prefix"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_prefix"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "expose_config"),
