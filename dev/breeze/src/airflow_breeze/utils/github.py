@@ -48,7 +48,6 @@ def log_github_rate_limit_error(response: Response) -> None:
     Logs info about GitHub rate limit errors (primary or secondary).
     """
     if response.status_code not in (403, 429):
-        print(f"Not a rate limit error (status {response.status_code}).")
         return
 
     remaining = response.headers.get("x-rateLimit-remaining")

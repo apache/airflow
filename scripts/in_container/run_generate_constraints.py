@@ -214,6 +214,8 @@ def download_latest_constraint_file(config_params: ConfigParams):
     headers = {"Accept": "application/vnd.github.v3.raw"}
     if os.environ.get("GITHUB_TOKEN"):
         headers["Authorization"] = f"Bearer {os.environ.get('GITHUB_TOKEN')}"
+    else:
+        console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
     console.print(f"[bright_blue]Downloading constraints file from {constraints_url}")
     r = requests.get(constraints_url, timeout=60, headers=headers)
     r.raise_for_status()
