@@ -30,6 +30,7 @@ import sqlalchemy as sa
 from alembic import op
 
 from airflow.exceptions import AirflowException
+from airflow.migrations.utils import _sqlite_guarded_drop_constraint
 from airflow.models.base import COLLATION_ARGS
 
 # revision identifiers, used by Alembic.
@@ -55,6 +56,6 @@ def upgrade():
 def downgrade():
     """Unapply Add unique constraint to ``conn_id`` and set it as non-nullable."""
     with op.batch_alter_table("connection") as batch_op:
-        batch_op.drop_constraint(constraint_name="unique_conn_id", type_="unique")
+        _sqlite_guarded_drop_constraint(table="connection", key="unique_conn_id", type_="unique", op=op)
 
         batch_op.alter_column("conn_id", nullable=True, existing_type=sa.String(250))
