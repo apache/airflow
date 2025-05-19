@@ -171,8 +171,7 @@ definitions in Airflow.
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
 
-    # Will show up under airflow.macros.test_plugin.plugin_macro
-    # and in templates through {{ macros.test_plugin.plugin_macro }}
+    # Will show up in templates through {{ macros.test_plugin.plugin_macro }}
     def plugin_macro():
         pass
 

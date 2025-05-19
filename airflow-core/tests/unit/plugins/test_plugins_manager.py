@@ -228,17 +228,18 @@ class TestPluginsManager:
         """
         Tests whether macros that originate from plugins are being registered correctly.
         """
-        from airflow import macros
         from airflow.plugins_manager import integrate_macros_plugins
+        from airflow.sdk.definitions import macros
 
         def cleanup_macros():
-            """Reloads the airflow.macros module such that the symbol table is reset after the test."""
+            """Reloads the macros module such that the symbol table is reset after the test."""
             # We're explicitly deleting the module from sys.modules and importing it again
             # using import_module() as opposed to using importlib.reload() because the latter
-            # does not undo the changes to the airflow.macros module that are being caused by
+            # does not undo the changes to the airflow.sdk.definitions.macros module that are being caused by
             # invoking integrate_macros_plugins()
-            del sys.modules["airflow.macros"]
-            importlib.import_module("airflow.macros")
+
+            del sys.modules["airflow.sdk.definitions.macros"]
+            importlib.import_module("airflow.sdk.definitions.macros")
 
         request.addfinalizer(cleanup_macros)
 
@@ -253,12 +254,12 @@ class TestPluginsManager:
             # Ensure the macros for the plugin have been integrated.
             integrate_macros_plugins()
             # Test whether the modules have been created as expected.
-            plugin_macros = importlib.import_module(f"airflow.macros.{MacroPlugin.name}")
+            plugin_macros = importlib.import_module(f"airflow.sdk.definitions.macros.{MacroPlugin.name}")
             for macro in MacroPlugin.macros:
                 # Verify that the macros added by the plugin are being set correctly
                 # on the plugin's macro module.
                 assert hasattr(plugin_macros, macro.__name__)
-            # Verify that the symbol table in airflow.macros has been updated with an entry for
+            # Verify that the symbol table in airflow.sdk.definitions.macros has been updated with an entry for
             # this plugin, this is necessary in order to allow the plugin's macros to be used when
             # rendering templates.
             assert hasattr(macros, MacroPlugin.name)

@@ -507,7 +507,7 @@ def integrate_macros_plugins() -> None:
     global plugins
     global macros_modules
 
-    from airflow import macros
+    from airflow.sdk.definitions import macros
 
     if macros_modules is not None:
         return
@@ -525,7 +525,7 @@ def integrate_macros_plugins() -> None:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
-        macros_module = make_module(f"airflow.macros.{plugin.name}", plugin.macros)
+        macros_module = make_module(f"airflow.sdk.definitions.macros.{plugin.name}", plugin.macros)
 
         if macros_module:
             macros_modules.append(macros_module)
