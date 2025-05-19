@@ -799,11 +799,15 @@ class TestSparkKubernetesOperator:
         mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
+<<<<<<< HEAD
         mock_is_in_cluster,
+=======
+>>>>>>> 4a30d576e3 (Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#41211))
         data_file,
     ):
         task_name = "test_adds_task_context_labels"
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+<<<<<<< HEAD
         if "spec" not in job_spec:
             job_spec["spec"] = {}
         for component in ["driver", "executor"]:
@@ -811,6 +815,8 @@ class TestSparkKubernetesOperator:
                 job_spec["spec"][component] = {}
             if "labels" not in job_spec["spec"][component]:
                 job_spec["spec"][component]["labels"] = {}
+=======
+>>>>>>> 4a30d576e3 (Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#41211))
 
         mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
@@ -821,6 +827,7 @@ class TestSparkKubernetesOperator:
             reattach_on_restart=True,
         )
         context = create_context(op)
+<<<<<<< HEAD
 
         # Execute the operator to trigger the label addition logic
         op.execute(context)
@@ -842,6 +849,16 @@ class TestSparkKubernetesOperator:
         for label_key, label_value in task_context_labels.items():
             assert label_key in executor_labels, f"Label {label_key} not in executor labels"
             assert executor_labels[label_key] == label_value, f"Label {label_key} value mismatch in executor"
+=======
+        op.execute(context)
+
+        task_context_labels = op._get_ti_pod_labels(context)
+
+        for component in ["driver", "executor"]:
+            for label_key, label_value in task_context_labels.items():
+                assert label_key in mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"]
+                assert mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"][label_key] == label_value
+>>>>>>> 4a30d576e3 (Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#41211))
 
     def test_reattach_on_restart_with_task_context_labels(
         self,
@@ -854,12 +871,16 @@ class TestSparkKubernetesOperator:
         mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
+<<<<<<< HEAD
         mock_is_in_cluster,
+=======
+>>>>>>> 4a30d576e3 (Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#41211))
         data_file,
     ):
         task_name = "test_reattach_on_restart"
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
 
+<<<<<<< HEAD
         if "spec" not in job_spec:
             job_spec["spec"] = {}
         for component in ["driver", "executor"]:
@@ -868,6 +889,9 @@ class TestSparkKubernetesOperator:
             if "labels" not in job_spec["spec"][component]:
                 job_spec["spec"][component]["labels"] = {}
 
+=======
+        mock_create_job_name.return_value = task_name
+>>>>>>> 4a30d576e3 (Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#41211))
         op = SparkKubernetesOperator(
             template_spec=job_spec,
             kubernetes_conn_id="kubernetes_default_kube_config",
@@ -875,6 +899,7 @@ class TestSparkKubernetesOperator:
             get_logs=True,
             reattach_on_restart=True,
         )
+<<<<<<< HEAD
 
         context = create_context(op)
         task_context_labels = op._get_ti_pod_labels(context)
@@ -928,6 +953,23 @@ class TestSparkKubernetesOperator:
             assert str(found_pod.metadata.labels["try_number"]) == str(task_context_labels["try_number"]), (
                 "try_number value mismatch"
             )
+=======
+        context = create_context(op)
+
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = f"{task_name}-driver"
+        mock_pod.metadata.labels = op._get_ti_pod_labels(context)
+        mock_pod.metadata.labels["spark-role"] = "driver"
+        mock_pod.metadata.labels["try_number"] = context["ti"].try_number
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+
+        op.execute(context)
+
+        label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
+        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+
+        mock_create_namespaced_crd.assert_not_called()
+>>>>>>> 4a30d576e3 (Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#41211))
 
 
 @pytest.mark.db_test
