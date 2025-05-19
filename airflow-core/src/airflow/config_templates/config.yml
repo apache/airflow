@@ -1762,13 +1762,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    x_frame_enabled:
-      description: |
-        Allow the UI to be rendered in a frame
-      version_added: 1.10.8
-      type: boolean
-      example: ~
-      default: "True"
     instance_name:
       description: |
         Sets a custom page title for the DAGs overview page and site title for all pages

@@ -47,7 +47,6 @@ def mock_config_data():
     with conf_vars(
         {
             ("webserver", "instance_name"): "Airflow",
-            ("webserver", "instance_name_has_markup"): "false",
             ("webserver", "enable_swagger_ui"): "true",
             ("api", "hide_paused_dags_by_default"): "true",
             ("api", "page_size"): "100",
