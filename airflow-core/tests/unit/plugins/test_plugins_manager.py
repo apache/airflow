@@ -238,8 +238,6 @@ class TestPluginsManager:
             # does not undo the changes to the airflow.sdk.definitions.macros module that are being caused by
             # invoking integrate_macros_plugins()
 
-            # Note: When we import airflow.sdk macros, ot resolves the actual path into sys.modules using
-            # lazy import.
             del sys.modules["airflow.sdk.definitions.macros"]
             importlib.import_module("airflow.sdk.definitions.macros")
 
@@ -261,7 +259,7 @@ class TestPluginsManager:
                 # Verify that the macros added by the plugin are being set correctly
                 # on the plugin's macro module.
                 assert hasattr(plugin_macros, macro.__name__)
-            # Verify that the symbol table in airflow.sdk.macros has been updated with an entry for
+            # Verify that the symbol table in airflow.sdk.definitions.macros has been updated with an entry for
             # this plugin, this is necessary in order to allow the plugin's macros to be used when
             # rendering templates.
             assert hasattr(macros, MacroPlugin.name)
