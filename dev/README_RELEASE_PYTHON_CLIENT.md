@@ -48,7 +48,6 @@ The client versioning is independent of the Airflow versioning.
 The Python client is generated using Airflow's [openapi spec](https://github.com/apache/airflow/blob/master/clients/gen/python.sh).
 To update the client for new APIs do the following steps:
 
-```bash
 - Checkout the v2-*-test branch of Airflow where you generate the client from
 
 ```bash
@@ -92,7 +91,7 @@ echo "${VERSION}" > clients/python/version.txt
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git log 2.8.0..HEAD --pretty=oneline -- clients/python/openapi_v1.yaml
+git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml
 ```
 
 - Update CHANGELOG.md with the details.

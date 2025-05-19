@@ -20,6 +20,7 @@ from __future__ import annotations
 import operator
 from datetime import datetime
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 import uuid6
@@ -37,7 +38,13 @@ from airflow.sdk import TaskGroup
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
-from tests_common.test_utils.db import clear_db_assets, clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+    clear_rendered_ti_fields,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -114,9 +121,13 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 class TestTIRunState:
     def setup_method(self):
         clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
 
     def teardown_method(self):
         clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
 
     @pytest.mark.parametrize(
         "max_tries, should_retry",
@@ -147,6 +158,7 @@ class TestTIRunState:
             state=State.QUEUED,
             session=session,
             start_date=instant,
+            dag_id=str(uuid4()),
         )
         ti.max_tries = max_tries
         session.commit()
@@ -165,7 +177,7 @@ class TestTIRunState:
         assert response.status_code == 200
         assert response.json() == {
             "dag_run": {
-                "dag_id": "dag",
+                "dag_id": ti.dag_id,
                 "run_id": "test",
                 "clear_number": 0,
                 "logical_date": instant_str,
@@ -179,7 +191,7 @@ class TestTIRunState:
                 "consumed_asset_events": [],
             },
             "task_reschedule_count": 0,
-            "upstream_map_indexes": None,
+            "upstream_map_indexes": {},
             "max_tries": max_tries,
             "should_retry": should_retry,
             "variables": [],
@@ -235,6 +247,7 @@ class TestTIRunState:
             state=State.QUEUED,
             session=session,
             start_date=instant,
+            dag_id=str(uuid4()),
         )
 
         ti.next_method = "execute_complete"
@@ -258,7 +271,7 @@ class TestTIRunState:
         assert response.json() == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
-            "upstream_map_indexes": None,
+            "upstream_map_indexes": {},
             "max_tries": 0,
             "should_retry": False,
             "variables": [],
@@ -282,6 +295,7 @@ class TestTIRunState:
             state=State.QUEUED,
             session=session,
             start_date=orig_task_start_time,
+            dag_id=str(uuid4()),
         )
 
         ti.start_date = orig_task_start_time
@@ -320,7 +334,7 @@ class TestTIRunState:
         assert response.json() == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
-            "upstream_map_indexes": None,
+            "upstream_map_indexes": {},
             "max_tries": 0,
             "should_retry": False,
             "variables": [],
@@ -385,6 +399,7 @@ class TestTIRunState:
             state=State.RUNNING,
             session=session,
             start_date=instant,
+            dag_id=str(uuid4()),
         )
         session.commit()
 

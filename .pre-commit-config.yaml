@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.15.0
+  node: 22.15.1
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
 repos:
@@ -35,7 +35,15 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^\.github/.*\.md|^airflow-core/tests/system/README\.md$
+          (?x)
+          ^README\.md$|
+          ^UPDATING.*\.md$|
+          ^chart/UPDATING.*\.md$|
+          ^dev/.*\.md$|
+          ^dev/.*\.rst$|
+          ^docs/README\.md$|
+          ^\.github/.*\.md$|
+          ^airflow-core/tests/system/README\.md$
         args:
           - "--maxlevel"
           - "2"
@@ -125,7 +133,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*reproducible_build\.yaml$|^.*/v1.*\.yaml$|^.*/openapi/_private_ui.*\.yaml$|^.*/pnpm-lock\.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*reproducible_build\.yaml$|^.*/v2.*\.yaml$|^.*/openapi/_private_ui.*\.yaml$|^.*/pnpm-lock\.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -273,7 +281,7 @@ repos:
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.36.2
+    rev: v1.37.1
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -317,7 +325,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.5.2
+    rev: v1.7.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -425,7 +433,7 @@ repos:
       - id: check-airflow-providers-bug-report-template
         name: Sort airflow-bug-report provider list
         language: python
-        files: ^\.github/ISSUE_TEMPLATE/airflow_providers_bug_report\.yml$
+        files: ^\.github/ISSUE_TEMPLATE/3-airflow_providers_bug_report\.yml$
         require_serial: true
         entry: ./scripts/ci/pre_commit/check_airflow_bug_report_template.py
         additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2']
@@ -479,7 +487,10 @@ repos:
         name: Generate airflow diagrams
         entry: ./scripts/ci/pre_commit/generate_airflow_diagrams.py
         language: python
-        files: ^airflow-core/docs/.*/diagram_[^/]*\.py$
+        files: >
+          (?x)
+          ^airflow-core/docs/.*/diagram_[^/]*\.py$|
+          ^docs/images/.*\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4', 'diagrams>=0.23.4']
       - id: generate-volumes-for-sources
@@ -586,7 +597,6 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^clients/python/openapi_v1.yaml$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
@@ -1368,7 +1378,7 @@ repos:
         entry: >
           bash -c '
           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
-           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
+           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/datamodels/.*\.py$
         require_serial: true

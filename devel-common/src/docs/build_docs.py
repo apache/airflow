@@ -511,7 +511,9 @@ click.rich_click.OPTION_GROUPS = {
 )
 @click.option("--docs-only", is_flag=True, help="Only build documentation")
 @click.option("--spellcheck-only", is_flag=True, help="Only perform spellchecking")
-@click.option("--include-commits", help="Include commits in the documentation.", is_flag=True)
+@click.option(
+    "--include-commits", help="Include commits in the documentation.", envvar="INCLUDE_COMMITS", is_flag=True
+)
 @click.option(
     "-j",
     "--jobs",
