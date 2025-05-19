@@ -31,6 +31,7 @@ from __future__ import annotations
 from alembic import op
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, text
 
+from airflow.migrations.utils import _sqlite_guarded_drop_constraint
 from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON
 
@@ -52,7 +53,9 @@ def upgrade():
     # Change task_instance's primary key.
     with op.batch_alter_table("task_instance") as batch_op:
         # I think we always use this name for TaskInstance after 7b2661a43ba3?
-        batch_op.drop_constraint("task_instance_pkey", type_="primary")
+        _sqlite_guarded_drop_constraint(
+            table="task_instance", key="task_instance_pkey", type_="primary", op=op
+        )
         batch_op.add_column(Column("map_index", Integer, nullable=False, server_default=text("-1")))
         batch_op.create_primary_key("task_instance_pkey", ["dag_id", "task_id", "run_id", "map_index"])
 
