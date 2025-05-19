@@ -32,17 +32,18 @@ config_router = AirflowRouter(tags=["Config"])
 
 WEBSERVER_CONFIG_KEYS = [
     "navbar_color",
-    "page_size",
-    "auto_refresh_interval",
-    "hide_paused_dags_by_default",
-    "warn_deployment_exposure",
-    "default_wrap",
-    "require_confirmation_dag_change",
-    "enable_swagger_ui",
-    "instance_name_has_markup",
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",
+    "enable_swagger_ui",
+]
+
+API_CONFIG_KEYS = [
+    "hide_paused_dags_by_default",
+    "page_size",
+    "default_wrap",
+    "auto_refresh_interval",
+    "require_confirmation_dag_change",
 ]
 
 
@@ -56,6 +57,8 @@ def get_configs() -> ConfigResponse:
     conf_dict = conf.as_dict()
 
     config = {key: conf_dict["webserver"].get(key) for key in WEBSERVER_CONFIG_KEYS}
+
+    config.update({key: conf_dict["api"].get(key) for key in API_CONFIG_KEYS})
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
