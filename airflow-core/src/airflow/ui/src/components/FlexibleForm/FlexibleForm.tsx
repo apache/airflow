@@ -103,11 +103,13 @@ export const FlexibleForm = ({
           processedSections.set(currentSection, true);
 
           return (
-            <Accordion.Item key={currentSection} value={currentSection}>
+            <Accordion.Item key={currentSection} overflow="visible" value={currentSection}>
               <Accordion.ItemTrigger cursor="button">
-                <Text color={sectionError.get(currentSection) ? "red" : undefined}>{currentSection}</Text>
+                <Text color={sectionError.get(currentSection) ? "fg.error" : undefined}>
+                  {currentSection}
+                </Text>
                 {sectionError.get(currentSection) ? (
-                  <Icon color="red" margin="-1">
+                  <Icon color="fg.error" margin="-1">
                     <MdError />
                   </Icon>
                 ) : undefined}
