@@ -31,7 +31,7 @@ from alembic import op
 from sqlalchemy.sql import and_, column, select, table
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
-from airflow.migrations.utils import get_mssql_table_constraints
+from airflow.migrations.utils import _sqlite_guarded_drop_constraint, get_mssql_table_constraints
 
 ID_LEN = 250
 
@@ -220,20 +220,15 @@ def upgrade():
         op.execute(update_query)
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        if dialect_name == "mysql":
-            batch_op.drop_constraint("task_instance_pkey", type_="primary")
-        elif dialect_name == "mssql":
-            constraints = get_mssql_table_constraints(conn, "task_instance")
-            pk, _ = constraints["PRIMARY KEY"].popitem()
-            batch_op.drop_constraint(pk, type_="primary")
-        elif dialect_name == "sqlite":
-            try:
-                with op.batch_alter_table(table, schema=None) as batch_op:
-                    batch_op.drop_constraint("task_instance_pkey", type_="primary")
-            except ValueError:
-                pass
-
         if dialect_name != "postgresql":
+            if dialect_name == "mssql":
+                constraints = get_mssql_table_constraints(conn, "task_instance")
+                pk, _ = constraints["PRIMARY KEY"].popitem()
+                batch_op.drop_constraint(pk, type_="primary")
+            else:
+                _sqlite_guarded_drop_constraint(
+                    table="task_instance", key="task_instance_pkey", type_="primary", op=op
+                )
             batch_op.drop_index("ti_dag_date")
             batch_op.drop_index("ti_state_lkp")
             batch_op.drop_column("execution_date")

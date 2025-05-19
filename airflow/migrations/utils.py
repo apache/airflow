@@ -97,3 +97,20 @@ def _drop_fkey_if_exists(table: str, constraint_name: str, op) -> None:
         mysql_drop_foreignkey_if_exists(constraint_name, table, op)
     else:
         op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
+
+
+def _sqlite_guarded_drop_constraint(
+    *,
+    table: str,
+    key: str,
+    type_: str,
+    op,
+) -> None:
+    conn = op.get_bind()
+    dialect_name = conn.dialect.name
+    try:
+        with op.batch_alter_table(table, schema=None) as batch_op:
+            batch_op.drop_constraint(key, type_=type_)
+    except ValueError:
+        if dialect_name != "sqlite":
+            raise
