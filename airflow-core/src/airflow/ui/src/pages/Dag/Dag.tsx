@@ -59,7 +59,7 @@ export const Dag = () => {
     data: runsData,
     error: runsError,
     isLoading: isLoadingRuns,
-  } = useDagsServiceRecentDagRuns({ dagIds: [dagId] }, undefined, {
+  } = useDagsServiceRecentDagRuns({ dagIds: [dagId], dagRunsLimit: 1 }, undefined, {
     enabled: Boolean(dagId),
     refetchInterval: (query) =>
       query.state.data?.dags

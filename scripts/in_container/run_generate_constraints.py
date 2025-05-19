@@ -205,14 +205,19 @@ def freeze_distributions_to_file(
 
 def download_latest_constraint_file(config_params: ConfigParams):
     constraints_url = (
-        "https://raw.githubusercontent.com/"
-        f"{config_params.constraints_github_repository}/{config_params.default_constraints_branch}/"
-        f"{config_params.airflow_constraints_mode}-{config_params.python}.txt"
+        "https://api.github.com/repos/"
+        f"{config_params.constraints_github_repository}/contents/"
+        f"{config_params.airflow_constraints_mode}-{config_params.python}.txt?ref={config_params.default_constraints_branch}"
     )
     # download the latest constraints file
     # download using requests
+    headers = {"Accept": "application/vnd.github.v3.raw"}
+    if os.environ.get("GITHUB_TOKEN"):
+        headers["Authorization"] = f"Bearer {os.environ.get('GITHUB_TOKEN')}"
+    else:
+        console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
     console.print(f"[bright_blue]Downloading constraints file from {constraints_url}")
-    r = requests.get(constraints_url, timeout=60)
+    r = requests.get(constraints_url, timeout=60, headers=headers)
     r.raise_for_status()
     with config_params.latest_constraints_file.open("w") as constraints_file:
         constraints_file.write(r.text)
@@ -364,6 +369,12 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     distributions_to_exclude_from_constraints = get_locally_build_distribution_specs()
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(PYPI_PROVIDERS_CONSTRAINTS_PREFIX)
+        if distributions_to_exclude_from_constraints:
+            console.print(
+                "[yellow]Excluding some distributions because we install them locally from build .wheels"
+                "- those versions are missing from PyPI, so we need to exclude them from PyPI constraints."
+            )
+            # the command below prints detailed list of excluded distributions
         freeze_distributions_to_file(
             config_params, constraints_file, distributions_to_exclude_from_constraints
         )
