@@ -31,7 +31,11 @@ Configuring the Connection
 --------------------------
 
 Developer token
-    Google Ads *developer token* obtained from **Tools & Settings → Setup → API Center**.
+    Your Google Ads *developer token*.
+
+    See the official guide on how to obtain a developer token:
+
+    https://developers.google.com/google-ads/api/docs/first-call/dev-token
 
 OAuth2 client ID
     The *client ID* from your Google Cloud OAuth 2.0 credentials.
@@ -44,7 +48,9 @@ OAuth2 refresh token
 
 Authentication method
     Either ``service_account`` (default) or ``developer_token``.
+
     Use ``service_account`` when authenticating with a Google service‑account key file
+
     specified via ``GOOGLE_APPLICATION_CREDENTIALS`` or a GCP connection.
 
 Extra (optional, JSON)
