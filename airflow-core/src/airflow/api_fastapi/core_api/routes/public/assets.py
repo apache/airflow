@@ -20,10 +20,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
@@ -345,7 +346,7 @@ def create_asset_event(
 )
 def materialize_asset(
     asset_id: int,
-    request: Request,
+    dag_bag: DagBagDep,
     session: SessionDep,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a DAG run that produces it."""
@@ -367,7 +368,7 @@ def materialize_asset(
         )
 
     dag: DAG | None
-    if not (dag := request.app.state.dag_bag.get_dag(dag_id)):
+    if not (dag := dag_bag.get_dag(dag_id)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID `{dag_id}` was not found")
 
     return dag.create_dagrun(
@@ -399,7 +400,7 @@ def get_asset_queued_events(
     where_clause = _generate_queued_event_where_clause(
         asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
-    query = select(AssetDagRunQueue).where(*where_clause)
+    query = select(AssetDagRunQueue).where(*where_clause).options(joinedload(AssetDagRunQueue.dag_model))
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
@@ -411,7 +412,12 @@ def get_asset_queued_events(
         )
 
     queued_events = [
-        QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, asset_id=adrq.asset_id)
+        QueuedEventResponse(
+            created_at=adrq.created_at,
+            dag_id=adrq.target_dag_id,
+            asset_id=adrq.asset_id,
+            dag_display_name=adrq.dag_model.dag_display_name,
+        )
         for adrq in adrqs
     ]
 
@@ -486,7 +492,7 @@ def get_dag_asset_queued_events(
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
-    query = select(AssetDagRunQueue).where(*where_clause)
+    query = select(AssetDagRunQueue).where(*where_clause).options(joinedload(AssetDagRunQueue.dag_model))
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
@@ -494,7 +500,12 @@ def get_dag_asset_queued_events(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
     queued_events = [
-        QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, asset_id=adrq.asset_id)
+        QueuedEventResponse(
+            created_at=adrq.created_at,
+            dag_id=adrq.target_dag_id,
+            asset_id=adrq.asset_id,
+            dag_display_name=adrq.dag_model.dag_display_name,
+        )
         for adrq in adrqs
     ]
 
@@ -528,7 +539,12 @@ def get_dag_asset_queued_event(
             f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
         )
 
-    return QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, asset_id=asset_id)
+    return QueuedEventResponse(
+        created_at=adrq.created_at,
+        dag_id=adrq.target_dag_id,
+        asset_id=asset_id,
+        dag_display_name=adrq.dag_model.dag_display_name,
+    )
 
 
 @assets_router.delete(

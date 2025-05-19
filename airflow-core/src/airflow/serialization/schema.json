@@ -187,6 +187,12 @@
         },
         "dag_display_name": { "type" : "string"},
         "description": { "type" : "string"},
+        "deadline": {
+            "anyOf": [
+                { "$ref": "#/definitions/dict" },
+                { "type": "null" }
+            ]
+        },
         "_concurrency": { "type" : "number"},
         "max_active_tasks": { "type" : "number"},
         "max_active_runs": { "type" : "number"},

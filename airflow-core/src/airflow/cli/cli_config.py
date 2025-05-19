@@ -355,6 +355,13 @@ ARG_TREAT_DAG_ID_AS_REGEX = Arg(
 )
 
 # test_dag
+ARG_DAGFILE_PATH = Arg(
+    (
+        "-f",
+        "--dagfile-path",
+    ),
+    help="Path to the dag file. Can be absolute or relative to current directory",
+)
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
     help=(
@@ -1124,6 +1131,16 @@ DAGS_COMMANDS = (
         description=(
             "Execute one single DagRun for a given DAG and logical date.\n"
             "\n"
+            "You can test a DAG in three ways:\n"
+            "1. Using default bundle:\n"
+            "   airflow dags test <DAG_ID>\n"
+            "\n"
+            "2. Using a specific bundle if multiple DAG bundles are configured:\n"
+            "   airflow dags test <DAG_ID> --bundle-name <BUNDLE_NAME> (or -B <BUNDLE_NAME>)\n"
+            "\n"
+            "3. Using a specific DAG file:\n"
+            "   airflow dags test <DAG_ID> --dagfile-path <PATH> (or -f <PATH>)\n"
+            "\n"
             "The --imgcat-dagrun option only works in iTerm.\n"
             "\n"
             "For more information, see: https://www.iterm2.com/documentation-images.html\n"
@@ -1144,6 +1161,8 @@ DAGS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_LOGICAL_DATE_OPTIONAL,
+            ARG_BUNDLE_NAME,
+            ARG_DAGFILE_PATH,
             ARG_CONF,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
