@@ -245,7 +245,7 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
                                 "last_activity_time": self.last_activity_time.isoformat(),
                             })
 
-                        return
+                        continue
 
                     self.log.info("Sleeping for %s seconds", self.poke_interval)
                     await asyncio.sleep(self.poke_interval)
