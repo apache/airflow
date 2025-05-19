@@ -84,7 +84,6 @@ References for the modules used in dags are here:
 
   _api/airflow/models/dag/index
   _api/airflow/models/dagbag/index
-  _api/airflow/models/param/index
 
 Properties of a :class:`~airflow.models.dagrun.DagRun` can also be referenced in things like :ref:`Templates <templates-ref>`.
 

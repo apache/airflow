@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import contextlib
 import glob
 import operator
@@ -240,7 +241,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.2"
+AIRFLOW_UV_VERSION = "0.7.3"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -854,13 +855,15 @@ def prepare_provider_documentation(
             ):
                 if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
-                    with_breaking_changes, maybe_with_new_features = update_release_notes(
-                        provider_id,
-                        reapply_templates_only=reapply_templates_only,
-                        base_branch=base_branch,
-                        regenerate_missing_docs=reapply_templates_only,
-                        non_interactive=non_interactive,
-                        only_min_version_update=only_min_version_update,
+                    with_breaking_changes, maybe_with_new_features, with_min_airflow_version_bump = (
+                        update_release_notes(
+                            provider_id,
+                            reapply_templates_only=reapply_templates_only,
+                            base_branch=base_branch,
+                            regenerate_missing_docs=reapply_templates_only,
+                            non_interactive=non_interactive,
+                            only_min_version_update=only_min_version_update,
+                        )
                     )
                 update_min_airflow_version_and_build_files(
                     provider_id=provider_id,
@@ -880,6 +883,7 @@ def prepare_provider_documentation(
                         with_breaking_changes=with_breaking_changes,
                         maybe_with_new_features=maybe_with_new_features,
                         only_min_version_update=only_min_version_update,
+                        with_min_airflow_version_bump=with_min_airflow_version_bump,
                     )
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
@@ -3074,9 +3078,11 @@ PYTHON_CLIENT_TMP_DIR = PYTHON_CLIENT_DIR_PATH / "tmp"
 REPRODUCIBLE_BUILD_YAML = AIRFLOW_ROOT_PATH / "reproducible_build.yaml"
 
 VERSION_FILE = PYTHON_CLIENT_DIR_PATH / "version.txt"
-SOURCE_API_YAML_PATH = AIRFLOW_ROOT_PATH / "clients" / "python" / "openapi_v1.yaml"
+SOURCE_API_YAML_PATH = (
+    AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
+)
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
-OPENAPI_GENERATOR_CLI_VER = "5.4.0"
+OPENAPI_GENERATOR_CLI_VER = "7.13.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -3146,6 +3152,7 @@ def _generate_python_client_sources(python_client_version: str) -> None:
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         get_console().print("[error]Failed to generate client code[/]")
@@ -3283,6 +3290,47 @@ def prepare_python_client(
 
     openapi_yaml = yaml.safe_load(TARGET_API_YAML_PATH.read_text())
 
+    # Client generator does not yet support OpenAPI 3.1 fully
+
+    def fix_anyof_null_and_required(obj):
+        """
+        Fixes OpenAPI 3.1 `anyOf` constructs with `type: null` to be compatible with OpenAPI 3.0 generators.
+
+        Specifically:
+        - Replaces `anyOf: [<type>, {"type": "null"}]` with the base type + `nullable: true`
+        - Ensures such fields are treated as optional by removing them from any `required` list
+
+        This is a workaround for https://github.com/OpenAPITools/openapi-generator issues with `"null"` handling.
+        Note: `type: "null"` is valid OpenAPI 3.1, but openapi-generator treats it incorrectly in some Python generators.
+        """
+        if isinstance(obj, dict):
+            if "anyOf" in obj:
+                types = [x.get("type") for x in obj["anyOf"] if isinstance(x, dict)]
+                if "null" in types and len(types) == 2:
+                    non_null_type = next(t for t in obj["anyOf"] if t.get("type") != "null")
+                    return {**non_null_type, "nullable": True}
+
+            # Fix `required` list by removing nullable fields
+            if "required" in obj and "properties" in obj:
+                new_required = []
+                for field in obj["required"]:
+                    prop = obj["properties"].get(field, {})
+                    if (
+                        isinstance(prop, dict)
+                        and "anyOf" in prop
+                        and any(t.get("type") == "null" for t in prop["anyOf"] if isinstance(t, dict))
+                    ):
+                        continue
+                    new_required.append(field)
+                obj["required"] = new_required
+
+            return {k: fix_anyof_null_and_required(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [fix_anyof_null_and_required(i) for i in obj]
+        return obj
+
+    openapi_yaml = fix_anyof_null_and_required(openapi_yaml)
+
     # Add security schemes to documentation
     security: list[dict[str, Any]] = []
     for scheme in security_schemes.split(","):
@@ -3291,7 +3339,65 @@ def prepare_python_client(
     python_client_version = _get_python_client_version(version_suffix)
     TARGET_API_YAML_PATH.write_text(yaml.dump(openapi_yaml))
 
+    def patch_trigger_dag_run_post_body():
+        """
+        Post-process the generated `TriggerDAGRunPostBody` model to explicitly include `"logical_date": None`
+        in the `to_dict()` output if it was not set.
+
+        Why this is needed:
+        - The Airflow API server expects the `logical_date` field to always be present in the request payload,
+          even if its value is `null`.
+        - By default, the OpenAPI-generated Pydantic model uses `model_dump(exclude_none=True)`, which omits
+          any fields set to `None`, including `logical_date`.
+        - This causes a 422 error from the server when the field is missing, despite it being marked `nullable`.
+
+        Since we cannot fix this cleanly via OpenAPI spec due to OpenAPI Generator's limitations with
+        `nullable` and `anyOf`, we insert an explicit fallback into `to_dict()` after client codegen.
+
+        This patch:
+        - Locates the `_dict = self.model_dump(...)` line in `to_dict()`
+        - Inserts a conditional to add `"logical_date": None` if it's missing
+        """
+        TRIGGER_MODEL_PATH = PYTHON_CLIENT_TMP_DIR / Path(
+            "airflow_client/client/models/trigger_dag_run_post_body.py"
+        )
+
+        class LogicalDateDictPatch(ast.NodeTransformer):
+            def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+                if node.name != "to_dict":
+                    return node
+
+                # Inject this:
+                injected = ast.parse('if "logical_date" not in _dict:\n    _dict["logical_date"] = None').body
+
+                for idx, stmt in enumerate(node.body):
+                    if (
+                        isinstance(stmt, ast.Assign)
+                        and isinstance(stmt.targets[0], ast.Name)
+                        and stmt.targets[0].id == "_dict"
+                        and isinstance(stmt.value, ast.Call)
+                        and isinstance(stmt.value.func, ast.Attribute)
+                        and stmt.value.func.attr == "model_dump"
+                    ):
+                        node.body.insert(idx + 1, *injected)
+                        break
+
+                return node
+
+        source = TRIGGER_MODEL_PATH.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        LogicalDateDictPatch().visit(tree)
+        ast.fix_missing_locations(tree)
+        TRIGGER_MODEL_PATH.write_text(ast.unparse(tree), encoding="utf-8")
+
     _generate_python_client_sources(python_client_version=python_client_version)
+
+    # Call this after codegen and before packaging
+    try:
+        patch_trigger_dag_run_post_body()
+    except Exception:
+        get_console().print("[warning]Failed to patch trigger_dag_run_post_body.py - skipping this step[/]")
+
     _copy_selected_sources_from_tmp_directory_to_clients_python()
 
     reproducible_build_yaml = yaml.safe_load(REPRODUCIBLE_BUILD_YAML.read_text())
@@ -3785,6 +3891,11 @@ def generate_issue_content(
     is_flag=True,
     help="Publish all the stable versions of the docs in the source directory.",
 )
+@click.option(
+    "--skip-write-to-stable-folder",
+    is_flag=True,
+    help="Skip writing stable versions folder.",
+)
 @option_parallelism
 def publish_docs_to_s3(
     source_dir_path: str,
@@ -3795,6 +3906,7 @@ def publish_docs_to_s3(
     parallelism: int,
     publish_all_docs: bool,
     stable_versions: bool,
+    skip_write_to_stable_folder: bool,
 ):
     from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
 
@@ -3817,6 +3929,7 @@ def publish_docs_to_s3(
         overwrite=overwrite,
         destination_location=destination_location,
         parallelism=parallelism,
+        skip_write_to_stable_folder=skip_write_to_stable_folder,
     )
     if publish_all_docs:
         docs_to_s3.publish_all_docs()

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-smtp``
 
-Release: ``2.0.3``
+Release: ``2.1.0``
 
 
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
@@ -36,7 +36,7 @@ This is a provider package for ``smtp`` provider. All classes for this provider 
 are in ``airflow.providers.smtp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.0.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.1.0/>`_.
 
 Installation
 ------------
@@ -77,4 +77,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.0.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.1.0/changelog.html>`_.

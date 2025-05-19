@@ -149,7 +149,12 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
         />
       </ConfigForm>
       {isPaused ? (
-        <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
+        <Checkbox
+          checked={unpause}
+          colorPalette="blue"
+          onChange={() => setUnpause(!unpause)}
+          wordBreak="break-all"
+        >
           Unpause {dagDisplayName} on trigger
         </Checkbox>
       ) : undefined}
