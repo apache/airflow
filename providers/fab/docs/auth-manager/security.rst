@@ -22,17 +22,6 @@ FAB auth manager UI security options
     This guide only applies to FAB auth manager UI pages. These pages are accessible under category "Security" in the
     menu.
 
-Rendering Airflow UI in a Web Frame from another site
-------------------------------------------------------
-
-Using Airflow in a web frame is enabled by default. To disable this (and prevent click jacking attacks)
-set the below:
-
-.. code-block:: ini
-
-    [webserver]
-    x_frame_enabled = False
-
 Sensitive Variable fields
 -------------------------
 
