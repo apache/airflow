@@ -161,7 +161,6 @@ CONFIGS_CHANGES = [
         old_default="SequentialExecutor",
         new_default="LocalExecutor",
         was_removed=False,
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("core", "hostname"),
@@ -414,17 +413,14 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
         renamed_to=ConfigParameter("api", "host"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_port"),
         renamed_to=ConfigParameter("api", "port"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "workers"),
         renamed_to=ConfigParameter("api", "workers"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_worker_timeout"),
@@ -433,22 +429,18 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_ssl_cert"),
         renamed_to=ConfigParameter("api", "ssl_cert"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_ssl_key"),
         renamed_to=ConfigParameter("api", "ssl_key"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "access_logfile"),
         renamed_to=ConfigParameter("api", "access_logfile"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "grid_view_sorting_order"),
         renamed_to=ConfigParameter("api", "grid_view_sorting_order"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "error_logfile"),
@@ -501,27 +493,22 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "log_fetch_timeout_sec"),
         renamed_to=ConfigParameter("api", "log_fetch_timeout_sec"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "hide_paused_dags_by_default"),
         renamed_to=ConfigParameter("api", "hide_paused_dags_by_default"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "page_size"),
         renamed_to=ConfigParameter("api", "page_size"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "default_wrap"),
         renamed_to=ConfigParameter("api", "default_wrap"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "require_confirmation_dag_change"),
         renamed_to=ConfigParameter("api", "require_confirmation_dag_change"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "instance_name_has_markup"),
@@ -534,37 +521,30 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "auto_refresh_interval"),
         renamed_to=ConfigParameter("api", "auto_refresh_interval"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
         renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_for"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_for"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_proto"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_proto"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_host"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_host"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_port"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_port"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_prefix"),
         renamed_to=ConfigParameter("fab", "proxy_fix_x_prefix"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "expose_config"),
@@ -650,7 +630,6 @@ CONFIGS_CHANGES = [
         "If your DAGs rely on catchup behavior, not explicitly defined in the DAG definition, "
         "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` "
         "to enable the behavior from Airflow 2.x.",
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "create_cron_data_intervals"),
@@ -658,7 +637,6 @@ CONFIGS_CHANGES = [
         old_default="True",
         new_default="False",
         was_removed=False,
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "create_delta_data_intervals"),
@@ -666,7 +644,6 @@ CONFIGS_CHANGES = [
         old_default="True",
         new_default="False",
         was_removed=False,
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),
@@ -746,7 +723,6 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("scheduler", "dag_dir_list_interval"),
         renamed_to=ConfigParameter("dag_processor", "refresh_interval"),
-        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "local_task_job_heartbeat_sec"),
@@ -803,7 +779,6 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("triggerer", "default_capacity"),
         renamed_to=ConfigParameter("triggerer", "capacity"),
-        breaking=True,
     ),
     # email
     ConfigChange(
