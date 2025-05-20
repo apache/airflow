@@ -133,7 +133,7 @@ def downgrade():
         )
 
     else:
-        BATCH_SIZE = 100
+        BATCH_SIZE = 1000
         offset = 0
         while True:
             rows = conn.execute(

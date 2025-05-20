@@ -80,11 +80,18 @@ def upgrade():
     # Key is a reserved keyword in MySQL, so we need to quote it
     quoted_key = conn.dialect.identifier_preparer.quote("key")
     if dialect == "postgresql":
-        curr_timeout = int(
+        curr_timeout = (
+            int(
                 conn.execute(
-                        text("""select setting from pg_settings where name = 'statement_timeout'""")
+                    text("""
+                        SELECT setting
+                        FROM pg_settings
+                        WHERE name = 'statement_timeout'
+                    """)
                 ).scalar_one()
-        ) / 1000
+            )
+            / 1000
+        )
         if curr_timeout > 0 and curr_timeout < 1800:
             print("setting local statement timeout to 1800s")
             conn.execute(text("SET LOCAL statement_timeout='1800s'"))
