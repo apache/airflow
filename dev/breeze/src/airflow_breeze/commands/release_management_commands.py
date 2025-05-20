@@ -3147,7 +3147,7 @@ def _generate_python_client_sources(python_client_version: str) -> None:
             "--git-repo-id",
             "airflow-client-python",
             "--additional-properties",
-            f'packageVersion="{python_client_version}"',
+            f"packageVersion={python_client_version}",
         ],
         capture_output=True,
         text=True,
