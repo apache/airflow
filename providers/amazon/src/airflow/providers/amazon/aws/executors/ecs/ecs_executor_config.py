@@ -101,14 +101,10 @@ def build_task_kwargs() -> dict:
     # The executor will overwrite the 'command' property during execution. Must always be the first container!
     task_kwargs["overrides"]["containerOverrides"][0]["command"] = []  # type: ignore
 
-    if any(
-        [
-            subnets := task_kwargs.pop(AllEcsConfigKeys.SUBNETS, None),
-            security_groups := task_kwargs.pop(AllEcsConfigKeys.SECURITY_GROUPS, None),
-            # Surrounding parens are for the walrus operator to function correctly along with the None check
-            (assign_public_ip := task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None)) is not None,
-        ]
-    ):
+    subnets = task_kwargs.pop(AllEcsConfigKeys.SUBNETS, None)
+    security_groups = task_kwargs.pop(AllEcsConfigKeys.SECURITY_GROUPS, None)
+    assign_public_ip = task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None)
+    if subnets or security_groups or assign_public_ip != "False":
         network_config = prune_dict(
             {
                 "awsvpcConfiguration": {
