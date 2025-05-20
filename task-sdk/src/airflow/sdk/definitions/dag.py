@@ -23,7 +23,6 @@ import itertools
 import logging
 import os
 import sys
-import warnings
 import weakref
 from collections import abc
 from collections.abc import Collection, Iterable, MutableSet
@@ -51,6 +50,7 @@ from airflow.exceptions import (
     ParamValidationError,
     TaskNotFound,
 )
+from airflow.models.deadline import DeadlineAlert
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.node import validate_key
@@ -107,7 +107,7 @@ _DAG_HASH_ATTRS = frozenset(
         "template_searchpath",
         "last_loaded",
         "schedule",
-        # TODO: Task-SDK: we should be hashing on timetable now, not scheulde!
+        # TODO: Task-SDK: we should be hashing on timetable now, not schedule!
         # "timetable",
     }
 )
@@ -406,7 +406,11 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    sla_miss_callback: None = attrs.field(default=None)
+    deadline: DeadlineAlert | None = attrs.field(
+        default=None,
+        validator=attrs.validators.optional(attrs.validators.instance_of(DeadlineAlert)),
+    )
+
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
     )
@@ -546,15 +550,6 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
-
-    @sla_miss_callback.validator
-    def _validate_sla_miss_callback(self, _, value):
-        if value is not None:
-            warnings.warn(
-                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
-                stacklevel=2,
-            )
-        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1338,6 +1333,7 @@ if TYPE_CHECKING:
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        deadline: DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,

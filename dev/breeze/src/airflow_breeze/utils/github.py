@@ -23,7 +23,7 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.markup import escape
 
@@ -31,6 +31,9 @@ from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_dry_run
+
+if TYPE_CHECKING:
+    from requests import Response
 
 
 def get_ga_output(name: str, value: Any) -> str:
@@ -40,11 +43,50 @@ def get_ga_output(name: str, value: Any) -> str:
     return f"{output_name}={printed_value}"
 
 
+def log_github_rate_limit_error(response: Response) -> None:
+    """
+    Logs info about GitHub rate limit errors (primary or secondary).
+    """
+    if response.status_code not in (403, 429):
+        return
+
+    remaining = response.headers.get("x-rateLimit-remaining")
+    reset = response.headers.get("x-rateLimit-reset")
+    retry_after = response.headers.get("retry-after")
+
+    try:
+        message = response.json().get("message", "")
+    except Exception:
+        message = response.text or ""
+
+    remaining_int = int(remaining) if remaining and remaining.isdigit() else None
+
+    if reset and reset.isdigit():
+        reset_dt = datetime.fromtimestamp(int(reset), tz=timezone.utc)
+        reset_time = reset_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    else:
+        reset_time = "unknown"
+
+    if remaining_int == 0:
+        print(f"Primary rate limit exceeded. No requests remaining. Reset at {reset_time}.")
+        return
+
+    # Message for secondary looks like: "You have exceeded a secondary rate limit"
+    if "secondary rate limit" in message.lower():
+        if retry_after and retry_after.isdigit():
+            print(f"Secondary rate limit exceeded. Retry after {retry_after} seconds.")
+        else:
+            print(f"Secondary rate limit exceeded. Please wait until {reset_time} or at least 60 seconds.")
+        return
+
+    print(f"Rate limit error. Status: {response.status_code}, Message: {message}")
+
+
 def download_file_from_github(
     tag: str, path: str, output_file: Path, github_token: str | None = None, timeout: int = 60
 ) -> bool:
     """
-    Downloads a file from GitHub repository of Apache Airflow
+    Downloads a file from the GitHub repository of Apache Airflow using the GitHub API.
 
     :param tag: tag to download from
     :param path: path of the file relative to the repository root
@@ -55,21 +97,22 @@ def download_file_from_github(
     """
     import requests
 
-    url = f"https://raw.githubusercontent.com/apache/airflow/{tag}/{path}"
+    url = f"https://api.github.com/repos/apache/airflow/contents/{path}?ref={tag}"
     get_console().print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
+        headers = {"Accept": "application/vnd.github.v3.raw"}
+        if github_token:
+            headers["Authorization"] = f"Bearer {github_token}"
+            headers["X-GitHub-Api-Version"] = "2022-11-28"
         try:
-            # add github token to the request if provided
-            headers = {}
-            if github_token:
-                headers["Authorization"] = f"Bearer {github_token}"
-                headers["X-GitHub-Api-Version"] = "2022-11-28"
             response = requests.get(url, headers=headers, timeout=timeout)
+            log_github_rate_limit_error(response)
             if response.status_code == 403:
                 get_console().print(
-                    f"[error]The {url} is not accessible.This may be caused by either of:\n"
-                    f"   1. network issues or VPN settings\n"
-                    f"   2. Github rate limit"
+                    f"[error]Access denied to {url}. This may be caused by:\n"
+                    f"   1. Network issues or VPN settings\n"
+                    f"   2. GitHub API rate limiting\n"
+                    f"   3. Invalid or missing GitHub token"
                 )
                 return False
             if response.status_code == 404:
