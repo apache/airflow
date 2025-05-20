@@ -18,19 +18,18 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-if TYPE_CHECKING:
-    from airflow.utils.types import ArgNotSet
 
 
-class S3DagBundle(BaseDagBundle, LoggingMixin):
+class S3DagBundle(BaseDagBundle):
     """
     S3 DAG bundle - exposes a directory in S3 as a DAG bundle.
 
@@ -47,9 +46,9 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
     def __init__(
         self,
         *,
-        aws_conn_id: str | None | ArgNotSet = AwsBaseHook.default_conn_name,
+        aws_conn_id: str = AwsBaseHook.default_conn_name,
         bucket_name: str,
-        prefix: str | None = "",
+        prefix: str = "",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -61,15 +60,23 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
         # Local path where S3 DAGs are downloaded for current config.
         self.s3_dags_dir: Path = self.s3_dags_root_dir.joinpath(self.name)
 
+        self._log = log.bind(
+            bundle_name=self.name,
+            version=self.version,
+            bucket_name=self.bucket_name,
+            prefix=self.prefix,
+            aws_conn_id=self.aws_conn_id,
+        )
+
         try:
             self.s3_hook: S3Hook = S3Hook(aws_conn_id=self.aws_conn_id)  # Initialize S3 hook.
         except AirflowException as e:
-            self.log.warning("Could not create S3Hook for connection %s: %s", self.aws_conn_id, e)
+            self._log.warning("Could not create S3Hook for connection %s: %s", self.aws_conn_id, e)
 
     def _initialize(self):
         with self.lock():
             if not self.s3_dags_dir.exists():
-                self.log.info("Creating local DAGs directory: %s", self.s3_dags_dir)
+                self._log.info("Creating local DAGs directory: %s", self.s3_dags_dir)
                 os.makedirs(self.s3_dags_dir)
 
             if not self.s3_dags_dir.is_dir():
@@ -79,7 +86,7 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
                 raise AirflowException(f"S3 bucket '{self.bucket_name}' does not exist.")
 
             if self.prefix:
-                # don't check when prefix is "" or None
+                # don't check when prefix is ""
                 if not self.s3_hook.check_for_prefix(
                     bucket_name=self.bucket_name, prefix=self.prefix, delimiter="/"
                 ):
@@ -105,16 +112,16 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
                 try:
                     if item.is_file():
                         item.unlink(missing_ok=True)
-                        self.log.debug("Deleted stale local file: %s", item)
+                        self._log.debug("Deleted stale local file: %s", item)
                     elif item.is_dir():
                         # delete only when the folder is empty
                         if not os.listdir(item):
                             item.rmdir()
-                            self.log.debug("Deleted stale empty directory: %s", item)
+                            self._log.debug("Deleted stale empty directory: %s", item)
                     else:
-                        self.log.debug("Skipping stale item of unknown type: %s", item)
+                        self._log.debug("Skipping stale item of unknown type: %s", item)
                 except OSError as e:
-                    self.log.error("Error deleting stale item %s: %s", item, e)
+                    self._log.error("Error deleting stale item %s: %s", item, e)
                     raise e
 
     def _download_s3_object_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
@@ -139,11 +146,11 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
 
         if should_download:
             s3_bucket.download_file(s3_object.key, local_target_path)
-            self.log.debug(
+            self._log.debug(
                 "%s Downloaded %s to %s", download_msg, s3_object.key, local_target_path.as_posix()
             )
         else:
-            self.log.debug(
+            self._log.debug(
                 "Local file %s is up-to-date with S3 object %s. Skipping download.",
                 local_target_path.as_posix(),
                 s3_object.key,
@@ -151,7 +158,7 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
 
     def _download_s3_dags(self):
         """Download DAG files from the S3 bucket to the local directory."""
-        self.log.debug(
+        self._log.debug(
             "Downloading DAGs from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
         )
         local_s3_objects = []
@@ -161,7 +168,7 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
             local_target_path = self.s3_dags_dir.joinpath(obj_path.relative_to(self.prefix))
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
-                self.log.debug("Created local directory: %s", local_target_path.parent)
+                self._log.debug("Created local directory: %s", local_target_path.parent)
             self._download_s3_object_if_changed(
                 s3_bucket=s3_bucket, s3_object=obj, local_target_path=local_target_path
             )
