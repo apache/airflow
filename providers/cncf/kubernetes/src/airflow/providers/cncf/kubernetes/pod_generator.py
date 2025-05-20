@@ -546,7 +546,7 @@ def merge_objects(base_obj, client_obj):
 
     for base_key in base_obj.to_dict():
         base_val = getattr(base_obj, base_key, None)
-        if not getattr(client_obj, base_key, None) and base_val:
+        if not getattr(client_obj, base_key, None) and base_val is not None:
             if not isinstance(client_obj_cp, dict):
                 setattr(client_obj_cp, base_key, base_val)
             else:
