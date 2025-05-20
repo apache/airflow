@@ -23,10 +23,6 @@ import pytest
 pytestmark = pytest.mark.db_test
 
 mock_config_response = {
-    "navbar_color": "#fff",
-    "navbar_text_color": "#51504f",
-    "navbar_hover_color": "#eee",
-    "navbar_text_hover_color": "#51504f",
     "page_size": 100,
     "auto_refresh_interval": 3,
     "hide_paused_dags_by_default": False,
@@ -51,10 +47,6 @@ def mock_config_data():
     with patch("airflow.configuration.conf.as_dict") as mock_conf:
         mock_conf.return_value = {
             "webserver": {
-                "navbar_color": "#fff",
-                "navbar_text_color": "#51504f",
-                "navbar_hover_color": "#eee",
-                "navbar_text_hover_color": "#51504f",
                 "page_size": "100",
                 "auto_refresh_interval": "3",
                 "hide_paused_dags_by_default": "false",
