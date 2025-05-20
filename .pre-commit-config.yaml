@@ -139,7 +139,7 @@ repos:
           .*reproducible_build\.yaml$|
           ^.*/v2.*\.yaml$|
           ^.*/openapi/_private_ui.*\.yaml$|
-          ^.*/pnpm-lock\.yaml$\
+          ^.*/pnpm-lock\.yaml$\|
           .*-generated\.yaml$
         types: [yaml]
         files: \.ya?ml$
