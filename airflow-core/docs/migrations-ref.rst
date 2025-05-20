@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``3ac9e5732b1f`` (head) | ``0242ac120002`` | ``3.1.0``         | Change the on-delete behaviour of                            |
+| ``5d3072c51bac`` (head) | ``3ac9e5732b1f`` | ``3.1.0``         | Make dag_version_id non-nullable in TaskInstance.            |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``3ac9e5732b1f``        | ``0242ac120002`` | ``3.1.0``         | Change the on-delete behaviour of                            |
 |                         |                  |                   | task_instance.dag_version_id foreign key constraint to       |
 |                         |                  |                   | RESTRICT.                                                    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
