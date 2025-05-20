@@ -61,13 +61,57 @@ class TimeSensor(BaseSensorOperator):
 
     """
 
-    def __init__(self, *, target_time: datetime.time, **kwargs) -> None:
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+        trigger_kwargs={"moment": "", "end_from_trigger": False},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
+
+    def __init__(
+        self,
+        *,
+        target_time: datetime.time,
+        deferrable: bool = False,
+        **kwargs
+    ) -> None:
+
         super().__init__(**kwargs)
-        self.target_time = target_time
+
+        # Create a "date-aware" timestamp that will be used as the "target_datetime"
+        aware_time = timezone.coerce_datetime(
+            datetime.datetime.combine(datetime.datetime.today(), target_time, self.dag.timezone)
+        )
+
+        self.target_datetime = timezone.convert_to_utc(aware_time)
+        self.deferrable = deferrable
+
+        self.end_from_trigger = kwargs.get("end_from_trigger", False)
+        if self.start_from_trigger:
+            self.start_trigger_args.trigger_kwargs = dict(
+                moment=self.target_datetime, end_from_trigger=self.end_from_trigger
+            )
+
+
+    def execute(self, context: Context) -> NoReturn:
+        if self.deferrable:
+            self.defer(
+                trigger=DateTimeTrigger(
+                    moment=self.target_datetime,
+                    end_from_trigger=self.end_from_trigger
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context) -> NoReturn:
+        # Return immediately
+        return None
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Checking if the time (%s) has come", self.target_time)
-        return timezone.make_naive(timezone.utcnow(), self.dag.timezone).time() > self.target_time
+        self.log.info("Checking if the time (%s) has come", self.target_datetime)
+        return timezone.make_naive(timezone.utcnow(), self.dag.timezone).datetime() > self.target_datetime
 
 
 class TimeSensorAsync(BaseSensorOperator):
