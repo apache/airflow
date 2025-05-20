@@ -1245,7 +1245,7 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     triggered_by: DagRunTriggeredByType | None = None
-    conf: Annotated[dict[str, Any], Field(title="Conf")]
+    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
