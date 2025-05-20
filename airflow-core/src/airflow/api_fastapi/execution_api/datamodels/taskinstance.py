@@ -241,6 +241,7 @@ class TaskInstance(BaseModel):
     dag_id: str
     run_id: str
     try_number: int
+    dag_version_id: uuid.UUID
     map_index: int = -1
     hostname: str | None = None
     context_carrier: dict | None = None

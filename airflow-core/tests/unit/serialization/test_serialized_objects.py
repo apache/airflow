@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from unittest import mock
 
 import pendulum
 import pytest
@@ -175,12 +176,14 @@ TI = TaskInstance(
     task=EmptyOperator(task_id="test-task"),
     run_id="fake_run",
     state=State.RUNNING,
+    dag_version_id=mock.MagicMock(),
 )
 
 TI_WITH_START_DAY = TaskInstance(
     task=EmptyOperator(task_id="test-task"),
     run_id="fake_run",
     state=State.RUNNING,
+    dag_version_id=mock.MagicMock(),
 )
 TI_WITH_START_DAY.start_date = timezone.utcnow()
 
