@@ -33,6 +33,7 @@ from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
@@ -200,7 +201,10 @@ def _get_ti(
                 f"run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
-        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        if TYPE_CHECKING:
+            assert dag_version
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index, dag_version_id=dag_version.id)
         if dag_run in session:
             session.add(ti)
         ti.dag_run = dag_run
