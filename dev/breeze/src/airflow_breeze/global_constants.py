@@ -392,6 +392,7 @@ PYTHON_3_6_TO_3_10 = ["3.7", "3.8", "3.9", "3.10"]
 PYTHON_3_7_TO_3_11 = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_11 = ["3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_12 = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+PYTHON_3_9_TO_3_12 = ["3.9", "3.10", "3.11", "3.12"]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -444,6 +445,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.3": PYTHON_3_8_TO_3_12,
     "2.10.4": PYTHON_3_8_TO_3_12,
     "2.10.5": PYTHON_3_8_TO_3_12,
+    "2.11.0": PYTHON_3_9_TO_3_12,
 }
 
 DB_RESET = False
@@ -712,7 +714,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.5",
+        "airflow-version": "2.11.0",
         "remove-providers": "cloudant common.messaging fab git",
         "run-tests": "true",
     },
