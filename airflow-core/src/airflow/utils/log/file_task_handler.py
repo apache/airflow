@@ -586,7 +586,9 @@ class FileTaskHandler(logging.Handler):
         sources = []
         logs = []
         try:
-            log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
+            log_type = (
+                LogType.TRIGGER if hasattr(ti, "triggerer_job") and ti.triggerer_job else LogType.WORKER
+            )
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
