@@ -78,7 +78,13 @@ def upgrade():
         )
         batch_op.alter_column("bundle_name", nullable=False, existing_type=sa.String(length=250))
 
+    with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
+        batch_op.alter_column("name", nullable=False, existing_type=sa.String(length=250))
+
 
 def downgrade():
+    with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
+        batch_op.alter_column("name", nullable=True, existing_type=sa.String(length=250))
+
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.alter_column("bundle_name", nullable=True, existing_type=sa.String(length=250))
