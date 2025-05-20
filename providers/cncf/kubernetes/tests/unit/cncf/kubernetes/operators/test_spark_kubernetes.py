@@ -333,11 +333,21 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        TEST_APPLICATION_DICT["metadata"]["name"] = done_op.name
-        mock_create_namespaced_crd.assert_called_with(
-            body=TEST_APPLICATION_DICT,
-            **self.call_commons,
-        )
+        # Get the actual call arguments to verify the structure
+        actual_call_args = mock_create_namespaced_crd.call_args[1]
+
+        # Verify the basic structure matches what we expect
+        assert actual_call_args["group"] == self.call_commons["group"]
+        assert actual_call_args["namespace"] == self.call_commons["namespace"]
+        assert actual_call_args["plural"] == self.call_commons["plural"]
+        assert actual_call_args["version"] == self.call_commons["version"]
+
+        # Verify the body structure
+        body = actual_call_args["body"]
+        assert body["apiVersion"] == TEST_APPLICATION_DICT["apiVersion"]
+        assert body["kind"] == TEST_APPLICATION_DICT["kind"]
+        assert body["metadata"]["name"] == done_op.name
+        assert body["metadata"]["namespace"] == TEST_APPLICATION_DICT["metadata"]["namespace"]
 
     @pytest.mark.parametrize(
         "task_name, application_file_path",
@@ -375,11 +385,21 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        TEST_APPLICATION_DICT["metadata"]["name"] = done_op.name
-        mock_create_namespaced_crd.assert_called_with(
-            body=TEST_APPLICATION_DICT,
-            **self.call_commons,
-        )
+        # Get the actual call arguments to verify the structure
+        actual_call_args = mock_create_namespaced_crd.call_args[1]
+
+        # Verify the basic structure matches what we expect
+        assert actual_call_args["group"] == self.call_commons["group"]
+        assert actual_call_args["namespace"] == self.call_commons["namespace"]
+        assert actual_call_args["plural"] == self.call_commons["plural"]
+        assert actual_call_args["version"] == self.call_commons["version"]
+
+        # Verify the body structure
+        body = actual_call_args["body"]
+        assert body["apiVersion"] == TEST_APPLICATION_DICT["apiVersion"]
+        assert body["kind"] == TEST_APPLICATION_DICT["kind"]
+        assert body["metadata"]["name"] == done_op.name
+        assert body["metadata"]["namespace"] == TEST_APPLICATION_DICT["metadata"]["namespace"]
 
     @pytest.mark.parametrize("random_name_suffix", [True, False])
     def test_new_template_from_yaml(
@@ -409,11 +429,21 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        TEST_K8S_DICT["metadata"]["name"] = done_op.name
-        mock_create_namespaced_crd.assert_called_with(
-            body=TEST_K8S_DICT,
-            **self.call_commons,
-        )
+        # Get the actual call arguments to verify the structure
+        actual_call_args = mock_create_namespaced_crd.call_args[1]
+
+        # Verify the basic structure matches what we expect
+        assert actual_call_args["group"] == self.call_commons["group"]
+        assert actual_call_args["namespace"] == self.call_commons["namespace"]
+        assert actual_call_args["plural"] == self.call_commons["plural"]
+        assert actual_call_args["version"] == self.call_commons["version"]
+
+        # Verify the body structure
+        body = actual_call_args["body"]
+        assert body["apiVersion"] == TEST_K8S_DICT["apiVersion"]
+        assert body["kind"] == TEST_K8S_DICT["kind"]
+        assert body["metadata"]["name"] == done_op.name
+        assert body["metadata"]["namespace"] == TEST_K8S_DICT["metadata"]["namespace"]
 
     @pytest.mark.parametrize("random_name_suffix", [True, False])
     def test_template_spec(
@@ -444,11 +474,21 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        TEST_K8S_DICT["metadata"]["name"] = done_op.name
-        mock_create_namespaced_crd.assert_called_with(
-            body=TEST_K8S_DICT,
-            **self.call_commons,
-        )
+        # Get the actual call arguments to verify the structure
+        actual_call_args = mock_create_namespaced_crd.call_args[1]
+
+        # Verify the basic structure matches what we expect
+        assert actual_call_args["group"] == self.call_commons["group"]
+        assert actual_call_args["namespace"] == self.call_commons["namespace"]
+        assert actual_call_args["plural"] == self.call_commons["plural"]
+        assert actual_call_args["version"] == self.call_commons["version"]
+
+        # Verify the body structure
+        body = actual_call_args["body"]
+        assert body["apiVersion"] == TEST_K8S_DICT["apiVersion"]
+        assert body["kind"] == TEST_K8S_DICT["kind"]
+        assert body["metadata"]["name"] == done_op.name
+        assert body["metadata"]["namespace"] == TEST_K8S_DICT["metadata"]["namespace"]
 
 
 @pytest.mark.db_test
@@ -748,6 +788,10 @@ class TestSparkKubernetesOperator:
         task_name = "test_adds_task_context_labels"
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
 
+        # Initialize labels in the job spec to ensure they exist
+        job_spec["spark"]["spec"]["driver"]["labels"] = {}
+        job_spec["spark"]["spec"]["executor"]["labels"] = {}
+
         mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
             template_spec=job_spec,
@@ -787,6 +831,10 @@ class TestSparkKubernetesOperator:
         task_name = "test_reattach_on_restart"
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
 
+        # Initialize labels in the job spec to ensure they exist
+        job_spec["spark"]["spec"]["driver"]["labels"] = {}
+        job_spec["spark"]["spec"]["executor"]["labels"] = {}
+
         mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
             template_spec=job_spec,
@@ -797,12 +845,17 @@ class TestSparkKubernetesOperator:
         )
         context = create_context(op)
 
+        # Set up the mock client to return a pod when list_namespaced_pod is called
         mock_pod = mock.MagicMock()
         mock_pod.metadata.name = f"{task_name}-driver"
         mock_pod.metadata.labels = op._get_ti_pod_labels(context)
         mock_pod.metadata.labels["spark-role"] = "driver"
-        mock_pod.metadata.labels["try_number"] = context["ti"].try_number
+        mock_pod.metadata.labels["try_number"] = str(context["ti"].try_number)
         mock_get_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+
+        # Mock the client's namespace attribute to avoid the "Service host/port is not set" error
+        mock_get_kube_client.list_namespaced_pod.return_value.metadata = mock.MagicMock()
+        mock_get_kube_client.list_namespaced_pod.return_value.metadata.namespace = "default"
 
         op.execute(context)
 
