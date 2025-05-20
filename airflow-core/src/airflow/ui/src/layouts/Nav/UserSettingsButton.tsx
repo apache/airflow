@@ -61,16 +61,17 @@ export const UserSettingsButton = () => {
             <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
           </Menu.TriggerItem>
           <Menu.Content>
-            {supportedLanguages.map((lang) => (
-              <Menu.Item
-                disabled={lang.code === i18n.language}
-                key={lang.code}
-                onClick={() => void i18n.changeLanguage(lang.code)}
-                value={lang.code}
-              >
-                {lang.name}
-              </Menu.Item>
-            ))}
+            <Menu.RadioItemGroup
+              onValueChange={(element) => void i18n.changeLanguage(element.value)}
+              value={i18n.language}
+            >
+              {supportedLanguages.map((lang) => (
+                <Menu.RadioItem key={lang.code} value={lang.code}>
+                  {lang.name}
+                  <Menu.ItemIndicator />
+                </Menu.RadioItem>
+              ))}
+            </Menu.RadioItemGroup>
           </Menu.Content>
         </Menu.Root>
         <Menu.Item onClick={toggleColorMode} value="color-mode">
