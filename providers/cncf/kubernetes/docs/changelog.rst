@@ -44,6 +44,13 @@ Features
 * ``Add 'test_connection' method to 'KubernetesHook' (#47881)``
 * ``Add '@task.kuberenetes_cmd'  (#46913)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass workload to KubernetesExecutor using command args instead of init container (#50448)``
+* ``Fix KubernetesPodOperator AutomountServiceAccountToken from Pod Template (#50800)``
+* ``Fix broken imports of cncf.kubernetes for Airflow 2 (#50651)``
+
 Misc
 ~~~~
 
@@ -56,6 +63,7 @@ Misc
    * ``Update description of provider.yaml dependencies (#50231)``
    * ``Avoid committing history for providers (#49907)``
    * ``capitalize the term airflow (#49450)``
+   * ``Prepare release for providers May 2025 (#50531)``
 
 10.4.3
 ......

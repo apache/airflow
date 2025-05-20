@@ -388,6 +388,26 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "expose_hostname"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "navbar_color"),
+        renamed_to=ConfigParameter("fab", "navbar_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_text_color"),
+        renamed_to=ConfigParameter("fab", "navbar_text_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_hover_color"),
+        renamed_to=ConfigParameter("fab", "navbar_hover_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_text_hover_color"),
+        renamed_to=ConfigParameter("fab", "navbar_text_hover_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "x_frame_enabled"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "base_url"),
         renamed_to=ConfigParameter("api", "base_url"),
     ),
@@ -477,6 +497,44 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "default_dag_run_display_number"),
         was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "log_fetch_timeout_sec"),
+        renamed_to=ConfigParameter("api", "log_fetch_timeout_sec"),
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "hide_paused_dags_by_default"),
+        renamed_to=ConfigParameter("api", "hide_paused_dags_by_default"),
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "page_size"),
+        renamed_to=ConfigParameter("api", "page_size"),
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "default_wrap"),
+        renamed_to=ConfigParameter("api", "default_wrap"),
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "require_confirmation_dag_change"),
+        renamed_to=ConfigParameter("api", "require_confirmation_dag_change"),
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "instance_name_has_markup"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "warn_deployment_exposure"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "auto_refresh_interval"),
+        renamed_to=ConfigParameter("api", "auto_refresh_interval"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "enable_proxy_fix"),
