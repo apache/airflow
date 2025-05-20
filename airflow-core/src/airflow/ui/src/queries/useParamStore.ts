@@ -47,7 +47,7 @@ type FormStore = {
   initialParamDict: ParamsSpec;
   paramsDict: ParamsSpec;
   setConf: (confString: string) => void;
-  setinitialParamDict: (newParamsDict: ParamsSpec) => void;
+  setInitialParamDict: (newParamsDict: ParamsSpec) => void;
   setParamsDict: (newParamsDict: ParamsSpec) => void;
 };
 
@@ -83,7 +83,7 @@ export const useParamStore = create<FormStore>((set) => ({
       return { conf: confString, paramsDict: updatedParamsDict };
     }),
 
-  setinitialParamDict: (newParamsDict: ParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
+  setInitialParamDict: (newParamsDict: ParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
 
   setParamsDict: (newParamsDict: ParamsSpec) =>
     set((state) => {
