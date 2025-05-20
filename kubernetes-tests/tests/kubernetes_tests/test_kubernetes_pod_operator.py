@@ -998,7 +998,6 @@ class TestKubernetesPodOperatorSystem:
             },
             "spec": {
                 "affinity": {},
-                "automountServiceAccountToken": True,
                 "containers": [
                     {
                         "args": ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"],
