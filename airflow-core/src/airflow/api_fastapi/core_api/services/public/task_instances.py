@@ -75,7 +75,7 @@ def _patch_ti_validate_request(
     tis = session.scalars(query).all()
 
     err_msg_404 = (
-        f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found.",
+        f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
     )
     if len(tis) == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
@@ -213,7 +213,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
                         raise HTTPException(
                             status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"The Task Instance with dag_id: `{self.dag_id}`, run_id: `{self.dag_run_id}`, task_id: `{task_instance_body.task_id}` and map_index: `{task_instance_body.map_index}` was not found.",
+                            detail=f"The Task Instance with dag_id: `{self.dag_id}`, run_id: `{self.dag_run_id}`, task_id: `{task_instance_body.task_id}` and map_index: `{task_instance_body.map_index}` was not found",
                         )
                     if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
                         continue
@@ -258,7 +258,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_task_keys:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"The task instances with these task_ids: {not_found_task_ids} were not found.",
+                    detail=f"The task instances with these task_ids: {not_found_task_ids} were not found",
                 )
 
             for task_id, _ in matched_task_keys:
