@@ -245,7 +245,11 @@ def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
-    if worker.state in (EdgeWorkerState.OFFLINE, EdgeWorkerState.OFFLINE_MAINTENANCE):
+    if worker.state in (
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+        EdgeWorkerState.UNKNOWN,
+    ):
         session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
     else:
         error_message = f"Cannot remove edge worker {worker_name} as it is in {worker.state} state!"

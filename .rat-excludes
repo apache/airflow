@@ -160,7 +160,7 @@ PKG-INFO
 # Openapi files
 .openapi-generator-ignore
 version.txt
-v1*.yaml
+v2*.yaml
 _private_ui*.yaml
 
 # Front end generated files

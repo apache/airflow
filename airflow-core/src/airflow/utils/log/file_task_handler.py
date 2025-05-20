@@ -107,7 +107,7 @@ def _fetch_logs_from_service(url, log_relative_path):
 
     from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_key
 
-    timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
+    timeout = conf.getint("api", "log_fetch_timeout_sec", fallback=None)
     generator = JWTGenerator(
         secret_key=get_signing_key("webserver", "secret_key"),
         # Since we are using a secret key, we need to be explicit about the algorithm here too

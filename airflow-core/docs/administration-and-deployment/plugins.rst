@@ -20,10 +20,6 @@
 Plugins
 ========
 
-.. warning::
-
-    As part of Airflow 3.0.0 development, support for user-defined macros is pending. This will be added soon in an upcoming release. See `#48476 <https://github.com/apache/airflow/issues/48476>`__ for further support updates on this feature.
-
 Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
@@ -171,8 +167,7 @@ definitions in Airflow.
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
 
-    # Will show up under airflow.macros.test_plugin.plugin_macro
-    # and in templates through {{ macros.test_plugin.plugin_macro }}
+    # Will show up in templates through {{ macros.test_plugin.plugin_macro }}
     def plugin_macro():
         pass
 

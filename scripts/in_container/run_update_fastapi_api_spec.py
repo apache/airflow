@@ -37,15 +37,15 @@ from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "v1-rest-api-generated.yaml"
+OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "v2-rest-api-generated.yaml"
 # We need a "combined" spec file to generate the UI code with, but we don't want to include this in the repo
 # nor in the rendered docs, so we make this a separate file which is gitignored
 OPENAPI_UI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "_private_ui.yaml"
 SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE = (
-    Path(SIMPLE_AUTH_MANAGER_PATH).parent / "openapi" / "v1-simple-auth-manager-generated.yaml"
+    Path(SIMPLE_AUTH_MANAGER_PATH).parent / "openapi" / "v2-simple-auth-manager-generated.yaml"
 )
 FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE = (
-    Path(FAB_AUTH_MANAGER_API_PATH).parent / "openapi" / "v1-fab-auth-manager-generated.yaml"
+    Path(FAB_AUTH_MANAGER_API_PATH).parent / "openapi" / "v2-fab-auth-manager-generated.yaml"
 )
 
 

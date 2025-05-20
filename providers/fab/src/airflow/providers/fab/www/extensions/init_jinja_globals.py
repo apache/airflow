@@ -37,7 +37,7 @@ def init_jinja_globals(app, enable_plugins: bool):
     elif server_timezone == "utc":
         server_timezone = "UTC"
 
-    expose_hostname = conf.getboolean("webserver", "EXPOSE_HOSTNAME")
+    expose_hostname = conf.getboolean("fab", "EXPOSE_HOSTNAME")
     hostname = get_hostname() if expose_hostname else "redact"
 
     try:

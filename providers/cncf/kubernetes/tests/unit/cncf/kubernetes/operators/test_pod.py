@@ -973,6 +973,7 @@ class TestKubernetesPodOperator:
                 foo: bar
             spec:
               serviceAccountName: foo
+              automountServiceAccountToken: false
               affinity:
                 nodeAffinity:
                   requiredDuringSchedulingIgnoredDuringExecution:
@@ -1036,6 +1037,8 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].image_pull_policy == "Always"
         assert pod.spec.containers[0].command == ["something"]
         assert pod.spec.service_account_name == "foo"
+        assert not pod.spec.automount_service_account_token
+
         affinity = {
             "node_affinity": {
                 "preferred_during_scheduling_ignored_during_execution": [

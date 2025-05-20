@@ -1923,7 +1923,7 @@ export class TaskInstanceService {
    * @param data.requestBody
    * @param data.mapIndex
    * @param data.updateMask
-   * @returns TaskInstanceResponse Successful Response
+   * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
   public static patchTaskInstance(data: PatchTaskInstanceData): CancelablePromise<PatchTaskInstanceResponse> {
@@ -2231,7 +2231,7 @@ export class TaskInstanceService {
    * @param data.mapIndex
    * @param data.requestBody
    * @param data.updateMask
-   * @returns TaskInstanceResponse Successful Response
+   * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
   public static patchTaskInstanceByMapIndex(

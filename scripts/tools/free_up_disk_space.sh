@@ -20,7 +20,7 @@ COLOR_BLUE=$'\e[34m'
 COLOR_RESET=$'\e[0m'
 
 echo "${COLOR_BLUE}Disk space before cleanup${COLOR_RESET}"
-df -h
+df -H
 
 echo "${COLOR_BLUE}Freeing up disk space${COLOR_RESET}"
 sudo rm -rf /usr/share/dotnet/
@@ -36,4 +36,4 @@ sudo rm -rf /opt/hostedtoolcache/go
 sudo rm -rf /opt/ghc
 sudo apt-get clean
 echo "${COLOR_BLUE}Disk space after cleanup${COLOR_RESET}"
-df -h
+df -H

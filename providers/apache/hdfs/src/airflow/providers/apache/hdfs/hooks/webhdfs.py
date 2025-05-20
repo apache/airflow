@@ -88,7 +88,7 @@ class WebHDFSHook(BaseHook):
                         namenode,
                         connection.port,
                         connection.login,
-                        connection.get_password(),
+                        connection.password,
                         connection.schema,
                         connection.extra_dejson,
                     )

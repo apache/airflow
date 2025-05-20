@@ -305,7 +305,7 @@ class KubernetesPodOperator(BaseOperator):
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
-        automount_service_account_token: bool = True,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,

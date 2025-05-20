@@ -68,7 +68,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
-      maxZoom={1}
+      maxZoom={1.5}
       minZoom={0.25}
       nodes={nodes}
       nodesDraggable={false}
