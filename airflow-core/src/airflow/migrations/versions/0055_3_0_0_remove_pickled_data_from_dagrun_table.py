@@ -31,7 +31,6 @@ import json
 import pickle
 from textwrap import dedent
 
-import pendulum
 import sqlalchemy as sa
 from alembic import context, op
 from sqlalchemy import text
@@ -47,7 +46,6 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply remove pickled data from dagrun table."""
-    # Update the value column type to JSON
     conn = op.get_bind()
     empty_vals = {
         "mysql": "X'80057D942E'",
@@ -116,7 +114,6 @@ def upgrade():
     op.drop_column("dag_run", "conf")
 
     op.alter_column("dag_run", "conf_json", existing_type=conf_type, new_column_name="conf")
-    print(f"end: {pendulum.now()}")
 
 
 def downgrade():
@@ -169,4 +166,5 @@ def downgrade():
             offset += BATCH_SIZE
 
     op.drop_column("dag_run", "conf")
+
     op.alter_column("dag_run", "conf_pickle", existing_type=sa.PickleType(), new_column_name="conf")
