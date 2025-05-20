@@ -179,3 +179,30 @@ def paginated_select(
     statement = apply_filters_to_select(statement=statement, filters=[order_by, offset, limit])
 
     return statement, total_entries
+
+
+def return_all_entities(*,
+    total_entities: int,
+    all_entities: list,
+    statement: Select,
+    filters: Sequence[OrmClause] | None = None,
+    order_by: OrmClause | None = None,
+    offset: OrmClause ,
+    limit: OrmClause ,
+    session: SessionDep,
+) -> list:
+    while total_entries > 0:
+        entity, total_entries = paginated_select(
+            statement=statement,
+            filters=filters,
+            order_by=order_by,
+            limit=limit,
+            offset=offset,
+            session=session,
+            return_total_entries=True,
+        )
+        offset.value = offset.value + limit.value
+        entity = session.scalars(entity).all()
+        total_entries = total_entries - limit.value
+        all_entities.append(entity)
+    return all_entities
