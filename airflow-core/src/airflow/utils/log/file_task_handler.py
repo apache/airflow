@@ -64,7 +64,6 @@ Assuming 50 characters per line, an offset of 10,000,000 can represent approxima
 HEAP_DUMP_SIZE = 500000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 PARALLEL_YIELD_SIZE = HEAP_DUMP_SIZE // 100
-FIRST_TIME_READ_KEY = "first_time_read"
 LAST_LOG_POS_FORMAT = "{identifier}_last_log_pos"
 
 # These types are similar, but have distinct names to make processing them less error prone
@@ -737,15 +736,15 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.DEFERRED,
         )
 
-        # `log_pos` is not used in the new implementation, as we are using the metadata to track the position of each source
-        # also `first_time_read` is used to track the first time the log is read.
-        if not metadata:
-            metadata = {}
-        if metadata.get(FIRST_TIME_READ_KEY, True):
-            metadata[FIRST_TIME_READ_KEY] = False
+        if metadata and "log_pos" in metadata:
+            # skip log stream until the last position
+            for _ in range(metadata["log_pos"]):
+                next(out_stream, None)
+        else:
+            # first time reading log, add messages before interleaved log stream
             out_stream = chain(header, out_stream)
-        metadata["end_of_log"] = end_of_log
-        return out_stream, metadata
+
+        return out_stream, {"end_of_log": end_of_log}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -801,7 +800,7 @@ class FileTaskHandler(logging.Handler):
                     level="error", event=f"Error fetching the logs. Try number {try_number} is invalid."
                 )
             ]
-            return chain(logs), {"end_of_log": True, FIRST_TIME_READ_KEY: False}
+            return chain(logs), {"end_of_log": True}
 
         # compatibility for es_task_handler and os_task_handler
         read_result = self._read(task_instance, try_number, metadata)
