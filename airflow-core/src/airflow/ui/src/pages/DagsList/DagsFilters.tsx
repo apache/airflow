@@ -25,7 +25,7 @@ import {
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
@@ -65,12 +65,21 @@ export const DagsFilters = () => {
   const isRunning = state === "running";
   const isFailed = state === "failed";
   const isSuccess = state === "success";
+  const limit = 50;
 
   const [pattern, setPattern] = useState<string>("");
+  const [offset, setOffset] = useState<number>(0);
+  const [tagsList, setTagsList] = useState<Array<string>>([]);
   const { data } = useDagServiceGetDagTags({
+    limit,
+    offset,
     orderBy: "name",
     tagNamePattern: pattern,
   });
+
+  useEffect(() => {
+    setTagsList((tags) => [...tags, ...(data?.tags ?? [])]);
+  }, [data, setTagsList]);
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? "false" : "all";
@@ -127,9 +136,23 @@ export const DagsFilters = () => {
     [searchParams, setSearchParams],
   );
 
-  const handleInputChange = useDebouncedCallback((newValue) => setPattern(`${newValue}%`), debounceDelay);
+  const handleInputChange = useDebouncedCallback((newValue) => {
+    setTagsList([]);
+    setOffset(0);
+    setPattern(`${newValue}%`);
+  }, debounceDelay);
+
+  const handleScrollBottomChange = useDebouncedCallback((_event: TouchEvent | WheelEvent) => {
+    const newOffset = Math.min(offset + limit, data?.total_entries ?? 0);
+
+    setOffset(newOffset);
+  }, debounceDelay);
 
   const onClearFilters = () => {
+    setOffset(0);
+    setPattern("");
+    setTagsList([]);
+
     searchParams.delete(PAUSED_PARAM);
     searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     searchParams.delete(TAGS_PARAM);
@@ -226,12 +249,11 @@ export const DagsFilters = () => {
             noOptionsMessage={() => "No tags found"}
             onChange={handleSelectTagsChange}
             onInputChange={handleInputChange}
-            options={
-              data?.tags.map((tag) => ({
-                label: tag,
-                value: tag,
-              })) ?? []
-            }
+            onMenuScrollToBottom={handleScrollBottomChange}
+            options={tagsList.map((tag) => ({
+              label: tag,
+              value: tag,
+            }))}
             placeholder="Filter by tag"
             value={selectedTags.map((tag) => ({
               label: tag,
