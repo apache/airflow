@@ -137,7 +137,9 @@ export const DagsFilters = () => {
   );
 
   const handleInputChange = useDebouncedCallback((newValue) => {
-    setTagsList([]);
+    if (pattern !== `${newValue}%`) {
+      setTagsList([]);
+    }
     setOffset(0);
     setPattern(`${newValue}%`);
   }, debounceDelay);
