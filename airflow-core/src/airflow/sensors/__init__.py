@@ -40,7 +40,6 @@ __deprecated_classes = {
     },
     "time_sensor": {
         "TimeSensor": "airflow.providers.standard.sensors.time.TimeSensor",
-        "TimeSensorAsync": "airflow.providers.standard.sensors.time.TimeSensorAsync",
     },
     "weekday": {
         "DayOfWeekSensor": "airflow.providers.standard.sensors.weekday.DayOfWeekSensor",
