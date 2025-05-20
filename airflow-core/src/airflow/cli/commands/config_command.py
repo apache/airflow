@@ -305,11 +305,13 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("logging", "log_filename_template"),
         was_removed=True,
         remove_if_equals="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("logging", "log_filename_template"),
         was_removed=True,
         remove_if_equals="dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}attempt={{ try_number }}.log",
+        breaking=True,
     ),
     # metrics
     ConfigChange(
