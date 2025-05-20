@@ -1368,6 +1368,10 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
                 "connection-type": "leveldb",
             },
+            {
+                "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
+                "connection-type": "google_ads",
+            },
         ],
         "extra-links": [
             "airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink",
