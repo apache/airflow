@@ -388,6 +388,26 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "expose_hostname"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "navbar_color"),
+        renamed_to=ConfigParameter("fab", "navbar_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_text_color"),
+        renamed_to=ConfigParameter("fab", "navbar_text_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_hover_color"),
+        renamed_to=ConfigParameter("fab", "navbar_hover_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_text_hover_color"),
+        renamed_to=ConfigParameter("fab", "navbar_text_hover_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "x_frame_enabled"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "base_url"),
         renamed_to=ConfigParameter("api", "base_url"),
     ),
