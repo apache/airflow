@@ -34,7 +34,7 @@ from functools import reduce
 from typing import TYPE_CHECKING
 
 from dateutil import parser
-from kubernetes.client import V1EmptyDirVolumeSource, V1Volume, V1VolumeMount, models as k8s
+from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
@@ -287,7 +287,6 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
-        content_json_for_volume: str = "",
         *,
         with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
@@ -354,39 +353,6 @@ class PodGenerator:
         podspec = k8s.V1PodSpec(
             containers=[main_container],
         )
-
-        if content_json_for_volume:
-            import shlex
-
-            input_file_path = "/tmp/execute/input.json"
-            execute_volume = V1Volume(
-                name="execute-volume",
-                empty_dir=V1EmptyDirVolumeSource(),
-            )
-
-            execute_volume_mount = V1VolumeMount(
-                name="execute-volume",
-                mount_path="/tmp/execute",
-                read_only=False,
-            )
-
-            escaped_json = shlex.quote(content_json_for_volume)
-            init_container = k8s.V1Container(
-                name="init-container",
-                image="busybox",
-                command=["/bin/sh", "-c", f"echo {escaped_json} > {input_file_path}"],
-                volume_mounts=[execute_volume_mount],
-            )
-
-            main_container.volume_mounts = [execute_volume_mount]
-            main_container.command = args[:-1]
-            main_container.args = args[-1:]
-
-            podspec = k8s.V1PodSpec(
-                containers=[main_container],
-                volumes=[execute_volume],
-                init_containers=[init_container],
-            )
 
         dynamic_pod.spec = podspec
 
