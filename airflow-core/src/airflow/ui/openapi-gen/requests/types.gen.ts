@@ -582,7 +582,7 @@ export type DAGRunResponse = {
   triggered_by: DagRunTriggeredByType | null;
   conf: {
     [key: string]: unknown;
-  };
+  } | null;
   note: string | null;
   dag_versions: Array<DagVersionResponse>;
   bundle_version: string | null;

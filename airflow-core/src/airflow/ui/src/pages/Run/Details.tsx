@@ -151,7 +151,7 @@ export const Details = () => {
             <Table.Row>
               <Table.Cell>Run Config</Table.Cell>
               <Table.Cell>
-                <RenderedJsonField content={dagRun.conf} />
+                <RenderedJsonField content={dagRun.conf ?? {}} />
               </Table.Cell>
             </Table.Row>
           </Table.Body>
