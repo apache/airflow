@@ -35,6 +35,8 @@ import pendulum
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
+from airflow.models.dag_version import DagVersion
+
 # Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
 # main working and useful for others to develop against we use the TaskSDK here but keep this file around
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -434,7 +436,7 @@ class BaseOperator(TaskSDKBaseOperator):
 
         start_date = pendulum.instance(start_date or self.start_date)
         end_date = pendulum.instance(end_date or self.end_date or timezone.utcnow())
-
+        dag_version = DagVersion.get_latest_version(self.dag.dag_id, session=session)
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
             ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
             try:
@@ -444,7 +446,9 @@ class BaseOperator(TaskSDKBaseOperator):
                         DagRun.logical_date == info.logical_date,
                     )
                 ).one()
-                ti = TaskInstance(self, run_id=dag_run.run_id)
+                if TYPE_CHECKING:
+                    assert dag_version
+                ti = TaskInstance(self, run_id=dag_run.run_id, dag_version_id=dag_version.id)
             except NoResultFound:
                 # This is _mostly_ only used in tests
                 dr = DagRun(
@@ -461,7 +465,9 @@ class BaseOperator(TaskSDKBaseOperator):
                     triggered_by=DagRunTriggeredByType.TEST,
                     state=DagRunState.RUNNING,
                 )
-                ti = TaskInstance(self, run_id=dr.run_id)
+                if TYPE_CHECKING:
+                    assert dag_version
+                ti = TaskInstance(self, run_id=dr.run_id, dag_version_id=dag_version.id)
                 ti.dag_run = dr
                 session.add(dr)
                 session.flush()

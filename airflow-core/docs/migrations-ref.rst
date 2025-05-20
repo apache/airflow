@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``0242ac120002`` (head) | ``dfee8bd5d574`` | ``3.1.0``         | Change the Deadline column in the Deadline table from        |
+| ``5d3072c51bac`` (head) | ``0242ac120002`` | ``3.1.0``         | make dag_version_id non-nullable in TaskInstance.            |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``0242ac120002``        | ``dfee8bd5d574`` | ``3.1.0``         | Change the Deadline column in the Deadline table from        |
 |                         |                  |                   | DateTime to UTC DateTime.                                    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``dfee8bd5d574``        | ``29ce7909c52b`` | ``3.1.0``         | Add Deadline to Dag.                                         |
