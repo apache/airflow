@@ -75,3 +75,4 @@ class DagAttributeTypes(str, Enum):
     DAG_CALLBACK_REQUEST = "dag_callback_request"
     TASK_INSTANCE_KEY = "task_instance_key"
     TRIGGER = "trigger"
+    DEADLINE_ALERT = "deadline_alert"
