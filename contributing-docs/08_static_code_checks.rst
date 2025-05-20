@@ -275,6 +275,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflowctl-datamodels                            | Generate Datamodels for AirflowCTL                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-airflowctl-help-images                           | Generate SVG from Airflow CTL Commands                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |

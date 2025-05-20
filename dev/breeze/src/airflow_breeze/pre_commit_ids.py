@@ -101,6 +101,7 @@ PRE_COMMIT_LIST = [
     "flynt",
     "generate-airflow-diagrams",
     "generate-airflowctl-datamodels",
+    "generate-airflowctl-help-images",
     "generate-openapi-spec",
     "generate-pypi-readme",
     "generate-tasksdk-datamodels",
