@@ -863,9 +863,6 @@ There are two steps to publish the documentation:
 1. Publish the documentation to S3 bucket.
 
 The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
-
-The release manager publishes the documentation using GitHub Actions workflow
 [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By
 default `auto` selection should publish to the `live` bucket - based on
 the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
