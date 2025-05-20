@@ -4376,7 +4376,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: {'non_existent_task'} were not found.",
+                                "error": "The task instances with these task_ids: ['non_existent_task'] were not found.",
                                 "status_code": 404,
                             }
                         ],
@@ -4495,7 +4495,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: {'non_existent_task'} were not found.",
+                                "error": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `None` was not found.",
                                 "status_code": 404,
                             }
                         ],
@@ -4608,7 +4608,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [TASK_ID],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: {'non_existent_task'} were not found.",
+                                "error": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `None` was not found.",
                                 "status_code": 404,
                             }
                         ],
@@ -4617,7 +4617,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [TASK_ID],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: {'non_existent_task'} were not found.",
+                                "error": "The task instances with these task_ids: ['non_existent_task'] were not found.",
                                 "status_code": 404,
                             }
                         ],
