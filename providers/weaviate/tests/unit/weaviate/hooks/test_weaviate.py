@@ -627,15 +627,23 @@ def test_delete_by_property_retry(get_conn, weaviate_hook):
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_collection")
 def test_delete_by_property_get_exception(mock_get_collection, weaviate_hook):
     from weaviate.classes.query import Filter
+    from weaviate.exceptions import WeaviateDeleteManyError
 
-    collection_names = ["collection_a", "collection_b"]
+    collection_names = ["collection_a", "collection_b", "collection_c"]
 
-    mock_collection = MagicMock()
-    mock_collection.data.delete_many.return_value = None
+    mock_collection_b = MagicMock()
+    mock_collection_b.data.delete_many.return_value = None
+
+    mock_collection_c = MagicMock()
+    mock_collection_c.data.delete_many.return_value = None
+    mock_collection_c.data.delete_many.side_effect = WeaviateDeleteManyError(
+        "A delete many request to Weaviate fails in any way"
+    )
 
     mock_get_collection.side_effect = [
         weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
-        mock_collection,
+        mock_collection_b,
+        mock_collection_c,
     ]
 
     # Test when if_error='continue' – expect failed collections list
@@ -644,7 +652,7 @@ def test_delete_by_property_get_exception(mock_get_collection, weaviate_hook):
         filter_criteria=Filter.by_property("name").equal("John"),
         if_error="continue",
     )
-    assert error_list == ["collection_a"]
+    assert error_list == ["collection_a", "collection_c"]
 
     mock_get_collection.reset_mock()
     mock_get_collection.side_effect = weaviate.UnexpectedStatusCodeException(

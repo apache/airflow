@@ -30,7 +30,7 @@ from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_typ
 from weaviate import WeaviateClient
 from weaviate.auth import Auth
 from weaviate.classes.query import Filter
-from weaviate.exceptions import ObjectAlreadyExistsException, UnexpectedStatusCodeError
+from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
 from airflow.hooks.base import BaseHook
@@ -242,7 +242,10 @@ class WeaviateHook(BaseHook):
                         self.log.info(attempt)
                         collection = self.get_collection(collection_name)
                         collection.data.delete_many(where=filter_criteria, verbose=verbose, dry_run=dry_run)
-            except UnexpectedStatusCodeError as e:
+            except (
+                weaviate.exceptions.UnexpectedStatusCodeException,
+                weaviate.exceptions.WeaviateDeleteManyError,
+            ) as e:
                 if if_error == "continue":
                     self.log.error(e)
                     failed_collection_list.append(collection_name)
