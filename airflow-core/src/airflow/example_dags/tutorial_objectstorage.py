@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 # [START tutorial]
 # [START import_module]
 import pendulum
@@ -29,16 +31,16 @@ from airflow.sdk import ObjectStoragePath, dag, task
 
 API = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
-aq_fields = [
-    "pm10",
-    "pm2_5",
-    "carbon_monoxide",
-    "nitrogen_dioxide",
-    "sulphur_dioxide",
-    "ozone",
-    "european_aqi",
-    "us_aqi",
-]
+aq_fields = {
+    "pm10": "float64",
+    "pm2_5": "float64",
+    "carbon_monoxide": "float64",
+    "nitrogen_dioxide": "float64",
+    "sulphur_dioxide": "float64",
+    "ozone": "float64",
+    "european_aqi": "float64",
+    "us_aqi": "float64",
+}
 
 # [START create_object_storage_path]
 base = ObjectStoragePath("s3://aws_default@airflow-tutorial-data/")
@@ -75,14 +77,14 @@ def tutorial_objectstorage():
         latitude = 28.6139
         longitude = 77.2090
 
-        params = {
+        params: Mapping[str, str | float] = {
             "latitude": latitude,
             "longitude": longitude,
-            "hourly": ",".join(aq_fields),
-            "timezone": "Asia/Kolkata",
+            "hourly": ",".join(aq_fields.keys()),
+            "timezone": "UTC",
         }
 
-        response = requests.get(API, params=params)  # type: ignore[arg-type]
+        response = requests.get(API, params=params)
         response.raise_for_status()
 
         data = response.json()
@@ -117,9 +119,9 @@ def tutorial_objectstorage():
 
         conn = duckdb.connect(database=":memory:")
         conn.register_filesystem(path.fs)
-        s3_url = path.path
+        s3_path = path.path
         conn.execute(
-            f"CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM read_parquet('{path.protocol}://{s3_url}')"
+            f"CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM read_parquet('{path.protocol}://{s3_path}')"
         )
 
         df2 = conn.execute("SELECT * FROM airquality_urban").fetchdf()
