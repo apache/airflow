@@ -60,12 +60,10 @@ export const AssetEvent = ({
             content={
               <div>
                 <Text>
-                  {" "}
-                  {translate("group")}: {event.group ?? ""}{" "}
+                  {translate("group")}: {event.group ?? ""}
                 </Text>
                 <Text>
-                  {" "}
-                  {translate("uri")}: {event.uri ?? ""}{" "}
+                  {translate("uri")}: {event.uri ?? ""}
                 </Text>
               </div>
             }
