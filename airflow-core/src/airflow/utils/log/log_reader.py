@@ -24,11 +24,6 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
-from airflow.utils.log.file_task_handler import (
-    FIRST_TIME_READ_KEY,
-    LogHandlerOutputStream,
-    LogMetadata,
-)
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -38,6 +33,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.typing_compat import TypeAlias
+    from airflow.utils.log.file_task_handler import LogHandlerOutputStream, LogMetadata
 
 LogReaderOutputStream: TypeAlias = Generator[str, None, None]
 
@@ -97,9 +93,6 @@ class TaskLogReader:
             metadata.pop(key, None)
         empty_iterations = 0
 
-        # We use `FIRST_TIME_READ_KEY` to indicate if this is the first time we are reading the log
-        # it should be set to `False` after the first `FileTaskHandler.read` call
-        metadata[FIRST_TIME_READ_KEY] = True
         while True:
             log_stream, out_metadata = self.read_log_chunks(ti, try_number, metadata)
             # Update the metadata dict in place so caller can get new values/end-of-log etc.
