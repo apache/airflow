@@ -137,7 +137,6 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         dag: DAG,
         task_instance_body: BulkTaskInstanceBody,
         data: dict,
-        tis: list[TI],
     ) -> None:
         map_indexes = None if task_instance_body.map_index is None else [task_instance_body.map_index]
 
@@ -235,7 +234,6 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             dag=dag,
                             task_instance_body=task_instance_body,
                             data=data,
-                            tis=tis,
                         )
                     elif key == "note":
                         self._patch_task_instance_note(task_instance_body=task_instance_body, tis=tis)
