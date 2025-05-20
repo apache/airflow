@@ -783,8 +783,13 @@ class TestSparkKubernetesOperator:
 
         for component in ["driver", "executor"]:
             for label_key, label_value in task_context_labels.items():
-                assert label_key in mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"]
-                assert mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"][label_key] == label_value
+                assert (
+                    label_key in mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"]
+                )
+                assert (
+                    mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"][label_key]
+                    == label_value
+                )
 
     def test_reattach_on_restart_with_task_context_labels(
         self,
