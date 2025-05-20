@@ -194,10 +194,10 @@ ReadableTagsFilterDep = Annotated[
 ]
 
 
-def requires_access_backfill(method: ResourceMethod) -> Callable:
+def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         backfill_id: NonNegativeInt | None = request.path_params.get("backfill_id")
 
@@ -242,10 +242,10 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
     return inner
 
 
-def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         section: str | None = request.query_params.get("section") or request.path_params.get("section")
 
@@ -260,10 +260,10 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
     return inner
 
 
-def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
 
@@ -276,10 +276,10 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
     return inner
 
 
-def requires_access_asset(method: ResourceMethod) -> Callable:
+def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         asset_id = request.path_params.get("asset_id")
 
@@ -292,10 +292,10 @@ def requires_access_asset(method: ResourceMethod) -> Callable:
     return inner
 
 
-def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
@@ -306,10 +306,10 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
     return inner
 
 
-def requires_access_asset_alias(method: ResourceMethod) -> Callable:
+def requires_access_asset_alias(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         asset_alias_id: str | None = request.path_params.get("asset_alias_id")
 
