@@ -2247,8 +2247,15 @@ export const $DAGRunResponse = {
       ],
     },
     conf: {
-      additionalProperties: true,
-      type: "object",
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Conf",
     },
     note: {
