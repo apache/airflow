@@ -890,7 +890,7 @@ class DagFileProcessorManager(LoggingMixin):
         try:
             # Attempt to start the subprocess for parsing
             processor = DagFileProcessorProcess.start(
-                id=proc_id,
+                id=id,
                 path=dag_file.absolute_path,
                 bundle_path=cast("Path", dag_file.bundle_path),
                 callbacks=callbacks,
