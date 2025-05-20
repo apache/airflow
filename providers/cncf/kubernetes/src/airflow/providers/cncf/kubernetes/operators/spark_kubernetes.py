@@ -303,14 +303,25 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         if self.reattach_on_restart:
             task_context_labels = self._get_ti_pod_labels(context)
 
-            spark_dict = template_body.setdefault("spark", {})
-            spec_dict = spark_dict.setdefault("spec", {})
+            if "spark" not in template_body:
+                template_body["spark"] = {}
+
+            if "spec" not in template_body["spark"]:
+                template_body["spark"]["spec"] = {}
+
+            spec_dict = template_body["spark"]["spec"]
 
             for component in ["driver", "executor"]:
-                component_dict = spec_dict.setdefault(component, {})
-                component_dict.setdefault("labels", {}).update(task_context_labels)
+                if component not in spec_dict:
+                    spec_dict[component] = {}
 
-            self.log.debug(f"Added task context labels to driver and executor pods: {task_context_labels}")
+                if "labels" not in spec_dict[component]:
+                    spec_dict[component]["labels"] = {}
+
+                for key, value in task_context_labels.items():
+                    spec_dict[component]["labels"][key] = value
+
+            self.log.debug("Added task context labels to driver and executor pods: %s", task_context_labels)
 
         self.log.info("Creating sparkApplication.")
         self.launcher = CustomObjectLauncher(
