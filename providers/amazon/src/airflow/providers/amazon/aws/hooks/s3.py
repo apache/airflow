@@ -683,13 +683,6 @@ class S3Hook(AwsBaseHook):
                 return False
             return True
 
-        for key in keys:
-            print(f"from_datetime: {from_datetime}")
-            print(f"to_datetime: {to_datetime}")
-            print(f"LastModified (value)  : {key['LastModified']}")
-            print(f"LastModified (type)   : {type(key['LastModified'])}")
-            break
-
         return [k["Key"] for k in keys if _is_in_period(k["LastModified"])]
 
     async def is_keys_unchanged_async(

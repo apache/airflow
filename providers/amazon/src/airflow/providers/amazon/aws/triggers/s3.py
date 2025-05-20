@@ -135,7 +135,7 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
         bucket_key: str,
         wildcard_match: bool = False,
         aws_conn_id: str | None = "aws_default",
-        last_activity_time: str | datetime | None = None,
+        from_datetime: str | datetime | None = None,
         poke_interval: float = 5.0,
         use_regex: bool = False,
         region_name: str | None = None,
@@ -157,15 +157,14 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
         self.botocore_config = botocore_config
         self.fail_on_missing = fail_on_missing
 
-        self.last_activity_time = datetime.fromisoformat(last_activity_time) \
-            if isinstance(last_activity_time, str) \
-            else last_activity_time
+        self.from_datetime = datetime.fromisoformat(from_datetime) \
+            if isinstance(from_datetime, str) \
+            else from_datetime
 
         super().__init__(**kwargs)
 
     # Will eventually be a serialized instance of this object
     def serialize(self):
-        print(f"SERIALIZER self.last_activity_time: {self.last_activity_time}")
         return (
             "airflow.providers.amazon.aws.triggers.s3.S3KeyUpsertedTrigger",
             {
@@ -173,9 +172,9 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
                 "bucket_key": self.bucket_key,
                 "wildcard_match": self.wildcard_match,
                 "aws_conn_id": self.aws_conn_id,
-                "last_activity_time": self.last_activity_time.isoformat() \
-                    if isinstance(self.last_activity_time, datetime) \
-                    else self.last_activity_time,
+                "from_datetime": self.from_datetime.isoformat() \
+                    if isinstance(self.from_datetime, datetime) \
+                    else self.from_datetime,
                 "poke_interval": self.poke_interval,
                 "use_regex": self.use_regex,
                 "region_name": self.region_name,
@@ -210,26 +209,20 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
                         # operation takes place. This way, there isn't the possibility of a gap between the
                         # time that the bucket was last checked for changes and the time a new timestamp was
                         # captured
-                        _safe_latest_activity_time = datetime.now(timezone.utc)
-
-                        print(f"self.latest_activity_time: {self.last_activity_time}")
-                        print(f"_safe_latest_activity_time: {_safe_latest_activity_time}")
+                        _safe_to_datetime = datetime.now(timezone.utc)
 
                         # If they do, then get those keys (and information)
                         keys_changed: list = self.hook.list_keys(
                             bucket_name=self.bucket_name,
                             prefix=self.bucket_key,
-                            from_datetime=self.last_activity_time,
-                            to_datetime=_safe_latest_activity_time,
+                            from_datetime=self.from_datetime,
+                            to_datetime=_safe_to_datetime,
                             apply_wildcard=self.wildcard_match,  # TODO: Change this
                         )
 
                         # Regardless if there are or are not keys that have changed, last_activity_time
                         # should still be updated
-                        self.last_activity_time = _safe_latest_activity_time
-                        print(f"ASSIGNING last_activity_time the value {_safe_latest_activity_time}")
-                        print(f"POST list_keys (after assigning _safe_latest_activity_time self.last_activity_time: {self.last_activity_time}")
-                        print(f"KEYS_CHANGED: {keys_changed}")
+                        self.from_datetime = _safe_to_datetime
 
                         if len(keys_changed) == 0:
                             self.log.info("Sleeping for %s seconds", self.poke_interval)
@@ -242,7 +235,7 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
                             yield TriggerEvent({
                                 "status": "success",
                                 "key": key,
-                                "last_activity_time": self.last_activity_time.isoformat(),
+                                # "from_datetime": self.from_datetime.isoformat(),
                             })
 
                         continue
