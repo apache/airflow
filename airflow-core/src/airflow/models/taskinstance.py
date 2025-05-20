@@ -645,7 +645,6 @@ class TaskInstance(Base, LoggingMixin):
         self.refresh_from_task(task)
         if TYPE_CHECKING:
             assert self.task
-
         # init_on_load will config the log
         self.init_on_load()
 
