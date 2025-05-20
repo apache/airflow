@@ -159,10 +159,9 @@ class TestCliTasks:
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
         with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
-        assert (
-            f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}, run_id={self.run_id}, "
-            in caplog.text
-        )
+        ti = self.dag_run.get_task_instance(task_id=task_id)
+        assert ti is not None
+        assert ti.state == State.SUCCESS
 
     @pytest.mark.enable_redact
     def test_test_filters_secrets(self, capsys):
@@ -177,12 +176,16 @@ class TestCliTasks:
             ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"],
         )
 
-        with mock.patch("airflow.models.TaskInstance.run", side_effect=lambda *_, **__: print(password)):
+        with mock.patch(
+            "airflow.cli.commands.task_command._run_task", side_effect=lambda *_, **__: print(password)
+        ):
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith("***\n")
 
         not_password = "!4321drowssapemos"
-        with mock.patch("airflow.models.TaskInstance.run", side_effect=lambda *_, **__: print(not_password)):
+        with mock.patch(
+            "airflow.cli.commands.task_command._run_task", side_effect=lambda *_, **__: print(not_password)
+        ):
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
@@ -234,7 +237,9 @@ class TestCliTasks:
         assert "AIRFLOW_TEST_MODE=True" in output
 
     @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
-    @mock.patch("airflow.providers.standard.triggers.file.glob", return_value=["/tmp/test"])
+    @mock.patch(
+        "airflow.providers.standard.triggers.file.glob", return_value=["/tmp/temporary_file_for_testing"]
+    )
     @mock.patch("airflow.providers.standard.triggers.file.os")
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
     def test_cli_test_with_deferrable_operator(self, mock_pock, mock_os, mock_glob, mock_getmtime, caplog):
@@ -252,7 +257,7 @@ class TestCliTasks:
                 )
             )
             output = caplog.text
-        assert "wait_for_file_async completed successfully as /tmp/temporary_file_for_testing found" in output
+        assert "Found File /tmp/temporary_file_for_testing" in output
 
     def test_task_render(self):
         """

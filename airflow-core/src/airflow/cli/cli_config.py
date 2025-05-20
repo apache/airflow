@@ -177,11 +177,6 @@ ARG_OUTPUT_PATH = Arg(
     type=str,
     default="[CWD]" if BUILD_DOCS else os.getcwd(),
 )
-ARG_DRY_RUN = Arg(
-    ("-n", "--dry-run"),
-    help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
-    action="store_true",
-)
 ARG_PID = Arg(("--pid",), help="PID file location", nargs="?")
 ARG_DAEMON = Arg(
     ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
@@ -1270,7 +1265,6 @@ TASKS_COMMANDS = (
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL,
             ARG_BUNDLE_NAME,
-            ARG_DRY_RUN,
             ARG_TASK_PARAMS,
             ARG_POST_MORTEM,
             ARG_ENV_VARS,

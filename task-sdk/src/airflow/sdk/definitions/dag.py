@@ -1244,8 +1244,9 @@ def _run_task(*, ti):
             )
 
             msg = taskrun_result.msg
+            ti.set_state(taskrun_result.ti.state)
 
-            if taskrun_result.ti.state == State.DEFERRED and isinstance(msg, DeferTask):
+            if ti.state == State.DEFERRED and isinstance(msg, DeferTask):
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(State.QUEUED)
