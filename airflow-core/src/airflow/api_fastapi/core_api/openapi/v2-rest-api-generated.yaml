@@ -6888,6 +6888,8 @@ paths:
       - Maintenance
       summary: Get Db Stats
       operationId: get_db_stats
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: tables
         in: query

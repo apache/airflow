@@ -287,6 +287,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_EDIT, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_DELETE, RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_METADATA_DB),
     ]
     # [END security_op_perms]
 
@@ -302,6 +303,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_METADATA_DB),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_METADATA_DB),
     ]
     # [END security_admin_perms]
 

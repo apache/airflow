@@ -141,6 +141,11 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     ) -> bool:
         raise NotImplementedError()
 
+    def is_authorized_db(
+        self, *, method: ResourceMethod, user: BaseAuthManagerUserTest | None = None
+    ) -> bool:
+        raise NotImplementedError()
+
     def is_authorized_custom_view(
         self, *, method: ResourceMethod | str, resource_name: str, user: BaseAuthManagerUserTest | None = None
     ):

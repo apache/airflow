@@ -16,19 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+from fastapi import Depends
 from sqlalchemy import func
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import QuerySkipRecordCount, QuerySkipTableSize, QueryTablesFilter
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.db import MetadataDBStatsResponse, TableStats
+from airflow.api_fastapi.core_api.security import requires_access_db
 from airflow.utils.db import reflect_tables
 from airflow.utils.db_cleanup import _effective_table_names, calculate_table_size
 
 db_router = AirflowRouter(tags=["Maintenance"], prefix="/maintenance/db")
 
 
-@db_router.get("/stats", dependencies=[])
+@db_router.get("/stats", dependencies=[Depends(requires_access_db(method="GET"))])
 def get_db_stats(
     tables: QueryTablesFilter,
     session: SessionDep,

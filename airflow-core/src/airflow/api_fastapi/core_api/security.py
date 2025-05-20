@@ -322,6 +322,18 @@ def requires_access_asset_alias(method: ResourceMethod) -> Callable:
     return inner
 
 
+def requires_access_db(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_db(method=method, user=user)
+        )
+
+    return inner
+
+
 def requires_authenticated() -> Callable:
     """Just ensure the user is authenticated - no need to check any specific permissions."""
 

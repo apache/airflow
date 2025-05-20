@@ -296,6 +296,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def is_authorized_db(self, *, method: ResourceMethod, user: T) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on the database.
+
+        :param method: the method to perform
+        :param user: the user
+        """
+
+    @abstractmethod
     def filter_authorized_menu_items(self, menu_items: list[MenuItem], *, user: T) -> list[MenuItem]:
         """
         Filter menu items based on user permissions.
