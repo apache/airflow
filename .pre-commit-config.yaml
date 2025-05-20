@@ -133,7 +133,14 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*reproducible_build\.yaml$|^.*/v2.*\.yaml$|^.*/openapi/_private_ui.*\.yaml$|^.*/pnpm-lock\.yaml$
+        exclude: >
+          (?x)
+          ^\.github/.*$|^chart/templates/.*|
+          .*reproducible_build\.yaml$|
+          ^.*/v2.*\.yaml$|
+          ^.*/openapi/_private_ui.*\.yaml$|
+          ^.*/pnpm-lock\.yaml$\
+          .*-generated\.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
