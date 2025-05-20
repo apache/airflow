@@ -31,10 +31,6 @@ from airflow.utils.log.log_reader import TaskLogReader
 config_router = AirflowRouter(tags=["Config"])
 
 WEBSERVER_CONFIG_KEYS = [
-    "navbar_color",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
     "enable_swagger_ui",
 ]
 

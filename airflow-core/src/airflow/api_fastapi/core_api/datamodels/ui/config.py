@@ -24,10 +24,6 @@ from airflow.api_fastapi.common.types import UIAlert
 class ConfigResponse(BaseModel):
     """configuration serializer."""
 
-    navbar_color: str
-    navbar_text_color: str
-    navbar_hover_color: str
-    navbar_text_hover_color: str
     page_size: int
     auto_refresh_interval: int
     hide_paused_dags_by_default: bool

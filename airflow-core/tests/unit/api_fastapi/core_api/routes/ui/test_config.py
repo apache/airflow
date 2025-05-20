@@ -23,10 +23,6 @@ from tests_common.test_utils.config import conf_vars
 pytestmark = pytest.mark.db_test
 
 mock_config_response = {
-    "navbar_color": "#fff",
-    "navbar_text_color": "#51504f",
-    "navbar_hover_color": "#eee",
-    "navbar_text_hover_color": "#51504f",
     "page_size": 100,
     "auto_refresh_interval": 3,
     "hide_paused_dags_by_default": True,
@@ -50,12 +46,7 @@ def mock_config_data():
     """
     with conf_vars(
         {
-            ("webserver", "navbar_color"): "#fff",
-            ("webserver", "navbar_text_color"): "#51504f",
-            ("webserver", "navbar_hover_color"): "#eee",
-            ("webserver", "navbar_text_hover_color"): "#51504f",
             ("webserver", "instance_name"): "Airflow",
-            ("webserver", "instance_name_has_markup"): "false",
             ("webserver", "enable_swagger_ui"): "true",
             ("api", "hide_paused_dags_by_default"): "true",
             ("api", "page_size"): "100",
