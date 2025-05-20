@@ -1651,11 +1651,11 @@ class DAG(TaskSDKDag, LoggingMixin):
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_dag_asset_name_uri_references(session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
-        asset_op.add_asset_trigger_references(orm_assets, session=session)
         asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()  # Activation is needed when we add trigger references.
 
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
         dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
-
         session.flush()
 
     @provide_session
