@@ -1037,7 +1037,7 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].image_pull_policy == "Always"
         assert pod.spec.containers[0].command == ["something"]
         assert pod.spec.service_account_name == "foo"
-        assert pod.spec.automount_service_account_token == False
+        assert not pod.spec.automount_service_account_token
 
         affinity = {
             "node_affinity": {
