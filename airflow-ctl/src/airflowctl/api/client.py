@@ -110,11 +110,13 @@ class Credentials:
         self,
         api_url: str | None = None,
         api_token: str | None = None,
+        client_kind: ClientKind | None = None,
         api_environment: str = "production",
     ):
         self.api_url = api_url
         self.api_token = api_token
         self.api_environment = os.getenv("AIRFLOW_CLI_ENVIRONMENT") or api_environment
+        self.client_kind = client_kind
 
     @property
     def input_cli_config_file(self) -> str:
@@ -137,12 +139,15 @@ class Credentials:
         """Load the credentials from keyring and URL from disk file."""
         default_config_dir = user_config_path("airflow", "Apache Software Foundation")
         credential_path = os.path.join(default_config_dir, self.input_cli_config_file)
-        if os.path.exists(credential_path):
+        if os.path.exists(credential_path) and self.client_kind == ClientKind.CLI:
             with open(credential_path) as f:
                 credentials = json.load(f)
                 self.api_url = credentials["api_url"]
                 self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
             return self
+        if self.client_kind == ClientKind.AUTH:
+            credentials = Credentials()
+            return credentials
         raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
 
 
@@ -264,7 +269,8 @@ def get_client(kind: ClientKind = ClientKind.CLI):
     api_client = None
     try:
         # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
-        credentials = Credentials().load()
+
+        credentials = Credentials(client_kind=kind).load()
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
