@@ -24,6 +24,7 @@ from unittest import mock
 import pytest
 import time_machine
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, DeadlineAlert, DeadlineReference
@@ -186,6 +187,7 @@ class TestDeadlineAlert:
             assert path == UNIMPORTABLE_DOT_PATH
 
 
+@pytest.mark.db_test
 class TestDeadlineReference:
     @staticmethod
     def setup_method():
@@ -223,7 +225,6 @@ class TestDeadlineReference:
         assert reference_1 is not reference_2
         assert reference_1._fixed_dt != reference_2._fixed_dt
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "reference, expected_method",
         [
@@ -250,44 +251,44 @@ class TestDeadlineReference:
 
         mock_evaluate_with.assert_called_once_with()
 
-    @pytest.mark.db_test
     def test_evaluate_for_fixed_datetime(self):
         reference = DeadlineReference.FIXED_DATETIME(DEFAULT_DATE)
 
-        result = reference.evaluate()
+        evaluate_result = reference.evaluate()
+        evaluate_with_result = reference.evaluate_with()
 
-        assert result == DEFAULT_DATE
+        assert evaluate_result == DEFAULT_DATE
+        assert evaluate_with_result == evaluate_result
 
     @pytest.mark.parametrize(
         "column, conditions, expected_query",
         [
             pytest.param(
-                "logical_date",
+                DagRun.logical_date,
                 {"dag_id": DAG_ID},
                 "SELECT dag_run.logical_date \nFROM dag_run \nWHERE dag_run.dag_id = :dag_id_1",
                 id="single_condition_logical_date",
             ),
             pytest.param(
-                "queued_at",
+                DagRun.queued_at,
                 {"dag_id": DAG_ID},
                 "SELECT dag_run.queued_at \nFROM dag_run \nWHERE dag_run.dag_id = :dag_id_1",
                 id="single_condition_queued_at",
             ),
             pytest.param(
-                "logical_date",
+                DagRun.logical_date,
                 {"dag_id": DAG_ID, "state": "running"},
                 "SELECT dag_run.logical_date \nFROM dag_run \nWHERE dag_run.dag_id = :dag_id_1 AND dag_run.state = :state_1",
                 id="multiple_conditions",
             ),
         ],
     )
-    @pytest.mark.db_test
     @mock.patch("sqlalchemy.orm.Session")
     def test_fetch_from_db_success(self, mock_session, column, conditions, expected_query):
         mock_session.scalar.return_value = DEFAULT_DATE
         reference = DeadlineReference.DAGRUN_LOGICAL_DATE
 
-        result = reference._fetch_from_db(DagRun, column, session=mock_session, **conditions)
+        result = reference._fetch_from_db(column, session=mock_session, **conditions)
 
         assert isinstance(result, datetime)
         mock_session.scalar.assert_called_once()
@@ -303,10 +304,59 @@ class TestDeadlineReference:
             assert compiled.params[f"{key}_1"] == value
 
     @pytest.mark.parametrize(
+        "use_valid_conditions, scalar_side_effect, expected_message",
+        [
+            pytest.param(
+                False,
+                mock.DEFAULT,  # This will allow the call to pass through
+                "Invalid attribute in query conditions",
+                id="invalid_attribute"
+            ),
+            pytest.param(
+                True,
+                SQLAlchemyError("Database connection failed"),
+                "Database query failed",
+                id="database_error"
+            ),
+            pytest.param(
+                True,
+                lambda x : None,
+                "No matching record found",
+                id="no_results"
+            ),
+        ]
+    )
+    @mock.patch("sqlalchemy.orm.Session")
+    def test_fetch_from_db_error_cases(
+        self,
+        mock_session,
+        use_valid_conditions,
+        scalar_side_effect,
+        expected_message,
+        caplog
+    ):
+        reference = DeadlineReference.DAGRUN_LOGICAL_DATE
+        model_reference = DagRun.logical_date
+        conditions = {'dag_id': 'test_dag'} if use_valid_conditions else {'non_existent_column': 'some_value'}
+
+        # Configure mock session
+        mock_session.scalar.side_effect = scalar_side_effect
+
+        with caplog.at_level(logging.ERROR):
+            result = reference._fetch_from_db(
+                model_reference,
+                session=mock_session,
+                **conditions
+            )
+
+            assert result is None
+            assert expected_message in caplog.text
+
+    @pytest.mark.parametrize(
         "method_name, expected_column",
         [
-            pytest.param("dagrun_logical_date", "logical_date", id="logical_date"),
-            pytest.param("dagrun_queued_at", "queued_at", id="queued_at"),
+            pytest.param("dagrun_logical_date", DagRun.logical_date, id="logical_date"),
+            pytest.param("dagrun_queued_at", DagRun.queued_at, id="queued_at"),
         ],
     )
     @mock.patch.object(DeadlineReference, "_fetch_from_db", return_value=DEFAULT_DATE)
@@ -317,4 +367,4 @@ class TestDeadlineReference:
         result = method(dag_id=DAG_ID)
 
         assert isinstance(result, datetime)
-        mock_fetch.assert_called_once_with(DagRun, expected_column, dag_id=DAG_ID)
+        mock_fetch.assert_called_once_with(expected_column, dag_id=DAG_ID)

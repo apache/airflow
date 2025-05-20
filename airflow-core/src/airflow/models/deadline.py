@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Callable
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
@@ -132,7 +133,6 @@ class DeadlineReference(LoggingMixin, Enum):
     # will execute dagrun_logical_date() to find the dagrun's logical date.
     DAGRUN_LOGICAL_DATE = "dagrun_logical_date"
     DAGRUN_QUEUED_AT = "dagrun_queued_at"
-    _CUSTOM_REFERENCE_BASE = "_custom_reference"
 
     def __init__(self, value):
         self._fixed_dt = None  # Initialize the storage for fixed datetime
@@ -162,34 +162,48 @@ class DeadlineReference(LoggingMixin, Enum):
         return self.evaluate_with()
 
     @provide_session
-    def _fetch_from_db(self, model_class: Base, column: str, session=None, **conditions) -> datetime:
+    def _fetch_from_db(self, model_reference: Column, session=None, **conditions) -> datetime | None:
         """
         Fetch a datetime stored in the database.
 
-        :param model_class: The Airflow model class (e.g., DagRun, TaskInstance, etc.)
-        :param column: The column name to fetch
+        :param model_reference: SQLAlchemy Column reference (e.g., DagRun.logical_date, TaskInstance.queued_dttm, etc.)
         :param session: SQLAlchemy session (provided by decorator)
 
         :param conditions: Key-value pairs which are passed to the WHERE clause
         """
-        query = select(getattr(model_class, column))
+        query = select(model_reference)
 
-        for key, value in conditions.items():
-            query = query.where(getattr(model_class, key) == value)
+        try:
+            for key, value in conditions.items():
+                query = query.where(getattr(model_reference.class_, key) == value)
+        except AttributeError as e:
+            self.log.error("Invalid attribute in query conditions: {%s}", str(e))
+            return None
+
         # This should build a query similar to:
         # session.scalar(select(DagRun.logical_date).where(DagRun.dag_id == dag_id))
         self.log.debug("db query: session.scalar(%s)", query)
-        return session.scalar(query)
+
+        try:
+            result = session.scalar(query)
+        except SQLAlchemyError as e:
+            self.log.error("Database query failed: (%s)", str(e))
+            return None
+
+        if result is None:
+            self.log.error("No matching record found in the database.")
+
+        return result
 
     def dagrun_logical_date(self, dag_id: str) -> datetime:
         from airflow.models import DagRun
 
-        return self._fetch_from_db(DagRun, "logical_date", dag_id=dag_id)
+        return self._fetch_from_db(DagRun.logical_date, dag_id=dag_id)
 
     def dagrun_queued_at(self, dag_id: str) -> datetime:
         from airflow.models import DagRun
 
-        return self._fetch_from_db(DagRun, "queued_at", dag_id=dag_id)
+        return self._fetch_from_db(DagRun.queued_at, dag_id=dag_id)
 
 
 class DeadlineAlert:
