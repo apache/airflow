@@ -2242,6 +2242,7 @@ export const ensureUseDagVersionServiceGetDagVersionsData = (
  * @param data The data for the request.
  * @param data.tables List of tables to include
  * @param data.skipRecordCount Skip record count
+ * @param data.skipSize Skip calculating table size
  * @returns MetadataDBStatsResponse Successful Response
  * @throws ApiError
  */
@@ -2249,15 +2250,17 @@ export const ensureUseMaintenanceServiceGetDbStatsData = (
   queryClient: QueryClient,
   {
     skipRecordCount,
+    skipSize,
     tables,
   }: {
     skipRecordCount?: boolean;
+    skipSize?: boolean;
     tables?: string[];
   } = {},
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ skipRecordCount, tables }),
-    queryFn: () => MaintenanceService.getDbStats({ skipRecordCount, tables }),
+    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ skipRecordCount, skipSize, tables }),
+    queryFn: () => MaintenanceService.getDbStats({ skipRecordCount, skipSize, tables }),
   });
 /**
  * Get Health

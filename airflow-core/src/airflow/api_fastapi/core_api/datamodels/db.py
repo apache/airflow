@@ -28,6 +28,7 @@ class TableStats(BaseModel):
     table_name: str
     record_count: int | None
     oldest_record: datetime | None
+    size_mb: float | None = None
 
 
 class MetadataDBStatsResponse(BaseModel):

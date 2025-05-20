@@ -718,3 +718,4 @@ QueryConnectionIdPatternSearch = Annotated[
 # DB stats
 QueryTablesFilter = Annotated[list[str], Query(default_factory=list, description="List of tables to include")]
 QuerySkipRecordCount = Annotated[bool, Query(description="Skip record count")]
+QuerySkipTableSize = Annotated[bool, Query(description="Skip calculating table size")]

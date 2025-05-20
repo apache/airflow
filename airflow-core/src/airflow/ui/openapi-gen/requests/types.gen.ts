@@ -1091,6 +1091,7 @@ export type TableStats = {
   table_name: string;
   record_count: number | null;
   oldest_record: string | null;
+  size_mb?: number | null;
 };
 
 /**
@@ -2724,6 +2725,10 @@ export type GetDbStatsData = {
    * Skip record count
    */
   skipRecordCount?: boolean;
+  /**
+   * Skip calculating table size
+   */
+  skipSize?: boolean;
   /**
    * List of tables to include
    */

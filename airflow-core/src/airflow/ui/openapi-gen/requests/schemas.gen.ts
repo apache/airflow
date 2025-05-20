@@ -4099,6 +4099,17 @@ export const $TableStats = {
       ],
       title: "Oldest Record",
     },
+    size_mb: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Size Mb",
+    },
   },
   type: "object",
   required: ["table_name", "record_count", "oldest_record"],

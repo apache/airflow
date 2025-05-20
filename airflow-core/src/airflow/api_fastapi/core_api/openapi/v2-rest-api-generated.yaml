@@ -6905,9 +6905,18 @@ paths:
         schema:
           type: boolean
           description: Skip record count
-          default: false
+          default: true
           title: Skip Record Count
         description: Skip record count
+      - name: skip_size
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Skip calculating table size
+          default: true
+          title: Skip Size
+        description: Skip calculating table size
       responses:
         '200':
           description: Successful Response
@@ -9768,6 +9777,11 @@ components:
             format: date-time
           - type: 'null'
           title: Oldest Record
+        size_mb:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Size Mb
       type: object
       required:
       - table_name

@@ -19,11 +19,11 @@ from __future__ import annotations
 from sqlalchemy import func
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.parameters import QuerySkipRecordCount, QueryTablesFilter
+from airflow.api_fastapi.common.parameters import QuerySkipRecordCount, QuerySkipTableSize, QueryTablesFilter
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.db import MetadataDBStatsResponse, TableStats
 from airflow.utils.db import reflect_tables
-from airflow.utils.db_cleanup import _effective_table_names
+from airflow.utils.db_cleanup import _effective_table_names, calculate_table_size
 
 db_router = AirflowRouter(tags=["Maintenance"], prefix="/maintenance/db")
 
@@ -32,7 +32,8 @@ db_router = AirflowRouter(tags=["Maintenance"], prefix="/maintenance/db")
 def get_db_stats(
     tables: QueryTablesFilter,
     session: SessionDep,
-    skip_record_count: QuerySkipRecordCount = False,
+    skip_record_count: QuerySkipRecordCount = True,
+    skip_size: QuerySkipTableSize = True,
 ) -> MetadataDBStatsResponse:
     existing_tables = reflect_tables(tables=None, session=session).tables
     _, effective_config_dict = _effective_table_names(table_names=tables)
@@ -48,12 +49,14 @@ def get_db_stats(
         total_rows = (
             session.query(func.count()).select_from(orm_model).scalar() if not skip_record_count else None
         )
+        size_mb = calculate_table_size(table_name=table_name, session=session) if not skip_size else None
 
         stats.append(
             TableStats(
                 table_name=table_name,
                 oldest_record=oldest_ts,
                 record_count=total_rows,
+                size_mb=size_mb,
             )
         )
     return MetadataDBStatsResponse(tables=stats)
