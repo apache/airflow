@@ -977,6 +977,7 @@ class TestHandleRequest:
 
         return subprocess, read_end
 
+    @patch("airflow.sdk.execution_time.supervisor.mask_secret")
     @patch("airflow.sdk.execution_time.secrets_masker._secrets_masker")
     @pytest.mark.parametrize(
         ["message", "expected_buffer", "client_attr_path", "method_arg", "method_kwarg", "mock_response"],
@@ -1490,6 +1491,7 @@ class TestHandleRequest:
     def test_handle_requests(
         self,
         mock_secrets_masker,
+        mock_mask_secret,
         watched_subprocess,
         mocker,
         time_machine,
@@ -1524,6 +1526,11 @@ class TestHandleRequest:
         next(generator)
         msg = message.model_dump_json().encode() + b"\n"
         generator.send(msg)
+
+        if isinstance(message, GetVariable):
+            mock_mask_secret.assert_called_once()
+            mock_mask_secret.assert_called_with("test_value", "test_key")
+
         time_machine.move_to(timezone.datetime(2024, 10, 31), tick=False)
 
         # Verify the correct client method was called
