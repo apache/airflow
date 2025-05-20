@@ -122,4 +122,4 @@ class TestDateTimeSensor:
         }
         sensor.render_template_fields(ctx)
 
-        assert isinstance(sensor._moment(), expected_type)
+        assert isinstance(sensor._moment, expected_type)
