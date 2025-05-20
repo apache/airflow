@@ -98,6 +98,7 @@ class DateTimeSensor(BaseSensorOperator):
         self.log.info("Checking if the time (%s) has come", self.target_time)
         return timezone.utcnow() > timezone.parse(self.target_time)
 
+    @property
     def _moment(self) -> datetime.datetime:
         import pendulum
 
@@ -152,11 +153,11 @@ class DateTimeSensorAsync(DateTimeSensor):
         self.defer(
             method_name="execute_complete",
             trigger=DateTimeTrigger(
-                moment=self._moment(),
+                moment=self._moment,
                 end_from_trigger=self.end_from_trigger,
             )
             if AIRFLOW_V_3_0_PLUS
-            else DateTimeTrigger(moment=self._moment()),
+            else DateTimeTrigger(moment=self._moment),
         )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
