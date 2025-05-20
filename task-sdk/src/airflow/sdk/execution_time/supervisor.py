@@ -1469,7 +1469,7 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param bundle_info: Current DagRun of the task instance.
+    :param bundle_info: Information of the DAG bundle to use for this task instance.
     :param dag_rel_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
