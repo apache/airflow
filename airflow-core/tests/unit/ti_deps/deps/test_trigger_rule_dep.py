@@ -26,6 +26,7 @@ from unittest.mock import Mock
 import pytest
 
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task, task_group
@@ -120,7 +121,7 @@ def get_mapped_task_dagrun(session, dag_maker):
         def do_something_else(i):
             return 1
 
-        with dag_maker(dag_id="test_dag"):
+        with dag_maker(dag_id="test_dag") as dag:
             nums = do_something.expand(i=[i + 1 for i in range(5)])
             do_something_else.expand(i=nums)
             if add_setup_tasks:
@@ -136,8 +137,13 @@ def get_mapped_task_dagrun(session, dag_maker):
         def _expand_tasks(task_instance: str, upstream: str) -> BaseOperator | None:
             ti = dr.get_task_instance(task_instance, session=session)
             ti.map_index = 0
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            if TYPE_CHECKING:
+                assert dag_version
             for map_index in range(1, 5):
-                ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
+                ti = TaskInstance(
+                    ti.task, run_id=dr.run_id, map_index=map_index, dag_version_id=dag_version.id
+                )
                 session.add(ti)
                 ti.dag_run = dr
             session.flush()
