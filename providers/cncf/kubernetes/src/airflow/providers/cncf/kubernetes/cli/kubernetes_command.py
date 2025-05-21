@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime, timedelta
+from unittest import mock
 
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
@@ -66,7 +67,10 @@ def generate_pod_yaml(args):
     kube_config = KubeConfig()
 
     for task in dag.tasks:
-        ti = TaskInstance(task, run_id=dr.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task, run_id=dr.run_id, dag_version_id=dr.created_dag_version_id)
+        else:
+            ti = TaskInstance(task, run_id=dr.run_id)
         ti.dag_run = dr
         ti.dag_model = dm
 
