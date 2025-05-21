@@ -34,7 +34,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import TaskGroup
+from airflow.sdk import TaskGroup, task, task_group
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
@@ -236,6 +236,69 @@ class TestTIRunState:
             },
         )
         assert response.status_code == 409
+
+    def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
+        """
+        Test that the Task Instance upstream_map_indexes is correctly fetched when to running  the Task Instances
+        """
+
+        with dag_maker("test_dynamic_task_mapping_with_parse_time_value", serialized=True):
+
+            @task_group
+            def task_group_1(arg1):
+                @task
+                def group1_task_1(arg1):
+                    return {"a": arg1}
+
+                @task
+                def group1_task_2(arg2):
+                    return arg2
+
+                group1_task_2(group1_task_1(arg1))
+
+            @task
+            def task2():
+                return None
+
+            task_group_1.expand(arg1=[0, 1]) >> task2()
+
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        # key: (task_id, map_index)
+        # value: result upstream_map_indexes ({task_id: map_indexes})
+        expected_upstream_map_indexes = {
+            # no upstream task for task_group_1.group_task_1
+            ("task_group_1.group1_task_1", 0): {},
+            ("task_group_1.group1_task_1", 1): {},
+            # the upstream task for task_group_1.group_task_2 is task_group_1.group_task_2
+            # since they are in the same task group, the upstream map index should be the same as the task
+            ("task_group_1.group1_task_2", 0): {"task_group_1.group1_task_1": 0},
+            ("task_group_1.group1_task_2", 1): {"task_group_1.group1_task_1": 1},
+            # the upstream task for task2 is the last tasks of task_group_1, which is
+            # task_group_1.group_task_2
+            # since they are not in the same task group, the upstream map index should include all the
+            # expanded tasks
+            ("task2", -1): {"task_group_1.group1_task_2": [0, 1]},
+        }
+
+        for ti in dr.get_task_instances():
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+            assert response.status_code == 200
+            upstream_map_indexes = response.json()["upstream_map_indexes"]
+            assert upstream_map_indexes == expected_upstream_map_indexes[(ti.task_id, ti.map_index)]
 
     def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
         instant_str = "2024-09-30T12:00:00Z"
