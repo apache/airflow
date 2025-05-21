@@ -362,6 +362,7 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "navbar_text_color"): ("webserver", "navbar_text_color", "3.0.2"),
         ("fab", "navbar_hover_color"): ("webserver", "navbar_hover_color", "3.0.2"),
         ("fab", "navbar_text_hover_color"): ("webserver", "navbar_text_hover_color", "3.0.2"),
+        ("api", "secret_key"): ("webserver", "secret_key", "3.0.2"),
     }
 
     # A mapping of new section -> (old section, since_version).

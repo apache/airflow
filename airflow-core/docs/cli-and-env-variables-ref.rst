@@ -77,7 +77,7 @@ Environment Variables
 * ``result_backend`` in ``[celery]`` section
 * ``password`` in ``[atlas]`` section
 * ``smtp_password`` in ``[smtp]`` section
-* ``secret_key`` in ``[webserver]`` section
+* ``secret_key`` in ``[api]`` section
 
 .. envvar:: AIRFLOW__{SECTION}__{KEY}_SECRET
 
