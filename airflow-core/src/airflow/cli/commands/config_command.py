@@ -443,6 +443,10 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("api", "access_logfile"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "enable_swagger_ui"),
+        renamed_to=ConfigParameter("api", "enable_swagger_ui"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "error_logfile"),
         was_deprecated=False,
     ),
