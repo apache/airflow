@@ -1188,6 +1188,8 @@ There are few special considerations when the list of provider is updated.
   in [airflow-site](https://github.com/apache/airflow-site) repository.
 
 ```shell script
+cd airflow-site
+export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
 cd "${AIRFLOW_SITE_DIRECTORY}"
 branch="add-documentation-$(date "+%Y-%m-%d%n")"
 git checkout -b "${branch}"
@@ -1210,7 +1212,7 @@ list and stable links should be updated, also Fastly cache will be invalidated.
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 git checkout main
-git pull
+git pull apache main
 current_date=$(date '+%Y-%m-%d%n')
 branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
