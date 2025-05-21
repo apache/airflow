@@ -182,7 +182,7 @@ class PineconeHook(BaseHook):
         replicas: int | None = None,
         shards: int | None = None,
         pods: int | None = None,
-        pod_type: str | None = "p1.x1",
+        pod_type: str = "p1.x1",
         metadata_config: dict | None = None,
         source_collection: str | None = None,
         environment: str | None = None,
@@ -203,7 +203,7 @@ class PineconeHook(BaseHook):
             replicas=replicas,
             shards=shards,
             pods=pods,
-            pod_type=pod_type,
+            pod_type=pod_type,  # type: ignore[arg-type]
             metadata_config=metadata_config,
             source_collection=source_collection,
         )
