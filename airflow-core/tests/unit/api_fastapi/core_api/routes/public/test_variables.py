@@ -44,6 +44,10 @@ TEST_VARIABLE_KEY3 = "dictionary_password"
 TEST_VARIABLE_VALUE3 = '{"password": "some_password"}'
 TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
+TEST_VARIABLE_KEY4 = "test_variable_key/with_slashes"
+TEST_VARIABLE_VALUE4 = "test_variable_value"
+TEST_VARIABLE_DESCRIPTION4 = "Some description for the variable"
+
 
 TEST_VARIABLE_SEARCH_KEY = "test_variable_search_key"
 TEST_VARIABLE_SEARCH_VALUE = "random search value"
@@ -79,6 +83,13 @@ def _create_variables(session) -> None:
     )
 
     Variable.set(
+        key=TEST_VARIABLE_KEY4,
+        value=TEST_VARIABLE_VALUE4,
+        description=TEST_VARIABLE_DESCRIPTION4,
+        session=session,
+    )
+
+    Variable.set(
         key=TEST_VARIABLE_SEARCH_KEY,
         value=TEST_VARIABLE_SEARCH_VALUE,
         description=TEST_VARIABLE_SEARCH_DESCRIPTION,
@@ -102,8 +113,10 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
         variables = session.query(Variable).all()
-        assert len(variables) == 4
+        assert len(variables) == 5
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 204
+        response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY4}")
         assert response.status_code == 204
         variables = session.query(Variable).all()
         assert len(variables) == 3
@@ -157,6 +170,15 @@ class TestGetVariable(TestVariableEndpoint):
                 },
             ),
             (
+                TEST_VARIABLE_KEY4,
+                {
+                    "key": TEST_VARIABLE_KEY4,
+                    "value": TEST_VARIABLE_VALUE4,
+                    "description": TEST_VARIABLE_DESCRIPTION4,
+                    "is_encrypted": True,
+                },
+            ),
+            (
                 TEST_VARIABLE_SEARCH_KEY,
                 {
                     "key": TEST_VARIABLE_SEARCH_KEY,
@@ -194,35 +216,75 @@ class TestGetVariables(TestVariableEndpoint):
         "query_params, expected_total_entries, expected_keys",
         [
             # Filters
-            ({}, 4, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY]),
-            ({"limit": 1}, 4, [TEST_VARIABLE_KEY]),
-            ({"limit": 1, "offset": 1}, 4, [TEST_VARIABLE_KEY2]),
+            (
+                {},
+                5,
+                [
+                    TEST_VARIABLE_KEY,
+                    TEST_VARIABLE_KEY2,
+                    TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY4,
+                    TEST_VARIABLE_SEARCH_KEY,
+                ],
+            ),
+            ({"limit": 1}, 5, [TEST_VARIABLE_KEY]),
+            ({"limit": 1, "offset": 1}, 5, [TEST_VARIABLE_KEY2]),
             # Sort
             (
                 {"order_by": "id"},
-                4,
-                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY],
+                5,
+                [
+                    TEST_VARIABLE_KEY,
+                    TEST_VARIABLE_KEY2,
+                    TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY4,
+                    TEST_VARIABLE_SEARCH_KEY,
+                ],
             ),
             (
                 {"order_by": "-id"},
-                4,
-                [TEST_VARIABLE_SEARCH_KEY, TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY],
+                5,
+                [
+                    TEST_VARIABLE_SEARCH_KEY,
+                    TEST_VARIABLE_KEY4,
+                    TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY2,
+                    TEST_VARIABLE_KEY,
+                ],
             ),
             (
                 {"order_by": "key"},
-                4,
-                [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY, TEST_VARIABLE_SEARCH_KEY],
+                5,
+                [
+                    TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY2,
+                    TEST_VARIABLE_KEY,
+                    TEST_VARIABLE_KEY4,
+                    TEST_VARIABLE_SEARCH_KEY,
+                ],
             ),
             (
                 {"order_by": "-key"},
-                4,
-                [TEST_VARIABLE_SEARCH_KEY, TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3],
+                5,
+                [
+                    TEST_VARIABLE_SEARCH_KEY,
+                    TEST_VARIABLE_KEY4,
+                    TEST_VARIABLE_KEY,
+                    TEST_VARIABLE_KEY2,
+                    TEST_VARIABLE_KEY3,
+                ],
             ),
             # Search
             (
                 {"variable_key_pattern": "~"},
-                4,
-                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3, TEST_VARIABLE_SEARCH_KEY],
+                5,
+                [
+                    TEST_VARIABLE_KEY,
+                    TEST_VARIABLE_KEY2,
+                    TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY4,
+                    TEST_VARIABLE_SEARCH_KEY,
+                ],
             ),
             ({"variable_key_pattern": "search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
         ],
@@ -279,6 +341,21 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": "The new value",
                     "description": TEST_VARIABLE_DESCRIPTION,
+                    "is_encrypted": True,
+                },
+            ),
+            (
+                TEST_VARIABLE_KEY4,
+                {
+                    "key": TEST_VARIABLE_KEY4,
+                    "value": "The new value",
+                    "description": "The new description",
+                },
+                {"update_mask": ["value"]},
+                {
+                    "key": TEST_VARIABLE_KEY4,
+                    "value": "The new value",
+                    "description": TEST_VARIABLE_DESCRIPTION4,
                     "is_encrypted": True,
                 },
             ),
