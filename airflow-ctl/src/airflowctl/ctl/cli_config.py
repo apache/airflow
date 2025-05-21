@@ -197,6 +197,7 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
+ARG_VERSION_GET = Arg(dest="version", help="show Version information")
 
 
 class ActionCommand(NamedTuple):
@@ -300,7 +301,7 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
-        exclude_operation_names = ["LoginOperations"]
+        exclude_operation_names = ["LoginOperations", "VersionOperations"]
         exclude_method_names = [
             "error",
             "__init__",
@@ -580,6 +581,13 @@ core_commands: list[CLICommand] = [
         help="Manage authentication for CLI. "
         "Either pass token from environment variable/parameter or pass username and password.",
         subcommands=AUTH_COMMANDS,
+    ),
+    ActionCommand(
+        name="version",
+        help="Show version information",
+        description="Show version information",
+        func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
+        args=(ARG_VERSION_GET,)
     ),
 ]
 # Add generated group commands
