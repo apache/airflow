@@ -92,7 +92,6 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
 )
-from airflow.sdk.execution_time.secrets_masker import SecretsMasker
 from airflow.sdk.execution_time.supervisor import (
     BUFFER_SIZE,
     ActivitySubprocess,
@@ -978,7 +977,6 @@ class TestHandleRequest:
         return subprocess, read_end
 
     @patch("airflow.sdk.execution_time.supervisor.mask_secret")
-    @patch("airflow.sdk.execution_time.secrets_masker._secrets_masker")
     @pytest.mark.parametrize(
         ["message", "expected_buffer", "client_attr_path", "method_arg", "method_kwarg", "mock_response"],
         [
@@ -1490,7 +1488,6 @@ class TestHandleRequest:
     )
     def test_handle_requests(
         self,
-        mock_secrets_masker,
         mock_mask_secret,
         watched_subprocess,
         mocker,
@@ -1513,7 +1510,6 @@ class TestHandleRequest:
             3. Checks that the buffer is updated with the expected response.
             4. Verifies that the response is correctly decoded.
         """
-        mock_secrets_masker.return_value = SecretsMasker()
         watched_subprocess, read_socket = watched_subprocess
 
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
@@ -1528,7 +1524,6 @@ class TestHandleRequest:
         generator.send(msg)
 
         if isinstance(message, GetVariable):
-            mock_mask_secret.assert_called_once()
             mock_mask_secret.assert_called_with("test_value", "test_key")
 
         time_machine.move_to(timezone.datetime(2024, 10, 31), tick=False)
