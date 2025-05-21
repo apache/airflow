@@ -45,12 +45,9 @@ def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..
     def inner_wrapper(self, *args, **kwargs) -> RT:
         if args:
             raise AirflowException("You must use keyword arguments in this methods rather than positional")
-        kwargs["project"] = kwargs.get("project", self.project)
 
-        if "endpoint" in kwargs:
-            kwargs["endpoint"] = kwargs["endpoint"] or self.endpoint
-        else:
-            kwargs["endpoint"] = self.endpoint
+        kwargs["project"] = kwargs.get("project", self.project)
+        kwargs["endpoint"] = kwargs.get("endpoint", self.endpoint)
 
         if not kwargs["project"]:
             raise AirflowException(

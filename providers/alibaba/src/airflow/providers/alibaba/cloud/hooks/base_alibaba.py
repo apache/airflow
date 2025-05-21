@@ -79,8 +79,7 @@ class AlibabaBaseHook(BaseHook):
 
     def _get_field(self, field_name: str, default: Any = None) -> Any:
         """Fetch a field from extras, and returns it."""
-        extras = getattr(self, "extras", {})
-        value = extras.get(field_name)
+        value = self.extras.get(field_name)
         return value if value is not None else default
 
     def get_access_key_credential(self) -> AccessKeyCredentials:
