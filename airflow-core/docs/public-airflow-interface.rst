@@ -48,7 +48,7 @@ Airflow Interface and might change at any time.
 
 You can also use Airflow's Public Interface via the :doc:`Stable REST API <stable-rest-api-ref>`_ (based on the
 OpenAPI specification). For specific needs you can also use the
-:doc:`Airflow Command Line Interface (CLI) <cli-and-env-variables-ref>`_ though its behaviour might change
+:doc:`Airflow Command Line Interface (CLI) <cli-and-env-variables-ref>` though its behaviour might change
 in details (such as output format and available flags) so if you want to rely on those in programmatic
 way, the Stable REST API is recommended.
 
@@ -407,11 +407,11 @@ Everything not mentioned in this document should be considered as non-Public Int
 Sometimes in other applications those components could be relied on to keep backwards compatibility,
 but in Airflow they are not parts of the Public Interface and might change any time:
 
-* :doc:`Database structure <database-erd-ref>`_ is considered to be an internal implementation
+* :doc:`Database structure <database-erd-ref>` is considered to be an internal implementation
   detail and you should not assume the structure is going to be maintained in a
   backwards-compatible way.
 
-* :doc:`Web UI <ui>`_ is continuously evolving and there are no backwards compatibility guarantees on HTML elements.
+* :doc:`Web UI <ui>` is continuously evolving and there are no backwards compatibility guarantees on HTML elements.
 
 * Python classes except those explicitly mentioned in this document, are considered an
   internal implementation detail and you should not assume they will be maintained
