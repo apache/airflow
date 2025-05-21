@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-20T02:25:19.433811
+# This constraints file was automatically generated on 2025-05-21T14:40:46.627548
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -113,7 +113,7 @@ azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==23.3.0
+azure-mgmt-resource==23.4.0
 azure-mgmt-storage==22.2.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
@@ -161,7 +161,7 @@ colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.10.0
 connexion==2.14.2
-coverage==7.8.0
+coverage==7.8.1
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -208,12 +208,12 @@ flit==3.12.0
 flit_core==3.12.0
 flower==2.0.1
 frozenlist==1.6.0
-fsspec==2025.3.2
+fsspec==2025.5.0
 future==1.0.0
 gcloud-aio-auth==5.4.1
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
-gcsfs==2025.3.2
+gcsfs==2025.5.0.post1
 geomet==0.2.1.post1
 gevent==25.5.1
 gitdb==4.0.12
@@ -240,12 +240,12 @@ google-cloud-container==2.56.1
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
-google-cloud-dataform==0.6.1
+google-cloud-dataform==0.6.2
 google-cloud-dataplex==2.10.2
 google-cloud-dataproc-metastore==1.18.2
 google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
-google-cloud-kms==3.5.0
+google-cloud-kms==3.5.1
 google-cloud-language==2.17.1
 google-cloud-logging==3.12.1
 google-cloud-managedkafka==0.1.10
@@ -390,7 +390,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.4.4
 mypy-boto3-appflow==1.38.0
-mypy-boto3-rds==1.38.2
+mypy-boto3-rds==1.38.20
 mypy-boto3-redshift-data==1.38.0
 mypy-boto3-s3==1.38.0
 mypy==1.9.0
@@ -433,7 +433,7 @@ ordered-set==4.1.0
 orjson==3.10.18
 oss2==2.19.1
 packaging==24.2
-pagerduty==2.1.1
+pagerduty==2.1.2
 pandas-gbq==0.29.0
 pandas-stubs==2.2.3.250308
 pandas==2.1.4
@@ -449,14 +449,14 @@ pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
 pinecone-plugin-interface==0.0.7
-pinecone==6.0.2
+pinecone==7.0.0
 pinotdb==5.6.0
 pipdeptree==2.26.1
 platformdirs==4.3.8
 pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
-polars==1.29.0
+polars==1.30.0
 portalocker==2.10.1
 pprintpp==0.4.0
 pre-commit-uv==4.1.4
@@ -553,12 +553,12 @@ rich-click==1.8.9
 rich-toolkit==0.14.6
 rich==13.9.4
 roman-numerals-py==3.1.0
-rpds-py==0.25.0
+rpds-py==0.25.1
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.10
 ruff==0.11.2
-s3fs==2025.3.2
+s3fs==2025.5.0
 s3transfer==0.11.3
 sagemaker_studio==1.0.14
 scikit-learn==1.6.1
@@ -657,7 +657,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250516
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20250515
-types-setuptools==80.7.0.20250516
+types-setuptools==80.8.0.20250521
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
@@ -693,7 +693,7 @@ yamllint==1.37.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.0
-ydb-dbapi==0.1.11
+ydb-dbapi==0.1.12
 ydb==3.21.2
 zeep==4.3.1
 zenpy==2.0.56
