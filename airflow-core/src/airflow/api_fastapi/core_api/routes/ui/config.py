@@ -30,7 +30,6 @@ from airflow.settings import DASHBOARD_UIALERTS
 config_router = AirflowRouter(tags=["Config"])
 
 WEBSERVER_CONFIG_KEYS = [
-    "navbar_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
@@ -39,9 +38,6 @@ WEBSERVER_CONFIG_KEYS = [
     "require_confirmation_dag_change",
     "enable_swagger_ui",
     "instance_name_has_markup",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
 ]
 
 
