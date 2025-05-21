@@ -25,6 +25,8 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.dms import (
@@ -294,6 +296,10 @@ class TestDmsDescribeTasksOperator:
         )
 
         if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(self.dag.dag_id)
+            ti = TaskInstance(task=describe_task, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -309,7 +315,7 @@ class TestDmsDescribeTasksOperator:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=describe_task)
+            ti = TaskInstance(task=describe_task)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
@@ -491,6 +497,10 @@ class TestDmsDescribeReplicationConfigsOperator:
         )
 
         if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 run_id="test",
@@ -506,7 +516,7 @@ class TestDmsDescribeReplicationConfigsOperator:
                 state=DagRunState.RUNNING,
                 execution_date=logical_date,
             )
-        ti = TaskInstance(task=op)
+            ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
