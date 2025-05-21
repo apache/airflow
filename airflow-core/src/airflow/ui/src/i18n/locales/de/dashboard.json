@@ -1,0 +1,49 @@
+{
+  "welcome": "Willkommen",
+  "stats": {
+    "stats": "Statistiken",
+    "failedDags": "Fehlgeschlagene Dags",
+    "runningDags": "Laufende Dags",
+    "activeDags": "Aktive Dags",
+    "queuedDags": "Dags in Warteschlange"
+  },
+  "health": {
+    "health": "System-Gesundheit",
+    "metaDatabase": "Meta-Datenbank",
+    "scheduler": "Scheduler",
+    "triggerer": "Triggerer",
+    "dagProcessor": "Dag Prozessor"
+  },
+  "poolSlots": "Pool Plätze",
+  "managePools": "Pools Verwalten",
+  "history": "Historie",
+  "dagRun_one": "Dag Lauf",
+  "dagRun_other": "Dag Läufe",
+  "taskInstance_one": "Task Instanz",
+  "taskInstance_other": "Task Instanzen",
+  "assetEvent_one": "Asset-Ereignis",
+  "assetEvent_other": "Asset-Ereignisse",
+  "states": {
+    "queued": "Wartend",
+    "running": "Laufend",
+    "success": "Erfolgreich",
+    "failed": "Fehlgeschlagen",
+    "skipped": "Übersprungen",
+    "removed": "Gelöscht",
+    "scheduled": "Geplant",
+    "restarting": "Im Neustart",
+    "up_for_retry": "Warte auf neuen Versuch",
+    "up_for_reschedule": "Warte auf Neuplanung",
+    "upstream_failed": "Vorgelagerte fehlgeschlagen",
+    "deferred": "Ausgesetzt",
+    "no_status": "Kein Status"
+  },
+  "noAssetEvents": "Keine Asset-Ereignisse vorliegend.",
+  "sortBy": {
+    "newestFirst": "Neueste zuerst",
+    "oldestFirst": "Älteste zuerst"
+  },
+  "source": "Quellcode",
+  "group": "Gruppe",
+  "uri": "Uri"
+}
