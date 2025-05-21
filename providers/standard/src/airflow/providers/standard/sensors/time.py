@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 import datetime
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sensors.base import BaseSensorOperator
 
@@ -117,3 +119,19 @@ class TimeSensor(BaseSensorOperator):
 
         # self.target_date has been converted to UTC, so we do not need to convert timezone
         return timezone.utcnow() > self.target_datetime
+
+
+class TimeSensorAsync(TimeSensor):
+    """
+    Deprecated. Use TimeSensor with deferrable=True instead.
+
+    :sphinx-autoapi-skip:
+    """
+
+    def __init__(self, **kwargs) -> None:
+        warnings.warn(
+            "TimeSensorAsync is deprecated and will be removed in a future version. Use `TimeSensor` with deferrable=True instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(deferrable=True, **kwargs)
