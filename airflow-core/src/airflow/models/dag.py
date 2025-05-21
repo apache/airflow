@@ -1973,7 +1973,10 @@ class DagModel(Base):
         "scheduler", "max_dagruns_to_create_per_loop", fallback=10
     )
     dag_versions = relationship(
-        "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
+        "DagVersion",
+        back_populates="dag_model",
+        cascade="save-update, merge",
+        passive_deletes=True,
     )
 
     def __init__(self, **kwargs):

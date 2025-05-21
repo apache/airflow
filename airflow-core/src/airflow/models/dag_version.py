@@ -21,7 +21,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import uuid6
-from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, select
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, UniqueConstraint, select
 from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy_utils import UUIDType
 
@@ -67,6 +67,13 @@ class DagVersion(Base):
 
     __table_args__ = (
         UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="1",
+        comment="Soft-delete flag; only active versions show up in APIs",
     )
 
     def __repr__(self):
@@ -121,7 +128,7 @@ class DagVersion(Base):
         :param dag_id: The DAG ID.
         :return: The select object.
         """
-        query = select(cls).where(cls.dag_id == dag_id)
+        query = select(cls).where(cls.dag_id == dag_id, cls.is_active)
         if bundle_version:
             query = query.where(cls.bundle_version == bundle_version)
 
@@ -163,7 +170,7 @@ class DagVersion(Base):
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
         """
-        Get the version of the DAG.
+        Get the version of the DAG, if version_number is given, otherwise only active versions.
 
         :param dag_id: The DAG ID.
         :param version_number: The version number.
@@ -171,8 +178,10 @@ class DagVersion(Base):
         :return: The version of the DAG or None if not found.
         """
         version_select_obj = select(cls).where(cls.dag_id == dag_id)
-        if version_number:
+        if version_number is not None:
             version_select_obj = version_select_obj.where(cls.version_number == version_number)
+        else:
+            version_select_obj = version_select_obj.where(cls.is_active)
 
         return session.scalar(version_select_obj.order_by(cls.id.desc()).limit(1))
 
