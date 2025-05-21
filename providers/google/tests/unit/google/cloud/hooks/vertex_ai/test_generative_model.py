@@ -21,10 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import (
-    AirflowProviderDeprecationWarning,
-)
-
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
 from datetime import timedelta
@@ -147,21 +143,6 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         ):
             self.hook = GenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
             self.hook.get_credentials = self.dummy_get_credentials
-
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
-    def test_text_generation_model_predict(self, mock_model) -> None:
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            self.hook.text_generation_model_predict(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                prompt=TEST_PROMPT,
-                pretrained_model=TEST_LANGUAGE_PRETRAINED_MODEL,
-                temperature=TEST_TEMPERATURE,
-                max_output_tokens=TEST_MAX_OUTPUT_TOKENS,
-                top_p=TEST_TOP_P,
-                top_k=TEST_TOP_K,
-            )
-            assert_warning("generative_model_generate_content", warnings)
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
     def test_text_embedding_model_get_embeddings(self, mock_model) -> None:
