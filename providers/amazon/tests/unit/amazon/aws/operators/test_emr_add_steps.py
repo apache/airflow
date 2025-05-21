@@ -27,6 +27,7 @@ from jinja2 import StrictUndefined
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.utils import timezone
@@ -101,6 +102,12 @@ class TestEmrAddStepsOperator:
     @pytest.mark.db_test
     def test_render_template(self, session, clean_dags_and_dagruns):
         if AIRFLOW_V_3_0_PLUS:
+            self.operator.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
+            from airflow.models.dag_version import DagVersion
+
+            dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
+            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag.dag_id,
                 logical_date=DEFAULT_DATE,
@@ -116,7 +123,7 @@ class TestEmrAddStepsOperator:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=self.operator)
+            ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
@@ -168,6 +175,12 @@ class TestEmrAddStepsOperator:
             do_xcom_push=False,
         )
         if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            from airflow.models.dag_version import DagVersion
+
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(task=test_task, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -183,7 +196,7 @@ class TestEmrAddStepsOperator:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=test_task)
+            ti = TaskInstance(task=test_task)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
