@@ -1496,13 +1496,13 @@ export type type =
  * configuration serializer.
  */
 export type ConfigResponse = {
-  page_size: number;
-  auto_refresh_interval: number;
-  hide_paused_dags_by_default: boolean;
+  page_size: number | null;
+  auto_refresh_interval: number | null;
+  hide_paused_dags_by_default: boolean | null;
   instance_name: string;
   enable_swagger_ui: boolean;
-  require_confirmation_dag_change: boolean;
-  default_wrap: boolean;
+  require_confirmation_dag_change: boolean | null;
+  default_wrap: boolean | null;
   audit_view_excluded_events: string;
   audit_view_included_events: string;
   test_connection: string;

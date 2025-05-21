@@ -24,13 +24,13 @@ from airflow.api_fastapi.common.types import UIAlert
 class ConfigResponse(BaseModel):
     """configuration serializer."""
 
-    page_size: int
-    auto_refresh_interval: int
-    hide_paused_dags_by_default: bool
+    page_size: int | None
+    auto_refresh_interval: int | None
+    hide_paused_dags_by_default: bool | None
     instance_name: str
     enable_swagger_ui: bool
-    require_confirmation_dag_change: bool
-    default_wrap: bool
+    require_confirmation_dag_change: bool | None
+    default_wrap: bool | None
     audit_view_excluded_events: str
     audit_view_included_events: str
     test_connection: str

@@ -6003,15 +6003,36 @@ export const $BaseNodeResponse = {
 export const $ConfigResponse = {
   properties: {
     page_size: {
-      type: "integer",
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Page Size",
     },
     auto_refresh_interval: {
-      type: "integer",
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Auto Refresh Interval",
     },
     hide_paused_dags_by_default: {
-      type: "boolean",
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Hide Paused Dags By Default",
     },
     instance_name: {
@@ -6023,11 +6044,25 @@ export const $ConfigResponse = {
       title: "Enable Swagger Ui",
     },
     require_confirmation_dag_change: {
-      type: "boolean",
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Require Confirmation Dag Change",
     },
     default_wrap: {
-      type: "boolean",
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Default Wrap",
     },
     audit_view_excluded_events: {
