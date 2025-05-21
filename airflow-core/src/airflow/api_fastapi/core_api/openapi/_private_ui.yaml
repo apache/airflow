@@ -934,8 +934,10 @@ components:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
           - type: 'null'
         conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Conf
         note:
           anyOf:
