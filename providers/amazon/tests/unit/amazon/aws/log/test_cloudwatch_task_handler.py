@@ -33,6 +33,8 @@ from pydantic_core import TzInfo
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
     CloudWatchRemoteLogIO,
@@ -199,30 +201,36 @@ class TestCloudwatchTaskHandler:
                 f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
             )
 
-            date = datetime(2020, 1, 1)
-            dag_id = "dag_for_testing_cloudwatch_task_handler"
-            task_id = "task_for_testing_cloudwatch_log_handler"
-            self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
-            task = EmptyOperator(task_id=task_id, dag=self.dag)
-            if AIRFLOW_V_3_0_PLUS:
-                dag_run = DagRun(
-                    dag_id=self.dag.dag_id,
-                    logical_date=date,
-                    run_id="test",
-                    run_type="scheduled",
-                )
-            else:
-                dag_run = DagRun(
-                    dag_id=self.dag.dag_id,
-                    execution_date=date,
-                    run_id="test",
-                    run_type="scheduled",
-                )
-            session.add(dag_run)
-            session.commit()
-            session.refresh(dag_run)
+        date = datetime(2020, 1, 1)
+        dag_id = "dag_for_testing_cloudwatch_task_handler"
+        task_id = "task_for_testing_cloudwatch_log_handler"
+        self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
+        task = EmptyOperator(task_id=task_id, dag=self.dag)
+        if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=date,
+                run_id="test",
+                run_type="scheduled",
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=date,
+                run_id="test",
+                run_type="scheduled",
+            )
+        session.add(dag_run)
+        session.commit()
+        session.refresh(dag_run)
 
-        self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            dag_version = DagVersion.get_latest_version(self.dag.dag_id, session=session)
+            self.ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+        else:
+            self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
