@@ -5793,22 +5793,6 @@ export const $BaseNodeResponse = {
 
 export const $ConfigResponse = {
   properties: {
-    navbar_color: {
-      type: "string",
-      title: "Navbar Color",
-    },
-    navbar_text_color: {
-      type: "string",
-      title: "Navbar Text Color",
-    },
-    navbar_hover_color: {
-      type: "string",
-      title: "Navbar Hover Color",
-    },
-    navbar_text_hover_color: {
-      type: "string",
-      title: "Navbar Text Hover Color",
-    },
     page_size: {
       type: "integer",
       title: "Page Size",
@@ -5867,10 +5851,6 @@ export const $ConfigResponse = {
   },
   type: "object",
   required: [
-    "navbar_color",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
