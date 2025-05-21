@@ -1284,6 +1284,13 @@ secrets:
 api:
   description: ~
   options:
+    enable_swagger_ui:
+      description: |
+        Boolean for running SwaggerUI in the webserver.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
     secret_key:
       description: |
         Secret key used to run your api server. It should be as random as possible. However, when running
@@ -1787,13 +1794,6 @@ webserver:
       type: string
       example: "dagrun_cleared,failed"
       default: ~
-    enable_swagger_ui:
-      description: |
-        Boolean for running SwaggerUI in the webserver.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
 email:
   description: |
     Configuration email backend and whether to
