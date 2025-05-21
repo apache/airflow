@@ -27,7 +27,6 @@ from fastapi.testclient import TestClient
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models import Connection
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.config import conf_vars
@@ -141,7 +140,7 @@ def configure_git_connection_for_dag_bundle(session):
 
 
 @pytest.fixture
-def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle):
+def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle, session):
     """
     Create DAG with multiple versions
 
@@ -151,17 +150,19 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
     """
     dag_id = "dag_with_multiple_versions"
     for version_number in range(1, 4):
-        with dag_maker(dag_id) as dag:
+        with dag_maker(
+            dag_id,
+            session=session,
+            bundle_version=f"some_commit_hash{version_number}",
+        ):
             for task_number in range(version_number):
                 EmptyOperator(task_id=f"task{task_number + 1}")
-        SerializedDagModel.write_dag(
-            dag, bundle_name="dag_maker", bundle_version=f"some_commit_hash{version_number}"
-        )
         dag_maker.create_dagrun(
             run_id=f"run{version_number}",
             logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+            session=session,
         )
-        dag.sync_to_db()
+        session.commit()
 
 
 @pytest.fixture(scope="module")
