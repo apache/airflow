@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import TYPE_CHECKING, Callable
 
 import sqlalchemy_jsonfield
@@ -30,13 +29,14 @@ from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, is_valid_dotpath
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.models.deadline_reference import DeadlineReference
 
 logger = logging.getLogger(__name__)
 
@@ -100,110 +100,6 @@ class Deadline(Base):
     def add_deadline(cls, deadline: Deadline, session: Session = NEW_SESSION):
         """Add the provided deadline to the table."""
         session.add(deadline)
-
-
-class DeadlineReference(LoggingMixin, Enum):
-    """
-    Store the calculation methods for the various Deadline Alert References.
-
-    ------
-    Usage:
-    ------
-
-    Example use when defining a deadline in a DAG:
-
-    DAG(
-        dag_id='dag_with_deadline',
-        deadline=DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
-            interval=timedelta(hours=1),
-            callback=hello_callback,
-        )
-    )
-
-    To parse the deadline reference later we will use something like:
-
-    dag.deadline.reference.evaluate_with(dag_id=dag.dag_id)
-    """
-
-    # Available References.
-    #
-    # The value is the name of the method executed to fetch the datetime
-    # value for the given Reference. For example DAGRUN_LOGICAL_DATE = "dagrun_logical_date"
-    # will execute dagrun_logical_date() to find the dagrun's logical date.
-    DAGRUN_LOGICAL_DATE = "dagrun_logical_date"
-    DAGRUN_QUEUED_AT = "dagrun_queued_at"
-
-    def __init__(self, value):
-        self._fixed_dt = None  # Initialize the storage for fixed datetime
-        super().__init__()
-
-    @classmethod
-    def FIXED_DATETIME(cls, dt: datetime):
-        """
-        Calculate a reference based on a set datetime rather than fetching a value from the database.
-
-        For example, you could set the Deadline for "tomorrow before 9AM" by
-        providing the appropriate datetime object."
-        """
-        instance = object.__new__(cls)
-        instance._value_ = "fixed_datetime"
-        instance._fixed_dt = dt
-        return instance
-
-    def evaluate_with(self, **kwargs):
-        """Call the method in the enum's value with the provided kwargs."""
-        if self._fixed_dt:
-            return self._fixed_dt
-        return getattr(self, self.value)(**kwargs)
-
-    def evaluate(self):
-        """Call evaluate_with() without any conditions, because it looks strange in use that way."""
-        return self.evaluate_with()
-
-    @provide_session
-    def _fetch_from_db(self, model_reference: Column, session=None, **conditions) -> datetime | None:
-        """
-        Fetch a datetime stored in the database.
-
-        :param model_reference: SQLAlchemy Column reference (e.g., DagRun.logical_date, TaskInstance.queued_dttm, etc.)
-        :param session: SQLAlchemy session (provided by decorator)
-
-        :param conditions: Key-value pairs which are passed to the WHERE clause
-        """
-        query = select(model_reference)
-
-        try:
-            for key, value in conditions.items():
-                query = query.where(getattr(model_reference.class_, key) == value)
-        except AttributeError as e:
-            self.log.error("Invalid attribute in query conditions: {%s}", str(e))
-            return None
-
-        # This should build a query similar to:
-        # session.scalar(select(DagRun.logical_date).where(DagRun.dag_id == dag_id))
-        self.log.debug("db query: session.scalar(%s)", query)
-
-        try:
-            result = session.scalar(query)
-        except SQLAlchemyError as e:
-            self.log.error("Database query failed: (%s)", str(e))
-            return None
-
-        if result is None:
-            self.log.error("No matching record found in the database.")
-
-        return result
-
-    def dagrun_logical_date(self, dag_id: str) -> datetime:
-        from airflow.models import DagRun
-
-        return self._fetch_from_db(DagRun.logical_date, dag_id=dag_id)
-
-    def dagrun_queued_at(self, dag_id: str) -> datetime:
-        from airflow.models import DagRun
-
-        return self._fetch_from_db(DagRun.queued_at, dag_id=dag_id)
 
 
 class DeadlineAlert:
