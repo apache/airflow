@@ -239,7 +239,7 @@ class TestTIRunState:
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """
-        Test that the Task Instance upstream_map_indexes is correctly fetched when to running  the Task Instances
+        Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances
         """
 
         with dag_maker("test_dynamic_task_mapping_with_parse_time_value", serialized=True):
@@ -299,6 +299,65 @@ class TestTIRunState:
             assert response.status_code == 200
             upstream_map_indexes = response.json()["upstream_map_indexes"]
             assert upstream_map_indexes == expected_upstream_map_indexes[(ti.task_id, ti.map_index)]
+
+    def test_dynamic_task_mapping_with_xcom(self, client, dag_maker, create_task_instance, session, run_task):
+        """
+        Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances with xcom
+        """
+        from airflow.models.taskmap import TaskMap
+
+        with dag_maker(session=session):
+
+            @task
+            def task_1():
+                return [0, 1]
+
+            @task_group
+            def tg(x, y):
+                @task
+                def task_2():
+                    pass
+
+                task_2()
+
+            @task
+            def task_3():
+                pass
+
+            tg.expand(x=task_1(), y=[1, 2, 3]) >> task_3()
+
+        dr = dag_maker.create_dagrun()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        # Simulate task_1 execution to produce TaskMap.
+        (ti_1,) = decision.schedulable_tis
+        # ti_1 = dr.get_task_instance(task_id="task_1")
+        ti_1.state = TaskInstanceState.SUCCESS
+        session.add(TaskMap.from_task_instance_xcom(ti_1, [0, 1]))
+        session.flush()
+
+        # Now task_2 in mapped tagk group is expanded.
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        (task_3_ti,) = decision.schedulable_tis
+        task_3_ti.set_state(State.QUEUED)
+
+        response = client.patch(
+            f"/execution/task-instances/{task_3_ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+        assert response.json()["upstream_map_indexes"] == {"tg.task_2": [0, 1, 2, 3, 4, 5]}
 
     def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
         instant_str = "2024-09-30T12:00:00Z"
