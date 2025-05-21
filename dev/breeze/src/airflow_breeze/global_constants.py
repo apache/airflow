@@ -192,7 +192,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.1.1"
-UV_VERSION = "0.7.2"
+UV_VERSION = "0.7.3"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -393,6 +393,7 @@ PYTHON_3_6_TO_3_10 = ["3.7", "3.8", "3.9", "3.10"]
 PYTHON_3_7_TO_3_11 = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_11 = ["3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_12 = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+PYTHON_3_9_TO_3_12 = ["3.9", "3.10", "3.11", "3.12"]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -445,6 +446,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.3": PYTHON_3_8_TO_3_12,
     "2.10.4": PYTHON_3_8_TO_3_12,
     "2.10.5": PYTHON_3_8_TO_3_12,
+    "2.11.0": PYTHON_3_9_TO_3_12,
 }
 
 DB_RESET = False
@@ -688,15 +690,15 @@ DEFAULT_EXTRAS = [
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.5",
+        "airflow-version": "2.11.0",
         "remove-providers": "cloudant common.messaging fab git",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
-        "airflow-version": "3.0.0",
-        # TODO: bring back common-messaging when we bump airflow to 3.0.1
-        "remove-providers": "cloudant common.messaging",
+        "airflow-version": "3.0.1",
+        # TODO: Remove fab when we update to Airflow 3.0.2
+        "remove-providers": "cloudant fab",
         "run-tests": "true",
     },
 ]

@@ -113,8 +113,6 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
       - name: "Prepare breeze & PROD image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

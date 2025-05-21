@@ -1742,6 +1742,20 @@ export const $DAGDetailsResponse = {
       ],
       title: "Default Args",
     },
+    owner_links: {
+      anyOf: [
+        {
+          additionalProperties: {
+            type: "string",
+          },
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Owner Links",
+    },
     file_token: {
       type: "string",
       title: "File Token",
@@ -2261,8 +2275,15 @@ export const $DAGRunResponse = {
       ],
     },
     conf: {
-      additionalProperties: true,
-      type: "object",
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Conf",
     },
     note: {
@@ -2890,6 +2911,10 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     bundle_url: {
       anyOf: [
         {
@@ -2904,7 +2929,16 @@ export const $DagVersionResponse = {
     },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
+  required: [
+    "id",
+    "version_number",
+    "dag_id",
+    "bundle_name",
+    "bundle_version",
+    "created_at",
+    "dag_display_name",
+    "bundle_url",
+  ],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;
@@ -5968,22 +6002,6 @@ export const $BaseNodeResponse = {
 
 export const $ConfigResponse = {
   properties: {
-    navbar_color: {
-      type: "string",
-      title: "Navbar Color",
-    },
-    navbar_text_color: {
-      type: "string",
-      title: "Navbar Text Color",
-    },
-    navbar_hover_color: {
-      type: "string",
-      title: "Navbar Hover Color",
-    },
-    navbar_text_hover_color: {
-      type: "string",
-      title: "Navbar Text Hover Color",
-    },
     page_size: {
       type: "integer",
       title: "Page Size",
@@ -6000,10 +6018,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Instance Name",
     },
-    instance_name_has_markup: {
-      type: "boolean",
-      title: "Instance Name Has Markup",
-    },
     enable_swagger_ui: {
       type: "boolean",
       title: "Enable Swagger Ui",
@@ -6015,10 +6029,6 @@ export const $ConfigResponse = {
     default_wrap: {
       type: "boolean",
       title: "Default Wrap",
-    },
-    warn_deployment_exposure: {
-      type: "boolean",
-      title: "Warn Deployment Exposure",
     },
     audit_view_excluded_events: {
       type: "string",
@@ -6057,19 +6067,13 @@ export const $ConfigResponse = {
   },
   type: "object",
   required: [
-    "navbar_color",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
     "instance_name",
-    "instance_name_has_markup",
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",
-    "warn_deployment_exposure",
     "audit_view_excluded_events",
     "audit_view_included_events",
     "test_connection",

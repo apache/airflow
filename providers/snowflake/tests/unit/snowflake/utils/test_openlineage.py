@@ -93,6 +93,9 @@ def test_snowflake_sqlite_account_urls(source, target):
         ("xy12345", "xy12345.us-west-1.aws"),  # No '-' or '_' in name
         ("xy12345.us-west-1.aws", "xy12345.us-west-1.aws"),  # Already complete locator
         ("xy12345.us-west-2.gcp", "xy12345.us-west-2.gcp"),  # Already complete locator for GCP
+        ("xy12345.us-west-2.gcp.us-west-2.gcp", "xy12345.us-west-2.gcp"),  # Duplicated region
+        ("xy12345.us-west-2.gcp.us-west-2.gcp.us-west-2.gcp", "xy12345.us-west-2.gcp"),  # Triple region
+        ("xy12345.us-west-2.gcp.some_random_part", "xy12345.us-west-2.gcp"),  # Suffix to locator, ignored
         ("xy12345aws", "xy12345aws.us-west-1.aws"),  # AWS without '-' or '_'
         ("xy12345-aws", "xy12345-aws"),  # AWS with '-'
         ("xy12345_gcp-europe-west1", "xy12345.europe-west1.gcp"),  # GCP with '_'
@@ -351,10 +354,10 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
 
-    fake_client = mock.MagicMock()
-    fake_client.emit = mock.MagicMock()
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
     fake_listener = mock.MagicMock()
-    fake_listener.adapter.get_or_create_openlineage_client.return_value = fake_client
+    fake_listener.adapter = fake_adapter
 
     with (
         mock.patch(
@@ -376,7 +379,7 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
         )
 
         assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        assert fake_client.emit.call_count == 6  # Expect two events per query.
+        assert fake_adapter.emit.call_count == 6  # Expect two events per query.
 
         expected_common_job_facets = {
             "jobType": job_type_job.JobTypeJobFacet(
@@ -539,7 +542,7 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
             ),
         ]
 
-        assert fake_client.emit.call_args_list == expected_calls
+        assert fake_adapter.emit.call_args_list == expected_calls
 
 
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
@@ -573,10 +576,10 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
 
-    fake_client = mock.MagicMock()
-    fake_client.emit = mock.MagicMock()
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
     fake_listener = mock.MagicMock()
-    fake_listener.adapter.get_or_create_openlineage_client.return_value = fake_client
+    fake_listener.adapter = fake_adapter
 
     with mock.patch(
         "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
@@ -592,7 +595,7 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(
         )
 
         assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        assert fake_client.emit.call_count == 2  # Expect two events per query.
+        assert fake_adapter.emit.call_count == 2  # Expect two events per query.
 
         expected_common_job_facets = {
             "jobType": job_type_job.JobTypeJobFacet(
@@ -657,7 +660,7 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(
             ),
         ]
 
-        assert fake_client.emit.call_args_list == expected_calls
+        assert fake_adapter.emit.call_args_list == expected_calls
 
 
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
@@ -665,10 +668,10 @@ def test_emit_openlineage_events_for_snowflake_queries_without_query_ids(mock_ve
     query_ids = []
     original_query_ids = copy.deepcopy(query_ids)
 
-    fake_client = mock.MagicMock()
-    fake_client.emit = mock.MagicMock()
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
     fake_listener = mock.MagicMock()
-    fake_listener.adapter.get_or_create_openlineage_client.return_value = fake_client
+    fake_listener.adapter = fake_adapter
 
     with mock.patch(
         "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
@@ -681,7 +684,7 @@ def test_emit_openlineage_events_for_snowflake_queries_without_query_ids(mock_ve
         )
 
         assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        fake_client.emit.assert_not_called()  # No events should be emitted
+        fake_adapter.emit.assert_not_called()  # No events should be emitted
 
 
 # emit_openlineage_events_for_snowflake_queries requires OL provider 2.3.0
@@ -690,10 +693,10 @@ def test_emit_openlineage_events_with_old_openlineage_provider(mock_version):
     query_ids = ["q1", "q2"]
     original_query_ids = copy.deepcopy(query_ids)
 
-    fake_client = mock.MagicMock()
-    fake_client.emit = mock.MagicMock()
+    fake_adapter = mock.MagicMock()
+    fake_adapter.emit = mock.MagicMock()
     fake_listener = mock.MagicMock()
-    fake_listener.adapter.get_or_create_openlineage_client.return_value = fake_client
+    fake_listener.adapter = fake_adapter
 
     with mock.patch(
         "airflow.providers.openlineage.plugins.listener.get_openlineage_listener",
@@ -711,4 +714,4 @@ def test_emit_openlineage_events_with_old_openlineage_provider(mock_version):
                 task_instance=None,
             )
         assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
-        fake_client.emit.assert_not_called()  # No events should be emitted
+        fake_adapter.emit.assert_not_called()  # No events should be emitted

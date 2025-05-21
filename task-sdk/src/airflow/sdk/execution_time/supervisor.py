@@ -1277,7 +1277,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
         api = in_process_api_server()
         if dag is not None:
-            from airflow.api_fastapi.common.deps import _get_dag_bag
+            from airflow.api_fastapi.common.dagbag import dag_bag_from_app
             from airflow.serialization.serialized_objects import SerializedDAG
 
             # This is needed since the Execution API server uses the DagBag in its "state".
@@ -1286,7 +1286,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
             # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
             dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-            api.app.dependency_overrides[_get_dag_bag] = lambda: dag_bag
+            api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
@@ -1450,14 +1450,6 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
 
     backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
-    log = structlog.get_logger(logger_name="supervisor")
-
-    log.info(
-        "Secrets backends loaded for worker",
-        count=len(backends),
-        backend_classes=[type(b).__name__ for b in backends],
-    )
-
     return backends
 
 
@@ -1477,7 +1469,7 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param bundle_info: Current DagRun of the task instance.
+    :param bundle_info: Information of the DAG bundle to use for this task instance.
     :param dag_rel_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
@@ -1520,7 +1512,12 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    ensure_secrets_backend_loaded()
+    backends = ensure_secrets_backend_loaded()
+    log.info(
+        "Secrets backends loaded for worker",
+        count=len(backends),
+        backend_classes=[type(b).__name__ for b in backends],
+    )
 
     reset_secrets_masker()
 

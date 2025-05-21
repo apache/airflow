@@ -52,7 +52,15 @@ def fix_account_name(name: str) -> str:
             account, region = spl
             cloud = "aws"
         else:
-            account, region, cloud = spl
+            # region can easily get duplicated without crashing snowflake, so we need to handle that as well
+            # eg. account_locator.europe-west3.gcp.europe-west3.gcp will be ok for snowflake
+            account, region, cloud, *rest = spl
+            rest = [x for x in rest if x not in (region, cloud)]
+            if rest:  # Not sure what could be left here, but leaving this just in case
+                log.warning(
+                    "Unexpected parts found in Snowflake uri hostname and will be ignored by OpenLineage: %s",
+                    rest,
+                )
         return f"{account}.{region}.{cloud}"
 
     # Check for existing accounts with cloud names
@@ -72,13 +80,16 @@ def fix_snowflake_sqlalchemy_uri(uri: str) -> str:
     """
     Fix snowflake sqlalchemy connection URI to OpenLineage structure.
 
-    Snowflake sqlalchemy connection URI has following structure:
+    Snowflake sqlalchemy connection URI has the following structure:
     'snowflake://<user_login_name>:<password>@<account_identifier>/<database_name>/<schema_name>?warehouse=<warehouse_name>&role=<role_name>'
     We want account identifier normalized. It can have two forms:
-    - newer, in form of <organization>-<id>. In this case we want to do nothing.
-    - older, composed of <id>-<region>-<cloud> where region and cloud can be
+    - newer, in form of <organization_id>-<account_id>. In this case we want to do nothing.
+    - older, composed of <account_locator>.<region>.<cloud> where region and cloud can be
     optional in some cases. If <cloud> is omitted, it's AWS.
     If region and cloud are omitted, it's AWS us-west-1
+
+    Current doc on Snowflake account identifiers:
+    https://docs.snowflake.com/en/user-guide/admin-account-identifier
     """
     try:
         parts = urlparse(uri)
@@ -280,6 +291,7 @@ def emit_openlineage_events_for_snowflake_queries(
     from airflow.providers.common.compat.openlineage.facet import (
         ErrorMessageRunFacet,
         ExternalQueryRunFacet,
+        RunFacet,
         SQLJobFacet,
     )
     from airflow.providers.openlineage.conf import namespace
@@ -303,7 +315,6 @@ def emit_openlineage_events_for_snowflake_queries(
     # If no query metadata is provided, we use task_instance's state when checking for success
     default_state = task_instance.state.value if hasattr(task_instance, "state") else ""
 
-    log.debug("Generating OpenLineage facets")
     common_run_facets = {"parent": _get_parent_run_facet(task_instance)}
     common_job_facets: dict[str, JobFacet] = {
         "jobType": job_type_job.JobTypeJobFacet(
@@ -325,12 +336,11 @@ def emit_openlineage_events_for_snowflake_queries(
             query_metadata if query_metadata else "not found",
         )
 
-        # TODO(potiuk): likely typing here needs to be fixed
-        query_specific_run_facets = {  # type : ignore[assignment]
+        query_specific_run_facets: dict[str, RunFacet] = {
             "externalQuery": ExternalQueryRunFacet(externalQueryId=query_id, source=query_source_namespace)
         }
         if query_metadata.get("ERROR_MESSAGE"):
-            query_specific_run_facets["error"] = ErrorMessageRunFacet(  # type: ignore[assignment]
+            query_specific_run_facets["error"] = ErrorMessageRunFacet(
                 message=f"{query_metadata.get('ERROR_CODE')} : {query_metadata['ERROR_MESSAGE']}",
                 programmingLanguage="SQL",
             )
@@ -353,9 +363,9 @@ def emit_openlineage_events_for_snowflake_queries(
         events.extend(event_batch)
 
     log.debug("Generated %s OpenLineage events; emitting now.", len(events))
-    client = get_openlineage_listener().adapter.get_or_create_openlineage_client()
+    adapter = get_openlineage_listener().adapter
     for event in events:
-        client.emit(event)
+        adapter.emit(event)
 
     log.info("OpenLineage has successfully finished processing information about Snowflake queries.")
     return

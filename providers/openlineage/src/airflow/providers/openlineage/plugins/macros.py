@@ -90,6 +90,16 @@ def lineage_parent_id(task_instance: TaskInstance):
 
 
 def lineage_root_parent_id(task_instance: TaskInstance):
+    """
+    Macro function which returns a unique identifier of given task that can be used to create root information for ParentRunFacet.
+
+    This identifier is composed of the namespace, dag name, and generated run id for given dag, structured
+    as '{namespace}/{job_name}/{run_id}'.
+
+    .. seealso::
+        For more information take a look at the guide:
+        :ref:`howto/macros:openlineage`
+    """
     return "/".join(
         (
             lineage_job_namespace(),
