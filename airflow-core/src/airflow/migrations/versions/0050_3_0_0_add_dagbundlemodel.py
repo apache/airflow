@@ -54,7 +54,6 @@ def upgrade():
         batch_op.create_foreign_key(
             batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
         )
-
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("bundle_version", sa.String(length=250), nullable=True))
 
