@@ -243,5 +243,5 @@ class MaxComputeHook(AlibabaBaseHook):
             client.stop_instance(id_=instance_id, project=project)
             self.log.info("Instance %s stop requested.", instance_id)
         except Exception as e:
-            self.log.error("Failed to stop instance %s: %s.", instance_id, str(e))
+            self.log.exception("Failed to stop instance %s.", instance_id)
             raise
