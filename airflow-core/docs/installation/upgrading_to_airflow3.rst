@@ -81,8 +81,14 @@ Step 4: Install the Standard Providers
 - For convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
+Step 5: Review custom operators for direct db access
+----------------------------------------------------
 
-Step 5: Deployment Managers - Upgrade your Airflow Instance
+- In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
+  If you have custom operators, review the code to make sure there are no direct db access.
+  You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+
+Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
 
 For an easier and safer upgrade process, we have also created a utility to upgrade your Airflow instance configuration.
@@ -113,7 +119,7 @@ If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Fl
 them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
 Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
 
-Step 6: Changes to your startup scripts
+Step 7: Changes to your startup scripts
 ---------------------------------------
 
 In Airflow 3, the Webserver has become a generic API server. The API server can be started up using the following command:
