@@ -127,7 +127,13 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
             raise
 
-        timeout = timedelta(seconds=self.timeout)
+        # todo: remove backcompat when min airflow version greater than 2.11
+        timeout: int | float | timedelta
+        if AIRFLOW_V_3_0_PLUS:
+            timeout = self.timeout
+        else:
+            # <=2.11 requires timedelta
+            timeout = timedelta(seconds=self.timeout)
 
         self.defer(
             trigger=trigger,
