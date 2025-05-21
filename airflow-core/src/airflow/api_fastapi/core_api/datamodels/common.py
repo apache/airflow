@@ -26,6 +26,7 @@ import enum
 from typing import Annotated, Any, Generic, TypeVar, Union
 
 from pydantic import Discriminator, Field, Tag
+from typing_extensions import Literal
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -60,14 +61,16 @@ class BulkActionNotOnExistence(enum.Enum):
 class BulkBaseAction(StrictBaseModel, Generic[T]):
     """Base class for bulk actions."""
 
-    action: BulkAction = Field(..., description="The action to be performed on the entities.")
+    action: Literal[BulkAction.CREATE.value, BulkAction.UPDATE.value, BulkAction.DELETE.value] = Field(  # type: ignore
+        ..., description="The action to be performed on the entities."
+    )
 
 
 class BulkCreateAction(BulkBaseAction[T]):
     """Bulk Create entity serializer for request bodies."""
 
-    action: BulkAction = Field(
-        default=BulkAction.CREATE, description="The action to be performed on the entities."
+    action: Literal[BulkAction.CREATE.value] = Field(  # type: ignore
+        default=BulkAction.CREATE.value, description="The action to be performed on the entities."
     )
     entities: list[T] = Field(..., description="A list of entities to be created.")
     action_on_existence: BulkActionOnExistence = BulkActionOnExistence.FAIL
@@ -76,8 +79,8 @@ class BulkCreateAction(BulkBaseAction[T]):
 class BulkUpdateAction(BulkBaseAction[T]):
     """Bulk Update entity serializer for request bodies."""
 
-    action: BulkAction = Field(
-        default=BulkAction.UPDATE, description="The action to be performed on the entities."
+    action: Literal[BulkAction.UPDATE.value] = Field(  # type: ignore
+        default=BulkAction.UPDATE.value, description="The action to be performed on the entities."
     )
     entities: list[T] = Field(..., description="A list of entities to be updated.")
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
@@ -86,8 +89,8 @@ class BulkUpdateAction(BulkBaseAction[T]):
 class BulkDeleteAction(BulkBaseAction[T]):
     """Bulk Delete entity serializer for request bodies."""
 
-    action: BulkAction = Field(
-        default=BulkAction.DELETE, description="The action to be performed on the entities."
+    action: Literal[BulkAction.DELETE.value] = Field(  # type: ignore
+        default=BulkAction.DELETE.value, description="The action to be performed on the entities."
     )
     entities: list[str] = Field(..., description="A list of entity id/key to be deleted.")
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
