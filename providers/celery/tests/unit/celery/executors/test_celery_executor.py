@@ -192,10 +192,17 @@ class TestCeleryExecutor:
     def test_try_adopt_task_instances_none(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_try_adopt_task_instances_none", schedule=None):
+        with DAG("test_try_adopt_task_instances_none", schedule=None) as dag:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
 
-        key1 = TaskInstance(task=task_1, run_id=None)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            dag.sync_to_db()
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            key1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
+        else:
+            key1 = TaskInstance(task=task_1, run_id=None)
         tis = [key1]
 
         executor = celery_executor.CeleryExecutor()
@@ -211,10 +218,18 @@ class TestCeleryExecutor:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
-        ti1 = TaskInstance(task=task_1, run_id=None)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            dag.sync_to_db()
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
+            ti2 = TaskInstance(task=task_2, run_id=None, dag_version_id=dag_version.id)
+        else:
+            ti1 = TaskInstance(task=task_1, run_id=None)
+            ti2 = TaskInstance(task=task_2, run_id=None)
         ti1.external_executor_id = "231"
         ti1.state = State.QUEUED
-        ti2 = TaskInstance(task=task_2, run_id=None)
         ti2.external_executor_id = "232"
         ti2.state = State.QUEUED
 
