@@ -1341,7 +1341,15 @@ repos:
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
         language: python
-        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
+        entry: ./scripts/ci/pre_commit/generate_openapi_spec.py
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+        exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
+        additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
+      - id: generate-openapi-spec-fab
+        name: Generate the FastAPI API spec for FAB
+        language: python
+        entry: ./scripts/ci/pre_commit/generate_openapi_spec_fab.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
