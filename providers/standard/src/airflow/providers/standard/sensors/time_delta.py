@@ -129,9 +129,10 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
         # todo: remove backcompat when min airflow version greater than 2.11
         timeout: int | float | timedelta
-        if _get_airflow_version() >= Version("2.11.0"):
+        if AIRFLOW_V_3_0_PLUS:
             timeout = self.timeout
         else:
+            # <=2.11 requires timedelta
             timeout = timedelta(seconds=self.timeout)
 
         self.defer(
