@@ -1284,6 +1284,20 @@ secrets:
 api:
   description: ~
   options:
+    secret_key:
+      description: |
+        Secret key used to run your api server. It should be as random as possible. However, when running
+        more than 1 instances of the api, make sure all of them use the same ``secret_key`` otherwise
+        one of them will error with "CSRF session token is missing".
+        The api key is also used to authorize requests to Celery workers when logs are retrieved.
+        The token generated using the secret key has a short expiry time though - make sure that time on
+        ALL the machines that you run airflow components on is synchronized (for example using ntpd)
+        otherwise you might get "forbidden" errors when the logs are accessed.
+      version_added: ~
+      type: string
+      sensitive: true
+      example: ~
+      default: "{SECRET_KEY}"
     expose_config:
       description: |
         Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
@@ -1748,20 +1762,6 @@ operators:
 webserver:
   description: ~
   options:
-    secret_key:
-      description: |
-        Secret key used to run your api server. It should be as random as possible. However, when running
-        more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
-        one of them will error with "CSRF session token is missing".
-        The webserver key is also used to authorize requests to Celery workers when logs are retrieved.
-        The token generated using the secret key has a short expiry time though - make sure that time on
-        ALL the machines that you run airflow components on is synchronized (for example using ntpd)
-        otherwise you might get "forbidden" errors when the logs are accessed.
-      version_added: ~
-      type: string
-      sensitive: true
-      example: ~
-      default: "{SECRET_KEY}"
     instance_name:
       description: |
         Sets a custom page title for the DAGs overview page and site title for all pages

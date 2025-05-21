@@ -469,7 +469,7 @@ Should show the status of current KinD cluster.
     unnecessary restarts of your Airflow components.
 
     Information on how to set a static webserver secret key can be found here:
-    https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
+    https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
     Deployed kind-airflow-python-3.9-v1.24.2 with Airflow Helm Chart.
 
     Airflow for Python 3.9 and K8S version v1.24.2 has been successfully deployed.

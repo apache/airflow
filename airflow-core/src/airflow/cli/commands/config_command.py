@@ -411,6 +411,10 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("api", "base_url"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "secret_key"),
+        renamed_to=ConfigParameter("api", "secret_key"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
         renamed_to=ConfigParameter("api", "host"),
     ),
