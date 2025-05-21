@@ -39,6 +39,7 @@ from airflow.sdk.definitions.asset import (
     BaseAssetUniqueKey,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -180,6 +181,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                     import json
 
                     var_val = json.loads(var_val)
+                mask_secret(var_val, key)  # type: ignore[arg-type]
                 return var_val
         except Exception:
             log.exception(
