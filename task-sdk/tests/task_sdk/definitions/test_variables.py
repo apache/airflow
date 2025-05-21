@@ -109,6 +109,29 @@ class TestVariableFromSecrets:
             assert retrieved_var is not None
             assert retrieved_var == "some_value"
 
+    def test_var_get_from_secrets_found_with_deserialize(self, mock_supervisor_comms, tmp_path):
+        """Tests getting a variable from secrets backend when deserialize_json is provided."""
+        path = tmp_path / "var.json"
+        dict_data = {"num1": 23, "num2": 42}
+        jsonified_dict_data = json.dumps(dict_data)
+        data = {"VAR_A": jsonified_dict_data}
+        path.write_text(json.dumps(data, indent=4))
+
+        with conf_vars(
+            {
+                (
+                    "workers",
+                    "secrets_backend",
+                ): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                ("workers", "secrets_backend_kwargs"): f'{{"variables_file_path": "{path}"}}',
+            }
+        ):
+            retrieved_var = Variable.get(key="VAR_A")
+            assert retrieved_var == jsonified_dict_data
+
+            retrieved_var_deser = Variable.get(key="VAR_A", deserialize_json=True)
+            assert retrieved_var_deser == dict_data
+
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
     def test_get_variable_env_var(self, mock_env_get, mock_supervisor_comms):
         """Tests getting a variable from environment variable."""

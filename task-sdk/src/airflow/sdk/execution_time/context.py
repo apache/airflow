@@ -176,6 +176,10 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
         try:
             var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
             if var_val is not None:
+                if deserialize_json:
+                    import json
+
+                    var_val = json.loads(var_val)
                 return var_val
         except Exception:
             log.exception(
