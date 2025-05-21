@@ -1,0 +1,46 @@
+{
+  "defaultToGraphView": "預設使用圖形視圖",
+  "defaultToGridView": "預設使用網格視圖",
+  "logout": "登出",
+  "switchToDarkMode": "切換到深色模式",
+  "switchToLightMode": "切換到淺色模式",
+  "timezone": "時區",
+  "user": "使用者",
+  "language": {
+    "chinese": "繁體中文",
+    "english": "英文",
+    "select": "選擇語言"
+  },
+  "nav": {
+    "home": "首頁",
+    "assets": "資源",
+    "browse": "瀏覽",
+    "admin": "管理者",
+    "docs": "文件",
+    "plugins": "插件"
+  },
+  "browse": {
+    "auditLog": "審計日誌",
+    "xcoms": "Xcoms"
+  },
+  "admin": {
+    "Variables": "變數",
+    "Pools": "資源池",
+    "Providers": "Providers",
+    "Plugins": "插件",
+    "Connections": "連結",
+    "Config": "設定"
+  },
+  "timeRange": {
+    "duration": "時間範圍",
+    "lastHour": "最近 1 小時",
+    "last12Hours": "最近 12 小時",
+    "last24Hours": "最近 24 小時",
+    "pastWeek": "過去一週"
+  },
+  "docs": {
+    "documentation": "文件",
+    "githubRepo": "GitHub 倉庫",
+    "restApiReference": "REST API 參考"
+  }
+}

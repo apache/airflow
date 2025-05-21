@@ -22,7 +22,6 @@ import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { capitalize } from "src/utils";
 
 export const StatsCard = ({
   colorScheme,
@@ -62,7 +61,7 @@ export const StatsCard = ({
       </StateBadge>
 
       <Text color="fg" fontSize="sm" fontWeight="bold">
-        {capitalize(label)}
+        {label}
       </Text>
       <FiChevronRight size={16} />
     </HStack>

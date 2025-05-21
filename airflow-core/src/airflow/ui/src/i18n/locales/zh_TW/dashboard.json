@@ -1,0 +1,49 @@
+{
+  "welcome": "歡迎",
+  "stats": {
+    "stats": "統計",
+    "failedDags": "失敗的 Dags",
+    "runningDags": "執行中的 Dags",
+    "activeDags": "啟用中的 Dags",
+    "queuedDags": "排隊中的 Dags"
+  },
+  "health": {
+    "health": "健康狀態",
+    "metaDatabase": "系統資料庫",
+    "scheduler": "排程器",
+    "triggerer": "觸發器",
+    "dagProcessor": "Dag 處理器"
+  },
+  "poolSlots": "資源池配額",
+  "managePools": "管理資源池",
+  "history": "歷史記錄",
+  "dagRun_one": "Dag 執行",
+  "dagRun_other": "Dag 執行",
+  "taskInstance_one": "任務實例",
+  "taskInstance_other": "任務實例",
+  "assetEvent_one": "資源事件",
+  "assetEvent_other": "資源事件",
+  "states": {
+    "queued": "排隊中",
+    "running": "執行中",
+    "success": "成功",
+    "failed": "失敗",
+    "skipped": "已跳過",
+    "removed": "已移除",
+    "scheduled": "已排程",
+    "restarting": "重啟中",
+    "up_for_retry": "等待重試",
+    "up_for_reschedule": "等待重新排程",
+    "upstream_failed": "上游任務失敗",
+    "deferred": "已延後",
+    "no_status": "無狀態"
+  },
+  "noAssetEvents": "未找到資源事件",
+  "sortBy": {
+    "newestFirst": "由新到舊",
+    "oldestFirst": "由舊到新"
+  },
+  "source": "來源",
+  "group": "群組",
+  "uri": "Uri"
+}
