@@ -18,7 +18,7 @@
 Simple auth manager
 ===================
 
-.. warning::
+.. note::
   The Simple auth manager is intended for development and testing. If you're using it in production, ensure that
   access is controlled through other means.
 

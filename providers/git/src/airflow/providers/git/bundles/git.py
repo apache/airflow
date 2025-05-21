@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -53,7 +54,7 @@ class GitDagBundle(BaseDagBundle):
         *,
         tracking_ref: str,
         subdir: str | None = None,
-        git_conn_id: str = "git_default",
+        git_conn_id: str | None = None,
         repo_url: str | None = None,
         **kwargs,
     ) -> None:
@@ -75,20 +76,26 @@ class GitDagBundle(BaseDagBundle):
             repo_path=self.repo_path,
             versions_path=self.versions_dir,
             git_conn_id=self.git_conn_id,
-            repo_url=self.repo_url,
         )
 
         self._log.debug("bundle configured")
-        try:
-            self.hook = GitHook(git_conn_id=self.git_conn_id, repo_url=self.repo_url)
-            self.repo_url = self.hook.repo_url
-            self._log.debug("repo_url updated from hook", repo_url=self.repo_url)
-        except AirflowException as e:
-            self._log.warning("Could not create GitHook", conn_id=self.git_conn_id, exc=e)
+        self.hook: GitHook | None = None
+        if not repo_url:
+            if not git_conn_id:
+                self._log.debug("Neither git_conn_id nor repo_url provided; loading 'git_default'")
+                git_conn_id = "git_default"
+            try:
+                self.hook = GitHook(git_conn_id=git_conn_id)
+            except AirflowException as e:
+                self._log.warning("Could not create GitHook", conn_id=git_conn_id, exc=e)
+            else:
+                self.repo_url = self.hook.repo_url
+                self._log.debug("repo_url updated from hook")
 
     def _initialize(self):
         with self.lock():
-            with self.hook.configure_hook_env():
+            cm = self.hook.configure_hook_env() if self.hook else nullcontext()
+            with cm:
                 self._clone_bare_repo_if_required()
                 self._ensure_version_in_bare_repo()
 
@@ -134,7 +141,7 @@ class GitDagBundle(BaseDagBundle):
                     url=self.repo_url,
                     to_path=self.bare_repo_path,
                     bare=True,
-                    env=self.hook.env,
+                    env=self.hook.env if self.hook else None,
                 )
             except GitCommandError as e:
                 raise AirflowException("Error cloning repository") from e
@@ -177,10 +184,10 @@ class GitDagBundle(BaseDagBundle):
 
     def _fetch_bare_repo(self):
         refspecs = ["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"]
-        if self.hook.env:
-            with self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=self.hook.env.get("GIT_SSH_COMMAND")):
-                self.bare_repo.remotes.origin.fetch(refspecs)
-        else:
+        cm = nullcontext()
+        if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
+            cm = self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+        with cm:
             self.bare_repo.remotes.origin.fetch(refspecs)
 
     def refresh(self) -> None:
@@ -188,7 +195,8 @@ class GitDagBundle(BaseDagBundle):
             raise AirflowException("Refreshing a specific version is not supported")
 
         with self.lock():
-            with self.hook.configure_hook_env():
+            cm = self.hook.configure_hook_env() if self.hook else nullcontext()
+            with cm:
                 self._fetch_bare_repo()
                 self.repo.remotes.origin.fetch(
                     ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
@@ -233,6 +241,8 @@ class GitDagBundle(BaseDagBundle):
             "gitlab.com": f"{url}/-/tree/{version}",
             "bitbucket.org": f"{url}/src/{version}",
         }
+        if self.subdir:
+            host_patterns = {k: f"{v}/{self.subdir}" for k, v in host_patterns.items()}
         for allowed_host, template in host_patterns.items():
             if host == allowed_host or host.endswith(f".{allowed_host}"):
                 return template

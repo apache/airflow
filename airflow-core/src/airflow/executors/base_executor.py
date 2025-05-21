@@ -112,7 +112,7 @@ class RunningRetryAttemptType:
 
 class BaseExecutor(LoggingMixin):
     """
-    Base class to inherit for concrete executors such as Celery, Kubernetes, Local, Sequential, etc.
+    Base class to inherit for concrete executors such as Celery, Kubernetes, Local, etc.
 
     :param parallelism: how many jobs should run at one time.
     """
@@ -435,9 +435,7 @@ class BaseExecutor(LoggingMixin):
                     if self.active_spans is not None and self.active_spans.get(key) is None:
                         from airflow.models.taskinstance import SimpleTaskInstance
 
-                        if isinstance(ti, SimpleTaskInstance):
-                            parent_context = Trace.extract(ti.parent_context_carrier)
-                        elif isinstance(ti, workloads.TaskInstance):
+                        if isinstance(ti, (SimpleTaskInstance, workloads.TaskInstance)):
                             parent_context = Trace.extract(ti.parent_context_carrier)
                         else:
                             parent_context = Trace.extract(ti.dag_run.context_carrier)

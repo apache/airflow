@@ -27,14 +27,8 @@ import {
   useGridServiceGridData,
   useStructureServiceStructureData,
 } from "openapi/queries";
-import { AliasNode } from "src/components/Graph/AliasNode";
-import { AssetConditionNode } from "src/components/Graph/AssetConditionNode";
-import { AssetNode } from "src/components/Graph/AssetNode";
-import { DagNode } from "src/components/Graph/DagNode";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
-import Edge from "src/components/Graph/Edge";
-import { JoinNode } from "src/components/Graph/JoinNode";
-import { TaskNode } from "src/components/Graph/TaskNode";
+import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
@@ -64,16 +58,6 @@ const nodeColor = (
 
   return "";
 };
-
-const nodeTypes = {
-  asset: AssetNode,
-  "asset-alias": AliasNode,
-  "asset-condition": AssetConditionNode,
-  dag: DagNode,
-  join: JoinNode,
-  task: TaskNode,
-};
-const edgeTypes = { custom: Edge };
 
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
@@ -160,7 +144,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId,
+        isSelected: node.id === taskId || node.id === `dag:${dagId}`,
         taskInstance,
       },
     };
@@ -189,7 +173,7 @@ export const Graph = () => {
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
-      maxZoom={1}
+      maxZoom={1.5}
       minZoom={0.25}
       nodes={nodes}
       nodesDraggable={false}
@@ -214,7 +198,7 @@ export const Graph = () => {
         style={{ height: 150, width: 200 }}
         zoomable
       />
-      <DownloadButton dagId={dagId} />
+      <DownloadButton name={dagId} />
     </ReactFlow>
   );
 };

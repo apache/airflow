@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -29,8 +30,9 @@ from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models import DAG, DagRun
-    from airflow.timetables.base import DagRunInfo
+    from pendulum.datetime import DateTime
+
+    from airflow.models import DagRun
 
     try:
         from airflow.sdk.definitions.context import Context
@@ -62,16 +64,16 @@ class LatestOnlyOperator(BaseBranchOperator):
         dag_run: DagRun = context["dag_run"]  # type: ignore[assignment]
         if dag_run.run_type == DagRunType.MANUAL:
             self.log.info("Manually triggered DAG_Run: allowing execution to proceed.")
-            return list(context["task"].get_direct_relative_ids(upstream=False))
+            return list(self.get_direct_relative_ids(upstream=False))
 
-        next_info = self._get_next_run_info(context, dag_run)
-        now = pendulum.now("UTC")
+        dates = self._get_compare_dates(dag_run)
 
-        if next_info is None:
+        if dates is None:
             self.log.info("Last scheduled execution: allowing execution to proceed.")
-            return list(context["task"].get_direct_relative_ids(upstream=False))
+            return list(self.get_direct_relative_ids(upstream=False))
 
-        left_window, right_window = next_info.data_interval
+        now = pendulum.now("UTC")
+        left_window, right_window = dates
         self.log.info(
             "Checking latest only with left_window: %s right_window: %s now: %s",
             left_window,
@@ -79,38 +81,47 @@ class LatestOnlyOperator(BaseBranchOperator):
             now,
         )
 
-        if left_window == right_window:
-            self.log.info(
-                "Zero-length interval [%s, %s) from timetable (%s); treating current run as latest.",
-                left_window,
-                right_window,
-                self.dag.timetable.__class__,
-            )
-            return list(context["task"].get_direct_relative_ids(upstream=False))
-
         if not left_window < now <= right_window:
             self.log.info("Not latest execution, skipping downstream.")
             # we return an empty list, thus the parent BaseBranchOperator
             # won't exclude any downstream tasks from skipping.
             return []
-        else:
-            self.log.info("Latest, allowing execution to proceed.")
-            return list(context["task"].get_direct_relative_ids(upstream=False))
 
-    def _get_next_run_info(self, context: Context, dag_run: DagRun) -> DagRunInfo | None:
-        dag: DAG = context["dag"]  # type: ignore[assignment]
+        self.log.info("Latest, allowing execution to proceed.")
+        return list(self.get_direct_relative_ids(upstream=False))
 
+    def _get_compare_dates(self, dag_run: DagRun) -> tuple[DateTime, DateTime] | None:
+        dagrun_date: DateTime
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.timetables.base import DataInterval, TimeRestriction
-
-            time_restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
-            current_interval = DataInterval(start=dag_run.data_interval_start, end=dag_run.data_interval_end)
-
-            next_info = dag.timetable.next_dagrun_info(
-                last_automated_data_interval=current_interval,
-                restriction=time_restriction,
-            )
-
+            dagrun_date = dag_run.logical_date or dag_run.run_after
         else:
-            next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
-        return next_info
+            dagrun_date = dag_run.logical_date
+
+        from airflow.timetables.base import DataInterval, TimeRestriction
+
+        current_interval = DataInterval(
+            start=dag_run.data_interval_start or dagrun_date,
+            end=dag_run.data_interval_end or dagrun_date,
+        )
+
+        time_restriction = TimeRestriction(
+            earliest=None, latest=current_interval.end - timedelta(microseconds=1), catchup=True
+        )
+        if prev_info := self.dag.timetable.next_dagrun_info(
+            last_automated_data_interval=current_interval,
+            restriction=time_restriction,
+        ):
+            left = prev_info.data_interval.end
+        else:
+            left = current_interval.start
+
+        time_restriction = TimeRestriction(earliest=current_interval.end, latest=None, catchup=True)
+        next_info = self.dag.timetable.next_dagrun_info(
+            last_automated_data_interval=current_interval,
+            restriction=time_restriction,
+        )
+
+        if not next_info:
+            return None
+
+        return (left, next_info.data_interval.end)

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import platform
@@ -47,7 +48,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.sdk import Context
-    from airflow.sdk.api.datamodels._generated import IntermediateTIState, TerminalTIState
+    from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -134,7 +135,6 @@ if skip_db_tests:
     # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
-    os.environ["_IN_UNIT_TESTS"] = "true"
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
 
@@ -142,16 +142,49 @@ if run_db_tests_only:
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_RUN_DB_TESTS_ONLY"] = "true"
 
+os.environ["_IN_UNIT_TESTS"] = "true"
+
 _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_ROOT_PATH = (Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[3]).resolve()
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src"
 AIRFLOW_CORE_TESTS_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "tests"
+AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
+    AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
+)
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
 )
-if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
+ALL_PROVIDER_YAML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
+ALL_PROVIDER_PYPROJECT_TOML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
+
+
+# Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
+# Breeze here as we want to do it quickly
+def _calculate_provider_deps_hash():
+    import hashlib
+
+    hasher = hashlib.sha256()
+    for file in sorted(itertools.chain(ALL_PROVIDER_PYPROJECT_TOML_FILES, ALL_PROVIDER_YAML_FILES)):
+        hasher.update(file.read_bytes())
+    return hasher.hexdigest()
+
+
+if (
+    not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
+    or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
+):
     subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
+else:
+    calculated_provider_deps_hash = _calculate_provider_deps_hash()
+    if (
+        calculated_provider_deps_hash.strip()
+        != AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.read_text().strip()
+    ):
+        subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
+        AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_provider_deps_hash)
+# End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
 os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
@@ -339,9 +372,8 @@ def pytest_addoption(parser: pytest.Parser):
 @pytest.fixture(autouse=True, scope="session")
 def initialize_airflow_tests(request):
     """Set up Airflow testing environment."""
-    print(" AIRFLOW ".center(60, "="))
-
-    from tests_common.test_utils.db import initial_db_init
+    # To separate this line from test name in case of verbosity runs
+    print("\n" + " AIRFLOW ".center(60, "="))
 
     # Setup test environment for breeze
     home = os.path.expanduser("~")
@@ -349,37 +381,43 @@ def initialize_airflow_tests(request):
 
     print(f"Home of the user: {home}\nAirflow home {airflow_home}")
 
-    # Initialize Airflow db if required
-    lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
     if not skip_db_tests and not request.config.option.no_db_init:
-        if request.config.option.db_init:
-            from tests_common.test_utils.db import initial_db_init
+        _initialize_airflow_db(request.config.option.db_init, airflow_home)
 
-            print("Initializing the DB - forced with --with-db-init switch.")
-            initial_db_init()
-        elif not os.path.exists(lock_file):
-            print(
-                "Initializing the DB - first time after entering the container.\n"
-                "You can force re-initialization the database by adding --with-db-init switch to run-tests."
-            )
-            initial_db_init()
-            # Create pid file
-            with open(lock_file, "w+"):
-                pass
-        else:
-            print(
-                "Skipping initializing of the DB as it was initialized already.\n"
-                "You can re-initialize the database by adding --with-db-init flag when running tests."
-            )
-    integration_kerberos = os.environ.get("INTEGRATION_KERBEROS")
-    if integration_kerberos == "true":
-        # Initialize kerberos
-        kerberos = os.environ.get("KRB5_KTNAME")
-        if kerberos:
-            subprocess.check_call(["kinit", "-kt", kerberos, "bob@EXAMPLE.COM"])
-        else:
-            print("Kerberos enabled! Please setup KRB5_KTNAME environment variable")
-            sys.exit(1)
+    if os.environ.get("INTEGRATION_KERBEROS") == "true":
+        _initialize_kerberos()
+
+
+def _initialize_airflow_db(force_db_init: bool, airflow_home: str | Path):
+    db_init_lock_file = Path(airflow_home).joinpath(".airflow_db_initialised")
+    if not force_db_init and db_init_lock_file.exists():
+        print(
+            "Skipping initializing of the DB as it was initialized already.\n"
+            "You can re-initialize the database by adding --with-db-init flag when running tests."
+        )
+        return
+
+    from tests_common.test_utils.db import initial_db_init
+
+    if force_db_init:
+        print("Initializing the DB - forced with --with-db-init flag.")
+    else:
+        print(
+            "Initializing the DB - first time after entering the container.\n"
+            "Initialization can be also forced by adding --with-db-init flag when running tests."
+        )
+
+    initial_db_init()
+    db_init_lock_file.touch(exist_ok=True)
+
+
+def _initialize_kerberos():
+    kerberos = os.environ.get("KRB5_KTNAME")
+    if not kerberos:
+        print("Kerberos enabled! Please setup KRB5_KTNAME environment variable")
+        sys.exit(1)
+
+    subprocess.check_call(["kinit", "-kt", kerberos, "bob@EXAMPLE.COM"])
 
 
 def _find_all_deprecation_ignore_files() -> list[str]:
@@ -563,11 +601,9 @@ def skip_db_test(item):
         if next(item.iter_markers(name="non_db_test_override"), None):
             # non_db_test can override the db_test set for example on module or class level
             return
-        else:
-            pytest.skip(
-                f"The test is skipped as it is DB test "
-                f"and --skip-db-tests is flag is passed to pytest. {item}"
-            )
+        pytest.skip(
+            f"The test is skipped as it is DB test and --skip-db-tests is flag is passed to pytest. {item}"
+        )
     if next(item.iter_markers(name="backend"), None):
         # also automatically skip tests marked with `backend` marker as they are implicitly
         # db tests
@@ -582,14 +618,13 @@ def only_run_db_test(item):
     ):
         # non_db_test at individual level can override the db_test set for example on module or class level
         return
-    else:
-        if next(item.iter_markers(name="backend"), None):
-            # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
-            return
-        pytest.skip(
-            f"The test is skipped as it is not a DB tests "
-            f"and --run-db-tests-only flag is passed to pytest. {item}"
-        )
+    if next(item.iter_markers(name="backend"), None):
+        # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
+        return
+    pytest.skip(
+        f"The test is skipped as it is not a DB tests "
+        f"and --run-db-tests-only flag is passed to pytest. {item}"
+    )
 
 
 def skip_if_integration_disabled(marker, item):
@@ -859,7 +894,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def __exit__(self, type, value, traceback):
             from airflow.configuration import conf
             from airflow.models import DagModel
-            from airflow.models.serialized_dag import SerializedDagModel
 
             dag = self.dag
             dag.__exit__(type, value, traceback)
@@ -868,7 +902,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             dag.clear(session=self.session)
             if AIRFLOW_V_3_0_PLUS:
-                dag.bulk_write_to_db(self.bundle_name, None, [dag], session=self.session)
+                dag.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
             else:
                 dag.sync_to_db(session=self.session)
 
@@ -881,46 +915,45 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
-            if self.want_serialized:
-                self.serialized_model = SerializedDagModel(dag)
-                sdm = self.session.scalar(
-                    select(SerializedDagModel).where(
-                        SerializedDagModel.dag_id == dag.dag_id,
-                        SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
-                    )
+            self._make_serdag(dag)
+            self._bag_dag_compat(self.dag)
+
+        def _make_serdag(self, dag):
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            self.serialized_model = SerializedDagModel(dag)
+            sdm = self.session.scalar(
+                select(SerializedDagModel).where(
+                    SerializedDagModel.dag_id == dag.dag_id,
+                    SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
                 )
+            )
+            if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
+                from airflow.models.dag_version import DagVersion
+                from airflow.models.dagcode import DagCode
 
-                if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
-                    from airflow.models.dag_version import DagVersion
-                    from airflow.models.dagcode import DagCode
-
-                    dagv = DagVersion.write_dag(
-                        dag_id=dag.dag_id,
-                        bundle_name=self.dag_model.bundle_name,
-                        bundle_version=self.dag_model.bundle_version,
-                        session=self.session,
-                    )
-                    self.session.add(dagv)
-                    self.session.flush()
-                    dag_code = DagCode(dagv, dag.fileloc, "Source")
-                    self.session.merge(dag_code)
-                    self.serialized_model.dag_version = dagv
-                    if self.want_activate_assets:
-                        self._activate_assets()
-                if sdm:
-                    sdm._SerializedDagModel__data_cache = (
-                        self.serialized_model._SerializedDagModel__data_cache
-                    )
-                    sdm._data = self.serialized_model._data
-                    self.serialized_model = sdm
-                else:
-                    self.session.merge(self.serialized_model)
-                serialized_dag = self._serialized_dag()
-                self._bag_dag_compat(serialized_dag)
-
+                dagv = DagVersion.write_dag(
+                    dag_id=dag.dag_id,
+                    bundle_name=self.dag_model.bundle_name,
+                    bundle_version=self.dag_model.bundle_version,
+                    session=self.session,
+                )
+                self.session.add(dagv)
                 self.session.flush()
+                dag_code = DagCode(dagv, dag.fileloc, "Source")
+                self.session.merge(dag_code)
+                self.serialized_model.dag_version = dagv
+                if self.want_activate_assets:
+                    self._activate_assets()
+            if sdm:
+                sdm._SerializedDagModel__data_cache = self.serialized_model._SerializedDagModel__data_cache
+                sdm._data = self.serialized_model._data
+                self.serialized_model = sdm
             else:
-                self._bag_dag_compat(self.dag)
+                self.session.merge(self.serialized_model)
+            serialized_dag = self._serialized_dag()
+            self._bag_dag_compat(serialized_dag)
+            self.session.flush()
 
         def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
             from airflow.utils import timezone
@@ -995,10 +1028,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
-                kwargs.setdefault("dag_version", None)
                 kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
             else:
-                kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 
@@ -1041,6 +1072,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             fileloc=None,
             relative_fileloc=None,
             bundle_name=None,
+            bundle_version=None,
             session=None,
             **kwargs,
         ):
@@ -1075,6 +1107,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
             self.bundle_name = bundle_name or "dag_maker"
+            self.bundle_version = bundle_version
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.models.dagbundle import DagBundleModel
 
@@ -1441,7 +1474,10 @@ class CreateTaskOfOperator(Protocol):
 @pytest.fixture
 def create_task_of_operator(dag_maker: DagMaker) -> CreateTaskOfOperator:
     def _create_task_of_operator(operator_class, *, dag_id, session=None, **operator_kwargs):
+        default_timeout = 7
         with dag_maker(dag_id=dag_id, session=session):
+            if "timeout" not in operator_kwargs:
+                operator_kwargs["timeout"] = default_timeout
             task = operator_class(**operator_kwargs)
         return task
 
@@ -1619,7 +1655,7 @@ def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
         )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="session")
 def initialize_providers_manager():
     from airflow.providers_manager import ProvidersManager
 
@@ -1647,6 +1683,7 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
+        ProvidersManager().initialize_providers_configuration()
 
 
 @pytest.fixture(autouse=True)
@@ -1678,7 +1715,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
 
 @pytest.fixture(autouse=True)
 def _mock_plugins(request: pytest.FixtureRequest):
-    """Disable redacted text in tests, except specific."""
+    """Mock the plugin manager if marked with this fixture."""
     if mark := next(request.node.iter_markers("mock_plugin_manager"), None):
         from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
@@ -1817,25 +1854,22 @@ def cap_structlog():
     from structlog import configure, get_config
 
     class LogCapture(structlog.testing.LogCapture):
+        # Partial comparison -- only check keys passed in, or the "event"/message if a single value is given
         def __contains__(self, target):
-            import operator
+            if not isinstance(target, dict):
+                target = {"event": target}
 
-            if isinstance(target, str):
-
-                def predicate(e):
-                    return e["event"] == target
-            elif isinstance(target, dict):
-                # Partial comparison -- only check keys passed in
-                get = operator.itemgetter(*target.keys())
-                want = tuple(target.values())
-
-                def predicate(e):
+            def predicate(e):
+                def check_one(key, want):
                     try:
-                        return get(e) == want
+                        val = e.get(key)
+                        if isinstance(want, re.Pattern):
+                            return want.match(val)
+                        return val == want
                     except Exception:
                         return False
-            else:
-                raise TypeError(f"Can't search logs using {type(target)}")
+
+                return all(itertools.starmap(check_one, target.items()))
 
             return any(predicate(e) for e in self.entries)
 
@@ -1956,7 +1990,7 @@ def mocked_parse(spy_agency):
         )
         if hasattr(parse, "spy"):
             spy_agency.unspy(parse)
-        spy_agency.spy_on(parse, call_fake=lambda _: ti)
+        spy_agency.spy_on(parse, call_fake=lambda _, log: ti)
         return ti
 
     return set_dag
@@ -1990,7 +2024,7 @@ class RunTaskCallable(Protocol):
     """Protocol for better type hints for the fixture `run_task`."""
 
     @property
-    def state(self) -> IntermediateTIState | TerminalTIState: ...
+    def state(self) -> TIState: ...
 
     @property
     def msg(self) -> ToSupervisor | None: ...
@@ -2022,7 +2056,7 @@ class RunTaskCallable(Protocol):
         ti_id: UUID | None = None,
         max_tries: int | None = None,
         context_update: dict[str, Any] | None = None,
-    ) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]: ...
+    ) -> tuple[TIState, ToSupervisor | None, BaseException | None]: ...
 
 
 @pytest.fixture
@@ -2062,7 +2096,7 @@ def create_runtime_ti(mocked_parse):
         run_type: str = "manual",
         try_number: int = 1,
         map_index: int | None = -1,
-        upstream_map_indexes: dict[str, int] | None = None,
+        upstream_map_indexes: dict[str, int | list[int] | None] | None = None,
         task_reschedule_count: int = 0,
         ti_id: UUID | None = None,
         conf: dict[str, Any] | None = None,
@@ -2117,6 +2151,7 @@ def create_runtime_ti(mocked_parse):
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
             should_retry=should_retry if should_retry is not None else try_number <= task_retries,
+            upstream_map_indexes=upstream_map_indexes,
         )
 
         if upstream_map_indexes is not None:
@@ -2167,7 +2202,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
             task = MyTaskOperator(task_id="test_task")
             run_task(task)
-            assert run_task.state == TerminalTIState.SUCCESS
+            assert run_task.state == TaskInstanceState.SUCCESS
             assert run_task.error is None
     """
     import structlog
@@ -2279,7 +2314,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             self._context = None
 
         @property
-        def state(self) -> IntermediateTIState | TerminalTIState:
+        def state(self) -> TIState:
             """Get the task state."""
             return self._state
 
@@ -2318,7 +2353,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             ti_id: UUID | None = None,
             max_tries: int | None = None,
             context_update: dict[str, Any] | None = None,
-        ) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]:
+        ) -> tuple[TIState, ToSupervisor | None, BaseException | None]:
             now = timezone.utcnow()
             if logical_date is None:
                 logical_date = now

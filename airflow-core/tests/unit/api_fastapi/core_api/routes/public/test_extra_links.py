@@ -20,6 +20,8 @@ import os
 
 import pytest
 
+from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XComModel as XCom
@@ -93,7 +95,8 @@ class TestGetExtraLinks:
         DagBundlesManager().sync_bundles_to_db()
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {self.dag.dag_id: self.dag}
-        test_client.app.state.dag_bag = dag_bag
+
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
         dag_bag.sync_to_db("dags-folder", None)
 
         self.dag.create_dagrun(
@@ -169,9 +172,13 @@ class TestGetExtraLinks:
         )
 
         assert response.status_code == 200
-        assert response.json() == {
-            "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"
-        }
+        assert (
+            response.json()
+            == ExtraLinkCollectionResponse(
+                extra_links={"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"},
+                total_entries=1,
+            ).model_dump()
+        )
 
     def test_should_respond_200_missing_xcom(self, test_client):
         response = test_client.get(
@@ -179,7 +186,10 @@ class TestGetExtraLinks:
         )
 
         assert response.status_code == 200
-        assert response.json() == {"Google Custom": None}
+        assert (
+            response.json()
+            == ExtraLinkCollectionResponse(extra_links={"Google Custom": None}, total_entries=1).model_dump()
+        )
 
     def test_should_respond_200_multiple_links(self, test_client, session):
         XCom.set(
@@ -213,10 +223,16 @@ class TestGetExtraLinks:
         )
 
         assert response.status_code == 200
-        assert response.json() == {
-            "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_1",
-            "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
-        }
+        assert (
+            response.json()
+            == ExtraLinkCollectionResponse(
+                extra_links={
+                    "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_1",
+                    "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
+                },
+                total_entries=2,
+            ).model_dump()
+        )
 
     def test_should_respond_200_multiple_links_missing_xcom(self, test_client):
         response = test_client.get(
@@ -224,7 +240,13 @@ class TestGetExtraLinks:
         )
 
         assert response.status_code == 200
-        assert response.json() == {"BigQuery Console #1": None, "BigQuery Console #2": None}
+        assert (
+            response.json()
+            == ExtraLinkCollectionResponse(
+                extra_links={"BigQuery Console #1": None, "BigQuery Console #2": None},
+                total_entries=2,
+            ).model_dump()
+        )
 
     @pytest.mark.mock_plugin_manager(plugins=[AirflowPluginWithOperatorLinks])
     def test_should_respond_200_support_plugins(self, test_client):
@@ -233,11 +255,17 @@ class TestGetExtraLinks:
         )
 
         assert response, response.status_code == 200
-        assert response.json() == {
-            "Google Custom": None,
-            "Google": "https://www.google.com",
-            "S3": ("https://s3.amazonaws.com/airflow-logs/TEST_DAG_ID/TEST_SINGLE_LINK/"),
-        }
+        assert (
+            response.json()
+            == ExtraLinkCollectionResponse(
+                extra_links={
+                    "Google Custom": None,
+                    "Google": "https://www.google.com",
+                    "S3": ("https://s3.amazonaws.com/airflow-logs/TEST_DAG_ID/TEST_SINGLE_LINK/"),
+                },
+                total_entries=3,
+            ).model_dump()
+        )
 
     @pytest.mark.xfail(reason="TODO: TaskSDK need to fix this, Extra links should work for mapped operator")
     def test_should_respond_200_mapped_task_instance(self, test_client):
@@ -255,9 +283,13 @@ class TestGetExtraLinks:
             params={"map_index": map_index},
         )
         assert response.status_code == 200
-        assert response.json() == {
-            "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"
-        }
+        assert (
+            response.json()
+            == ExtraLinkCollectionResponse(
+                extra_links={"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"},
+                total_entries=1,
+            ).model_dump()
+        )
 
     def test_should_respond_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(

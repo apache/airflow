@@ -40,9 +40,10 @@ const columns: Array<ColumnDef<XComResponse>> = [
     accessorKey: "dag_id",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
+        <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
       </Link>
     ),
+    enableSorting: false,
     header: "Dag",
   },
   {
@@ -54,6 +55,7 @@ const columns: Array<ColumnDef<XComResponse>> = [
         </RouterLink>
       </Link>
     ),
+    enableSorting: false,
     header: "Run Id",
   },
   {
@@ -77,6 +79,7 @@ const columns: Array<ColumnDef<XComResponse>> = [
   },
   {
     accessorKey: "map_index",
+    enableSorting: false,
     header: "Map Index",
   },
   {

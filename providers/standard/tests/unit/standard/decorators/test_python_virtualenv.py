@@ -232,7 +232,7 @@ class TestPythonVirtualenvDecorator:
         ],
     )
     def test_fail(self, serializer, dag_maker):
-        @task.virtualenv()
+        @task.virtualenv(serializer=serializer)
         def f():
             raise Exception
 
@@ -284,8 +284,7 @@ class TestPythonVirtualenvDecorator:
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise Exception
+            raise Exception
 
         with dag_maker(serialized=True):
             ret = f(0, 1, c=True)

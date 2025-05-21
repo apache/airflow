@@ -34,7 +34,7 @@ from functools import reduce
 from typing import TYPE_CHECKING
 
 from dateutil import parser
-from kubernetes.client import V1EmptyDirVolumeSource, V1Volume, V1VolumeMount, models as k8s
+from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
@@ -162,10 +162,9 @@ class PodGenerator:
 
         if isinstance(k8s_object, k8s.V1Pod):
             return k8s_object
-        else:
-            raise TypeError(
-                "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
-            )
+        raise TypeError(
+            "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
+        )
 
     @staticmethod
     def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
@@ -203,7 +202,7 @@ class PodGenerator:
             return base_meta
         if not base_meta and client_meta:
             return client_meta
-        elif client_meta and base_meta:
+        if client_meta and base_meta:
             client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
             client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
             extend_object_field(base_meta, client_meta, "managed_fields")
@@ -229,7 +228,7 @@ class PodGenerator:
             return base_spec
         if not base_spec and client_spec:
             return client_spec
-        elif client_spec and base_spec:
+        if client_spec and base_spec:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )
@@ -288,7 +287,6 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
-        content_json_for_volume: str = "",
         *,
         with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
@@ -355,39 +353,6 @@ class PodGenerator:
         podspec = k8s.V1PodSpec(
             containers=[main_container],
         )
-
-        if content_json_for_volume:
-            import shlex
-
-            input_file_path = "/tmp/execute/input.json"
-            execute_volume = V1Volume(
-                name="execute-volume",
-                empty_dir=V1EmptyDirVolumeSource(),
-            )
-
-            execute_volume_mount = V1VolumeMount(
-                name="execute-volume",
-                mount_path="/tmp/execute",
-                read_only=False,
-            )
-
-            escaped_json = shlex.quote(content_json_for_volume)
-            init_container = k8s.V1Container(
-                name="init-container",
-                image="busybox",
-                command=["/bin/sh", "-c", f"echo {escaped_json} > {input_file_path}"],
-                volume_mounts=[execute_volume_mount],
-            )
-
-            main_container.volume_mounts = [execute_volume_mount]
-            main_container.command = args[:-1]
-            main_container.args = args[-1:]
-
-            podspec = k8s.V1PodSpec(
-                containers=[main_container],
-                volumes=[execute_volume],
-                init_containers=[init_container],
-            )
 
         dynamic_pod.spec = podspec
 
@@ -547,7 +512,7 @@ def merge_objects(base_obj, client_obj):
 
     for base_key in base_obj.to_dict():
         base_val = getattr(base_obj, base_key, None)
-        if not getattr(client_obj, base_key, None) and base_val:
+        if not getattr(client_obj, base_key, None) and base_val is not None:
             if not isinstance(client_obj_cp, dict):
                 setattr(client_obj_cp, base_key, base_val)
             else:

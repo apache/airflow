@@ -33,7 +33,7 @@ from airflow.logging_config import configure_logging
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
-from airflow.providers.fab.www.extensions.init_security import init_api_auth, init_xframe_protection
+from airflow.providers.fab.www.extensions.init_security import init_api_auth
 from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
 from airflow.providers.fab.www.extensions.init_views import (
     init_api_auth_provider,
@@ -41,6 +41,7 @@ from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
     init_plugins,
 )
+from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 from airflow.providers.fab.www.utils import get_session_lifetime_config
 
 app: Flask | None = None
@@ -101,8 +102,8 @@ def create_app(enable_plugins: bool):
             init_api_auth_provider(flask_app)
             init_api_error_handlers(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
-        init_xframe_protection(flask_app)
         init_airflow_session_interface(flask_app)
+        init_wsgi_middleware(flask_app)
     return flask_app
 
 

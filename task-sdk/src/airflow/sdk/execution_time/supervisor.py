@@ -27,8 +27,9 @@ import selectors
 import signal
 import sys
 import time
+from collections import deque
 from collections.abc import Generator
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
@@ -42,6 +43,7 @@ from typing import (
 )
 from uuid import UUID
 
+import aiologic
 import attrs
 import httpx
 import msgspec
@@ -54,11 +56,11 @@ from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
-    IntermediateTIState,
     TaskInstance,
+    TaskInstanceState,
     TaskStatesResponse,
-    TerminalTIState,
     VariableResponse,
+    XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -67,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DeleteVariable,
     DeleteXCom,
     ErrorResponse,
     GetAssetByName,
@@ -83,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComCount,
+    GetXComSequenceItem,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -127,16 +131,46 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
 STATES_SENT_DIRECTLY = [
-    IntermediateTIState.DEFERRED,
-    IntermediateTIState.UP_FOR_RESCHEDULE,
-    IntermediateTIState.UP_FOR_RETRY,
-    TerminalTIState.SUCCESS,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.SUCCESS,
     SERVER_TERMINATED,
 ]
 
 # Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
 # that is big enough to handle small to medium messages while not enforcing hard latency issues
 BUFFER_SIZE = 4096
+
+SIGSEGV_MESSAGE = """
+******************************************* Received SIGSEGV *******************************************
+SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which refers to
+an attempt by a program/library to write or read outside its allocated memory.
+
+In Python environment usually this signal refers to libraries which use low level C API.
+Make sure that you use right libraries/Docker Images
+for your architecture (Intel/ARM) and/or Operational System (Linux/macOS).
+
+Suggested way to debug
+======================
+  - Set environment variable 'PYTHONFAULTHANDLER' to 'true'.
+  - Start airflow services.
+  - Restart failed airflow task.
+  - Check 'scheduler' and 'worker' services logs for additional traceback
+    which might contain information about module/library where actual error happen.
+
+Known Issues
+============
+
+Note: Only Linux-based distros supported as "Production" execution environment for Airflow.
+
+macOS
+-----
+ 1. Due to limitations in Apple's libraries not every process might 'fork' safe.
+    One of the general error is unable to query the macOS system configuration for network proxies.
+    If your are not using a proxy you could disable it by set environment variable 'no_proxy' to '*'.
+    See: https://github.com/python/cpython/issues/58037 and https://bugs.python.org/issue30385#msg293958
+********************************************************************************************************"""
 
 
 def mkpipe(
@@ -397,6 +431,9 @@ class WatchedSubprocess:
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
 
+    start_time: float = attrs.field(factory=time.monotonic)
+    """The start time of the child process."""
+
     @classmethod
     def start(
         cls,
@@ -429,11 +466,9 @@ class WatchedSubprocess:
                 # Run the child entrypoint
                 _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
             except BaseException as e:
-                try:
+                with suppress(BaseException):
                     # We can't use log here, as if we except out of _fork_main something _weird_ went on.
                     print("Exception in _fork_main, exiting with code 124", e, file=sys.stderr)
-                except BaseException as e:
-                    pass
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
             # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
@@ -452,6 +487,7 @@ class WatchedSubprocess:
             process=psutil.Process(pid),
             requests_fd=requests_fd,
             process_log=logger,
+            start_time=time.monotonic(),
             **constructor_kwargs,
         )
 
@@ -596,9 +632,11 @@ class WatchedSubprocess:
                     # Service subprocess events during the escalation delay. This will return as soon as it's
                     # read from any of the sockets, so we need to re-run it if the process is still alive
                     if (
-                        exit_code := self._service_subprocess(max_wait_time=end - now, raise_on_timeout=False)
+                        exit_code := self._service_subprocess(
+                            max_wait_time=end - now, raise_on_timeout=False, expect_signal=sig
+                        )
                     ) is not None:
-                        log.info("Process exited", pid=self.pid, exit_code=exit_code, signal=sig.name)
+                        log.info("Process exited", pid=self.pid, exit_code=exit_code, signal_sent=sig.name)
                         return
 
                     now = time.monotonic()
@@ -631,7 +669,9 @@ class WatchedSubprocess:
             rep += f" exit_code={self._exit_code}"
         return rep + " >"
 
-    def _service_subprocess(self, max_wait_time: float, raise_on_timeout: bool = False):
+    def _service_subprocess(
+        self, max_wait_time: float, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ):
         """
         Service subprocess events by processing socket activity and checking for process exit.
 
@@ -642,6 +682,7 @@ class WatchedSubprocess:
 
         :param max_wait_time: Maximum time to block while waiting for events, in seconds.
         :param raise_on_timeout: If True, raise an exception if the subprocess does not exit within the timeout.
+        :param expect_signal: Signal not to log if the task exits with this code.
         :returns: The process exit code, or None if it's still alive
         """
         events = self.selector.select(timeout=max_wait_time)
@@ -668,18 +709,42 @@ class WatchedSubprocess:
                 key.fileobj.close()  # type: ignore[union-attr]
 
         # Check if the subprocess has exited
-        return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout)
+        return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
 
-    def _check_subprocess_exit(self, raise_on_timeout: bool = False) -> int | None:
+    def _check_subprocess_exit(
+        self, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ) -> int | None:
         """Check if the subprocess has exited."""
-        if self._exit_code is None:
-            try:
-                self._exit_code = self._process.wait(timeout=0)
-                log.debug("%s process exited", type(self).__name__, exit_code=self._exit_code)
-                self._close_unused_sockets(self.stdin)
-            except psutil.TimeoutExpired:
-                if raise_on_timeout:
-                    raise
+        if self._exit_code is not None:
+            return self._exit_code
+
+        try:
+            self._exit_code = self._process.wait(timeout=0)
+        except psutil.TimeoutExpired:
+            if raise_on_timeout:
+                raise
+        else:
+            self._close_unused_sockets(self.stdin)
+            # Put a message in the viewable task logs
+
+            if expect_signal is not None and self._exit_code == -expect_signal:
+                # Bypass logging, the caller expected us to exit with this
+                return self._exit_code
+
+            # psutil turns signal exit codes into an enum for us. Handy. (Otherwise it's a plain integer) if exit_code and (name := getattr(exit_code, "name")):
+            if self._exit_code == -signal.SIGSEGV:
+                self.process_log.critical(SIGSEGV_MESSAGE)
+            elif name := getattr(self._exit_code, "name", None):
+                message = "Process terminated by signal"
+                level = logging.ERROR
+                if self._exit_code == -signal.SIGKILL:
+                    message += ". For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#TaskRunner-killed"
+                    level = logging.CRITICAL
+                self.process_log.log(level, message, signal=int(self._exit_code), signal_name=name)
+            elif self._exit_code:
+                # Run of the mill exit code (1, 42, etc).
+                # Most task errors should be caught in the task runner and _that_ exits with 0.
+                self.process_log.warning("Process exited abnormally", exit_code=self._exit_code)
         return self._exit_code
 
 
@@ -704,6 +769,7 @@ class ActivitySubprocess(WatchedSubprocess):
     # TODO: This should come from airflow.cfg: [core] task_success_overtime
     TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
+    _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
@@ -773,20 +839,26 @@ class ActivitySubprocess(WatchedSubprocess):
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        # If the process has finished non-directly patched state (directly means deferred, reschedule, etc.),
-        # update the state of the TaskInstance to reflect the final state of the process.
-        # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
-        # by the subprocess in the `handle_requests` method.
-        if self.final_state not in STATES_SENT_DIRECTLY:
-            self.client.task_instances.finish(
-                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
-            )
+        self.update_task_state_if_needed()
 
         # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
         # upload the remote logs
         self._upload_logs()
 
         return self._exit_code
+
+    def update_task_state_if_needed(self):
+        # If the process has finished non-directly patched state (directly means deferred, reschedule, etc.),
+        # update the state of the TaskInstance to reflect the final state of the process.
+        # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
+        # by the subprocess in the `handle_requests` method.
+        if self.final_state not in STATES_SENT_DIRECTLY:
+            self.client.task_instances.finish(
+                id=self.id,
+                state=self.final_state,
+                when=datetime.now(tz=timezone.utc),
+                rendered_map_index=self._rendered_map_index,
+            )
 
     def _upload_logs(self):
         """
@@ -913,10 +985,10 @@ class ActivitySubprocess(WatchedSubprocess):
         Not valid before the process has finished.
         """
         if self._exit_code == 0:
-            return self._terminal_state or TerminalTIState.SUCCESS
-        elif self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
+            return self._terminal_state or TaskInstanceState.SUCCESS
+        if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
-        return TerminalTIState.FAILED
+        return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
         log.debug("Received message from task runner", msg=msg)
@@ -925,21 +997,26 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.succeed(
                 id=self.id,
                 when=msg.end_date,
                 task_outlets=msg.task_outlets,
                 outlet_events=msg.outlet_events,
+                rendered_map_index=self._rendered_map_index,
             )
         elif isinstance(msg, RetryTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.retry(
                 id=self.id,
                 end_date=msg.end_date,
+                rendered_map_index=self._rendered_map_index,
             )
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
@@ -972,11 +1049,20 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetXComCount):
             len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
             resp = XComCountResponse(len=len)
+        elif isinstance(msg, GetXComSequenceItem):
+            xcom = self.client.xcoms.get_sequence_item(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
+            )
+            if isinstance(xcom, XComResponse):
+                resp = XComResult.from_xcom_response(xcom)
+            else:
+                resp = xcom
         elif isinstance(msg, DeferTask):
-            self._terminal_state = IntermediateTIState.DEFERRED
+            self._terminal_state = TaskInstanceState.DEFERRED
+            self._rendered_map_index = msg.rendered_map_index
             self.client.task_instances.defer(self.id, msg)
         elif isinstance(msg, RescheduleTask):
-            self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
+            self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
@@ -1037,6 +1123,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTICount):
             resp = self.client.task_instances.get_count(
                 dag_id=msg.dag_id,
+                map_index=msg.map_index,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,
@@ -1046,6 +1133,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTaskStates):
             task_states_map = self.client.task_instances.get_task_states(
                 dag_id=msg.dag_id,
+                map_index=msg.map_index,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,
@@ -1062,12 +1150,198 @@ class ActivitySubprocess(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
             return
 
         if resp:
             self.send_msg(resp, **dump_opts)
+
+
+def in_process_api_server():
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+    return api
+
+
+@attrs.define
+class InProcessSupervisorComms:
+    """In-process communication handler that uses deques instead of sockets."""
+
+    supervisor: InProcessTestSupervisor
+    messages: deque[BaseModel] = attrs.field(factory=deque)
+    lock: aiologic.Lock = attrs.field(factory=aiologic.Lock)
+
+    def get_message(self) -> BaseModel:
+        """Get a message from the supervisor. Blocks until a message is available."""
+        return self.messages.popleft()
+
+    def send_request(self, log, msg: BaseModel):
+        """Send a request to the supervisor."""
+        log.debug("Sending request", msg=msg)
+
+        with set_supervisor_comms(None):
+            self.supervisor._handle_request(msg, log)  # type: ignore[arg-type]
+
+
+@attrs.define
+class TaskRunResult:
+    """Result of running a task via ``InProcessTestSupervisor``."""
+
+    ti: RuntimeTI
+    state: str
+    msg: BaseModel | None
+    error: BaseException | None
+
+
+@attrs.define(kw_only=True)
+class InProcessTestSupervisor(ActivitySubprocess):
+    """A supervisor that runs tasks in-process for easier testing."""
+
+    comms: InProcessSupervisorComms = attrs.field(init=False)
+    stdin = attrs.field(init=False)
+
+    @classmethod
+    def start(  # type: ignore[override]
+        cls,
+        *,
+        what: TaskInstance,
+        task,
+        logger: FilteringBoundLogger | None = None,
+        **kwargs,
+    ) -> TaskRunResult:
+        """
+        Run a task in-process without spawning a new child process.
+
+        This bypasses the standard `ActivitySubprocess.start()` behavior, which expects
+        to launch a subprocess and communicate via stdin/stdout. Instead, it constructs
+        the `RuntimeTaskInstance` directly — useful in contexts like `dag.test()` where the
+        DAG is already parsed in memory.
+
+        Supervisor state and communications are simulated in-memory via `InProcessSupervisorComms`.
+        """
+        # Create supervisor instance
+        supervisor = cls(
+            id=what.id,
+            pid=os.getpid(),  # Use current process
+            process=psutil.Process(),  # Current process
+            requests_fd=-1,  # Not used in in-process mode
+            process_log=logger or structlog.get_logger(logger_name="task").bind(),
+            client=cls._api_client(task.dag),
+            **kwargs,
+        )
+
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
+
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        with set_supervisor_comms(supervisor.comms):
+            supervisor.ti = what  # type: ignore[assignment]
+
+            # We avoid calling `task_runner.startup()` because we are already inside a
+            # parsed DAG file (e.g. via dag.test()).
+            # In normal execution, `startup()` parses the DAG based on info in a `StartupDetails` message.
+            # By directly constructing the `RuntimeTaskInstance`,
+            #   we skip re-parsing (`task_runner.parse()`) and avoid needing to set DAG Bundle config
+            #   and run the task in-process.
+            start_date = datetime.now(tz=timezone.utc)
+            ti_context = supervisor.client.task_instances.start(supervisor.id, supervisor.pid, start_date)
+
+            ti = RuntimeTaskInstance.model_construct(
+                **what.model_dump(exclude_unset=True),
+                task=task,
+                _ti_context_from_server=ti_context,
+                max_tries=ti_context.max_tries,
+                start_date=start_date,
+                state=TaskInstanceState.RUNNING,
+            )
+            context = ti.get_template_context()
+            log = structlog.get_logger(logger_name="task")
+
+            state, msg, error = run(ti, context, log)
+            finalize(ti, state, context, log, error)
+
+            # In the normal subprocess model, the task runner calls this before exiting.
+            # Since we're running in-process, we manually notify the API server that
+            # the task has finished—unless the terminal state was already sent explicitly.
+            supervisor.update_task_state_if_needed()
+
+        return TaskRunResult(ti=ti, state=state, msg=msg, error=error)
+
+    @staticmethod
+    def _api_client(dag=None):
+        from airflow.models.dagbag import DagBag
+        from airflow.sdk.api.client import Client
+
+        api = in_process_api_server()
+        if dag is not None:
+            from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+            from airflow.serialization.serialized_objects import SerializedDAG
+
+            # This is needed since the Execution API server uses the DagBag in its "state".
+            # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
+            dag_bag = DagBag(include_examples=False, collect_dags=False, load_op_links=False)
+
+            # Mimic the behavior of the DagBag in the API server by converting the DAG to a SerializedDAG
+            dag_bag.dags[dag.dag_id] = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+            api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
+
+        client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
+    def send_msg(self, msg: BaseModel, **dump_opts):
+        """Override to use in-process comms."""
+        self.comms.messages.append(msg)
+
+    @property
+    def final_state(self):
+        """Override to use in-process comms."""
+        # Since we're running in-process, we don't have a final state until the task has finished.
+        # We also don't have a process exit code to determine success/failure.
+        return self._terminal_state
+
+
+@contextmanager
+def set_supervisor_comms(temp_comms):
+    """
+    Temporarily override `SUPERVISOR_COMMS` in the `task_runner` module.
+
+    This is used to simulate task-runner ↔ supervisor communication in-process,
+    by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
+    in place of the real inter-process communication layer.
+
+    Some parts of the code (e.g. models.Variable.get) check for the presence
+    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
+    This override ensures those code paths behave correctly during in-process tests.
+    """
+    from airflow.sdk.execution_time import task_runner
+
+    sentinel = object()
+    old = getattr(task_runner, "SUPERVISOR_COMMS", sentinel)
+
+    if temp_comms is not None:
+        task_runner.SUPERVISOR_COMMS = temp_comms
+    elif old is not sentinel:
+        delattr(task_runner, "SUPERVISOR_COMMS")
+
+    try:
+        yield
+    finally:
+        if old is sentinel:
+            if hasattr(task_runner, "SUPERVISOR_COMMS"):
+                delattr(task_runner, "SUPERVISOR_COMMS")
+        else:
+            task_runner.SUPERVISOR_COMMS = old
+
+
+def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
+    """Run a task in-process for testing."""
+    # Run the task
+    return InProcessTestSupervisor.start(what=ti, task=task)
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read
@@ -1174,7 +1448,9 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.configuration import ensure_secrets_loaded
     from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+
+    return backends
 
 
 def supervise(
@@ -1193,7 +1469,7 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param bundle_info: Current DagRun of the task instance.
+    :param bundle_info: Information of the DAG bundle to use for this task instance.
     :param dag_rel_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
@@ -1236,7 +1512,12 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    ensure_secrets_backend_loaded()
+    backends = ensure_secrets_backend_loaded()
+    log.info(
+        "Secrets backends loaded for worker",
+        count=len(backends),
+        backend_classes=[type(b).__name__ for b in backends],
+    )
 
     reset_secrets_masker()
 

@@ -41,6 +41,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.types import TypeEngine
 
+    from airflow.typing_compat import Self
+
 
 log = logging.getLogger(__name__)
 
@@ -68,9 +70,9 @@ class UtcDateTime(TypeDecorator):
             if value is None:
                 return None
             raise TypeError(f"expected datetime.datetime, not {value!r}")
-        elif value.tzinfo is None:
+        if value.tzinfo is None:
             raise ValueError("naive datetime is disallowed")
-        elif dialect.name == "mysql":
+        if dialect.name == "mysql":
             # For mysql versions prior 8.0.19 we should send timestamps as naive values in UTC
             # see: https://dev.mysql.com/doc/refman/8.0/en/date-and-time-literals.html
             return make_naive(value, timezone=utc)
@@ -114,8 +116,7 @@ class ExtendedJSON(TypeDecorator):
     def load_dialect_impl(self, dialect) -> TypeEngine:
         if dialect.name == "postgresql":
             return dialect.type_descriptor(JSONB)
-        else:
-            return dialect.type_descriptor(JSON)
+        return dialect.type_descriptor(JSON)
 
     def process_bind_param(self, value, dialect):
         from airflow.serialization.serialized_objects import BaseSerialization
@@ -162,13 +163,13 @@ def sanitize_for_serialization(obj: V1Pod):
     """
     if obj is None:
         return None
-    elif isinstance(obj, (float, bool, bytes, str, int)):
+    if isinstance(obj, (float, bool, bytes, str, int)):
         return obj
-    elif isinstance(obj, list):
+    if isinstance(obj, list):
         return [sanitize_for_serialization(sub_obj) for sub_obj in obj]
-    elif isinstance(obj, tuple):
+    if isinstance(obj, tuple):
         return tuple(sanitize_for_serialization(sub_obj) for sub_obj in obj)
-    elif isinstance(obj, (datetime.datetime, datetime.date)):
+    if isinstance(obj, (datetime.datetime, datetime.date)):
         return obj.isoformat()
 
     if isinstance(obj, dict):
@@ -286,11 +287,10 @@ class ExecutorConfigType(PickleType):
         """
         if self.comparator:
             return self.comparator(x, y)
-        else:
-            try:
-                return x == y
-            except AttributeError:
-                return False
+        try:
+            return x == y
+        except AttributeError:
+            return False
 
 
 def nulls_first(col, session: Session) -> dict[str, Any]:
@@ -303,8 +303,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
     """
     if session.bind.dialect.name == "postgresql":
         return nullsfirst(col)
-    else:
-        return col
+    return col
 
 
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
@@ -383,7 +382,7 @@ class CommitProhibitorGuard:
             return
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         event.listen(self.session, "before_commit", self._validate_commit)
         return self
 

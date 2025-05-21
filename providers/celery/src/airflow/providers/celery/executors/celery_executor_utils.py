@@ -27,6 +27,7 @@ import logging
 import math
 import os
 import subprocess
+import sys
 import traceback
 import warnings
 from collections.abc import Mapping, MutableMapping
@@ -158,13 +159,19 @@ def execute_workload(input: str) -> None:
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
+    base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
         ti=workload.ti,  # type: ignore[arg-type]
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("core", "execution_api_server_url"),
+        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
     )
 
@@ -234,7 +241,7 @@ def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | N
     if celery_task_id:
         env["external_executor_id"] = celery_task_id
     try:
-        subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
+        subprocess.run(command_to_exec, stderr=sys.__stderr__, stdout=sys.__stdout__, close_fds=True, env=env)
     except subprocess.CalledProcessError as e:
         log.exception("[%s] execute_command encountered a CalledProcessError", celery_task_id)
         log.error(e.output)

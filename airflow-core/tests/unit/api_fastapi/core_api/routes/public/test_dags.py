@@ -113,6 +113,11 @@ class TestDagEndpoint:
             schedule=None,
             start_date=DAG1_START_DATE,
             doc_md="details",
+            default_args={
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+            },
             params={"foo": 1},
             tags=["example"],
         ):
@@ -125,6 +130,11 @@ class TestDagEndpoint:
             schedule=None,
             start_date=DAG2_START_DATE,
             doc_md="details",
+            default_args={
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+            },
             params={"foo": 1},
             max_active_tasks=16,
             max_active_runs=16,
@@ -386,15 +396,22 @@ class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name, start_date",
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z"),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z"),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_dag_details(
-        self, test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        expected_status_code,
+        dag_display_name,
+        start_date,
+        owner_links,
     ):
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
         assert response.status_code == expected_status_code
@@ -408,12 +425,18 @@ class TestDagDetails(TestDagEndpoint):
         file_token = res_json["file_token"]
         expected = {
             "bundle_name": "dag_maker",
+            "bundle_version": None,
             "asset_expression": None,
             "catchup": False,
             "concurrency": 16,
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "dag_run_timeout": None,
+            "default_args": {
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": "PT5M",
+            },
             "description": None,
             "doc_md": "details",
             "end_date": None,
@@ -432,6 +455,7 @@ class TestDagDetails(TestDagEndpoint):
                 "dag_id": "test_dag2",
                 "id": mock.ANY,
                 "version_number": 1,
+                "dag_display_name": dag_display_name,
             },
             "last_expired": None,
             "last_parsed": last_parsed,
@@ -444,6 +468,7 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_logical_date": None,
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
+            "owner_links": {},
             "params": {
                 "foo": {
                     "__class": "airflow.sdk.definitions.param.Param",
@@ -516,6 +541,7 @@ class TestGetDag(TestDagEndpoint):
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "bundle_name": "dag_maker",
+            "bundle_version": None,
             "relative_fileloc": "test_dags.py",
         }
         assert res_json == expected

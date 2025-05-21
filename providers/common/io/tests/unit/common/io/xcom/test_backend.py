@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
 import airflow.models.xcom
@@ -102,6 +104,8 @@ class TestXComObjectStorageBackend:
         )
 
         if AIRFLOW_V_3_0_PLUS:
+            # When using XComObjectStorageBackend, the value is stored in the db is serialized with json dumps
+            # so we need to mimic that same behavior below.
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="return_value", value={"key": "value"}
             )
@@ -362,3 +366,27 @@ class TestXComObjectStorageBackend:
         )
 
         assert value == {"key": "superlargevalue" * 100}
+
+    @pytest.mark.parametrize(
+        "value, expected_value",
+        [
+            pytest.param(1, 1, id="int"),
+            pytest.param(1.0, 1.0, id="float"),
+            pytest.param("string", "string", id="str"),
+            pytest.param(True, True, id="bool"),
+            pytest.param({"key": "value"}, {"key": "value"}, id="dict"),
+            pytest.param({"key": {"key": "value"}}, {"key": {"key": "value"}}, id="nested_dict"),
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param((1, 2, 3), (1, 2, 3), id="tuple"),
+            pytest.param(None, None, id="none"),
+        ],
+    )
+    def test_serialization_deserialization_basic(self, value, expected_value):
+        XCom = resolve_xcom_backend()
+        airflow.models.xcom.XCom = XCom
+
+        serialized_data = XCom.serialize_value(value)
+        mock_xcom_ser = MagicMock(value=serialized_data)
+        deserialized_data = XCom.deserialize_value(mock_xcom_ser)
+
+        assert deserialized_data == expected_value

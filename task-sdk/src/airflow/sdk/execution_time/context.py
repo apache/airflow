@@ -20,7 +20,7 @@ import collections
 import contextlib
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 import attrs
 import structlog
@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         AssetEventsResult,
         AssetResult,
         ConnectionResult,
+        OKResponse,
         PrevSuccessfulDagRunResponse,
         VariableResult,
     )
@@ -258,6 +259,25 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
         SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
 
 
+def _delete_variable(key: str) -> None:
+    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
+    #   or `airflow.sdk.execution_time.variable`
+    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
+    #   will make that module depend on Task SDK, which is not ideal because we intend to
+    #   keep Task SDK as a separate package than execution time mods.
+    from airflow.sdk.execution_time.comms import DeleteVariable
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
+    # primarily added for triggers but it doesn't make sense to have it in some places
+    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=DeleteVariable(key=key))
+        msg = SUPERVISOR_COMMS.get_message()
+    if TYPE_CHECKING:
+        assert isinstance(msg, OKResponse)
+
+
 class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
@@ -376,50 +396,6 @@ class _AssetRefResolutionMixin:
 
 
 @attrs.define
-class TriggeringAssetEventsAccessor(
-    _AssetRefResolutionMixin,
-    Mapping[Union[Asset, AssetAlias, AssetRef], Sequence["AssetEventDagRunReferenceResult"]],
-):
-    """Lazy mapping of triggering asset events."""
-
-    _events: Mapping[BaseAssetUniqueKey, Sequence[AssetEventDagRunReferenceResult]]
-
-    @classmethod
-    def build(cls, events: Iterable[AssetEventDagRunReferenceResult]) -> TriggeringAssetEventsAccessor:
-        coll: dict[BaseAssetUniqueKey, list[AssetEventDagRunReferenceResult]] = collections.defaultdict(list)
-        for event in events:
-            coll[AssetUniqueKey(name=event.asset.name, uri=event.asset.uri)].append(event)
-            for alias in event.source_aliases:
-                coll[AssetAliasUniqueKey(name=alias.name)].append(event)
-        return cls(coll)
-
-    def __str__(self) -> str:
-        return f"TriggeringAssetEventAccessor(_events={self._events})"
-
-    def __iter__(self) -> Iterator[Asset | AssetAlias]:
-        return (
-            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias()
-            for key in self._events
-        )
-
-    def __len__(self) -> int:
-        return len(self._events)
-
-    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> Sequence[AssetEventDagRunReferenceResult]:
-        hashable_key: BaseAssetUniqueKey
-        if isinstance(key, Asset):
-            hashable_key = AssetUniqueKey.from_asset(key)
-        elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
-        elif isinstance(key, AssetAlias):
-            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
-        else:
-            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
-
-        return self._events[hashable_key]
-
-
-@attrs.define
 class OutletEventAccessor(_AssetRefResolutionMixin):
     """Wrapper to access an outlet asset event in template."""
 
@@ -447,12 +423,21 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
 
 
 class _AssetEventAccessorsMixin(Generic[T]):
+    @overload
+    def for_asset(self, *, name: str, uri: str) -> T: ...
+
+    @overload
+    def for_asset(self, *, name: str) -> T: ...
+
+    @overload
+    def for_asset(self, *, uri: str) -> T: ...
+
     def for_asset(self, *, name: str | None = None, uri: str | None = None) -> T:
         if name and uri:
             return self[Asset(name=name, uri=uri)]
-        elif name:
+        if name:
             return self[Asset.ref(name=name)]
-        elif uri:
+        if uri:
             return self[Asset.ref(uri=uri)]
 
         raise ValueError("name and uri cannot both be None")
@@ -466,8 +451,8 @@ class _AssetEventAccessorsMixin(Generic[T]):
 
 class OutletEventAccessors(
     _AssetRefResolutionMixin,
-    Mapping[Union[Asset, AssetAlias], OutletEventAccessor],
-    _AssetEventAccessorsMixin,
+    Mapping["Asset | AssetAlias", OutletEventAccessor],
+    _AssetEventAccessorsMixin[OutletEventAccessor],
 ):
     """Lazy mapping of outlet asset event accessors."""
 
@@ -502,7 +487,10 @@ class OutletEventAccessors(
 
 
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any], _AssetEventAccessorsMixin):
+class InletEventsAccessors(
+    Mapping["int | Asset | AssetAlias | AssetRef", Any],
+    _AssetEventAccessorsMixin[list["AssetEventResult"]],
+):
     """Lazy mapping of inlet asset event accessors."""
 
     _inlets: list[Any]
@@ -575,6 +563,51 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
             assert isinstance(msg, AssetEventsResult)
 
         return list(msg.iter_asset_event_results())
+
+
+@attrs.define
+class TriggeringAssetEventsAccessor(
+    _AssetRefResolutionMixin,
+    Mapping["Asset | AssetAlias | AssetRef", Sequence["AssetEventDagRunReferenceResult"]],
+    _AssetEventAccessorsMixin[Sequence["AssetEventDagRunReferenceResult"]],
+):
+    """Lazy mapping of triggering asset events."""
+
+    _events: Mapping[BaseAssetUniqueKey, Sequence[AssetEventDagRunReferenceResult]]
+
+    @classmethod
+    def build(cls, events: Iterable[AssetEventDagRunReferenceResult]) -> TriggeringAssetEventsAccessor:
+        coll: dict[BaseAssetUniqueKey, list[AssetEventDagRunReferenceResult]] = collections.defaultdict(list)
+        for event in events:
+            coll[AssetUniqueKey(name=event.asset.name, uri=event.asset.uri)].append(event)
+            for alias in event.source_aliases:
+                coll[AssetAliasUniqueKey(name=alias.name)].append(event)
+        return cls(coll)
+
+    def __str__(self) -> str:
+        return f"TriggeringAssetEventAccessor(_events={self._events})"
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
+        return (
+            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias()
+            for key in self._events
+        )
+
+    def __len__(self) -> int:
+        return len(self._events)
+
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> Sequence[AssetEventDagRunReferenceResult]:
+        hashable_key: BaseAssetUniqueKey
+        if isinstance(key, Asset):
+            hashable_key = AssetUniqueKey.from_asset(key)
+        elif isinstance(key, AssetRef):
+            hashable_key = self._resolve_asset_ref(key)
+        elif isinstance(key, AssetAlias):
+            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
+        else:
+            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
+
+        return self._events[hashable_key]
 
 
 @cache  # Prevent multiple API access.

@@ -25,7 +25,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
@@ -63,6 +63,32 @@ def init_views(app: FastAPI) -> None:
         ),
         name="webapp_static_folder",
     )
+
+    @app.get("/health", include_in_schema=False)
+    def old_health():
+        # If someone has the `/health` endpoint from Airflow 2 set up, we want this to be a 404, not serve the
+        # default index.html for the SPA.
+        #
+        # This is a 404, not a redirect, as setups need correcting to account for this, and a redirect might
+        # hide the issue
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Moved in Airflow 3. Please change config to check `/api/v2/monitor/health`"},
+        )
+
+    @app.get("/api/v1/{_:path}", include_in_schema=False)
+    def old_api(_):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "/api/v1 has been removed in Airflow 3, please use its upgraded version /api/v2 instead."
+            },
+        )
+
+    @app.get("/api/{_:path}", include_in_schema=False)
+    def api_not_found(_):
+        """Catch all route to handle invalid API endpoints."""
+        return JSONResponse(status_code=404, content={"error": "API route not found"})
 
     @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
     def webapp(request: Request, rest_of_path: str):
@@ -141,4 +167,10 @@ def init_error_handlers(app: FastAPI) -> None:
 
 
 def init_middlewares(app: FastAPI) -> None:
+    from airflow.configuration import conf
+
     app.add_middleware(FlaskExceptionsMiddleware)
+    if conf.getboolean("core", "simple_auth_manager_all_admins"):
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        app.add_middleware(SimpleAllAdminMiddleware)

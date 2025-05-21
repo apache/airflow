@@ -340,7 +340,7 @@ class ClusterGenerator:
             unit = match.group(2)
             if unit == "s":
                 return {"seconds": val}
-            elif unit == "m":
+            if unit == "m":
                 return {"seconds": int(timedelta(minutes=val).total_seconds())}
 
         raise AirflowException(
@@ -822,26 +822,24 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 )
                 self.log.info("Cluster created.")
                 return Cluster.to_dict(cluster)
-            else:
-                cluster = hook.get_cluster(
-                    project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
-                )
-                if cluster.status.state == cluster.status.State.RUNNING:
-                    self.log.info("Cluster created.")
-                    return Cluster.to_dict(cluster)
-                else:
-                    self.defer(
-                        trigger=DataprocClusterTrigger(
-                            cluster_name=self.cluster_name,
-                            project_id=self.project_id,
-                            region=self.region,
-                            gcp_conn_id=self.gcp_conn_id,
-                            impersonation_chain=self.impersonation_chain,
-                            polling_interval_seconds=self.polling_interval_seconds,
-                            delete_on_error=self.delete_on_error,
-                        ),
-                        method_name="execute_complete",
-                    )
+            cluster = hook.get_cluster(
+                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
+            )
+            if cluster.status.state == cluster.status.State.RUNNING:
+                self.log.info("Cluster created.")
+                return Cluster.to_dict(cluster)
+            self.defer(
+                trigger=DataprocClusterTrigger(
+                    cluster_name=self.cluster_name,
+                    project_id=self.project_id,
+                    region=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    polling_interval_seconds=self.polling_interval_seconds,
+                    delete_on_error=self.delete_on_error,
+                ),
+                method_name="execute_complete",
+            )
         except AlreadyExists:
             if not self.use_if_exists:
                 raise
@@ -1022,7 +1020,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         """
         if event and event["status"] == "error":
             raise AirflowException(event["message"])
-        elif event is None:
+        if event is None:
             raise AirflowException("No event received in trigger callback")
         self.log.info("Cluster deleted.")
 
@@ -1377,8 +1375,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
                 self.hook.wait_for_job(job_id=job_id, region=self.region, project_id=self.project_id)
                 self.log.info("Job %s completed successfully.", job_id)
             return job_id
-        else:
-            raise AirflowException("Create a job template before")
+        raise AirflowException("Create a job template before")
 
     def execute_complete(self, context, event=None) -> None:
         """
@@ -1916,9 +1913,9 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
             state = job.status.state
             if state == JobStatus.State.DONE:
                 return self.job_id
-            elif state == JobStatus.State.ERROR:
+            if state == JobStatus.State.ERROR:
                 raise AirflowException(f"Job failed:\n{job}")
-            elif state == JobStatus.State.CANCELLED:
+            if state == JobStatus.State.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
             self.defer(
                 trigger=DataprocSubmitTrigger(

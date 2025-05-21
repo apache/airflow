@@ -137,20 +137,6 @@ When you develop providers, you might want to reuse some of the code between tes
 This is possible by placing the code in ``test_utils`` in the ``devel-common/src`` directory.
 The ``tests_common`` module is installed automatically by uv in the uv workspace.
 
-Chicken-egg providers
----------------------
-
-Sometimes, when a provider depends on another provider, and you want to add a new feature that spans across
-two providers, you might need to add a new feature to the "dependent" provider, you need
-to add a new feature to the "dependency" provider as well. This is a chicken-egg problem and by default
-some CI jobs (like generating PyPI constraints) will fail because they cannot use the source version of
-the provider distribution. This is handled by adding the "dependent" provider to the chicken-egg list of
-"providers" in ``dev/breeze/src/airflow_breeze/global_constants.py``. By doing this, the provider is build
-locally from sources rather than downloaded from PyPI when generating constraints.
-
-More information about the chicken-egg providers and how release is handled can be found in
-the `Release providers documentation <../dev/README_RELEASE_PROVIDERS.md#chicken-egg-providers>`_
-
 Developing community managed providers
 --------------------------------------
 
@@ -160,17 +146,17 @@ parts of the system are developed in the same repository but then they are packa
 All the community-managed providers are in ``providers`` folder and their code is placed as sub-directories of
 ``providers`` directory.
 
-In order to allow the same Python airflow sub-packages to be present in different distributions of the source tree,
+In order to allow the same Python Airflow sub-packages to be present in different distributions of the source tree,
 we are heavily utilising `namespace packages <https://packaging.python.org/en/latest/guides/packaging-namespace-packages/>`_.
 For now we have a bit of mixture of native (no ``__init__.py`` namespace packages) and pkgutil-style
 namespace packages (with ``__init__.py`` and path extension) but we are moving
 towards using only native namespace packages.
 
 All the providers are available as ``apache-airflow-providers-<PROVIDER_ID>``
-distributions when installed by users, but when you contribute to providers you can work on airflow main
+distributions when installed by users, but when you contribute to providers you can work on Airflow main
 and install provider dependencies via ``editable`` extras (using uv workspace) - without
 having to manage and install providers separately, you can easily run tests for the providers
-and when you run airflow from the ``main`` sources, all community providers are
+and when you run Airflow from the ``main`` sources, all community providers are
 automatically available for you.
 
 The capabilities of the community-managed providers are the same as the third-party ones. When
@@ -192,7 +178,7 @@ complicated.
 Regardless if you plan to contribute your provider, when you are developing your own, custom providers,
 you can use the above functionality to make your development easier. You can add your provider
 as a sub-folder of the ``airflow.providers`` Python package, add the ``provider.yaml`` file and install airflow
-in development mode - then capabilities of your provider will be discovered by airflow and you will see
+in development mode - then capabilities of your provider will be discovered by Airflow and you will see
 the provider among other providers in ``airflow providers`` command output.
 
 
@@ -370,4 +356,4 @@ with latest version of the provider.
 
 ------
 
-You can read about airflow `dependencies and extras <13_airflow_dependencies_and_extras.rst>`_ .
+You can read about Airflow `dependencies and extras <13_airflow_dependencies_and_extras.rst>`_ .

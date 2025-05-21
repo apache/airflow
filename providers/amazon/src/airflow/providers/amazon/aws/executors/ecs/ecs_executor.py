@@ -449,13 +449,7 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
-                try:
-                    self.running_state(task_key, task.task_arn)
-                except AttributeError:
-                    # running_state is newly added, and only needed to support task adoption (an optional
-                    # executor feature).
-                    # TODO: remove when min airflow version >= 2.9.2
-                    pass
+                self.running_state(task_key, task.task_arn)
 
     def _run_task(
         self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType

@@ -132,6 +132,7 @@ class TestGetPools(TestPoolsEndpoint):
             # Sort
             ({"order_by": "-id"}, 3, [POOL2_NAME, POOL1_NAME, Pool.DEFAULT_POOL_NAME]),
             ({"order_by": "id"}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
+            ({"order_by": "name"}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
             # Search
             (
                 {"pool_name_pattern": "~"},
@@ -426,8 +427,7 @@ class TestBulkPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
         "actions, expected_results",
         [
-            # Test successful create
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -441,9 +441,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     ]
                 },
                 {"create": {"success": ["pool3", "pool4"], "errors": []}},
+                id="test_successful_create",
             ),
-            # Test successful create with skip
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -457,9 +457,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     ]
                 },
                 {"create": {"success": ["pool3"], "errors": []}},
+                id="test_successful_create_with_skip",
             ),
-            # Test successful create with overwrite
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -473,9 +473,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     ]
                 },
                 {"create": {"success": ["pool3", "pool2"], "errors": []}},
+                id="test_successful_create_with_overwrite",
             ),
-            # Test create conflict
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -496,9 +496,9 @@ class TestBulkPools(TestPoolsEndpoint):
                         ],
                     }
                 },
+                id="test_create_conflict",
             ),
-            # Test successful update
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -509,9 +509,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     ]
                 },
                 {"update": {"success": ["pool2"], "errors": []}},
+                id="test_successful_update",
             ),
-            # Test update with skip
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -522,9 +522,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     ]
                 },
                 {"update": {"success": [], "errors": []}},
+                id="test_update_with_skip",
             ),
-            # Test update not found
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -545,19 +545,19 @@ class TestBulkPools(TestPoolsEndpoint):
                         ],
                     }
                 },
+                id="test_update_not_found",
             ),
-            # Test successful delete
-            (
+            pytest.param(
                 {"actions": [{"action": "delete", "entities": ["pool1"], "action_on_non_existence": "skip"}]},
                 {"delete": {"success": ["pool1"], "errors": []}},
+                id="test_successful_delete",
             ),
-            # Test delete with skip
-            (
+            pytest.param(
                 {"actions": [{"action": "delete", "entities": ["pool3"], "action_on_non_existence": "skip"}]},
                 {"delete": {"success": [], "errors": []}},
+                id="test_delete_with_skip",
             ),
-            # Test delete not found
-            (
+            pytest.param(
                 {"actions": [{"action": "delete", "entities": ["pool4"], "action_on_non_existence": "fail"}]},
                 {
                     "delete": {
@@ -570,9 +570,9 @@ class TestBulkPools(TestPoolsEndpoint):
                         ],
                     }
                 },
+                id="test_delete_not_found",
             ),
-            # Test Create, Update, and Delete combined
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -593,9 +593,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     "update": {"success": ["pool1"], "errors": []},
                     "delete": {"success": ["pool2"], "errors": []},
                 },
+                id="test_create_update_delete",
             ),
-            # Test Fail on conflicting create and handle others
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -624,9 +624,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     "update": {"success": ["pool1"], "errors": []},
                     "delete": {"success": [], "errors": []},
                 },
+                id="test_create_update_delete_with_fail",
             ),
-            # Test all skipping actions
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -647,9 +647,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     "update": {"success": [], "errors": []},
                     "delete": {"success": [], "errors": []},
                 },
+                id="test_create_update_delete_with_skip",
             ),
-            # Test Dependent actions
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -672,9 +672,9 @@ class TestBulkPools(TestPoolsEndpoint):
                     "update": {"success": ["pool5"], "errors": []},
                     "delete": {"success": ["pool5"], "errors": []},
                 },
+                id="test_dependent_actions",
             ),
-            # Test Repeated actions
-            (
+            pytest.param(
                 {
                     "actions": [
                         {
@@ -747,6 +747,7 @@ class TestBulkPools(TestPoolsEndpoint):
                     },
                     "delete": {"success": ["pool2"], "errors": []},
                 },
+                id="test_repeated_actions",
             ),
         ],
     )

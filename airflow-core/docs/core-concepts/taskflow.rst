@@ -25,7 +25,7 @@ If you write most of your dags using plain Python code rather than Operators, th
 TaskFlow takes care of moving inputs and outputs between your Tasks using XComs for you, as well as automatically calculating dependencies - when you call a TaskFlow function in your DAG file, rather than executing it, you will get an object representing the XCom for the result (an ``XComArg``), that you can then use as inputs to downstream tasks or operators. For example::
 
     from airflow.sdk import task
-    from airflow.providers.email import EmailOperator
+    from airflow.providers.smtp.operators.smtp import EmailOperator
 
     @task
     def get_ip():
@@ -199,7 +199,7 @@ Sensors and the TaskFlow API
 .. versionadded:: 2.5.0
 
 For an example of writing a Sensor using the TaskFlow API, see
-:ref:`Using the TaskFlow API with Sensor operators <taskflow/task_sensor_example>`.
+:ref:`Using the TaskFlow API with Sensor operators <taskflow-using-sensors>`.
 
 History
 -------

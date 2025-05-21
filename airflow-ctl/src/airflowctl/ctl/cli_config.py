@@ -36,6 +36,11 @@ import rich
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
+from airflowctl.exceptions import (
+    AirflowCtlConnectionException,
+    AirflowCtlCredentialNotFoundException,
+    AirflowCtlNotFoundException,
+)
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -52,6 +57,17 @@ def lazy_load_command(import_path: str) -> Callable:
     command.__name__ = name
 
     return command
+
+
+def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
+    try:
+        function(args)
+    except AirflowCtlCredentialNotFoundException as e:
+        rich.print(f"command failed due to {e}")
+    except AirflowCtlConnectionException as e:
+        rich.print(f"command failed due to {e}")
+    except AirflowCtlNotFoundException as e:
+        rich.print(f"command failed due to {e}")
 
 
 class DefaultHelpParser(argparse.ArgumentParser):
@@ -206,7 +222,28 @@ class GroupCommand(NamedTuple):
     epilog: str | None = None
 
 
-CLICommand = Union[ActionCommand, GroupCommand]
+class GroupCommandParser(NamedTuple):
+    """ClI command with subcommands."""
+
+    name: str
+    help: str
+    subcommands: Iterable
+    description: str | None = None
+    epilog: str | None = None
+
+    @classmethod
+    def from_group_command(cls, group_command: GroupCommand) -> GroupCommandParser:
+        """Create GroupCommandParser from GroupCommand."""
+        return cls(
+            name=group_command.name,
+            help=group_command.help,
+            subcommands=group_command.subcommands,
+            description=group_command.description,
+            epilog=group_command.epilog,
+        )
+
+
+CLICommand = Union[ActionCommand, GroupCommand, GroupCommandParser]
 
 
 class CommandFactory:
@@ -217,7 +254,7 @@ class CommandFactory:
     args_map: dict[tuple, list[Arg]]
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
-    group_commands_list: list[GroupCommand]
+    group_commands_list: list[CLICommand]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -227,6 +264,8 @@ class CommandFactory:
         self.commands_map = {}
         self.group_commands_list = []
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
+        # Exclude parameters that are not needed for CLI from datamodels
+        self.excluded_parameters = ["schema_"]
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -333,7 +372,9 @@ class CommandFactory:
         commands = []
         if parameter_type_map not in self.datamodels_extended_map.keys():
             self.datamodels_extended_map[parameter_type] = []
-        for field, field_type in parameter_type_map.__fields__.items():
+        for field, field_type in parameter_type_map.model_fields.items():
+            if field in self.excluded_parameters:
+                continue
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
                 commands.append(
@@ -341,18 +382,22 @@ class CommandFactory:
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
                         arg_type=field_type.annotation,
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
-                        arg_help=f"Argument Type: {field_type.annotation}, {field} for {parameter_key} operation",
+                        arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
                     )
                 )
             else:
-                annotation = field_type.annotation.__args__[0]
+                try:
+                    annotation = field_type.annotation.__args__[0]
+                except AttributeError:
+                    annotation = field_type.annotation
+
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
                         arg_type=annotation,
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
-                        arg_help=f"Argument Type: {annotation}, {field} for {parameter_key} operation",
+                        arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
                     )
                 )
@@ -372,7 +417,7 @@ class CommandFactory:
                                 arg_action=argparse.BooleanOptionalAction
                                 if type(parameter_type) is bool
                                 else None,
-                                arg_help=f"Argument Type: {type(parameter_type)}, {parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
+                                arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
                                 arg_default=False if type(parameter_type) is bool else None,
                             )
                         )
@@ -396,8 +441,6 @@ class CommandFactory:
             operation_class = operation_class_object(client=api_client)
             operation_method_object = getattr(operation_class, api_operation["name"])
 
-            # TODO (bugraoz93) some fields shouldn't be updated or filled, handle this in a generic way
-            excluded_parameters = ["schema_"]
             # Walk through all args and create a dictionary such as args.abc -> {"abc": "value"}
             method_params = {}
             datamodel = None
@@ -411,7 +454,7 @@ class CommandFactory:
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:
-                            if expanded_parameter in excluded_parameters:
+                            if expanded_parameter in self.excluded_parameters:
                                 continue
                             if expanded_parameter in args_dict.keys():
                                 method_params[self._sanitize_method_param_key(expanded_parameter)] = (
@@ -455,7 +498,7 @@ class CommandFactory:
             )
 
     @property
-    def group_commands(self) -> list[GroupCommand]:
+    def group_commands(self) -> list[CLICommand]:
         """List of GroupCommands generated for airflowctl."""
         self._inspect_operations()
         self._create_args_map_from_operation()
@@ -463,6 +506,59 @@ class CommandFactory:
         self._create_group_commands_from_operation()
 
         return self.group_commands_list
+
+
+def merge_commands(
+    base_commands: list[CLICommand], commands_will_be_merged: list[CLICommand]
+) -> list[CLICommand]:
+    """
+    Merge group commands with existing commands which extends base_commands with will_be_merged commands.
+
+    Args:
+        base_commands: List of base commands to be extended.
+        commands_will_be_merged: List of group commands to be merged with base_commands.
+
+    Returns:
+        List of merged commands.
+    """
+    merge_command_map = {}
+    for command in commands_will_be_merged:
+        if isinstance(command, GroupCommand):
+            merge_command_map[command.name] = command
+    new_commands: list[CLICommand] = []
+    merged_commands = []
+    # Common commands
+    for command in base_commands:
+        if command.name in merge_command_map.keys():
+            merged_command = merge_command_map[command.name]
+            if isinstance(command, GroupCommand):
+                # Merge common group command with existing group command
+                current_subcommands = list(command.subcommands)
+                current_subcommands.extend(list(merged_command.subcommands))
+                new_commands.append(
+                    GroupCommand(
+                        name=command.name,
+                        help=command.help,
+                        subcommands=current_subcommands,
+                        api_operation=merged_command.api_operation,
+                        description=merged_command.description,
+                        epilog=command.epilog,
+                    )
+                )
+            elif isinstance(command, ActionCommand):
+                new_commands.append(merged_command)
+            merged_commands.append(command.name)
+        else:
+            new_commands.append(command)
+    # Discrete commands
+    new_commands.extend(
+        [
+            merged_command
+            for merged_command in merge_command_map.values()
+            if merged_command.name not in merged_commands
+        ]
+    )
+    return new_commands
 
 
 command_factory = CommandFactory()
@@ -487,4 +583,6 @@ core_commands: list[CLICommand] = [
     ),
 ]
 # Add generated group commands
-core_commands.extend(command_factory.group_commands)
+core_commands = merge_commands(
+    base_commands=command_factory.group_commands, commands_will_be_merged=core_commands
+)

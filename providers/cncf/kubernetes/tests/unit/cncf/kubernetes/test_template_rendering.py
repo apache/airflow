@@ -26,6 +26,7 @@ from sqlalchemy.orm import make_transient
 
 from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
 from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.version import version
@@ -149,6 +150,11 @@ def test_render_k8s_pod_yaml_with_custom_pod_template_and_pod_override(
     assert ti_pod_yaml["metadata"]["annotations"]["test"] == "annotation"
 
 
+@pytest.mark.skipif(
+    AIRFLOW_V_3_0_PLUS,
+    reason="This test is only needed for Airflow 2 - we can remove it after "
+    "only Airflow 3 is supported in providers",
+)
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
 @mock.patch.object(RenderedTaskInstanceFields, "get_k8s_pod_yaml")
 @mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")

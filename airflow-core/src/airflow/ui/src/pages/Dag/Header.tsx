@@ -22,13 +22,13 @@ import { useParams } from "react-router-dom";
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import ParseDag from "src/components/DagActions/ParseDag";
-import RunBackfillButton from "src/components/DagActions/RunBackfillButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { TogglePause } from "src/components/TogglePause";
 
+import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
 import { Schedule } from "../DagsList/Schedule";
 
@@ -74,7 +74,7 @@ export const Header = ({
     },
     {
       label: "Owner",
-      value: dag?.owners.join(", "),
+      value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
     },
     {
       label: "Tags",
@@ -99,7 +99,6 @@ export const Header = ({
                 text="Dag Docs"
               />
             )}
-            {dag.timetable_summary === null ? undefined : <RunBackfillButton dag={dag} />}
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
           </>
         )

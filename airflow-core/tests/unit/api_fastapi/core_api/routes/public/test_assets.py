@@ -259,6 +259,8 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    # No AssetEvent, so no data!
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
                     "id": asset2.id,
@@ -271,6 +273,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
             "total_entries": 2,
@@ -310,6 +313,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
                     "id": asset2.id,
@@ -322,6 +326,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
                     "id": asset3.id,
@@ -334,6 +339,7 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
             "total_entries": 3,
@@ -504,9 +510,10 @@ class TestGetAssetsEndpointPagination(TestAssets):
             ("/assets?limit=1", ["s3://bucket/key/1"]),
             ("/assets?limit=100", [f"s3://bucket/key/{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 102)]),
-            ("/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 104)]),
+            ("/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 52)]),
+            ("/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 54)]),
             # Limit and offset test data
+            ("/assets?offset=50&limit=50", [f"s3://bucket/key/{i}" for i in range(51, 101)]),
             ("/assets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
         ],
     )
@@ -525,7 +532,7 @@ class TestGetAssetsEndpointPagination(TestAssets):
         response = test_client.get("/assets")
 
         assert response.status_code == 200
-        assert len(response.json()["assets"]) == 100
+        assert len(response.json()["assets"]) == 50
 
 
 class TestAssetAliases:
@@ -605,8 +612,8 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
             ("/assets/aliases?limit=1", ["simple1"]),
             ("/assets/aliases?limit=100", [f"simple{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 102)]),
-            ("/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 104)]),
+            ("/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 52)]),
+            ("/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 54)]),
             # Limit and offset test data
             ("/assets/aliases?offset=3&limit=3", ["simple4", "simple5", "simple6"]),
         ],
@@ -624,7 +631,7 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
         self.create_asset_aliases(num=110)
         response = test_client.get("/assets/aliases")
         assert response.status_code == 200
-        assert len(response.json()["asset_aliases"]) == 100
+        assert len(response.json()["asset_aliases"]) == 50
 
 
 class TestGetAssetEvents(TestAssets):
@@ -791,8 +798,8 @@ class TestGetAssetEvents(TestAssets):
             ({"limit": "1"}, [1]),
             ({"limit": "100"}, list(range(1, 101))),
             # Offset test data
-            ({"offset": "1"}, list(range(2, 102))),
-            ({"offset": "3"}, list(range(4, 104))),
+            ({"offset": "1"}, list(range(2, 52))),
+            ({"offset": "3"}, list(range(4, 54))),
         ],
     )
     def test_limit_and_offset(self, test_client, params, expected_asset_ids):
@@ -896,6 +903,7 @@ class TestGetAssetEndpoint(TestAssets):
             "consuming_dags": [],
             "producing_tasks": [],
             "aliases": [],
+            "last_asset_event": {"id": None, "timestamp": None},
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -929,6 +937,7 @@ class TestGetAssetEndpoint(TestAssets):
             "consuming_dags": [],
             "producing_tasks": [],
             "aliases": [],
+            "last_asset_event": {"id": None, "timestamp": None},
         }
 
 
@@ -976,6 +985,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
                 {
                     "asset_id": asset.id,
                     "dag_id": "dag",
+                    "dag_display_name": "dag",
                     "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 }
             ],
@@ -1114,6 +1124,39 @@ class TestPostAssetEvents(TestAssets):
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
 
+    def test_should_update_asset_endpoint(self, test_client, session):
+        """Test for a single Asset."""
+        (asset,) = self.create_assets(session, num=1)
+        event_payload = {"asset_id": asset.id, "extra": {"foo": "bar"}}
+        asset_event_response = test_client.post("/assets/events", json=event_payload)
+        asset_response = test_client.get(f"/assets/{asset.id}")
+
+        assert asset_response.json()["last_asset_event"]["id"] == asset_event_response.json()["id"]
+        assert (
+            asset_response.json()["last_asset_event"]["timestamp"] == asset_event_response.json()["timestamp"]
+        )
+
+    def test_should_update_assets_endpoint(self, test_client, session):
+        """Test for multiple Assets."""
+        asset1, asset2 = self.create_assets(session, num=2)
+
+        # Now, only make a POST to the /assets/events endpoint for one of the Assets
+        for _ in range(2):
+            event_payload = {"asset_id": asset1.id, "extra": {"foo": "bar"}}
+            asset_event_response = test_client.post("/assets/events", json=event_payload)
+
+        assets_response = test_client.get("/assets")
+
+        for asset in assets_response.json()["assets"]:
+            # We should expect to see AssetEvents for the first Asset
+            if asset["id"] == asset1.id:
+                assert asset["last_asset_event"]["id"] == asset_event_response.json()["id"]
+                assert asset["last_asset_event"]["timestamp"] == asset_event_response.json()["timestamp"]
+
+            elif asset["id"] == asset2.id:
+                assert asset["last_asset_event"]["id"] is None
+                assert asset["last_asset_event"]["timestamp"] is None
+
 
 @pytest.mark.need_serialized_dag
 class TestPostAssetMaterialize(TestAssets):
@@ -1143,6 +1186,8 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 200
         assert response.json() == {
+            "bundle_version": None,
+            "dag_display_name": self.DAG_ASSET1_ID,
             "dag_run_id": mock.ANY,
             "dag_id": self.DAG_ASSET1_ID,
             "dag_versions": mock.ANY,
@@ -1195,6 +1240,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
                 {
                     "asset_id": asset.id,
                     "dag_id": "dag",
+                    "dag_display_name": "dag",
                     "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 }
             ],

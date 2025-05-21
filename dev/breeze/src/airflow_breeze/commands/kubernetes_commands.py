@@ -291,12 +291,11 @@ def _create_cluster(
         num_tries -= 1
         if num_tries == 0:
             return result.returncode, f"K8S cluster {cluster_name}."
-        else:
-            get_console(output=output).print(
-                f"[warning]Failed to create KinD cluster {cluster_name}. "
-                f"Retrying! There are {num_tries} tries left.\n"
-            )
-            _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
+        get_console(output=output).print(
+            f"[warning]Failed to create KinD cluster {cluster_name}. "
+            f"Retrying! There are {num_tries} tries left.\n"
+        )
+        _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
 
 
 @kubernetes_group.command(
@@ -458,8 +457,7 @@ def _get_python_kubernetes_version_from_name(cluster_name: str) -> tuple[str | N
         python = cluster_match.group(1)
         kubernetes_version = cluster_match.group(2)
         return python, kubernetes_version
-    else:
-        return None, None
+    return None, None
 
 
 LIST_CONSOLE_WIDTH = 120
@@ -1581,6 +1579,7 @@ def kubernetes_tests_command(
 def _run_complete_tests(
     python: str,
     kubernetes_version: str,
+    include_success_outputs: bool,
     executor: str,
     rebuild_base_image: bool,
     copy_local_sources: bool,
@@ -1685,7 +1684,7 @@ def _run_complete_tests(
                 extra_options=extra_options,
                 multi_namespace_mode=True,
             )
-            if returncode != 0:
+            if returncode != 0 or include_success_outputs:
                 _logs(python=python, kubernetes_version=kubernetes_version)
         return returncode, message
     finally:
@@ -1824,6 +1823,7 @@ def run_complete_tests(
         result, _ = _run_complete_tests(
             python=python,
             kubernetes_version=kubernetes_version,
+            include_success_outputs=include_success_outputs,
             executor=executor,
             rebuild_base_image=rebuild_base_image,
             copy_local_sources=copy_local_sources,

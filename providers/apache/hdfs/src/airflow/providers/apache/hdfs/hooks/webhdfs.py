@@ -88,7 +88,7 @@ class WebHDFSHook(BaseHook):
                         namenode,
                         connection.port,
                         connection.login,
-                        connection.get_password(),
+                        connection.password,
                         connection.schema,
                         connection.extra_dejson,
                     )
@@ -96,8 +96,7 @@ class WebHDFSHook(BaseHook):
                     self.log.info("Using namenode %s for hook", namenode)
                     host_socket.close()
                     return client
-                else:
-                    self.log.warning("Could not connect to %s:%s", namenode, connection.port)
+                self.log.warning("Could not connect to %s:%s", namenode, connection.port)
             except HdfsError as hdfs_error:
                 self.log.info("Read operation on namenode %s failed with error: %s", namenode, hdfs_error)
         return None

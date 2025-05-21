@@ -94,7 +94,7 @@ class LimitFilter(BaseParam[NonNegativeInt]):
         return select.limit(self.value)
 
     @classmethod
-    def depends(cls, limit: NonNegativeInt = 100) -> LimitFilter:
+    def depends(cls, limit: NonNegativeInt = 50) -> LimitFilter:
         return cls().set_value(limit)
 
 
@@ -151,7 +151,14 @@ def search_param_factory(
     pattern_name: str,
     skip_none: bool = True,
 ) -> Callable[[str | None], _SearchParam]:
-    def depends_search(value: str | None = Query(alias=pattern_name, default=None)) -> _SearchParam:
+    DESCRIPTION = (
+        "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
+        "Regular expressions are **not** supported."
+    )
+
+    def depends_search(
+        value: str | None = Query(alias=pattern_name, default=None, description=DESCRIPTION),
+    ) -> _SearchParam:
         search_parm = _SearchParam(attribute, skip_none)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
@@ -206,8 +213,7 @@ class SortParam(BaseParam[str]):
 
         if self.value[0] == "-":
             return select.order_by(nullscheck, column.desc(), primary_key_column.desc())
-        else:
-            return select.order_by(nullscheck, column.asc(), primary_key_column.asc())
+        return select.order_by(nullscheck, column.asc(), primary_key_column.asc())
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""

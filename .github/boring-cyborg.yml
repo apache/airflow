@@ -72,6 +72,9 @@ labelPRBasedOnFilePath:
   provider:apache-spark:
     - providers/apache/spark/**
 
+  provider:apache-tinkerpop:
+    - providers/apache/tinkerpop/**
+
   provider:apprise:
     - providers/apprise/**
 
@@ -130,7 +133,7 @@ labelPRBasedOnFilePath:
     - providers/docker/**
 
   provider:edge:
-    - providers/edge/**
+    - providers/edge3/**
 
   provider:elasticsearch:
     - providers/elasticsearch/**
@@ -353,10 +356,15 @@ labelPRBasedOnFilePath:
     - airflow-core/docs/administration-and-deployment/lineage.rst
 
   area:Logging:
+    - airflow-core/src/airflow/config_templates/airflow_local_settings.py
+    - airflow-core/tests/unit/core/test_logging_config.py
     - airflow-core/src/airflow/utils/log/**/*
     - airflow-core/docs/administration-and-deployment/logging-monitoring/logging-*.rst
     - airflow-core/tests/unit/utils/log/**/*
     - providers/**/log/*
+
+  area:ConfigTemplates:
+    - airflow-core/src/airflow/config_templates/*
 
   area:Plugins:
     - airflow-core/src/airflow/cli/commands/plugins_command.py

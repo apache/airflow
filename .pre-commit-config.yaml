@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.14.0
+  node: 22.15.1
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
 repos:
@@ -35,7 +35,15 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^\.github/.*\.md|^airflow-core/tests/system/README\.md$
+          (?x)
+          ^README\.md$|
+          ^UPDATING.*\.md$|
+          ^chart/UPDATING.*\.md$|
+          ^dev/.*\.md$|
+          ^dev/.*\.rst$|
+          ^docs/README\.md$|
+          ^\.github/.*\.md$|
+          ^airflow-core/tests/system/README\.md$
         args:
           - "--maxlevel"
           - "2"
@@ -96,7 +104,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
-        exclude: ^\.github/.*$|^.*/_vendor/.*$
+        exclude: ^\.github/.*$|^.*/_vendor/.*$|^airflow-ctl/.*/.*generated\.py$
         files: \.py$|\.pyi$
         args:
           - --comment-style
@@ -125,7 +133,14 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*reproducible_build\.yaml$|^.*/v1-generated\.yaml$|^.*/pnpm-lock\.yaml$
+        exclude: >
+          (?x)
+          ^\.github/.*$|^chart/templates/.*|
+          .*reproducible_build\.yaml$|
+          ^.*/v2.*\.yaml$|
+          ^.*/openapi/_private_ui.*\.yaml$|
+          ^.*/pnpm-lock\.yaml$|
+          .*-generated\.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -246,6 +261,9 @@ repos:
         name: Check that executables have shebang
       - id: check-xml
         name: Check XML files with xmllint
+        exclude: >
+          (?x)
+          ^scripts/ci/docker-compose/gremlin/.
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
         exclude: ^airflow-core/docs/img/.*\.dot$|^dev/breeze/doc/images/output.*$
@@ -270,7 +288,7 @@ repos:
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.36.2
+    rev: v1.37.1
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -281,7 +299,8 @@ repos:
           ^.*airflow\.template\.yaml$|
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
-          .*/v1-generated\.yaml$|
+          ^helm-tests/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
           ^.*reproducible_build\.yaml$|
@@ -311,10 +330,10 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.5.1
+    rev: v1.7.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -422,7 +441,7 @@ repos:
       - id: check-airflow-providers-bug-report-template
         name: Sort airflow-bug-report provider list
         language: python
-        files: ^\.github/ISSUE_TEMPLATE/airflow_providers_bug_report\.yml$
+        files: ^\.github/ISSUE_TEMPLATE/3-airflow_providers_bug_report\.yml$
         require_serial: true
         entry: ./scripts/ci/pre_commit/check_airflow_bug_report_template.py
         additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2']
@@ -476,7 +495,10 @@ repos:
         name: Generate airflow diagrams
         entry: ./scripts/ci/pre_commit/generate_airflow_diagrams.py
         language: python
-        files: ^airflow-core/docs/.*/diagram_[^/]*\.py$
+        files: >
+          (?x)
+          ^airflow-core/docs/.*/diagram_[^/]*\.py$|
+          ^docs/images/.*\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4', 'diagrams>=0.23.4']
       - id: generate-volumes-for-sources
@@ -511,7 +533,7 @@ repos:
         name: Update versions in docs
         entry: ./scripts/ci/pre_commit/update_versions.py
         language: python
-        files: ^docs|^airflow-core/src/airflow/__init__\.py$
+        files: ^docs|^airflow-core/src/airflow/__init__\.py$|.*/pyproject\.toml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
@@ -583,7 +605,6 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^clients/python/openapi_v1.yaml$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
@@ -619,6 +640,7 @@ repos:
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^chart/values.schema\.json$|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
+          ^helm-tests/tests/chart_utils/ingress-networking-v1beta1\.json$|
           ^dev/|
           ^devel-common/src/docs/README\.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
@@ -645,7 +667,7 @@ repos:
           ^.*commits\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start\.rst$|
-          ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
           git|
           ^airflow-core/newsfragments/43349\.significant\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
@@ -886,7 +908,7 @@ repos:
         name: Update Airflow's meta-package pyproject.toml
         language: python
         entry: ./scripts/ci/pre_commit/update_airflow_pyproject_toml.py
-        files: ^pyproject\.toml$
+        files: ^.*/pyproject\.toml$|^scripts/ci/pre_commit/update_airflow_pyproject_toml\.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1', 'packaging>=23.2' ]
@@ -970,6 +992,7 @@ repos:
         exclude: >
           (?x)
           ^scripts/ci/docker-compose/grafana/.|
+          ^scripts/ci/docker-compose/gremlin/.|
           ^scripts/ci/docker-compose/.+-config\.ya?ml$
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
@@ -1208,6 +1231,14 @@ repos:
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
         exclude:
           airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py
+      - id: generate-airflowctl-help-images
+        name: Generate SVG from Airflow CTL Commands
+        entry: ./scripts/ci/pre_commit/capture_airflowctl_help.py
+        language: python
+        pass_filenames: false
+        files:
+          ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/cli/.*\.py$
+        additional_dependencies: ['rich>=12.4.4']
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -1295,6 +1326,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
         files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests/.*\.py$
+        exclude: .*generated.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-ctl
@@ -1313,7 +1345,7 @@ repos:
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
       - id: ts-compile-format-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files
@@ -1322,9 +1354,9 @@ repos:
         files: |
           (?x)
           ^airflow-core/src/airflow/ui/|
-          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1-generated\.yaml$
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
         entry: ./scripts/ci/pre_commit/compile_lint_ui.py
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: false
@@ -1356,6 +1388,16 @@ repos:
         entry: uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/.*\.py$
+        require_serial: true
+      - id: generate-airflowctl-datamodels
+        name: Generate Datamodels for AirflowCTL
+        language: python
+        entry: >
+          bash -c '
+          uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
+           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/datamodels/.*\.py$
         require_serial: true
       - id: update-er-diagram
         name: Update ER diagram

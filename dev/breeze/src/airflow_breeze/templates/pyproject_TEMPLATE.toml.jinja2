@@ -69,6 +69,9 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 requires-python = "{{ REQUIRES_PYTHON }}"
+{% if EXTRA_PROJECT_METADATA -%}
+{{ EXTRA_PROJECT_METADATA }}
+{%- endif %}
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -121,8 +124,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}"
-"Changelog" = "https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/changelog.html"
+"Documentation" = "{{ AIRFLOW_DOC_URL }}/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}"
+"Changelog" = "{{ AIRFLOW_DOC_URL }}/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

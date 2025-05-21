@@ -110,10 +110,9 @@ def get_docs_integrations(docs_path: Path = DOCUMENTATION_PATH):
         """Filter callable to exclude header and empty cells."""
         if len(j) == 0:
             return False
-        elif j in ["Description", "Identifier"]:
+        if j in ["Description", "Identifier"]:
             return False
-        else:
-            return True
+        return True
 
     table_cells = list(filter(_list_matcher, table_cells))
     return table_cells

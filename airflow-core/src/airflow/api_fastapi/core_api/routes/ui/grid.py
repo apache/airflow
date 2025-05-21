@@ -21,12 +21,14 @@ import collections
 import itertools
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+import structlog
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow import DAG
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
@@ -58,6 +60,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.state import TaskInstanceState
 
+log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
 
@@ -73,7 +76,7 @@ def grid_data(
     dag_id: str,
     session: SessionDep,
     offset: QueryOffset,
-    request: Request,
+    dag_bag: DagBagDep,
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     limit: QueryLimit,
@@ -88,7 +91,7 @@ def grid_data(
     root: str | None = None,
 ) -> GridResponse:
     """Return grid data."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
@@ -131,7 +134,8 @@ def grid_data(
     tis_of_dag_runs, _ = paginated_select(
         statement=select(TaskInstance)
         .join(TaskInstance.task_instance_note, isouter=True)
-        .where(TaskInstance.dag_id == dag.dag_id),
+        .where(TaskInstance.dag_id == dag.dag_id)
+        .where(TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs])),
         filters=[],
         order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value("task_id"),
         offset=offset,
@@ -171,6 +175,14 @@ def grid_data(
                 .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
                 .limit(1)
             )
+        if not version.serialized_dag:
+            log.error(
+                "No serialized dag found",
+                dag_id=tis[0].dag_id,
+                version_id=version.id,
+                version_number=version.version_number,
+            )
+            continue
         run_dag = version.serialized_dag.dag
         task_node_map = get_task_group_map(dag=run_dag)
         for ti in tis:
@@ -204,7 +216,7 @@ def grid_data(
             (task_id_parent, run_id): parent_tis[(task_id_parent, run_id)] + parent_tis[(task_id, run_id)]
             for task_id, task_map in task_group_map.items()
             if task_map["is_group"]
-            for (task_id_parent, run_id), tis in parent_tis.items()
+            for (task_id_parent, run_id), tis in list(parent_tis.items())
             if task_id_parent == task_map["parent_id"]
         }
     )

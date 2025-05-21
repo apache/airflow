@@ -93,6 +93,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
+    "3.1.0": "0242ac120002",
 }
 
 
@@ -349,6 +350,15 @@ def create_default_connections(session: Session = NEW_SESSION):
             conn_id="google_cloud_default",
             conn_type="google_cloud_platform",
             schema="default",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="gremlin_default",
+            conn_type="gremlin",
+            host="gremlin",
+            port=8182,
         ),
         session,
     )
@@ -1210,7 +1220,8 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     config = _get_alembic_config()
     # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
     if _revision_greater(config, _REVISION_HEADS_MAP["3.0.0"], to_revision):
-        if conf.getboolean("core", "unit_test_mode"):
+        unitest_mode = conf.getboolean("core", "unit_test_mode")
+        if unitest_mode:
             try:
                 from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
@@ -1218,13 +1229,12 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
                 dbm.initdb()
             except ImportError:
                 log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
-                pass
-        if not inspect(settings.engine).has_table("ab_user"):
-            log.error(
+                return
+        if not inspect(settings.engine).has_table("ab_user") and not unitest_mode:
+            raise AirflowException(
                 "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
                 "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
             )
-            return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
@@ -1533,7 +1543,7 @@ class LazySelectSequence(Sequence[T]):
     def __bool__(self) -> bool:
         return check_query_exists(self._select_asc, session=self._session)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, collections.abc.Sequence):
             return NotImplemented
         z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
@@ -1565,7 +1575,7 @@ class LazySelectSequence(Sequence[T]):
             if (row := self._session.execute(stmt.limit(1)).one_or_none()) is None:
                 raise IndexError(key)
             return self._process_row(row)
-        elif isinstance(key, slice):
+        if isinstance(key, slice):
             # This implements the slicing syntax. We want to optimize negative
             # slicing (e.g. seq[-10:]) by not doing an additional COUNT query
             # if possible. We can do this unless the start and stop have
