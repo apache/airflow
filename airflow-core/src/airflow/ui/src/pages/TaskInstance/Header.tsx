@@ -98,8 +98,8 @@ export const Header = ({
               text={Boolean(taskInstance.note) ? "Note" : "Add a note"}
               withText={containerWidth > 700}
             />
-            <ClearTaskInstanceButton taskInstance={taskInstance} withText={containerWidth > 700} />
-            <MarkTaskInstanceAsButton taskInstance={taskInstance} withText={containerWidth > 700} />
+            <ClearTaskInstanceButton hasHotKey taskInstance={taskInstance} withText={containerWidth > 700} />
+            <MarkTaskInstanceAsButton hasHotKey taskInstance={taskInstance} withText={containerWidth > 700} />
           </>
         }
         icon={<MdOutlineTask />}
