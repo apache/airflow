@@ -50,11 +50,9 @@ API_CONFIG_KEYS = [
 )
 def get_configs() -> ConfigResponse:
     """Get configs for UI."""
-    conf_dict = conf.as_dict()
+    config = {key: conf.get("webserver", key) for key in WEBSERVER_CONFIG_KEYS}
 
-    config = {key: conf_dict["webserver"].get(key) for key in WEBSERVER_CONFIG_KEYS}
-
-    config.update({key: conf_dict["api"].get(key) for key in API_CONFIG_KEYS})
+    config.update({key: conf.get("api", key) for key in API_CONFIG_KEYS})
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
