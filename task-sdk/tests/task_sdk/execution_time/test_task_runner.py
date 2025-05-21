@@ -145,6 +145,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
             dag_id="super_basic",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -200,6 +201,7 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
             dag_id=dag_id,
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -504,6 +506,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
             dag_id="basic_templated_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         bundle_info=FAKE_BUNDLE,
         dag_rel_path="",
@@ -617,6 +620,7 @@ def test_startup_and_run_dag_with_rtif(
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1085,6 +1089,7 @@ class TestRuntimeTaskInstance:
             dag_id=dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
         start_date = timezone.datetime(2025, 1, 1)
 
@@ -2196,6 +2201,7 @@ class TestTaskRunnerCallsListeners:
                 dag_id="basic_dag",
                 run_id="c",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             dag_rel_path="",
             bundle_info=FAKE_BUNDLE,
@@ -2234,6 +2240,7 @@ class TestTaskRunnerCallsListeners:
             dag_id=dag.dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(
@@ -2272,6 +2279,7 @@ class TestTaskRunnerCallsListeners:
             dag_id=dag.dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(

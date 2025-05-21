@@ -62,7 +62,14 @@ class TestRedisTaskHandler:
             session.commit()
             session.refresh(dag_run)
 
-        ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            dag.sync_to_db()
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+        else:
+            ti = TaskInstance(task=task, run_id=dag_run.run_id)
         ti.dag_run = dag_run
         ti.try_number = 1
         ti.state = State.RUNNING
