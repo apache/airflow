@@ -38,6 +38,7 @@ import airflow.example_dags
 from airflow import settings
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -601,9 +602,18 @@ class TestDagBag:
         dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        model_before = DagModel(dag_id=dag_id, bundle_name="dags-folder", is_stale=False)
+        bundle_name = "dags-folder"
+
+        model_before = DagModel(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            is_stale=False,
+        )
         with create_session() as session:
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
             session.merge(model_before)
+            session.flush()
 
         DAG.deactivate_unknown_dags(expected_active_dags)
 
@@ -709,8 +719,21 @@ with airflow.DAG(
         """
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            bundle_name = "dags-folder"
+            session = settings.Session()
+
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
+            dag_model = DagModel(
+                dag_id=example_bash_op_dag.dag_id,
+                bundle_name=bundle_name,
+            )
+
+            session.merge(dag_model)
+            session.flush()
+
             DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name=bundle_name)
 
             dag_bag = DagBag(read_dags_from_db=True)
             ser_dag_1 = dag_bag.get_dag("example_bash_operator")
@@ -751,6 +774,16 @@ with airflow.DAG(
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            bundle_name = "dags-folder"
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
+            dag_model = DagModel(
+                dag_id=example_bash_op_dag.dag_id,
+                bundle_name=bundle_name,
+            )
+            session.merge(dag_model)
+            session.flush()
+
             DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
@@ -796,9 +829,23 @@ with airflow.DAG(
         dagbag = DagBag(str(example_dags_folder))
 
         example_dags = dagbag.dags
+
+        session = settings.Session()
+        bundle_name = "dags-folder"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+
         for dag in example_dags.values():
+            # Create DagModel with bundle_name before syncing
+            dag_model = DagModel(
+                dag_id=dag.dag_id,
+                bundle_name=bundle_name,
+            )
+            session.merge(dag_model)
+            session.flush()
+
             DAG.from_sdk_dag(dag).sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
+            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         new_dagbag = DagBag(read_dags_from_db=True)
         assert len(new_dagbag.dags) == 0

@@ -32,6 +32,7 @@ from airflow.models.asset import (
     remove_references_to_deleted_dags,
 )
 from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 
@@ -144,9 +145,12 @@ def test_remove_reference_for_inactive_dag(
         EmptyOperator(task_id="t2", outlets=Asset(name="a", uri="b://b/"))
     with dag_maker(dag_id="test2", schedule=schedule, session=session) as dag2:
         EmptyOperator(task_id="t1", outlets=Asset(name="a", uri="b://b/"))
-
+    bundle_name = "test_bundle"
+    orm_dag_bundle = DagBundleModel(name=bundle_name)
+    session.merge(orm_dag_bundle)
+    session.flush()
     DAG.bulk_write_to_db(
-        bundle_name="dags-folder",
+        bundle_name=bundle_name,
         bundle_version=None,
         dags=[dag1, dag2],
         session=session,

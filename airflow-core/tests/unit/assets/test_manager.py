@@ -34,6 +34,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.sdk.definitions.asset import Asset
 
 from unit.listeners import asset_listener
@@ -88,8 +89,13 @@ class TestAssetManager:
         asset_manager = AssetManager()
 
         asset = Asset(uri="test://asset1", name="test_asset_uri", group="asset")
-        dag1 = DagModel(dag_id="dag1", is_stale=False, bundle_name="dags-folder")
-        dag2 = DagModel(dag_id="dag2", is_stale=False, bundle_name="dags-folder")
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+
+        dag1 = DagModel(dag_id="dag1", is_stale=False, bundle_name=bundle_name)
+        dag2 = DagModel(dag_id="dag2", is_stale=False, bundle_name=bundle_name)
         session.add_all([dag1, dag2])
 
         asm = AssetModel(uri="test://asset1/", name="test_asset_uri", group="asset")
@@ -107,11 +113,16 @@ class TestAssetManager:
 
     @pytest.mark.usefixtures("clear_assets")
     def test_register_asset_change_with_alias(self, session, dag_maker, mock_task_instance):
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+
         consumer_dag_1 = DagModel(
-            dag_id="conumser_1", bundle_name="dags-folder", is_stale=False, fileloc="dag1.py"
+            dag_id="conumser_1", bundle_name=bundle_name, is_stale=False, fileloc="dag1.py"
         )
         consumer_dag_2 = DagModel(
-            dag_id="conumser_2", bundle_name="dags-folder", is_stale=False, fileloc="dag2.py"
+            dag_id="conumser_2", bundle_name=bundle_name, is_stale=False, fileloc="dag2.py"
         )
         session.add_all([consumer_dag_1, consumer_dag_2])
 
@@ -162,8 +173,13 @@ class TestAssetManager:
         asset_listener.clear()
         get_listener_manager().add_listener(asset_listener)
 
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+
         asset = Asset(uri="test://asset1", name="test_asset_1")
-        dag1 = DagModel(dag_id="dag3", bundle_name="dags-folder")
+        dag1 = DagModel(dag_id="dag3", bundle_name=bundle_name)
         session.add(dag1)
 
         asm = AssetModel(uri="test://asset1/", name="test_asset_1", group="asset")

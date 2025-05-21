@@ -23,6 +23,7 @@ import pytest
 
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
@@ -409,7 +410,12 @@ class TestGetXComEntries(TestXComEndpoint):
 
     @provide_session
     def _create_xcom_entries(self, dag_id, run_id, logical_date, task_id, mapped_ti=False, session=None):
-        dag = DagModel(dag_id=dag_id, bundle_name="dags-folder")
+        bundle_name = "dags-folder"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+
+        dag = DagModel(dag_id=dag_id, bundle_name=bundle_name)
         session.add(dag)
         dagrun = DagRun(
             dag_id=dag_id,

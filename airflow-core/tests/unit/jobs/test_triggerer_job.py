@@ -43,6 +43,7 @@ from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -85,7 +86,11 @@ def clean_database():
 
 
 def create_trigger_in_db(session, trigger, operator=None):
-    dag_model = DagModel(dag_id="test_dag", bundle_name="dags-folder")
+    bundle_name = "test_bundle"
+    orm_dag_bundle = DagBundleModel(name=bundle_name)
+    session.merge(orm_dag_bundle)
+    session.flush()
+    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
     run = DagRun(
@@ -353,7 +358,12 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     session.add(trigger_orm)
     session.flush()
 
-    dag = DagModel(dag_id="test-dag", bundle_name="dags-folder")
+    bundle_name = "test_bundle"
+    orm_dag_bundle = DagBundleModel(name=bundle_name)
+    session.merge(orm_dag_bundle)
+    session.flush()
+
+    dag = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     ti = TaskInstance(
         PythonOperator(task_id="dummy-task", python_callable=print),

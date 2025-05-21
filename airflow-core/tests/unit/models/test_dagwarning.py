@@ -24,6 +24,7 @@ import pytest
 from sqlalchemy.exc import OperationalError
 
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 
 from tests_common.test_utils.db import clear_db_dags
@@ -39,6 +40,10 @@ class TestDagWarning:
         """
         Test that the purge_inactive_dag_warnings method deletes inactive dag warnings
         """
+        # First ensure the bundle exists
+        session.merge(DagBundleModel(name="dags-folder"))
+        session.flush()
+
         dags = [
             DagModel(dag_id="dag_1", bundle_name="dags-folder", is_stale=True),
             DagModel(dag_id="dag_2", bundle_name="dags-folder", is_stale=False),

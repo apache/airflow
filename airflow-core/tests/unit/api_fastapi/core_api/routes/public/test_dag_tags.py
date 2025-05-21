@@ -58,7 +58,7 @@ class TestDagEndpoint:
     def _create_deactivated_paused_dag(self, session=None):
         dag_model = DagModel(
             dag_id=DAG3_ID,
-            bundle_name="dags-folder",
+            bundle_name="dag_maker",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,

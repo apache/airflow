@@ -34,6 +34,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
@@ -440,6 +441,9 @@ class TestDagRun:
         mock_on_success = mock.MagicMock()
         mock_on_success.__name__ = "mock_on_success"
 
+        session.merge(DagBundleModel(name="dags-folder"))
+        session.flush()
+
         dag = DAG(
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             start_date=datetime.datetime(2017, 1, 1),
@@ -448,6 +452,15 @@ class TestDagRun:
         )
 
         _ = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
+
+        # Create DagModel directly with bundle_name
+        dag_model = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name="dags-folder",
+        )
+        session.merge(dag_model)
+        session.flush()
+
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 
@@ -636,6 +649,8 @@ class TestDagRun:
         ) as dag:
             ...
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+        session.merge(DagBundleModel(name="dags-folder"))
+        session.flush()
         dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.relative_fileloc = relative_fileloc
         session.merge(dm)
@@ -685,6 +700,8 @@ class TestDagRun:
         ) as dag:
             ...
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+        session.merge(DagBundleModel(name="dags-folder"))
+        session.flush()
         dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.relative_fileloc = relative_fileloc
         session.merge(dm)
@@ -1030,6 +1047,9 @@ class TestDagRun:
         dag = DAG(dag_id="test_dags", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
+        session.merge(DagBundleModel(name="dags-folder"))
+        session.flush()
+
         orm_dag = DagModel(
             dag_id=dag.dag_id,
             bundle_name="dags-folder",
@@ -1077,8 +1097,19 @@ class TestDagRun:
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
         This case is manual run. Simple test for coherence check.
         """
+        session.merge(DagBundleModel(name="dags-folder"))
+        session.flush()
+
         dag = DAG(dag_id="test_dagrun_stats", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
         dag_task = EmptyOperator(task_id="dummy", dag=dag)
+
+        # Create DagModel directly with bundle_name
+        dag_model = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name="dags-folder",
+        )
+        session.merge(dag_model)
+        session.flush()
 
         dag.sync_to_db(session=session)
         SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
@@ -1124,6 +1155,8 @@ class TestDagRun:
                         "next_dagrun_create_after": info.run_after,
                     },
                 )
+            session.merge(DagBundleModel(name="dags-folder"))
+            session.flush()
             orm_dag = DagModel(**orm_dag_kwargs)
             session.add(orm_dag)
             session.flush()
