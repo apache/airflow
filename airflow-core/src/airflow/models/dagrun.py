@@ -125,7 +125,7 @@ def _default_run_after(ctx):
 
 
 def _creator_note(val):
-    """Creator the ``note`` association proxy."""
+    """Creator for the ``note`` association proxy."""
     if isinstance(val, str):
         return DagRunNote(content=val)
     if isinstance(val, dict):

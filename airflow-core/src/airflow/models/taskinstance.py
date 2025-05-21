@@ -344,7 +344,7 @@ def clear_task_instances(
 
 
 def _creator_note(val):
-    """Creator the ``note`` association proxy."""
+    """Creator for the ``note`` association proxy."""
     if isinstance(val, str):
         return TaskInstanceNote(content=val)
     if isinstance(val, dict):
