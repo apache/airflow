@@ -125,7 +125,7 @@ class DeadlineReference:
 
     ------
     Usage:
-    -  ------
+    ------
 
     1. Example deadline references:
        fixed = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
