@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from odps import ODPS
 
-from airflow.exceptions import AirflowException
+from airflow.providers.alibaba.cloud.exceptions import MaxComputeConfigurationException
 from airflow.providers.alibaba.cloud.hooks.base_alibaba import AlibabaBaseHook
 
 if TYPE_CHECKING:
@@ -44,20 +44,22 @@ def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..
     @functools.wraps(func)
     def inner_wrapper(self, *args, **kwargs) -> RT:
         if args:
-            raise AirflowException("You must use keyword arguments in this methods rather than positional")
+            raise MaxComputeConfigurationException(
+                "You must use keyword arguments in this methods rather than positional"
+            )
 
         kwargs["project"] = kwargs.get("project", self.project)
         kwargs["endpoint"] = kwargs.get("endpoint", self.endpoint)
 
         if not kwargs["project"]:
-            raise AirflowException(
+            raise MaxComputeConfigurationException(
                 "The project must be passed either as "
                 "keyword parameter or as extra "
                 "in MaxCompute connection definition. Both are not set!"
             )
 
         if not kwargs["endpoint"]:
-            raise AirflowException(
+            raise MaxComputeConfigurationException(
                 "The endpoint must be passed either as "
                 "keyword parameter or as extra "
                 "in MaxCompute connection definition. Both are not set!"
@@ -242,6 +244,6 @@ class MaxComputeHook(AlibabaBaseHook):
         try:
             client.stop_instance(id_=instance_id, project=project)
             self.log.info("Instance %s stop requested.", instance_id)
-        except Exception as e:
+        except Exception:
             self.log.exception("Failed to stop instance %s.", instance_id)
             raise
