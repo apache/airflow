@@ -1,0 +1,46 @@
+{
+  "defaultToGraphView": "Default to graph view",
+  "defaultToGridView": "Default to grid view",
+  "logout": "Logout",
+  "switchToDarkMode": "Switch to Dark Mode",
+  "switchToLightMode": "Switch to Light Mode",
+  "timezone": "timezone",
+  "user": "User",
+  "language": {
+    "chinese": "Traditional Chinese",
+    "english": "English",
+    "select": "Select Language"
+  },
+  "nav": {
+    "home": "Home",
+    "assets": "Assets",
+    "browse": "Browse",
+    "admin": "Admin",
+    "docs": "Docs",
+    "plugins": "Plugins"
+  },
+  "browse": {
+    "auditLog": "Audit Log",
+    "xcoms": "XComs"
+  },
+  "admin": {
+    "Variables": "Variables",
+    "Pools": "Pools",
+    "Providers": "Providers",
+    "Plugins": "Plugins",
+    "Connections": "Connections",
+    "Config": "Config"
+  },
+  "timeRange": {
+    "duration": "Duration",
+    "lastHour": "Last Hour",
+    "last12Hours": "Last 12 Hours",
+    "last24Hours": "Last 24 Hours",
+    "pastWeek": "Past Week"
+  },
+  "docs": {
+    "documentation": "Documentation",
+    "githubRepo": "GitHub Repo",
+    "restApiReference": "REST API Reference"
+  }
+}
