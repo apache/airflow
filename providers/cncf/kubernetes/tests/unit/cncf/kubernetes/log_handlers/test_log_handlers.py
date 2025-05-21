@@ -31,6 +31,7 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.executors import executor_loader
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
@@ -132,6 +133,8 @@ class TestFileTaskLogHandler:
                 "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
             }
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
         dagrun = dag.create_dagrun(
@@ -141,7 +144,10 @@ class TestFileTaskLogHandler:
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             **dagrun_kwargs,
         )
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dagrun.created_dag_version_id)
+        else:
+            ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3
         ti.executor = "KubernetesExecutor"
 
