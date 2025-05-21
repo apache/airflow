@@ -256,6 +256,13 @@ class DagRun(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
 
+    deadline_ref = relationship(
+        "Deadline",
+        back_populates="dagrun",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
+    )
+
     created_dag_version = relationship("DagVersion", uselist=False, passive_deletes=True)
     """
     The dag version that was active when the dag run was created, if available.
@@ -268,6 +275,7 @@ class DagRun(Base, LoggingMixin):
     max_active_runs = association_proxy("dag_model", "max_active_runs")
 
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
+    deadline = association_proxy("deadline_ref", "deadline")
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",
