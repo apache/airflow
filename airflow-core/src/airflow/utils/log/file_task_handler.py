@@ -607,9 +607,9 @@ class FileTaskHandler(logging.Handler):
                     sources.append(url)
                     logs.append(response.text)
         except Exception as e:
-            from requests.exceptions import InvalidSchema
+            from requests.exceptions import InvalidURL
 
-            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidURL) and ti.task.inherits_from_empty_operator is True:
                 sources.append(self.inherits_from_empty_operator_log_message)
             else:
                 sources.append(f"Could not read served logs: {e}")
