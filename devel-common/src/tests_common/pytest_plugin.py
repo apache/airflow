@@ -1765,10 +1765,10 @@ def secret_key() -> str:
     """Return secret key configured."""
     from airflow.configuration import conf
 
-    the_key = conf.get("webserver", "SECRET_KEY")
+    the_key = conf.get("api", "SECRET_KEY")
     if the_key is None:
         raise RuntimeError(
-            "The secret key SHOULD be configured as `[webserver] secret_key` in the "
+            "The secret key SHOULD be configured as `[api] secret_key` in the "
             "configuration/environment at this stage! "
         )
     return the_key

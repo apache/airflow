@@ -362,6 +362,7 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "navbar_text_color"): ("webserver", "navbar_text_color", "3.0.2"),
         ("fab", "navbar_hover_color"): ("webserver", "navbar_hover_color", "3.0.2"),
         ("fab", "navbar_text_hover_color"): ("webserver", "navbar_text_hover_color", "3.0.2"),
+        ("api", "secret_key"): ("webserver", "secret_key", "3.0.2"),
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
         ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
         ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
