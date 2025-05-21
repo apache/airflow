@@ -28,7 +28,7 @@ Create Date: 2024-11-18 18:41:50.849514
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 from sqlalchemy import text
 from sqlalchemy.dialects.mysql import LONGBLOB
 
@@ -79,7 +79,7 @@ def upgrade():
         raise RuntimeError(f"Unsupported dialect: {dialect}")
     # Key is a reserved keyword in MySQL, so we need to quote it
     quoted_key = conn.dialect.identifier_preparer.quote("key")
-    if dialect == "postgresql":
+    if dialect == "postgresql" and not context.is_offline_mode():
         curr_timeout = (
             int(
                 conn.execute(
