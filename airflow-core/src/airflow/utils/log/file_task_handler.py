@@ -63,8 +63,6 @@ Assuming 50 characters per line, an offset of 10,000,000 can represent approxima
 """
 HEAP_DUMP_SIZE = 500000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
-PARALLEL_YIELD_SIZE = HEAP_DUMP_SIZE // 100
-LAST_LOG_POS_FORMAT = "{identifier}_last_log_pos"
 
 # These types are similar, but have distinct names to make processing them less error prone
 LogMessages: TypeAlias = list[str]
@@ -72,19 +70,8 @@ LogMessages: TypeAlias = list[str]
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 LogMetadata: TypeAlias = dict[str, Any]
-"""Metadata about the log fetching process, including `end_of_log` and `<source>_log_pos`.
+"""Metadata about the log fetching process, including `end_of_log` and `log_pos`.
 
-Instead of using a single aggregated `log_pos` for all log sources, we use `<source>_log_pos` to track
-each source individually. By maintaining separate positions for each source, we can seek to the last
-retrieved position per source and read logs from there. This approach allows us to interleave logs
-from multiple sources accurately, rather than cutting off logs based on a shared `log_pos`.
-
-Fields:
-- `end_of_log`: Boolean. True if the end of the log has been reached; False if more logs may be available.
-  This is typically determined by the status of the TaskInstance.
-- `<source>_last_log_pos`: Integer. The character position up to which logs have been retrieved for each source.
-
-For reference, in the previous implementation:
 - `end_of_log`: Boolean. Indicates if the log has ended.
 - `log_pos`: Integer. The absolute character position up to which the log was retrieved across all sources.
 """
@@ -93,6 +80,7 @@ RawLogStream: TypeAlias = Generator[str, None, None]
 LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages]
 """Legacy log response, containing source information and log messages."""
 LogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
+LogResponseWithSize: TypeAlias = tuple[LogSourceInfo, list[RawLogStream], int]
 """Log response, containing source information, stream of log lines, and total log size."""
 StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
 """Structured log stream, containing structured log messages."""
@@ -389,51 +377,19 @@ def _is_logs_stream_like(log):
     return isinstance(log, chain) or isinstance(log, GeneratorType)
 
 
-def _get_last_log_pos_from_metadata(
-    metadata: LogMetadata | None,
-    log_pos_name: str,
-) -> int:
-    """
-    Get the last log position from metadata.
-
-    :param metadata: Metadata dictionary to store log positions.
-    :param log_pos_name: Name of the log position to retrieve.
-    :return: The last log position, or 0 if not found.
-    """
-    log_pos: int = metadata.get(log_pos_name, 0) if metadata else 0
-    if not isinstance(log_pos, int):
-        raise TypeError(
-            f"Invalid log position type for metadata[{log_pos_name}]. Expected int, got {type(log_pos).__name__}"
-        )
-    return log_pos
-
-
 def _get_compatible_log_stream(
     log_messages: LogMessages,
-    log_pos_identifier_prefix: str,
-    metadata: LogMetadata | None = None,
 ) -> RawLogStream:
     """
     Convert legacy log message blobs into a generator that yields log lines.
 
     :param log_messages: List of legacy log message strings.
-    :param log_pos_identifier_prefix: Prefix for log position identifiers.
-    :param metadata: Metadata dictionary to store log positions.
     :return: A generator that yields interleaved log lines.
     """
     log_streams: list[RawLogStream] = []
-    for idx, log_message in enumerate(log_messages):
-        # Skip log messages that already read
-        log_pos_name = LAST_LOG_POS_FORMAT.format(identifier=f"{log_pos_identifier_prefix}_{idx}")
-        last_end_log_pos: int = _get_last_log_pos_from_metadata(metadata, log_pos_name)
-        current_end_log_pos: int = len(log_message.encode("utf-8"))
-        # Update the metadata with the last log position
-        if metadata is not None:
-            metadata[log_pos_name] = current_end_log_pos
+    for log_message in log_messages:
         # Append the log stream to the list
-        log_streams.append(
-            _stream_lines_by_chunk(io.StringIO(log_message), last_end_log_pos, current_end_log_pos)
-        )
+        log_streams.append(_stream_lines_by_chunk(io.StringIO(log_message)))
 
     for log_stream in log_streams:
         yield from log_stream
@@ -682,7 +638,7 @@ class FileTaskHandler(logging.Handler):
                 # If the logs are in legacy format, convert them to a generator of log lines
                 remote_logs = [
                     # We don't need to use the log_pos here, as we are using the metadata to track the position
-                    _get_compatible_log_stream(cast("list[str]", logs), "remote", metadata)
+                    _get_compatible_log_stream(cast("list[str]", logs))
                 ]
             elif isinstance(logs, list) and _is_logs_stream_like(logs[0]):
                 # If the logs are already in a stream-like format, we can use them directly
@@ -699,23 +655,23 @@ class FileTaskHandler(logging.Handler):
             if response:
                 sources, logs = response
                 # make the logs stream-like compatible
-                executor_logs = [_get_compatible_log_stream(logs, "executor", metadata)]
+                executor_logs = [_get_compatible_log_stream(logs)]
             if sources:
                 source_list.extend(sources)
                 has_k8s_exec_pod = True
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
-            sources, local_logs = self._read_from_local(worker_log_full_path, metadata)
+            sources, local_logs = self._read_from_local(worker_log_full_path)
             source_list.extend(sources)
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
-            sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path, metadata)
+            sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
             # ordinarily we don't check served logs, with the assumption that users set up
             # remote logging or shared drive for logs for persistence, but that's not always true
             # so even if task is done, if no local logs or remote logs are found, we'll check the worker
-            sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path, metadata)
+            sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
 
         out_stream: LogHandlerOutputStream = _interleave_logs(
@@ -891,7 +847,6 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def _read_from_local(
         worker_log_path: Path,
-        log_metadata: LogMetadata | None = None,
     ) -> LogResponse:
         sources: LogSourceInfo = []
         log_streams: list[RawLogStream] = []
@@ -901,24 +856,14 @@ class FileTaskHandler(logging.Handler):
 
         for path in paths:
             sources.append(os.fspath(path))
-            # Move the file pointer to the last read position if there is `local_<identifier>_log_pos` in metadata
-            log_pos_name = LAST_LOG_POS_FORMAT.format(identifier=path.name)
-            last_end_log_pos: int = _get_last_log_pos_from_metadata(log_metadata, log_pos_name)
-            current_end_log_pos: int = path.stat().st_size
-            # Update the last read position in the metadata
-            if log_metadata is not None:
-                log_metadata[log_pos_name] = current_end_log_pos
             # Read the log file and yield lines
-            log_streams.append(
-                _stream_lines_by_chunk(open(path, encoding="utf-8"), last_end_log_pos, current_end_log_pos)
-            )
+            log_streams.append(_stream_lines_by_chunk(open(path, encoding="utf-8")))
         return sources, log_streams
 
     def _read_from_logs_server(
         self,
         ti: TaskInstance,
         worker_log_rel_path: str,
-        log_metadata: LogMetadata | None = None,
     ) -> LogResponse:
         sources: LogSourceInfo = []
         parsed_log_streams: list[RawLogStream] = []
@@ -938,19 +883,9 @@ class FileTaskHandler(logging.Handler):
             else:
                 # Check if the resource was properly fetched
                 response.raise_for_status()
-                log_pos_name = LAST_LOG_POS_FORMAT.format(identifier=f"log_server_{rel_path}_{log_type}")
-                last_end_log_pos: int = _get_last_log_pos_from_metadata(log_metadata, log_pos_name)
-                current_end_log_pos: int = int(response.headers.get("Content-Length", 0))
-                if current_end_log_pos > 0:
+                if int(response.headers.get("Content-Length", 0)) > 0:
                     sources.append(url)
-                    parsed_log_streams.append(
-                        _stream_lines_by_chunk(
-                            io.TextIOWrapper(response.raw), last_end_log_pos, current_end_log_pos
-                        )
-                    )
-                    # update the last read position in the metadata
-                    if log_metadata is not None:
-                        log_metadata[log_pos_name] = current_end_log_pos
+                    parsed_log_streams.append(_stream_lines_by_chunk(io.TextIOWrapper(response.raw)))
         except Exception as e:
             from requests.exceptions import InvalidURL
 

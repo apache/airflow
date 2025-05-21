@@ -88,8 +88,7 @@ class TaskLogReader:
         if try_number is None:
             try_number = ti.try_number
 
-        # We don't use `log_pos` anymore
-        for key in ("end_of_log", "max_offset", "offset"):
+        for key in ("end_of_log", "max_offset", "offset", "log_pos"):
             metadata.pop(key, None)
         empty_iterations = 0
 
