@@ -66,6 +66,9 @@ class BulkBaseAction(StrictBaseModel, Generic[T]):
 class BulkCreateAction(BulkBaseAction[T]):
     """Bulk Create entity serializer for request bodies."""
 
+    action: BulkAction = Field(
+        default=BulkAction.CREATE, description="The action to be performed on the entities."
+    )
     entities: list[T] = Field(..., description="A list of entities to be created.")
     action_on_existence: BulkActionOnExistence = BulkActionOnExistence.FAIL
 
@@ -73,6 +76,9 @@ class BulkCreateAction(BulkBaseAction[T]):
 class BulkUpdateAction(BulkBaseAction[T]):
     """Bulk Update entity serializer for request bodies."""
 
+    action: BulkAction = Field(
+        default=BulkAction.UPDATE, description="The action to be performed on the entities."
+    )
     entities: list[T] = Field(..., description="A list of entities to be updated.")
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
@@ -80,6 +86,9 @@ class BulkUpdateAction(BulkBaseAction[T]):
 class BulkDeleteAction(BulkBaseAction[T]):
     """Bulk Delete entity serializer for request bodies."""
 
+    action: BulkAction = Field(
+        default=BulkAction.DELETE, description="The action to be performed on the entities."
+    )
     entities: list[str] = Field(..., description="A list of entity id/key to be deleted.")
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
