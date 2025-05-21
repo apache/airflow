@@ -80,6 +80,7 @@ class MaxComputeSQLOperator(BaseOperator):
 
     def __init__(
         self,
+        *,
         sql: str,
         project: str | None = None,
         endpoint: str | None = None,

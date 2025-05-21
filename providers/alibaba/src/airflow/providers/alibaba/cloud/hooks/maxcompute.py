@@ -126,7 +126,7 @@ class MaxComputeHook(AlibabaBaseHook):
         return self._get_field("endpoint")
 
     @fallback_to_default_project_endpoint
-    def get_client(self, project: str, endpoint: str) -> ODPS:
+    def get_client(self, *, project: str, endpoint: str) -> ODPS:
         """
         Get an authenticated MaxCompute ODPS Client.
 
@@ -145,6 +145,7 @@ class MaxComputeHook(AlibabaBaseHook):
     @fallback_to_default_project_endpoint
     def run_sql(
         self,
+        *,
         sql: str,
         project: str | None = None,
         endpoint: str | None = None,
@@ -201,6 +202,7 @@ class MaxComputeHook(AlibabaBaseHook):
     @fallback_to_default_project_endpoint
     def get_instance(
         self,
+        *,
         instance_id: str,
         project: str | None = None,
         endpoint: str | None = None,
@@ -223,6 +225,7 @@ class MaxComputeHook(AlibabaBaseHook):
     @fallback_to_default_project_endpoint
     def stop_instance(
         self,
+        *,
         instance_id: str,
         project: str | None = None,
         endpoint: str | None = None,
