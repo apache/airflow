@@ -1034,7 +1034,7 @@ class ActivitySubprocess(WatchedSubprocess):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 if var.value:
-                    mask_secret(var.value)
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
