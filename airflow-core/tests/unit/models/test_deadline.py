@@ -119,7 +119,7 @@ class TestDeadline:
 
         dr = session.query(DagRun).filter(DagRun.id == dagrun.id).first()
 
-        deadlines_result = dr.deadline
+        deadlines_result = dr.deadlines
         assert len(deadlines_result) == 2
         for result in deadlines_result:
             assert result.dag_id == deadline1_orm.dag_id

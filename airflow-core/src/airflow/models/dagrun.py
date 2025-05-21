@@ -256,7 +256,7 @@ class DagRun(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
 
-    deadline = relationship(
+    deadlines = relationship(
         "Deadline",
         back_populates="dagrun",
         uselist=True,

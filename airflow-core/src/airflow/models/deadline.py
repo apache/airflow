@@ -57,7 +57,7 @@ class Deadline(Base):
     # Serialized kwargs to pass to the callback.
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
 
-    dagrun = relationship("DagRun", back_populates="deadline")
+    dagrun = relationship("DagRun", back_populates="deadlines")
 
     __table_args__ = (Index("deadline_idx", deadline, unique=False),)
 
