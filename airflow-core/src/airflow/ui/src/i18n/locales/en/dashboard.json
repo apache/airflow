@@ -27,18 +27,12 @@
   "poolSlots": "Pool Slots",
   "managePools": "Manage Pools",
   "history": "History",
-  "dagRun_one": "Dag Run",
-  "dagRun_other": "Dag Runs",
-  "taskInstance_one": "Task Instance",
-  "taskInstance_other": "Task Instances",
-  "assetEvent_one": "Asset Event",
-  "assetEvent_other": "Asset Events",
-  "noAssetEvents": "No Asset Events found.",
   "sortBy": {
     "newestFirst": "Newest First",
     "oldestFirst": "Oldest First"
   },
   "source": "Source",
   "group": "Group",
-  "uri": "Uri"
+  "uri": "Uri",
+  "noAssetEvents": "No Asset Events found."
 }

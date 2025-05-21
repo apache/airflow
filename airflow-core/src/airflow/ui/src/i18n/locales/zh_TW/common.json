@@ -21,7 +21,7 @@
   },
   "browse": {
     "auditLog": "審計日誌",
-    "xcoms": "Xcoms"
+    "xcoms": "XComs"
   },
   "admin": {
     "Variables": "變數",
@@ -57,5 +57,11 @@
     "upstream_failed": "上游任務失敗",
     "deferred": "已延後",
     "no_status": "無狀態"
-  }
+  },
+  "dagRun_one": "Dag 執行",
+  "dagRun_other": "Dag 執行",
+  "taskInstance_one": "任務實例",
+  "taskInstance_other": "任務實例",
+  "assetEvent_one": "資源事件",
+  "assetEvent_other": "資源事件"
 }

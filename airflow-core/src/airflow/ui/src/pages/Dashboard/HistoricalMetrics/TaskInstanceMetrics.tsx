@@ -55,7 +55,7 @@ export const TaskInstanceMetrics = ({
   taskInstanceStates,
   total,
 }: TaskInstanceMetricsProps) => {
-  const { t: translate } = useTranslation("dashboard");
+  const { t: translate } = useTranslation();
 
   return (
     <Box borderRadius={5} borderWidth={1} mt={2} p={4}>

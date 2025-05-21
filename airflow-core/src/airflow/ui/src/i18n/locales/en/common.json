@@ -58,6 +58,13 @@
     "deferred": "Deferred",
     "no_status": "No Status"
   },
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "taskInstance_one": "Task Instance",
+  "taskInstance_other": "Task Instances",
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
+  "triggered": "Triggered",
   "pools": {
     "open": "Open",
     "running": "Running",

@@ -17,18 +17,12 @@
   "poolSlots": "資源池配額",
   "managePools": "管理資源池",
   "history": "歷史記錄",
-  "dagRun_one": "Dag 執行",
-  "dagRun_other": "Dag 執行",
-  "taskInstance_one": "任務實例",
-  "taskInstance_other": "任務實例",
-  "assetEvent_one": "資源事件",
-  "assetEvent_other": "資源事件",
-  "noAssetEvents": "未找到資源事件",
   "sortBy": {
     "newestFirst": "由新到舊",
     "oldestFirst": "由舊到新"
   },
   "source": "來源",
   "group": "群組",
-  "uri": "Uri"
+  "uri": "Uri",
+  "noAssetEvents": "未找到資源事件"
 }
