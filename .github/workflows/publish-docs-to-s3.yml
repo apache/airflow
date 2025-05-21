@@ -143,6 +143,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
+          fetch-depth: '2'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
