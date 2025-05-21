@@ -34,7 +34,6 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
-import airflow.example_dags
 from airflow import settings
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -43,8 +42,8 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
-from scripts.ci.pre_commit.common_precommit_utils import AIRFLOW_ROOT_PATH
 
+from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -53,13 +52,7 @@ from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
-example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
-try:
-    import system.standard
-
-    example_standard_dags_folder = pathlib.Path(system.standard.__path__[0])  # type: ignore[attr-defined]
-except ImportError:
-    example_standard_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
+example_dags_folder = AIRFLOW_ROOT_PATH / "providers" / "standard" / "tests" / "system" / "standard"
 
 PY311 = sys.version_info >= (3, 11)
 
@@ -367,9 +360,9 @@ class TestDagBag:
         ("file_to_load", "expected"),
         (
             pytest.param(
-                pathlib.Path(example_standard_dags_folder) / "example_bash_operator.py",
+                pathlib.Path(example_dags_folder) / "example_bash_operator.py",
                 {
-                    "example_bash_operator": f"{example_standard_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
+                    "example_bash_operator": f"{example_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
                 },
                 id="example_bash_operator",
             ),
@@ -431,7 +424,7 @@ class TestDagBag:
         Test that we can refresh an ordinary .py DAG
         """
         dag_id = "example_bash_operator"
-        fileloc = str(example_standard_dags_folder / "example_bash_operator.py")
+        fileloc = str(example_dags_folder / "example_bash_operator.py")
 
         mock_dagmodel.return_value = DagModel()
         mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
