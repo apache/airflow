@@ -1211,6 +1211,8 @@ class SelectiveChecks:
             # Skip those tests on all "release" branches
             pre_commits_to_skip.update(
                 (
+                    "compile-fab-assets",
+                    "generate-openapi-spec-fab",
                     "check-airflow-provider-compatibility",
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
