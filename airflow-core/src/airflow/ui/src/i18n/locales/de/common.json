@@ -1,7 +1,7 @@
 {
   "defaultToGraphView": "Graph-Ansicht als Standard",
   "defaultToGridView": "Gitter-Ansicht als Standard",
-  "logout": "Abelden",
+  "logout": "Abmelden",
   "switchToDarkMode": "Zum Dunkelmodus wechseln",
   "switchToLightMode": "Zum Hellmodus wechseln",
   "timezone": "Zeitzone",
@@ -10,7 +10,7 @@
     "chinese": "Traditionelles Chinesisch",
     "english": "Englisch",
     "german": "Deutsch",
-    "select": "Select Language"
+    "select": "Sprache wählen"
   },
   "nav": {
     "home": "Start",
@@ -35,8 +35,8 @@
   "timeRange": {
     "duration": "Laufzeit",
     "lastHour": "Letzte Stunde",
-    "last12Hours": "Vergangene 12 Stunden",
-    "last24Hours": "Vergangene 24 Stunden",
+    "last12Hours": "Letzte 12 Stunden",
+    "last24Hours": "Letzte 24 Stunden",
     "pastWeek": "Letzte Woche"
   },
   "docs": {
