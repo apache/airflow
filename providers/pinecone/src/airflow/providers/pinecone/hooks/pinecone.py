@@ -24,7 +24,8 @@ import os
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from pinecone import Pinecone, PodSpec, PodType, ServerlessSpec
+from pinecone import Pinecone, PodSpec, ServerlessSpec
+from pinecone.db_control.enums import PodType
 
 from airflow.hooks.base import BaseHook
 
