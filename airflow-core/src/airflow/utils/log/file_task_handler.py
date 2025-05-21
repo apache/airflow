@@ -109,7 +109,7 @@ def _fetch_logs_from_service(url, log_relative_path):
 
     timeout = conf.getint("api", "log_fetch_timeout_sec", fallback=None)
     generator = JWTGenerator(
-        secret_key=get_signing_key("webserver", "secret_key"),
+        secret_key=get_signing_key("api", "secret_key"),
         # Since we are using a secret key, we need to be explicit about the algorithm here too
         algorithm="HS512",
         private_key=None,
