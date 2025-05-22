@@ -159,3 +159,36 @@ class DeadlineAlert:
                 "callback_kwargs": self.callback_kwargs,
             }
         )
+
+
+@provide_session
+def _fetch_from_db(model_reference: Column, session=None, **conditions) -> datetime:
+    """
+    Fetch a datetime stored in the database.
+
+    :param model_reference: SQLAlchemy Column reference (e.g., DagRun.logical_date, TaskInstance.queued_dttm, etc.)
+    :param conditions: Key-value pairs which are passed to the WHERE clause.
+
+    :param session: SQLAlchemy session (provided by decorator)
+    """
+    query = select(model_reference)
+
+    for key, value in conditions.items():
+        query = query.where(getattr(model_reference.class_, key) == value)
+
+    # This should build a query similar to:
+    # session.scalar(select(DagRun.logical_date).where(DagRun.dag_id == dag_id))
+    logger.debug("db query: session.scalar(%s)", query)
+
+    try:
+        result = session.scalar(query)
+    except SQLAlchemyError as e:
+        logger.error("Database query failed: (%s)", str(e))
+        raise
+
+    if result is None:
+        message = "No matching record found in the database."
+        logger.error(message)
+        raise ValueError(message)
+
+    return result
