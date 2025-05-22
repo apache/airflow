@@ -26,7 +26,7 @@ import (
 
 	"github.com/MatusOllah/slogcolor"
 
-	"github.com/apache/airflow/go-sdk/celery/cmd"
+	airflow "github.com/apache/airflow/go-sdk/celery/cmd"
 	"github.com/apache/airflow/go-sdk/sdk"
 	"github.com/apache/airflow/go-sdk/worker"
 )
@@ -77,7 +77,7 @@ func main() {
 	worker := worker.New(logger)
 	registerTasks(worker)
 
-	cmd.Execute(worker)
+	airflow.Execute(worker)
 }
 
 func makeLogger() *slog.Logger {

@@ -18,17 +18,17 @@
 package sdkcontext
 
 type (
-	activityContextKey  struct{}
+	workoadContextKey   struct{}
 	apiClientContextKey struct{}
 	workerContextKey    struct{}
 	runtimeTIContextKey struct{}
 )
 
 var (
-	// ActivityContextKey stores the current Activity
+	// WorkloadContextKey stores the current workload
 	//
-	// ctx.Value(ctx, sdkcontext.ActivityContex).(api.ExecuteTaskActivity)
-	ActivityContextKey  = activityContextKey{}
+	// workload := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
+	WorkloadContextKey  = workoadContextKey{}
 	RuntimeTIContextKey = runtimeTIContextKey{}
 	ApiClientContextKey = apiClientContextKey{}
 	WorkerContextKey    = workerContextKey{}

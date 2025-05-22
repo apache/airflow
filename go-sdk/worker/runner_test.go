@@ -36,7 +36,7 @@ import (
 
 const ExecutionAPIServer = "http://localhost:9999/execution"
 
-var TestActivity = api.ExecuteTaskActivity{
+var TestWorkload = api.ExecuteTaskWorkload{
 	Token: "",
 	// {"context_carrier":{},"dag_id":"tutorial_dag","hostname":null,"id":"0196ab8a-5c97-7d4f-b431-e3f49ce20b7f","map_index":-1,"run_id":"manual__2025-05-07T15:48:39.420678+00:00","task_id":"extract","try_number":5}
 	TI: api.TaskInstance{
@@ -58,8 +58,8 @@ var TestActivity = api.ExecuteTaskActivity{
 func init() {
 	idx := -1
 	log := "dag_id=tutorial_dag/run_id=manual__2025-05-07T15:48:39.420678+00:00/task_id=extract/attempt=5.log"
-	TestActivity.TI.MapIndex = &idx
-	TestActivity.LogPath = &log
+	TestWorkload.TI.MapIndex = &idx
+	TestWorkload.LogPath = &log
 }
 
 type WorkerSuite struct {
@@ -140,7 +140,7 @@ func (s *WorkerSuite) BodyJSONMatches(expected []byte) httpmock.Matcher {
 	return matcher
 }
 
-// TestTaskNotRegisteredErrors checks that when a task cannot be found we report "success" on the Activity but
+// TestTaskNotRegisteredErrors checks that when a task cannot be found we report "success" on the Workload but
 // report the task as failed to the Execution API server
 func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 	s.transport.RegisterMatcherResponder(
@@ -149,9 +149,9 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 		s.BodyJSONMatches([]byte(`{"state": "failed"}`)),
 		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
 	)
-	err := s.worker.ExecuteTaskActivity(context.Background(), TestActivity)
+	err := s.worker.ExecuteTaskWorkload(context.Background(), TestWorkload)
 
-	s.NoError(err, "ExecuteTaskActivity should not report an error")
+	s.NoError(err, "ExecuteTaskWorkload should not report an error")
 
 	s.Equal(1, s.transport.GetTotalCallCount(), "State was reported to server")
 }
@@ -187,8 +187,8 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhlieRunning() {
 	)
 
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
-	err := s.worker.ExecuteTaskActivity(context.Background(), TestActivity)
-	s.NoError(err, "ExecuteTaskActivity should not report an error")
+	err := s.worker.ExecuteTaskWorkload(context.Background(), TestWorkload)
+	s.NoError(err, "ExecuteTaskWorkload should not report an error")
 
 	callCounts := s.transport.GetCallCountInfo()
 

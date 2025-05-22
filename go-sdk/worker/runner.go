@@ -50,7 +50,7 @@ type (
 	Worker interface {
 		Registry
 
-		ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTaskActivity) error
+		ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTaskWorkload) error
 
 		WithServer(server string) (Worker, error)
 	}
@@ -109,7 +109,7 @@ func (h *heartbeater) Run(
 ) {
 	h.logger.DebugContext(ctx, "Starting heartbeater", "heartbeat", h.heartbeatInterval)
 
-	activity := ctx.Value(sdkcontext.ActivityContextKey).(api.ExecuteTaskActivity)
+	workload := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
 	client := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
 
 	ticker := time.NewTicker(h.heartbeatInterval)
@@ -121,7 +121,7 @@ func (h *heartbeater) Run(
 			// one recently enough
 
 			err := client.TaskInstances().
-				Heartbeat(ctx, activity.TI.Id, &api.TIHeartbeatInfo{
+				Heartbeat(ctx, workload.TI.Id, &api.TIHeartbeatInfo{
 					Hostname: Hostname,
 					Pid:      os.Getpid(),
 				})
@@ -142,7 +142,7 @@ func (h *heartbeater) Run(
 					// Log something in the task log file too
 					h.taskLogger.ErrorContext(
 						ctx,
-						"Server indicated the task shouldn't be running anymore. Terminating activity",
+						"Server indicated the task shouldn't be running anymore. Terminating workload",
 						"status_code",
 						resp.StatusCode(),
 						"details",
@@ -161,30 +161,30 @@ func (h *heartbeater) Run(
 	}
 }
 
-func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTaskActivity) error {
-	// Store the activity in the context so we can get at task id, etc, variables
+func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTaskWorkload) error {
+	// Store the workload in the context so we can get at task id, etc, variables
 	taskContext, cancelTaskCtx := context.WithCancelCause(
-		context.WithValue(ctx, sdkcontext.ActivityContextKey, activity),
+		context.WithValue(ctx, sdkcontext.WorkloadContextKey, workload),
 	)
 	defer cancelTaskCtx(context.Canceled)
 
 	// Task Logger is for the task's _own_ logs. We want a logger for our heartbeat etc.
 	logger := w.logger.With(
-		slog.String("dag_id", activity.TI.DagId),
-		slog.String("task_id", activity.TI.TaskId),
-		slog.String("ti_id", activity.TI.Id.String()),
+		slog.String("dag_id", workload.TI.DagId),
+		slog.String("task_id", workload.TI.TaskId),
+		slog.String("ti_id", workload.TI.Id.String()),
 	)
 
-	activityClient := w.client
-	if c, ok := activityClient.(*api.Client); ok {
+	workloadClient := w.client
+	if c, ok := workloadClient.(*api.Client); ok {
 		var err error
-		activityClient, err = c.WithBearerToken(activity.Token)
+		workloadClient, err = c.WithBearerToken(workload.Token)
 		if err != nil {
 			logger.ErrorContext(ctx, "Could not create client", slog.Any("error", err))
 			return err
 		}
 
-		c = activityClient.(*api.Client)
+		c = workloadClient.(*api.Client)
 		c.Client.SetLogger(&logging.RestyLoggerBridge{Handler: logger.Handler(), Context: ctx})
 		c.Client.SetDebug(viper.GetBool("api_client.debug"))
 	}
@@ -195,32 +195,32 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 			State:   api.TerminalStateNonSuccess(api.TerminalTIStateFailed),
 			EndDate: time.Now().UTC(),
 		})
-		return activityClient.TaskInstances().UpdateState(
+		return workloadClient.TaskInstances().UpdateState(
 			ctx,
-			activity.TI.Id,
+			workload.TI.Id,
 			body,
 		)
 	}
 
 	// Store the configured API client in the context so we can get it out for accessing Variables etc.
-	taskContext = context.WithValue(taskContext, sdkcontext.ApiClientContextKey, activityClient)
+	taskContext = context.WithValue(taskContext, sdkcontext.ApiClientContextKey, workloadClient)
 
-	taskLogger, err := w.setupTaskLogger(ctx, activity)
+	taskLogger, err := w.setupTaskLogger(ctx, workload)
 	if err != nil {
 		logger.ErrorContext(taskContext, "Could not create logger", slog.Any("error", err))
 		_ = reportStateFailed()
 		return err
 	}
 
-	task, exists := w.LookupTask(activity.TI.DagId, activity.TI.TaskId)
+	task, exists := w.LookupTask(workload.TI.DagId, workload.TI.TaskId)
 	if !exists {
 		taskLogger.ErrorContext(
 			taskContext,
 			"Task not registered",
 			"dag_id",
-			activity.TI.DagId,
+			workload.TI.DagId,
 			"task_id",
-			activity.TI.TaskId,
+			workload.TI.TaskId,
 		)
 		return reportStateFailed()
 	}
@@ -228,8 +228,8 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 	// TODO: Timeout etc on the context
 	// TODO: Add in retries on the api client
 
-	runtimeContext, err := activityClient.TaskInstances().
-		Run(ctx, activity.TI.Id, &api.TIEnterRunningPayload{
+	runtimeContext, err := workloadClient.TaskInstances().
+		Run(ctx, workload.TI.Id, &api.TIEnterRunningPayload{
 			Hostname:  Hostname,
 			Unixname:  Username,
 			Pid:       PID,
@@ -344,9 +344,9 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 		})
 	}
 
-	err = activityClient.TaskInstances().UpdateState(
+	err = workloadClient.TaskInstances().UpdateState(
 		ctx,
-		activity.TI.Id,
+		workload.TI.Id,
 		body,
 	)
 	if err != nil {
@@ -365,7 +365,7 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 
 func (w *worker) setupTaskLogger(
 	_ context.Context,
-	activity api.ExecuteTaskActivity,
+	workload api.ExecuteTaskWorkload,
 ) (*slog.Logger, error) {
 	// Create a logger that:
 	// - only exits the go-routine on panic, not the whole program
@@ -373,7 +373,7 @@ func (w *worker) setupTaskLogger(
 	// - And streams output to stdout in a nice format too
 
 	base := viper.GetString("logging.base_log_path")
-	filename := path.Join(base, *activity.LogPath)
+	filename := path.Join(base, *workload.LogPath)
 	dir := path.Dir(filename)
 
 	// TODO: umask?

@@ -26,7 +26,7 @@ import (
 
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Connect to Celery broker and run Airflow activities",
+	Short: "Connect to Celery broker and run Airflow workloads",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var config celery.Config

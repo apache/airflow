@@ -17,7 +17,7 @@
 
 package api
 
-type ExecuteTaskActivity struct {
+type ExecuteTaskWorkload struct {
 	Token      string       `json:"token"`
 	TI         TaskInstance `json:"ti"`
 	BundleInfo BundleInfo   `json:"bundle_info"`

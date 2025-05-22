@@ -88,11 +88,11 @@ func Run(ctx context.Context, config Config) error {
 				p.NameArgs("payload")
 				payload := p.MustString("payload")
 
-				var activity api.ExecuteTaskActivity
-				if err := json.Unmarshal([]byte(payload), &activity); err != nil {
+				var workload api.ExecuteTaskWorkload
+				if err := json.Unmarshal([]byte(payload), &workload); err != nil {
 					return err
 				}
-				return worker.ExecuteTaskActivity(ctx, activity)
+				return worker.ExecuteTaskWorkload(ctx, workload)
 			},
 		)
 	}
