@@ -464,7 +464,7 @@ class DeadlineResponse(BaseModel):
     Deadline serializer for responses.
     """
 
-    id: Annotated[int, Field(gt=0, title="Id")]
+    id: Annotated[UUID, Field(title="Id")]
     deadline: Annotated[datetime, Field(title="Deadline")]
     callback: Annotated[str | None, Field(title="Callback")] = None
     callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None

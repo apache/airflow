@@ -1325,8 +1325,8 @@ components:
     DeadlineResponse:
       properties:
         id:
-          type: integer
-          exclusiveMinimum: 0.0
+          type: string
+          format: uuid
           title: Id
         deadline:
           type: string

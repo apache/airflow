@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from pydantic import AwareDatetime, PositiveInt
+from uuid import UUID
+
+from pydantic import AwareDatetime
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -24,7 +26,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 class DeadlineResponse(BaseModel):
     """Deadline serializer for responses."""
 
-    id: PositiveInt
+    id: UUID
     deadline: AwareDatetime
     callback: str | None = None
     callback_kwargs: dict | None = None

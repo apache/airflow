@@ -769,7 +769,7 @@ export type DagWarningType = "asset conflict" | "non-existent pool";
  * Deadline serializer for responses.
  */
 export type DeadlineResponse = {
-  id: number;
+  id: string;
   deadline: string;
   callback?: string | null;
   callback_kwargs?: {

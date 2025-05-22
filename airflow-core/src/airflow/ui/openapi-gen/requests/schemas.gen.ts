@@ -2971,8 +2971,8 @@ in the DagWarning model.`,
 export const $DeadlineResponse = {
   properties: {
     id: {
-      type: "integer",
-      exclusiveMinimum: 0,
+      type: "string",
+      format: "uuid",
       title: "Id",
     },
     deadline: {
