@@ -112,7 +112,7 @@ class MaxComputeSQLOperator(BaseOperator):
     def execute(self, context: Context) -> str:
         self.hook = MaxComputeHook(alibabacloud_conn_id=self.alibabacloud_conn_id)
 
-        self.instance = hook.run_sql(
+        self.instance = self.hook.run_sql(
             sql=self.sql,
             project=self.project,
             endpoint=self.endpoint,
