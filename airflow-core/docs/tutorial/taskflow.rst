@@ -135,7 +135,8 @@ Here's what the same DAG might have looked like using the traditional approach:
 
    import json
    import pendulum
-   from airflow.sdk import DAG, PythonOperator
+   from airflow.sdk import DAG
+   from airflow.providers.standard.operators.python import PythonOperator
 
 
    def extract():
