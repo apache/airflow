@@ -42,7 +42,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 | ``1b2cd3e4f5a6`` (head) | ``03e36c7f30aa`` | ``3.1.0``         | Modify task_instance.dag_version_id FK on delete behavior to |
 |                         |                  |                   | default (no SET NULL).                                       |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``03e36c7f30aa``        | ``0242ac120002`` | ``3.1.0``         | Add soft-delete flag to DagVersion (is_active).              |
+| ``03e36c7f30aa``        | ``0242ac120002`` | ``3.1.0``         | Add soft-delete flag is_active to DagVersion.                |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``0242ac120002``        | ``dfee8bd5d574`` | ``3.1.0``         | Change the Deadline column in the Deadline table from        |
 |                         |                  |                   | DateTime to UTC DateTime.                                    |

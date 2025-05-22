@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Add soft-delete flag to DagVersion (is_active).
+Add soft-delete flag is_active to DagVersion.
 
 Revision ID: 03e36c7f30aa
 Revises: 0242ac120002
