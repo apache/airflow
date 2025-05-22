@@ -40,6 +40,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import parse_template_string, render_template
+from airflow.utils.log.log_stream_counter import LogStreamCounter
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -692,15 +693,22 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.DEFERRED,
         )
 
-        if metadata and "log_pos" in metadata:
-            # skip log stream until the last position
-            for _ in range(metadata["log_pos"]):
-                next(out_stream, None)
-        else:
-            # first time reading log, add messages before interleaved log stream
-            out_stream = chain(header, out_stream)
+        with LogStreamCounter(out_stream, HEAP_DUMP_SIZE) as stream_counter:
+            log_pos = stream_counter.get_total_lines()
+            out_stream = stream_counter.get_stream()
 
-        return out_stream, {"end_of_log": end_of_log}
+            # skip log stream until the last position
+            if metadata and "log_pos" in metadata:
+                for _ in range(metadata["log_pos"]):
+                    next(out_stream, None)
+            else:
+                # first time reading log, add messages before interleaved log stream
+                out_stream = chain(header, out_stream)
+
+            return out_stream, {
+                "end_of_log": end_of_log,
+                "log_pos": log_pos,
+            }
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -889,7 +897,11 @@ class FileTaskHandler(logging.Handler):
         except Exception as e:
             from requests.exceptions import InvalidURL
 
-            if isinstance(e, InvalidURL) and ti.task.inherits_from_empty_operator is True:
+            if (
+                isinstance(e, InvalidURL)
+                and ti.task is not None
+                and ti.task.inherits_from_empty_operator is True
+            ):
                 sources.append(self.inherits_from_empty_operator_log_message)
             else:
                 sources.append(f"Could not read served logs: {e}")
