@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from flask import session as builtin_flask_session
-from flask_appbuilder.extensions import db
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -46,6 +45,8 @@ def init_airflow_session_interface(app):
 
             app.before_request(make_session_permanent)
     elif selected_backend == "database":
+        from flask_appbuilder.extensions import db
+
         app.session_interface = AirflowDatabaseSessionInterface(
             app=app,
             db=db,
