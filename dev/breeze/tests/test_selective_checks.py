@@ -80,9 +80,9 @@ ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
     [
         {
-            "description": "-amazon,googl...standard",
-            "test_types": "Providers[-amazon,google,standard] "
-            "Providers[amazon] Providers[google] Providers[standard]",
+            "description": "-amazon,celer...standard",
+            "test_types": "Providers[-amazon,celery,google,standard] "
+            "Providers[amazon] Providers[celery] Providers[google] Providers[standard]",
         }
     ]
 )
