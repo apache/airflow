@@ -48,9 +48,7 @@ WEBSERVER_CONFIG_KEYS = [
 )
 def get_configs() -> ConfigResponse:
     """Get configs for UI."""
-    conf_dict = conf.as_dict()
-
-    config = {key: conf_dict["webserver"].get(key) for key in WEBSERVER_CONFIG_KEYS}
+    config = {key: conf.get("webserver", key) for key in WEBSERVER_CONFIG_KEYS}
 
     additional_config: dict[str, Any] = {
         "instance_name": conf.get("webserver", "instance_name", fallback="Airflow"),
