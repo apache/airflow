@@ -417,9 +417,9 @@ class TestFileTaskLogHandler:
         )
         fth = FileTaskHandler("")
         log_handler_output_stream, metadata = fth._read(ti=local_log_file_read, try_number=1)
-        mock_read_local.assert_called_with(path, None)  # call with empty metadata
+        mock_read_local.assert_called_with(path)
         assert events(log_handler_output_stream) == ["the log"]
-        assert metadata == {"end_of_log": True, "first_time_read": False}
+        assert metadata == {"end_of_log": True, "log_pos": 1}
 
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
@@ -512,7 +512,7 @@ class TestFileTaskLogHandler:
         else:
             fth._read_from_logs_server.assert_not_called()
         assert events(logs, False) == expected_logs
-        assert metadata == {"end_of_log": True, "first_time_read": False}
+        assert metadata == {"end_of_log": True, "log_pos": 3}
 
     def test_add_triggerer_suffix(self):
         sample = "any/path/to/thing.txt"
