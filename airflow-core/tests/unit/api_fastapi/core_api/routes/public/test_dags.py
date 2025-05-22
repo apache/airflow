@@ -661,4 +661,3 @@ def test_this(session):
 
     query = generate_dag_with_latest_run_query(dag_runs_cte=dag_runs_select)
     print(query.compile())
-
