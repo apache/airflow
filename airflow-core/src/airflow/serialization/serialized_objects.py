@@ -44,6 +44,7 @@ from airflow.exceptions import AirflowException, SerializationError, TaskDeferre
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
+from airflow.models.deadline import DeadlineAlert
 from airflow.models.expandinput import (
     create_expand_input,
 )
@@ -737,6 +738,8 @@ class BaseSerialization:
             )
         elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
+        elif isinstance(var, DeadlineAlert):
+            return cls._encode(DeadlineAlert.serialize_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
@@ -1691,6 +1694,8 @@ class SerializedDAG(DAG, BaseSerialization):
             dag_deps.extend(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
+
+            serialized_dag["deadline"] = dag.deadline.serialize_deadline_alert() if dag.deadline else None
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info

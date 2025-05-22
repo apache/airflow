@@ -162,7 +162,8 @@ ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
 
 All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
     "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,"
-    "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,"
+    "compile-fab-assets,generate-openapi-spec-fab,identity,"
+    "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,"
     "mypy-devel-common,mypy-providers,mypy-task-sdk,validate-operators-init"
 )
 
@@ -2001,7 +2002,7 @@ def test_expected_output_push(
             id="Tests for all airflow core types except providers should run if model file changed",
         ),
         pytest.param(
-            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml",),
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml",),
             {
                 "selected-providers-list-as-string": "",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",

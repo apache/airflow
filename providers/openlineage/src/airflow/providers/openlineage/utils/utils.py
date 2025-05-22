@@ -444,6 +444,7 @@ class TaskInstanceInfo(InfoJsonEncodable):
 
     includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
     casts = {
+        "log_url": lambda ti: getattr(ti, "log_url", None),
         "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
         "dag_bundle_version": lambda ti: (
             ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
