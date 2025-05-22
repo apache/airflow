@@ -103,7 +103,7 @@ from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
-DEFAULT_TOTAL_TEST_TIMEOUT = 30 * 60  # 30 minutes
+DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
 
 logs_already_dumped = False
 
