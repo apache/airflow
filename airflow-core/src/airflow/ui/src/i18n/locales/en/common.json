@@ -42,5 +42,36 @@
     "documentation": "Documentation",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
+  },
+  "states": {
+    "queued": "Queued",
+    "running": "Running",
+    "success": "Success",
+    "failed": "Failed",
+    "skipped": "Skipped",
+    "removed": "Removed",
+    "scheduled": "Scheduled",
+    "restarting": "Restarting",
+    "up_for_retry": "Up For Retry",
+    "up_for_reschedule": "Up For Reschedule",
+    "upstream_failed": "Upstream Failed",
+    "deferred": "Deferred",
+    "no_status": "No Status"
+  },
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "taskInstance_one": "Task Instance",
+  "taskInstance_other": "Task Instances",
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
+  "triggered": "Triggered",
+  "pools": {
+    "open": "Open",
+    "running": "Running",
+    "queued": "Queued",
+    "scheduled": "Scheduled",
+    "deferred": "Deferred",
+    "pools_one": "pool",
+    "pools_other": "pools"
   }
 }

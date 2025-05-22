@@ -17,11 +17,11 @@
  * under the License.
  */
 import { Flex, Link, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DagRunAssetReference, DagRunState } from "openapi/requests/types.gen";
 import { Button, Popover } from "src/components/ui";
-import { pluralize } from "src/utils";
 
 import { StateBadge } from "../StateBadge";
 
@@ -30,13 +30,15 @@ type Props = {
 };
 
 export const TriggeredRuns = ({ dagRuns }: Props) => {
+  const { t: translate } = useTranslation("common");
+
   if (dagRuns === undefined || dagRuns.length === 0) {
     return undefined;
   }
 
   return dagRuns.length === 1 ? (
     <Flex gap={1}>
-      <Text>Triggered Dag Run: </Text>
+      <Text>{`${translate("triggered")} ${translate("dagRun_one")}`}: </Text>
       <StateBadge state={dagRuns[0]?.state as DagRunState} />
       <Link asChild color="fg.info">
         <RouterLink to={`/dags/${dagRuns[0]?.dag_id}/runs/${dagRuns[0]?.run_id}`}>
@@ -49,7 +51,7 @@ export const TriggeredRuns = ({ dagRuns }: Props) => {
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild>
         <Button size="sm" variant="outline">
-          {pluralize("Triggered Dag Run", dagRuns.length)}
+          {`${dagRuns.length} ${translate("triggered")} ${translate("dagRun_other", { count: dagRuns.length })}`}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
