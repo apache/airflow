@@ -52,9 +52,7 @@ def get_configs() -> ConfigResponse:
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
-        "instance_name": conf.get("webserver", "instance_name", fallback="Airflow"),
-        "audit_view_included_events": conf.get("webserver", "audit_view_included_events", fallback=""),
-        "audit_view_excluded_events": conf.get("webserver", "audit_view_excluded_events", fallback=""),
+        "instance_name": conf.get("api", "instance_name", fallback="Airflow"),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         "dashboard_alert": DASHBOARD_UIALERTS,
         "show_external_log_redirect": task_log_reader.supports_external_link,
