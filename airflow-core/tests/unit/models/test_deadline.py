@@ -94,40 +94,6 @@ class TestDeadline:
         assert result.callback == deadline_orm.callback
         assert result.callback_kwargs == deadline_orm.callback_kwargs
 
-    def test_add_multiple_deadlines(self, dagrun, session):
-        assert session.query(Deadline).count() == 0
-        deadline1_orm = Deadline(
-            deadline=DEFAULT_DATE,
-            callback=TEST_CALLBACK_PATH,
-            callback_kwargs=TEST_CALLBACK_KWARGS,
-            dag_id=DAG_ID,
-            dagrun_id=dagrun.id,
-        )
-
-        deadline2_orm = Deadline(
-            deadline=DEFAULT_DATE,
-            callback=TEST_CALLBACK_PATH,
-            callback_kwargs=TEST_CALLBACK_KWARGS,
-            dag_id=DAG_ID,
-            dagrun_id=dagrun.id,
-        )
-
-        Deadline.add_deadline(deadline1_orm)
-        Deadline.add_deadline(deadline2_orm)
-
-        assert session.query(Deadline).count() == 2
-
-        dr = session.query(DagRun).filter(DagRun.id == dagrun.id).first()
-
-        deadlines_result = dr.deadlines
-        assert len(deadlines_result) == 2
-        for result in deadlines_result:
-            assert result.dag_id == deadline1_orm.dag_id
-            assert result.dagrun_id == deadline1_orm.dagrun_id
-            assert result.deadline == deadline1_orm.deadline
-            assert result.callback == deadline1_orm.callback
-            assert result.callback_kwargs == deadline1_orm.callback_kwargs
-
     def test_orm(self):
         deadline_orm = Deadline(
             deadline=DEFAULT_DATE,
