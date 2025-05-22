@@ -447,6 +447,10 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("api", "grid_view_sorting_order"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "enable_swagger_ui"),
+        renamed_to=ConfigParameter("api", "enable_swagger_ui"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "error_logfile"),
         was_deprecated=False,
     ),
