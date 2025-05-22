@@ -197,17 +197,17 @@ class WeaviateHook(BaseHook):
         *,
         collection_names: list[str] | str,
         filter_criteria: _Filters,
-        if_error: str = "stop",
+        if_error: str | None = None,
         dry_run: bool = False,
         verbose: bool = False,
     ) -> list[str] | None:
         """
-        Delete objects in collections using a provided Filter object.
+        Delete objects in collections using a provided Filter object. The maximum number of objects that can be deleted at once should be set through environment variable `QUERY_MAXIMUM_RESULTS`.
 
         :param collection_names: The name(s) of the collection(s) to delete from.
         :param filter_criteria: A `Filter` object defining the filter criteria for deletion.
         :param if_error: define the actions to be taken if there is an error while deleting objects, possible
-         options are `stop` and `continue`
+         options are `None` and `continue`
         :param dry_run: Use 'dry_run' to check how many objects would be deleted, without actually performing the deletion.
         :param verbose: Set output to 'verbose' to see more details (ID and deletion status) for each deletion
         :return: If `if_error="continue"`, returns list of failed collection names. Else, returns None.
@@ -221,7 +221,7 @@ class WeaviateHook(BaseHook):
         >>> delete_by_filter(
         >>>     collection_names=["collection_a", "collection_b"],
         >>>     filter_criteria=my_filter,
-        >>>     if_error="stop"
+        >>>     if_error="continue"
         >>> )
         """
         collection_names = [collection_names] if isinstance(collection_names, str) else collection_names
@@ -241,7 +241,11 @@ class WeaviateHook(BaseHook):
                     with attempt:
                         self.log.info(attempt)
                         collection = self.get_collection(collection_name)
-                        collection.data.delete_many(where=filter_criteria, verbose=verbose, dry_run=dry_run)
+                        delete_many_return = collection.data.delete_many(
+                            where=filter_criteria, verbose=verbose, dry_run=dry_run
+                        )
+                        if dry_run:
+                            self.log.info(delete_many_return)
             except (
                 weaviate.exceptions.UnexpectedStatusCodeException,
                 weaviate.exceptions.WeaviateDeleteManyError,
@@ -249,7 +253,7 @@ class WeaviateHook(BaseHook):
                 if if_error == "continue":
                     self.log.error(e)
                     failed_collection_list.append(collection_name)
-                elif if_error == "stop":
+                else:
                     raise e
 
         if if_error == "continue":
