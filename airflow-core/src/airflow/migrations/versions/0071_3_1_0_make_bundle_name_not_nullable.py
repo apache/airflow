@@ -40,6 +40,7 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
+    """Apply Make bundle_name not nullable."""
     dialect_name = op.get_bind().dialect.name
     if dialect_name == "postgresql":
         op.execute("""
@@ -83,4 +84,16 @@ def upgrade():
 
 
 def downgrade():
-    """NO downgrade because the primary key cannot be null."""
+    """Make bundle_name nullable."""
+    dialect_name = op.get_bind().dialect.name
+    if dialect_name == "mysql":
+        # mysql requires explicitly specifying the CHARACTER and COLLATE to match the referenced column
+        op.execute("""
+                    ALTER TABLE dag
+                    MODIFY COLUMN bundle_name VARCHAR(250)
+                    CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
+                    NULL;
+                    """)
+    else:
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.alter_column("bundle_name", nullable=True, existing_type=sa.String(length=250))
