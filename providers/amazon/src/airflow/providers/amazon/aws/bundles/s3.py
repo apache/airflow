@@ -87,8 +87,7 @@ class S3DagBundle(BaseDagBundle):
                     raise AirflowException(
                         f"S3 prefix 's3://{self.bucket_name}/{self.prefix}' does not exist."
                     )
-
-            self._download_s3_dags()
+            self.refresh()
 
     def initialize(self) -> None:
         self._initialize()
@@ -102,82 +101,6 @@ class S3DagBundle(BaseDagBundle):
             except AirflowException as e:
                 self._log.warning("Could not create S3Hook for connection %s: %s", self.aws_conn_id, e)
         return self._s3_hook
-
-
-    def _delete_stale_local_files(self, current_s3_objects: list[Path]):
-        current_s3_keys = {key for key in current_s3_objects}
-
-        for item in self.s3_dags_dir.iterdir():
-            item: Path  # type: ignore[no-redef]
-            absolute_item_path = item.resolve()
-
-            if absolute_item_path not in current_s3_keys:
-                try:
-                    if item.is_file():
-                        item.unlink(missing_ok=True)
-                        self._log.debug("Deleted stale local file: %s", item)
-                    elif item.is_dir():
-                        # delete only when the folder is empty
-                        if not os.listdir(item):
-                            item.rmdir()
-                            self._log.debug("Deleted stale empty directory: %s", item)
-                    else:
-                        self._log.debug("Skipping stale item of unknown type: %s", item)
-                except OSError as e:
-                    self._log.error("Error deleting stale item %s: %s", item, e)
-                    raise e
-
-    def _download_s3_object_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
-        should_download = False
-        download_msg = ""
-        if not local_target_path.exists():
-            should_download = True
-            download_msg = f"Local file {local_target_path} does not exist."
-        else:
-            local_stats = local_target_path.stat()
-
-            if s3_object.size != local_stats.st_size:
-                should_download = True
-                download_msg = (
-                    f"S3 object size ({s3_object.size}) and local file size ({local_stats.st_size}) differ."
-                )
-
-            s3_last_modified = s3_object.last_modified
-            if local_stats.st_mtime < s3_last_modified.microsecond:
-                should_download = True
-                download_msg = f"S3 object last modified ({s3_last_modified.microsecond}) and local file last modified ({local_stats.st_mtime}) differ."
-
-        if should_download:
-            s3_bucket.download_file(s3_object.key, local_target_path)
-            self._log.debug(
-                "%s Downloaded %s to %s", download_msg, s3_object.key, local_target_path.as_posix()
-            )
-        else:
-            self._log.debug(
-                "Local file %s is up-to-date with S3 object %s. Skipping download.",
-                local_target_path.as_posix(),
-                s3_object.key,
-            )
-
-    def _download_s3_dags(self):
-        """Download DAG files from the S3 bucket to the local directory."""
-        self._log.debug(
-            "Downloading DAGs from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
-        )
-        local_s3_objects = []
-        s3_bucket = self.s3_hook.get_bucket(self.bucket_name)
-        for obj in s3_bucket.objects.filter(Prefix=self.prefix):
-            obj_path = Path(obj.key)
-            local_target_path = self.s3_dags_dir.joinpath(obj_path.relative_to(self.prefix))
-            if not local_target_path.parent.exists():
-                local_target_path.parent.mkdir(parents=True, exist_ok=True)
-                self._log.debug("Created local directory: %s", local_target_path.parent)
-            self._download_s3_object_if_changed(
-                s3_bucket=s3_bucket, s3_object=obj, local_target_path=local_target_path
-            )
-            local_s3_objects.append(local_target_path)
-
-        self._delete_stale_local_files(current_s3_objects=local_s3_objects)
 
     def __repr__(self):
         return (
@@ -204,7 +127,15 @@ class S3DagBundle(BaseDagBundle):
             raise AirflowException("Refreshing a specific version is not supported")
 
         with self.lock():
-            self._download_s3_dags()
+            self._log.debug(
+                "Downloading DAGs from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
+            )
+            self.s3_hook.download_s3(
+                bucket_name=self.bucket_name,
+                s3_prefix=self.prefix,
+                local_dir=self.s3_dags_dir,
+                delete_stale=True,
+            )
 
     def view_url(self, version: str | None = None) -> str | None:
         """Return a URL for viewing the DAGs in S3. Currently, versioning is not supported."""
@@ -215,7 +146,7 @@ class S3DagBundle(BaseDagBundle):
         url = f"https://{self.bucket_name}.s3"
         if self.s3_hook.region_name:
             url += f".{self.s3_hook.region_name}"
-        url += f".amazonaws.com"
+        url += ".amazonaws.com"
         if self.prefix:
             url += f"/{self.prefix}"
 
