@@ -117,7 +117,7 @@ class TestFileTaskLogHandler:
         mock_list_pod = mock_kube_client.return_value.list_namespaced_pod
 
         def task_callable(ti):
-            ti.log.info("test")
+            ti.task.log.info("test")
 
         with DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE) as dag:
             task = PythonOperator(
@@ -146,7 +146,7 @@ class TestFileTaskLogHandler:
         ti.executor = "KubernetesExecutor"
 
         logger = ti.log
-        ti.log.disabled = False
+        ti.task.log.disabled = False
 
         file_handler = next((h for h in logger.handlers if h.name == FILE_TASK_HANDLER), None)
         set_context(logger, ti)

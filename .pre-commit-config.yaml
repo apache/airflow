@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.15.1
+  node: 22.16.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
 repos:
@@ -133,7 +133,14 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*reproducible_build\.yaml$|^.*/v2.*\.yaml$|^.*/openapi/_private_ui.*\.yaml$|^.*/pnpm-lock\.yaml$
+        exclude: >
+          (?x)
+          ^\.github/.*$|^chart/templates/.*|
+          .*reproducible_build\.yaml$|
+          ^.*/v2.*\.yaml$|
+          ^.*/openapi/_private_ui.*\.yaml$|
+          ^.*/pnpm-lock\.yaml$|
+          .*-generated\.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -1224,6 +1231,14 @@ repos:
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
         exclude:
           airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py
+      - id: generate-airflowctl-help-images
+        name: Generate SVG from Airflow CTL Commands
+        entry: ./scripts/ci/pre_commit/capture_airflowctl_help.py
+        language: python
+        pass_filenames: false
+        files:
+          ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/cli/.*\.py$
+        additional_dependencies: ['rich>=12.4.4']
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -1326,7 +1341,15 @@ repos:
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
         language: python
-        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
+        entry: ./scripts/ci/pre_commit/generate_openapi_spec.py
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+        exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
+        additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
+      - id: generate-openapi-spec-fab
+        name: Generate the FastAPI API spec for FAB
+        language: python
+        entry: ./scripts/ci/pre_commit/generate_openapi_spec_fab.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*

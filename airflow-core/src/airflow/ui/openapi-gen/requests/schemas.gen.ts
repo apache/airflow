@@ -2275,8 +2275,15 @@ export const $DAGRunResponse = {
       ],
     },
     conf: {
-      additionalProperties: true,
-      type: "object",
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Conf",
     },
     note: {
@@ -5995,22 +6002,6 @@ export const $BaseNodeResponse = {
 
 export const $ConfigResponse = {
   properties: {
-    navbar_color: {
-      type: "string",
-      title: "Navbar Color",
-    },
-    navbar_text_color: {
-      type: "string",
-      title: "Navbar Text Color",
-    },
-    navbar_hover_color: {
-      type: "string",
-      title: "Navbar Hover Color",
-    },
-    navbar_text_hover_color: {
-      type: "string",
-      title: "Navbar Text Hover Color",
-    },
     page_size: {
       type: "integer",
       title: "Page Size",
@@ -6038,14 +6029,6 @@ export const $ConfigResponse = {
     default_wrap: {
       type: "boolean",
       title: "Default Wrap",
-    },
-    audit_view_excluded_events: {
-      type: "string",
-      title: "Audit View Excluded Events",
-    },
-    audit_view_included_events: {
-      type: "string",
-      title: "Audit View Included Events",
     },
     test_connection: {
       type: "string",
@@ -6076,10 +6059,6 @@ export const $ConfigResponse = {
   },
   type: "object",
   required: [
-    "navbar_color",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
@@ -6087,8 +6066,6 @@ export const $ConfigResponse = {
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",
-    "audit_view_excluded_events",
-    "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
     "show_external_log_redirect",

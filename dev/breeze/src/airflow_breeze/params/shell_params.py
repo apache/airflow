@@ -351,8 +351,8 @@ class ShellParams:
         self.add_docker_in_docker(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
-        if os.environ.get("CI", "false") == "true" and self.use_uv:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-uv-tests.yml")
+        if os.environ.get("CI", "false") == "true":
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-tests.yml")
 
         if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
@@ -528,7 +528,7 @@ class ShellParams:
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
             "/opt/airflow/dev/breeze/src/airflow_breeze/files/simple_auth_manager_passwords.json",
         )
-        _set_var(_env, "AIRFLOW__WEBSERVER__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
+        _set_var(_env, "AIRFLOW__API__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env,

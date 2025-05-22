@@ -37,7 +37,7 @@
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
   - [Add tags in git](#add-tags-in-git)
-  - [Publish release candidate documentation](#publish-release-candidate-documentation)
+  - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
   - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
@@ -47,7 +47,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Add tags in git](#add-tags-in-git-1)
-  - [Publish final documentation](#publish-final-documentation)
+  - [Publish documentation](#publish-documentation)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
@@ -486,7 +486,7 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 breeze release-management tag-providers
 ```
 
-## Publish release candidate documentation
+## Prepare documentation in Staging
 
 Documentation is an essential part of the product and should be made available to users.
 In our cases, documentation for the released versions is published in the staging S3 bucket, and the site is
@@ -607,12 +607,20 @@ Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/pro
 Send out a vote to the dev@airflow.apache.org mailing list. Here you can prepare text of the
 email.
 
-subject:
+```shell script
+export VOTE_DURATION_IN_HOURS=72
+export IS_SHORTEN_VOTE=$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "false" || echo "true")
+export SHORTEN_VOTE_TEXT="This is a shortened ($VOTE_DURATION_IN_HOURS hours vote) as agreed by policy set it https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm"
+export VOTE_END_TIME=$(LANG=en_US.UTF-8 TZ=UTC date -v+"${VOTE_DURATION_IN_HOURS}"H "+%B %d, %Y %H:%M %p")
+export RELEASE_MANAGER_NAME="Elad Kalif"
+export GITHUB_ISSUE_LINK="LINK_TO_GITHUB_ISSUE"
+```
 
+subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Airflow Providers prepared on $(date "+%B %d, %Y")
+[VOTE] Airflow Providers prepared on $(LANG=en_US.UTF-8 TZ=UTC date "+%B %d, %Y")
 EOF
 ```
 
@@ -621,8 +629,8 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(TZ=UTC date -v+3d "+%B %d, %Y %H:%M %p" ) UTC and until 3 binding +1 votes have been received.
-
+which will last for $VOTE_DURATION_IN_HOURS hours - which means that it will end on $VOTE_END_TIME UTC and until 3 binding +1 votes have been received.
+$([ "$IS_SHORTEN_VOTE" = "true" ] && echo "${SHORTEN_VOTE_TEXT}" || echo "")
 
 Consider this my (binding) +1.
 
@@ -661,7 +669,7 @@ This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
 The status of testing the providers by the community is kept here:
-<TODO COPY LINK TO THE ISSUE CREATED>
+$GITHUB_ISSUE_LINK
 
 The issue is also the easiest way to see important PRs included in the RC candidates.
 Detailed changelog for the providers will be published in the documentation after the
@@ -672,7 +680,7 @@ You can find the RC packages in PyPI following these links:
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
 Cheers,
-<TODO: Your Name>
+$RELEASE_MANAGER_NAME
 
 EOF
 ```
@@ -1194,7 +1202,7 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 breeze release-management tag-providers
 ```
 
-## Publish final documentation
+## Publish documentation
 
 Documentation is an essential part of the product and should be made available to users.
 In our cases, documentation for the released versions is published in the `live` S3 bucket, and the site is
@@ -1234,11 +1242,12 @@ There are few special considerations when the list of provider is updated.
 
 - If you publish a new package, you must add it to the list of packages in the index.
 - If there are changes to suspension or removal status of a package, you must move it appropriate section.
-
 - In case you need to make any changes - create the commit and push changes and merge it to `main` branch.
   in [airflow-site](https://github.com/apache/airflow-site) repository.
 
 ```shell script
+cd airflow-site
+export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
 cd "${AIRFLOW_SITE_DIRECTORY}"
 branch="add-documentation-$(date "+%Y-%m-%d%n")"
 git checkout -b "${branch}"
@@ -1261,7 +1270,7 @@ list and stable links should be updated, also Fastly cache will be invalidated.
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 git checkout main
-git pull
+git pull apache main
 current_date=$(date '+%Y-%m-%d%n')
 branch="update-providers-metadata-${current_date}"
 git checkout -b "${branch}"
