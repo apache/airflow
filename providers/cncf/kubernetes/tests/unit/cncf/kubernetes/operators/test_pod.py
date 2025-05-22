@@ -36,7 +36,6 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -128,8 +127,11 @@ def create_context(task, persist_to_db=False, map_index=None):
     if persist_to_db:
         with create_session() as session:
             bundle_name = "test_bundle"
-            session.merge(DagBundleModel(name=bundle_name))
-            session.flush()
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
+                session.merge(DagBundleModel(name=bundle_name))
+                session.flush()
             session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
             session.add(dag_run)
             session.add(task_instance)

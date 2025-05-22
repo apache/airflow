@@ -27,7 +27,6 @@ import time_machine
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
 from airflow.models.dag import DagModel
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
@@ -77,8 +76,11 @@ class TestDagRunOperator:
 
         with create_session() as session:
             bundle_name = "test_bundle"
-            session.merge(DagBundleModel(name=bundle_name))
-            session.flush()
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
+                session.merge(DagBundleModel(name=bundle_name))
+                session.flush()
             session.add(DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name=bundle_name, fileloc=self._tmpfile))
             session.commit()
 

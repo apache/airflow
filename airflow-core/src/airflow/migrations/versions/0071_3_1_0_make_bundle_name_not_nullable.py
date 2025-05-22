@@ -40,7 +40,7 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
-    dialect_name = op.get_context().dialect.name
+    dialect_name = op.get_bind().dialect.name
     if dialect_name == "postgresql":
         op.execute("""
                     INSERT INTO dag_bundle (name) VALUES
@@ -83,5 +83,4 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.alter_column("bundle_name", nullable=True, existing_type=sa.String(length=250))
+    """NO downgrade because the primary key cannot be null."""
