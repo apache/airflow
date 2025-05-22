@@ -133,7 +133,7 @@ class SchedulerListOfDictsExpandInput:
         return length
 
 
-_EXPAND_INPUT_TYPES: dict[str, type] = {
+_EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {
     "dict-of-lists": SchedulerDictOfListsExpandInput,
     "list-of-dicts": SchedulerListOfDictsExpandInput,
 }
