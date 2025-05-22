@@ -35,6 +35,9 @@
 # UI
 /airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
 
+# Translations
+airflow-core/src/airflow/ui/src/i18n/locales/zh_TW/ @Lee-W
+
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
 
