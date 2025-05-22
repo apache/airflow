@@ -722,7 +722,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             },
                             {
                                 "description": "dbt.cloud...dingding",
-                                "test_types": "Providers[dbt.cloud] Providers[dingding]"
+                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
                             },
                             {"description": "discord", "test_types": "Providers[discord]"},
                             {"description": "google", "test_types": "Providers[google]"},
