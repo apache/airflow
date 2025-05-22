@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -44,23 +44,22 @@ def mock_config_data():
     """
     Mock configuration settings used in the endpoint.
     """
-    with patch("airflow.configuration.conf.as_dict") as mock_conf:
-        mock_conf.return_value = {
-            "webserver": {
-                "page_size": "100",
-                "auto_refresh_interval": "3",
-                "hide_paused_dags_by_default": "false",
-                "instance_name": "Airflow",
-                "instance_name_has_markup": "false",
-                "enable_swagger_ui": "true",
-                "require_confirmation_dag_change": "false",
-                "default_wrap": "false",
-                "warn_deployment_exposure": "false",
-                "audit_view_excluded_events": "",
-                "audit_view_included_events": "",
-            }
+    with conf_vars(
+        {
+            ("webserver", "page_size"): "100",
+            ("webserver", "auto_refresh_interval"): "3",
+            ("webserver", "hide_paused_dags_by_default"): "false",
+            ("webserver", "instance_name"): "Airflow",
+            ("webserver", "instance_name_has_markup"): "false",
+            ("webserver", "enable_swagger_ui"): "true",
+            ("webserver", "require_confirmation_dag_change"): "false",
+            ("webserver", "default_wrap"): "false",
+            ("webserver", "audit_view_excluded_events"): "",
+            ("webserver", "audit_view_included_events"): "",
+            ("webserver", "warn_deployment_exposure"): "false",
         }
-        yield mock_conf
+    ):
+        yield
 
 
 class TestGetConfig:
