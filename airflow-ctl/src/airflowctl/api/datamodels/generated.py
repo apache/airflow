@@ -459,6 +459,17 @@ class DagWarningType(str, Enum):
     NON_EXISTENT_POOL = "non-existent pool"
 
 
+class DeadlineResponse(BaseModel):
+    """
+    Deadline serializer for responses.
+    """
+
+    id: Annotated[int, Field(gt=0, title="Id")]
+    deadline: Annotated[datetime, Field(title="Deadline")]
+    callback: Annotated[str | None, Field(title="Callback")] = None
+    callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
+
+
 class DryRunBackfillResponse(BaseModel):
     """
     Backfill serializer for responses in dry-run mode.
@@ -1240,6 +1251,7 @@ class DAGRunResponse(BaseModel):
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    deadlines: Annotated[list[DeadlineResponse] | None, Field(title="Deadlines")] = None
     run_after: Annotated[datetime, Field(title="Run After")]
     last_scheduling_decision: Annotated[datetime | None, Field(title="Last Scheduling Decision")] = None
     run_type: DagRunType

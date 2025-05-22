@@ -2241,6 +2241,20 @@ export const $DAGRunResponse = {
       ],
       title: "Data Interval End",
     },
+    deadlines: {
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/DeadlineResponse",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Deadlines",
+    },
     run_after: {
       type: "string",
       format: "date-time",
@@ -2330,6 +2344,7 @@ export const $DAGRunResponse = {
     "end_date",
     "data_interval_start",
     "data_interval_end",
+    "deadlines",
     "run_after",
     "last_scheduling_decision",
     "run_type",
@@ -2951,6 +2966,48 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
+} as const;
+
+export const $DeadlineResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      exclusiveMinimum: 0,
+      title: "Id",
+    },
+    deadline: {
+      type: "string",
+      format: "date-time",
+      title: "Deadline",
+    },
+    callback: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Callback",
+    },
+    callback_kwargs: {
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Callback Kwargs",
+    },
+  },
+  type: "object",
+  required: ["id", "deadline"],
+  title: "DeadlineResponse",
+  description: "Deadline serializer for responses.",
 } as const;
 
 export const $DryRunBackfillCollectionResponse = {
