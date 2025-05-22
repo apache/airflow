@@ -1727,12 +1727,6 @@ class TaskInstance(Base, LoggingMixin):
             context = self.get_template_context(ignore_param_exceptions=False, session=session)
 
             try:
-                if self.task:
-                    from airflow.sdk.definitions.asset import Asset
-
-                    inlets = [asset.asprofile() for asset in self.task.inlets if isinstance(asset, Asset)]
-                    outlets = [asset.asprofile() for asset in self.task.outlets if isinstance(asset, Asset)]
-                    TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
                 if not mark_success:
                     TaskInstance._execute_task_with_callbacks(
                         self=self,  # type: ignore[arg-type]

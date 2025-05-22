@@ -62,7 +62,7 @@ from sqlalchemy_utils import UUIDType
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, AirflowInactiveAssetInInletOrOutletException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.backfill import Backfill
@@ -1886,9 +1886,23 @@ class DagRun(Base, LoggingMixin):
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         empty_ti_ids = []
         schedulable_ti_ids = []
+        invalid_ti_ids = []
         for ti in schedulable_tis:
             if TYPE_CHECKING:
                 assert isinstance(ti.task, BaseOperator)
+
+            if ti.task:
+                from airflow.sdk.definitions.asset import Asset
+
+                inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+                outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+                try:
+                    TI.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
+                except AirflowInactiveAssetInInletOrOutletException:
+                    self.log.exception("test")
+                    invalid_ti_ids.append(ti.id)
+                    continue
+
             if (
                 ti.task.inherits_from_empty_operator
                 and not ti.task.on_execute_callback
@@ -1954,6 +1968,21 @@ class DagRun(Base, LoggingMixin):
                     )
                     .execution_options(
                         synchronize_session=False,
+                    )
+                ).rowcount
+
+        if invalid_ti_ids:
+            dummy_ti_ids_chunks = chunks(invalid_ti_ids, max_tis_per_query or len(invalid_ti_ids))
+            for id_chunk in dummy_ti_ids_chunks:
+                count += session.execute(
+                    update(TI)
+                    .where(TI.id.in_(id_chunk))
+                    .values(
+                        state=TaskInstanceState.FAILED,
+                        start_date=timezone.utcnow(),
+                        end_date=timezone.utcnow(),
+                        duration=0,
+                        try_number=TI.try_number + 1,
                     )
                 ).rowcount
 
