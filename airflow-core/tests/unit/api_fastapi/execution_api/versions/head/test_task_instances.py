@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import operator
 from datetime import datetime
 from unittest import mock
 from uuid import uuid4
@@ -962,22 +961,18 @@ class TestTISkipDownstream:
             t1 = EmptyOperator(task_id="t1")
             t0 >> t1
         dr = dag_maker.create_dagrun(run_id="run")
-        decision = dr.task_instance_scheduling_decisions(session=session)
-        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
-            # TODO: TaskSDK #45549
-            ti.task = dag_maker.dag.get_task(ti.task_id)
-            ti.run(session=session)
 
-        t0 = dr.get_task_instance("t0")
+        ti0 = dr.get_task_instance("t0")
+        ti0.set_state(State.SUCCESS)
+
         response = client.patch(
-            f"/execution/task-instances/{t0.id}/skip-downstream",
+            f"/execution/task-instances/{ti0.id}/skip-downstream",
             json=_json,
         )
-        t1 = dr.get_task_instance("t1")
+        ti1 = dr.get_task_instance("t1")
 
         assert response.status_code == 204
-        assert decision.schedulable_tis[0].state == State.SUCCESS
-        assert t1.state == State.SKIPPED
+        assert ti1.state == State.SKIPPED
 
 
 class TestTIHealthEndpoint:
