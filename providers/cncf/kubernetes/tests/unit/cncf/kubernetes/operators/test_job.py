@@ -80,10 +80,13 @@ def create_context(task, persist_to_db=False, map_index=None):
         task_instance.map_index = map_index
     if persist_to_db:
         with create_session() as session:
-            bundle_name = "dags-folder"
-            session.merge(DagBundleModel(name=bundle_name))
-            session.flush()
-            session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+            if AIRFLOW_V_3_0_PLUS:
+                bundle_name = "dags-folder"
+                session.merge(DagBundleModel(name=bundle_name))
+                session.flush()
+                session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+            else:
+                session.add(DagModel(dag_id=dag.dag_id))
             session.add(dag_run)
             session.add(task_instance)
             session.commit()
