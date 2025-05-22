@@ -41,7 +41,6 @@ from flask_appbuilder.const import (
     LOGMSG_WAR_SEC_NOLDAP_OBJ,
     MICROSOFT_KEY_SET_URL,
 )
-from flask_appbuilder.extensions import db
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
@@ -502,6 +501,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     @property
     def session(self):
+        from flask_appbuilder.extensions import db
+
         return db.session
 
     def create_login_manager(self) -> LoginManager:
@@ -898,7 +899,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def get_all_permissions(self) -> set[tuple[str, str]]:
         """Return all permissions as a set of tuples with the action and resource names."""
         return set(
-            db.session.execute(
+            self.session.execute(
                 select(self.action_model.name, self.resource_model.name)
                 .join(self.permission_model.action)
                 .join(self.permission_model.resource)
@@ -1143,7 +1144,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         for role in custom_roles:
             self.add_permission_to_role(role, website_permission)
 
-        db.session.commit()
+        self.session.commit()
 
     def update_admin_permission(self) -> None:
         """
@@ -1154,23 +1155,23 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Add the missing ones to the table for admin.
         """
         prefixes = getattr(permissions, "PREFIX_LIST", [permissions.RESOURCE_DAG_PREFIX])
-        dag_resources = db.session.scalars(
+        dag_resources = self.session.scalars(
             select(Resource).where(or_(*[Resource.name.like(f"{prefix}%") for prefix in prefixes]))
         )
         resource_ids = [resource.id for resource in dag_resources]
 
-        perms = db.session.scalars(select(Permission).where(~Permission.resource_id.in_(resource_ids)))
+        perms = self.session.scalars(select(Permission).where(~Permission.resource_id.in_(resource_ids)))
         perms = [p for p in perms if p.action and p.resource]
 
         admin = self.find_role("Admin")
         admin.permissions = list(set(admin.permissions) | set(perms))
 
-        db.session.commit()
+        self.session.commit()
 
     def clean_perms(self) -> None:
         """FAB leaves faulty permissions that need to be cleaned up."""
         self.log.debug("Cleaning faulty perms")
-        perms = db.session.query(Permission).filter(
+        perms = self.session.query(Permission).filter(
             or_(
                 Permission.action == None,  # noqa: E711
                 Permission.resource == None,  # noqa: E711
@@ -1182,9 +1183,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         deleted_count = 0
         for perm in perms:
-            db.session.delete(perm)
+            self.session.delete(perm)
             deleted_count += 1
-        db.session.commit()
+        self.session.commit()
         if deleted_count:
             self.log.info("Deleted %s faulty permissions", deleted_count)
 
@@ -1217,17 +1218,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def update_role(self, role_id, name: str) -> Role | None:
         """Update a role in the database."""
-        role = db.session.get(self.role_model, role_id)
+        role = self.session.get(self.role_model, role_id)
         if not role:
             return None
         try:
             role.name = name
-            db.session.merge(role)
-            db.session.commit()
+            self.session.merge(role)
+            self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_ROLE, role)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_UPD_ROLE, e)
-            db.session.rollback()
+            self.session.rollback()
             return None
         return role
 
@@ -1238,13 +1239,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             try:
                 role = self.role_model()
                 role.name = name
-                db.session.add(role)
-                db.session.commit()
+                self.session.add(role)
+                self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_ROLE, name)
                 return role
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_ROLE, e)
-                db.session.rollback()
+                self.session.rollback()
         return role
 
     def find_role(self, name):
@@ -1253,10 +1254,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param name: the role name
         """
-        return db.session.query(self.role_model).filter_by(name=name).one_or_none()
+        return self.session.query(self.role_model).filter_by(name=name).one_or_none()
 
     def get_all_roles(self):
-        return db.session.query(self.role_model).all()
+        return self.session.query(self.role_model).all()
 
     def delete_role(self, role_name: str) -> None:
         """
@@ -1264,11 +1265,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param role_name: the name of a role in the ab_role table
         """
-        role = db.session.query(Role).filter(Role.name == role_name).first()
+        role = self.session.query(Role).filter(Role.name == role_name).first()
         if role:
             log.info("Deleting role '%s'", role_name)
-            db.session.delete(role)
-            db.session.commit()
+            self.session.delete(role)
+            self.session.commit()
         else:
             raise AirflowException(f"Role named '{role_name}' does not exist")
 
@@ -1298,7 +1299,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return _roles
 
     def get_public_role(self):
-        return db.session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
+        return self.session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
 
     """
     -----------
@@ -1329,20 +1330,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user.username = username
             user.email = email
             user.active = True
-            db.session.add(user)
+            self.session.add(user)
             user.roles = roles
             user.groups = groups or []
             if hashed_password:
                 user.password = hashed_password
             else:
                 user.password = generate_password_hash(password)
-            db.session.commit()
+            self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
 
             return user
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
-            db.session.rollback()
+            self.session.rollback()
             return False
 
     def load_user(self, pk: int) -> Any | None:
@@ -1352,11 +1353,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return None
 
     def get_user_by_id(self, pk):
-        return db.session.get(self.user_model, pk)
+        return self.session.get(self.user_model, pk)
 
     def count_users(self):
         """Return the number of users in the database."""
-        return db.session.query(func.count(self.user_model.id)).scalar()
+        return self.session.query(func.count(self.user_model.id)).scalar()
 
     def add_register_user(self, username, first_name, last_name, email, password="", hashed_password=""):
         """
@@ -1375,12 +1376,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             register_user.password = generate_password_hash(password)
         register_user.registration_hash = str(uuid.uuid1())
         try:
-            db.session.add(register_user)
-            db.session.commit()
+            self.session.add(register_user)
+            self.session.commit()
             return register_user
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_REGISTER_USER, e)
-            db.session.rollback()
+            self.session.rollback()
             return None
 
     def find_user(self, username=None, email=None):
@@ -1389,12 +1390,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             try:
                 if self.auth_username_ci:
                     return (
-                        db.session.query(self.user_model)
+                        self.session.query(self.user_model)
                         .filter(func.lower(self.user_model.username) == func.lower(username))
                         .one_or_none()
                     )
                 return (
-                    db.session.query(self.user_model)
+                    self.session.query(self.user_model)
                     .filter(func.lower(self.user_model.username) == func.lower(username))
                     .one_or_none()
                 )
@@ -1403,19 +1404,19 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 return None
         elif email:
             try:
-                return db.session.query(self.user_model).filter_by(email=email).one_or_none()
+                return self.session.query(self.user_model).filter_by(email=email).one_or_none()
             except MultipleResultsFound:
                 log.error("Multiple results found for user with email %s", email)
                 return None
 
     def update_user(self, user: User) -> bool:
         try:
-            db.session.merge(user)
-            db.session.commit()
+            self.session.merge(user)
+            self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
-            db.session.rollback()
+            self.session.rollback()
             return False
         return True
 
@@ -1426,16 +1427,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param register_user: RegisterUser object to delete
         """
         try:
-            db.session.delete(register_user)
-            db.session.commit()
+            self.session.delete(register_user)
+            self.session.commit()
             return True
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_DEL_REGISTER_USER, e)
-            db.session.rollback()
+            self.session.rollback()
             return False
 
     def get_all_users(self):
-        return db.session.query(self.user_model).all()
+        return self.session.query(self.user_model).all()
 
     def update_user_auth_stat(self, user, success=True):
         """
@@ -1475,7 +1476,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param name: name
         """
-        return db.session.query(self.action_model).filter_by(name=name).one_or_none()
+        return self.session.query(self.action_model).filter_by(name=name).one_or_none()
 
     def create_action(self, name):
         """
@@ -1489,12 +1490,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             try:
                 action = self.action_model()
                 action.name = name
-                db.session.add(action)
-                db.session.commit()
+                self.session.add(action)
+                self.session.commit()
                 return action
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION, e)
-                db.session.rollback()
+                self.session.rollback()
         return action
 
     def delete_action(self, name: str) -> bool:
@@ -1509,17 +1510,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
         try:
             perms = (
-                db.session.query(self.permission_model).filter(self.permission_model.action == action).all()
+                self.session.query(self.permission_model).filter(self.permission_model.action == action).all()
             )
             if perms:
                 log.warning(const.LOGMSG_WAR_SEC_DEL_PERM_PVM, action, perms)
                 return False
-            db.session.delete(action)
-            db.session.commit()
+            self.session.delete(action)
+            self.session.commit()
             return True
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION, e)
-            db.session.rollback()
+            self.session.rollback()
             return False
 
     """
@@ -1534,7 +1535,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param name: Name of resource
         """
-        return db.session.query(self.resource_model).filter_by(name=name).one_or_none()
+        return self.session.query(self.resource_model).filter_by(name=name).one_or_none()
 
     def create_resource(self, name) -> Resource:
         """
@@ -1547,12 +1548,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             try:
                 resource = self.resource_model()
                 resource.name = name
-                db.session.add(resource)
-                db.session.commit()
+                self.session.add(resource)
+                self.session.commit()
                 return resource
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU, e)
-                db.session.rollback()
+                self.session.rollback()
         return resource
 
     """
@@ -1576,7 +1577,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         resource = self.get_resource(resource_name)
         if action and resource:
             return (
-                db.session.query(self.permission_model)
+                self.session.query(self.permission_model)
                 .filter_by(action=action, resource=resource)
                 .one_or_none()
             )
@@ -1588,7 +1589,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param resource: Object representing a single resource.
         """
-        return db.session.query(self.permission_model).filter_by(resource_id=resource.id).all()
+        return self.session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
     def create_permission(self, action_name, resource_name) -> Permission | None:
         """
@@ -1609,13 +1610,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perm = self.permission_model()
         perm.resource_id, perm.action_id = resource.id, action.id
         try:
-            db.session.add(perm)
-            db.session.commit()
+            self.session.add(perm)
+            self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW, perm)
             return perm
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, e)
-            db.session.rollback()
+            self.session.rollback()
             return None
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
@@ -1632,21 +1633,21 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perm = self.get_permission(action_name, resource_name)
         if not perm:
             return
-        roles = db.session.query(self.role_model).filter(self.role_model.permissions.contains(perm)).first()
+        roles = self.session.query(self.role_model).filter(self.role_model.permissions.contains(perm)).first()
         if roles:
             log.warning(const.LOGMSG_WAR_SEC_DEL_PERMVIEW, resource_name, action_name, roles)
             return
         try:
             # delete permission on resource
-            db.session.delete(perm)
-            db.session.commit()
+            self.session.delete(perm)
+            self.session.commit()
             # if no more permission on permission view, delete permission
-            if not db.session.query(self.permission_model).filter_by(action=perm.action).all():
+            if not self.session.query(self.permission_model).filter_by(action=perm.action).all():
                 self.delete_action(perm.action.name)
             log.info(const.LOGMSG_INF_SEC_DEL_PERMVIEW, action_name, resource_name)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_DEL_PERMVIEW, e)
-            db.session.rollback()
+            self.session.rollback()
 
     def add_permission_to_role(self, role: Role, permission: Permission | None) -> None:
         """
@@ -1658,12 +1659,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if permission and permission not in role.permissions:
             try:
                 role.permissions.append(permission)
-                db.session.merge(role)
-                db.session.commit()
+                self.session.merge(role)
+                self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE, permission, role.name)
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, e)
-                db.session.rollback()
+                self.session.rollback()
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
         """
@@ -1675,12 +1676,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if permission in role.permissions:
             try:
                 role.permissions.remove(permission)
-                db.session.merge(role)
-                db.session.commit()
+                self.session.merge(role)
+                self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_DEL_PERMROLE, permission, role.name)
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE, e)
-                db.session.rollback()
+                self.session.rollback()
 
     @staticmethod
     def get_user_roles(user=None):
@@ -2319,7 +2320,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         resource = self.get_resource(resource_name)
         perm = None
         if action and resource:
-            perm = db.session.scalar(
+            perm = self.session.scalar(
                 select(self.permission_model).filter_by(action=action, resource=resource).limit(1)
             )
         if not perm and action_name and resource_name:
@@ -2329,7 +2330,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Return a dict with a key of role name and value of role with early loaded permissions."""
         return {
             r.name: r
-            for r in db.session.scalars(
+            for r in self.session.scalars(
                 select(self.role_model).options(joinedload(self.role_model.permissions))
             ).unique()
         }
@@ -2344,7 +2345,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return {
             (action_name, resource_name): viewmodel
             for action_name, resource_name, viewmodel in (
-                db.session.execute(
+                self.session.execute(
                     select(
                         self.action_model.name,
                         self.resource_model.name,
