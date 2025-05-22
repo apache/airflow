@@ -256,6 +256,13 @@ class DagRun(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
 
+    deadlines = relationship(
+        "Deadline",
+        back_populates="dagrun",
+        uselist=True,
+        cascade="all, delete, delete-orphan",
+    )
+
     created_dag_version = relationship("DagVersion", uselist=False, passive_deletes=True)
     """
     The dag version that was active when the dag run was created, if available.
