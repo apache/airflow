@@ -47,7 +47,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 
 
 @variables_router.delete(
-    "/{variable_key}",
+    "/{variable_key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(action_logging()), Depends(requires_access_variable("DELETE"))],
@@ -64,7 +64,7 @@ def delete_variable(
 
 
 @variables_router.get(
-    "/{variable_key}",
+    "/{variable_key:path}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_variable("GET"))],
 )
@@ -121,7 +121,7 @@ def get_variables(
 
 
 @variables_router.patch(
-    "/{variable_key}",
+    "/{variable_key:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
