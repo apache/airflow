@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Callable
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import Column, ForeignKey, Index, Integer, String
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
@@ -55,6 +56,8 @@ class Deadline(Base):
     callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
+
+    dagrun = relationship("DagRun", back_populates="deadlines")
 
     __table_args__ = (Index("deadline_idx", deadline, unique=False),)
 
