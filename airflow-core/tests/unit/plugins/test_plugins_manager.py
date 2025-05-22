@@ -259,7 +259,7 @@ class TestPluginsManager:
                 # Verify that the macros added by the plugin are being set correctly
                 # on the plugin's macro module.
                 assert hasattr(plugin_macros, macro.__name__)
-            # Verify that the symbol table in airflow.sdk.definitions.macros has been updated with an entry for
+            # Verify that the symbol table in airflow.sdk.execution_time.macros has been updated with an entry for
             # this plugin, this is necessary in order to allow the plugin's macros to be used when
             # rendering templates.
             assert hasattr(macros, MacroPlugin.name)
