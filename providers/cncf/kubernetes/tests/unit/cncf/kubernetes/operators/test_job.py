@@ -28,7 +28,6 @@ from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
@@ -81,6 +80,8 @@ def create_context(task, persist_to_db=False, map_index=None):
     if persist_to_db:
         with create_session() as session:
             if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
                 bundle_name = "dags-folder"
                 session.merge(DagBundleModel(name=bundle_name))
                 session.flush()
