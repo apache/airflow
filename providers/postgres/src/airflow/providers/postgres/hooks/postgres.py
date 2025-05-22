@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Union
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
+from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException

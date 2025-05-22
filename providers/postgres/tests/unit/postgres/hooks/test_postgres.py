@@ -25,7 +25,6 @@ from unittest import mock
 import psycopg2.extras
 import pytest
 import sqlalchemy
-from psycopg2.extras import Json
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
