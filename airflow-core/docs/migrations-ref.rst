@@ -39,7 +39,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``1b612ec87098`` (head) | ``0242ac120002`` | ``3.1.0``         | make bundle_name not nullable                                |
+| ``1b612ec87098`` (head) | ``0242ac120002`` | ``3.1.0``         | Make bundle_name not nullable.                               |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``0242ac120002``        | ``dfee8bd5d574`` | ``3.1.0``         | Change the Deadline column in the Deadline table from        |
 |                         |                  |                   | DateTime to UTC DateTime.                                    |

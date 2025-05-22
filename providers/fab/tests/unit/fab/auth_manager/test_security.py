@@ -129,9 +129,11 @@ def _delete_dag_permissions(dag_id, security_manager):
 
 
 def _create_dag_model(dag_id, session, security_manager):
-    bundle = DagBundleModel(name="dags-folder")
-    session.add(bundle)
-    dag_model = DagModel(dag_id=dag_id, bundle_name="dags-folder")
+    bundle_name = "test_bundle"
+    bundle = DagBundleModel(name=bundle_name)
+    session.merge(bundle)
+    session.flush()
+    dag_model = DagModel(dag_id=dag_id, bundle_name=bundle_name)
     session.add(dag_model)
     session.commit()
     security_manager.sync_perm_for_dag(dag_id, access_control=None)
@@ -508,6 +510,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
     permission_action = [permissions.ACTION_CAN_READ]
     dag_id = "dag_id"
     username = "ElUser"
+    bundle_name = "test_bundle"
 
     with app.app_context():
         with create_user_scope(
@@ -520,17 +523,19 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             ],
         ) as user:
             mock_is_logged_in.return_value = True
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
                 dag_model = DagModel(
                     dag_id=dag_id,
-                    bundle_name="dags-folder",
+                    bundle_name=bundle_name,
                     fileloc="/tmp/dag_.py",
                     schedule_interval="2 2 * * *",
                 )
             else:  # Airflow 3.
                 dag_model = DagModel(
                     dag_id=dag_id,
-                    bundle_name="dags-folder",
+                    bundle_name=bundle_name,
                     fileloc="/tmp/dag_.py",
                     timetable_summary="2 2 * * *",
                 )
@@ -554,6 +559,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_EDIT]
     dag_id = "dag_id"
+    bundle_name = "test_bundle"
     with app.app_context():
         with create_user_scope(
             app,
@@ -564,17 +570,19 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             ],
         ) as user:
             mock_is_logged_in.return_value = True
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
                 dag_model = DagModel(
                     dag_id=dag_id,
-                    bundle_name="dags-folder",
+                    bundle_name="test_bundle",
                     fileloc="/tmp/dag_.py",
                     schedule_interval="2 2 * * *",
                 )
             else:  # Airflow 3.
                 dag_model = DagModel(
                     dag_id=dag_id,
-                    bundle_name="dags-folder",
+                    bundle_name="test_bundle",
                     fileloc="/tmp/dag_.py",
                     timetable_summary="2 2 * * *",
                 )
@@ -1030,7 +1038,7 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
     role_name = "dag_permission_role"
     dag_id = "dag_id_1"
     dag_id_2 = "dag_id_1.with_dot"
-    bundle_name = "dags-folder"
+    bundle_name = "test_bundle"
     with app.app_context():
         mock_roles = [
             {
@@ -1046,6 +1054,8 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             username=username,
             role_name=role_name,
         ) as user:
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
             dag1 = DagModel(dag_id=dag_id, bundle_name=bundle_name)
             dag2 = DagModel(dag_id=dag_id_2, bundle_name=bundle_name)
             session.add_all([dag1, dag2])

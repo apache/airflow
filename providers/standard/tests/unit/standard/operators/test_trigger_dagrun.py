@@ -76,9 +76,10 @@ class TestDagRunOperator:
         self.f_name = f.name
 
         with create_session() as session:
-            session.add(DagBundleModel(name="dags-folder"))
+            bundle_name = "test_bundle"
+            session.merge(DagBundleModel(name=bundle_name))
             session.flush()
-            session.add(DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name="dags-folder", fileloc=self._tmpfile))
+            session.add(DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name=bundle_name, fileloc=self._tmpfile))
             session.commit()
 
     def teardown_method(self):
@@ -256,7 +257,7 @@ class TestDagRunOperatorAF2:
             f.flush()
         self.f_name = f.name
 
-        self.dag_model = DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile, bundle_name="dags-folder")
+        self.dag_model = DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile, bundle_name="test_bundle")
         with create_session() as session:
             session.add(self.dag_model)
             session.commit()
