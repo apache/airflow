@@ -965,8 +965,12 @@ class SelectiveChecks:
         In case of Providers, we need to replace it with Providers[-<list_of_long_tests>], but
         in case of Providers[list_of_tests] we need to remove the long tests from the list.
 
+        In case of celery tests we want to isolate them from the rest, because they seem to be hanging
+        infrequently when running together with other tests
+
+        :param current_test_types: The set of test types to run
         """
-        long_tests = ["amazon", "google", "standard"]
+        long_tests = ["amazon", "celery", "google", "standard"]
         for original_test_type in tuple(current_test_types):
             if original_test_type == "Providers":
                 current_test_types.remove(original_test_type)
