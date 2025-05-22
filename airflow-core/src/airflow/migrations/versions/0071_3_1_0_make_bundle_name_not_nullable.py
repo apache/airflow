@@ -91,25 +91,4 @@ def upgrade():
 
 
 def downgrade():
-    """Make bundle_name nullable."""
-    dialect_name = op.get_bind().dialect.name
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        # drop the foreign key temporarily and recreate it once both columns are changed
-        batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
-
-    if dialect_name == "mysql":
-        # mysql requires explicitly specifying the CHARACTER and COLLATE to match the referenced column
-        op.execute("""
-                    ALTER TABLE dag
-                    MODIFY COLUMN bundle_name VARCHAR(250)
-                    CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
-                    NULL;
-                    """)
-    else:
-        with op.batch_alter_table("dag", schema=None) as batch_op:
-            batch_op.alter_column("bundle_name", nullable=True, existing_type=sa.String(length=250))
-
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.create_foreign_key(
-            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
-        )
+    """NO downgrade because the primary key cannot be null."""
