@@ -1147,7 +1147,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)
         except AirflowTaskTimeout:
-            # TODO: handle on kill callback here
+            task.on_kill()
             raise
     else:
         result = ctx.run(execute, context=context)
