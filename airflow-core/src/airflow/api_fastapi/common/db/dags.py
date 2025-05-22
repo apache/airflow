@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, select
+from sqlalchemy import func, select
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -29,9 +29,31 @@ from airflow.models.dagrun import DagRun
 
 
 def generate_dag_with_latest_run_query(dag_runs_cte: Select | None = None) -> Select:
+    latest_dag_run_per_dag_id_cte = (
+        select(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
+        .where()
+        .group_by(DagRun.dag_id)
+        .cte()
+    )
+
+    dags_select_with_latest_dag_run = (
+        select(DagModel)
+        .join(
+            latest_dag_run_per_dag_id_cte,
+            DagModel.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
+            isouter=True,
+        )
+        .join(
+            DagRun,
+            DagRun.start_date == latest_dag_run_per_dag_id_cte.c.start_date
+            and DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
+            isouter=True,
+        )
+        .order_by(DagModel.dag_id)
+    )
+
     if dag_runs_cte is None:
-        query = select(DagModel).order_by(DagModel.dag_id)
-        return query
+        return dags_select_with_latest_dag_run
 
     dag_run_filters_cte = (
         select(DagModel.dag_id)
@@ -60,10 +82,8 @@ def generate_dag_with_latest_run_query(dag_runs_cte: Select | None = None) -> Se
         )
         .join(
             DagRun,
-            and_(
-                DagRun.start_date == latest_dag_run_per_dag_id_cte.c.start_date,
-                DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
-            ),
+            DagRun.start_date == latest_dag_run_per_dag_id_cte.c.start_date
+            and DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
             isouter=True,
         )
         .order_by(DagModel.dag_id)
