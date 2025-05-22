@@ -164,21 +164,37 @@ class DeadlineAlert:
 @provide_session
 def _fetch_from_db(model_reference: Column, session=None, **conditions) -> datetime:
     """
-    Fetch a datetime stored in the database.
+    Fetch a datetime value from the database using the provided model reference and filtering conditions.
 
-    :param model_reference: SQLAlchemy Column reference (e.g., DagRun.logical_date, TaskInstance.queued_dttm, etc.)
-    :param conditions: Key-value pairs which are passed to the WHERE clause.
+    For example, to fetch a TaskInstance's start_date:
+        _fetch_from_db(
+            TaskInstance.start_date, dag_id='example_dag', task_id='example_task', run_id='example_run'
+        )
 
-    :param session: SQLAlchemy session (provided by decorator)
+    This generates SQL equivalent to:
+        SELECT start_date
+        FROM task_instance
+        WHERE dag_id = 'example_dag'
+            AND task_id = 'example_task'
+            AND run_id = 'example_run'
+
+    :param model_reference: SQLAlchemy Column to select (e.g., DagRun.logical_date, TaskInstance.start_date)
+    :param conditions: Filtering conditions applied as equality comparisons in the WHERE clause.
+                       Multiple conditions are combined with AND.
+    :param session: SQLAlchemy session (auto-provided by decorator)
     """
     query = select(model_reference)
 
     for key, value in conditions.items():
         query = query.where(getattr(model_reference.class_, key) == value)
 
-    # This should build a query similar to:
-    # session.scalar(select(DagRun.logical_date).where(DagRun.dag_id == dag_id))
-    logger.debug("db query: session.scalar(%s)", query)
+    compiled_query = query.compile(compile_kwargs={"literal_binds": True})
+    pretty_query = "\n    ".join(str(compiled_query).splitlines())
+    logger.debug(
+        "Executing query:\n    %r\nAs SQL:\n    %s",
+        query,
+        pretty_query,
+    )
 
     try:
         result = session.scalar(query)
@@ -187,7 +203,7 @@ def _fetch_from_db(model_reference: Column, session=None, **conditions) -> datet
         raise
 
     if result is None:
-        message = "No matching record found in the database."
+        message = f"No matching record found in the database for query:\n    {pretty_query}"
         logger.error(message)
         raise ValueError(message)
 
