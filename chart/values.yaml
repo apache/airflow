@@ -1303,7 +1303,10 @@ migrateDatabaseJob:
 
 apiServer:
 
-  # Labels specific to workers objects and pods
+  # Number of Airflow API servers in the deployment
+  replicas: 1
+
+  # Labels specific to Airflow API server objects and pods
   labels: {}
 
   # Command to use when running the Airflow API server (templated).
@@ -1322,7 +1325,7 @@ apiServer:
     # If not set and create is true, a name is generated using the release name
     name: ~
 
-    # Annotations to add to webserver kubernetes service account.
+    # Annotations to add to Airflow API server kubernetes service account.
     annotations: {}
   service:
     type: ClusterIP
@@ -1347,7 +1350,7 @@ apiServer:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # Detailed default security contexts for webserver deployments for container and pod level
+  # Detailed default security contexts for Airflow API server deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
@@ -1360,14 +1363,14 @@ apiServer:
     securityContexts:
       container: {}
 
-  # Launch additional containers into the flower pods.
+  # Launch additional containers into the Airflow API server pods.
   extraContainers: []
 
   networkPolicy:
     ingress:
-      # Peers for webserver NetworkPolicy ingress
+      # Peers for Airflow API server NetworkPolicy ingress
       from: []
-      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      # Ports for Airflow API server NetworkPolicy ingress (if `from` is set)
       ports:
         - port: "{{ .Values.ports.apiServer }}"
 
