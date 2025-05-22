@@ -3457,7 +3457,7 @@ def prepare_python_client(
     version = _get_python_client_version(version_suffix)
     original_version = VERSION_FILE.read_text().strip()
     if version_suffix:
-        VERSION_FILE.write_text(version)
+        VERSION_FILE.write_text(version + "\n")
     try:
         if use_local_hatch:
             _build_client_packages_with_hatch(
