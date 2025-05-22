@@ -20,6 +20,7 @@ import logging
 from unittest import mock
 
 import pytest
+from task_sdk.definitions.test_dag import DEFAULT_DATE
 
 from airflow.sdk.definitions.deadline_reference import (
     DagRunLogicalDateDeadline,
@@ -27,12 +28,63 @@ from airflow.sdk.definitions.deadline_reference import (
     DeadlineReference,
     FixedDatetimeDeadline,
 )
-from task_sdk.definitions.test_dag import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
 
+REFERENCE_TYPES = [
+    pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
+    pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
+    pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+]
+
 
 class TestDeadlineReference:
+    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
+    def test_deadline_evaluate_with(self, reference):
+        """Test that all deadline types evaluate correctly with their required conditions."""
+        conditions = {"dag_id": DAG_ID}
+
+        with mock.patch.object(reference, "_evaluate_with") as mock_evaluate:
+            mock_evaluate.return_value = DEFAULT_DATE
+
+            if reference.required_kwargs:
+                result = reference.evaluate_with(**conditions)
+            else:
+                result = reference.evaluate_with()
+
+            expected_kwargs = {k: conditions[k] for k in reference.required_kwargs if k in conditions}
+            mock_evaluate.assert_called_once_with(**expected_kwargs)
+            assert result == DEFAULT_DATE
+
+    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
+    def test_deadline_missing_required_kwargs(self, reference):
+        """Test that deadlines raise appropriate errors for missing required parameters."""
+        if reference.required_kwargs:
+            with pytest.raises(ValueError) as e:
+                reference.evaluate_with()
+            expected_error = f"{reference.__class__.__name__} is missing required parameters: dag_id"
+            assert expected_error in str(e)
+        else:
+            # Let the lack of an exception here effectively assert that no exception is raised.
+            reference.evaluate_with()
+
+    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
+    def test_deadline_handling_of_extra_kwargs(self, reference, caplog):
+        """Test that all deadline types log when ignoring unexpected parameters."""
+        unexpected_kwargs = {"unexpected": "param", "extra": "kwarg"}
+        # Build a dict of the required kwargs depending on the reference.
+        required_kwargs = {kwarg: f"test_{kwarg}" for kwarg in reference.required_kwargs}
+
+        with caplog.at_level(logging.DEBUG):
+            with mock.patch.object(reference, "_evaluate_with") as mock_evaluate:
+                mock_evaluate.return_value = DEFAULT_DATE
+                result = reference.evaluate_with(**required_kwargs, **unexpected_kwargs)
+
+        assert "Ignoring unexpected parameters:" in caplog.text
+        assert all(kwarg in caplog.text for kwarg in unexpected_kwargs)
+        assert result == DEFAULT_DATE
+        mock_evaluate.assert_called_once_with(**required_kwargs)
+
     def test_deadline_reference_creation(self):
         """Test that DeadlineReference provides consistent interface and types."""
         fixed_reference = DeadlineReference.FIXED_DATETIME(DEFAULT_DATE)
@@ -44,70 +96,3 @@ class TestDeadlineReference:
 
         queued_reference = DeadlineReference.DAGRUN_QUEUED_AT
         assert isinstance(queued_reference, DagRunQueuedAtDeadline)
-
-    @pytest.mark.parametrize(
-        "reference",
-        [
-            pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
-            pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
-            pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
-        ],
-    )
-    def test_deadline_evaluate_with(self, reference):
-        """Test that all deadline types evaluate correctly with their required conditions."""
-        conditions = {"dag_id": DAG_ID}
-
-        if reference.requires_conditions:
-            with mock.patch.object(reference, "evaluate_with") as mock_evaluate:
-                mock_evaluate.return_value = DEFAULT_DATE
-
-                result = reference.evaluate_with(**conditions)
-
-                mock_evaluate.assert_called_once_with(**conditions)
-        else:
-            result = reference.evaluate_with()
-
-        assert result == DEFAULT_DATE
-
-    @pytest.mark.parametrize(
-        "reference",
-        [
-            pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
-            pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
-            pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
-        ],
-    )
-    def test_deadline_evaluate_behavior(self, reference):
-        """
-        Test evaluate() behavior for all deadline types.
-
-        Verifies:
-        1. Fixed deadlines delegate evaluate() to evaluate_with()
-        2. Calculated deadlines raise appropriate error for evaluate()
-        3. Fixed deadlines return correct value
-        """
-        if reference.requires_conditions:
-            with pytest.raises(AttributeError, match="requires additional conditions"):
-                reference.evaluate()
-        else:
-            # Verify that evaluate() calls evaluate_with().
-            with mock.patch.object(reference, "evaluate_with") as mock_evaluate_with:
-                mock_evaluate_with.return_value = DEFAULT_DATE
-                result = reference.evaluate()
-                mock_evaluate_with.assert_called_once_with()
-                assert result == DEFAULT_DATE
-
-            # Test actual evaluation.
-            assert reference.evaluate() == reference.evaluate_with() == DEFAULT_DATE
-
-    def test_fixed_deadline_ignores_unexpected_kwargs(self, caplog):
-        """Test that fixed deadlines ignore unexpected kwargs in evaluate_with and log appropriately."""
-        fixed_reference = DeadlineReference.FIXED_DATETIME(DEFAULT_DATE)
-
-        with caplog.at_level(logging.DEBUG):
-            # Should not raise an error and should return the same value
-            with_kwargs = fixed_reference.evaluate_with(unexpected="kwargs")
-            without_kwargs = fixed_reference.evaluate()
-
-            assert with_kwargs == without_kwargs == DEFAULT_DATE
-            assert "Fixed Datetime Deadlines do not accept conditions, ignoring kwargs" in caplog.text
