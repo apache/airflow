@@ -37,6 +37,7 @@
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
   - [Add tags in git](#add-tags-in-git)
+  - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
   - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
@@ -484,6 +485,63 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 ```shell script
 breeze release-management tag-providers
 ```
+
+## Prepare documentation in Staging
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in the staging S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
+
+There are two steps to publish the documentation:
+
+1. Publish the documentation to the staging S3 bucket.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+
+You should specify the final tag to use to build the docs and list of providers to publish
+(separated by spaces) or ``all-providers`` in case you want to publish all providers
+(optionally you can exclude some of those providers). You should use `staging` bucket to publish the release
+candidate documentation.
+
+After that step, the provider documentation should be available under the http://airflow.staged.apache.org URL
+(also present in the PyPI packages) but stable links and drop-down boxes should not be yet updated.
+
+2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
+
+Before doing it - review the state of removed, suspended, new packages in
+[the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+Make sure to use `staging` branch to run the workflow.
+
+There are few special considerations when the list of provider is updated.
+
+- If you publish a new package, you must add it to the list of packages in the index.
+- If there are changes to suspension or removal status of a package, you must move it appropriate section.
+
+- In case you need to make any changes - create the commit and push changes and merge it to `staging` branch.
+  in [airflow-site](https://github.com/apache/airflow-site) repository.
+
+```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
+branch="add-documentation-$(date "+%Y-%m-%d%n")"
+git checkout -b "${branch}"
+git add .
+git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
+git push --set-upstream origin "${branch}"
+```
+
+Merging the PR with the index changes to `staging` will trigger site publishing.
+
+If you do not need to merge a PR, you should manually run the
+[Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository to refresh indexes and drop-downs.
+
+After that build from PR or workflow completes, the new version should be available in the drop-down
+list and stable links should be updated, also Fastly cache will be invalidated.
 
 ## Prepare issue in GitHub to keep status of testing
 
