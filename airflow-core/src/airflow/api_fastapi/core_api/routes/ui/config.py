@@ -30,11 +30,9 @@ from airflow.utils.log.log_reader import TaskLogReader
 
 config_router = AirflowRouter(tags=["Config"])
 
-WEBSERVER_CONFIG_KEYS = [
-    "enable_swagger_ui",
-]
 
 API_CONFIG_KEYS = [
+    "enable_swagger_ui",
     "hide_paused_dags_by_default",
     "page_size",
     "default_wrap",
@@ -50,9 +48,7 @@ API_CONFIG_KEYS = [
 )
 def get_configs() -> ConfigResponse:
     """Get configs for UI."""
-    config = {key: conf.get("webserver", key) for key in WEBSERVER_CONFIG_KEYS}
-
-    config.update({key: conf.get("api", key) for key in API_CONFIG_KEYS})
+    config = {key: conf.get("api", key) for key in API_CONFIG_KEYS}
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
