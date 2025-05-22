@@ -309,3 +309,13 @@ class TestWebHDFSHook:
 
             assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args.args[0]
             assert mock_insecure_client.call_args.kwargs["session"].cert == ("/path/to/combined.pem")
+
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
+    def test_conn_cookies(self, socket_mock, mock_insecure_client):
+        with patch(
+            "airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection",
+            return_value=Connection(host="host_1", port=123, extra={"cookies": {"my": "cookies"}}),
+        ):
+            self.webhdfs_hook.get_conn()
+            assert mock_insecure_client.call_args.kwargs["session"].cookies == {"my": "cookies"}
