@@ -95,7 +95,6 @@ class S3DagBundle(BaseDagBundle):
                     )
 
             self._download_s3_dags()
-        self.refresh()
 
     def initialize(self) -> None:
         self._initialize()
