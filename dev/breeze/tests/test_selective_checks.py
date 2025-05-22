@@ -720,8 +720,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "description": "amazon...apache.livy",
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
-                            {"description": "dbt.cloud", "test_types": "Providers[dbt.cloud]"},
-                            {"description": "dingding", "test_types": "Providers[dingding]"},
+                            {
+                                "description": "dbt.cloud...dingding",
+                                "test_types": "Providers[dbt.cloud] Providers[dingding]"
+                            },
                             {"description": "discord", "test_types": "Providers[discord]"},
                             {"description": "google", "test_types": "Providers[google]"},
                             {"description": "http", "test_types": "Providers[http]"},
