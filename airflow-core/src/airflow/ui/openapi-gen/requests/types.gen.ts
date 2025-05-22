@@ -1503,8 +1503,6 @@ export type ConfigResponse = {
   enable_swagger_ui: boolean;
   require_confirmation_dag_change: boolean;
   default_wrap: boolean;
-  audit_view_excluded_events: string;
-  audit_view_included_events: string;
   test_connection: string;
   dashboard_alert: Array<UIAlert>;
   show_external_log_redirect: boolean;
