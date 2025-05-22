@@ -1372,6 +1372,10 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
                 "connection-type": "google_ads",
             },
+            {
+                "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",
+                "connection-type": "gcp_looker",
+            },
         ],
         "extra-links": [
             "airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink",
