@@ -51,7 +51,7 @@ def mock_config_data():
             ("webserver", "hide_paused_dags_by_default"): "false",
             ("webserver", "instance_name"): "Airflow",
             ("webserver", "instance_name_has_markup"): "false",
-            ("webserver", "enable_swagger_ui"): "true",
+            ("api", "enable_swagger_ui"): "true",
             ("webserver", "require_confirmation_dag_change"): "false",
             ("webserver", "default_wrap"): "false",
             ("webserver", "audit_view_excluded_events"): "",

@@ -36,7 +36,6 @@ WEBSERVER_CONFIG_KEYS = [
     "warn_deployment_exposure",
     "default_wrap",
     "require_confirmation_dag_change",
-    "enable_swagger_ui",
     "instance_name_has_markup",
 ]
 
@@ -54,6 +53,7 @@ def get_configs() -> ConfigResponse:
         "instance_name": conf.get("webserver", "instance_name", fallback="Airflow"),
         "audit_view_included_events": conf.get("webserver", "audit_view_included_events", fallback=""),
         "audit_view_excluded_events": conf.get("webserver", "audit_view_excluded_events", fallback=""),
+        "enable_swagger_ui": conf.get("api", "enable_swagger_ui"),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         "dashboard_alert": DASHBOARD_UIALERTS,
     }
