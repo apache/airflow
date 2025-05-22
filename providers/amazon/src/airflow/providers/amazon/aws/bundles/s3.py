@@ -55,10 +55,8 @@ class S3DagBundle(BaseDagBundle):
         self.aws_conn_id = aws_conn_id
         self.bucket_name = bucket_name
         self.prefix = prefix
-        # Local path where S3 DAGs are downloaded.
-        self.s3_dags_root_dir: Path = self.base_dir.joinpath("s3")
-        # Local path where S3 DAGs are downloaded for current config.
-        self.s3_dags_dir: Path = self.s3_dags_root_dir.joinpath(self.name)
+        # Local path where S3 DAGs are downloaded
+        self.s3_dags_dir: Path = self.base_dir
 
         self._log = log.bind(
             bundle_name=self.name,
