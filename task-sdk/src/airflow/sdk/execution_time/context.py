@@ -341,9 +341,9 @@ class MacrosAccessor:
     def __getattr__(self, item: str) -> Any:
         # Lazily load Macros module
         if not self._macros_module:
-            import airflow.sdk.definitions.macros
+            import airflow.sdk.execution_time.macros
 
-            self._macros_module = airflow.sdk.definitions.macros
+            self._macros_module = airflow.sdk.execution_time.macros
         return getattr(self._macros_module, item)
 
     def __repr__(self) -> str:
