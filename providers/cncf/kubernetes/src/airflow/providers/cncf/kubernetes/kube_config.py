@@ -43,7 +43,8 @@ class KubeConfig:
         self.worker_pod_pending_fatal_container_state_reasons = []
         if conf.get(self.kubernetes_section, "worker_pod_pending_fatal_container_state_reasons", fallback=""):
             self.worker_pod_pending_fatal_container_state_reasons = [
-                r.strip() for r in conf.get(
+                r.strip()
+                for r in conf.get(
                     self.kubernetes_section, "worker_pod_pending_fatal_container_state_reasons"
                 ).split(",")
             ]

@@ -1818,9 +1818,7 @@ class TestKubernetesJobWatcher:
         ],
     )
     def test_kube_config_parse_worker_pod_pending_fatal_container_state_reasons(
-        self,
-        state_reasons,
-        expected_result
+        self, state_reasons, expected_result
     ):
         config = {
             ("kubernetes_executor", "worker_pod_pending_fatal_container_state_reasons"): state_reasons,
