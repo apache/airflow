@@ -14,7 +14,7 @@
   },
   "nav": {
     "home": "Start",
-    "assets": "Assets",
+    "assets": "Datenbestände",
     "browse": "Browsen",
     "admin": "Verwaltung",
     "docs": "Dokumentation",
@@ -22,12 +22,12 @@
   },
   "browse": {
     "auditLog": "Prüf-Log",
-    "xcoms": "XComs"
+    "xcoms": "Datenwerte"
   },
   "admin": {
     "Variables": "Variablen",
     "Pools": "Pools",
-    "Providers": "Providers",
+    "Providers": "Provider",
     "Plugins": "Plug-ins",
     "Connections": "Verbindungen",
     "Config": "Konfiguration"
@@ -43,5 +43,36 @@
     "documentation": "Dokumentation",
     "githubRepo": "GitHub Ablage",
     "restApiReference": "REST API Referenz"
+  },
+  "states": {
+    "queued": "Wartend",
+    "running": "Laufend",
+    "success": "Erfolgreich",
+    "failed": "Fehlgeschlagen",
+    "skipped": "Übersprungen",
+    "removed": "Entfernt",
+    "scheduled": "Geplant",
+    "restarting": "Im Neustart",
+    "up_for_retry": "Wartet auf neuen Versuch",
+    "up_for_reschedule": "Wartet auf Neuplanung",
+    "upstream_failed": "Vorgelagerte fehlgeschlagen",
+    "deferred": "Delegiert",
+    "no_status": "Kein Status"
+  },
+  "dagRun_one": "Dag Lauf",
+  "dagRun_other": "Dag Läufe",
+  "taskInstance_one": "Task Instanz",
+  "taskInstance_other": "Task Instanzen",
+  "assetEvent_one": "Ereignis zum Datenbestand",
+  "assetEvent_other": "Ereignisse zum Datenbestand",
+  "triggered": "Angestoßen",
+  "pools": {
+    "open": "Frei",
+    "running": "Laufend",
+    "queued": "Wartend",
+    "scheduled": "Geplant",
+    "deferred": "Delegiert",
+    "pools_one": "Pool",
+    "pools_other": "Pools"
   }
 }

@@ -10,40 +10,29 @@
   "health": {
     "health": "System-Gesundheit",
     "metaDatabase": "Meta-Datenbank",
-    "scheduler": "Scheduler",
+    "scheduler": "Planer",
     "triggerer": "Triggerer",
-    "dagProcessor": "Dag Prozessor"
+    "dagProcessor": "Dag Prozessor",
+    "status": "Status",
+    "lastHeartbeat": "Letztes Lebenszeichen",
+    "healthy": "Gut",
+    "unhealthy": "Nicht in Ordnung"
   },
-  "poolSlots": "Pool Plätze",
+  "importErrors": {
+    "searchByFile": "Nach Datei suchen",
+    "dagImportError_one": "Fehler beim Laden des Dag",
+    "dagImportError_other": "Fehler beim Laden des Dags",
+    "timestamp": "Zeitstempel"
+  },
+  "poolSlots": "Pool Belegung",
   "managePools": "Pools verwalten",
   "history": "Historie",
-  "dagRun_one": "Dag Lauf",
-  "dagRun_other": "Dag Läufe",
-  "taskInstance_one": "Task Instanz",
-  "taskInstance_other": "Task Instanzen",
-  "assetEvent_one": "Asset-Ereignis",
-  "assetEvent_other": "Asset-Ereignisse",
-  "states": {
-    "queued": "Wartend",
-    "running": "Laufend",
-    "success": "Erfolgreich",
-    "failed": "Fehlgeschlagen",
-    "skipped": "Übersprungen",
-    "removed": "Entfernt",
-    "scheduled": "Geplant",
-    "restarting": "Im Neustart",
-    "up_for_retry": "Wartet auf neuen Versuch",
-    "up_for_reschedule": "Wartet auf Neuplanung",
-    "upstream_failed": "Vorgelagerte fehlgeschlagen",
-    "deferred": "Delegiert",
-    "no_status": "Kein Status"
-  },
-  "noAssetEvents": "Keine Asset-Ereignisse vorliegend.",
   "sortBy": {
     "newestFirst": "Neueste zuerst",
     "oldestFirst": "Älteste zuerst"
   },
   "source": "Quellcode",
   "group": "Gruppe",
-  "uri": "Uri"
+  "uri": "Uri",
+  "noAssetEvents": "Keine Ereignisse zu Datenbeständen vorliegend."
 }
