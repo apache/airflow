@@ -77,7 +77,7 @@ class TimeSensor(BaseSensorOperator):
         self,
         *,
         target_time: datetime.time,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False)
         start_from_trigger: bool = False,
         end_from_trigger: bool = False,
         **kwargs,
