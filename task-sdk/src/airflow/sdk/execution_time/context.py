@@ -181,7 +181,8 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                     import json
 
                     var_val = json.loads(var_val)
-                mask_secret(var_val, key)  # type: ignore[arg-type]
+                if isinstance(var_val, str):
+                    mask_secret(var_val, key)
                 return var_val
         except Exception:
             log.exception(
