@@ -3514,6 +3514,7 @@ export class DagsService {
    * @param data.excludeStale
    * @param data.paused
    * @param data.lastDagRunState
+   * @param data.orderBy
    * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -3534,6 +3535,7 @@ export class DagsService {
         exclude_stale: data.excludeStale,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
+        order_by: data.orderBy,
       },
       errors: {
         422: "Validation Error",
