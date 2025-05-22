@@ -34,7 +34,6 @@ from flask_appbuilder.const import (
     LOGMSG_INF_FAB_ADDON_ADDED,
     LOGMSG_WAR_FAB_VIEW_EXISTS,
 )
-from flask_appbuilder.extensions import db
 from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu
 from flask_appbuilder.views import IndexView, UtilView
@@ -172,6 +171,8 @@ class AirflowAppBuilder:
         self._init_extension(app)
         # init flask-sqlalchemy if needed
         if "sqlalchemy" not in app.extensions:
+            from flask_appbuilder.extensions import db
+
             db.init_app(app)
 
         self.base_template = app.config.get("FAB_BASE_TEMPLATE", self.base_template)
@@ -232,6 +233,8 @@ class AirflowAppBuilder:
 
         :return: SQLAlchemy Session
         """
+        from flask_appbuilder.extensions import db
+
         return db.session
 
     @property
