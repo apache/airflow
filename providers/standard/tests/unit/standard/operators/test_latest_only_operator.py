@@ -34,7 +34,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import DAG
@@ -129,7 +129,7 @@ class TestLatestOnlyOperator:
             **triggered_by_kwargs,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             # AIP-72
@@ -165,10 +165,12 @@ class TestLatestOnlyOperator:
             latest_ti2 = dr2.get_task_instance(task_id="latest")
             latest_ti2.task = latest_task
             latest_ti2.run()
-
-            date_getter = operator.attrgetter("logical_date")
         else:
             latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+
+        if AIRFLOW_V_3_0_PLUS:
+            date_getter = operator.attrgetter("logical_date")
+        else:
             date_getter = operator.attrgetter("execution_date")
 
         latest_instances = get_task_instances("latest")

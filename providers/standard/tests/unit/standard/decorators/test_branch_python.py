@@ -20,12 +20,12 @@ from __future__ import annotations
 import pytest
 
 from airflow.decorators import task
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.state import State
 
-if AIRFLOW_V_3_0_PLUS:
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1
+
+if AIRFLOW_V_3_0_1:
     from airflow.exceptions import DownstreamTasksSkipped
-else:
-    from airflow.utils.state import State
 
 pytestmark = pytest.mark.db_test
 
@@ -67,7 +67,7 @@ class TestBranchPythonDecoratedOperator:
 
         dr = dag_maker.create_dagrun()
         df.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branchoperator.operator.run(
                     start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
