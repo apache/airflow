@@ -180,6 +180,13 @@ def get_dag_versions_dict(dag_versions: list[DagVersion]) -> list[dict]:
     ]
 
 
+def convert_instrumented_list_to_dict(lst):
+    result = [obj.__dict__ for obj in lst]
+    for obj in result:
+        obj.pop("_sa_instance_state", None)
+    return result
+
+
 def get_dag_run_dict(run: DagRun):
     return {
         "bundle_version": None,
@@ -196,6 +203,15 @@ def get_dag_run_dict(run: DagRun):
         "last_scheduling_decision": (
             from_datetime_to_zulu(run.last_scheduling_decision) if run.last_scheduling_decision else None
         ),
+        "deadlines": [
+            {
+                "id": str(each.id),
+                "deadline": from_datetime_to_zulu_without_ms(each.deadline),
+                "callback": each.callback,
+                "callback_kwargs": each.callback_kwargs,
+            }
+            for each in run.deadlines
+        ],
         "run_type": run.run_type,
         "state": run.state,
         "triggered_by": run.triggered_by.value,
@@ -261,7 +277,6 @@ class TestGetDagRun:
         response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
         assert response.status_code == 200
         body = response.json()
-        # breakpoint()
         assert body["dag_id"] == dag_id
         assert body["dag_run_id"] == run_id
         assert body["state"] == state
@@ -1352,6 +1367,7 @@ class TestTriggerDagRun:
             "logical_date": expected_logical_date,
             "run_after": fixed_now.replace("+00:00", "Z"),
             "start_date": None,
+            "deadlines": [],
             "state": "queued",
             "data_interval_end": expected_data_interval_end,
             "data_interval_start": expected_data_interval_start,
@@ -1542,6 +1558,7 @@ class TestTriggerDagRun:
             "queued_at": now,
             "start_date": None,
             "end_date": None,
+            "deadlines": [],
             "run_after": now,
             "data_interval_start": now,
             "data_interval_end": now,
@@ -1629,6 +1646,7 @@ class TestTriggerDagRun:
             "run_after": mock.ANY,
             "start_date": None,
             "end_date": None,
+            "deadlines": [],
             "data_interval_start": mock.ANY,
             "data_interval_end": mock.ANY,
             "last_scheduling_decision": None,
