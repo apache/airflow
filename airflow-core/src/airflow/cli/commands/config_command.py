@@ -347,6 +347,16 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "cookie_samesite"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "audit_view_included_events"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "audit_view_excluded_events"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "instance_name"),
+        renamed_to=ConfigParameter("api", "instance_name"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "update_fab_perms"),
         renamed_to=ConfigParameter("fab", "update_fab_perms"),
     ),

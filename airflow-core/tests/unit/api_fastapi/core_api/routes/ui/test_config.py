@@ -30,8 +30,6 @@ mock_config_response = {
     "enable_swagger_ui": True,
     "require_confirmation_dag_change": False,
     "default_wrap": False,
-    "audit_view_excluded_events": "",
-    "audit_view_included_events": "",
     "test_connection": "Disabled",
     "dashboard_alert": [],
     "show_external_log_redirect": False,
@@ -46,7 +44,7 @@ def mock_config_data():
     """
     with conf_vars(
         {
-            ("webserver", "instance_name"): "Airflow",
+            ("api", "instance_name"): "Airflow",
             ("api", "enable_swagger_ui"): "true",
             ("api", "hide_paused_dags_by_default"): "true",
             ("api", "page_size"): "100",

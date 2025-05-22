@@ -1284,6 +1284,13 @@ secrets:
 api:
   description: ~
   options:
+    instance_name:
+      description: |
+        Sets a custom page title for the DAGs overview page and site title for all pages
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default:
     enable_swagger_ui:
       description: |
         Boolean for running SwaggerUI in the webserver.
@@ -1766,34 +1773,6 @@ operators:
       type: string
       example: ~
       default: "default"
-webserver:
-  description: ~
-  options:
-    instance_name:
-      description: |
-        Sets a custom page title for the DAGs overview page and site title for all pages
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default:
-    audit_view_excluded_events:
-      description: |
-        Comma separated string of view events to exclude from dag audit view.
-        All other events will be added minus the ones passed here.
-        The audit logs in the db will not be affected by this parameter.
-      version_added: 2.3.0
-      type: string
-      example: "cli_task_run,running,success"
-      default: ~
-    audit_view_included_events:
-      description: |
-        Comma separated string of view events to include in dag audit view.
-        If passed, only these events will populate the dag audit view.
-        The audit logs in the db will not be affected by this parameter.
-      version_added: 2.3.0
-      type: string
-      example: "dagrun_cleared,failed"
-      default: ~
 email:
   description: |
     Configuration email backend and whether to
