@@ -77,15 +77,26 @@ def upgrade():
                 """
             )
         )
+        # drop the foreign key temporarily and recreate it once both columns are changed
+        batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
         batch_op.alter_column("bundle_name", nullable=False, existing_type=sa.String(length=250))
 
     with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
         batch_op.alter_column("name", nullable=False, existing_type=sa.String(length=250))
 
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.create_foreign_key(
+            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
+        )
+
 
 def downgrade():
     """Make bundle_name nullable."""
     dialect_name = op.get_bind().dialect.name
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        # drop the foreign key temporarily and recreate it once both columns are changed
+        batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
+
     if dialect_name == "mysql":
         # mysql requires explicitly specifying the CHARACTER and COLLATE to match the referenced column
         op.execute("""
@@ -97,3 +108,8 @@ def downgrade():
     else:
         with op.batch_alter_table("dag", schema=None) as batch_op:
             batch_op.alter_column("bundle_name", nullable=True, existing_type=sa.String(length=250))
+
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.create_foreign_key(
+            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
+        )
