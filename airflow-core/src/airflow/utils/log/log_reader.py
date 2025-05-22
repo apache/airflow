@@ -99,7 +99,9 @@ class TaskLogReader:
                 TaskInstanceState.RUNNING,
                 TaskInstanceState.DEFERRED,
             ):
-                if not logs:
+                if logs:
+                    empty_iterations = 0
+                else:
                     # we did not receive any logs in this loop
                     # sleeping to conserve resources / limit requests on external services
                     time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
