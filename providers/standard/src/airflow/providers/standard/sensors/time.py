@@ -22,6 +22,7 @@ import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -77,9 +78,10 @@ class TimeSensor(BaseSensorOperator):
         self,
         *,
         target_time: datetime.time,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False)
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         start_from_trigger: bool = False,
         end_from_trigger: bool = False,
+        trigger_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
