@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Modify task_instance.dag_version_id FK on delete behavior to SET NULL.
+Modify task_instance.dag_version_id FK on delete behavior to default (no SET NULL).
 
 Revision ID: 1b2cd3e4f5a6
 Revises: 03e36c7f30aa
@@ -37,7 +37,7 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
-    """Alter task_instance.dag_version_id to SET NULL on delete."""
+    """Alter task_instance.dag_version_id FK to default on delete."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_dag_version_id_fkey"), type_="foreignkey")
         batch_op.alter_column(
@@ -50,7 +50,6 @@ def upgrade():
             "dag_version",
             ["dag_version_id"],
             ["id"],
-            ondelete="SET NULL",
         )
 
 

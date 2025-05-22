@@ -191,8 +191,6 @@ def grid_data(
                 task_node_map_exclude and ti.task_id not in task_node_map_exclude
             ) or ti.state == TaskInstanceState.REMOVED:
                 continue
-            if ti.task_id not in task_node_map:
-                continue
 
             # Populate the Grouped Task Instances (All Task Instances except the Parent Task Instances)
             if ti.task_id in get_child_task_map(
