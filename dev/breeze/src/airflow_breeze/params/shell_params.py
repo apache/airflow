@@ -351,8 +351,8 @@ class ShellParams:
         self.add_docker_in_docker(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
-        if os.environ.get("CI", "false") == "true" and self.use_uv:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-uv-tests.yml")
+        if os.environ.get("CI", "false") == "true":
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-tests.yml")
 
         if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
