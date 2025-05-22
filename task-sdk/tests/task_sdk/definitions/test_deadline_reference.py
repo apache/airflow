@@ -27,8 +27,7 @@ from airflow.sdk.definitions.deadline_reference import (
     DeadlineReference,
     FixedDatetimeDeadline,
 )
-
-from unit.models import DEFAULT_DATE
+from task_sdk.definitions.test_dag import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
 
