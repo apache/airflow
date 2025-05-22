@@ -65,11 +65,7 @@ class S3DagBundle(BaseDagBundle):
             prefix=self.prefix,
             aws_conn_id=self.aws_conn_id,
         )
-
-        try:
-            self.s3_hook: S3Hook = S3Hook(aws_conn_id=self.aws_conn_id)  # Initialize S3 hook.
-        except AirflowException as e:
-            self._log.warning("Could not create S3Hook for connection %s: %s", self.aws_conn_id, e)
+        self.s3_hook: S3Hook = None
 
     def _initialize(self):
         with self.lock():
@@ -95,6 +91,12 @@ class S3DagBundle(BaseDagBundle):
             self._download_s3_dags()
 
     def initialize(self) -> None:
+        if self.s3_hook is None:
+            try:
+                self.s3_hook: S3Hook = S3Hook(aws_conn_id=self.aws_conn_id)  # Initialize S3 hook.
+            except AirflowException as e:
+                self._log.warning("Could not create S3Hook for connection %s: %s", self.aws_conn_id, e)
+
         self._initialize()
         super().initialize()
 
@@ -205,7 +207,7 @@ class S3DagBundle(BaseDagBundle):
         if self.version:
             raise AirflowException("S3 url with version is not supported")
 
-        presigned_url = self.s3_hook.generate_presigned_url(
-            client_method="get_object", params={"Bucket": self.bucket_name, "Key": self.prefix}
-        )
-        return presigned_url
+        if self.prefix:
+            return f"https://s3.{self.s3_hook.region_name}.amazonaws.com/{self.bucket_name}/{self.prefix}/"
+        else:
+            return f"https://s3.{self.s3_hook.region_name}.amazonaws.com/{self.bucket_name}/"
