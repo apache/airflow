@@ -92,8 +92,7 @@ def create_app(apps: str = "all") -> FastAPI:
         app.state.dag_bag = dag_bag
         init_plugins(app)
         init_auth_manager(app)
-        if "FabAuthManager" in conf.get("core", "auth_manager"):
-            init_flask_plugins(app)
+        init_flask_plugins(app)
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
