@@ -23,6 +23,7 @@ from urllib.parse import ParseResult, urljoin, urlparse
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -193,12 +194,12 @@ ReadableTagsFilterDep = Annotated[
 ]
 
 
-def requires_access_backfill(method: ResourceMethod) -> Callable:
+def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
-        backfill_id: str | None = request.path_params.get("backfill_id")
+        backfill_id: NonNegativeInt | None = request.path_params.get("backfill_id")
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_backfill(
@@ -241,10 +242,10 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
     return inner
 
 
-def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         section: str | None = request.query_params.get("section") or request.path_params.get("section")
 
@@ -259,10 +260,10 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
     return inner
 
 
-def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
 
@@ -275,10 +276,10 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
     return inner
 
 
-def requires_access_asset(method: ResourceMethod) -> Callable:
+def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         asset_id = request.path_params.get("asset_id")
 
@@ -291,10 +292,10 @@ def requires_access_asset(method: ResourceMethod) -> Callable:
     return inner
 
 
-def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
@@ -305,10 +306,10 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
     return inner
 
 
-def requires_access_asset_alias(method: ResourceMethod) -> Callable:
+def requires_access_asset_alias(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         asset_alias_id: str | None = request.path_params.get("asset_alias_id")
 
@@ -317,6 +318,18 @@ def requires_access_asset_alias(method: ResourceMethod) -> Callable:
                 method=method, details=AssetAliasDetails(id=asset_alias_id), user=user
             ),
         )
+
+    return inner
+
+
+def requires_authenticated() -> Callable:
+    """Just ensure the user is authenticated - no need to check any specific permissions."""
+
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        pass
 
     return inner
 

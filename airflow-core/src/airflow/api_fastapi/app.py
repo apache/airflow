@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI
 from starlette.routing import Mount
 
+from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_error_handlers,
@@ -31,7 +32,6 @@ from airflow.api_fastapi.core_api.app import (
     init_middlewares,
     init_views,
 )
-from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -80,7 +80,7 @@ def create_app(apps: str = "all") -> FastAPI:
         version="2",
     )
 
-    dag_bag = get_dag_bag()
+    dag_bag = create_dag_bag()
 
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
@@ -111,9 +111,10 @@ def cached_app(config=None, testing=False, apps="all") -> FastAPI:
 
 
 def purge_cached_app() -> None:
-    """Remove the cached version of the app in global state."""
-    global app
+    """Remove the cached version of the app and auth_manager in global state."""
+    global app, auth_manager
     app = None
+    auth_manager = None
 
 
 def get_auth_manager_cls() -> type[BaseAuthManager]:

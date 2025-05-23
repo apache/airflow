@@ -47,9 +47,9 @@ class TestBaseSqlToSlackOperator:
     @pytest.mark.parametrize("sql_hook_params", [None, {"foo": "bar"}])
     def test_get_hook(self, mock_get_hook, mock_get_conn, conn_type, sql_hook_params):
         class SomeDummyHook:
-            """Hook which implements ``get_pandas_df`` method"""
+            """Hook which implements ``get_df`` method"""
 
-            def get_pandas_df(self):
+            def get_df(self):
                 pass
 
         expected_hook = SomeDummyHook()
@@ -68,12 +68,12 @@ class TestBaseSqlToSlackOperator:
     @mock.patch("airflow.models.connection.Connection.get_hook")
     def test_get_not_supported_hook(self, mock_get_hook, mock_get_conn):
         class SomeDummyHook:
-            """Hook which not implemented ``get_pandas_df`` method"""
+            """Hook which not implemented ``get_df`` method"""
 
         mock_get_conn.return_value = Connection(conn_id="test_connection", conn_type="test_connection")
         mock_get_hook.return_value = SomeDummyHook()
         op = BaseSqlToSlackOperator(task_id="test_get_not_supported_hook", **self.default_op_kwargs)
-        error_message = r"This hook is not supported. The hook class must have get_pandas_df method\."
+        error_message = r"This hook is not supported. The hook class must have get_df method\."
         with pytest.raises(AirflowException, match=error_message):
             op._get_hook()
 
@@ -82,9 +82,9 @@ class TestBaseSqlToSlackOperator:
     @pytest.mark.parametrize("parameters", [None, {"col": "spam-egg"}])
     def test_get_query_results(self, mock_op_get_hook, sql, parameters):
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
-        mock_get_pandas_df = mock.MagicMock(return_value=test_df)
+        mock_get_df = mock.MagicMock(return_value=test_df)
         mock_hook = mock.MagicMock()
-        mock_hook.get_pandas_df = mock_get_pandas_df
+        mock_hook.get_df = mock_get_df
         mock_op_get_hook.return_value = mock_hook
         op_kwargs = {
             **self.default_op_kwargs,
@@ -93,5 +93,5 @@ class TestBaseSqlToSlackOperator:
         }
         op = BaseSqlToSlackOperator(task_id="test_get_query_results", **op_kwargs)
         df = op._get_query_results()
-        mock_get_pandas_df.assert_called_once_with(sql, parameters=parameters)
+        mock_get_df.assert_called_once_with(sql, parameters=parameters)
         assert df is test_df

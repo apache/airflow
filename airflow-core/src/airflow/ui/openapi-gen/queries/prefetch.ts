@@ -43,8 +43,8 @@ import * as Common from "./common";
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
- * @param data.uriPattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.dagIds
  * @param data.onlyActive
  * @param data.orderBy
@@ -90,7 +90,7 @@ export const prefetchUseAssetServiceGetAssets = (
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.orderBy
  * @returns AssetAliasCollectionResponse Successful Response
  * @throws ApiError
@@ -354,7 +354,7 @@ export const prefetchUseBackfillServiceGetBackfill = (
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
 ) =>
   queryClient.prefetchQuery({
@@ -419,7 +419,7 @@ export const prefetchUseConnectionServiceGetConnection = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.connectionIdPattern
+ * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -764,8 +764,8 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
  * @param data.tags
  * @param data.tagsMatchMode
  * @param data.owners
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
@@ -902,7 +902,7 @@ export const prefetchUseDagServiceGetDagDetails = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.tagNamePattern
+ * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns DAGTagCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1263,7 +1263,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
+export const prefetchUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1278,13 +1278,14 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Dependencies
@@ -1297,7 +1298,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
+export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1312,13 +1313,13 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Tries
@@ -1433,7 +1434,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
  * @param data.updatedAtLte
  * @param data.durationGte
  * @param data.durationLte
- * @param data.taskDisplayNamePattern
+ * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.state
  * @param data.pool
  * @param data.queue
@@ -1664,7 +1665,7 @@ export const prefetchUseTaskInstanceServiceGetLog = (
     token,
     tryNumber,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "application/json" | "*/*" | "application/x-ndjson";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -1696,6 +1697,44 @@ export const prefetchUseTaskInstanceServiceGetLog = (
         token,
         tryNumber,
       }),
+  });
+/**
+ * Get External Log Url
+ * Get external log URL for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.mapIndex
+ * @returns ExternalLogUrlResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetExternalLogUrl = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+      tryNumber,
+    }),
+    queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }),
   });
 /**
  * Get Import Error
@@ -1882,7 +1921,7 @@ export const prefetchUsePoolServiceGetPool = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.poolNamePattern
+ * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2095,7 +2134,7 @@ export const prefetchUseVariableServiceGetVariable = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.variableKeyPattern
+ * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2279,8 +2318,8 @@ export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient
  * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIds
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
@@ -2390,6 +2429,17 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
+  });
+/**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(),
+    queryFn: () => DashboardService.dagStats(),
   });
 /**
  * Structure Data

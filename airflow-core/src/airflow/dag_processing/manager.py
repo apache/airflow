@@ -48,6 +48,7 @@ from tabulate import tabulate
 from uuid6 import uuid7
 
 import airflow.models
+from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
@@ -60,8 +61,8 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
-from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace
 from airflow.utils import timezone
@@ -80,6 +81,7 @@ if TYPE_CHECKING:
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.sdk.api.client import Client
 
 
 class DagParsingStat(NamedTuple):
@@ -212,6 +214,9 @@ class DagFileProcessorManager(LoggingMixin):
     """Last time we checked if any bundles are ready to be refreshed"""
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
+
+    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
+    """API server to interact with Metadata DB"""
 
     def register_exit_signals(self):
         """Register signals that stop child processes."""
@@ -679,7 +684,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         rows = []
         utcnow = timezone.utcnow()
-        now = time.time()
+        now = time.monotonic()
 
         for files in known_files.values():
             for file in files:
@@ -710,7 +715,7 @@ class DagFileProcessorManager(LoggingMixin):
                 )
 
         # Sort by longest last runtime. (Can't sort None values in python3)
-        rows.sort(key=lambda x: x[5] or 0.0, reverse=True)
+        rows.sort(key=lambda x: x[6] or 0.0, reverse=True)
 
         formatted_rows = []
         for (
@@ -806,7 +811,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             # Collect the DAGS and import errors into the DB, emit metrics etc.
             self._file_stats[file] = process_parse_results(
-                run_duration=time.time() - proc.start_time,
+                run_duration=time.monotonic() - proc.start_time,
                 finish_time=timezone.utcnow(),
                 run_count=self._file_stats[file].run_count,
                 bundle_name=file.bundle_name,
@@ -867,6 +872,15 @@ class DagFileProcessorManager(LoggingMixin):
             underlying_logger, processors=processors, logger_name="processor"
         ).bind(), logger_filehandle
 
+    @functools.cached_property
+    def client(self) -> Client:
+        from airflow.sdk.api.client import Client
+
+        client = Client(base_url=None, token="", dry_run=True, transport=self._api_server.transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
     def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
         id = uuid7()
 
@@ -881,6 +895,7 @@ class DagFileProcessorManager(LoggingMixin):
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,
+            client=self.client,
         )
 
     def _start_new_processes(self):
@@ -992,7 +1007,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
-        now = time.time()
+        now = time.monotonic()
         processors_to_remove = []
         for file, processor in self._processors.items():
             duration = now - processor.start_time

@@ -135,6 +135,13 @@ class Backfill(Base):
 
     backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
 
+    dag_model = relationship(
+        "DagModel",
+        primaryjoin="DagModel.dag_id == Backfill.dag_id",
+        viewonly=True,
+        foreign_keys=[dag_id],
+    )
+
     def __repr__(self):
         return f"Backfill({self.dag_id=}, {self.from_date=}, {self.to_date=})"
 
@@ -299,7 +306,10 @@ def _create_backfill_dag_run(
                 return
             lock = session.execute(
                 with_row_locks(
-                    query=select(DagRun).where(DagRun.logical_date == info.logical_date),
+                    query=select(DagRun).where(
+                        DagRun.logical_date == info.logical_date,
+                        DagRun.dag_id == dag.dag_id,
+                    ),
                     session=session,
                     skip_locked=True,
                 )
@@ -403,7 +413,7 @@ def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal):
     # Update backfill_id and run_type in DagRun table
     session.execute(
         update(DagRun)
-        .where(DagRun.logical_date == info.logical_date)
+        .where(DagRun.logical_date == info.logical_date, DagRun.dag_id == dag.dag_id)
         .values(
             backfill_id=backfill_id,
             run_type=DagRunType.BACKFILL_JOB,
@@ -465,6 +475,7 @@ def _create_backfill(
             max_active_runs=max_active_runs,
             dag_run_conf=dag_run_conf,
             reprocess_behavior=reprocess_behavior,
+            dag_model=dag,
         )
         session.add(br)
         session.commit()

@@ -80,7 +80,6 @@ PROVIDER_PATH = (AIRFLOW_REPO_ROOT_PATH / "providers").joinpath(*PACKAGE_ID.spli
 BASE_PROVIDER_SRC_PATH = PROVIDER_PATH / "src" / "airflow"
 PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
 SYSTEM_TESTS_DIR = PROVIDER_PATH / "tests" / "system"
-conf_py_path = f"/providers/{PACKAGE_ID.replace('.', '/')}/docs/"
 
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
@@ -145,6 +144,7 @@ extensions.extend(
     [
         "extra_provider_files_with_substitutions",
         "providers_extensions",
+        "providers_commits",
         "sphinx_jinja",
     ]
 )
@@ -156,15 +156,8 @@ exclude_patterns = [
     "operators/_partials",
     "_api/airflow/index.rst",
     "_api/airflow/providers/index.rst",
-    "_api/airflow/providers/apache/index.rst",
-    "_api/airflow/providers/atlassian/index.rst",
-    "_api/airflow/providers/cncf/index.rst",
-    "_api/airflow/providers/common/index.rst",
-    "_api/airflow/providers/common/messaging/providers/base_provider/index.rst",
-    "_api/airflow/providers/common/messaging/providers/sqs/index.rst",
-    "_api/airflow/providers/dbt/index.rst",
-    "_api/airflow/providers/microsoft/index.rst",
     "_api/docs/conf",
+    *[f"_api/airflow/providers/{subpackage}/index.rst" for subpackage in empty_subpackages],
     *[f"_api/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
     *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
 ]
@@ -221,6 +214,8 @@ html_show_copyright = False
 
 html_theme_options: dict[str, Any] = get_html_theme_options()
 
+
+conf_py_path = f"/providers/{PACKAGE_ID.replace('.', '/')}/docs/"
 # A dictionary of values to pass into the template engine's context for all pages.
 html_context = get_html_context(conf_py_path)
 
@@ -368,7 +363,7 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
         "v1-flask-api.yaml"
     )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
-        "v1-fab-auth-manager-generated.yaml"
+        "v2-fab-auth-manager-generated.yaml"
     )
     redoc = [
         {

@@ -138,8 +138,53 @@ labels: {}
 
 # Ingress configuration
 ingress:
-  # Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled)
+  # Enable all ingress resources
+  # (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
   enabled: ~
+
+  # Configs for the Ingress of the API Server
+  apiServer:
+    # Enable API Server ingress resource
+    enabled: false
+
+    # Annotations for the API Server Ingress
+    annotations: {}
+
+    # The path for the API Server Ingress
+    path: "/"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the API Server Ingress (Deprecated - renamed to `ingress.apiServer.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the API Server Ingress
+    hosts: []
+    #   # The hostname for the web Ingress (templated)
+    # - name: ""
+    #   # configs for API Server Ingress TLS
+    #   tls:
+    #     # Enable TLS termination for the API Server Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the API Server Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
+    # configs for API Server Ingress TLS (Deprecated - renamed to `ingress.apiServer.hosts[*].tls`)
+    tls:
+      # Enable TLS termination for the API Server Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the API Server Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the API Server Ingress after the default path
+    succeedingPaths: []
 
   # Configs for the Ingress of the web Service
   web:
@@ -323,8 +368,10 @@ rbac:
   createSCCRoleBinding: false
 
 # Airflow executor
-# One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
-# Specify executors in a prioritized list to leverage multiple execution environments as needed.
+# One or multiple of: LocalExecutor, CeleryExecutor, KubernetesExecutor
+# For Airflow <3.0, LocalKubernetesExecutor and CeleryKubernetesExecutor are also supported.
+# Specify executors in a prioritized list to leverage multiple execution environments as needed:
+# https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
@@ -1266,7 +1313,12 @@ migrateDatabaseJob:
 
 apiServer:
 
-  # Labels specific to workers objects and pods
+  # Number of Airflow API servers in the deployment
+  replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
+
+  # Labels specific to Airflow API server objects and pods
   labels: {}
 
   # Command to use when running the Airflow API server (templated).
@@ -1285,7 +1337,7 @@ apiServer:
     # If not set and create is true, a name is generated using the release name
     name: ~
 
-    # Annotations to add to webserver kubernetes service account.
+    # Annotations to add to Airflow API server kubernetes service account.
     annotations: {}
   service:
     type: ClusterIP
@@ -1310,10 +1362,16 @@ apiServer:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # Detailed default security contexts for webserver deployments for container and pod level
+  # Allow overriding Update Strategy for API server
+  strategy: ~
+
+  # Detailed default security contexts for Airflow API server deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1323,14 +1381,47 @@ apiServer:
     securityContexts:
       container: {}
 
-  # Launch additional containers into the flower pods.
+  # Launch additional containers into the Airflow API server pods.
   extraContainers: []
+  # Add additional init containers into API server (templated).
+  extraInitContainers: []
+
+  # Mount additional volumes into API server. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  # Select certain nodes for Airflow API server pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+
+  priorityClassName: ~
+
+  #  hostAliases for API server pod
+  hostAliases: []
+
+  # annotations for Airflow API server deployment
+  annotations: {}
+
+  podAnnotations: {}
 
   networkPolicy:
     ingress:
-      # Peers for webserver NetworkPolicy ingress
+      # Peers for Airflow API server NetworkPolicy ingress
       from: []
-      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      # Ports for Airflow API server NetworkPolicy ingress (if `from` is set)
       ports:
         - port: "{{ .Values.ports.apiServer }}"
 
@@ -2677,7 +2768,7 @@ config:
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
-    auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    auth_manager: '{{ ternary "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager" "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager" (semverCompare ">=3.0.0" .Values.airflowVersion) }}'
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'
@@ -2686,7 +2777,10 @@ config:
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
+  fab:
+    enable_proxy_fix: 'True'
   webserver:
+    # For Airflow 2.X
     enable_proxy_fix: 'True'
     # For Airflow 1.10
     rbac: 'True'

@@ -21,9 +21,9 @@ import json
 import logging
 import os
 from datetime import datetime
+from typing import Any
 
 from airflow.decorators import task
-from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -31,8 +31,9 @@ from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsT
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -62,26 +63,17 @@ with DAG(
 
     @task
     def create_connection(connection_id: str):
-        conn = Connection(
-            conn_id=connection_id,
-            conn_type="google_cloud_platform",
-        )
         conn_extra = {
             "scope": "https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/cloud-platform",
             "project": PROJECT_ID,
             "keyfile_dict": "",  # Override to match your needs
         }
         conn_extra_json = json.dumps(conn_extra)
-        conn.set_extra(conn_extra_json)
-
-        session = Session()
-        log.info("Removing connection %s if it exists", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-
-        session.add(conn)
-        session.commit()
-        log.info("Connection %s created", connection_id)
+        connection: dict[str, Any] = {"conn_type": "google_cloud_platform", "extra": conn_extra_json}
+        create_airflow_connection(
+            connection_id=connection_id,
+            connection_conf=connection,
+        )
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
@@ -119,11 +111,7 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        session = Session()
-        log.info("Removing connection %s", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-        session.commit()
+        delete_airflow_connection(connection_id=connection_id)
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 

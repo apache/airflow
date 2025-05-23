@@ -25,7 +25,7 @@ from typing import Any
 import pytest
 
 from airflowctl.api.datamodels.generated import ReprocessBehavior
-from airflowctl.ctl.cli_config import CommandFactory, GroupCommand
+from airflowctl.ctl.cli_config import ActionCommand, CommandFactory, GroupCommand, merge_commands
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def test_args():
         (
             "--dag-id",
             {
-                "help": "Argument Type: <class 'str'>, dag_id for backfill operation",
+                "help": "dag_id for backfill operation",
                 "action": None,
                 "default": None,
                 "type": str,
@@ -56,7 +56,7 @@ def test_args():
         (
             "--from-date",
             {
-                "help": "Argument Type: <class 'datetime.datetime'>, from_date for backfill operation",
+                "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
                 "type": datetime.datetime,
@@ -66,7 +66,7 @@ def test_args():
         (
             "--to-date",
             {
-                "help": "Argument Type: <class 'datetime.datetime'>, to_date for backfill operation",
+                "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
                 "type": datetime.datetime,
@@ -76,7 +76,7 @@ def test_args():
         (
             "--run-backwards",
             {
-                "help": "Argument Type: <class 'bool'>, run_backwards for backfill operation",
+                "help": "run_backwards for backfill operation",
                 "action": BooleanOptionalAction,
                 "default": False,
                 "type": bool,
@@ -86,7 +86,7 @@ def test_args():
         (
             "--dag-run-conf",
             {
-                "help": "Argument Type: dict[str, typing.Any], dag_run_conf for backfill operation",
+                "help": "dag_run_conf for backfill operation",
                 "action": None,
                 "default": None,
                 "type": dict[str, Any],
@@ -96,7 +96,7 @@ def test_args():
         (
             "--reprocess-behavior",
             {
-                "help": "Argument Type: <enum 'ReprocessBehavior'>, reprocess_behavior for backfill operation",
+                "help": "reprocess_behavior for backfill operation",
                 "action": None,
                 "default": None,
                 "type": ReprocessBehavior,
@@ -106,7 +106,7 @@ def test_args():
         (
             "--max-active-runs",
             {
-                "help": "Argument Type: <class 'int'>, max_active_runs for backfill operation",
+                "help": "max_active_runs for backfill operation",
                 "action": None,
                 "default": None,
                 "type": int,
@@ -167,3 +167,81 @@ class TestCommandFactory:
                     assert arg.kwargs["default"] == test_arg[1]["default"]
                     assert arg.kwargs["type"] == test_arg[1]["type"]
                     assert arg.kwargs["dest"] == test_arg[1]["dest"]
+
+
+class TestCliConfigMethods:
+    def test_merge_commands(self, no_op_method):
+        """Test the merge_commands method."""
+        # Create two Command objects with different names and help texts
+        action_commands_1 = (
+            ActionCommand(
+                name="subcommand1",
+                help="This is command 1",
+                func=no_op_method,
+                args=(),
+            ),
+            ActionCommand(
+                name="subcommand2",
+                help="This is command 2",
+                func=no_op_method,
+                args=(),
+            ),
+        )
+        action_commands_2 = (
+            ActionCommand(
+                name="subcommand3",
+                help="This is command 3",
+                func=no_op_method,
+                args=(),
+            ),
+            ActionCommand(
+                name="subcommand4",
+                help="This is command 4",
+                func=no_op_method,
+                args=(),
+            ),
+        )
+        command_list_1 = [
+            GroupCommand(
+                name="command1",
+                help="This is command 1",
+                subcommands=action_commands_1,
+            ),
+            GroupCommand(
+                name="command2",
+                help="This is command 2",
+                subcommands=action_commands_2,
+            ),
+        ]
+        command_list_2 = [
+            GroupCommand(
+                name="command1",
+                help="This is command 1 new help",
+                description="This is command 1 new description",
+                subcommands=action_commands_2,
+            ),
+            GroupCommand(
+                name="command4",
+                help="This is command 4",
+                subcommands=action_commands_1,
+            ),
+        ]
+
+        # Merge the commands
+        merged_command = merge_commands(base_commands=command_list_1, commands_will_be_merged=command_list_2)
+        merged_command_names = [command.name for command in merged_command]
+        assert "command1" in merged_command_names
+        assert "command2" in merged_command_names
+        assert "command3" not in merged_command_names
+        assert "command4" in merged_command_names
+
+        for command in merged_command:
+            if command.name == "command1":
+                # assert command.help == "This is command 1 new help"
+                # assert command.description == "This is command 1 new description"
+                sub_command_names = [sc.name for sc in list(command.subcommands)]
+                print(f"sub_command_names: {sub_command_names}")
+                assert "subcommand1" in sub_command_names
+                assert "subcommand2" in sub_command_names
+                assert "subcommand3" in sub_command_names
+                assert "subcommand4" in sub_command_names

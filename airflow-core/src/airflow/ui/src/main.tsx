@@ -21,14 +21,17 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { I18nextProvider } from "react-i18next";
 import { RouterProvider } from "react-router-dom";
 
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
 import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
+import { getRedirectPath } from "src/utils/links.ts";
 
-import { queryClient } from "./queryClient";
+import i18n from "./i18n/config";
+import { client } from "./queryClient";
 import { system } from "./theme";
 import { clearToken, tokenHandler } from "./utils/tokenHandler";
 
@@ -44,13 +47,7 @@ axios.interceptors.response.use(
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
-
-      const baseHref = document.querySelector("head>base")?.getAttribute("href") ?? "";
-
-      // Resolve the scheme-relative URL from the base relative to the current URL
-      const baseUrl = new URL(baseHref, globalThis.location.origin);
-
-      const loginPath = new URL("api/v2/auth/login", baseUrl).pathname;
+      const loginPath = getRedirectPath("api/v2/auth/login");
 
       globalThis.location.replace(`${loginPath}?${params.toString()}`);
     }
@@ -63,14 +60,16 @@ axios.interceptors.request.use(tokenHandler);
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
-    <ChakraProvider value={system}>
-      <ColorModeProvider>
-        <QueryClientProvider client={queryClient}>
-          <TimezoneProvider>
-            <RouterProvider router={router} />
-          </TimezoneProvider>
-        </QueryClientProvider>
-      </ColorModeProvider>
-    </ChakraProvider>
+    <I18nextProvider i18n={i18n}>
+      <ChakraProvider value={system}>
+        <ColorModeProvider>
+          <QueryClientProvider client={client}>
+            <TimezoneProvider>
+              <RouterProvider router={router} />
+            </TimezoneProvider>
+          </QueryClientProvider>
+        </ColorModeProvider>
+      </ChakraProvider>
+    </I18nextProvider>
   </StrictMode>,
 );

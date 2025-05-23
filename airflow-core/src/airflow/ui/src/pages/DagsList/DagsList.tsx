@@ -71,7 +71,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
     },
   },
   {
-    accessorKey: "dag_id",
+    accessorKey: "dag_display_name",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
@@ -163,6 +163,7 @@ const DAGS_LIST_DISPLAY = "dags_list_display";
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
+  const dagRunsLimit = display === "card" ? 14 : 1;
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
@@ -180,7 +181,7 @@ export const DagsList = () => {
   );
 
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-last_run_start_date";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -206,7 +207,7 @@ export const DagsList = () => {
     paused = false;
   }
 
-  const { data, error, isLoading } = useDags({
+  const { data, error, isLoading } = useDags(dagRunsLimit, {
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
     lastDagRunState,
     limit: pagination.pageSize,

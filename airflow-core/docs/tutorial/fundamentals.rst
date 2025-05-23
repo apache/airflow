@@ -173,7 +173,7 @@ documentation at the start of your DAG file.
 
 Setting up Dependencies
 -----------------------
-In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can defined
+In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can define
 their dependencies in several ways:
 
 .. code-block:: python
@@ -210,7 +210,7 @@ times.
 Working with Time Zones
 -----------------------
 
-Creating a time zone aware DAG straightforward. Just ensure you use time zone aware dates
+Creating a time zone aware DAG is straightforward. Just ensure you use time zone aware dates
 with ``pendulum``. Avoid using the standard library
 `timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they have known limitations.
 

@@ -33,6 +33,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 TASK_ID = "dbt_test"
 DAG_ID = "dbt_dag"
 TASK_UUID = "01481cfa-0ff7-3692-9bba-79417cf498c2"
+DAG_UUID = "01481cfa-1a1a-2b2b-3c3c-79417cf498c2"
 
 
 class MockResponse:
@@ -88,30 +89,48 @@ def get_dbt_artifact(*args, **kwargs):
     return None
 
 
-def test_previous_version_openlineage_provider():
-    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 2.0"""
+@pytest.mark.parametrize(
+    "value, is_error",
+    [
+        ("1.99.0", True),
+        ("2.0.0", True),
+        ("2.3.0", False),
+        ("2.99.0", False),
+    ],
+)
+def test_previous_version_openlineage_provider(value, is_error):
+    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 2.3"""
 
     def _mock_version(package):
         if package == "apache-airflow-providers-openlineage":
-            return "1.99.0"
+            return value
         raise Exception("Unexpected package")
 
     mock_operator = MagicMock()
     mock_task_instance = MagicMock()
 
     expected_err = (
-        "OpenLineage provider version `1.99.0` is lower than required `2.0.0`, "
+        f"OpenLineage provider version `{value}` is lower than required `2.3.0`, "
         "skipping function `generate_openlineage_events_from_dbt_cloud_run` execution"
     )
 
-    with patch("importlib.metadata.version", side_effect=_mock_version):
-        with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
-            generate_openlineage_events_from_dbt_cloud_run(mock_operator, mock_task_instance)
+    if is_error:
+        with patch("importlib.metadata.version", side_effect=_mock_version):
+            with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+                generate_openlineage_events_from_dbt_cloud_run(mock_operator, mock_task_instance)
+    else:
+        with patch("importlib.metadata.version", side_effect=_mock_version):
+            # Error that would certainly not happen on version checking
+            mock_operator.hook.get_job_run.side_effect = ZeroDivisionError("error for test")
+            with pytest.raises(ZeroDivisionError, match="error for test"):
+                generate_openlineage_events_from_dbt_cloud_run(mock_operator, mock_task_instance)
 
 
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
+    @patch("importlib.metadata.version", return_value="2.3.0")
     @patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_task_instance_run_id")
+    @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_dag_run_id")
     @patch.object(DbtCloudHook, "get_job_run")
     @patch.object(DbtCloudHook, "get_project")
     @patch.object(DbtCloudHook, "get_job_run_artifact")
@@ -120,8 +139,10 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_get_job_run_artifact,
         mock_get_project,
         mock_get_job_run,
+        mock_build_dag_run_id,
         mock_build_task_instance_run_id,
         mock_get_openlineage_listener,
+        mock_version,
     ):
         mock_operator = MagicMock(spec=DbtCloudRunJobOperator)
         mock_operator.account_id = None
@@ -154,17 +175,17 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_task_instance = MagicMock()
         mock_task_instance.task_id = TASK_ID
         mock_task_instance.dag_id = DAG_ID
+        mock_task_instance.dag_run.clear_number = 0
 
-        mock_client = MagicMock()
+        mock_adapter = MagicMock()
 
-        mock_client.emit.side_effect = emit_event
-        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value = (
-            mock_client
-        )
+        mock_adapter.emit.side_effect = emit_event
+        mock_get_openlineage_listener.return_value.adapter = mock_adapter
 
         mock_build_task_instance_run_id.return_value = TASK_UUID
+        mock_build_dag_run_id.return_value = DAG_UUID
         generate_openlineage_events_from_dbt_cloud_run(mock_operator, task_instance=mock_task_instance)
-        assert mock_client.emit.call_count == 4
+        assert mock_adapter.emit.call_count == 4
 
     def test_do_not_raise_error_if_runid_not_set_on_operator(self):
         operator = DbtCloudRunJobOperator(task_id="dbt-job-runid-taskid", job_id=1500)

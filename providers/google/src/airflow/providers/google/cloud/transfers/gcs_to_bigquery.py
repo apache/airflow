@@ -547,6 +547,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "quote",
                 "encoding",
                 "preserveAsciiControlCharacters",
+                "columnNameCharacterMap",
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
@@ -672,6 +673,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "quote",
                 "encoding",
                 "preserveAsciiControlCharacters",
+                "columnNameCharacterMap",
             ],
             "DATASTORE_BACKUP": ["projectionFields"],
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],
