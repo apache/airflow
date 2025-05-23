@@ -70,10 +70,11 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 		}
 	}
 	// If there are two results, convert the first only if it's not a nil pointer
-	var res interface{}
+	var res any
 	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
 		res = retValues[0].Interface()
 	}
+	// TODO: send the result to XCom
 	_ = res
 	return err
 }

@@ -45,5 +45,5 @@ func init() {
 	runCmd.Flags().
 		String("execution-api-url", "http://localhost:8080/execution/", "Execution API to connect to")
 	runCmd.Flags().StringSlice("queues", []string{"default"}, "Celery queues to listen on")
-	runCmd.MarkFlagRequired("broker-url")
+	runCmd.MarkFlagRequired("broker-address")
 }

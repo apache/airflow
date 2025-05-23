@@ -37,23 +37,20 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "airflow-go-sdk",
+	Use:   "airflow-go-worker",
 	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Long: `Airflow worker for running Go tasks.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.
-  `,
+All options (other than ` + "`--config`" + `) can be specified in the config file using
+the same name as the CLI argument but without the ` + "`--`" + ` prefix.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initializeConfig(cmd)
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+// Execute is the main entrypoint, and runs the Celery broker for the given worker
 func Execute(worker worker.Worker) {
+	// TODO: This should possibly just take a task Registry, not a worker object
 	cc.Init(&cc.Config{
 		RootCmd:       rootCmd,
 		Headings:      cc.Bold,
@@ -76,6 +73,8 @@ func init() {
 		"config file (default is $HOME/airflow/go-sdk.yaml)")
 	rootCmd.AddCommand(runCmd)
 }
+
+var envKeyReplacer *strings.Replacer = strings.NewReplacer(".", "__", "-", "_")
 
 func setupViper() error {
 	if cfgFile != "" {
@@ -110,8 +109,7 @@ func setupViper() error {
 	// Make the prefix be AIRFLOW__ -- viper adds an extra `_` automatically
 	viper.SetEnvPrefix("AIRFLOW_")
 	// Set the key replacer to replace "__" with "."
-	replacer := strings.NewReplacer(".", "__", "-", "_")
-	viper.SetEnvKeyReplacer(replacer)
+	viper.SetEnvKeyReplacer(envKeyReplacer)
 
 	viper.AutomaticEnv() // read in environment variables that match
 	return nil
@@ -123,10 +121,8 @@ func initializeConfig(cmd *cobra.Command) error {
 		return err
 	}
 
-	// Set the key replacer to replace "__" with "."
-	replacer := strings.NewReplacer(".", "__", "-", "_")
 	// Bind the current command's flags to viper
-	bindFlags(cmd, replacer)
+	bindFlags(cmd, envKeyReplacer)
 
 	return nil
 }
@@ -151,7 +147,6 @@ func bindFlags(cmd *cobra.Command, replacer *strings.Replacer) {
 		} else if viper.IsSet(configName) {
 			// If we have a viper config but no flag, set the flag value. This lets `MarkRequiredFlag` work
 			val := viper.Get(configName)
-			fmt.Printf("%s %t %#v\n", configName, val, val)
 			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
 		}
 	})

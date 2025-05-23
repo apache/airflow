@@ -159,17 +159,17 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 // TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't
 // start, but that it is logged
 func (s *WorkerSuite) TestStartContextErrorTaskDoesntStart() {
-	s.T().Fail()
+	s.T().Fatal("TODO")
 }
 
 // TestTaskPanicReportsFailedState tests that when the task/user code panics that we catch it and report thr
 // error upstream
 func (s *WorkerSuite) TestTaskPanicReportsFailedState() {
-	s.T().Fail()
+	s.T().Fatal("TODO")
 }
 
 func (s *WorkerSuite) TestTaskReturnErrorReportsFailedState() {
-	s.T().Fail()
+	s.T().Fatal("TODO")
 }
 
 func (s *WorkerSuite) TestTaskHeartbeatsWhlieRunning() {
@@ -203,9 +203,9 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhlieRunning() {
 }
 
 func (s *WorkerSuite) TestTaskHeatbeatErrorStopsTaskAndLogs() {
-	s.T().Fail()
+	s.T().Fatal("TODO")
 }
 
 func (s *WorkerSuite) TestTokenRefreshHeaderRespected() {
-	s.T().Fail()
+	s.T().Fatal("TODO")
 }

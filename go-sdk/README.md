@@ -36,7 +36,7 @@ Since Go is a compiled language (putting aside projects such as [YAEGI](https://
 
 This SDK currently will:
 
-- Get tasks from Celery
+- Get tasks from Celery queue(s)
 - Run registered tasks (no support for dag versioning or loading of multiple different "bundles")
 - Heartbeat and report the final state of the final TI
 - Allow access to Variables

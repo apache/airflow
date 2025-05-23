@@ -72,7 +72,7 @@ func Run(ctx context.Context, config Config) error {
 	)
 
 	if len(config.Queues) == 0 {
-		config.Queues = append(config.Queues, "default")
+		return fmt.Errorf("no queues defined")
 	}
 	broker.Observe(config.Queues)
 
@@ -100,7 +100,7 @@ func Run(ctx context.Context, config Config) error {
 	slog.Info("waiting for tasks", "queues", config.Queues)
 	err = app.Run(ctx)
 	if err != nil {
-		slog.Info("program stopped", "error", err)
+		slog.Error("program stopped", "error", err)
 	}
 	return err
 }
