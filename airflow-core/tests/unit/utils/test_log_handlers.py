@@ -21,7 +21,6 @@ import itertools
 import logging
 import logging.config
 import os
-import re
 from collections.abc import Iterable
 from http import HTTPStatus
 from importlib import reload
@@ -190,7 +189,7 @@ class TestFileTaskLogHandler:
         # Update regex pattern to match the structlog format - just check for the word "test"
         # in the log events since structlog format is different from the old format
         log_events = events(log)
-        
+
         # We should expect our log line from the callable above to appear in
         # the logs we read back
         assert any("test" in event for event in log_events), f"Logs were {log_events}"
