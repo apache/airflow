@@ -22,6 +22,8 @@ import { initReactI18next } from "react-i18next";
 
 import enCommon from "./locales/en/common.json";
 import enDashboard from "./locales/en/dashboard.json";
+import nlCommon from "./locales/nl/common.json";
+import nlDashboard from "./locales/nl/dashboard.json";
 import zhTWCommon from "./locales/zh_TW/common.json";
 import zhTWDashboard from "./locales/zh_TW/dashboard.json";
 
@@ -30,6 +32,7 @@ import zhTWDashboard from "./locales/zh_TW/dashboard.json";
 
 export const supportedLanguages = [
   { code: "en", name: "English" },
+  { code: "nl", name: "Nederlands" },
   { code: "zh_TW", name: "繁體中文" },
 ] as const;
 
@@ -40,6 +43,10 @@ const resources = {
   en: {
     common: enCommon,
     dashboard: enDashboard,
+  },
+  nl: {
+    common: nlCommon,
+    dashboard: nlDashboard,
   },
   zh_TW: {
     common: zhTWCommon,
