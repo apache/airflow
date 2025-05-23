@@ -31,7 +31,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.file_task_handler import events
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 
 pytestmark = pytest.mark.db_test
 
@@ -112,10 +112,12 @@ class TestRedisTaskHandler:
             logs = handler.read(ti)
 
         if AIRFLOW_V_3_0_PLUS:
-            log_stream, metadata = logs
-            log_stream = list(log_stream)
-            assert events(log_stream) == ["Line 1", "Line 2"]
-            assert metadata == {"end_of_log": True}
+            if get_base_airflow_version_tuple() <= (3, 0, 1):
+                assert logs == (["Line 1\nLine 2"], {"end_of_log": True})
+            else:
+                log_stream, metadata = logs
+                assert events(log_stream) == ["Line 1", "Line 2"]
+                assert metadata == {"end_of_log": True}
         else:
             assert logs == ([[("", "Line 1\nLine 2")]], [{"end_of_log": True}])
         lrange.assert_called_once_with(key, start=0, end=-1)
