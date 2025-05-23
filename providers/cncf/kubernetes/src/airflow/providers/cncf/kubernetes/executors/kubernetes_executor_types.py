@@ -20,9 +20,13 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 ADOPTED = "adopted"
 if TYPE_CHECKING:
-    from airflow.executors.base_executor import CommandType
+    from collections.abc import Sequence
+
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.state import TaskInstanceState
+
+    # TODO: Remove after Airflow 2 support is removed
+    CommandType = Sequence[str]
 
     # TaskInstance key, command, configuration, pod_template_file
     KubernetesJobType = tuple[TaskInstanceKey, CommandType, Any, Optional[str]]

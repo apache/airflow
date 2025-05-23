@@ -25,7 +25,7 @@ from kubernetes.client.api_client import ApiClient
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -43,6 +43,10 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
         # If no such pod_template_file override was passed, we can simply render
         # The pod spec using the default template.
         pod_template_file = kube_config.pod_template_file
+
+    # Generate command args using shared utility function
+    command_args = generate_pod_command_args(task_instance)
+
     pod = PodGenerator.construct_pod(
         dag_id=task_instance.dag_id,
         run_id=task_instance.run_id,
@@ -52,7 +56,7 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
         pod_id=create_unique_id(task_instance.dag_id, task_instance.task_id),
         try_number=task_instance.try_number,
         kube_image=kube_config.kube_image,
-        args=task_instance.command_as_list(),
+        args=command_args,
         pod_override_object=PodGenerator.from_obj(task_instance.executor_config),
         scheduler_job_id="0",
         namespace=kube_config.executor_namespace,

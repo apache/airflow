@@ -46,6 +46,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
 )
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
@@ -53,9 +54,47 @@ from airflow.version import version as airflow_version
 if TYPE_CHECKING:
     import datetime
 
+    from airflow.executors import workloads
+    from airflow.models.taskinstance import TaskInstance
+
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
+
+
+def workload_to_command_args(workload: workloads.ExecuteTask) -> list[str]:
+    """
+    Convert a workload object to Task SDK command arguments.
+
+    :param workload: The ExecuteTask workload to convert
+    :return: List of command arguments for the Task SDK
+    """
+    ser_input = workload.model_dump_json()
+    return [
+        "python",
+        "-m",
+        "airflow.sdk.execution_time.execute_workload",
+        "--json-string",
+        ser_input,
+    ]
+
+
+def generate_pod_command_args(task_instance: TaskInstance) -> list[str]:
+    """
+    Generate command arguments for a ``TaskInstance`` to be used in a Kubernetes pod.
+
+    This function handles backwards compatibility between Airflow 2.x and 3.x:
+    - In Airflow 2.x: Uses the existing ``command_as_list()`` method
+    - In Airflow 3.x: Uses the Task SDK workload approach with serialized workload
+    """
+    if AIRFLOW_V_3_0_PLUS:
+        # In Airflow 3+, use the Task SDK workload approach
+        from airflow.executors import workloads
+
+        workload = workloads.ExecuteTask.make(task_instance)
+        return workload_to_command_args(workload)
+    # In Airflow 2.x, use the existing method
+    return task_instance.command_as_list()
 
 
 def make_safe_label_value(string: str) -> str:
