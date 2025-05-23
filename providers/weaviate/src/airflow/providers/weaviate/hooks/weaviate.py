@@ -246,10 +246,10 @@ class WeaviateHook(BaseHook):
                         )
                         if dry_run:
                             self.log.info(delete_many_return)
-            except (
-                weaviate.exceptions.UnexpectedStatusCodeException,
-                weaviate.exceptions.WeaviateDeleteManyError,
-            ) as e:
+            except Exception as e:
+                # Capture generic exception to avoid missing any error, but we could anticipate the following errors:
+                # 1. weaviate.exceptions.UnexpectedStatusCodeException
+                # 2. weaviate.exceptions.WeaviateDeleteManyError
                 if if_error == "continue":
                     self.log.error(e)
                     failed_collection_list.append(collection_name)
