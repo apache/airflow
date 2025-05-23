@@ -216,6 +216,18 @@ spec:
                 {{- else }}
                   {{- include "triggerer_liveness_check_command" . | indent 14 }}
                 {{- end }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.triggerer.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.triggerer.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.triggerer.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.triggerer.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.triggerer.readinessProbe.command }}
+                  {{- toYaml .Values.triggerer.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                  {{- include "triggerer_readiness_check_command" . | indent 14 }}
+                {{- end }}
         {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
           {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
           ports:
@@ -233,6 +245,38 @@ spec:
           securityContext: {{ $containerSecurityContextLogGroomer | nindent 12 }}
           {{- if $containerLifecycleHooksLogGroomerSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
+          {{- end }}
+          {{- if hasKey .Values.triggerer.logGroomerSidecar "livenessProbe" }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.periodSeconds }}
+            exec:
+              command:
+              {{- if hasKey .Values.triggerer.logGroomerSidecar.livenessProbe "command" }}
+                {{- toYaml .Values.triggerer.logGroomerSidecar.livenessProbe.command | nindent 16 }}
+              {{- else }}
+                - sh
+                - -c
+                - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
+              {{- end }}
+          {{- end }}
+          {{- if hasKey .Values.triggerer.logGroomerSidecar "readinessProbe" }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.periodSeconds }}
+            exec:
+              command:
+              {{- if hasKey .Values.triggerer.logGroomerSidecar.readinessProbe "command" }}
+                {{- toYaml .Values.triggerer.logGroomerSidecar.readinessProbe.command | nindent 16 }}
+              {{- else }}
+                - sh
+                - -c
+                - "test -e /clean-logs"
+              {{- end }}
           {{- end }}
           {{- if .Values.triggerer.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.triggerer.logGroomerSidecar.command) . | nindent 12 }}

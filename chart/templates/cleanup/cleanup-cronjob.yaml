@@ -110,6 +110,12 @@ spec:
                 {{- if .Values.volumeMounts }}
                   {{- toYaml .Values.volumeMounts | nindent 16 }}
                 {{- end }}
+              {{- if .Values.cleanup.livenessProbe }}
+              livenessProbe: {{- toYaml .Values.cleanup.livenessProbe | nindent 16 }}
+              {{- end }}
+              {{- if .Values.cleanup.readinessProbe }}
+              readinessProbe: {{- toYaml .Values.cleanup.readinessProbe | nindent 16 }}
+              {{- end }}
               resources: {{- toYaml .Values.cleanup.resources | nindent 16 }}
           volumes:
             - name: config

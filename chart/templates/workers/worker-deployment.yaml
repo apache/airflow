@@ -259,6 +259,22 @@ spec:
                 - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app {{ include "celery_executor_namespace" . }} inspect ping -d celery@$(hostname)
                 {{- end }}
           {{- end }}
+          {{- if .Values.workers.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.workers.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.workers.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.workers.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.workers.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.workers.readinessProbe.command }}
+                  {{- toYaml .Values.workers.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                - sh
+                - -c
+                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app {{ include "celery_executor_namespace" . }} inspect ping -d celery@$(hostname)
+                {{- end }}
+          {{- end }}
           ports:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
@@ -315,6 +331,37 @@ spec:
           securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
           {{- if $containerLifecycleHooksLogGroomerSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.workers.logGroomerSidecar.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.workers.logGroomerSidecar.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.workers.logGroomerSidecar.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.workers.logGroomerSidecar.livenessProbe.periodSeconds }}
+            exec:
+              command:
+              {{- if hasKey .Values.workers.logGroomerSidecar.livenessProbe "command" }}
+                {{- toYaml .Values.workers.logGroomerSidecar.livenessProbe.command | nindent 16 }}
+              {{- else }}
+                - sh
+                - -c
+                - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
+              {{- end }}
+          {{- end }}
+          {{- if hasKey .Values.workers.logGroomerSidecar "readinessProbe" }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.workers.logGroomerSidecar.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.workers.logGroomerSidecar.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.workers.logGroomerSidecar.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.workers.logGroomerSidecar.readinessProbe.periodSeconds }}
+            exec:
+              command:
+              {{- if hasKey .Values.workers.logGroomerSidecar.readinessProbe "command" }}
+                {{- toYaml .Values.workers.logGroomerSidecar.readinessProbe.command | nindent 16 }}
+              {{- else }}
+                - sh
+                - -c
+                - "test -e /clean-logs"
+              {{- end }}
           {{- end }}
           {{- if .Values.workers.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.workers.logGroomerSidecar.command) . | nindent 12 }}

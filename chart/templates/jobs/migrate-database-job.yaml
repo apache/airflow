@@ -120,6 +120,12 @@ spec:
           {{- if .Values.migrateDatabaseJob.env }}
               {{- tpl (toYaml .Values.migrateDatabaseJob.env) $ | nindent 12 }}
           {{- end }}
+          {{- if .Values.migrateDatabaseJob.livenessProbe }}
+          livenessProbe: {{- toYaml .Values.migrateDatabaseJob.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.migrateDatabaseJob.readinessProbe }}
+          readinessProbe: {{- toYaml .Values.migrateDatabaseJob.readinessProbe | nindent 12 }}
+          {{- end }}
           resources: {{- toYaml .Values.migrateDatabaseJob.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}

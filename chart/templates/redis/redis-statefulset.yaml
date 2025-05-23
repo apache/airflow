@@ -101,6 +101,34 @@ spec:
           ports:
             - name: redis-db
               containerPort: {{ .Values.ports.redisDB }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.redis.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.redis.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.redis.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.redis.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.redis.livenessProbe.command }}
+                  {{- toYaml .Values.redis.livenessProbe.command | nindent 16 }}
+                {{- else }}
+                - sh
+                - -c
+                - redis-cli -a $REDIS_PASSWORD ping
+                {{- end }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.redis.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.redis.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.redis.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.redis.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.redis.readinessProbe.command }}
+                  {{- toYaml .Values.redis.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                - sh
+                - -c
+                - redis-cli -a $REDIS_PASSWORD ping
+                {{- end }}
           volumeMounts:
             - name: redis-db
               mountPath: /data

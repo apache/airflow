@@ -327,6 +327,12 @@ If release name contains chart name it will be used as a full name.
   {{- if and .Values.dags.gitSync.containerLifecycleHooks (not .is_init) }}
   lifecycle: {{- tpl (toYaml .Values.dags.gitSync.containerLifecycleHooks) . | nindent 4 }}
   {{- end }}
+  {{- if .Values.dags.gitSync.livenessProbe }}
+  livenessProbe: {{- toYaml .Values.dags.gitSync.livenessProbe | nindent 4 }}
+  {{- end }}
+  {{- if .Values.dags.gitSync.readinessProbe }}
+  readinessProbe: {{- toYaml .Values.dags.gitSync.readinessProbe | nindent 4 }}
+  {{- end }}
 {{- end }}
 
 {{/* This helper will change when customers deploy a new image */}}
@@ -794,7 +800,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
-
 {{- define  "scheduler_startup_check_command" }}
   {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
@@ -827,6 +832,39 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+{{- define "scheduler_readiness_check_command" }}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --local
+  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
+  {{- else }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+    import os
+    os.environ[\"AIRFLOW__CORE__LOGGING_LEVEL\"] = \"ERROR\"
+    os.environ[\"AIRFLOW__LOGGING__LOGGING_LEVEL\"] = \"ERROR\"
+    from airflow.jobs.scheduler_job import SchedulerJob as Job
+    from airflow.utils.net import get_hostname
+    from airflow.jobs.job import most_recent_job
+    job = most_recent_job(Job, get_hostname())
+    if not job:
+      exit(1)
+    # If the scheduler is running, it should have a heartbeat timestamp
+    exit(0 if job.latest_heartbeat else 1)
+    "
+  {{- end }}
+{{- end }}
+
 {{- define "triggerer_liveness_check_command" }}
   {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
@@ -843,7 +881,40 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+{{- define "triggerer_readiness_check_command" }}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type TriggererJob --local
+  {{- else }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
+  {{- end }}
+{{- end }}
+
 {{- define "dag_processor_liveness_check_command" }}
+  {{- $commandArgs := (list) -}}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+    {{- $commandArgs = append $commandArgs "--local" -}}
+    {{- if semverCompare ">=2.5.2" .Values.airflowVersion }}
+      {{- $commandArgs = concat $commandArgs (list "--job-type" "DagProcessorJob") -}}
+    {{- end }}
+  {{- else }}
+    {{- $commandArgs = concat $commandArgs (list "--hostname" "$(hostname)") -}}
+  {{- end }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check {{ join " " $commandArgs }}
+{{- end }}
+
+{{- define "dag_processor_readiness_check_command" }}
   {{- $commandArgs := (list) -}}
   {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
     {{- $commandArgs = append $commandArgs "--local" -}}

@@ -191,6 +191,20 @@ spec:
                 {{- else }}
                   {{- include "dag_processor_liveness_check_command" . | indent 14 }}
                 {{- end }}
+          {{- if .Values.dagProcessor.readinessProbe }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.dagProcessor.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.dagProcessor.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.dagProcessor.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.dagProcessor.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.dagProcessor.readinessProbe.command }}
+                  {{- toYaml .Values.dagProcessor.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                  {{- include "dag_processor_readiness_check_command" . | indent 14 }}
+                {{- end }}
+          {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
@@ -216,6 +230,41 @@ spec:
           {{- if .Values.dagProcessor.logGroomerSidecar.env }}
               {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
+          
+          {{- if hasKey .Values.dagProcessor.logGroomerSidecar "livenessProbe" }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.dagProcessor.logGroomerSidecar.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.dagProcessor.logGroomerSidecar.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.dagProcessor.logGroomerSidecar.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.dagProcessor.logGroomerSidecar.livenessProbe.periodSeconds }}
+            exec:
+              command:
+              {{- if hasKey .Values.scheduler.logGroomerSidecar.livenessProbe "command" }}
+                {{- toYaml .Values.scheduler.logGroomerSidecar.livenessProbe.command | nindent 16 }}
+              {{- else }}
+                - sh
+                - -c
+                - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
+              {{- end }}
+          {{- end }}
+          
+          {{- if hasKey .Values.dagProcessor.logGroomerSidecar "readinessProbe" }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.dagProcessor.logGroomerSidecar.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.dagProcessor.logGroomerSidecar.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.dagProcessor.logGroomerSidecar.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.dagProcessor.logGroomerSidecar.readinessProbe.periodSeconds }}
+            exec:
+              command:
+              {{- if hasKey .Values.scheduler.logGroomerSidecar.readinessProbe "command" }}
+                {{- toYaml .Values.scheduler.logGroomerSidecar.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                - sh
+                - -c
+                - "test -e /clean-logs"
+              {{- end }}
+          {{- end }}
+
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}

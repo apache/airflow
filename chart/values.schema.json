@@ -1590,6 +1590,48 @@
                         }
                     }
                 },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for worker containers.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable readiness probe for celery workers.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before readiness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        },
+                        "command": {
+                            "description": "Command for readinessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
                 "updateStrategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
                     "type": [
@@ -2530,6 +2572,46 @@
                         }
                     }
                 },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for scheduler container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before readiness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        },
+                        "command": {
+                            "description": "Command for readinessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
                 "replicas": {
                     "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
                     "type": "integer",
@@ -3037,6 +3119,47 @@
                         },
                         "command": {
                             "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for triggerer.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before readiness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        },
+                        "command": {
+                            "description": "Command for readinessProbe",
                             "type": [
                                 "array",
                                 "null"
@@ -4673,6 +4796,87 @@
                     "default": [],
                     "x-kubernetes-patch-merge-key": "name",
                     "x-kubernetes-patch-strategy": "merge"
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration for migrate database job container.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        
+                        "exec": {
+                            "description": "Exec specifies the action to take to determine container liveness",
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for migrate database job container.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "exec": {
+                            "description": "Exec specifies the action to take to determine container readiness",
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before readiness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        }
+                    }
                 }
             }
         },
@@ -5472,6 +5676,30 @@
                             "description": "Webserver Liveness probe scheme.",
                             "type": "string",
                             "default": "HTTP"
+                        },
+                        "httpGet": {
+                            "description": "HTTP Get liveness probe configuration",
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                },
+                                "port": {
+                                    "type": ["integer", "string"]
+                                },
+                                "httpHeaders": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {"type": "string"},
+                                            "value": {"type": "string"}
+                                        },
+                                        "required": ["name", "value"]
+                                    }
+                                }
+                            },
+                            "required": ["path", "port"]
                         }
                     }
                 },
@@ -5504,6 +5732,30 @@
                             "description": "Webserver Readiness probe scheme.",
                             "type": "string",
                             "default": "HTTP"
+                        },
+                        "httpGet": {
+                            "description": "HTTP Get readiness probe configuration",
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                },
+                                "port": {
+                                    "type": ["integer", "string"]
+                                },
+                                "httpHeaders": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {"type": "string"},
+                                            "value": {"type": "string"}
+                                        },
+                                        "required": ["name", "value"]
+                                    }
+                                }
+                            },
+                            "required": ["path", "port"]
                         }
                     }
                 },
@@ -7973,6 +8225,86 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for Redis.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "command": {
+                            "description": "Command for readinessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Redis Readiness probe initial delay.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Redis Readiness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Redis Readiness probe failure threshold.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "Redis Readiness probe period seconds.",
+                            "type": "integer",
+                            "default": 60
+                        }
+                    }
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration for Redis.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Redis Liveness probe initial delay.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Redis Liveness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Redis Liveness probe failure threshold.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "Redis Liveness probe period seconds.",
+                            "type": "integer",
+                            "default": 60
+                        }
+                    }
                 }
             }
         },
@@ -8467,6 +8799,112 @@
                         "additionalProperties": false
                     }
                 },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration for cleanup container.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "exec": {
+                            "description": "Exec specifies the action to take to determine container liveness",
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe (deprecated, use exec.command instead)",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for cleanup container.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "exec": {
+                            "description": "Exec specifies the action to take to determine container readiness",
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "command": {
+                            "description": "Command for readinessProbe (deprecated, use exec.command instead)",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before readiness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        }
+                    }
+                },
                 "failedJobsHistoryLimit": {
                     "description": "The failed jobs history limit specifies the number of failed jobs to retain.",
                     "type": [
@@ -8835,6 +9273,76 @@
                                 "<host1>,<ip1> <key1>\n<host2>,<ip2> <key2>",
                                 "<host1>,<ip1> <key1>"
                             ]
+                        },
+                        "livenessProbe": {
+                            "description": "Liveness probe configuration for git-sync container.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": false,
+                            "properties": {
+                                "initialDelaySeconds": {
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "timeoutSeconds": {
+                                    "type": "integer",
+                                    "default": 20
+                                },
+                                "failureThreshold": {
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "periodSeconds": {
+                                    "type": "integer",
+                                    "default": 60
+                                },
+                                "exec": {
+                                    "type": "object",
+                                    "properties": {
+                                        "command": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "readinessProbe": {
+                            "description": "Readiness probe configuration for git-sync container.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": false,
+                            "properties": {
+                                "initialDelaySeconds": {
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "timeoutSeconds": {
+                                    "type": "integer",
+                                    "default": 20
+                                },
+                                "failureThreshold": {
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "periodSeconds": {
+                                    "type": "integer",
+                                    "default": 60
+                                },
+                                "exec": {
+                                    "type": "object",
+                                    "properties": {
+                                        "command": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         },
                         "env": {
                             "description": "Environment variables for git sync container.",
@@ -12217,6 +12725,88 @@
                                     }
                                 }
                             ]
+                        }
+                    }
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration for log groomer sidecar container.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "exec": {
+                            "description": "Exec specifies the action to take.",
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "description": "Command is the command line to execute inside the container, the working directory for the command is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for log groomer sidecar container.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "exec": {
+                            "description": "Exec specifies the action to take.",
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "description": "Command is the command line to execute inside the container, the working directory for the command is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before readiness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
                         }
                     }
                 }
