@@ -347,6 +347,16 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "cookie_samesite"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "audit_view_included_events"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "audit_view_excluded_events"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "instance_name"),
+        renamed_to=ConfigParameter("api", "instance_name"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "update_fab_perms"),
         renamed_to=ConfigParameter("fab", "update_fab_perms"),
     ),
@@ -411,6 +421,10 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("api", "base_url"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "secret_key"),
+        renamed_to=ConfigParameter("api", "secret_key"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
         renamed_to=ConfigParameter("api", "host"),
     ),
@@ -441,6 +455,10 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "grid_view_sorting_order"),
         renamed_to=ConfigParameter("api", "grid_view_sorting_order"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "enable_swagger_ui"),
+        renamed_to=ConfigParameter("api", "enable_swagger_ui"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "error_logfile"),

@@ -71,7 +71,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -91,7 +91,7 @@ DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not insta
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_0_1:
     from airflow.exceptions import DownstreamTasksSkipped
 
 
@@ -406,7 +406,7 @@ class TestBranchOperator(BasePythonTest):
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as dts:
                 branch_op.run(start_date=self.default_date, end_date=self.default_date)
             assert dts.value.tasks == [("branch_2", -1)]
@@ -445,7 +445,7 @@ class TestBranchOperator(BasePythonTest):
             branch_op >> self.branch_2
 
         dr = self.create_dag_run()
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as dts:
                 branch_op.run(start_date=self.default_date, end_date=self.default_date)
             assert dts.value.tasks == [("branch_1", -1)]
@@ -470,7 +470,7 @@ class TestBranchOperator(BasePythonTest):
             branch_op >> branches
 
         dr = dag_maker.create_dagrun()
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with create_session() as session:
@@ -503,7 +503,10 @@ class TestBranchOperator(BasePythonTest):
             tis = dr.get_task_instances()
             children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
             with create_session() as session:
-                clear_task_instances(children_tis, session=session, dag=branch_op.dag)
+                if AIRFLOW_V_3_0_PLUS:
+                    clear_task_instances(children_tis, session=session)
+                else:
+                    clear_task_instances(children_tis, session=session, dag=branch_op.dag)
 
             # Run the cleared tasks again.
             for task in branches:
@@ -563,7 +566,7 @@ class TestBranchOperator(BasePythonTest):
         for task_id in task_ids:  # Mimic the specific order the scheduling would run the tests.
             task_instance = tis[task_id]
             task_instance.refresh_from_task(self.dag_non_serialized.get_task(task_id))
-            if AIRFLOW_V_3_0_PLUS:
+            if AIRFLOW_V_3_0_1:
                 from airflow.exceptions import DownstreamTasksSkipped
 
                 try:
@@ -721,7 +724,7 @@ class TestShortCircuitOperator(BasePythonTest):
             self.op2.trigger_rule = test_trigger_rule
 
         dr = self.create_dag_run()
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             if expected_skipped_tasks:
@@ -752,7 +755,7 @@ class TestShortCircuitOperator(BasePythonTest):
             short_circuit >> self.op1 >> self.op2
         dr = self.create_dag_run()
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with create_session() as session:
@@ -787,9 +790,12 @@ class TestShortCircuitOperator(BasePythonTest):
             # Clear downstream task "op1" that was previously executed.
             tis = dr.get_task_instances()
             with create_session() as session:
-                clear_task_instances(
-                    [ti for ti in tis if ti.task_id == "op1"], session=session, dag=short_circuit.dag
-                )
+                if AIRFLOW_V_3_0_PLUS:
+                    clear_task_instances([ti for ti in tis if ti.task_id == "op1"], session=session)
+                else:
+                    clear_task_instances(
+                        [ti for ti in tis if ti.task_id == "op1"], session=session, dag=short_circuit.dag
+                    )
             self.op1.run(start_date=self.default_date, end_date=self.default_date)
             self.assert_expected_task_states(dr, expected_states)
 
@@ -819,7 +825,7 @@ class TestShortCircuitOperator(BasePythonTest):
             empty_task = EmptyOperator(task_id="empty_task")
             short_op_push_xcom >> empty_task
         dr = self.create_dag_run()
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped):
@@ -1372,7 +1378,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             params,
             run_id,
             task_instance_key_str,
-            test_mode,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
@@ -1408,7 +1413,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             outlets,
             run_id,
             task_instance_key_str,
-            test_mode,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
@@ -1440,7 +1444,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             outlets,
             run_id,
             task_instance_key_str,
-            test_mode,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
@@ -1737,7 +1740,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as dts:
                 branch_op.run(start_date=self.default_date, end_date=self.default_date)
 
@@ -1778,7 +1781,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         dr = self.create_dag_run()
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as dts:
                 branch_op.run(start_date=self.default_date, end_date=self.default_date)
 
@@ -1805,7 +1808,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         dr = self.create_dag_run()
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with create_session() as session:
@@ -1840,7 +1843,10 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             tis = dr.get_task_instances()
             children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
             with create_session() as session:
-                clear_task_instances(children_tis, session=session, dag=branch_op.dag)
+                if AIRFLOW_V_3_0_PLUS:
+                    clear_task_instances(children_tis, session=session)
+                else:
+                    clear_task_instances(children_tis, session=session, dag=branch_op.dag)
 
             # Run the cleared tasks again.
             for task in branches:
@@ -2009,7 +2015,7 @@ class TestCurrentContextRuntime:
     def test_context_in_task(self):
         with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
             op = MyContextAssertOperator(task_id="assert_context")
-            if AIRFLOW_V_3_0_PLUS:
+            if AIRFLOW_V_3_0_1:
                 with pytest.warns(AirflowProviderDeprecationWarning):
                     op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
             else:
@@ -2018,7 +2024,7 @@ class TestCurrentContextRuntime:
     def test_get_context_in_old_style_context_task(self):
         with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
-            if AIRFLOW_V_3_0_PLUS:
+            if AIRFLOW_V_3_0_1:
                 with pytest.warns(AirflowProviderDeprecationWarning):
                     op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
             else:

@@ -56,7 +56,7 @@ def create_app(enable_plugins: bool):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
     flask_app = Flask(__name__)
-    flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
+    flask_app.secret_key = conf.get("api", "SECRET_KEY")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())

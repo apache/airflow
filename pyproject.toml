@@ -380,7 +380,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -493,6 +493,9 @@ packages = []
 "apache-webhdfs" = [
     "apache-airflow-providers-apache-hdfs",
 ]
+"amazon-aws-auth" = [
+   "apache-airflow-providers-amazon[python3-saml]",
+]
 "cloudpickle" = [
     "cloudpickle>=2.2.1",
 ]
@@ -522,7 +525,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.7.3",
+    "uv>=0.7.7",
 ]
 
 
@@ -845,7 +848,7 @@ fixture-parentheses = false
 ## pytest settings ##
 [tool.pytest.ini_options]
 addopts = [
-    "--tb=short",
+    "--tb=no",
     "-rasl",
     "--verbosity=2",
     # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
