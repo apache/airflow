@@ -190,54 +190,27 @@ if not _parse_timestamp:
 
 def _stream_lines_by_chunk(
     log_io: IO[str],
-    last_end_log_pos: int = 0,
-    current_end_log_pos: int = -1,
 ) -> RawLogStream:
     """
-    Stream lines from a file-like IO object within a specified byte range.
-
-    Reads the content between the provided start (`last_end_log_pos`) and end
-    (`current_end_log_pos`) positions to avoid reading newly appended logs outside
-    the intended snapshot.
-
-    .. note::
-        Since logs can be written to concurrently (e.g. for local file cases), specifying both start and end positions
-        ensures a consistent, snapshot-like view of the log content.
+    Stream lines from a file-like IO object.
 
     :param log_io: A file-like IO object to read from.
-    :param last_end_log_pos: The byte offset to start reading from.
-    :param current_end_log_pos: The byte offset to stop reading at (exclusive).
-                                If negative, reads until EOF.
     :return: A generator that yields individual lines within the specified range.
     """
-    log_io.seek(last_end_log_pos, 0)
-
-    if current_end_log_pos < 0:
-        bytes_left = None
-    else:
-        bytes_left = current_end_log_pos - last_end_log_pos
-        if bytes_left <= 0:
-            return
+    log_io.seek(0)
 
     buffer = ""
     while True:
-        chunk_size = CHUNK_SIZE if bytes_left is None else min(CHUNK_SIZE, bytes_left)
-        chunk = log_io.read(chunk_size)
+        chunk = log_io.read(CHUNK_SIZE)
         if not chunk:
             break
-
-        if bytes_left is not None:
-            bytes_left -= len(chunk)
 
         buffer += chunk
         *lines, buffer = buffer.split("\n")
         yield from lines
 
-        if bytes_left == 0:
-            break
-
     if buffer:
-        yield buffer
+        yield from buffer.split("\n")
 
 
 def _log_stream_to_parsed_log_stream(
@@ -882,7 +855,7 @@ class FileTaskHandler(logging.Handler):
         worker_log_rel_path: str,
     ) -> LogResponse:
         sources: LogSourceInfo = []
-        parsed_log_streams: list[RawLogStream] = []
+        log_streams: list[RawLogStream] = []
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
@@ -901,7 +874,7 @@ class FileTaskHandler(logging.Handler):
                 response.raise_for_status()
                 if int(response.headers.get("Content-Length", 0)) > 0:
                     sources.append(url)
-                    parsed_log_streams.append(_stream_lines_by_chunk(io.TextIOWrapper(response.raw)))
+                    log_streams.append(_stream_lines_by_chunk(io.TextIOWrapper(response.raw)))
         except Exception as e:
             from requests.exceptions import InvalidURL
 
@@ -914,7 +887,7 @@ class FileTaskHandler(logging.Handler):
             else:
                 sources.append(f"Could not read served logs: {e}")
                 logger.exception("Could not read served logs")
-        return sources, parsed_log_streams
+        return sources, log_streams
 
     def _read_remote_logs(self, ti, try_number, metadata=None) -> LegacyLogResponse | LogResponse:
         """

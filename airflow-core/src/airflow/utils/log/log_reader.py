@@ -77,10 +77,6 @@ class TaskLogReader:
         """
         Continuously read log to the end.
 
-        .. note::
-            We don't use `log_pos` anymore, we use `{identifier}_last_log_pos` in the metadata dict to keep track of
-            the last log position of each log source instead.
-
         :param ti: The Task Instance
         :param try_number: the task try number
         :param metadata: A dictionary containing information about how to read the task log
@@ -96,20 +92,26 @@ class TaskLogReader:
             log_stream, out_metadata = self.read_log_chunks(ti, try_number, metadata)
             # Update the metadata dict in place so caller can get new values/end-of-log etc.
 
-            # Don't yield per line, instead yield in batch to speed up the response time
-            # By reading in batch can speed up from less than 1MB/s to more than 10MB/s
-            buffer: list[str] = []
-            counter = 0
-            for log in log_stream:
-                buffer.append(log.model_dump_json() + "\n")
-                counter += 1
-                if counter >= READ_BATCH_SIZE:
+            # Only specify the download_logs will enable buffered read
+            if metadata.get("download_logs"):
+                # Don't yield per line, instead yield in batch to speed up the response time
+                # By reading in batch can speed up from less than 1MB/s to more than 10MB/s
+                buffer: list[str] = []
+                counter = 0
+                for log in log_stream:
+                    buffer.append(log.model_dump_json() + "\n")
+                    counter += 1
+                    if counter >= READ_BATCH_SIZE:
+                        yield from buffer
+                        buffer.clear()
+                        counter = 0
+                if buffer:
                     yield from buffer
                     buffer.clear()
-                    counter = 0
-            if buffer:
-                yield from buffer
-                buffer.clear()
+            else:
+                # If not download_logs, yield each log line
+                for log in log_stream:
+                    yield log.model_dump_json() + "\n"
 
             if not out_metadata.get("end_of_log", False) and ti.state not in (
                 TaskInstanceState.RUNNING,
