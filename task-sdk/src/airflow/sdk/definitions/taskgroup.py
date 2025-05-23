@@ -40,7 +40,7 @@ from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
-    from airflow.models.expandinput import ExpandInput
+    from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.mixins import DependencyMixin
@@ -613,7 +613,7 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
-    def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
+    def __init__(self, *, expand_input: SchedulerExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
 
