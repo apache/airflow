@@ -26,6 +26,8 @@ import pytest
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -97,19 +99,22 @@ class TestCore:
             schedule=timedelta(weeks=1),
             params={"key_1": "value_1", "key_2": "value_2_old"},
             serialized=True,
-        ):
+        ) as dag:
             task1 = EmptyOperator(
                 task_id="task1",
                 params={"key_2": "value_2_new", "key_3": "value_3"},
             )
             task2 = EmptyOperator(task_id="task2")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
         )
         task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, run_id=dr.run_id)
-        ti2 = TI(task=task2, run_id=dr.run_id)
+        ti1 = TI(task=task1, run_id=dr.run_id, dag_version_id=dag_version.id)
+        ti2 = TI(task=task2, run_id=dr.run_id, dag_version_id=dag_version.id)
         ti1.refresh_from_db()
         ti2.refresh_from_db()
         context1 = ti1.get_template_context()
