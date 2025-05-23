@@ -90,11 +90,12 @@ LogHandlerOutputStream: TypeAlias = Union[StructuredLogStream, chain["Structured
 ParsedLog: TypeAlias = tuple[Optional[datetime], int, "StructuredLogMessage"]
 """Parsed log record, containing timestamp, line_num and the structured log message."""
 ParsedLogStream: TypeAlias = Generator[ParsedLog, None, None]
-LegacyProvidersLogType: TypeAlias = Union[list["StructuredLogMessage"], str]
+LegacyProvidersLogType: TypeAlias = Union[list["StructuredLogMessage"], str, list[str]]
 """Return type used by legacy `_read` methods for Alibaba Cloud, Elasticsearch, OpenSearch, and Redis log handlers.
 
 - For Elasticsearch and OpenSearch: returns either a list of structured log messages.
-- For Alibaba Cloud and Redis: returns a string.
+- For Alibaba Cloud: returns a string.
+- For Redis: returns a list of strings.
 """
 
 
@@ -778,7 +779,14 @@ class FileTaskHandler(logging.Handler):
             out_stream = cast("Generator[StructuredLogMessage, None, None]", out_stream)
             return out_stream, metadata
         if isinstance(out_stream, list) and isinstance(out_stream[0], StructuredLogMessage):
+            out_stream = cast("list[StructuredLogMessage]", out_stream)
             return get_compatible_output_log_stream(out_stream), metadata
+        if isinstance(out_stream, list) and isinstance(out_stream[0], str):
+            # If the out_stream is a list of strings, convert it to a generator
+            out_stream = cast("list[str]", out_stream)
+            raw_stream = _stream_lines_by_chunk(io.StringIO("".join(out_stream)))
+            out_stream = (log for _, _, log in _log_stream_to_parsed_log_stream(raw_stream))
+            return out_stream, metadata
         if isinstance(out_stream, str):
             # If the out_stream is a string, convert it to a generator
             raw_stream = _stream_lines_by_chunk(io.StringIO(out_stream))
