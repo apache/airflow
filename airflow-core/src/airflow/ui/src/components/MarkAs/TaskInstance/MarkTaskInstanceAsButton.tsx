@@ -30,12 +30,12 @@ import { allowedStates } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 
 type Props = {
-  readonly hasHotKey?: boolean;
+  readonly isHotkeyEnabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
   readonly withText?: boolean;
 };
 
-const MarkTaskInstanceAsButton = ({ hasHotKey = false, taskInstance, withText = true }: Props) => {
+const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   const [state, setState] = useState<TaskInstanceState>("success");
@@ -46,7 +46,7 @@ const MarkTaskInstanceAsButton = ({ hasHotKey = false, taskInstance, withText = 
       setState("failed");
       onOpen();
     },
-    { enabled: hasHotKey && taskInstance.state !== "failed" },
+    { enabled: isHotkeyEnabled && taskInstance.state !== "failed" },
   );
 
   useHotkeys(
@@ -55,7 +55,7 @@ const MarkTaskInstanceAsButton = ({ hasHotKey = false, taskInstance, withText = 
       setState("success");
       onOpen();
     },
-    { enabled: hasHotKey && taskInstance.state !== "success" },
+    { enabled: isHotkeyEnabled && taskInstance.state !== "success" },
   );
 
   return (
@@ -81,7 +81,7 @@ const MarkTaskInstanceAsButton = ({ hasHotKey = false, taskInstance, withText = 
               <Tooltip
                 closeDelay={100}
                 content={content}
-                disabled={!hasHotKey || taskInstance.state === menuState}
+                disabled={!isHotkeyEnabled || taskInstance.state === menuState}
                 key={menuState}
                 openDelay={100}
               >

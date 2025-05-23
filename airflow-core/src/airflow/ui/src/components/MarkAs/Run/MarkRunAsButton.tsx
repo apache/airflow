@@ -31,11 +31,11 @@ import MarkRunAsDialog from "./MarkRunAsDialog";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
-  readonly hasHotKey?: boolean;
+  readonly isHotkeyEnabled?: boolean;
   readonly withText?: boolean;
 };
 
-const MarkRunAsButton = ({ dagRun, hasHotKey = false, withText = true }: Props) => {
+const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<DAGRunPatchStates>("success");
 
@@ -45,7 +45,7 @@ const MarkRunAsButton = ({ dagRun, hasHotKey = false, withText = true }: Props) 
       setState("failed");
       onOpen();
     },
-    { enabled: hasHotKey && dagRun.state !== "failed" },
+    { enabled: isHotkeyEnabled && dagRun.state !== "failed" },
   );
 
   useHotkeys(
@@ -54,7 +54,7 @@ const MarkRunAsButton = ({ dagRun, hasHotKey = false, withText = true }: Props) 
       setState("success");
       onOpen();
     },
-    { enabled: hasHotKey && dagRun.state !== "success" },
+    { enabled: isHotkeyEnabled && dagRun.state !== "success" },
   );
 
   return (
@@ -80,7 +80,7 @@ const MarkRunAsButton = ({ dagRun, hasHotKey = false, withText = true }: Props) 
               <Tooltip
                 closeDelay={100}
                 content={content}
-                disabled={!hasHotKey || dagRun.state === menuState}
+                disabled={!isHotkeyEnabled || dagRun.state === menuState}
                 key={menuState}
                 openDelay={100}
               >

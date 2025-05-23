@@ -27,12 +27,12 @@ import ActionButton from "src/components/ui/ActionButton";
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
 type Props = {
-  readonly hasHotKey?: boolean;
+  readonly isHotkeyEnabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
   readonly withText?: boolean;
 };
 
-const ClearTaskInstanceButton = ({ hasHotKey = false, taskInstance, withText = true }: Props) => {
+const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   useHotkeys(
@@ -40,11 +40,11 @@ const ClearTaskInstanceButton = ({ hasHotKey = false, taskInstance, withText = t
     () => {
       onOpen();
     },
-    { enabled: hasHotKey },
+    { enabled: isHotkeyEnabled },
   );
 
   return (
-    <Tooltip closeDelay={100} content="Press shift+c to clear" disabled={!hasHotKey} openDelay={100}>
+    <Tooltip closeDelay={100} content="Press shift+c to clear" disabled={!isHotkeyEnabled} openDelay={100}>
       <Box>
         <ActionButton
           actionName="Clear Task Instance"

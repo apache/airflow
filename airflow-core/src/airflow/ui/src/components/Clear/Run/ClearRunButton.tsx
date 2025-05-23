@@ -28,11 +28,11 @@ import ClearRunDialog from "./ClearRunDialog";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
-  readonly hasHotKey?: boolean;
+  readonly isHotkeyEnabled?: boolean;
   readonly withText?: boolean;
 };
 
-const ClearRunButton = ({ dagRun, hasHotKey = false, withText = true }: Props) => {
+const ClearRunButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   useHotkeys(
@@ -40,11 +40,11 @@ const ClearRunButton = ({ dagRun, hasHotKey = false, withText = true }: Props) =
     () => {
       onOpen();
     },
-    { enabled: hasHotKey },
+    { enabled: isHotkeyEnabled },
   );
 
   return (
-    <Tooltip closeDelay={100} content="Press shift+c to clear" disabled={!hasHotKey} openDelay={100}>
+    <Tooltip closeDelay={100} content="Press shift+c to clear" disabled={!isHotkeyEnabled} openDelay={100}>
       <Box>
         <ActionButton
           actionName="Clear Dag Run"
