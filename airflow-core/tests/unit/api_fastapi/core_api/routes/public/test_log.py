@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import logging.config
 import sys
 from unittest import mock
@@ -233,6 +234,12 @@ class TestTaskInstancesLog:
 
         assert expected_filename in resp_content
         assert log_content in resp_content
+
+        # check content is in ndjson format
+        for line in resp_content.splitlines():
+            log = json.loads(line)
+            assert "event" in log
+            assert "timestamp" in log
 
     @pytest.mark.parametrize(
         "request_url, expected_filename, extra_query_string, try_number",
