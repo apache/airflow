@@ -1975,7 +1975,7 @@ class DagModel(Base):
     dag_versions = relationship(
         "DagVersion",
         back_populates="dag_model",
-        cascade="save-update, merge",
+        cascade="all, delete, delete-orphan",
         passive_deletes=True,
     )
 

@@ -569,7 +569,7 @@ class TaskInstance(Base, LoggingMixin):
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
     dag_version_id = Column(
         UUIDType(binary=False),
-        ForeignKey("dag_version.id"),
+        ForeignKey("dag_version.id", ondelete="CASCADE"),
         nullable=True,
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")

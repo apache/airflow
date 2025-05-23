@@ -50,6 +50,7 @@ def upgrade():
             "dag_version",
             ["dag_version_id"],
             ["id"],
+            ondelete="CASCADE",
         )
 
 
