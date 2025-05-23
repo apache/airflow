@@ -14,7 +14,7 @@
   },
   "nav": {
     "home": "Start",
-    "assets": "Datenbestände",
+    "assets": "Datensets (Assets)",
     "browse": "Browsen",
     "admin": "Verwaltung",
     "docs": "Dokumentation",
@@ -22,12 +22,12 @@
   },
   "browse": {
     "auditLog": "Prüf-Log",
-    "xcoms": "Datenwerte"
+    "xcoms": "Task Kommunikation (XComs)"
   },
   "admin": {
     "Variables": "Variablen",
     "Pools": "Pools",
-    "Providers": "Provider",
+    "Providers": "Providers",
     "Plugins": "Plug-ins",
     "Connections": "Verbindungen",
     "Config": "Konfiguration"
@@ -63,8 +63,8 @@
   "dagRun_other": "Dag Läufe",
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
-  "assetEvent_one": "Ereignis zum Datenbestand",
-  "assetEvent_other": "Ereignisse zum Datenbestand",
+  "assetEvent_one": "Ereignis zu Datensets (Asset)",
+  "assetEvent_other": "Ereignisse zu Datensets (Asset)",
   "triggered": "Angestoßen",
   "pools": {
     "open": "Frei",

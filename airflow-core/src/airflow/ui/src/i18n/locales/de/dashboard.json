@@ -20,8 +20,8 @@
   },
   "importErrors": {
     "searchByFile": "Nach Datei suchen",
-    "dagImportError_one": "Fehler beim Laden des Dag",
-    "dagImportError_other": "Fehler beim Laden des Dags",
+    "dagImportError_one": "Fehler beim Laden des Dags",
+    "dagImportError_other": "Fehler beim Laden der Dags",
     "timestamp": "Zeitstempel"
   },
   "poolSlots": "Pool Belegung",
@@ -34,5 +34,5 @@
   "source": "Quellcode",
   "group": "Gruppe",
   "uri": "Uri",
-  "noAssetEvents": "Keine Ereignisse zu Datenbeständen vorliegend."
+  "noAssetEvents": "Keine Ereignisse zu Datensets vorliegend."
 }
