@@ -81,6 +81,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
     RESOURCE_JOB,
+    RESOURCE_METADATA_DB,
     RESOURCE_PLUGIN,
     RESOURCE_POOL,
     RESOURCE_PROVIDER,
@@ -398,6 +399,9 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
+
+    def is_authorized_db(self, *, method: ResourceMethod, user: User) -> bool:
+        return self._is_authorized(method=method, resource_type=RESOURCE_METADATA_DB, user=user)
 
     def filter_authorized_menu_items(self, menu_items: list[MenuItem], user: User) -> list[MenuItem]:
         return [

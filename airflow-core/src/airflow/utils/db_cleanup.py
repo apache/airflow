@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import and_, column, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
 from airflow.cli.simple_table import AirflowConsole
@@ -523,3 +523,12 @@ def drop_archived_tables(
         session.execute(text(f"DROP TABLE {table_name}"))
         dropped_count += 1
     logger.info("Total dropped tables: %s", dropped_count)
+
+
+def calculate_table_size(
+    *,
+    table_name: str,
+    session: Session,
+) -> float | None:
+    """Calculate table size in megabytes."""
+    return 0

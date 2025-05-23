@@ -23,6 +23,7 @@ import {
   ImportErrorService,
   JobService,
   LoginService,
+  MaintenanceService,
   MonitorService,
   PluginService,
   PoolService,
@@ -2235,6 +2236,31 @@ export const prefetchUseDagVersionServiceGetDagVersions = (
         orderBy,
         versionNumber,
       }),
+  });
+/**
+ * Get Db Stats
+ * @param data The data for the request.
+ * @param data.tables List of tables to include
+ * @param data.skipRecordCount Skip record count
+ * @param data.skipSize Skip calculating table size
+ * @returns MetadataDBStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseMaintenanceServiceGetDbStats = (
+  queryClient: QueryClient,
+  {
+    skipRecordCount,
+    skipSize,
+    tables,
+  }: {
+    skipRecordCount?: boolean;
+    skipSize?: boolean;
+    tables?: string[];
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ skipRecordCount, skipSize, tables }),
+    queryFn: () => MaintenanceService.getDbStats({ skipRecordCount, skipSize, tables }),
   });
 /**
  * Get Health

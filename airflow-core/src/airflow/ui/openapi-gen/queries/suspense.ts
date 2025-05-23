@@ -23,6 +23,7 @@ import {
   ImportErrorService,
   JobService,
   LoginService,
+  MaintenanceService,
   MonitorService,
   PluginService,
   PoolService,
@@ -2638,6 +2639,37 @@ export const useDagVersionServiceGetDagVersionsSuspense = <
         orderBy,
         versionNumber,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Db Stats
+ * @param data The data for the request.
+ * @param data.tables List of tables to include
+ * @param data.skipRecordCount Skip record count
+ * @param data.skipSize Skip calculating table size
+ * @returns MetadataDBStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const useMaintenanceServiceGetDbStatsSuspense = <
+  TData = Common.MaintenanceServiceGetDbStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    skipRecordCount,
+    skipSize,
+    tables,
+  }: {
+    skipRecordCount?: boolean;
+    skipSize?: boolean;
+    tables?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseMaintenanceServiceGetDbStatsKeyFn({ skipRecordCount, skipSize, tables }, queryKey),
+    queryFn: () => MaintenanceService.getDbStats({ skipRecordCount, skipSize, tables }) as TData,
     ...options,
   });
 /**

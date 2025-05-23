@@ -714,3 +714,8 @@ state_priority: list[None | TaskInstanceState] = [
 QueryConnectionIdPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(Connection.conn_id, "connection_id_pattern"))
 ]
+
+# DB stats
+QueryTablesFilter = Annotated[list[str], Query(default_factory=list, description="List of tables to include")]
+QuerySkipRecordCount = Annotated[bool, Query(description="Skip record count")]
+QuerySkipTableSize = Annotated[bool, Query(description="Skip calculating table size")]
