@@ -25,6 +25,8 @@ import pytest
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.timezone import datetime
@@ -100,12 +102,13 @@ class TestCore:
             schedule=timedelta(weeks=1),
             params={"key_1": "value_1", "key_2": "value_2_old"},
             serialized=True,
-        ):
+        ) as dag:
             task1 = EmptyOperator(
                 task_id="task1",
                 params={"key_2": "value_2_new", "key_3": "value_3"},
             )
             task2 = EmptyOperator(task_id="task2")
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
         )
