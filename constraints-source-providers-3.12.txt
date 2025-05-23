@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-22T19:50:13.984103
+# This constraints file was automatically generated on 2025-05-23T02:24:50.836240
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -218,7 +218,7 @@ gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
 google-api-core==2.24.2
-google-api-python-client==2.169.0
+google-api-python-client==2.170.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.2
@@ -231,7 +231,7 @@ google-cloud-batch==0.17.35
 google-cloud-bigquery-datatransfer==3.19.1
 google-cloud-bigquery-storage==2.31.0
 google-cloud-bigquery==3.33.0
-google-cloud-bigtable==2.30.1
+google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
 google-cloud-container==2.56.1
@@ -406,7 +406,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.81.0
+openai==1.82.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 opencensus-context==0.1.3
@@ -482,7 +482,7 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.23.0
-pydantic==2.11.4
+pydantic==2.11.5
 pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydot==1.4.2
@@ -668,7 +668,7 @@ uritemplate==4.1.1
 urllib3==2.4.0
 userpath==1.9.2
 uuid6==2024.7.10
-uv==0.7.6
+uv==0.7.7
 uvicorn==0.34.2
 uvloop==0.21.0
 validators==0.34.0
