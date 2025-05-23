@@ -402,6 +402,34 @@ spec:
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 12 }}
           {{- end }}
           args: ["kerberos"]
+          {{- if hasKey .Values.workers.kerberosSidecar "livenessProbe" }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.workers.kerberosSidecar.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.workers.kerberosSidecar.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.workers.kerberosSidecar.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.workers.kerberosSidecar.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if hasKey .Values.workers.kerberosSidecar.livenessProbe "command" }}
+                  {{- toYaml .Values.workers.kerberosSidecar.livenessProbe.command | nindent 16 }}
+                {{- else }}
+                - /bin/true
+                {{- end }}
+          {{- end }}
+          {{- if hasKey .Values.workers.kerberosSidecar "readinessProbe" }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.workers.kerberosSidecar.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.workers.kerberosSidecar.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.workers.kerberosSidecar.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.workers.kerberosSidecar.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if hasKey .Values.workers.kerberosSidecar.readinessProbe "command" }}
+                  {{- toYaml .Values.workers.kerberosSidecar.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                - /bin/true
+                {{- end }}
+          {{- end }}
           resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 12 }}
           volumeMounts:
             - name: logs
