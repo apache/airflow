@@ -25,7 +25,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.providers.standard.sensors.time import TimeSensor, TimeSensorAsync
+from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
@@ -71,20 +71,21 @@ with DAG(
         soft_fail=True,
         target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
-    # [END example_time_sensors]
 
-    # [START example_time_sensors_async]
-    t1a = TimeSensorAsync(
-        task_id="fire_immediately_async", target_time=datetime.datetime.now(tz=datetime.timezone.utc).time()
+    t1a = TimeSensor(
+        task_id="fire_immediately_async",
+        target_time=datetime.datetime.now(tz=datetime.timezone.utc).time(),
+        deferrable=True,
     )
 
-    t2a = TimeSensorAsync(
+    t2a = TimeSensor(
         task_id="timeout_after_second_date_in_the_future_async",
         timeout=1,
         soft_fail=True,
         target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
+        deferrable=True,
     )
-    # [END example_time_sensors_async]
+    # [END example_time_sensors]
 
     # [START example_bash_sensors]
     t3 = BashSensor(task_id="Sensor_succeeds", bash_command="exit 0")
