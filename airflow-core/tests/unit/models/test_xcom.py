@@ -82,7 +82,7 @@ def task_instance_factory(request, session: Session):
         )
         session.add(run)
         session.flush()
-        dag_version = DagVersion.get_latest_version(run.dag_id)
+        dag_version = DagVersion.get_latest_version(run.dag_id, session=session)
         ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
         ti.dag_id = dag_id
         session.add(ti)
@@ -329,6 +329,7 @@ class TestXComGet:
 
     def test_xcom_get_many_from_prior_dates(self, session, tis_for_xcom_get_many_from_prior_dates):
         ti1, ti2 = tis_for_xcom_get_many_from_prior_dates
+        session.add(ti1)  # for some reason, ti1 goes out of the session scope
         stored_xcoms = XComModel.get_many(
             run_id=ti2.run_id,
             key="xcom_1",

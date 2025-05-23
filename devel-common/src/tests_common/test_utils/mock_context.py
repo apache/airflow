@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 
 from airflow.utils.context import Context
 
@@ -40,8 +41,11 @@ def mock_context(task) -> Context:
             run_id: str | None = "run_id",
             state: str | None = TaskInstanceState.RUNNING,
             map_index: int = -1,
+            dag_version_id=mock.MagicMock(),
         ):
-            super().__init__(task=task, run_id=run_id, state=state, map_index=map_index)
+            super().__init__(
+                task=task, run_id=run_id, state=state, map_index=map_index, dag_version_id=dag_version_id
+            )
             self.values: dict[str, Any] = {}
 
         def xcom_pull(
