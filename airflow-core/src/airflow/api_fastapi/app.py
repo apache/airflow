@@ -167,9 +167,10 @@ def get_auth_manager() -> BaseAuthManager:
 
 
 def init_plugins(app: FastAPI) -> None:
-    """Integrate FastAPI app and middleware plugins."""
+    """Integrate FastAPI app, middlewares and UI plugins."""
     from airflow import plugins_manager
 
+    plugins_manager.initialize_fastapi_plugins()
     plugins_manager.initialize_fastapi_plugins()
 
     # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.
@@ -187,6 +188,7 @@ def init_plugins(app: FastAPI) -> None:
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
 
+    # After calling initialize_fastapi_plugins, fastapi_root_middlewares cannot be None anymore.
     for middleware_dict in cast("list", plugins_manager.fastapi_root_middlewares):
         name = middleware_dict.get("name")
         middleware = middleware_dict.get("middleware")
