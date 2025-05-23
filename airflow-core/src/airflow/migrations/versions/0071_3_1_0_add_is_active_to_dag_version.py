@@ -48,8 +48,6 @@ def upgrade():
             comment="Soft-delete flag; only active versions show up in APIs",
         ),
     )
-    # Backfill existing rows to active
-    op.execute("UPDATE dag_version SET is_active = True")
 
 
 def downgrade():
