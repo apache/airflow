@@ -99,7 +99,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             aws_conn_id=conf.get("logging", "remote_log_conn_id"), region_name=self.region_name
         )
 
-    @cached_property
+    @property
     def handler(self) -> watchtower.CloudWatchLogHandler:
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         return watchtower.CloudWatchLogHandler(
@@ -127,8 +127,8 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 return event
             # Only init the handler stream_name once. We cannot do it above when we init the handler because
             # we don't yet know the log path at that point.
-            if not _handler.log_stream_name:
-                _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            # we should always use the path(log-stream-name) coming from the logger.
+            _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
