@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-23T02:24:50.836240
+# This constraints file was automatically generated on 2025-05-23T07:49:31.662261
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -473,7 +473,7 @@ pure-sasl==0.6.2
 pure_eval==0.2.3
 py-partiql-parser==0.6.1
 py-spy==0.4.0
-py4j==0.10.9.7
+py4j==0.10.9.9
 pyOpenSSL==25.1.0
 pyarrow-hotfix==0.7
 pyarrow==16.1.0
@@ -497,7 +497,7 @@ pymssql==2.3.4
 pyodbc==5.2.0
 pyparsing==3.2.3
 pypsrp==0.8.1
-pyspark==3.5.5
+pyspark==4.0.0
 pyspnego==0.11.2
 pytest-asyncio==0.25.0
 pytest-cov==6.1.1
@@ -643,9 +643,9 @@ types-PyMySQL==1.1.0.20250516
 types-PyYAML==6.0.12.20250516
 types-aiofiles==24.1.0.20250516
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20250516
+types-cffi==1.17.0.20250523
 types-croniter==6.0.0.20250411
-types-docutils==0.21.0.20250516
+types-docutils==0.21.0.20250523
 types-paramiko==3.5.0.20250516
 types-protobuf==6.30.2.20250516
 types-pyOpenSSL==24.1.0.20240722
