@@ -176,5 +176,5 @@ auth_generated.py
 www-hash.txt
 
 # go setup files
-go-sdk/go.mod
-go-sdk/go.sum
+go.mod
+go.sum
