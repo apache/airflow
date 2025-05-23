@@ -33,7 +33,7 @@ class BaseDeadlineReference(LoggingMixin, ABC):
 
     def evaluate_with(self, **kwargs: Any) -> datetime:
         """Validate the provided kwargs and evaluate this deadline with the given conditions."""
-        filtered_kwargs = {k: kwargs[k] for k in self.required_kwargs if k in kwargs}
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
         if missing_kwargs := self.required_kwargs - filtered_kwargs.keys():
             raise ValueError(
