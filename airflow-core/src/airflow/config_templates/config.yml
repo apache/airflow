@@ -1547,6 +1547,15 @@ workers:
       type: float
       example: ~
       default: "90.0"
+    socket_cleanup_timeout:
+      description: |
+        Seconds to wait after a task process exits before forcibly closing any
+        remaining communication sockets. Missed EOF events can otherwise leave
+        the task supervisor running indefinitely.
+      version_added: 3.0.2
+      type: float
+      example: ~
+      default: "60.0"
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
