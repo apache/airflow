@@ -236,6 +236,23 @@ class TestRedis:
 
         self.assert_broker_url_env(k8s_obj_by_key)
 
+    def test_should_add_annotations_to_redis_broker_url_secret(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "networkPolicies": {"enabled": True},
+                "data": {
+                    "brokerUrl": "redis://redis-user:password@redis-host:6379/0",
+                    "brokerUrlSecretAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+                "redis": {"enabled": False},
+            },
+            show_only=["templates/secrets/redis-secrets.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
     @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
     def test_external_redis_broker_url_secret_name(self, executor):
         expected_broker_url_secret_name = "redis-broker-url-secret-name"
@@ -369,6 +386,22 @@ class TestRedis:
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert annotations["helm.sh/hook-weight"] == "0"
+
+    def test_should_add_annotations_to_redis_password_secret(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "redis": {
+                    "enabled": True,
+                    "password": "password",
+                    "passwordSecretAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/secrets/redis-secrets.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
 
     def test_persistence_volume_annotations(self):
         docs = render_chart(

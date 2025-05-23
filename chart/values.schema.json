@@ -1336,6 +1336,14 @@
                             "description": "The database SSL parameter.",
                             "type": "string",
                             "default": "disable"
+                        },
+                        "secretAnnotations": {
+                            "description": "Annotations to add to the metadata connection secret.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -1397,6 +1405,14 @@
                         "sslmode"
                     ]
                 },
+                "resultBackendConnectionSecretAnnotations": {
+                    "description": "Annotations to add to the result backend connection secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "brokerUrl": {
                     "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
                     "type": [
@@ -1405,6 +1421,14 @@
                     ],
                     "x-docsSection": "Redis",
                     "default": null
+                },
+                "brokerUrlSecretAnnotations": {
+                    "description": "Annotations to add to the broker url secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1426,6 +1450,15 @@
             "x-docsSection": "Airflow",
             "default": null
         },
+        "fernetKeySecretAnnotations": {
+            "description": "Annotations to add to the Fernet Key secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
             "type": [
@@ -1434,6 +1467,15 @@
             ],
             "x-docsSection": "Common",
             "default": null
+        },
+        "webserverSecretAnnotations": {
+            "description": "Annotations to add to the webserver secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
         },
         "webserverSecretKeySecretName": {
             "description": "The Secret name containing Flask secret_key for the Webserver.",
@@ -6403,6 +6445,14 @@
                     ],
                     "default": null
                 },
+                "secretAnnotations": {
+                    "description": "Annotations to add to the flower secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "username": {
                     "description": "Username use to access Flower.",
                     "type": [
@@ -7101,6 +7151,14 @@
                         "type": "string"
                     }
                 },
+                "certificatesSecretAnnotations": {
+                    "description": "Annotations to add to the PgBouncer certificates secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "replicas": {
                     "description": "Number of PgBouncer replicas to run in Deployment.",
                     "type": "integer",
@@ -7179,6 +7237,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "configSecretAnnotations": {
+                    "description": "Annotations to add to the PgBouncer config secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "podAnnotations": {
                     "description": "Add annotations for the PgBouncer Pod.",
@@ -7579,6 +7645,14 @@
                             ],
                             "default": null
                         },
+                        "statsSecretAnnotations": {
+                            "description": "Annotations to add to the PgBouncer stats secret.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
                         "sslmode": {
                             "description": "SSL mode for ``metricsExporterSidecar``",
                             "type": "string",
@@ -7828,6 +7902,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "passwordSecretAnnotations": {
+                    "description": "Annotations to add to the redis password secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
@@ -8079,6 +8161,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "secretAnnotations": {
+                    "description": "Extra annotations to apply to the elasticsearch secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "connection": {
                     "description": "Elasticsearch connection configuration.",

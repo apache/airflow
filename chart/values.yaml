@@ -523,8 +523,12 @@ data:
     port: 5432
     db: postgres
     sslmode: disable
+    # Add custom annotations to the metadata connection secret
+    secretAnnotations: {}
   # resultBackendConnection defaults to the same database as metadataConnection
   resultBackendConnection: ~
+  # Add custom annotations to the result backend connection secret
+  resultBackendConnectionSecretAnnotations: {}
   # or, you can use a different database
   # resultBackendConnection:
   #   user: postgres
@@ -536,14 +540,20 @@ data:
   #   sslmode: disable
   # Note: brokerUrl can only be set during install, not upgrade
   brokerUrl: ~
+  # Add custom annotations to the broker url secret
+  brokerUrlSecretAnnotations: {}
 
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
 fernetKeySecretName: ~
+# Add custom annotations to the fernet key secret
+fernetKeySecretAnnotations: {}
 
 # Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
+# Add custom annotations to the webserver secret
+webserverSecretAnnotations: {}
 webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -2138,6 +2148,8 @@ flower:
 
   # A secret containing the connection
   secretName: ~
+  # Add custom annotations to the flower secret
+  secretAnnotations: {}
 
   # Else, if username and password are set, create secret from username and password
   username: ~
@@ -2302,6 +2314,9 @@ pgbouncer:
 
   podAnnotations: {}
 
+  # Add custom annotations to the pgbouncer certificates secret
+  certificatesSecretAnnotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2340,6 +2355,8 @@ pgbouncer:
   #  configSecretName: pgbouncer-config-secret
   #
   configSecretName: ~
+  # Add custom annotations to the pgbouncer config secret
+  configSecretAnnotations: {}
 
   # PgBouncer pod disruption budget
   podDisruptionBudget:
@@ -2460,6 +2477,8 @@ pgbouncer:
 
     # Key containing the PGBouncer connection URI, defaults to `connection` if not defined
     statsSecretKey: ~
+    # Add custom annotations to the pgbouncer stats secret
+    statsSecretAnnotations: {}
 
     # Detailed default security context for metricsExporterSidecar for container level
     securityContexts:
@@ -2553,6 +2572,9 @@ redis:
   # Note: password can only be set during install, not upgrade.
   password: ~
 
+  # Add custom annotations to the redis password secret
+  passwordSecretAnnotations: {}
+
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
@@ -2599,6 +2621,8 @@ elasticsearch:
   enabled: false
   # A secret containing the connection
   secretName: ~
+  # Add custom annotations to the elasticsearch secret
+  secretAnnotations: {}
   # Or an object representing the connection
   # Example:
   # connection:
