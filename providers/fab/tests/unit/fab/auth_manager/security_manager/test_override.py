@@ -75,3 +75,22 @@ class TestFabAirflowSecurityManagerOverride:
         sm.find_user = Mock(return_value=mock_user)
         check_password.return_value = False
         assert not sm.check_password("test_user", "test_password")
+
+    def test_get_oauth_user_info(self):
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {}
+
+        # for unknown providers
+        mock_resp = {"preferred_username": "test", "email": "test@example.com"}
+        sm.oauth_remotes["other"] = Mock(userinfo=Mock(return_value=mock_resp))
+        assert sm.get_oauth_user_info("other", {}) == {
+            "username": "test",
+            "first_name": "",
+            "last_name": "",
+            "email": "test@example.com",
+            "role_keys": [],
+        }
+
+        mock_resp = {"error": "access_denied", "error_description": "Invalid bearer token."}
+        sm.oauth_remotes["error"] = Mock(userinfo=Mock(return_value=mock_resp))
+        assert sm.get_oauth_user_info("error", {}) == {}
