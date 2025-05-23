@@ -21,9 +21,10 @@ import pytest
 from pendulum import datetime
 
 from airflow.decorators import task
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DownstreamTasksSkipped
@@ -34,8 +35,8 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2022, 8, 17)
 
 
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test doesn't run on AF3. Companion test below.")
-def test_short_circuit_decorator_af2(dag_maker):
+@pytest.mark.skipif(AIRFLOW_V_3_0_1, reason="Test doesn't run on AF 3.0.1. Companion test below.")
+def test_short_circuit_decorator(dag_maker):
     with dag_maker(serialized=True):
 
         @task
@@ -82,9 +83,9 @@ def test_short_circuit_decorator_af2(dag_maker):
         assert ti.state == task_state_mapping[ti.task_id]
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only runs on AF3")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_1, reason="Test only runs on AF3.0.1")
 @pytest.mark.parametrize(["condition", "should_be_skipped"], [(True, False), (False, True)])
-def test_short_circuit_decorator_af3(dag_maker, session, condition, should_be_skipped):
+def test_short_circuit_decorator_af301(dag_maker, session, condition, should_be_skipped):
     with dag_maker(serialized=True, session=session):
 
         @task.short_circuit()
@@ -112,7 +113,7 @@ def test_short_circuit_decorator_af3(dag_maker, session, condition, should_be_sk
         ti_sc.run()
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only runs on AF3")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_1, reason="Test only runs on AF3.0.1")
 @pytest.mark.parametrize(
     ["ignore_downstream_trigger_rules", "expected"], [(True, State.SKIPPED), (False, State.SUCCESS)]
 )

@@ -1284,6 +1284,34 @@ secrets:
 api:
   description: ~
   options:
+    instance_name:
+      description: |
+        Sets a custom page title for the DAGs overview page and site title for all pages
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default:
+    enable_swagger_ui:
+      description: |
+        Boolean for running SwaggerUI in the webserver.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
+    secret_key:
+      description: |
+        Secret key used to run your api server. It should be as random as possible. However, when running
+        more than 1 instances of the api, make sure all of them use the same ``secret_key`` otherwise
+        one of them will error with "CSRF session token is missing".
+        The api key is also used to authorize requests to Celery workers when logs are retrieved.
+        The token generated using the secret key has a short expiry time though - make sure that time on
+        ALL the machines that you run airflow components on is synchronized (for example using ntpd)
+        otherwise you might get "forbidden" errors when the logs are accessed.
+      version_added: ~
+      type: string
+      sensitive: true
+      example: ~
+      default: "{SECRET_KEY}"
     expose_config:
       description: |
         Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
@@ -1412,6 +1440,54 @@ api:
       type: string
       example: ~
       default: "topological"
+    log_fetch_timeout_sec:
+      description: |
+        The amount of time (in secs) webserver will wait for initial handshake
+        while fetching logs from other worker machine
+      version_added: ~
+      type: string
+      example: ~
+      default: "5"
+    hide_paused_dags_by_default:
+      description: |
+        By default, the webserver shows paused DAGs. Flip this to hide paused
+        DAGs by default
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
+    page_size:
+      description: |
+        Consistent page size across all listing views in the UI
+      version_added: ~
+      type: string
+      example: ~
+      default: "50"
+    default_wrap:
+      description: |
+        Default setting for wrap toggle on DAG code and TI log views.
+      version_added: 1.10.4
+      type: boolean
+      example: ~
+      default: "False"
+    auto_refresh_interval:
+      description: |
+        How frequently, in seconds, the DAG data will auto-refresh in graph or grid view
+        when auto-refresh is turned on
+      version_added: 2.2.0
+      type: integer
+      example: ~
+      default: "3"
+    require_confirmation_dag_change:
+      description: |
+        Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
+        to a DAG that may be running on sensitive environments like production.
+        When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
+        Trigger a DAG
+      version_added: 2.9.0
+      type: boolean
+      example: ~
+      default: "False"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1697,152 +1773,6 @@ operators:
       type: string
       example: ~
       default: "default"
-webserver:
-  description: ~
-  options:
-    secret_key:
-      description: |
-        Secret key used to run your api server. It should be as random as possible. However, when running
-        more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
-        one of them will error with "CSRF session token is missing".
-        The webserver key is also used to authorize requests to Celery workers when logs are retrieved.
-        The token generated using the secret key has a short expiry time though - make sure that time on
-        ALL the machines that you run airflow components on is synchronized (for example using ntpd)
-        otherwise you might get "forbidden" errors when the logs are accessed.
-      version_added: ~
-      type: string
-      sensitive: true
-      example: ~
-      default: "{SECRET_KEY}"
-    log_fetch_timeout_sec:
-      description: |
-        The amount of time (in secs) webserver will wait for initial handshake
-        while fetching logs from other worker machine
-      version_added: ~
-      type: string
-      example: ~
-      default: "5"
-    hide_paused_dags_by_default:
-      description: |
-        By default, the webserver shows paused DAGs. Flip this to hide paused
-        DAGs by default
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    page_size:
-      description: |
-        Consistent page size across all listing views in the UI
-      version_added: ~
-      type: string
-      example: ~
-      default: "50"
-    navbar_color:
-      description: |
-        Define the color of navigation bar
-      version_added: ~
-      type: string
-      example: ~
-      default: "#fff"
-    navbar_text_color:
-      description: |
-        Define the color of text in the navigation bar
-      version_added: 2.8.0
-      type: string
-      example: ~
-      default: "#51504f"
-    navbar_hover_color:
-      description: |
-        Define the color of navigation bar links when hovered
-      version_added: 2.9.0
-      type: string
-      example: ~
-      default: "#eee"
-    navbar_text_hover_color:
-      description: |
-        Define the color of text in the navigation bar when hovered
-      version_added: 2.9.0
-      type: string
-      example: ~
-      default: "#51504f"
-    default_wrap:
-      description: |
-        Default setting for wrap toggle on DAG code and TI log views.
-      version_added: 1.10.4
-      type: boolean
-      example: ~
-      default: "False"
-    x_frame_enabled:
-      description: |
-        Allow the UI to be rendered in a frame
-      version_added: 1.10.8
-      type: boolean
-      example: ~
-      default: "True"
-    instance_name:
-      description: |
-        Sets a custom page title for the DAGs overview page and site title for all pages
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default:
-    instance_name_has_markup:
-      description: |
-        Whether the custom page title for the DAGs overview page contains any Markup language
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "False"
-    auto_refresh_interval:
-      description: |
-        How frequently, in seconds, the DAG data will auto-refresh in graph or grid view
-        when auto-refresh is turned on
-      version_added: 2.2.0
-      type: integer
-      example: ~
-      default: "3"
-    warn_deployment_exposure:
-      description: |
-        Boolean for displaying warning for publicly viewable deployment
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "True"
-    audit_view_excluded_events:
-      description: |
-        Comma separated string of view events to exclude from dag audit view.
-        All other events will be added minus the ones passed here.
-        The audit logs in the db will not be affected by this parameter.
-      version_added: 2.3.0
-      type: string
-      example: "cli_task_run,running,success"
-      default: ~
-    audit_view_included_events:
-      description: |
-        Comma separated string of view events to include in dag audit view.
-        If passed, only these events will populate the dag audit view.
-        The audit logs in the db will not be affected by this parameter.
-      version_added: 2.3.0
-      type: string
-      example: "dagrun_cleared,failed"
-      default: ~
-    enable_swagger_ui:
-      description: |
-        Boolean for running SwaggerUI in the webserver.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
-    require_confirmation_dag_change:
-      description: |
-        Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
-        to a DAG that may be running on sensitive environments like production.
-        When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
-        Trigger a DAG
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
 email:
   description: |
     Configuration email backend and whether to

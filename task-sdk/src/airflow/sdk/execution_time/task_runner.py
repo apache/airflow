@@ -153,6 +153,9 @@ class RuntimeTaskInstance(TaskInstance):
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
+        from airflow.plugins_manager import integrate_macros_plugins
+
+        integrate_macros_plugins()
 
         dag_run_conf: dict[str, Any] | None = None
         if from_server := self._ti_context_from_server:
@@ -1144,7 +1147,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)
         except AirflowTaskTimeout:
-            # TODO: handle on kill callback here
+            task.on_kill()
             raise
     else:
         result = ctx.run(execute, context=context)

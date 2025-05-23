@@ -582,7 +582,7 @@ export type DAGRunResponse = {
   triggered_by: DagRunTriggeredByType | null;
   conf: {
     [key: string]: unknown;
-  };
+  } | null;
   note: string | null;
   dag_versions: Array<DagVersionResponse>;
   bundle_version: string | null;
@@ -1496,21 +1496,13 @@ export type type =
  * configuration serializer.
  */
 export type ConfigResponse = {
-  navbar_color: string;
-  navbar_text_color: string;
-  navbar_hover_color: string;
-  navbar_text_hover_color: string;
   page_size: number;
   auto_refresh_interval: number;
   hide_paused_dags_by_default: boolean;
   instance_name: string;
-  instance_name_has_markup: boolean;
   enable_swagger_ui: boolean;
   require_confirmation_dag_change: boolean;
   default_wrap: boolean;
-  warn_deployment_exposure: boolean;
-  audit_view_excluded_events: string;
-  audit_view_included_events: string;
   test_connection: string;
   dashboard_alert: Array<UIAlert>;
   show_external_log_redirect: boolean;

@@ -1034,7 +1034,7 @@ class ActivitySubprocess(WatchedSubprocess):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 if var.value:
-                    mask_secret(var.value)
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
@@ -1469,7 +1469,7 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param bundle_info: Current DagRun of the task instance.
+    :param bundle_info: Information of the DAG bundle to use for this task instance.
     :param dag_rel_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.

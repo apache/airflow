@@ -1303,7 +1303,12 @@ migrateDatabaseJob:
 
 apiServer:
 
-  # Labels specific to workers objects and pods
+  # Number of Airflow API servers in the deployment
+  replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
+
+  # Labels specific to Airflow API server objects and pods
   labels: {}
 
   # Command to use when running the Airflow API server (templated).
@@ -1322,7 +1327,7 @@ apiServer:
     # If not set and create is true, a name is generated using the release name
     name: ~
 
-    # Annotations to add to webserver kubernetes service account.
+    # Annotations to add to Airflow API server kubernetes service account.
     annotations: {}
   service:
     type: ClusterIP
@@ -1347,10 +1352,16 @@ apiServer:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # Detailed default security contexts for webserver deployments for container and pod level
+  # Allow overriding Update Strategy for API server
+  strategy: ~
+
+  # Detailed default security contexts for Airflow API server deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1360,14 +1371,47 @@ apiServer:
     securityContexts:
       container: {}
 
-  # Launch additional containers into the flower pods.
+  # Launch additional containers into the Airflow API server pods.
   extraContainers: []
+  # Add additional init containers into API server (templated).
+  extraInitContainers: []
+
+  # Mount additional volumes into API server. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  # Select certain nodes for Airflow API server pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+
+  priorityClassName: ~
+
+  #  hostAliases for API server pod
+  hostAliases: []
+
+  # annotations for Airflow API server deployment
+  annotations: {}
+
+  podAnnotations: {}
 
   networkPolicy:
     ingress:
-      # Peers for webserver NetworkPolicy ingress
+      # Peers for Airflow API server NetworkPolicy ingress
       from: []
-      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      # Ports for Airflow API server NetworkPolicy ingress (if `from` is set)
       ports:
         - port: "{{ .Values.ports.apiServer }}"
 
