@@ -720,19 +720,17 @@ core_commands: list[CLICommand] = [
         "Either pass token from environment variable/parameter or pass username and password.",
         subcommands=AUTH_COMMANDS,
     ),
-<<<<<<< HEAD
     GroupCommand(
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
-=======
+    ),
     ActionCommand(
         name="version",
         help="Show version information",
         description="Show version information",
         func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
         args=(ARG_VERSION_GET,)
->>>>>>> 65866557fc (create version command using CLI side)
     ),
     GroupCommand(
         name="variables",

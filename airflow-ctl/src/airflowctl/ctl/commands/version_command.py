@@ -16,18 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-import airflow
+from airflow.version import version
 from airflow.utils.platform import get_airflow_git_version
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 
 
 @provide_api_client(kind=ClientKind.CLI)
-def version_info(api_client=NEW_API_CLIENT):
+def version_info(arg,api_client=NEW_API_CLIENT):
     version_dict = {
-        "airflow_version": airflow.__version__,
+        "airflow_version": version,
         "git_version": get_airflow_git_version(),
-        "airflowctl_version": airflow.__version,
+        "airflowctl_version": version,
     }
 
-    for version, value in version_dict:
-        print(f"{version} : {value}")
+    for name, value in version_dict.items():
+        print(f"{name} : {value}")
