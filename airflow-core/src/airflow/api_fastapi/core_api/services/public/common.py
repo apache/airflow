@@ -46,15 +46,15 @@ class BulkService(Generic[T], ABC):
         results: dict[str, BulkActionResponse] = {}
 
         for action in self.request.actions:
-            if action.action.value not in results:
-                results[action.action.value] = BulkActionResponse()
+            if action.action not in results:
+                results[action.action] = BulkActionResponse()
 
-            if action.action == BulkAction.CREATE:
-                self.handle_bulk_create(action, results[action.action.value])  # type: ignore
-            elif action.action == BulkAction.UPDATE:
-                self.handle_bulk_update(action, results[action.action.value])  # type: ignore
-            elif action.action == BulkAction.DELETE:
-                self.handle_bulk_delete(action, results[action.action.value])  # type: ignore
+            if action.action == BulkAction.CREATE.value:
+                self.handle_bulk_create(action, results[action.action])
+            elif action.action == BulkAction.UPDATE.value:
+                self.handle_bulk_update(action, results[action.action])
+            elif action.action == BulkAction.DELETE.value:
+                self.handle_bulk_delete(action, results[action.action])
 
         return BulkResponse(**results)
 

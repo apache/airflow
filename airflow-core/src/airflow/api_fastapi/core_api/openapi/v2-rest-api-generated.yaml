@@ -7344,14 +7344,6 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    BulkAction:
-      type: string
-      enum:
-      - create
-      - delete
-      - update
-      title: BulkAction
-      description: Bulk Action to be performed on the used model.
     BulkActionNotOnExistence:
       type: string
       enum:
@@ -7445,8 +7437,11 @@ components:
     BulkCreateAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
+          default: create
         entities:
           items:
             $ref: '#/components/schemas/ConnectionBody'
@@ -7459,14 +7454,16 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkCreateAction[ConnectionBody]
     BulkCreateAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
+          default: create
         entities:
           items:
             $ref: '#/components/schemas/PoolBody'
@@ -7479,14 +7476,16 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkCreateAction[PoolBody]
     BulkCreateAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
+          default: create
         entities:
           items:
             $ref: '#/components/schemas/VariableBody'
@@ -7499,14 +7498,16 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkCreateAction[VariableBody]
     BulkDeleteAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
+          default: delete
         entities:
           items:
             type: string
@@ -7519,14 +7520,16 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkDeleteAction[ConnectionBody]
     BulkDeleteAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
+          default: delete
         entities:
           items:
             type: string
@@ -7539,14 +7542,16 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkDeleteAction[PoolBody]
     BulkDeleteAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
+          default: delete
         entities:
           items:
             type: string
@@ -7559,7 +7564,6 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkDeleteAction[VariableBody]
     BulkResponse:
@@ -7598,8 +7602,11 @@ components:
     BulkUpdateAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
+          default: update
         entities:
           items:
             $ref: '#/components/schemas/ConnectionBody'
@@ -7612,14 +7619,16 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkUpdateAction[ConnectionBody]
     BulkUpdateAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
+          default: update
         entities:
           items:
             $ref: '#/components/schemas/PoolBody'
@@ -7632,14 +7641,16 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkUpdateAction[PoolBody]
     BulkUpdateAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
+          default: update
         entities:
           items:
             $ref: '#/components/schemas/VariableBody'
@@ -7652,7 +7663,6 @@ components:
       additionalProperties: false
       type: object
       required:
-      - action
       - entities
       title: BulkUpdateAction[VariableBody]
     ClearTaskInstancesBody:
