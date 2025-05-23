@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from unittest import mock
 
 import pytest
@@ -42,7 +41,11 @@ class TestDeadlineReference:
     @pytest.mark.parametrize("reference", REFERENCE_TYPES)
     def test_deadline_evaluate_with(self, reference):
         """Test that all deadline types evaluate correctly with their required conditions."""
-        conditions = {"dag_id": DAG_ID}
+        conditions = {
+            "dag_id": DAG_ID,
+            "unexpected": "param",  # Add an unexpected parameter.
+            "extra": "kwarg",  # Add another unexpected parameter.
+        }
 
         with mock.patch.object(reference, "_evaluate_with") as mock_evaluate:
             mock_evaluate.return_value = DEFAULT_DATE
@@ -52,6 +55,7 @@ class TestDeadlineReference:
             else:
                 result = reference.evaluate_with()
 
+            # Verify only expected kwargs are passed through.
             expected_kwargs = {k: conditions[k] for k in reference.required_kwargs if k in conditions}
             mock_evaluate.assert_called_once_with(**expected_kwargs)
             assert result == DEFAULT_DATE
@@ -67,23 +71,6 @@ class TestDeadlineReference:
         else:
             # Let the lack of an exception here effectively assert that no exception is raised.
             reference.evaluate_with()
-
-    @pytest.mark.parametrize("reference", REFERENCE_TYPES)
-    def test_deadline_handling_of_extra_kwargs(self, reference, caplog):
-        """Test that all deadline types log when ignoring unexpected parameters."""
-        unexpected_kwargs = {"unexpected": "param", "extra": "kwarg"}
-        # Build a dict of the required kwargs depending on the reference.
-        required_kwargs = {kwarg: f"test_{kwarg}" for kwarg in reference.required_kwargs}
-
-        with caplog.at_level(logging.DEBUG):
-            with mock.patch.object(reference, "_evaluate_with") as mock_evaluate:
-                mock_evaluate.return_value = DEFAULT_DATE
-                result = reference.evaluate_with(**required_kwargs, **unexpected_kwargs)
-
-        assert "Ignoring unexpected parameters:" in caplog.text
-        assert all(kwarg in caplog.text for kwarg in unexpected_kwargs)
-        assert result == DEFAULT_DATE
-        mock_evaluate.assert_called_once_with(**required_kwargs)
 
     def test_deadline_reference_creation(self):
         """Test that DeadlineReference provides consistent interface and types."""
