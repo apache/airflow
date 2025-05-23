@@ -47,6 +47,7 @@ BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
 
 def lazy_load_command(import_path: str) -> Callable:
+    print("lazy load")
     """Create a lazy loader for command."""
     _, _, name = import_path.rpartition(".")
 
@@ -55,11 +56,13 @@ def lazy_load_command(import_path: str) -> Callable:
         return func(*args, **kwargs)
 
     command.__name__ = name
+    print(f"{command} and {command.__name__}")
 
     return command
 
 
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
+    print("safe")
     try:
         function(args)
     except AirflowCtlCredentialNotFoundException as e:
@@ -75,7 +78,10 @@ class DefaultHelpParser(argparse.ArgumentParser):
 
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command."""
+        print("chk value")
+        print(f"{action} value : {value}")
         super()._check_value(action, value)
+        print("chk value afterrr")
 
     def error(self, message):
         """Override error and use print_help instead of print_usage."""
@@ -110,6 +116,7 @@ class Arg:
                 self.kwargs[k] = v
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
+        print("add_to+parser")
         """Add this argument to an ArgumentParser."""
         if "metavar" in self.kwargs and "type" not in self.kwargs:
             if self.kwargs["metavar"] == "DIRPATH":
@@ -121,8 +128,10 @@ class Arg:
         parser.add_argument(*self.flags, **self.kwargs)
 
     def _is_valid_directory(self, parser, arg):
+        print("is valid")
         if not os.path.isdir(arg):
             parser.error(f"The directory '{arg}' does not exist!")
+        print(f"not excluded{arg}")
         return arg
 
 
@@ -197,8 +206,6 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
-ARG_VERSION_GET = Arg(dest="version", help="show Version information")
-
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -234,6 +241,7 @@ class GroupCommandParser(NamedTuple):
 
     @classmethod
     def from_group_command(cls, group_command: GroupCommand) -> GroupCommandParser:
+        print(f"grop command parser{group_command.name} , {group_command.subcommands}")
         """Create GroupCommandParser from GroupCommand."""
         return cls(
             name=group_command.name,
@@ -526,6 +534,8 @@ def merge_commands(
     for command in commands_will_be_merged:
         if isinstance(command, GroupCommand):
             merge_command_map[command.name] = command
+        if isinstance(command, ActionCommand):
+            merge_command_map[command.name] = command
     new_commands: list[CLICommand] = []
     merged_commands = []
     # Common commands
@@ -582,15 +592,23 @@ core_commands: list[CLICommand] = [
         "Either pass token from environment variable/parameter or pass username and password.",
         subcommands=AUTH_COMMANDS,
     ),
+    GroupCommand(
+        name = "version22",
+        help = "get latest ersion",
+        subcommands = "",
+    ),
     ActionCommand(
         name="version",
         help="Show version information",
         description="Show version information",
         func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
-        args=(ARG_VERSION_GET,)
+        args=()
     ),
+
 ]
 # Add generated group commands
 core_commands = merge_commands(
     base_commands=command_factory.group_commands, commands_will_be_merged=core_commands
 )
+
+
