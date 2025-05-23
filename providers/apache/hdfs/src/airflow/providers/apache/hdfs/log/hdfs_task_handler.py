@@ -94,7 +94,7 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = True
 
         self.io = HdfsRemoteLogIO(
-            remote_base=hdfs_log_folder,
+            remote_base=self.remote_base,
             base_log_folder=base_log_folder,
             delete_local_copy=kwargs.get(
                 "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
