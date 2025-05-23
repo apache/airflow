@@ -343,7 +343,16 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
+        exclude: >
+          (?x)
+          material-icons\.css$|
+          ^images/.*$|
+          ^RELEASE_NOTES\.txt$|
+          ^.*package-lock\.json$|
+          ^.*/kinglear\.txt$|
+          ^.*pnpm-lock\.yaml$|
+          .*/dist/.*|
+          ^airflow-core/src/airflow/ui/src/i18n/locales/de/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
