@@ -41,7 +41,7 @@ export const Nav = () => {
   return (
     <VStack
       alignItems="center"
-      bg="blue.muted"
+      bg="navbar.muted"
       height="100%"
       justifyContent="space-between"
       left={0}
