@@ -525,7 +525,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.7.6",
+    "uv>=0.7.7",
 ]
 
 
@@ -848,7 +848,7 @@ fixture-parentheses = false
 ## pytest settings ##
 [tool.pytest.ini_options]
 addopts = [
-    "--tb=short",
+    "--tb=no",
     "-rasl",
     "--verbosity=2",
     # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.

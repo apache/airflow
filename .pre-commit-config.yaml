@@ -1452,4 +1452,12 @@ repos:
         require_serial: true
         pass_filenames: false
         files: ^airflow-core/src/airflow/config_templates/config\.yml$
+      - id: generate-airflowctl-help-images
+        name: Generate SVG from Airflow CTL Commands
+        entry: ./scripts/ci/pre_commit/capture_airflowctl_help.py
+        language: python
+        pass_filenames: false
+        files:
+          ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/ctl/commands/.*\.py$
+        additional_dependencies: ['rich>=12.4.4', 'argcomplete>=1.10']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
