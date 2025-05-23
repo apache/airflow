@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-23T07:49:32.069430
+# This constraints file was automatically generated on 2025-05-23T13:57:10.480268
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -162,7 +162,7 @@ colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.10.0
 connexion==2.14.2
-coverage==7.8.1
+coverage==7.8.2
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -293,6 +293,7 @@ h2==4.2.0
 hatch==1.14.1
 hatchling==1.27.0
 hdfs==2.7.3
+hf-xet==1.1.2
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -300,7 +301,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.31.4
+huggingface-hub==0.32.0
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -332,7 +333,7 @@ jedi==0.19.2
 jeepney==0.9.0
 jiter==0.10.0
 jmespath==0.10.0
-joblib==1.5.0
+joblib==1.5.1
 joserfc==1.0.4
 jpype1==1.5.2
 jsonpatch==1.33
