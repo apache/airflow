@@ -271,11 +271,14 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| gci                                                       | Consistent import ordering for Go files                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflow-diagrams                                 | Generate airflow diagrams                              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflowctl-datamodels                            | Generate Datamodels for AirflowCTL                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| generate-airflowctl-help-images                           | Generate SVG from Airflow CTL Commands                 | *       |
+| generate-airflowctl-help-images                           | * Generate SVG from Airflow CTL Commands               | *       |
+|                                                           | * Generate SVG from Airflow CTL Commands               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -286,6 +289,8 @@ require Breeze Docker image to be built locally.
 | generate-tasksdk-datamodels                               | Generate Datamodels for TaskSDK client                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-volumes-for-sources                              | Generate volumes for docker compose                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| gofmt                                                     | Format go code                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | identity                                                  | Print checked files                                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -300,6 +305,7 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all YAML files except Helm templates |         |
 |                                                           | * Add license for all Markdown files                   |         |
 |                                                           | * Add license for all other files                      |         |
+|                                                           | * Add license for all Go files                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | kubeconform                                               | Kubeconform check on our helm chart                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
