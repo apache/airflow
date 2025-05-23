@@ -197,12 +197,17 @@ class TestSchedulerJob:
 
     @pytest.fixture
     def mock_executors(self):
+        mock_jwt_generator = MagicMock()
+        mock_jwt_generator.generate.return_value = "mock-token"
+
         default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
+        default_executor.jwt_generator = mock_jwt_generator
         second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
+        second_executor.jwt_generator = mock_jwt_generator
 
-        # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_command
+        # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_workload
         # interface from executors
         default_executor.queue_workload.__func__ = BaseExecutor.queue_workload
         second_executor.queue_workload.__func__ = BaseExecutor.queue_workload
@@ -1544,12 +1549,12 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun()
         ti1 = dr1.get_task_instance(task1.task_id, session)
 
-        with patch.object(BaseExecutor, "queue_command") as mock_queue_command:
+        with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
             self.job_runner._enqueue_task_instances_with_queued_state(
                 [ti1], executor=scheduler_job.executor, session=session
             )
 
-        assert mock_queue_command.called
+        assert mock_queue_workload.called
         session.rollback()
 
     @pytest.mark.parametrize("state", [State.FAILED, State.SUCCESS])
@@ -1570,14 +1575,14 @@ class TestSchedulerJob:
         session.merge(ti)
         session.commit()
 
-        with patch.object(BaseExecutor, "queue_command") as mock_queue_command:
+        with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
             self.job_runner._enqueue_task_instances_with_queued_state(
                 [ti], executor=scheduler_job.executor, session=session
             )
         session.flush()
         ti.refresh_from_db(session=session)
         assert ti.state == State.NONE
-        mock_queue_command.assert_not_called()
+        mock_queue_workload.assert_not_called()
 
     @pytest.mark.parametrize(
         "task1_exec, task2_exec",

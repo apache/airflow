@@ -28,7 +28,6 @@ from collections import defaultdict
 from collections.abc import Collection, Generator, Iterable, Sequence
 from datetime import timedelta
 from functools import cache
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
@@ -110,7 +109,6 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from pathlib import PurePath
 
     import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
@@ -762,158 +760,6 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         return runtime_ti
-
-    @staticmethod
-    def _command_as_list(
-        ti: TaskInstance,
-        mark_success: bool = False,
-        ignore_all_deps: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_ti_state: bool = False,
-        local: bool = False,
-        raw: bool = False,
-        pool: str | None = None,
-        cfg_path: str | None = None,
-    ) -> list[str]:
-        dag: DAG | DagModel | None
-        # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
-        if hasattr(ti, "task") and getattr(ti.task, "dag", None) is not None:
-            if TYPE_CHECKING:
-                assert ti.task
-                assert isinstance(ti.task.dag, SchedulerDAG)
-            dag = ti.task.dag
-        else:
-            dag = ti.dag_model
-
-        if dag is None:
-            raise ValueError("DagModel is empty")
-
-        path = None
-        if dag.relative_fileloc:
-            path = Path(dag.relative_fileloc)
-
-        if path:
-            if not path.is_absolute():
-                path = "DAGS_FOLDER" / path
-
-        return TaskInstance.generate_command(
-            ti.dag_id,
-            ti.task_id,
-            run_id=ti.run_id,
-            mark_success=mark_success,
-            ignore_all_deps=ignore_all_deps,
-            ignore_task_deps=ignore_task_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_ti_state=ignore_ti_state,
-            local=local,
-            file_path=path,
-            raw=raw,
-            pool=pool,
-            cfg_path=cfg_path,
-            map_index=ti.map_index,
-        )
-
-    def command_as_list(
-        self,
-        mark_success: bool = False,
-        ignore_all_deps: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_ti_state: bool = False,
-        local: bool = False,
-        raw: bool = False,
-        pool: str | None = None,
-        cfg_path: str | None = None,
-    ) -> list[str]:
-        """
-        Return a command that can be executed anywhere where airflow is installed.
-
-        This command is part of the message sent to executors by the orchestrator.
-        """
-        return TaskInstance._command_as_list(
-            ti=self,
-            mark_success=mark_success,
-            ignore_all_deps=ignore_all_deps,
-            ignore_task_deps=ignore_task_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_ti_state=ignore_ti_state,
-            local=local,
-            raw=raw,
-            pool=pool,
-            cfg_path=cfg_path,
-        )
-
-    @staticmethod
-    def generate_command(
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        mark_success: bool = False,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        local: bool = False,
-        file_path: PurePath | str | None = None,
-        raw: bool = False,
-        pool: str | None = None,
-        cfg_path: str | None = None,
-        map_index: int = -1,
-    ) -> list[str]:
-        """
-        Generate the shell command required to execute this task instance.
-
-        :param dag_id: DAG ID
-        :param task_id: Task ID
-        :param run_id: The run_id of this task's DagRun
-        :param mark_success: Whether to mark the task as successful
-        :param ignore_all_deps: Ignore all ignorable dependencies.
-            Overrides the other ignore_* parameters.
-        :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
-            (e.g. for Backfills)
-        :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
-        :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
-            and trigger rule
-        :param ignore_ti_state: Ignore the task instance's previous failure/success
-        :param local: Whether to run the task locally
-        :param file_path: path to the file containing the DAG definition
-        :param raw: raw mode (needs more details)
-        :param pool: the Airflow pool that the task should run in
-        :param cfg_path: the Path to the configuration file
-        :return: shell command that can be used to run the task instance
-        """
-        cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
-        if mark_success:
-            cmd.extend(["--mark-success"])
-        if ignore_all_deps:
-            cmd.extend(["--ignore-all-dependencies"])
-        if ignore_task_deps:
-            cmd.extend(["--ignore-dependencies"])
-        if ignore_depends_on_past:
-            cmd.extend(["--depends-on-past", "ignore"])
-        elif wait_for_past_depends_before_skipping:
-            cmd.extend(["--depends-on-past", "wait"])
-        if ignore_ti_state:
-            cmd.extend(["--force"])
-        if local:
-            cmd.extend(["--local"])
-        if pool:
-            cmd.extend(["--pool", pool])
-        if raw:
-            cmd.extend(["--raw"])
-        if file_path:
-            cmd.extend(["--subdir", os.fspath(file_path)])
-        if cfg_path:
-            cmd.extend(["--cfg-path", cfg_path])
-        if map_index != -1:
-            cmd.extend(["--map-index", str(map_index)])
-        return cmd
 
     @property
     def log_url(self) -> str:
