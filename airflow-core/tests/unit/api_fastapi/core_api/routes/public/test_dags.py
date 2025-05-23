@@ -21,9 +21,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import select
 
-from airflow.api_fastapi.common.db.common import paginated_select
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -248,27 +246,6 @@ class TestGetDags(TestDagEndpoint):
         ],
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
-        response = test_client.get("/dags", params=query_params)
-        assert response.status_code == 200
-        body = response.json()
-
-        assert body["total_entries"] == expected_total_entries
-        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
-
-    @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
-        [
-            (
-                {"order_by": "last_run_start_date", "exclude_stale": False},
-                3,
-                [DAG1_ID, DAG3_ID, DAG2_ID],
-            ),
-            # # Search
-            ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
-            ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
-        ],
-    )
-    def test_get_dags2(self, test_client, query_params, expected_total_entries, expected_ids):
         response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
@@ -647,17 +624,3 @@ class TestDeleteDAG(TestDagEndpoint):
     def test_delete_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")
         assert response.status_code == 403
-
-
-def test_this(session):
-    dag_runs_select, _ = paginated_select(
-        statement=select(DagRun),
-        filters=[],
-        session=session,
-    )
-    dag_runs_select = dag_runs_select.cte()
-    print(dag_runs_select.compile())
-    from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
-
-    query = generate_dag_with_latest_run_query(dag_runs_cte=dag_runs_select)
-    print(query.compile())

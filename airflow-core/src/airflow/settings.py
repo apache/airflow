@@ -43,7 +43,6 @@ from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
-logging.getLogger("sqlalchemy").setLevel(logging.INFO)
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 

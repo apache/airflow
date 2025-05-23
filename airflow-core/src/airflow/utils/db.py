@@ -1412,7 +1412,6 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     :meta private:
     """
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
-    print(count_stmt.compile())
     return session.scalar(count_stmt)
 
 
