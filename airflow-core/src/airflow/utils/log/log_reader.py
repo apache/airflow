@@ -18,13 +18,12 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Iterator
+from collections.abc import Generator
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
-from airflow.utils.log.file_task_handler import StructuredLogMessage
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -34,9 +33,11 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.typing_compat import TypeAlias
+    from airflow.utils.log.file_task_handler import LogHandlerOutputStream, LogMetadata
 
-LogMessages: TypeAlias = Union[list[StructuredLogMessage], str]
-LogMetadata: TypeAlias = dict[str, Any]
+LogReaderOutputStream: TypeAlias = Generator[str, None, None]
+
+READ_BATCH_SIZE = 1024
 
 
 class TaskLogReader:
@@ -46,8 +47,8 @@ class TaskLogReader:
     """Time to sleep between loops while waiting for more logs"""
 
     def read_log_chunks(
-        self, ti: TaskInstance, try_number: int | None, metadata
-    ) -> tuple[LogMessages, LogMetadata]:
+        self, ti: TaskInstance, try_number: int | None, metadata: LogMetadata
+    ) -> tuple[LogHandlerOutputStream, LogMetadata]:
         """
         Read chunks of Task Instance logs.
 
@@ -66,9 +67,11 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        return self.log_handler.read(ti, try_number, metadata=metadata)
+        return self.log_handler.read(ti, try_number, metadata)
 
-    def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
+    def read_log_stream(
+        self, ti: TaskInstance, try_number: int | None, metadata: LogMetadata
+    ) -> LogReaderOutputStream:
         """
         Continuously read log to the end.
 
@@ -83,20 +86,35 @@ class TaskLogReader:
             metadata.pop(key, None)
 
         while True:
-            logs, out_metadata = self.read_log_chunks(ti, try_number, metadata)
+            log_stream, out_metadata = self.read_log_chunks(ti, try_number, metadata)
             # Update the metadata dict in place so caller can get new values/end-of-log etc.
 
-            for log in logs:
-                # It's a bit wasteful here to parse the JSON then dump it back again.
-                # Optimize this so in stream mode we can just pass logs right through, or even better add
-                # support to 307 redirect to a signed URL etc.
-                yield (log if isinstance(log, str) else log.model_dump_json()) + "\n"
+            # Only specify the download_logs will enable buffered read
+            if metadata.get("download_logs"):
+                # Don't yield per line, instead yield in batch to speed up the response time
+                # By reading in batch can speed up from less than 1MB/s to more than 10MB/s
+                buffer: list[str] = []
+                counter = 0
+                for log in log_stream:
+                    buffer.append(log.model_dump_json() + "\n")
+                    counter += 1
+                    if counter >= READ_BATCH_SIZE:
+                        yield from buffer
+                        buffer.clear()
+                        counter = 0
+                if buffer:
+                    yield from buffer
+                    buffer.clear()
+            else:
+                # If not download_logs, yield each log line
+                for log in log_stream:
+                    yield log.model_dump_json() + "\n"
 
             if not out_metadata.get("end_of_log", False) and ti.state not in (
                 TaskInstanceState.RUNNING,
                 TaskInstanceState.DEFERRED,
             ):
-                if not logs[0]:
+                if not log_stream:
                     # we did not receive any logs in this loop
                     # sleeping to conserve resources / limit requests on external services
                     time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)

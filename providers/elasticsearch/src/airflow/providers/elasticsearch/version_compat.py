@@ -22,6 +22,13 @@
 #
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
 
 def get_base_airflow_version_tuple() -> tuple[int, int, int]:
     from packaging.version import Version
@@ -33,3 +40,21 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+AIRFLOW_V_3_0 = get_base_airflow_version_tuple() == (3, 0, 0)
+
+if AIRFLOW_V_3_0_PLUS and not AIRFLOW_V_3_0:
+    # greater than 3.0.0, compatibility with Airflow 3.0
+
+    def get_compatible_output_log_stream(
+        input_logs: list[StructuredLogMessage],
+    ) -> Generator[StructuredLogMessage, None, None]:
+        """
+        Convert a list of structured log messages into a generator.
+
+        This helper ensures compatibility with `os_task_handler` and `es_task_handler`,
+        and is intended to be removed after the log handler refactor in providers.
+
+        :param input_logs: List of structured log messages.
+        :return: A generator yielding structured log messages.
+        """
+        yield from input_logs
