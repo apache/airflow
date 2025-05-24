@@ -232,20 +232,44 @@ class BaseK8STest:
         resource_name: str,
         namespace: str = "airflow",
         resource_type: Literal["deployment", "statefulset"] = "deployment",
+        max_retries: int = 3,
+        timeout_seconds: int = 5,
     ):
         """Watch the resource until it is healthy.
         Args:
             resource_name (str): Name of the resource to check.
             resource_type (str): Type of the resource (e.g., deployment, statefulset).
             namespace (str): Kubernetes namespace where the resource is located.
+            max_retries (int): Maximum number of retries.
+            timeout_seconds (int): Timeout in seconds for each attempt.
         """
-        rollout_status = check_output(
-            ["kubectl", "rollout", "status", f"{resource_type}/{resource_name}", "-n", namespace, "--watch"],
-        ).decode()
-        if resource_type == "deployment":
-            assert "successfully rolled out" in rollout_status
-        else:
-            assert "roll out complete" in rollout_status
+        for attempt in range(max_retries):
+            try:
+                rollout_status = check_output(
+                    [
+                        "kubectl",
+                        "rollout",
+                        "status",
+                        f"{resource_type}/{resource_name}",
+                        "-n",
+                        namespace,
+                        "--watch",
+                    ],
+                ).decode()
+                if resource_type == "deployment":
+                    assert "successfully rolled out" in rollout_status
+                else:
+                    assert "roll out complete" in rollout_status
+                return
+            except Exception as e:
+                print(f"Exception when checking if {resource_name} is healthy {e}")
+                if attempt < max_retries - 1:
+                    print(f"Waiting {timeout_seconds} s and retrying.")
+                    time.sleep(timeout_seconds)
+        raise Exception(
+            f"Giving up. The {resource_type} {resource_name} was not healthy after {max_retries} tries "
+            f"with {timeout_seconds} s delays"
+        )
 
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
