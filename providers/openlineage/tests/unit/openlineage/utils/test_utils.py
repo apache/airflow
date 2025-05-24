@@ -176,7 +176,7 @@ def test_get_airflow_dag_run_facet():
         "owner": "airflow",
         "timetable": {},
         "start_date": "2024-06-01T00:00:00+00:00",
-        "tags": "['test']",
+        "tags": '["test"]',
         "owner_links": {},
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
@@ -823,7 +823,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "schedule_interval": "@once",
             "start_date": "2024-06-01T00:00:00+00:00",
-            "tags": "['test']",
+            "tags": '["test"]',
             "timetable": {},
             "owner_links": {"some_owner": "https://airflow.apache.org"},
         }
@@ -1071,7 +1071,7 @@ class TestDagInfoAirflow3:
             "description": "test desc",
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "start_date": "2024-06-01T00:00:00+00:00",
-            "tags": "['test']",
+            "tags": '["test"]',
             "timetable": {},
             "timetable_summary": "@once",
             "owner_links": {"some_owner": "https://airflow.apache.org"},
@@ -1563,7 +1563,7 @@ def test_task_info_af3():
     tg_info = TaskGroupInfo(tg)
     assert dict(tg_info) == {
         "downstream_group_ids": "[]",
-        "downstream_task_ids": "['task_1']",
+        "downstream_task_ids": '["task_1"]',
         "group_id": "section_1",
         "prefix_group_id": True,
         "tooltip": "",
@@ -1573,13 +1573,13 @@ def test_task_info_af3():
     assert dict(result) == {
         "deferrable": True,
         "depends_on_past": False,
-        "downstream_task_ids": "['task_1']",
+        "downstream_task_ids": '["task_1"]',
         "execution_timeout": None,
         "executor_config": {},
         "external_dag_id": "external_dag_id",
         "external_task_id": "external_task_id",
         "ignore_first_depends_on_past": False,
-        "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
+        "inlets": '[{"uri": "uri1", "extra": {"a": 1}}]',
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -1587,7 +1587,7 @@ def test_task_info_af3():
         "multiple_outputs": False,
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
-        "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
+        "outlets": '[{"uri": "uri2", "extra": {"b": 2}}, {"uri": "uri3", "extra": {"c": 3}}]',
         "owner": "airflow",
         "priority_weight": 1,
         "queue": "default",
@@ -1598,7 +1598,7 @@ def test_task_info_af3():
         "task_id": "section_1.task_3",
         "trigger_dag_id": "trigger_dag_id",
         "trigger_rule": "all_success",
-        "upstream_task_ids": "['task_0']",
+        "upstream_task_ids": '["task_0"]',
         "wait_for_downstream": False,
         "wait_for_past_depends_before_skipping": False,
     }
@@ -1637,7 +1637,7 @@ def test_task_info_af2():
     tg_info = TaskGroupInfo(tg)
     assert dict(tg_info) == {
         "downstream_group_ids": "[]",
-        "downstream_task_ids": "['task_1']",
+        "downstream_task_ids": '["task_1"]',
         "group_id": "section_1",
         "prefix_group_id": True,
         "tooltip": "",
@@ -1647,7 +1647,7 @@ def test_task_info_af2():
     assert dict(result) == {
         "deferrable": True,
         "depends_on_past": False,
-        "downstream_task_ids": "['task_1']",
+        "downstream_task_ids": '["task_1"]',
         "execution_timeout": None,
         "executor_config": {},
         "external_dag_id": "external_dag_id",
@@ -1656,7 +1656,7 @@ def test_task_info_af2():
         "is_setup": False,
         "is_teardown": False,
         "sla": None,
-        "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
+        "inlets": '[{"uri": "uri1", "extra": {"a": 1}}]',
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -1664,7 +1664,7 @@ def test_task_info_af2():
         "multiple_outputs": False,
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
-        "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
+        "outlets": '[{"uri": "uri2", "extra": {"b": 2}}, {"uri": "uri3", "extra": {"c": 3}}]',
         "owner": "airflow",
         "priority_weight": 1,
         "queue": "default",
@@ -1675,7 +1675,7 @@ def test_task_info_af2():
         "task_id": "section_1.task_3",
         "trigger_dag_id": "trigger_dag_id",
         "trigger_rule": "all_success",
-        "upstream_task_ids": "['task_0']",
+        "upstream_task_ids": '["task_0"]',
         "wait_for_downstream": False,
         "wait_for_past_depends_before_skipping": False,
     }
