@@ -20,13 +20,11 @@ from datetime import datetime
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
 from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor
+from airflow.sdk import DAG, chain, task
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 

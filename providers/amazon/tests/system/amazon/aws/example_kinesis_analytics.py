@@ -23,10 +23,11 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG, settings
-from airflow.decorators import task, task_group
+from airflow import settings
+
+# from airflow import DAG, settings
+# from airflow.decorators import task, task_group
 from airflow.models import Connection
-from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.operators.kinesis_analytics import (
     KinesisAnalyticsV2CreateApplicationOperator,
@@ -42,6 +43,7 @@ from airflow.providers.amazon.aws.sensors.kinesis_analytics import (
     KinesisAnalyticsV2StopApplicationCompletedSensor,
 )
 from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
+from airflow.sdk import DAG, chain, task, task_group
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

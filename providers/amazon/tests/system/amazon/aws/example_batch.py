@@ -21,9 +21,6 @@ from datetime import datetime
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 from airflow.providers.amazon.aws.operators.ecs import EcsDeregisterTaskDefinitionOperator
 from airflow.providers.amazon.aws.sensors.batch import (
@@ -31,6 +28,7 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchJobQueueSensor,
     BatchSensor,
 )
+from airflow.sdk import DAG, chain, task
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import (
