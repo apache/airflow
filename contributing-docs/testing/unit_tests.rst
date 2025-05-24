@@ -51,7 +51,7 @@ That mean if one of this warning appear during test run and do not captured the 
     ...
     FAILED tests/models/test_dag.py::TestDag::test_clear_dag[None-None] - airflow.exceptions.RemovedInAirflow3Warning: Calling `DAG.create_dagrun()` without an explicit data interval is deprecated
 
-**NOTE:** As of Airflow 3.0 the test file tests/models/test_dag.py has been relocated to airflow-core/tests/unit/models/test_dag.py.
+**NOTE:** As of Airflow 3.0 the test file ``tests/models/test_dag.py`` has been relocated to ``airflow-core/tests/unit/models/test_dag.py``.
 
 For avoid this make sure:
 
@@ -221,7 +221,7 @@ folders/files/tests selection, ``pytest`` supports).
 
 .. code-block:: bash
 
-    pytest tests --run-db-tests-only
+    pytest airflow-core/tests --run-db-tests-only
 
 You can also run DB tests with ``breeze`` dockerized environment. You can choose backend to use with
 ``--backend`` flag. The default is ``sqlite`` but you can also use others such as ``postgres`` or ``mysql``.
@@ -234,14 +234,14 @@ You can also run the commands via ``breeze testing core-tests`` or ``breeze test
 
 .. code-block:: bash
 
-    breeze testing core-tests --run-db-tests-only --backend postgres --run-in-parallel
+    breeze testing core-tests --run-db-tests-only --backend postgres --run-in-parallel (v)
 
 You can pass ``--parallel-test-type`` list of test types to execute or ``--exclude--parallel-test-types``
 to exclude them from the default set:.
 
 .. code-block:: bash
 
-    breeze testing providers-tests --run-in-parallel --run-db-tests-only --parallel-test-types "Providers[google] Providers[amazon]"
+    breeze testing providers-tests --run-in-parallel --run-db-tests-only --parallel-test-types "Providers[google] Providers[amazon]" (v)
 
 
 Also - if you want to iterate with the tests you can enter interactive shell and run the tests iteratively -
@@ -250,7 +250,7 @@ either by package/module/test or by test type - whatever ``pytest`` supports.
 .. code-block:: bash
 
     breeze shell --backend postgres --python 3.9
-    > pytest tests --run-db-tests-only
+    > pytest airflow-core/tests --run-db-tests-only
 
 As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
 support to split all the tests into test-types to run in separate containers and with separate databases
@@ -258,7 +258,7 @@ and you can run the tests using ``--run-in-parallel`` flag.
 
 .. code-block:: bash
 
-    breeze testing core-tests --run-db-tests-only --backend postgres --python 3.9 --run-in-parallel
+    breeze testing core-tests --run-db-tests-only --backend postgres --python 3.9 --run-in-parallel (v)
 
 Examples of marking test as DB test
 ...................................
@@ -357,7 +357,7 @@ For selected test types (example - the tests will run for Providers/API/CLI code
 
   .. code-block:: bash
 
-     breeze testing providers-tests --skip-db-tests --parallel-test-types "Providers[google] Providers[amazon]"
+     breeze testing providers-tests --skip-db-tests --parallel-test-types "Providers[google] Providers[amazon]" (v)
 
 You can also enter interactive shell with ``--skip-db-tests`` flag and run the tests iteratively
 
@@ -798,39 +798,39 @@ in the official documentation, but here are a few basic examples:
 
 .. code-block:: bash
 
-    pytest tests/core -k "TestCore and not check"
+    pytest airflow-core/tests/unit/core -k "TestCore and not check"
 
 This runs the ``TestCore`` class but skips tests of this class that include 'check' in their names.
 For better performance (due to a test collection), run:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py -k "TestCore and not bash"
+    pytest airflow-core/tests/unit/core/test_core.py -k "TestCore and not bash"
 
 This flag is useful when used to run a single test like this:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py -k "test_check_operators"
+    pytest airflow-core/tests/unit/core/test_core.py -k "test_check_operators"
 
 This can also be done by specifying a full path to the test:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore::test_dag_params_and_task_params
+    pytest airflow-core/tests/unit/core/test_core.py::TestCore::test_dag_params_and_task_params
 
 To run the whole test class, enter:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore
+    pytest airflow-core/tests/unit/core/test_core.py::TestCore
 
 You can use all available ``pytest`` flags. For example, to increase a log level
 for debugging purposes, enter:
 
 .. code-block:: bash
 
-    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
+    pytest --log-cli-level=DEBUG airflow-core/tests/unit/core/test_core.py::TestCore
 
 
 Running Tests using Breeze interactive shell
@@ -858,7 +858,7 @@ Once you enter the container, you might run regular pytest commands. For example
 
 .. code-block:: bash
 
-    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
+    pytest --log-cli-level=DEBUG airflow-core/tests/unit/core/test_core.py::TestCore
 
 
 Running Tests using Breeze from the Host
@@ -872,7 +872,7 @@ will ask you to rebuild the image if it is needed and some new dependencies shou
 
 .. code-block:: bash
 
-     breeze testing providers-tests providers/http/tests/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
+    breeze testing providers-tests providers/http/tests/http/hooks/test_http.py airflow-core/tests/unit/core/test_core.py --db-reset --log-cli-level=DEBUG
 
 You can run the whole core test suite without adding the test target:
 
@@ -890,7 +890,7 @@ You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    breeze testing core-tests --db-reset tests/core/test_core.py::TestCore
+    breeze testing core-tests --db-reset airflow-core/tests/unit/core/test_core.py::TestCore
 
 You can also limit the tests to execute to specific group of tests
 
@@ -1498,13 +1498,13 @@ To disable the database cleanup, you need to provide ``--no-db-cleanup`` as pyte
 
 .. code-block:: bash
 
-    pytest tests/core/ --no-db-cleanup
+    pytest airflow-core/tests/unit/core/ --no-db-cleanup
 
 This parameter is also available in Breeze.
 
 .. code-block:: bash
 
-    breeze testing core-tests --no-db-cleanup tests/core
+    breeze testing core-tests --no-db-cleanup airflow-core/tests/unit/core/
 
 Code Coverage
 -------------
