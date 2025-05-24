@@ -82,7 +82,7 @@ def verify_an_image(
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
     command_result = run_command(
-        ["uv", "run", "pytest", test_path.as_posix(), *pytest_args, *extra_pytest_args],
+        ["uv", "run", "--isolated", "pytest", test_path.as_posix(), *pytest_args, *extra_pytest_args],
         env=env,
         output=output,
         check=False,
