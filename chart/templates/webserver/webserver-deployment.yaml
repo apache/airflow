@@ -267,10 +267,14 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        {{- if and (semverCompare "<3.0.0" .Values.airflowVersion) (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) }}
         - name: webserver-config
           configMap:
             name: {{ template "airflow_webserver_config_configmap_name" . }}
+        {{- else if and (semverCompare ">=3.0.0" .Values.airflowVersion) (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) }}
+        - name: api-server-config
+          configMap:
+            name: {{ template "airflow_api_server_config_configmap_name" . }}
         {{- end }}
         {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- if .Values.dags.persistence.enabled }}

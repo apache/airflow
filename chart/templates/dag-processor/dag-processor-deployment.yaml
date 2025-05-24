@@ -233,8 +233,10 @@ spec:
             {{- if .Values.dagProcessor.extraVolumeMounts }}
               {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+            {{- if and (semverCompare "<3.0.0" .Values.airflowVersion) (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- else if and (semverCompare ">=3.0.0" .Values.airflowVersion) (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) }}
+              {{- include "airflow_api_server_config_mount" . | nindent 12 }}
             {{- end }}
           {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
@@ -244,10 +246,14 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        {{- if and (semverCompare "<3.0.0" .Values.airflowVersion) (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) }}
         - name: webserver-config
           configMap:
             name: {{ template "airflow_webserver_config_configmap_name" . }}
+        {{- else if and (semverCompare ">=3.0.0" .Values.airflowVersion) (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) }}
+        - name: api-server-config
+          configMap:
+            name: {{ template "airflow_api_server_config_configmap_name" . }}
         {{- end }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
