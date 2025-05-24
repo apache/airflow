@@ -1524,16 +1524,27 @@ b. Execute one of the commands below based on the desired coverage area:
 - **Core:** ``python scripts/cov/core_coverage.py``
 - **REST API:** ``python scripts/cov/restapi_coverage.py``
 - **CLI:** ``python scripts/cov/cli_coverage.py``
-- **Webserver:** ``python scripts/cov/www_coverage.py``
+- **Other:** ``python scripts/cov/other_coverage.py``
 
-c. After execution, the coverage report will be available at: http://localhost:28000/dev/coverage/index.html.
+c. After execution, run the following commands from the repository root
+   (inside the Breeze shell):
+
+   .. code-block:: bash
+
+      cd htmlcov/
+      python -m http.server 5555
+
+   The Breeze container maps port ``5555`` inside the container to
+   ``25555`` on the host, so you can open the coverage report at
+   http://localhost:25555 in your browser.
 
 .. note::
 
-   In order to see the coverage report, you must start webserver first in breeze environment via the
-   ``airflow webserver``. Once you enter ``breeze``, you can start ``tmux``  (terminal multiplexer) and
-   split the terminal (by pressing ``ctrl-B "`` for example) to continue testing and run the webserver
-   in one terminal and run tests in the second one (you can switch between the terminals with ``ctrl-B <arrow>``).
+   You no longer need to start the Airflow web server to view the
+   coverage report.  The lightweight HTTP server above is sufficient and
+   avoids an extra service.  If port 25555 on the host is already in use,
+   adjust the container-to-host mapping with
+   ``BREEZE_PORTS_EXTRA="<host_port>:5555" breeze start-airflow``.
 
 Modules Not Fully Covered:
 ..........................
