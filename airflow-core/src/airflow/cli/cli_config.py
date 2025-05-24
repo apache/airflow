@@ -594,7 +594,7 @@ ARG_DB_SKIP_INIT = Arg(
     default=False,
 )
 
-ARG_DB_MANAGER_NAME = Arg(
+ARG_DB_MANAGER_PATH = Arg(
     ("import_path",),
     help="The import path of the database manager to use. ",
     default=None,
@@ -1734,13 +1734,13 @@ JOBS_COMMANDS = (
 DB_MANAGERS_COMMANDS = (
     ActionCommand(
         name="reset",
-        help="Burn down and rebuild the metadata database",
+        help="Burn down and rebuild the specified external database",
         func=lazy_load_command("airflow.cli.commands.db_manager_command.resetdb"),
-        args=(ARG_DB_MANAGER_NAME, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="migrate",
-        help="Migrates the metadata database to the latest version",
+        help="Migrates the specified external database to the latest version",
         description=(
             "Migrate the schema of the metadata database. "
             "Create the database if it does not exist "
@@ -1751,7 +1751,7 @@ DB_MANAGERS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.db_manager_command.migratedb"),
         args=(
-            ARG_DB_MANAGER_NAME,
+            ARG_DB_MANAGER_PATH,
             ARG_DB_REVISION__UPGRADE,
             ARG_DB_VERSION__UPGRADE,
             ARG_DB_SQL_ONLY,
@@ -1762,7 +1762,7 @@ DB_MANAGERS_COMMANDS = (
     ),
     ActionCommand(
         name="downgrade",
-        help="Downgrade the schema of the metadata database.",
+        help="Downgrade the schema of the external metadata database.",
         description=(
             "Downgrade the schema of the metadata database. "
             "You must provide either `--to-revision` or `--to-version`. "
@@ -1773,7 +1773,7 @@ DB_MANAGERS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.db_manager_command.downgrade"),
         args=(
-            ARG_DB_MANAGER_NAME,
+            ARG_DB_MANAGER_PATH,
             ARG_DB_REVISION__DOWNGRADE,
             ARG_DB_VERSION__DOWNGRADE,
             ARG_DB_SQL_ONLY,
