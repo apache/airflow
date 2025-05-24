@@ -595,10 +595,9 @@ ARG_DB_SKIP_INIT = Arg(
 )
 
 ARG_DB_MANAGER_NAME = Arg(
-    ("--name",),
-    help="The name of the database manager to use",
+    ("import_path",),
+    help="The import path of the database manager to use. ",
     default=None,
-    required=True,
 )
 
 # api-server
@@ -1731,11 +1730,12 @@ JOBS_COMMANDS = (
         ),
     ),
 )
+
 DB_MANAGERS_COMMANDS = (
     ActionCommand(
         name="reset",
         help="Burn down and rebuild the metadata database",
-        func=lazy_load_command("airflow.cli.commands.db_managers_command.resetdb"),
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.resetdb"),
         args=(ARG_DB_MANAGER_NAME, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
     ),
     ActionCommand(
@@ -1749,7 +1749,7 @@ DB_MANAGERS_COMMANDS = (
             "``--show-sql-only``, because if actually *running* migrations, we should only "
             "migrate from the *current* Alembic revision."
         ),
-        func=lazy_load_command("airflow.cli.commands.db_managers_command.migratedb"),
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.migratedb"),
         args=(
             ARG_DB_MANAGER_NAME,
             ARG_DB_REVISION__UPGRADE,
@@ -1771,7 +1771,7 @@ DB_MANAGERS_COMMANDS = (
             "because if actually *running* migrations, we should only migrate from the *current* Alembic "
             "revision."
         ),
-        func=lazy_load_command("airflow.cli.commands.db_managers_command.downgrade"),
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.downgrade"),
         args=(
             ARG_DB_MANAGER_NAME,
             ARG_DB_REVISION__DOWNGRADE,

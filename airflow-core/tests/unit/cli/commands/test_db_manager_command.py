@@ -35,18 +35,16 @@ class TestCliDbManager:
 
     @mock.patch("airflow.cli.commands.db_manager_command._get_db_manager")
     def test_cli_resetdb(self, mock_get_db_manager):
-        manager_name = "TestDBManager"
-        db_manager_command.resetdb(
-            self.parser.parse_args(["db-manager", "reset", "--name", manager_name, "--yes"])
-        )
-        mock_get_db_manager.assert_called_once_with("TestDBManager")
+        manager_name = "path.to.TestDBManager"
+        db_manager_command.resetdb(self.parser.parse_args(["db-manager", "reset", manager_name, "--yes"]))
+        mock_get_db_manager.assert_called_once_with("path.to.TestDBManager")
         mock_get_db_manager.return_value.resetdb.asset_called_once()
 
     @mock.patch("airflow.cli.commands.db_manager_command._get_db_manager")
     def test_cli_resetdb_skip_init(self, mock_get_db_manager):
-        manager_name = "TestDBManager"
+        manager_name = "path.to.TestDBManager"
         db_manager_command.resetdb(
-            self.parser.parse_args(["db-manager", "reset", "--name", manager_name, "--yes", "--skip-init"])
+            self.parser.parse_args(["db-manager", "reset", manager_name, "--yes", "--skip-init"])
         )
         mock_get_db_manager.assert_called_once_with(manager_name)
         mock_get_db_manager.return_value.resetdb.asset_called_once_with(skip_init=True)
@@ -54,27 +52,23 @@ class TestCliDbManager:
     @mock.patch("airflow.cli.commands.db_manager_command._get_db_manager")
     @mock.patch("airflow.cli.commands.db_manager_command.run_db_migrate_command")
     def test_cli_migrate_db(self, mock_run_db_migrate_cmd, mock_get_db_manager):
-        manager_name = "TestDBManager"
-        db_manager_command.migratedb(
-            self.parser.parse_args(["db-manager", "migrate", "--name", manager_name])
-        )
+        manager_name = "path.to.TestDBManager"
+        db_manager_command.migratedb(self.parser.parse_args(["db-manager", "migrate", manager_name]))
         mock_get_db_manager.assert_called_once_with(manager_name)
         mock_run_db_migrate_cmd.assert_called_once()
 
     @mock.patch("airflow.cli.commands.db_manager_command._get_db_manager")
     @mock.patch("airflow.cli.commands.db_manager_command.run_db_downgrade_command")
     def test_cli_downgrade_db(self, mock_run_db_downgrade_cmd, mock_get_db_manager):
-        manager_name = "TestDBManager"
-        db_manager_command.downgrade(
-            self.parser.parse_args(["db-manager", "downgrade", "--name", manager_name])
-        )
+        manager_name = "path.to.TestDBManager"
+        db_manager_command.downgrade(self.parser.parse_args(["db-manager", "downgrade", manager_name]))
         mock_get_db_manager.assert_called_once_with(manager_name)
         mock_run_db_downgrade_cmd.assert_called_once()
 
     @conf_vars({("database", "external_db_managers"): "path.to.manager.TestDBManager"})
     @mock.patch("airflow.cli.commands.db_manager_command.import_string")
     def test_get_db_manager(self, mock_import_string):
-        manager_name = "TestDBManager"
+        manager_name = "path.to.manager.TestDBManager"
         db_manager = db_manager_command._get_db_manager(manager_name)
         mock_import_string.assert_called_once_with("path.to.manager.TestDBManager")
         assert db_manager is not None

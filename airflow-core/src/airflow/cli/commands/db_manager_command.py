@@ -24,24 +24,19 @@ from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
-def _get_db_manager(name):
+def _get_db_manager(classpath: str):
     """Import the db manager class."""
-    db_managers = conf.get("database", "external_db_managers")
-    db_manager = None
-    for manager in db_managers.split(","):
-        if name in manager:
-            db_manager = manager
-            break
-    if db_manager is None:
-        raise SystemExit(f"DB manager {name} not found in configuration.")
-    return import_string(db_manager.strip())
+    managers = conf.getlist("database", "external_db_managers")
+    if classpath not in managers:
+        raise SystemExit(f"DB manager {classpath} not found in configuration.")
+    return import_string(classpath.strip())
 
 
 @providers_configuration_loaded
 def resetdb(args):
     """Reset the metadata database."""
     print(f"DB: {settings.engine.url!r}")
-    db_manager = _get_db_manager(args.name)
+    db_manager = _get_db_manager(args.import_path)
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
     db_manager(settings.Session()).resetdb(skip_init=args.skip_init)
@@ -51,7 +46,7 @@ def resetdb(args):
 @providers_configuration_loaded
 def migratedb(args):
     """Migrates the metadata database."""
-    db_manager = _get_db_manager(args.name)
+    db_manager = _get_db_manager(args.import_path)
     session = settings.Session()
     upgrade_command = db_manager(session).upgradedb
     run_db_migrate_command(args, upgrade_command, revision_heads_map=db_manager.revision_heads_map)
@@ -61,7 +56,7 @@ def migratedb(args):
 @providers_configuration_loaded
 def downgrade(args):
     """Downgrades the metadata database."""
-    db_manager = _get_db_manager(args.name)
+    db_manager = _get_db_manager(args.import_path)
     session = settings.Session()
     dwongrade_command = db_manager(session).downgrade
     run_db_downgrade_command(args, dwongrade_command, revision_heads_map=db_manager.revision_heads_map)
