@@ -25,9 +25,10 @@ import {
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -52,6 +53,8 @@ const enabledOptions = createListCollection({
   ],
 });
 
+const debounceDelay = 200;
+
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -62,10 +65,21 @@ export const DagsFilters = () => {
   const isRunning = state === "running";
   const isFailed = state === "failed";
   const isSuccess = state === "success";
+  const limit = 50;
 
+  const [pattern, setPattern] = useState<string>("");
+  const [offset, setOffset] = useState<number>(0);
+  const [tagsList, setTagsList] = useState<Array<string>>([]);
   const { data } = useDagServiceGetDagTags({
+    limit,
+    offset,
     orderBy: "name",
+    tagNamePattern: pattern,
   });
+
+  useEffect(() => {
+    setTagsList((tags) => [...tags, ...(data?.tags ?? [])]);
+  }, [data, setTagsList]);
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? "false" : "all";
@@ -122,7 +136,25 @@ export const DagsFilters = () => {
     [searchParams, setSearchParams],
   );
 
+  const handleInputChange = useDebouncedCallback((newValue) => {
+    if (pattern !== `${newValue}%`) {
+      setTagsList([]);
+    }
+    setOffset(0);
+    setPattern(`${newValue}%`);
+  }, debounceDelay);
+
+  const handleScrollBottomChange = useDebouncedCallback((_event: TouchEvent | WheelEvent) => {
+    const newOffset = Math.min(offset + limit, data?.total_entries ?? 0);
+
+    setOffset(newOffset);
+  }, debounceDelay);
+
   const onClearFilters = () => {
+    setOffset(0);
+    setPattern("");
+    setTagsList([]);
+
     searchParams.delete(PAUSED_PARAM);
     searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     searchParams.delete(TAGS_PARAM);
@@ -218,12 +250,12 @@ export const DagsFilters = () => {
             isMulti
             noOptionsMessage={() => "No tags found"}
             onChange={handleSelectTagsChange}
-            options={
-              data?.tags.map((tag) => ({
-                label: tag,
-                value: tag,
-              })) ?? []
-            }
+            onInputChange={handleInputChange}
+            onMenuScrollToBottom={handleScrollBottomChange}
+            options={tagsList.map((tag) => ({
+              label: tag,
+              value: tag,
+            }))}
             placeholder="Filter by tag"
             value={selectedTags.map((tag) => ({
               label: tag,
