@@ -41,6 +41,7 @@ airflow_version = "3.1.0"
 def upgrade():
     """Apply change to deadline column in the deadline table."""
     with op.batch_alter_table("deadline", schema=None) as batch_op:
+        op.drop_index("deadline_idx", table_name="deadline")
         batch_op.alter_column(
             "deadline",
             existing_type=sa.DateTime(),
@@ -48,11 +49,13 @@ def upgrade():
             existing_nullable=False,
             new_column_name="time",
         )
+        op.create_index("time_idx", "deadline", ["time"], unique=False)
 
 
 def downgrade():
     """Unapply change to deadline column in the deadline table."""
     with op.batch_alter_table("deadline", schema=None) as batch_op:
+        op.drop_index("time_idx", table_name="deadline")
         batch_op.alter_column(
             "deadline",
             existing_type=TIMESTAMP(timezone=True),
@@ -60,3 +63,4 @@ def downgrade():
             existing_nullable=False,
             new_column_name="deadline",
         )
+        op.create_index("deadline_idx", "deadline", ["deadline"], unique=False)
