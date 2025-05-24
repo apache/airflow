@@ -231,7 +231,7 @@ spec:
               {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           
-          {{- if hasKey .Values.dagProcessor.logGroomerSidecar "livenessProbe" }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.livenessProbe }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.logGroomerSidecar.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.dagProcessor.logGroomerSidecar.livenessProbe.timeoutSeconds }}
@@ -239,7 +239,7 @@ spec:
             periodSeconds: {{ .Values.dagProcessor.logGroomerSidecar.livenessProbe.periodSeconds }}
             exec:
               command:
-              {{- if hasKey .Values.scheduler.logGroomerSidecar.livenessProbe "command" }}
+              {{- if .Values.scheduler.logGroomerSidecar.livenessProbe.command }}
                 {{- toYaml .Values.scheduler.logGroomerSidecar.livenessProbe.command | nindent 16 }}
               {{- else }}
                 - sh
@@ -247,8 +247,8 @@ spec:
                 - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
               {{- end }}
           {{- end }}
-          
-          {{- if hasKey .Values.dagProcessor.logGroomerSidecar "readinessProbe" }}
+
+          {{- if .Values.dagProcessor.logGroomerSidecar.readinessProbe }}
           readinessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.logGroomerSidecar.readinessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.dagProcessor.logGroomerSidecar.readinessProbe.timeoutSeconds }}
@@ -256,7 +256,7 @@ spec:
             periodSeconds: {{ .Values.dagProcessor.logGroomerSidecar.readinessProbe.periodSeconds }}
             exec:
               command:
-              {{- if hasKey .Values.scheduler.logGroomerSidecar.readinessProbe "command" }}
+              {{- if .Values.scheduler.logGroomerSidecar.readinessProbe.command }}
                 {{- toYaml .Values.scheduler.logGroomerSidecar.readinessProbe.command | nindent 16 }}
                 {{- else }}
                 - sh
