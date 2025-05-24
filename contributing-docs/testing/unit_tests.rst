@@ -155,7 +155,7 @@ the example below shows how to run all tests, parallelizing them with ``pytest-x
 
 .. code-block:: bash
 
-    pytest tests --skip-db-tests -n auto
+    pytest airflow-core/tests --skip-db-tests -n auto
 
 
 The ``--skip-db-tests`` flag will only run tests that are not marked as DB tests.
@@ -186,7 +186,7 @@ rerun in Breeze as you will (``-n auto`` will parallelize tests using ``pytest-x
 .. code-block:: bash
 
     breeze shell --backend none --python 3.9
-    > pytest tests --skip-db-tests -n auto
+    > pytest airflow-core/tests --skip-db-tests -n auto
 
 
 Airflow DB tests
@@ -234,14 +234,14 @@ You can also run the commands via ``breeze testing core-tests`` or ``breeze test
 
 .. code-block:: bash
 
-    breeze testing core-tests --run-db-tests-only --backend postgres --run-in-parallel (v)
+    breeze testing core-tests --run-db-tests-only --backend postgres --run-in-parallel
 
 You can pass ``--parallel-test-type`` list of test types to execute or ``--exclude--parallel-test-types``
 to exclude them from the default set:.
 
 .. code-block:: bash
 
-    breeze testing providers-tests --run-in-parallel --run-db-tests-only --parallel-test-types "Providers[google] Providers[amazon]" (v)
+    breeze testing providers-tests --run-in-parallel --run-db-tests-only --parallel-test-types "Providers[google] Providers[amazon]"
 
 
 Also - if you want to iterate with the tests you can enter interactive shell and run the tests iteratively -
@@ -258,7 +258,7 @@ and you can run the tests using ``--run-in-parallel`` flag.
 
 .. code-block:: bash
 
-    breeze testing core-tests --run-db-tests-only --backend postgres --python 3.9 --run-in-parallel (v)
+    breeze testing core-tests --run-db-tests-only --backend postgres --python 3.9 --run-in-parallel
 
 Examples of marking test as DB test
 ...................................
@@ -357,7 +357,7 @@ For selected test types (example - the tests will run for Providers/API/CLI code
 
   .. code-block:: bash
 
-     breeze testing providers-tests --skip-db-tests --parallel-test-types "Providers[google] Providers[amazon]" (v)
+     breeze testing providers-tests --skip-db-tests --parallel-test-types "Providers[google] Providers[amazon]"
 
 You can also enter interactive shell with ``--skip-db-tests`` flag and run the tests iteratively
 
@@ -878,13 +878,13 @@ You can run the whole core test suite without adding the test target:
 
 .. code-block:: bash
 
-    breeze core-testing tests --db-reset
+    breeze testing core-tests --db-reset
 
 You can run the whole providers test suite without adding the test target:
 
 .. code-block:: bash
 
-    breeze providers-testing tests --db-reset
+    breeze testing providers-tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
@@ -924,7 +924,7 @@ flag:
 
 .. code-block:: bash
 
-    breeze testing core-tests --skip--docker-compose-down
+    breeze testing core-tests --skip-docker-compose-down
 
 
 Running full Airflow unit test suite in parallel
@@ -1442,7 +1442,7 @@ or by setting the environment variable ``CAPTURE_WARNINGS_OUTPUT``.
 
 .. code-block:: console
 
-    root@3f98e75b1ebe:/opt/airflow# pytest tests/core/ --warning-output-path=/foo/bar/spam.egg
+    root@3f98e75b1ebe:/opt/airflow# pytest airflow-core/tests/unit/core/ --warning-output-path=/foo/bar/spam.egg
     ...
     ========================= Warning summary. Total: 28, Unique: 12 ==========================
     airflow: total 11, unique 1
@@ -1461,7 +1461,7 @@ to **ignore**, e.g. set ``PYTHONWARNINGS`` environment variable to ``ignore``.
 
 .. code-block:: bash
 
-    pytest tests/core/ --disable-capture-warnings
+    pytest airflow-core/tests/unit/core/ --disable-capture-warnings
 
 Keep tests using environment variables
 ......................................
@@ -1477,7 +1477,7 @@ pytest CLI argument.
 
 .. code-block:: bash
 
-    pytest tests/core/ --keep-env-variables
+    pytest airflow-core/tests/unit/core/ --no-db-cleanup
 
 This parameter is also available in Breeze.
 
@@ -1568,7 +1568,7 @@ If you run the following command:
 .. code-block:: bash
 
     pytest --trace-sql=num,sql,parameters --capture=no \
-      tests/jobs/test_scheduler_job.py -k test_process_dags_queries_count_05
+      airflow-core/tests/unit/jobs/test_scheduler_job.py -k test_process_dags_queries_count_05
 
 On the screen you will see database queries for the given test.
 
