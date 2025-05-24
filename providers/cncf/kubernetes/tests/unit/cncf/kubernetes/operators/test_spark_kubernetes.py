@@ -461,6 +461,11 @@ class TestSparkKubernetesOperatorCreateApplication:
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+@patch(
+    "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.is_in_cluster",
+    new_callable=mock.PropertyMock,
+    return_value=False,
+)
 class TestSparkKubernetesOperator:
     def setup_method(self):
         db.merge_conn(
@@ -731,6 +736,143 @@ class TestSparkKubernetesOperator:
         label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
         op.find_spark_job(context)
         mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+
+    def test_adds_task_context_labels_to_driver_and_executor(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        mock_is_in_cluster,
+        data_file,
+    ):
+        task_name = "test_adds_task_context_labels"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        if "spec" not in job_spec:
+            job_spec["spec"] = {}
+        for component in ["driver", "executor"]:
+            if component not in job_spec["spec"]:
+                job_spec["spec"][component] = {}
+            if "labels" not in job_spec["spec"][component]:
+                job_spec["spec"][component]["labels"] = {}
+
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+
+        context = create_context(op)
+        task_context_labels = op._get_ti_pod_labels(context)
+
+        mock_spark_dict = {"spec": {"driver": {"labels": {}}, "executor": {"labels": {}}}}
+
+        for component in ["driver", "executor"]:
+            for key, value in task_context_labels.items():
+                mock_spark_dict["spec"][component]["labels"][key] = value
+
+        for component in ["driver", "executor"]:
+            for label_key, label_value in task_context_labels.items():
+                assert label_key in mock_spark_dict["spec"][component]["labels"], (
+                    f"Label {label_key} not in {component} labels"
+                )
+                assert mock_spark_dict["spec"][component]["labels"][label_key] == label_value, (
+                    f"Label {label_key} value mismatch in {component}"
+                )
+
+    def test_reattach_on_restart_with_task_context_labels(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        mock_is_in_cluster,
+        data_file,
+    ):
+        task_name = "test_reattach_on_restart"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        if "spec" not in job_spec:
+            job_spec["spec"] = {}
+        for component in ["driver", "executor"]:
+            if component not in job_spec["spec"]:
+                job_spec["spec"][component] = {}
+            if "labels" not in job_spec["spec"][component]:
+                job_spec["spec"][component]["labels"] = {}
+
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+
+        context = create_context(op)
+        task_context_labels = op._get_ti_pod_labels(context)
+
+        assert "dag_id" in task_context_labels, "dag_id not in task context labels"
+        assert "task_id" in task_context_labels, "task_id not in task context labels"
+        assert "run_id" in task_context_labels, "run_id not in task context labels"
+        assert task_context_labels["spark_kubernetes_operator"] == "True", (
+            "spark_kubernetes_operator label missing or incorrect"
+        )
+
+        label_selector = op._build_find_pod_label_selector(context)
+        for key, value in task_context_labels.items():
+            if key != "try_number":
+                expected_selector_part = f"{key}={value}"
+                assert expected_selector_part in label_selector, f"Label selector missing {key}={value}"
+
+        full_selector = label_selector + ",spark-role=driver"
+        assert "spark-role=driver" in full_selector, "Driver role label not added correctly"
+
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata = mock.MagicMock()
+        mock_pod.metadata.name = f"{task_name}-driver"
+        mock_pod.metadata.labels = task_context_labels.copy()
+        mock_pod.metadata.labels["spark-role"] = "driver"
+        mock_pod.metadata.labels["try_number"] = context["ti"].try_number
+
+        mock_list_pods = mock.MagicMock()
+        mock_list_pods.items = [mock_pod]
+        mock_get_kube_client.list_namespaced_pod.return_value = mock_list_pods
+
+        op.client = mock_get_kube_client
+
+        label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
+        mock_get_kube_client.list_namespaced_pod.assert_not_called()
+
+        found_pod = op.find_spark_job(context)
+
+        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+
+        assert found_pod is not None, "Pod was not found"
+        assert found_pod.metadata.name == f"{task_name}-driver", "Wrong pod name returned"
+        for key, value in task_context_labels.items():
+            if key == "try_number":
+                continue
+            assert key in found_pod.metadata.labels, f"Label {key} missing from found pod"
+            assert found_pod.metadata.labels[key] == value, f"Label {key} has wrong value in found pod"
+
+        if "try_number" in task_context_labels:
+            assert "try_number" in found_pod.metadata.labels, "try_number missing from pod labels"
+            assert str(found_pod.metadata.labels["try_number"]) == str(task_context_labels["try_number"]), (
+                "try_number value mismatch"
+            )
 
 
 @pytest.mark.db_test
