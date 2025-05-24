@@ -773,22 +773,26 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
   {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --hostname $(hostname)
   {{- else }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-    import os
-    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__CORE__LOGGING_LEVEL=ERROR \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint python -Wignore -c "
     from airflow.jobs.scheduler_job import SchedulerJob
     from airflow.utils.db import create_session
     from airflow.utils.net import get_hostname
@@ -805,22 +809,26 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
   {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --hostname $(hostname)
   {{- else }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-    import os
-    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__CORE__LOGGING_LEVEL=ERROR \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint python -Wignore -c "
     from airflow.jobs.scheduler_job import SchedulerJob
     from airflow.utils.db import create_session
     from airflow.utils.net import get_hostname
@@ -837,22 +845,26 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
   {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --hostname $(hostname)
   {{- else }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-    import os
-    os.environ[\"AIRFLOW__CORE__LOGGING_LEVEL\"] = \"ERROR\"
-    os.environ[\"AIRFLOW__LOGGING__LOGGING_LEVEL\"] = \"ERROR\"
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__CORE__LOGGING_LEVEL=ERROR \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint python -Wignore -c "
     from airflow.jobs.scheduler_job import SchedulerJob as Job
     from airflow.utils.net import get_hostname
     from airflow.jobs.job import most_recent_job
@@ -870,13 +882,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type TriggererJob --local
   {{- else }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type TriggererJob --hostname $(hostname)
   {{- end }}
 {{- end }}
@@ -886,13 +902,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type TriggererJob --local
   {{- else }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check --job-type TriggererJob --hostname $(hostname)
   {{- end }}
 {{- end }}
@@ -910,7 +930,9 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check {{ join " " $commandArgs }}
 {{- end }}
 
@@ -927,7 +949,9 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 \
+    AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR \
+    exec /entrypoint \
     airflow jobs check {{ join " " $commandArgs }}
 {{- end }}
 
