@@ -45,9 +45,11 @@ def init_airflow_session_interface(app):
 
             app.before_request(make_session_permanent)
     elif selected_backend == "database":
+        from flask_appbuilder.extensions import db
+
         app.session_interface = AirflowDatabaseSessionInterface(
             app=app,
-            db=None,
+            db=db,
             permanent=permanent_cookie,
             # Typically these would be configurable with Flask-Session,
             # but we will set them explicitly instead as they don't make
