@@ -24,14 +24,19 @@ import botocore.client
 import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
+from airflow.providers.amazon.aws.operators.batch import (
+    BatchCreateComputeEnvironmentOperator,
+    BatchOperator,
+)
 
 # Use dummy AWS credentials
 from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
+from airflow.utils import timezone
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -610,3 +615,18 @@ class TestBatchCreateComputeEnvironmentOperator:
         assert isinstance(deferred.value.trigger, BatchCreateComputeEnvironmentTrigger)
         assert deferred.value.trigger.waiter_delay == 456789
         assert deferred.value.trigger.attempts == 123456
+
+    @mock.patch("airflow.providers.amazon.aws.operators.batch.BatchOperator.submit_job")
+    def test_expand_with_container_overrides_dynamic_mapping(self, mock_submit_job):
+        with DAG(dag_id="test_dag", start_date=timezone.datetime(2023, 1, 1)) as dag:
+            task = BatchOperator.partial(
+                task_id="batch_task",
+                job_name="test-job",
+                job_queue="test-queue",
+                job_definition="test-job-def",
+            ).expand(container_overrides=[{"vcpus": 1}, {"vcpus": 2}])
+
+        assert task.is_mapped
+
+        assert "container_overrides" in task.expand_input.value
+        assert task.expand_input.value["container_overrides"] == [{"vcpus": 1}, {"vcpus": 2}]
