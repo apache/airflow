@@ -7,8 +7,10 @@
   "timezone": "時區",
   "user": "使用者",
   "language": {
-    "chinese": "繁體中文",
-    "english": "英文",
+    "zh_TW": "繁體中文",
+    "en": "英文",
+    "de": "德文",
+    "ko": "韓國人",
     "select": "選擇語言"
   },
   "nav": {
