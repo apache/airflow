@@ -7,10 +7,10 @@
   "timezone": "시간대",
   "user": "사용자",
   "language": {
-    "chinese": "중국어 번체",
-    "english": "영어",
-    "korean": "한국어",
-    "german": "독일어",
+    "zh_TW": "중국어 번체",
+    "en": "영어",
+    "de": "독일어",
+    "ko": "한국어",
     "select": "언어 선택"
   },
   "nav": {
