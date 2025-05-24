@@ -17,34 +17,91 @@
  * under the License.
  */
 import { Box, Center, Heading, Spinner, Text } from "@chakra-ui/react";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { useColorMode } from "src/context/colorMode";
 import { useUiPlugins } from "src/queries/useUiPlugins";
 
 type IframeProps = {
+  readonly colorMode: "dark" | "light" | undefined;
   readonly src: string;
 };
 
-const Iframe = ({ src }: IframeProps) => (
-  <Box height="calc(100vh - 80px)" width="100%">
-    <iframe
-      sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
-      src={src}
-      style={{
-        border: "none",
-        height: "100%",
-        width: "100%",
-      }}
-      title="Plugin Content"
-    />
-  </Box>
-);
+const Iframe = ({ colorMode, src }: IframeProps) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Add theme parameter to URL
+  const urlWithTheme = new URL(src, globalThis.location.origin);
+
+  urlWithTheme.searchParams.set("theme", colorMode ?? "light");
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+
+    if (!iframe) {
+      return undefined;
+    }
+
+    const handleLoad = () => {
+      // Send theme information to iframe after it loads
+      iframe.contentWindow?.postMessage(
+        {
+          theme: colorMode ?? "light",
+          type: "AIRFLOW_THEME_UPDATE",
+        },
+        "*",
+      );
+    };
+
+    iframe.addEventListener("load", handleLoad);
+
+    return () => {
+      iframe.removeEventListener("load", handleLoad);
+    };
+  }, [colorMode]);
+
+  // Send theme updates when colorMode changes
+  useEffect(() => {
+    const iframe = iframeRef.current;
+
+    if (!iframe?.contentWindow) {
+      return undefined;
+    }
+
+    iframe.contentWindow.postMessage(
+      {
+        theme: colorMode ?? "light",
+        type: "AIRFLOW_THEME_UPDATE",
+      },
+      "*",
+    );
+
+    return undefined;
+  }, [colorMode]);
+
+  return (
+    <Box height="calc(100vh - 80px)" width="100%">
+      <iframe
+        ref={iframeRef}
+        sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+        src={urlWithTheme.toString()}
+        style={{
+          border: "none",
+          height: "100%",
+          width: "100%",
+        }}
+        title="Plugin Content"
+      />
+    </Box>
+  );
+};
 
 export const PluginHost = () => {
   const { slug } = useParams<{ slug: string }>();
   const { data, error, isLoading } = useUiPlugins();
+  const { colorMode } = useColorMode();
 
   if (isLoading) {
     return (
@@ -72,7 +129,7 @@ export const PluginHost = () => {
   }
 
   if (plugin.type === "iframe") {
-    return <Iframe src={plugin.entry} />;
+    return <Iframe colorMode={colorMode} src={plugin.entry} />;
   }
 
   // Module federation is not implemented yet
