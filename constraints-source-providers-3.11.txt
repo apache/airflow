@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-23T19:48:44.478467
+# This constraints file was automatically generated on 2025-05-24T02:23:15.377481
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -210,7 +210,7 @@ flower==2.0.1
 frozenlist==1.6.0
 fsspec==2025.5.0
 future==1.0.0
-gcloud-aio-auth==5.4.1
+gcloud-aio-auth==5.4.2
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
 gcsfs==2025.5.0.post1
@@ -307,7 +307,7 @@ ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
 id==1.5.0
-identify==2.6.11
+identify==2.6.12
 idna==3.10
 ijson==3.4.0
 imagesize==1.4.1
