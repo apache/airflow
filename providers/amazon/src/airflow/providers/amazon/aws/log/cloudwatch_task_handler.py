@@ -99,7 +99,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             aws_conn_id=conf.get("logging", "remote_log_conn_id"), region_name=self.region_name
         )
 
-    @property
+    @cached_property
     def handler(self) -> watchtower.CloudWatchLogHandler:
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         return watchtower.CloudWatchLogHandler(
@@ -149,7 +149,14 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return (proc,)
 
     def close(self):
-        self.handler.close()
+        # Use the flush method to ensure all logs are sent to CloudWatch.
+        # Closing the handler sets `shutting_down` to True, which prevents any further logs from being sent.
+        # When `shutting_down` is True, means the logging system is in the process of shutting down,
+        # during which it attempts to flush the logs which are queued.
+        if self.handler is None or self.handler.shutting_down:
+            return
+
+        self.handler.flush()
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         # No-op, as we upload via the processor as we go
