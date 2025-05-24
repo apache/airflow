@@ -176,6 +176,7 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param runtime_class_name: The name of the RuntimeClass to use for all containers in the pod.
     :param node_selector: A dict containing a group of scheduling rules. (templated)
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -302,6 +303,7 @@ class KubernetesPodOperator(BaseOperator):
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        runtime_class_name: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
@@ -379,6 +381,7 @@ class KubernetesPodOperator(BaseOperator):
         self.init_container_logs = init_container_logs
         self.container_logs = container_logs or self.base_container_name
         self.image_pull_policy = image_pull_policy
+        self.runtime_class_name = runtime_class_name
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
@@ -1160,6 +1163,7 @@ class KubernetesPodOperator(BaseOperator):
                 annotations=self.annotations,
             ),
             spec=k8s.V1PodSpec(
+                runtime_class_name=self.runtime_class_name,
                 node_selector=self.node_selector,
                 affinity=self.affinity,
                 tolerations=self.tolerations,
