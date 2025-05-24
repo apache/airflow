@@ -1044,8 +1044,7 @@ def _revision_greater(config, this_rev, base_rev):
     # This ensures that the revisions are above `min_revision`
     script = _get_script_object(config)
     try:
-        list(script.revision_map.iterate_revisions(upper=this_rev, lower=base_rev))
-        return True
+        bool(list(script.revision_map.iterate_revisions(upper=this_rev, lower=base_rev)))
     except Exception:
         return False
 

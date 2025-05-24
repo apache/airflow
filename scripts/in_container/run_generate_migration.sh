@@ -21,6 +21,6 @@
 cd "${AIRFLOW_SOURCES}" || exit 1
 cd "airflow-core/src/airflow" || exit 1
 airflow db reset -y
-airflow db downgrade -n 2.10.3 -y
+airflow db downgrade -n 3.0.0 -y
 airflow db migrate -r heads
 alembic revision --autogenerate -m "${@}"

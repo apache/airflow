@@ -93,7 +93,7 @@ def initial_db_init():
 
     db.resetdb()
     if AIRFLOW_V_3_0_PLUS:
-        db.downgrade(to_revision="5f2621c13b39")
+        db.downgrade(to_revision="044f740568ec")
         db.upgradedb(to_revision="head")
     else:
         from flask import Flask
