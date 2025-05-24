@@ -148,6 +148,9 @@ def monitor_workflow_run(run_id: str, repo: str):
                 sys.exit(1)
             break
 
+        # Check status of jobs every 30 seconds
+        time.sleep(30)
+
 
 def trigger_workflow_and_monitor(workflow_name: str, repo: str, branch: str = "main", **workflow_fields):
     tigger_workflow(
