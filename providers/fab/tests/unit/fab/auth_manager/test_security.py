@@ -33,6 +33,7 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
@@ -128,7 +129,11 @@ def _delete_dag_permissions(dag_id, security_manager):
 
 
 def _create_dag_model(dag_id, session, security_manager):
-    dag_model = DagModel(dag_id=dag_id)
+    bundle_name = "test_bundle"
+    bundle = DagBundleModel(name=bundle_name)
+    session.merge(bundle)
+    session.flush()
+    dag_model = DagModel(dag_id=dag_id, bundle_name=bundle_name)
     session.add(dag_model)
     session.commit()
     security_manager.sync_perm_for_dag(dag_id, access_control=None)
@@ -505,6 +510,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
     permission_action = [permissions.ACTION_CAN_READ]
     dag_id = "dag_id"
     username = "ElUser"
+    bundle_name = "test_bundle"
 
     with app.app_context():
         with create_user_scope(
@@ -517,10 +523,22 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             ],
         ) as user:
             mock_is_logged_in.return_value = True
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
-                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+                dag_model = DagModel(
+                    dag_id=dag_id,
+                    bundle_name=bundle_name,
+                    fileloc="/tmp/dag_.py",
+                    schedule_interval="2 2 * * *",
+                )
             else:  # Airflow 3.
-                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", timetable_summary="2 2 * * *")
+                dag_model = DagModel(
+                    dag_id=dag_id,
+                    bundle_name=bundle_name,
+                    fileloc="/tmp/dag_.py",
+                    timetable_summary="2 2 * * *",
+                )
             session.add(dag_model)
             session.commit()
 
@@ -541,6 +559,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_EDIT]
     dag_id = "dag_id"
+    bundle_name = "test_bundle"
     with app.app_context():
         with create_user_scope(
             app,
@@ -551,10 +570,22 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             ],
         ) as user:
             mock_is_logged_in.return_value = True
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
             if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
-                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+                dag_model = DagModel(
+                    dag_id=dag_id,
+                    bundle_name="test_bundle",
+                    fileloc="/tmp/dag_.py",
+                    schedule_interval="2 2 * * *",
+                )
             else:  # Airflow 3.
-                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", timetable_summary="2 2 * * *")
+                dag_model = DagModel(
+                    dag_id=dag_id,
+                    bundle_name="test_bundle",
+                    fileloc="/tmp/dag_.py",
+                    timetable_summary="2 2 * * *",
+                )
             session.add(dag_model)
             session.commit()
 
@@ -1007,6 +1038,7 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
     role_name = "dag_permission_role"
     dag_id = "dag_id_1"
     dag_id_2 = "dag_id_1.with_dot"
+    bundle_name = "test_bundle"
     with app.app_context():
         mock_roles = [
             {
@@ -1022,8 +1054,10 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             username=username,
             role_name=role_name,
         ) as user:
-            dag1 = DagModel(dag_id=dag_id)
-            dag2 = DagModel(dag_id=dag_id_2)
+            session.merge(DagBundleModel(name=bundle_name))
+            session.flush()
+            dag1 = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            dag2 = DagModel(dag_id=dag_id_2, bundle_name=bundle_name)
             session.add_all([dag1, dag2])
             session.commit()
             security_manager.bulk_sync_roles(mock_roles)
