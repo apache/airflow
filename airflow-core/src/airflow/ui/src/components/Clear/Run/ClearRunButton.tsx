@@ -17,33 +17,46 @@
  * under the License.
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { Tooltip } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
 import ClearRunDialog from "./ClearRunDialog";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
+  readonly isHotkeyEnabled?: boolean;
   readonly withText?: boolean;
 };
 
-const ClearRunButton = ({ dagRun, withText = true }: Props) => {
+const ClearRunButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  return (
-    <Box>
-      <ActionButton
-        actionName="Clear Dag Run"
-        icon={<CgRedo />}
-        onClick={onOpen}
-        text="Clear Run"
-        withText={withText}
-      />
+  useHotkeys(
+    "shift+c",
+    () => {
+      onOpen();
+    },
+    { enabled: isHotkeyEnabled },
+  );
 
-      {open ? <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} /> : undefined}
-    </Box>
+  return (
+    <Tooltip closeDelay={100} content="Press shift+c to clear" disabled={!isHotkeyEnabled} openDelay={100}>
+      <Box>
+        <ActionButton
+          actionName="Clear Dag Run"
+          icon={<CgRedo />}
+          onClick={onOpen}
+          text="Clear Run"
+          withText={withText}
+        />
+
+        {open ? <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} /> : undefined}
+      </Box>
+    </Tooltip>
   );
 };
 
