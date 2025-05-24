@@ -58,6 +58,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
+- [Installation](#installation)
 - [Official source code](#official-source-code)
 - [Convenience packages](#convenience-packages)
 - [User Interface](#user-interface)
@@ -96,7 +97,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)     | Stable version (3.0.0) |
+|            | Main version (dev)     | Stable version (3.0.1) |
 |------------|------------------------|------------------------|
 | Python     | 3.9, 3.10, 3.11, 3.12  | 3.9, 3.10, 3.11, 3.12  |
 | Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
@@ -139,6 +140,7 @@ Documentation for dependent projects like provider distributions, Docker image, 
 
 <!-- END Getting started, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
+
 ## Installing from PyPI
 
 We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
@@ -153,7 +155,6 @@ files in the orphan `constraints-main` and `constraints-2-0` branches. We keep t
 constraints files separately per major/minor Python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
 correct Airflow tag/version/branch and Python versions in the URL.
-
 
 1. Installing just Airflow:
 
@@ -174,21 +175,26 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==3.0.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
+pip install 'apache-airflow==3.0.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.1/constraints-3.9.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==3.0.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
+pip install 'apache-airflow[postgres,google]==3.0.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.1/constraints-3.9.txt"
 ```
 
 For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 <!-- END Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
+
+## Installation
+
+For comprehensive instructions on setting up your local development environment and installing Apache Airflow, please refer to the [INSTALLING.md](INSTALLING.md) file.
+
 <!-- START Official source code, please keep comment here to allow auto update of PyPI readme.md -->
 ## Official source code
 
@@ -291,8 +297,8 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-----------------------|------------------|
-| 3         | 3.0.0                 | Supported | Apr 22, 2025    | TBD                   | TBD              |
-| 2         | 2.10.5                | Supported | Dec 17, 2020    | TBD                   | TBD              |
+| 3         | 3.0.1                 | Supported | Apr 22, 2025    | TBD                   | TBD              |
+| 2         | 2.11.0                | Supported | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018          | Jan 03, 2018     |
@@ -426,7 +432,7 @@ Want to help build Apache Airflow? Check out our [contributors' guide](https://g
 
 If you can't wait to contribute, and want to get started asap, check out the [contribution quickstart](https://github.com/apache/airflow/blob/main/contributing-docs/03_contributors_quick_start.rst) here!
 
-Official Docker (container) images for Apache Airflow are described in [images](dev/breeze/doc/ci/02_images.md).
+Official Docker (container) images for Apache Airflow are described in [images](https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/02_images.md).
 
 <!-- END Contributing, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->

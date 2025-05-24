@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-edge3",
         "name": "Edge Executor",
-        "description": "Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites\n",
+        "description": "Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.\n\nWhen tasks need to be executed on remote sites where the connection need to pass through\nfirewalls or other network restrictions, the Edge Worker can be deployed. The Edge Worker\nis a lightweight process with reduced dependencies. The worker only needs to be able to\ncommunicate with the central Airflow site via HTTPS.\n\nIn the central Airflow site the EdgeExecutor is used to orchestrate the work. The EdgeExecutor\nis a custom executor which is used to schedule tasks on the edge workers. The EdgeExecutor can co-exist\nwith other executors (for example CeleryExecutor or KubernetesExecutor) in the same Airflow site.\n\nAdditional REST API endpoints are provided to distribute tasks and manage the edge workers. The endpoints\nare provided by the API server.\n",
         "plugins": [
             {
                 "name": "edge_executor",
@@ -92,6 +92,13 @@ def get_provider_info():
                         "type": "integer",
                         "example": None,
                         "default": "524288",
+                    },
+                    "worker_umask": {
+                        "description": "The default umask to use for edge worker when run in daemon mode\n\nThis controls the file-creation mode mask which determines the initial value of file permission bits\nfor newly created files.\n\nThis value is treated as an octal-integer.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "default": None,
+                        "example": None,
                     },
                 },
             }

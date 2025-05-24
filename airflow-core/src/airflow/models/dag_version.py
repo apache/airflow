@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 import uuid6
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, select
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
@@ -112,7 +112,9 @@ class DagVersion(Base):
         return dag_version
 
     @classmethod
-    def _latest_version_select(cls, dag_id: str, bundle_version: str | None = None) -> Select:
+    def _latest_version_select(
+        cls, dag_id: str, bundle_version: str | None = None, load_dag_model: bool = False
+    ) -> Select:
         """
         Get the select object to get the latest version of the DAG.
 
@@ -122,22 +124,34 @@ class DagVersion(Base):
         query = select(cls).where(cls.dag_id == dag_id)
         if bundle_version:
             query = query.where(cls.bundle_version == bundle_version)
+
+        if load_dag_model:
+            query = query.options(joinedload(cls.dag_model))
+
         query = query.order_by(cls.created_at.desc()).limit(1)
         return query
 
     @classmethod
     @provide_session
     def get_latest_version(
-        cls, dag_id: str, *, bundle_version: str | None = None, session: Session = NEW_SESSION
+        cls,
+        dag_id: str,
+        *,
+        bundle_version: str | None = None,
+        load_dag_model: bool = False,
+        session: Session = NEW_SESSION,
     ) -> DagVersion | None:
         """
         Get the latest version of the DAG.
 
         :param dag_id: The DAG ID.
         :param session: The database session.
+        :param load_dag_model: Whether to load the DAG model.
         :return: The latest version of the DAG or None if not found.
         """
-        return session.scalar(cls._latest_version_select(dag_id, bundle_version=bundle_version))
+        return session.scalar(
+            cls._latest_version_select(dag_id, bundle_version=bundle_version, load_dag_model=load_dag_model)
+        )
 
     @classmethod
     @provide_session

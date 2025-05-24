@@ -28,6 +28,7 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { TogglePause } from "src/components/TogglePause";
 
+import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
 import { Schedule } from "../DagsList/Schedule";
 
@@ -73,7 +74,7 @@ export const Header = ({
     },
     {
       label: "Owner",
-      value: dag?.owners.join(", "),
+      value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
     },
     {
       label: "Tags",
