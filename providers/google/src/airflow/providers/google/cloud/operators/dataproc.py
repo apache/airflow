@@ -615,13 +615,12 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "project_id",
         "region",
         "cluster_config",
         "virtual_cluster_config",
         "cluster_name",
         "labels",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_fields_renderers = {"cluster_config": "json", "virtual_cluster_config": "json"}
 
@@ -945,7 +944,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
     :param polling_interval_seconds: Time (seconds) to wait between calls to check the cluster status.
     """
 
-    template_fields: Sequence[str] = ("project_id", "region", "cluster_name", "impersonation_chain")
+    template_fields: Sequence[str] = ("region", "cluster_name", *GoogleCloudBaseOperator.template_fields)
 
     def __init__(
         self,
@@ -1069,9 +1068,8 @@ class _DataprocStartStopClusterBaseOperator(GoogleCloudBaseOperator):
     template_fields = (
         "cluster_name",
         "region",
-        "project_id",
         "request_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -1274,6 +1272,13 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
     job_type = ""
 
+    template_fields = (
+        "region",
+        "job_name",
+        "cluster_name",
+        *GoogleCloudBaseOperator.template_fields,
+    )
+
     operator_extra_links = (DataprocLink(),)
 
     def __init__(
@@ -1413,7 +1418,7 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("region", "template")
+    template_fields: Sequence[str] = ("template", "region", *GoogleCloudBaseOperator.template_fields)
     template_fields_renderers = {"template": "json"}
     operator_extra_links = (DataprocWorkflowTemplateLink(),)
 
@@ -1508,7 +1513,13 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
     :param cancel_on_kill: Flag which indicates whether cancel the workflow, when on_kill is called
     """
 
-    template_fields: Sequence[str] = ("template_id", "impersonation_chain", "request_id", "parameters")
+    template_fields: Sequence[str] = (
+        "template_id",
+        "region",
+        "request_id",
+        "parameters",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     template_fields_renderers = {"parameters": "json"}
     operator_extra_links = (DataprocWorkflowLink(),)
 
@@ -1657,7 +1668,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
     :param cancel_on_kill: Flag which indicates whether cancel the workflow, when on_kill is called
     """
 
-    template_fields: Sequence[str] = ("template", "impersonation_chain")
+    template_fields: Sequence[str] = ("template", "region", *GoogleCloudBaseOperator.template_fields)
     template_fields_renderers = {"template": "json"}
     operator_extra_links = (DataprocWorkflowLink(),)
 
@@ -1826,7 +1837,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
     """
 
-    template_fields: Sequence[str] = ("project_id", "region", "job", "impersonation_chain", "request_id")
+    template_fields: Sequence[str] = ("job", "region", "request_id", *GoogleCloudBaseOperator.template_fields)
     template_fields_renderers = {"job": "json"}
 
     operator_extra_links = (DataprocJobLink(),)
@@ -2025,8 +2036,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         "cluster",
         "region",
         "request_id",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (DataprocClusterLink(),)
 
@@ -2159,14 +2169,13 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "project_id",
         "region",
         "cluster_name",
-        "impersonation_chain",
         "tarball_gcs_dir",
         "diagnosis_interval",
         "jobs",
         "yarn_application_ids",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -2304,11 +2313,10 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "project_id",
+        "region",
         "batch",
         "batch_id",
-        "region",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (DataprocBatchLink(),)
 
@@ -2618,7 +2626,7 @@ class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("batch_id", "region", *GoogleCloudBaseOperator.template_fields)
 
     def __init__(
         self,
@@ -2682,7 +2690,7 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("batch_id", "region", *GoogleCloudBaseOperator.template_fields)
     operator_extra_links = (DataprocBatchLink(),)
 
     def __init__(
@@ -2759,7 +2767,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
     :param order_by: How to order results as specified in ListBatchesRequest
     """
 
-    template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("region", *GoogleCloudBaseOperator.template_fields)
     operator_extra_links = (DataprocBatchesListLink(),)
 
     def __init__(
@@ -2833,7 +2841,7 @@ class DataprocCancelOperationOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("operation_name", "region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("operation_name", "region", *GoogleCloudBaseOperator.template_fields)
 
     def __init__(
         self,
