@@ -844,6 +844,25 @@ class TriggererInfoResponse(BaseModel):
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")] = None
 
 
+class Type(str, Enum):
+    IFRAME = "iframe"
+    MODULE = "module"
+
+
+class UiPluginResponse(BaseModel):
+    """
+    UI Plugin serializer for responses.
+    """
+
+    slug: Annotated[str, Field(title="Slug")]
+    label: Annotated[str, Field(title="Label")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    entry: Annotated[str, Field(title="Entry")]
+    type: Annotated[Type, Field(title="Type")]
+    permissions: Annotated[list[str], Field(title="Permissions")]
+    plugin_name: Annotated[str, Field(title="Plugin Name")]
+
+
 class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
@@ -1530,6 +1549,15 @@ class TaskResponse(BaseModel):
     extra_links: Annotated[
         list[str], Field(description="Extract and return extra_links.", title="Extra Links")
     ]
+
+
+class UiPluginCollectionResponse(BaseModel):
+    """
+    UI Plugin Collection serializer.
+    """
+
+    plugins: Annotated[list[UiPluginResponse], Field(title="Plugins")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class VariableCollectionResponse(BaseModel):

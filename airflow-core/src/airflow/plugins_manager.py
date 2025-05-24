@@ -99,6 +99,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "timetables",
     "listeners",
     "priority_weight_strategies",
+    "ui",
 }
 
 
@@ -157,6 +158,18 @@ class AirflowPlugin:
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
+
+    # A list of UI plugin entries that can be rendered in the React UI.
+    # Each entry is a dictionary with the following keys:
+    # - slug: URL segment and primary key
+    # - label: Text to display in the sidebar
+    # - icon: react-icons name (optional)
+    # - entry: Absolute URL served by the plugin (e.g., "/my_plugin/plugin-ui")
+    #         Note: Avoid using "/ui" as it may conflict with core Airflow routes.
+    #         Recommended to use "/plugin-ui" or "/ui-assets" instead.
+    # - type: "iframe" or "module" (module federation)
+    # - permissions: List of permission strings required to view the page
+    ui: list[dict[str, Any]] = []
 
     # A list of global operator extra links that can redirect users to
     # external systems. These extra links will be available on the

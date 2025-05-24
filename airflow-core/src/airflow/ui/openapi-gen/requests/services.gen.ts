@@ -159,6 +159,7 @@ import type {
   GetPluginsData,
   GetPluginsResponse,
   ImportErrorsResponse,
+  GetUiPluginsResponse,
   DeletePoolData,
   DeletePoolResponse,
   GetPoolData,
@@ -2759,6 +2760,23 @@ export class PluginService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v2/plugins/importErrors",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+      },
+    });
+  }
+
+  /**
+   * Get Ui Plugins
+   * Get all UI plugins.
+   * @returns UiPluginCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getUiPlugins(): CancelablePromise<GetUiPluginsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v2/plugins/ui-plugins",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",

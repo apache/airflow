@@ -5539,6 +5539,74 @@ export const $TriggererInfoResponse = {
   description: "Triggerer info serializer for responses.",
 } as const;
 
+export const $UiPluginCollectionResponse = {
+  properties: {
+    plugins: {
+      items: {
+        $ref: "#/components/schemas/UiPluginResponse",
+      },
+      type: "array",
+      title: "Plugins",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["plugins", "total_entries"],
+  title: "UiPluginCollectionResponse",
+  description: "UI Plugin Collection serializer.",
+} as const;
+
+export const $UiPluginResponse = {
+  properties: {
+    slug: {
+      type: "string",
+      title: "Slug",
+    },
+    label: {
+      type: "string",
+      title: "Label",
+    },
+    icon: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Icon",
+    },
+    entry: {
+      type: "string",
+      title: "Entry",
+    },
+    type: {
+      type: "string",
+      enum: ["iframe", "module"],
+      title: "Type",
+    },
+    permissions: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Permissions",
+    },
+    plugin_name: {
+      type: "string",
+      title: "Plugin Name",
+    },
+  },
+  type: "object",
+  required: ["slug", "label", "entry", "type", "permissions", "plugin_name"],
+  title: "UiPluginResponse",
+  description: "UI Plugin serializer for responses.",
+} as const;
+
 export const $ValidationError = {
   properties: {
     loc: {

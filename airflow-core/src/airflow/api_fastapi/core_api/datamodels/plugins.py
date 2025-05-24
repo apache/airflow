@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BeforeValidator, ConfigDict, field_validator
 
@@ -111,4 +111,23 @@ class PluginImportErrorCollectionResponse(BaseModel):
     """Plugin Import Error Collection serializer."""
 
     import_errors: list[PluginImportErrorResponse]
+    total_entries: int
+
+
+class UiPluginResponse(BaseModel):
+    """UI Plugin serializer for responses."""
+
+    slug: str
+    label: str
+    icon: str | None = None
+    entry: str
+    type: Literal["iframe", "module"]
+    permissions: list[str]
+    plugin_name: str
+
+
+class UiPluginCollectionResponse(BaseModel):
+    """UI Plugin Collection serializer."""
+
+    plugins: list[UiPluginResponse]
     total_entries: int

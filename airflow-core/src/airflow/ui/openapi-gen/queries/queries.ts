@@ -2259,6 +2259,25 @@ export const usePluginServiceImportErrors = <
     ...options,
   });
 /**
+ * Get Ui Plugins
+ * Get all UI plugins.
+ * @returns UiPluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePluginServiceGetUiPlugins = <
+  TData = Common.PluginServiceGetUiPluginsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UsePluginServiceGetUiPluginsKeyFn(queryKey),
+    queryFn: () => PluginService.getUiPlugins() as TData,
+    ...options,
+  });
+/**
  * Get Pool
  * Get a pool.
  * @param data The data for the request.

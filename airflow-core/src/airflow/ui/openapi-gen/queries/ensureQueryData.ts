@@ -1895,6 +1895,17 @@ export const ensureUsePluginServiceImportErrorsData = (queryClient: QueryClient)
     queryFn: () => PluginService.importErrors(),
   });
 /**
+ * Get Ui Plugins
+ * Get all UI plugins.
+ * @returns UiPluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUsePluginServiceGetUiPluginsData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UsePluginServiceGetUiPluginsKeyFn(),
+    queryFn: () => PluginService.getUiPlugins(),
+  });
+/**
  * Get Pool
  * Get a pool.
  * @param data The data for the request.

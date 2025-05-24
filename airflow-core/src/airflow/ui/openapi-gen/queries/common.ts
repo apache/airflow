@@ -1371,6 +1371,16 @@ export const UsePluginServiceImportErrorsKeyFn = (queryKey?: Array<unknown>) => 
   usePluginServiceImportErrorsKey,
   ...(queryKey ?? []),
 ];
+export type PluginServiceGetUiPluginsDefaultResponse = Awaited<ReturnType<typeof PluginService.getUiPlugins>>;
+export type PluginServiceGetUiPluginsQueryResult<
+  TData = PluginServiceGetUiPluginsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePluginServiceGetUiPluginsKey = "PluginServiceGetUiPlugins";
+export const UsePluginServiceGetUiPluginsKeyFn = (queryKey?: Array<unknown>) => [
+  usePluginServiceGetUiPluginsKey,
+  ...(queryKey ?? []),
+];
 export type PoolServiceGetPoolDefaultResponse = Awaited<ReturnType<typeof PoolService.getPool>>;
 export type PoolServiceGetPoolQueryResult<
   TData = PoolServiceGetPoolDefaultResponse,

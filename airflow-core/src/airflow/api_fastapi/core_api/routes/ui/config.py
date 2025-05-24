@@ -52,9 +52,46 @@ def get_configs() -> ConfigResponse:
     """Get configs for UI."""
     conf_dict = conf.as_dict()
 
-    config = {key: conf_dict["webserver"].get(key) for key in WEBSERVER_CONFIG_KEYS}
+    config: dict[str, Any] = {}
 
-    config.update({key: conf_dict["api"].get(key) for key in API_CONFIG_KEYS})
+    # Handle webserver config keys
+    for key in WEBSERVER_CONFIG_KEYS:
+        value = conf_dict.get("webserver", {}).get(key)
+        if value is None:
+            if key == "enable_swagger_ui":
+                config[key] = conf.getboolean("webserver", key, fallback=True)
+            else:
+                config[key] = conf.get("webserver", key, fallback=None)
+        else:
+            # Convert string values to appropriate types
+            if key == "enable_swagger_ui":
+                config[key] = str(value).lower() in ("true", "1", "yes", "on")
+            else:
+                config[key] = value
+
+    # Handle API config keys
+    for key in API_CONFIG_KEYS:
+        value = conf_dict.get("api", {}).get(key)
+        if value is None:
+            # Use conf.get with fallback to ensure we get proper typed values
+            if key == "hide_paused_dags_by_default":
+                config[key] = conf.getboolean("api", key, fallback=False)
+            elif key == "page_size":
+                config[key] = conf.getint("api", key, fallback=25)
+            elif key == "auto_refresh_interval":
+                config[key] = conf.getint("api", key, fallback=3)
+            elif key in ["default_wrap", "require_confirmation_dag_change"]:
+                config[key] = conf.getboolean("api", key, fallback=False)
+            else:
+                config[key] = conf.get("api", key, fallback=None)
+        else:
+            # Convert string values to appropriate types
+            if key in ["hide_paused_dags_by_default", "default_wrap", "require_confirmation_dag_change"]:
+                config[key] = str(value).lower() in ("true", "1", "yes", "on")
+            elif key in ["page_size", "auto_refresh_interval"]:
+                config[key] = int(value) if isinstance(value, str) and value.isdigit() else value
+            else:
+                config[key] = value
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
