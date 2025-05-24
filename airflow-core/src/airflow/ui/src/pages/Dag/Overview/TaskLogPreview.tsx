@@ -62,9 +62,10 @@ export const TaskLogPreview = ({
           </Link>
         </Flex>
       </Flex>
-      <Box maxHeight="100px" overflow="auto">
+      <Box overflow="auto">
         <TaskLogContent
           error={error}
+          height="100px"
           isLoading={isLoading}
           logError={error}
           parsedLogs={data.parsedLogs}

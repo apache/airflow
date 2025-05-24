@@ -81,6 +81,7 @@ export const Logs = () => {
     error: logError,
     isLoading: isLoadingLogs,
   } = useLogs({
+    accept: "application/json",
     dagId,
     logLevelFilters,
     sourceFilters,
@@ -115,6 +116,7 @@ export const Logs = () => {
       ) : undefined}
       <TaskLogContent
         error={error}
+        height="600px"
         isLoading={isLoading || isLoadingLogs}
         logError={logError}
         parsedLogs={data.parsedLogs}
@@ -142,6 +144,7 @@ export const Logs = () => {
           <Dialog.Body>
             <TaskLogContent
               error={error}
+              height="1000px"
               isLoading={isLoading || isLoadingLogs}
               logError={logError}
               parsedLogs={data.parsedLogs}
