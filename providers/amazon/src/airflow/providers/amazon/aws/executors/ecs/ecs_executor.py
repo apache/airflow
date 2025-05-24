@@ -131,7 +131,7 @@ class AwsEcsExecutor(BaseExecutor):
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
-    def _process_workloads(self, workloads: list[workloads.All]) -> None:
+    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
 
         # Airflow V3 version

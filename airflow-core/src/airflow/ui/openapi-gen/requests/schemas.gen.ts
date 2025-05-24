@@ -6098,14 +6098,6 @@ export const $ConfigResponse = {
       type: "boolean",
       title: "Default Wrap",
     },
-    audit_view_excluded_events: {
-      type: "string",
-      title: "Audit View Excluded Events",
-    },
-    audit_view_included_events: {
-      type: "string",
-      title: "Audit View Included Events",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -6142,8 +6134,6 @@ export const $ConfigResponse = {
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",
-    "audit_view_excluded_events",
-    "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
     "show_external_log_redirect",

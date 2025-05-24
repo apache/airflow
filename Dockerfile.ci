@@ -1020,7 +1020,9 @@ function determine_airflow_to_use() {
         echo
         # Use uv run to install necessary dependencies automatically
         # in the future we will be able to use uv sync when `uv.lock` is supported
-        uv run /opt/airflow/scripts/in_container/install_development_dependencies.py \
+        # for the use in parallel runs in docker containers--no-cache is needed - otherwise there is
+        # possibility of overriding temporary environments by multiple parallel processes
+        uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
@@ -1381,8 +1383,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.7.1
-ARG AIRFLOW_UV_VERSION=0.7.3
+ARG AIRFLOW_SETUPTOOLS_VERSION=80.8.0
+ARG AIRFLOW_UV_VERSION=0.7.7
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"

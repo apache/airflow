@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import * as ReactIcons from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
@@ -30,6 +31,7 @@ import { useUiPlugins } from "src/queries/useUiPlugins";
 import { NavButton } from "./NavButton";
 
 export const PluginMenus = () => {
+  const { t: translate } = useTranslation("common");
   const { data } = usePluginServiceGetPlugins();
   const { data: uiPluginsData } = useUiPlugins();
 
@@ -79,7 +81,7 @@ export const PluginMenus = () => {
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger>
-        <NavButton as={Box} icon={<LuPlug />} title="Plugins" />
+        <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
       </Menu.Trigger>
       <Menu.Content>
         {/* UI Plugins (new style) */}

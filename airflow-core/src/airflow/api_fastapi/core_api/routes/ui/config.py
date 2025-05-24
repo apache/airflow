@@ -30,11 +30,9 @@ from airflow.utils.log.log_reader import TaskLogReader
 
 config_router = AirflowRouter(tags=["Config"])
 
-WEBSERVER_CONFIG_KEYS = [
-    "enable_swagger_ui",
-]
 
 API_CONFIG_KEYS = [
+    "enable_swagger_ui",
     "hide_paused_dags_by_default",
     "page_size",
     "default_wrap",
@@ -54,27 +52,14 @@ def get_configs() -> ConfigResponse:
 
     config: dict[str, Any] = {}
 
-    # Handle webserver config keys
-    for key in WEBSERVER_CONFIG_KEYS:
-        value = conf_dict.get("webserver", {}).get(key)
-        if value is None:
-            if key == "enable_swagger_ui":
-                config[key] = conf.getboolean("webserver", key, fallback=True)
-            else:
-                config[key] = conf.get("webserver", key, fallback=None)
-        else:
-            # Convert string values to appropriate types
-            if key == "enable_swagger_ui":
-                config[key] = str(value).lower() in ("true", "1", "yes", "on")
-            else:
-                config[key] = value
-
     # Handle API config keys
     for key in API_CONFIG_KEYS:
         value = conf_dict.get("api", {}).get(key)
         if value is None:
             # Use conf.get with fallback to ensure we get proper typed values
-            if key == "hide_paused_dags_by_default":
+            if key == "enable_swagger_ui":
+                config[key] = conf.getboolean("api", key, fallback=True)
+            elif key == "hide_paused_dags_by_default":
                 config[key] = conf.getboolean("api", key, fallback=False)
             elif key == "page_size":
                 config[key] = conf.getint("api", key, fallback=25)
@@ -86,7 +71,12 @@ def get_configs() -> ConfigResponse:
                 config[key] = conf.get("api", key, fallback=None)
         else:
             # Convert string values to appropriate types
-            if key in ["hide_paused_dags_by_default", "default_wrap", "require_confirmation_dag_change"]:
+            if key in [
+                "enable_swagger_ui",
+                "hide_paused_dags_by_default",
+                "default_wrap",
+                "require_confirmation_dag_change",
+            ]:
                 config[key] = str(value).lower() in ("true", "1", "yes", "on")
             elif key in ["page_size", "auto_refresh_interval"]:
                 config[key] = int(value) if isinstance(value, str) and value.isdigit() else value

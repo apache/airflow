@@ -296,8 +296,6 @@ When you execute that code you will see:
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
 
-.. _best_practices/dynamic_dag_generation:
-
 Code Quality and Linting
 ------------------------
 
@@ -351,6 +349,7 @@ By integrating ``ruff`` into your development workflow, you can proactively addr
 
 For more information on ``ruff`` and its integration with Airflow, refer to the `official Airflow documentation <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>`_.
 
+.. _best_practices/dynamic_dag_generation:
 
 Dynamic DAG Generation
 ----------------------

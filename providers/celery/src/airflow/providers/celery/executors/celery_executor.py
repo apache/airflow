@@ -66,14 +66,14 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
 if TYPE_CHECKING:
     import argparse
+    from collections.abc import Sequence
 
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import TaskTuple
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery
+    from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery, TaskTuple
 
 
 # PEP562
@@ -256,7 +256,7 @@ class CeleryExecutor(BaseExecutor):
         """
         return max(1, math.ceil(to_send_count / self._sync_parallelism))
 
-    def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
+    def _process_tasks(self, task_tuples: Sequence[TaskTuple]) -> None:
         # Airflow V2 version
         from airflow.providers.celery.executors.celery_executor_utils import execute_command
 
@@ -264,18 +264,18 @@ class CeleryExecutor(BaseExecutor):
 
         self._send_tasks(task_tuples_to_send)
 
-    def _process_workloads(self, input: list[workloads.All]) -> None:
+    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3
-        from airflow.executors import workloads
+        from airflow.executors.workloads import ExecuteTask
         from airflow.providers.celery.executors.celery_executor_utils import execute_workload
 
         tasks = [
             (workload.ti.key, workload, workload.ti.queue, execute_workload)
-            for workload in input
-            if isinstance(workload, workloads.ExecuteTask)
+            for workload in workloads
+            if isinstance(workload, ExecuteTask)
         ]
-        if len(tasks) != len(input):
-            invalid = list(workload for workload in input if not isinstance(workload, workloads.ExecuteTask))
+        if len(tasks) != len(workloads):
+            invalid = list(workload for workload in workloads if not isinstance(workload, ExecuteTask))
             raise ValueError(f"{type(self)}._process_workloads cannot handle {invalid}")
 
         self._send_tasks(tasks)
