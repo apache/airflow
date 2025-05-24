@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from unittest import mock
 
 import pytest
 
@@ -65,6 +66,7 @@ class TestCallbackRequest:
                 ),
                 run_id="fake_run",
                 state=State.RUNNING,
+                dag_version_id=mock.MagicMock(),
             )
             ti.start_date = timezone.utcnow()
 
