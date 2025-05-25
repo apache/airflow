@@ -366,6 +366,14 @@ repos:
         files: ^\.github/workflows/.*$|^\.github/actions/.*$
         require_serial: true
         entry: zizmor
+  - repo: https://github.com/lirantal/anti-trojan-source
+    rev: v1.4.1
+    hooks:
+      - id: anti-trojan-source
+        name: Check source for malicious unicode characters
+        exclude: >
+          (?x)
+          ^.*\.(png|gif|jp[e]?g|tgz|lock)$
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes

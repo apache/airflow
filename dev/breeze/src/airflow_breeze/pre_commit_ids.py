@@ -24,6 +24,7 @@ from __future__ import annotations
 
 PRE_COMMIT_LIST = [
     "all",
+    "anti-trojan-source",
     "bandit",
     "blacken-docs",
     "check-aiobotocore-optional",
