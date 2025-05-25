@@ -55,12 +55,12 @@ def upgrade():
 def downgrade():
     """Unapply change to deadline column in the deadline table."""
     with op.batch_alter_table("deadline", schema=None) as batch_op:
-        op.drop_index("time_idx", table_name="deadline")
+        batch_op.drop_index("time_idx")
         batch_op.alter_column(
-            "deadline",
+            "time",
             existing_type=TIMESTAMP(timezone=True),
             type_=sa.DateTime(),
             existing_nullable=False,
             new_column_name="deadline",
         )
-        op.create_index("deadline_idx", "deadline", ["deadline"], unique=False)
+        batch_op.create_index("deadline_idx", ["deadline"], unique=False)
