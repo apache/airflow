@@ -70,10 +70,10 @@ When are plugins (re)loaded?
 ----------------------------
 
 Plugins are by default lazily loaded and once loaded, they are never reloaded (except the UI plugins are
-automatically loaded in Webserver). To load them at the
+automatically loaded in API server). To load them at the
 start of each Airflow process, set ``[core] lazy_load_plugins = False`` in ``airflow.cfg``.
 
-This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
+This means that if you make any changes to plugins and you want the API server or scheduler to use that new
 code you will need to restart those processes. However, it will not be reflected in new running tasks until after the scheduler boots.
 
 By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
@@ -139,11 +139,16 @@ looks like:
         # TaskInstance state changes. Listeners are python modules.
         listeners = []
 
+        # A list of UI plugin definitions that add custom pages to the Airflow web UI.
+        # Each dictionary defines a plugin page that will appear in the sidebar navigation.
+        # See the React-based UI Plugins section below for detailed examples.
+        ui = []
+
 You can derive it by inheritance (please refer to the example below). In the example, all options have been
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.
 
-Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
+Make sure you restart the API server and scheduler after making changes to plugins so that they take effect.
 
 
 .. _plugin-example:
@@ -246,6 +251,9 @@ Then inside pyproject.toml:
     [project.entry-points."airflow.plugins"]
     my_plugin = "my_package.my_plugin:MyAirflowPlugin"
 
+For detailed Python packaging instructions using hatch, including build configuration and distribution setup,
+see the complete packaging guide in :doc:`/howto/custom-view-plugin`.
+
 Flask Appbuilder and Flask Blueprints in Airflow 3
 --------------------------------------------------
 
@@ -254,6 +262,87 @@ and Flask Blueprints (``flask_blueprints``) in plugins. These has been supersede
 
 However, a compatibility layer is provided for Flask and FAB plugins to ease the transition to Airflow 3 - simply install the FAB provider.
 Ideally, you should convert your plugins to FastAPI apps (`fastapi_apps`) during the upgrade process, as this compatibility layer is deprecated.
+
+React-based UI Plugins
+----------------------
+
+Airflow 3 introduces native support for React-based UI plugins that integrate seamlessly with the main Airflow web interface.
+UI plugins appear as menu items in the sidebar navigation and render their content within the main Airflow layout.
+A key feature is **automatic theme synchronization** - when users switch between light and dark mode in Airflow,
+plugins automatically adapt to match the interface theme.
+
+UI Plugin Configuration
+^^^^^^^^^^^^^^^^^^^^^^^
+
+UI plugins are defined using the ``ui`` field in your ``AirflowPlugin`` class:
+
+.. code-block:: python
+
+    ui = [
+        {
+            "slug": "my-plugin",  # URL segment and unique identifier
+            "label": "My Plugin",  # Display name in sidebar navigation
+            "icon": "FiZap",  # Icon name from react-icons/fi (optional)
+            "entry": "/my_plugin/ui",  # URL path to plugin's UI
+            "type": "iframe",  # Rendering type: "iframe" or "module"
+            "permissions": ["plugins.can_read"],  # Required permissions (optional)
+        }
+    ]
+
+**Field Descriptions:**
+
+* ``slug``: A unique identifier used in the URL path (``/plugins/{slug}``). Must be URL-safe.
+* ``label``: The display name shown in the sidebar navigation.
+* ``icon``: Optional icon name from the ``react-icons/fi`` icon set (e.g., "FiZap", "FiSettings").
+* ``entry``: The URL path where your plugin's UI is served. This should be an endpoint from your FastAPI app.
+* ``type``: The rendering method. Use ``"iframe"`` (recommended) or ``"module"`` (experimental).
+* ``permissions``: Optional list of permission strings. Users must have these permissions to see the menu item.
+
+Plugin Types
+^^^^^^^^^^^^
+
+**Iframe Type (Recommended)**
+
+The ``"iframe"`` type renders your plugin's UI inside an iframe within the Airflow layout:
+
+.. code-block:: python
+
+    ui = [
+        {
+            "slug": "my-dashboard",
+            "label": "My Dashboard",
+            "icon": "FiBarChart3",
+            "entry": "/my_plugin/dashboard",
+            "type": "iframe",
+            "permissions": ["plugins.can_read"],
+        }
+    ]
+
+**Module Type (Experimental)**
+
+The ``"module"`` type uses Module Federation for tighter integration but is currently experimental.
+
+.. note::
+    Module Federation support is experimental and may not work in all environments. For production use,
+    we recommend using the iframe type.
+
+Development Guide
+^^^^^^^^^^^^^^^^^
+
+For a complete step-by-step development tutorial with detailed examples, frontend code, theme integration,
+troubleshooting, and best practices, see :doc:`/howto/custom-view-plugin`.
+
+UI Plugin Discovery
+^^^^^^^^^^^^^^^^^^^
+
+Airflow provides an API endpoint to discover available UI plugins:
+
+.. code-block:: bash
+
+    GET /api/v1/ui-plugins
+
+This endpoint returns all registered UI plugins that the current user has permission to access.
+The Airflow UI uses this endpoint to dynamically populate the sidebar navigation.
 
 Troubleshooting
 ---------------
