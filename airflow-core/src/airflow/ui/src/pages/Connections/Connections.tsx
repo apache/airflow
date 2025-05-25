@@ -33,6 +33,7 @@ import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import EditConnectionButton from "./EditConnectionButton";
+import TestConnectionButton from "./TestConnectionButton";
 
 export type ConnectionBody = {
   conn_type: string;
@@ -71,6 +72,7 @@ const columns: Array<ColumnDef<ConnectionResponse>> = [
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
+        <TestConnectionButton connection={original} disabled={false} />
         <EditConnectionButton connection={original} disabled={false} />
         <DeleteConnectionButton connectionId={original.connection_id} disabled={false} />
         {/* For now disabled is set as false, will depend on selected rows once multi action PR merges */}
