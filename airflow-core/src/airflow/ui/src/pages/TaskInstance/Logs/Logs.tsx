@@ -92,7 +92,7 @@ export const Logs = () => {
   const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
 
   return (
-    <Box p={2}>
+    <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
@@ -139,7 +139,7 @@ export const Logs = () => {
 
           <Dialog.CloseTrigger />
 
-          <Dialog.Body>
+          <Dialog.Body display="flex" flexDirection="column">
             <TaskLogContent
               error={error}
               isLoading={isLoading || isLoadingLogs}
