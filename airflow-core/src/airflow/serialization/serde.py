@@ -34,6 +34,7 @@ import airflow.serialization.serializers
 from airflow.configuration import conf
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -143,6 +144,11 @@ def serialize(o: object, depth: int = 0) -> U | None:
     # has to be "builtins.tuple", so that the deserializer can deserialize the object into tuple.
     if _is_namedtuple(o):
         qn = "builtins.tuple"
+        classname = qn
+
+    # Serialize pydantic.BaseModel
+    if _is_pydantic_basemodel(o):
+        qn = qualname(BaseModel)
         classname = qn
 
     # if there is a builtin serializer available use that
@@ -340,6 +346,18 @@ def _is_namedtuple(cls: Any) -> bool:
     using isinstance.
     """
     return hasattr(cls, "_asdict") and hasattr(cls, "_fields") and hasattr(cls, "_field_defaults")
+
+
+def _is_pydantic_basemodel(o: Any) -> bool:
+    """
+    Return True if the class is a pydantic.main.BaseModel.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance. The input can be an object or a class.
+    """
+    # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
+    # __pydantic_validator__ is an internal validator object, always set after model build
+    return hasattr(o, '__pydantic_fields__') and hasattr(o, '__pydantic_validator__')
 
 
 def _register():
