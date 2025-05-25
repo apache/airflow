@@ -71,7 +71,11 @@ class TestTimeSensor:
         expected_target_datetime = pendulum.datetime(2025, 1, 26, 23, 0, 0, tz="UTC")
 
         with time_machine.travel(travel_time, tick=False):
-            with DAG("test_target_date_aware", schedule=None, start_date=datetime(2025, 1, 27, 7, tzinfo=user_timezone)):
+            with DAG(
+                "test_target_date_aware",
+                schedule=None,
+                start_date=datetime(2025, 1, 27, 7, tzinfo=user_timezone),
+            ):
                 aware_datetime = pendulum.datetime(2025, 1, 27, 7).replace(tzinfo=user_timezone)
                 op = TimeSensor(task_id="test", target_time=aware_datetime.time())
 

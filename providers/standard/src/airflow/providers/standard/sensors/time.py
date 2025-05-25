@@ -93,7 +93,7 @@ class TimeSensor(BaseSensorOperator):
 
         # Get date considering dag.timezone
         aware_time = timezone.coerce_datetime(
-            datetime.datetime.combine(pendulum.now(tz=self.dag.timezone), target_time, self.dag.timezone)
+            datetime.datetime.combine(pendulum.now(tz=str(self.dag.timezone)), target_time, self.dag.timezone)
         )
 
         # Now that the dag's timezone has made the datetime timezone aware, we need to convert to UTC
