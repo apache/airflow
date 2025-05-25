@@ -34,7 +34,7 @@ Typical workflow in this case is:
 * build the image using this command
 
 ```bash
-breeze ci-image build --python 3.9 --airflow-constraints-location constraints/constraints-3.8txt
+breeze ci-image build --python 3.9 --airflow-constraints-location constraints/constraints-3.9txt
 ```
 
 You can continue iterating and updating the constraint file (and rebuilding the image)
