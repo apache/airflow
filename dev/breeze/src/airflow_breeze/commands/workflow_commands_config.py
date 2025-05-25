@@ -30,6 +30,7 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--exclude-docs",
                 "--site-env",
                 "--refresh-site",
+                "--sync-s3-to-github",
                 "--skip-write-to-stable-folder",
             ],
         },

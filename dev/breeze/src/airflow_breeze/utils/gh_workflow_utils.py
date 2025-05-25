@@ -152,7 +152,9 @@ def monitor_workflow_run(run_id: str, repo: str):
         time.sleep(30)
 
 
-def trigger_workflow_and_monitor(workflow_name: str, repo: str, branch: str = "main", **workflow_fields):
+def trigger_workflow_and_monitor(
+    workflow_name: str, repo: str, branch: str = "main", monitor=True, **workflow_fields
+):
     tigger_workflow(
         workflow_name=workflow_name,
         repo=repo,
@@ -168,6 +170,9 @@ def trigger_workflow_and_monitor(workflow_name: str, repo: str, branch: str = "m
     get_console().print(
         f"[blue]Workflow run ID: {workflow_run_id}[/blue]",
     )
+
+    if not monitor:
+        return
 
     monitor_workflow_run(
         run_id=str(workflow_run_id),

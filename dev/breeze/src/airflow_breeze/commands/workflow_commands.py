@@ -32,10 +32,12 @@ from airflow_breeze.utils.run_utils import run_command
 WORKFLOW_NAME_MAPS = {
     "publish-docs": "publish-docs-to-s3.yml",
     "airflow-refresh-site": "build.yml",
+    "sync-s3-to-github": "s3-to-github.yml",
 }
 
 APACHE_AIRFLOW_REPO = "apache/airflow"
 APACHE_AIRFLOW_SITE_REPO = "apache/airflow-site"
+APACHE_AIRFLOW_SITE_ARCHIVE_REPO = "apache/airflow-site-archive"
 
 
 @click.group(cls=BreezeGroup, name="workflow-run", help="Tools to manage Airflow repository workflows ")
@@ -66,6 +68,11 @@ def workflow_run():
     is_flag=True,
 )
 @click.option(
+    "--sync-s3-to-github",
+    help="Sync S3 docs to GitHub repository on apache/airflow-site-archive repo.",
+    is_flag=True,
+)
+@click.option(
     "--skip-write-to-stable-folder",
     help="Skip writing to stable folder.",
     is_flag=True,
@@ -77,6 +84,7 @@ def workflow_run_publish(
     site_env: str,
     refresh_site: bool,
     doc_packages: tuple[str, ...],
+    sync_s3_to_github: bool = False,
     skip_write_to_stable_folder: bool = False,
 ):
     get_console().print(
@@ -118,6 +126,9 @@ def workflow_run_publish(
     )
 
     if refresh_site:
+        get_console().print(
+            f"[blue]Refreshing site at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
+        )
         wf_name = WORKFLOW_NAME_MAPS["airflow-refresh-site"]
 
         if site_env == "auto":
@@ -137,4 +148,17 @@ def workflow_run_publish(
             workflow_name=wf_name,
             repo=APACHE_AIRFLOW_SITE_REPO,
             branch=branch,
+        )
+
+    if sync_s3_to_github:
+        workflow_fields = {"source": site_env}
+
+        get_console().print(
+            f"[blue]Syncing S3 docs to GitHub repository at {APACHE_AIRFLOW_SITE_ARCHIVE_REPO}[/blue]",
+        )
+        trigger_workflow_and_monitor(
+            workflow_name=WORKFLOW_NAME_MAPS["sync-s3-to-github"],
+            repo=APACHE_AIRFLOW_SITE_ARCHIVE_REPO,
+            **workflow_fields,
+            monitor=False,
         )
