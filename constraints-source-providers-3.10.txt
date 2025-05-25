@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-24T17:50:07.185926
+# This constraints file was automatically generated on 2025-05-25T12:13:27.403001
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiobotocore==2.22.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.11.18
+aiohttp==3.12.0
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -165,7 +165,7 @@ crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
-curlify==2.2.1
+curlify==3.0.0
 databricks-sql-connector==4.0.3
 dataclasses-json==0.6.7
 datadog==0.51.0
@@ -510,7 +510,7 @@ pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
 pytest-xdist==3.6.1
 pytest==8.3.5
-python-arango==8.1.6
+python-arango==8.1.7
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
@@ -552,7 +552,7 @@ rich==13.9.4
 rpds-py==0.25.1
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
-ruamel.yaml==0.18.10
+ruamel.yaml==0.18.11
 ruff==0.11.2
 s3fs==2025.5.1
 s3transfer==0.11.3
@@ -645,7 +645,7 @@ types-aiofiles==24.1.0.20250516
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250523
 types-croniter==6.0.0.20250411
-types-docutils==0.21.0.20250523
+types-docutils==0.21.0.20250525
 types-paramiko==3.5.0.20250516
 types-protobuf==6.30.2.20250516
 types-pyOpenSSL==24.1.0.20240722
@@ -668,7 +668,7 @@ uritemplate==4.1.1
 urllib3==2.4.0
 userpath==1.9.2
 uuid6==2024.7.10
-uv==0.7.7
+uv==0.7.8
 uvicorn==0.34.2
 uvloop==0.21.0
 validators==0.34.0
