@@ -53,7 +53,9 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
 
 
 def get_latest_pypi_version(package_name: str) -> str:
-    response = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+    response = requests.get(
+        f"https://pypi.org/pypi/{package_name}/json", headers={"User-Agent": "Python requests"}
+    )
     response.raise_for_status()  # Ensure we got a successful response
     data = response.json()
     latest_version = data["info"]["version"]  # The version info is under the 'info' key
