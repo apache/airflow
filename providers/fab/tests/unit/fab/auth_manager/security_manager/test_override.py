@@ -234,7 +234,6 @@ class TestFabAirflowSecurityManagerOverride:
                     "role_keys": [],
                 },
             ),
-            ("other", {"error": "access_denied", "error_description": "Invalid bearer token."}, {}),
         ],
     )
     def test_get_oauth_user_info(self, provider, resp, user_info):
