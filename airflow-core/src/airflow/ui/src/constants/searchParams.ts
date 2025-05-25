@@ -25,6 +25,7 @@ export enum SearchParamsKeys {
   NAME_PATTERN = "name_pattern",
   OFFSET = "offset",
   PAUSED = "paused",
+  POOL = "pool",
   RUN_TYPE = "run_type",
   SORT = "sort",
   SOURCE = "log_source",
