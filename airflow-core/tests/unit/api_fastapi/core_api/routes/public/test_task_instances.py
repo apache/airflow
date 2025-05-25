@@ -112,7 +112,7 @@ class TestTaskInstanceEndpoint:
         run_id = "TEST_DAG_RUN_ID"
         logical_date = self.ti_init.pop("logical_date", self.default_time)
         dr = None
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         tis = []
         for i in range(counter):
             if task_instances is None:
@@ -3947,7 +3947,9 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
     def test_should_not_update_mapped_task_instance(self, test_client, session):
         map_index = 1
         tis = self.create_task_instances(session)
-        ti = TaskInstance(task=tis[0].task, run_id=tis[0].run_id, map_index=map_index)
+        ti = TaskInstance(
+            task=tis[0].task, run_id=tis[0].run_id, map_index=map_index, dag_version_id=tis[0].dag_version_id
+        )
         ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
         session.add(ti)
         session.commit()
@@ -3978,6 +3980,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 run_id=tis[0].run_id,
                 map_index=map_index,
                 state="running",
+                dag_version_id=tis[0].dag_version_id,
             )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             session.add(ti)
