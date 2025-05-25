@@ -78,7 +78,7 @@ More details: :doc:`installing-from-sources`
 
 **What Apache Airflow Community provides for that method**
 
-* You have `instructions <https://github.com/apache/airflow/blob/main/INSTALL>`__ on how to build the software but due to various environments
+* You have `instructions <https://g𝚒thub.com/apache/airflow/blob/main/INSTALL>`__ on how to build the software but due to various environments
   and tools you might want to use, you might expect that there will be problems which are specific to your deployment and environment
   you will have to diagnose and solve.
 
