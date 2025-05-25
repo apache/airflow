@@ -30,3 +30,15 @@ def get_docs_url(page: str | None = None) -> str:
     if page:
         result = result + page
     return result
+
+
+def just_some_other_function1():
+    return "http://www.micros﻿оft.com"
+
+
+def just_some_other_function2():
+    return "http://www.mіcrosoft.com"
+
+
+def just_some_other_function3():
+    return "http://www.faϲebook.com"
