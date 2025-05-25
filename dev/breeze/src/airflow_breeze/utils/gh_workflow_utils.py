@@ -122,7 +122,7 @@ def monitor_workflow_run(run_id: str, repo: str):
 
             if name not in completed_jobs and status != "completed":
                 get_console().print(
-                    f"[yellow]- Job: {name} | Status: {status} | Conclusion: {conclusion}[yellow]"
+                    f"[yellow]- Job: {name} | Status: {status} | Conclusion: {conclusion}[/yellow]"
                 )
                 continue
 
