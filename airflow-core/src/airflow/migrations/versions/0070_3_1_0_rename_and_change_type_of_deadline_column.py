@@ -63,4 +63,4 @@ def downgrade():
             existing_nullable=False,
             new_column_name="deadline",
         )
-        batch_op.create_index("deadline_idx", ["deadline"], unique=False)
+    op.create_index("deadline_idx", "deadline", ["deadline"], unique=False)
