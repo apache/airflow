@@ -36,6 +36,7 @@ from kombu.asynchronous import set_event_loop
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
@@ -45,6 +46,9 @@ from airflow.utils.state import State
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.dag_version import DagVersion
 
 pytestmark = pytest.mark.db_test
 
@@ -196,9 +200,8 @@ class TestCeleryExecutor:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag_version import DagVersion
-
             dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             key1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
         else:
@@ -219,9 +222,8 @@ class TestCeleryExecutor:
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dag_version import DagVersion
-
             dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
             ti2 = TaskInstance(task=task_2, run_id=None, dag_version_id=dag_version.id)
@@ -259,10 +261,16 @@ class TestCeleryExecutor:
     def test_cleanup_stuck_queued_tasks(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_cleanup_stuck_queued_tasks_failed", schedule=None):
+        with DAG("test_cleanup_stuck_queued_tasks_failed", schedule=None) as dag:
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
-        ti = TaskInstance(task=task, run_id=None)
+        if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(task.dag.dag_id)
+            ti = TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)
+        else:
+            ti = TaskInstance(task=task, run_id=None)
         ti.external_executor_id = "231"
         ti.state = State.QUEUED
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
@@ -288,10 +296,16 @@ class TestCeleryExecutor:
     def test_revoke_task(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_revoke_task", schedule=None):
+        with DAG("test_revoke_task", schedule=None) as dag:
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
-        ti = TaskInstance(task=task, run_id=None)
+        if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(task.dag.dag_id)
+            ti = TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)
+        else:
+            ti = TaskInstance(task=task, run_id=None)
         ti.external_executor_id = "231"
         ti.state = State.QUEUED
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
