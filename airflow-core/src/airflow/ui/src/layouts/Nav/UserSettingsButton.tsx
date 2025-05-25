@@ -68,6 +68,15 @@ export const UserSettingsButton = () => {
               {supportedLanguages.map((lang) => (
                 <Menu.RadioItem key={lang.code} value={lang.code}>
                   {lang.name}
+                  {translate(`language.${lang.code}`) !== lang.name &&
+                  translate(`language.${lang.code}`) !== `language.${lang.code}` ? (
+                    <>
+                      {" ("}
+                      {translate(`language.${lang.code}`)})
+                    </>
+                  ) : (
+                    ""
+                  )}
                   <Menu.ItemIndicator />
                 </Menu.RadioItem>
               ))}

@@ -7,9 +7,10 @@
   "timezone": "Zeitzone",
   "user": "Benutzer",
   "language": {
-    "chinese": "Traditionelles Chinesisch",
-    "english": "Englisch",
-    "german": "Deutsch",
+    "zh_TW": "Traditionelles Chinesisch",
+    "en": "Englisch",
+    "de": "Deutsch",
+    "ko": "Koreanisch",
     "select": "Sprache wählen"
   },
   "nav": {
@@ -17,7 +18,7 @@
     "assets": "Datensets (Assets)",
     "browse": "Browsen",
     "admin": "Verwaltung",
-    "docs": "Dokumentation",
+    "docs": "Doku",
     "plugins": "Plug-ins"
   },
   "browse": {
