@@ -41,7 +41,7 @@ airflow_version = "3.1.0"
 def upgrade():
     """Apply change to deadline column in the deadline table."""
     with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.drop_index("deadline_idx", table_name="deadline")
+        batch_op.drop_index("deadline_idx")
         batch_op.alter_column(
             "deadline",
             existing_type=sa.DateTime(),
