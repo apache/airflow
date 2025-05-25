@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from airflow_breeze.commands.sbom_commands_config import SBOM_COMMANDS, SBOM_PARAMETERS
+from airflow_breeze.commands.workflow_commands_config import WORKFLOW_RUN_COMMANDS, WORKFLOW_RUN_PARAMETERS
 
 from airflow_breeze.utils import recording  # isort:skip  # noqa: F401
 
@@ -76,6 +77,7 @@ else:
         **CI_PARAMETERS,
         **RELEASE_MANAGEMENT_PARAMETERS,
         **SBOM_PARAMETERS,
+        **WORKFLOW_RUN_PARAMETERS,
     }
     click.rich_click.COMMAND_GROUPS = {
         "breeze": [
@@ -90,7 +92,7 @@ else:
             },
             {
                 "name": "Release management commands",
-                "commands": ["release-management", "sbom"],
+                "commands": ["release-management", "sbom", "workflow-run"],
             },
             {
                 "name": "Other commands",
@@ -114,4 +116,5 @@ else:
         ],
         "breeze sbom": [SBOM_COMMANDS],
         "breeze ci": [CI_COMMANDS],
+        "breeze workflow-run": [WORKFLOW_RUN_COMMANDS],
     }
