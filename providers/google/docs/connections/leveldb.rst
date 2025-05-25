@@ -47,7 +47,7 @@ Login / Password / Port / Schema
     Not used by :class:`LevelDBHook`.  Leave these fields blank.
 
 Extra (optional, JSON)
-    Additional options accepted by :pymeth:`plyvel.DB`:
+    Additional options accepted by :py:meth:`plyvel.DB`:
 
     ``create_if_missing`` *(bool)*
         When *true*, a new database directory will be created if it is absent.
