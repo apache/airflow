@@ -27,6 +27,7 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -1102,6 +1103,9 @@ class TestSqlBranch:
         self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
+        if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
 
     def teardown_method(self):
         with create_session() as session:

@@ -23,6 +23,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.github.operators.github import GithubOperator
 from airflow.utils import db, timezone
 
@@ -75,6 +76,11 @@ class TestGithubOperator:
             result_processor=lambda r: r.full_name,
             dag=self.dag,
         )
+        if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            SerializedDagModel.write_dag(dag=self.dag, bundle_name="testing")
 
         github_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 

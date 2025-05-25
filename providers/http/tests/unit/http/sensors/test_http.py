@@ -25,6 +25,7 @@ import requests
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.triggers.http import HttpSensorTrigger
@@ -286,6 +287,8 @@ class TestHttpOpSensor:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_get(self):
