@@ -62,7 +62,7 @@ SORT_KEY_OFFSET = 10000000
 
 Assuming 50 characters per line, an offset of 10,000,000 can represent approximately 500 MB of file data, which is sufficient for use as a constant.
 """
-HEAP_DUMP_SIZE = 500000
+HEAP_DUMP_SIZE = 5000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
 # These types are similar, but have distinct names to make processing them less error prone
