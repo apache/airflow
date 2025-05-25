@@ -26,7 +26,6 @@ from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
-    DbtCloudJobRunDetailsException,
     DbtCloudJobRunException,
     DbtCloudJobRunStatus,
 )
@@ -36,6 +35,7 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
+from airflow.providers.dbt.cloud.utils.exceptions import DbtCloudJobRunDetailsException
 from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import db, timezone
 
@@ -168,8 +168,7 @@ class TestDbtCloudRunJobOperator:
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
         return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
     )
-    # Needed now since we run get_job_run() too when a job failure happens
-    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run")
+    @patch("airflow.providers.dbt.cloud.utils.exceptions.DbtCloudJobRunDetailsException")
     def test_execute_failed_before_getting_deferred(
         self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_job_run_status, mock_job_run
     ):

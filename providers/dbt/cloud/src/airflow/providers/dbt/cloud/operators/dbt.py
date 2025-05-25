@@ -28,10 +28,10 @@ from airflow.models import BaseOperator
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
-    DbtCloudJobRunDetailsException,
     DbtCloudJobRunStatus,
     JobRunInfo,
 )
+from airflow.providers.dbt.cloud.utils.exceptions import DbtCloudJobRunDetailsException
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
 
@@ -213,12 +213,12 @@ class DbtCloudRunJobOperator(BaseOperator):
                 ):
                     self.log.info("Job run %s has completed successfully.", self.run_id)
                 else:
-                    # Gather job run details (including run steps), so we can output the logs from each step
-                    run_details = self.hook.get_job_run(
-                        run_id=self.run_id, account_id=self.account_id, include_related=["run_steps"]
-                    ).json()["data"]
 
-                    raise DbtCloudJobRunDetailsException(self.run_id, run_details)
+                    raise DbtCloudJobRunDetailsException(
+                        self.account_id,
+                        self.run_id,
+                        message=f"Job run {self.run_id} has failed or has been cancelled.",
+                    )
 
                 return self.run_id
             else:
@@ -244,12 +244,12 @@ class DbtCloudRunJobOperator(BaseOperator):
                     DbtCloudJobRunStatus.CANCELLED.value,
                     DbtCloudJobRunStatus.ERROR.value,
                 ):
-                    # Gather job run details (including run steps), so we can output the logs from each step
-                    run_details = self.hook.get_job_run(
-                        run_id=self.run_id, account_id=self.account_id, include_related=["run_steps"]
-                    ).json()["data"]
 
-                    raise DbtCloudJobRunDetailsException(self.run_id, run_details)
+                    raise DbtCloudJobRunDetailsException(
+                        self.account_id,
+                        self.run_id,
+                        message=f"Job run {self.run_id} has failed or has been cancelled.",
+                    )
 
         else:
             if self.deferrable is True:
@@ -265,20 +265,20 @@ class DbtCloudRunJobOperator(BaseOperator):
         """Execute when the trigger fires - returns immediately."""
         self.run_id = event["run_id"]
         if event["status"] == "cancelled":
-            # Gather job run details (including run steps), so we can output the logs from each step
-            run_details = self.hook.get_job_run(
-                run_id=self.run_id, account_id=self.account_id, include_related=["run_steps"]
-            ).json()["data"]
 
-            raise DbtCloudJobRunDetailsException(self.run_id, run_details)
+            raise DbtCloudJobRunDetailsException(
+                self.account_id,
+                self.run_id,
+                message=f"Job run {self.run_id} has failed or has been cancelled.",
+            )
 
         elif event["status"] == "error":
-            # Gather job run details (including run steps), so we can output the logs from each step
-            run_details = self.hook.get_job_run(
-                run_id=self.run_id, account_id=self.account_id, include_related=["run_steps"]
-            ).json()["data"]
 
-            raise DbtCloudJobRunDetailsException(self.run_id, run_details)
+            raise DbtCloudJobRunDetailsException(
+                self.account_id,
+                self.run_id,
+                message=f"Job run {self.run_id} has failed or has been cancelled.",
+            )
 
         self.log.info(event["message"])
         return int(event["run_id"])
