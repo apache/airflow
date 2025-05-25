@@ -672,6 +672,7 @@ export const $BulkCreateAction_ConnectionBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "create",
     },
     entities: {
       items: {
@@ -688,7 +689,7 @@ export const $BulkCreateAction_ConnectionBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkCreateAction[ConnectionBody]",
 } as const;
 
@@ -697,6 +698,7 @@ export const $BulkCreateAction_PoolBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "create",
     },
     entities: {
       items: {
@@ -713,7 +715,7 @@ export const $BulkCreateAction_PoolBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkCreateAction[PoolBody]",
 } as const;
 
@@ -722,6 +724,7 @@ export const $BulkCreateAction_VariableBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "create",
     },
     entities: {
       items: {
@@ -738,7 +741,7 @@ export const $BulkCreateAction_VariableBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkCreateAction[VariableBody]",
 } as const;
 
@@ -747,6 +750,7 @@ export const $BulkDeleteAction_ConnectionBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "delete",
     },
     entities: {
       items: {
@@ -763,7 +767,7 @@ export const $BulkDeleteAction_ConnectionBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkDeleteAction[ConnectionBody]",
 } as const;
 
@@ -772,6 +776,7 @@ export const $BulkDeleteAction_PoolBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "delete",
     },
     entities: {
       items: {
@@ -788,7 +793,7 @@ export const $BulkDeleteAction_PoolBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkDeleteAction[PoolBody]",
 } as const;
 
@@ -797,6 +802,7 @@ export const $BulkDeleteAction_VariableBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "delete",
     },
     entities: {
       items: {
@@ -813,7 +819,7 @@ export const $BulkDeleteAction_VariableBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkDeleteAction[VariableBody]",
 } as const;
 
@@ -867,6 +873,7 @@ export const $BulkUpdateAction_ConnectionBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "update",
     },
     entities: {
       items: {
@@ -883,7 +890,7 @@ export const $BulkUpdateAction_ConnectionBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkUpdateAction[ConnectionBody]",
 } as const;
 
@@ -892,6 +899,7 @@ export const $BulkUpdateAction_PoolBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "update",
     },
     entities: {
       items: {
@@ -908,7 +916,7 @@ export const $BulkUpdateAction_PoolBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkUpdateAction[PoolBody]",
 } as const;
 
@@ -917,6 +925,7 @@ export const $BulkUpdateAction_VariableBody_ = {
     action: {
       $ref: "#/components/schemas/BulkAction",
       description: "The action to be performed on the entities.",
+      default: "update",
     },
     entities: {
       items: {
@@ -933,7 +942,7 @@ export const $BulkUpdateAction_VariableBody_ = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["action", "entities"],
+  required: ["entities"],
   title: "BulkUpdateAction[VariableBody]",
 } as const;
 

@@ -198,7 +198,7 @@ export type BulkCreateAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entities to be created.
    */
@@ -210,7 +210,7 @@ export type BulkCreateAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entities to be created.
    */
@@ -222,7 +222,7 @@ export type BulkCreateAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entities to be created.
    */
@@ -234,7 +234,7 @@ export type BulkDeleteAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entity id/key to be deleted.
    */
@@ -246,7 +246,7 @@ export type BulkDeleteAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entity id/key to be deleted.
    */
@@ -258,7 +258,7 @@ export type BulkDeleteAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entity id/key to be deleted.
    */
@@ -292,7 +292,7 @@ export type BulkUpdateAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entities to be updated.
    */
@@ -304,7 +304,7 @@ export type BulkUpdateAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entities to be updated.
    */
@@ -316,7 +316,7 @@ export type BulkUpdateAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action?: BulkAction;
   /**
    * A list of entities to be updated.
    */
