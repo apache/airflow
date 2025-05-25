@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-25T13:56:09.131651
+# This constraints file was automatically generated on 2025-05-25T19:53:01.115374
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -50,7 +50,7 @@ Js2Py==0.74
 Mako==1.3.10
 Markdown==3.8
 MarkupSafe==3.0.2
-PyAthena==3.14.0
+PyAthena==3.14.1
 PyGithub==2.6.1
 PyHive==0.7.0
 PyJWT==2.10.1
