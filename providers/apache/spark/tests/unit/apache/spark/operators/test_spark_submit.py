@@ -197,8 +197,15 @@ class TestSparkSubmitOperator:
     def test_render_template(self, session):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)
-        ti = TaskInstance(operator, run_id="spark_test")
+
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(dag=self.dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(operator.dag_id)
+            ti = TaskInstance(operator, run_id="spark_test", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="spark_test",
@@ -209,6 +216,7 @@ class TestSparkSubmitOperator:
                 state="running",
             )
         else:
+            ti = TaskInstance(operator, run_id="spark_test")
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="spark_test",
