@@ -21,7 +21,6 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime, timedelta
-from unittest import mock
 
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient

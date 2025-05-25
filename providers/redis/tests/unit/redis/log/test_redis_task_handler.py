@@ -23,6 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.redis.log.redis_task_handler import RedisTaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
@@ -66,6 +67,7 @@ class TestRedisTaskHandler:
             from airflow.models.dag_version import DagVersion
 
             dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:

@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 import pytest
 from tabulate import tabulate
 
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -34,6 +35,12 @@ logger = logging.getLogger(__name__)
 
 
 def get_test_run(dag, **test_kwargs):
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+
     def callback(context: Context):
         if TYPE_CHECKING:
             assert isinstance(context["dag_run"], DagRun)
