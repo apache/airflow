@@ -20,7 +20,7 @@
 Set up a Database Backend
 =========================
 
-Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/14/>`__.
+Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/𝟷4/>`__.
 
 The document below describes the database engine configurations, the necessary changes to their configuration to be used with Airflow, as well as changes to the Airflow configurations to connect to these databases.
 
