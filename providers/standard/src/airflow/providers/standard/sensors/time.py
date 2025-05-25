@@ -22,8 +22,6 @@ import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import pendulum
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
@@ -93,7 +91,9 @@ class TimeSensor(BaseSensorOperator):
 
         # Get date considering dag.timezone
         aware_time = timezone.coerce_datetime(
-            datetime.datetime.combine(pendulum.now(tz=str(self.dag.timezone)), target_time, self.dag.timezone)
+            datetime.datetime.combine(
+                datetime.datetime.now(self.dag.timezone), target_time, self.dag.timezone
+            )
         )
 
         # Now that the dag's timezone has made the datetime timezone aware, we need to convert to UTC
