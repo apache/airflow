@@ -290,7 +290,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to perform.
             The method can also be a string if the action has been defined in a plugin.
             In that case, the action can be anything (e.g. can_do).
-            See https://github.com/apache/airflow/issues/39144
+            See https://g𝚒thub.com/apache/airflow/issues/39144
         :param resource_name: the name of the resource
         :param user: the user to performing the action
         """
