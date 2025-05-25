@@ -214,10 +214,20 @@ ARG_POOL_IMPORT = Arg(
     + textwrap.indent(
         textwrap.dedent(
             """
-            {
-                "pool_1": {"slots": 5, "description": "", "include_deferred": true},
-                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
-            }"""
+            [
+                {
+                    "name": "pool_1",
+                    "slots": 5,
+                    "description": "",
+                    "include_deferred": true,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "scheduled_slots": 0,
+                    "open_slots": 5,
+                    "deferred_slots": 0
+                }
+            ]"""
         ),
         " " * 4,
     ),
@@ -605,7 +615,7 @@ POOL_COMMANDS = (
     ActionCommand(
         name="import",
         help="Import pools",
-        func=lazy_load_command("airflowctl.ctl.commands.pool_command.import"),
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.import_"),
         args=(ARG_POOL_IMPORT,),
     ),
     ActionCommand(
