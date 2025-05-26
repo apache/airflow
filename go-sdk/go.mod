@@ -1,6 +1,6 @@
 module github.com/apache/airflow/go-sdk
 
-go 1.24.1
+go 1.24
 
 require (
 	github.com/ivanpirog/coloredcobra v1.0.1
