@@ -1151,7 +1151,7 @@ def process_parse_results(
             if not server_url:
                 raise AirflowConfigException("execution_api_server_url is not set")
 
-            logging.info("Trying to make an API call to %s to update DAGs", server_url)
+            logging.info("Attempting to make an API call to update DAGs using the execution API server.")
 
             @tenacity.retry(
                 stop=tenacity.stop_after_attempt(5),
