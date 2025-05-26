@@ -127,8 +127,8 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 return event
             # Only init the handler stream_name once. We cannot do it above when we init the handler because
             # we don't yet know the log path at that point.
-            if not _handler.log_stream_name:
-                _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            # we should always use the path(log-stream-name) coming from the logger.
+            _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -149,7 +149,14 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return (proc,)
 
     def close(self):
-        self.handler.close()
+        # Use the flush method to ensure all logs are sent to CloudWatch.
+        # Closing the handler sets `shutting_down` to True, which prevents any further logs from being sent.
+        # When `shutting_down` is True, means the logging system is in the process of shutting down,
+        # during which it attempts to flush the logs which are queued.
+        if self.handler is None or self.handler.shutting_down:
+            return
+
+        self.handler.flush()
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         # No-op, as we upload via the processor as we go
