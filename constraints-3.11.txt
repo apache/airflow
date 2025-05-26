@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-26T14:04:39.123576
+# This constraints file was automatically generated on 2025-05-26T20:00:21.716514
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -83,7 +83,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.16.1
-alibabacloud-adb20211201==3.0.3
+alibabacloud-adb20211201==3.1.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -352,7 +352,7 @@ google-cloud-bigquery==3.33.0
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
-google-cloud-container==2.56.1
+google-cloud-container==2.57.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
@@ -364,7 +364,7 @@ google-cloud-dlp==3.29.0
 google-cloud-kms==3.5.1
 google-cloud-language==2.17.1
 google-cloud-logging==3.12.1
-google-cloud-managedkafka==0.1.10
+google-cloud-managedkafka==0.1.11
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
 google-cloud-orchestration-airflow==1.17.5
@@ -376,7 +376,7 @@ google-cloud-run==0.10.18
 google-cloud-secret-manager==2.23.3
 google-cloud-spanner==3.54.0
 google-cloud-speech==2.32.0
-google-cloud-storage-transfer==1.16.1
+google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.2
 google-cloud-texttospeech==2.27.0
@@ -458,7 +458,7 @@ jsonpickle==3.4.2
 jsonpointer==3.0.0
 jsonschema-path==0.3.4
 jsonschema-specifications==2025.4.1
-jsonschema==4.23.0
+jsonschema==4.24.0
 jupyter_client==8.6.3
 jupyter_core==5.8.0
 jupyterlab_pygments==0.3.0
@@ -624,7 +624,7 @@ pytest-cov==6.1.1
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
-pytest-mock==3.14.0
+pytest-mock==3.14.1
 pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
@@ -638,7 +638,7 @@ python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
 python-multipart==0.0.20
-python-on-whales==0.76.1
+python-on-whales==0.77.0
 python-slugify==8.0.4
 python-telegram-bot==22.1
 python3-saml==1.16.0
@@ -756,7 +756,7 @@ traitlets==5.14.3
 trino==0.334.0
 trove-classifiers==2025.5.9.12
 twine==6.1.0
-typer==0.15.3
+typer==0.16.0
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415
 types-PyMySQL==1.1.0.20250516
@@ -814,7 +814,7 @@ ydb-dbapi==0.1.12
 ydb==3.21.2
 zeep==4.3.1
 zenpy==2.0.56
-zipp==3.21.0
+zipp==3.22.0
 zope.event==5.0
 zope.interface==7.2
 zstandard==0.23.0
