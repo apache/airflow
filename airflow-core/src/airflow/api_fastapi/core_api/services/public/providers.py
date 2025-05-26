@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,12 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/in_container/_in_container_script_init.sh
-. "$(dirname "${BASH_SOURCE[0]}")/_in_container_script_init.sh"
+from __future__ import annotations
 
-cd "${AIRFLOW_SOURCES}" || exit 1
-cd "airflow-core/src/airflow" || exit 1
-airflow db reset -y
-airflow db downgrade -n 2.10.3 -y
-airflow db migrate -r heads
-alembic revision --autogenerate -m "${@}"
+import re
+
+from airflow.api_fastapi.core_api.datamodels.providers import ProviderResponse
+from airflow.providers_manager import ProviderInfo
+
+
+def _remove_rst_syntax(value: str) -> str:
+    return re.sub("[`_<>]", "", value.strip(" \n."))
+
+
+def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
+    return ProviderResponse(
+        package_name=provider.data["package-name"],
+        description=_remove_rst_syntax(provider.data["description"]),
+        version=provider.version,
+    )

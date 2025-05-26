@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,12 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/in_container/_in_container_script_init.sh
-. "$(dirname "${BASH_SOURCE[0]}")/_in_container_script_init.sh"
+from __future__ import annotations
 
-cd "${AIRFLOW_SOURCES}" || exit 1
-cd "airflow-core/src/airflow" || exit 1
-airflow db reset -y
-airflow db downgrade -n 2.10.3 -y
-airflow db migrate -r heads
-alembic revision --autogenerate -m "${@}"
+WORKFLOW_RUN_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Airflow github actions workflow commands",
+    "commands": ["publish-docs"],
+}
+
+WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
+    "breeze workflow-run publish-docs": [
+        {
+            "name": "Trigger publish docs workflow",
+            "options": [
+                "--ref",
+                "--exclude-docs",
+                "--site-env",
+                "--refresh-site",
+                "--sync-s3-to-github",
+                "--skip-write-to-stable-folder",
+            ],
+        },
+    ],
+}

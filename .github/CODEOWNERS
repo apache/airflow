@@ -113,4 +113,8 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 /providers/fab/src/airflow-core/src/airflow/providers/fab/migrations/ @ephraimbuddy
 
 # AIP-72 - Task SDK
+# Python SDK
 /task-sdk/ @ashb @kaxil @amoghrajesh
+
+# Golang SDK
+/go-sdk/ @ashb @kaxil @amoghrajesh

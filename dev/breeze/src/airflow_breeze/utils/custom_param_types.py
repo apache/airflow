@@ -50,7 +50,7 @@ class BetterChoice(click.Choice):
         super().__init__(*args)
         self.all_choices: Sequence[str] = self.choices
 
-    def get_metavar(self, param) -> str:
+    def get_metavar(self, param, ctx=None) -> str:
         choices_str = " | ".join(self.all_choices)
         # Use curly braces to indicate a required argument.
         if param.required and param.param_type_name == "argument":
@@ -167,7 +167,7 @@ class CacheableChoice(click.Choice):
                 write_to_cache_file(param_name, new_value, check_allowed_values=False)
         return super().convert(new_value, param, ctx)
 
-    def get_metavar(self, param) -> str:
+    def get_metavar(self, param, ctx=None) -> str:
         param_name = param.envvar if param.envvar else param.name.upper()
         current_value = (
             read_from_cache_file(param_name) if not generating_command_images() else param.default.value
