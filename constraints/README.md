@@ -29,7 +29,7 @@ This allows you to iterate on dependencies without having to run `--upgrade-to-n
 Typical workflow in this case is:
 
 * download and copy the constraint file to the folder (for example via
-[The GitHub Raw Link](https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt)
+[The GitHub Raw Link](https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt))
 * modify the constraint file in "constraints" folder
 * build the image using this command
 
