@@ -248,7 +248,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                     raise DbtCloudJobRunDetailsException(
                         self.account_id,
                         self.run_id,
-                        message=f"Job run {self.run_id} has failed or has been cancelled.",
+                        message=f"Job run {self.run_id}, {job_run_status}.",
                     )
 
         else:
@@ -269,7 +269,7 @@ class DbtCloudRunJobOperator(BaseOperator):
             raise DbtCloudJobRunDetailsException(
                 self.account_id,
                 self.run_id,
-                message=f"Job run {self.run_id} has failed or has been cancelled.",
+                message=f"Job run {self.run_id} has been cancelled.",
             )
 
         elif event["status"] == "error":
@@ -277,7 +277,7 @@ class DbtCloudRunJobOperator(BaseOperator):
             raise DbtCloudJobRunDetailsException(
                 self.account_id,
                 self.run_id,
-                message=f"Job run {self.run_id} has failed or has been cancelled.",
+                message=f"Job run {self.run_id} has failed.",
             )
 
         self.log.info(event["message"])

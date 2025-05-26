@@ -37,7 +37,7 @@ class DbtCloudJobRunDetailsException(AirflowException):
         message: str = "The job run has failed.",
         # For extracting only a subset of the higher level job details
         # id is the run_id
-        run_data_keys: dict = [
+        run_data_keys: list = [
             "id",
             "job_id",
             "is_error",
@@ -49,7 +49,7 @@ class DbtCloudJobRunDetailsException(AirflowException):
         ],
         # For extracting only a subset of the run step details
         # id is the step id
-        run_steps_keys: dict = [
+        run_steps_keys: list = [
             "run_id",
             "id",
             "index",
