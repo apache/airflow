@@ -64,6 +64,8 @@ version = "3.1.0"
 dependencies = [
     "apache-airflow-task-sdk<1.2.0,>=1.0.0",
     "apache-airflow-core==3.1.0",
+    # aiohttp has missing py3.9, py3.10, and py3.12, temporarily limiting it
+    "aiohttp!=3.12.1",
 ]
 
 packages = []
