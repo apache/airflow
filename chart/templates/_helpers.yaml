@@ -327,12 +327,6 @@ If release name contains chart name it will be used as a full name.
   {{- if and .Values.dags.gitSync.containerLifecycleHooks (not .is_init) }}
   lifecycle: {{- tpl (toYaml .Values.dags.gitSync.containerLifecycleHooks) . | nindent 4 }}
   {{- end }}
-  {{- if .Values.dags.gitSync.livenessProbe }}
-  livenessProbe: {{- toYaml .Values.dags.gitSync.livenessProbe | nindent 4 }}
-  {{- end }}
-  {{- if .Values.dags.gitSync.readinessProbe }}
-  readinessProbe: {{- toYaml .Values.dags.gitSync.readinessProbe | nindent 4 }}
-  {{- end }}
 {{- end }}
 
 {{/* This helper will change when customers deploy a new image */}}
