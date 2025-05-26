@@ -1245,6 +1245,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             },
             id="Run docs-build for SECURITY.md",
         ),
+        pytest.param(
+            ("go-sdk/sdk/variable.go",),
+            {"run-go-sdk-tests": "true"},
+            id="Run go tests for go-sdk",
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
