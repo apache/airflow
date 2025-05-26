@@ -711,15 +711,15 @@ class CustomTriggerDagRun(BaseTrigger):
         )
 
     async def run(self, **args) -> AsyncIterator[TriggerEvent]:
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+        from airflow.sdk.execution_time.triggerer_task_functions import get_dagrun_state, get_dr_count
 
-        dag_run_states_count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+        dag_run_states_count = await get_dr_count(
             dag_id=self.trigger_dag_id,
             run_ids=self.run_ids,
             states=self.states,
             logical_dates=self.logical_dates,
         )
-        dag_run_state = await sync_to_async(RuntimeTaskInstance.get_dagrun_state)(
+        dag_run_state = await get_dagrun_state(
             dag_id=self.trigger_dag_id,
             run_id=self.run_ids[0],
         )
@@ -796,9 +796,13 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
         )
 
     async def run(self, **args) -> AsyncIterator[TriggerEvent]:
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+        from airflow.sdk.execution_time.triggerer_task_functions import (
+            get_dr_count,
+            get_task_states,
+            get_ti_count,
+        )
 
-        ti_count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
+        ti_count = await get_ti_count(
             dag_id=self.external_dag_id,
             task_ids=self.external_task_ids,
             task_group_id=None,
@@ -806,13 +810,13 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
             logical_dates=self.execution_dates,
             states=self.allowed_states,
         )
-        dr_count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+        dr_count = await get_dr_count(
             dag_id=self.external_dag_id,
             run_ids=self.run_ids,
             logical_dates=self.execution_dates,
             states=["running"],
         )
-        task_states = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+        task_states = await get_task_states(
             dag_id=self.external_dag_id,
             task_ids=self.external_task_ids,
             run_ids=self.run_ids,

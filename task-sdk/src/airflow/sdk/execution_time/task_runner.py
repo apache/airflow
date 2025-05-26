@@ -431,20 +431,19 @@ class RuntimeTaskInstance(TaskInstance):
         """Return the number of task instances matching the given criteria."""
         log = structlog.get_logger(logger_name="task")
 
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetTICount(
-                    dag_id=dag_id,
-                    map_index=map_index,
-                    task_ids=task_ids,
-                    task_group_id=task_group_id,
-                    logical_dates=logical_dates,
-                    run_ids=run_ids,
-                    states=states,
-                ),
-            )
-            response = SUPERVISOR_COMMS.get_message()
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetTICount(
+                dag_id=dag_id,
+                map_index=map_index,
+                task_ids=task_ids,
+                task_group_id=task_group_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+                states=states,
+            ),
+        )
+        response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, TICount)
@@ -463,19 +462,18 @@ class RuntimeTaskInstance(TaskInstance):
         """Return the task states matching the given criteria."""
         log = structlog.get_logger(logger_name="task")
 
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetTaskStates(
-                    dag_id=dag_id,
-                    map_index=map_index,
-                    task_ids=task_ids,
-                    task_group_id=task_group_id,
-                    logical_dates=logical_dates,
-                    run_ids=run_ids,
-                ),
-            )
-            response = SUPERVISOR_COMMS.get_message()
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetTaskStates(
+                dag_id=dag_id,
+                map_index=map_index,
+                task_ids=task_ids,
+                task_group_id=task_group_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+            ),
+        )
+        response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, TaskStatesResult)
@@ -492,17 +490,16 @@ class RuntimeTaskInstance(TaskInstance):
         """Return the number of DAG runs matching the given criteria."""
         log = structlog.get_logger(logger_name="task")
 
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetDRCount(
-                    dag_id=dag_id,
-                    logical_dates=logical_dates,
-                    run_ids=run_ids,
-                    states=states,
-                ),
-            )
-            response = SUPERVISOR_COMMS.get_message()
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetDRCount(
+                dag_id=dag_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+                states=states,
+            ),
+        )
+        response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, DRCount)
@@ -513,9 +510,9 @@ class RuntimeTaskInstance(TaskInstance):
     def get_dagrun_state(dag_id: str, run_id: str) -> str:
         """Return the state of the DAG run with the given Run ID."""
         log = structlog.get_logger(logger_name="task")
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
-            response = SUPERVISOR_COMMS.get_message()
+
+        SUPERVISOR_COMMS.send_request(log=log, msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
+        response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, DagRunStateResult)
