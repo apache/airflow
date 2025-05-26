@@ -5086,7 +5086,7 @@
                     "x-docsSection": "Common",
                     "default": null,
                     "examples": [
-                        "my-webserver-configmap"
+                        "my-api-server-configmap"
                     ]
                 },
                 "defaultUser": {
