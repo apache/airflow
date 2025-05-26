@@ -29,6 +29,7 @@ import random
 import selectors
 import signal
 import sys
+import tenacity
 import time
 import zipfile
 from collections import defaultdict, deque
@@ -53,7 +54,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowConfigException
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -1141,14 +1142,42 @@ def process_parse_results(
         stat.import_errors = 1
     else:
         # record DAGs and import errors to database
-        update_dag_parsing_results_in_db(
-            bundle_name=bundle_name,
-            bundle_version=bundle_version,
-            dags=parsing_result.serialized_dags,
-            import_errors=parsing_result.import_errors or {},
-            warnings=set(parsing_result.warnings or []),
-            session=session,
-        )
+        logging.info(f"Updating DAGs and import errors to database for bundle {bundle_name} "
+                     f"and version {bundle_version}")
+
+        # check a flag to see whether to call api or directly update db
+        if conf.getboolean("dag_processor", "use_api_for_updating_dags", fallback=False):
+            server_url = conf.get("core", "execution_api_server_url")
+            if not server_url:
+                raise AirflowConfigException("execution_api_server_url is not set")
+
+            logging.info("Trying to make an API call to %s to update DAGs", server_url)
+
+            @tenacity.retry(
+                stop=tenacity.stop_after_attempt(5),
+                wait=tenacity.wait_exponential(multiplier=1, min=4, max=15),
+                before_sleep=lambda retry_state: logging.info(
+                    "Retrying update_dag_parsing_results_in_db. Attempt %d", retry_state.attempt_number
+                ),
+            )
+            def _update_dags_via_api():
+                client = Client(base_url=server_url, token="")
+                client.post(
+                    f"/dags/update_dags?bundle_name={bundle_name}&bundle_version={bundle_version}",
+                    data=parsing_result.model_dump_json(),
+                    headers={"Content-Type": "application/json"},
+                )
+            _update_dags_via_api()
+
+        else:
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                dags=parsing_result.serialized_dags,
+                import_errors=parsing_result.import_errors or {},
+                warnings=set(parsing_result.warnings or []),
+                session=session,
+                )
         stat.num_dags = len(parsing_result.serialized_dags)
         if parsing_result.import_errors:
             stat.import_errors = len(parsing_result.import_errors)

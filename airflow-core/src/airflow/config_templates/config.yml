@@ -2535,3 +2535,12 @@ dag_processor:
       type: integer
       example: ~
       default: "10"
+    use_api_for_updating_dags:
+      description: |
+        Whether to use the API to update the database with the parsed DAGs.
+        If set to ``True``, the DAG processor will use the API to update the database with the parsed DAGs.
+        If set to ``False``, the DAG processor will use the database directly to update the parsed DAGs.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
