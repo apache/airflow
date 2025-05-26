@@ -102,6 +102,14 @@ middleware_with_metadata = {
     "name": "Name of the Middleware",
 }
 
+iframe_view_with_metadata = {
+    "name": "Test IFrame Plugin",
+    "src": "https://www.google.com",
+    "icon": "https://example.com/icon.svg",
+    "url_route": "/test_iframe_plugin",
+    "destination": "nav",
+}
+
 
 # Extend an existing class to avoid the need to implement the full interface
 class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
@@ -120,6 +128,7 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     fastapi_apps = [app_with_metadata]
     fastapi_root_middlewares = [middleware_with_metadata]
+    iframe_views = [iframe_view_with_metadata]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
     global_operator_extra_links = [

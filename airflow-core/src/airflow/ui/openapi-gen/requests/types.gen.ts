@@ -867,6 +867,18 @@ export type HealthInfoResponse = {
 };
 
 /**
+ * Serializer for IFrame Plugin responses.
+ */
+export type IFrameViewsResponse = {
+  name: string;
+  src: string;
+  icon?: string | null;
+  url_route?: string | null;
+  destination?: "nav" | "dag" | "dag_run" | "task" | "task_instance" | null;
+  [key: string]: unknown | string;
+};
+
+/**
  * Import Error Collection Response.
  */
 export type ImportErrorCollectionResponse = {
@@ -965,6 +977,7 @@ export type PluginResponse = {
   flask_blueprints: Array<string>;
   fastapi_apps: Array<FastAPIAppResponse>;
   fastapi_root_middlewares: Array<FastAPIRootMiddlewareResponse>;
+  iframe_views: Array<IFrameViewsResponse>;
   appbuilder_views: Array<AppBuilderViewResponse>;
   appbuilder_menu_items: Array<AppBuilderMenuItemResponse>;
   global_operator_extra_links: Array<string>;
