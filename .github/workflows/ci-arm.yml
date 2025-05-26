@@ -510,21 +510,33 @@ jobs:
 
   tests-go-sdk:
     name: "Go SDK tests"
-    uses: ./.github/workflows/go-sdk-tests.yml
     needs: [build-info, build-ci-images]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.arm-runners) }}
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: read
-    with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      distribution-name: "go-sdk"
-      test-type: "go-sdk-tests"
     if: >
       ( needs.build-info.outputs.run-go-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
       needs.build-info.outputs.only-new-ui-files != 'true')
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+
+      - name: Run Go tests
+        working-directory: ./go-sdk
+        run: go test -v ./...
 
   finalize-tests:
     name: Finalize tests
