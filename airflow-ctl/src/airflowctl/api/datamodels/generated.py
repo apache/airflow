@@ -536,6 +536,29 @@ class HTTPExceptionResponse(BaseModel):
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
 
 
+class Destination(str, Enum):
+    NAV = "nav"
+    DAG = "dag"
+    DAG_RUN = "dag_run"
+    TASK = "task"
+    TASK_INSTANCE = "task_instance"
+
+
+class IFrameViewsResponse(BaseModel):
+    """
+    Serializer for IFrame Plugin responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: Annotated[str, Field(title="Name")]
+    src: Annotated[str, Field(title="Src")]
+    icon: Annotated[str | None, Field(title="Icon")] = None
+    url_route: Annotated[str | None, Field(title="Url Route")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = None
+
+
 class ImportErrorResponse(BaseModel):
     """
     Import Error Response.
@@ -604,6 +627,7 @@ class PluginResponse(BaseModel):
     fastapi_root_middlewares: Annotated[
         list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
     ]
+    iframe_views: Annotated[list[IFrameViewsResponse], Field(title="Iframe Views")]
     appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
     appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
     global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
