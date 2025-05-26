@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-25T17:25:58.430136
+# This constraints file was automatically generated on 2025-05-26T12:54:27.699640
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -290,7 +290,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.32.0
+huggingface-hub==0.32.1
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -336,7 +336,7 @@ jsonschema-path==0.3.4
 jsonschema-specifications==2025.4.1
 jsonschema==4.23.0
 jupyter_client==8.6.3
-jupyter_core==5.7.2
+jupyter_core==5.8.0
 jupyterlab_pygments==0.3.0
 kerberos==1.3.1
 keyring==25.6.0
@@ -540,7 +540,7 @@ restructuredtext_lint==1.4.0
 retryhttp==1.3.3
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
-rich-argparse==1.7.0
+rich-argparse==1.7.1
 rich-click==1.8.9
 rich-toolkit==0.14.6
 rich==13.9.4
@@ -640,7 +640,7 @@ types-aiofiles==24.1.0.20250516
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250523
 types-croniter==6.0.0.20250411
-types-docutils==0.21.0.20250525
+types-docutils==0.21.0.20250526
 types-paramiko==3.5.0.20250516
 types-protobuf==6.30.2.20250516
 types-pyOpenSSL==24.1.0.20240722
