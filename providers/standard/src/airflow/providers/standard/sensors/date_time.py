@@ -100,9 +100,7 @@ class DateTimeSensor(BaseSensorOperator):
 
     @property
     def _moment(self) -> datetime.datetime:
-        import pendulum
-
-        if isinstance(self.target_time, (pendulum.DateTime, datetime.datetime)):
+        if isinstance(self.target_time, datetime.datetime):
             return self.target_time
 
         return timezone.parse(self.target_time)
