@@ -77,8 +77,8 @@ export const Header = ({
               text={Boolean(dagRun.note) ? "Note" : "Add a note"}
               withText={containerWidth > 700}
             />
-            <ClearRunButton dagRun={dagRun} withText={containerWidth > 700} />
-            <MarkRunAsButton dagRun={dagRun} withText={containerWidth > 700} />
+            <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
+            <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
           </>
         }
         icon={<FiBarChart />}
