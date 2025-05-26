@@ -249,7 +249,7 @@ class AssetsOperations(BaseOperations):
     def delete_queued_events(self, asset_id: str) -> str | ServerResponseError:
         """Delete a queued event for an asset."""
         try:
-            self.response = self.client.delete(f"assets/{asset_id}/queuedEvents/")
+            self.client.delete(f"assets/{asset_id}/queuedEvents/")
             return asset_id
         except ServerResponseError as e:
             raise e
@@ -257,9 +257,7 @@ class AssetsOperations(BaseOperations):
     def delete_dag_queued_events(self, dag_id: str, before: str) -> str | ServerResponseError:
         """Delete a queued event for a dag."""
         try:
-            self.response = self.client.delete(
-                f"assets/dags/{dag_id}/queuedEvents", params={"before": before}
-            )
+            self.client.delete(f"assets/dags/{dag_id}/queuedEvents", params={"before": before})
             return dag_id
         except ServerResponseError as e:
             raise e
@@ -267,7 +265,7 @@ class AssetsOperations(BaseOperations):
     def delete_queued_event(self, dag_id: str, asset_id: str) -> str | ServerResponseError:
         """Delete a queued event for a dag."""
         try:
-            self.response = self.client.delete(f"assets/dags/{dag_id}/assets/{asset_id}/queuedEvents/")
+            self.client.delete(f"assets/dags/{dag_id}/assets/{asset_id}/queuedEvents/")
             return asset_id
         except ServerResponseError as e:
             raise e
@@ -476,7 +474,7 @@ class DagOperations(BaseOperations):
 
     def delete(self, dag_id: str) -> str | ServerResponseError:
         try:
-            self.response = self.client.delete(f"dags/{dag_id}")
+            self.client.delete(f"dags/{dag_id}")
             return dag_id
         except ServerResponseError as e:
             raise e
