@@ -36,6 +36,14 @@ const links = [
     key: "xcoms",
     title: "XComs",
   },
+  {
+    href: "/task_instances",
+    title: "Task Instances",
+  },
+  {
+    href: "/dag_runs",
+    title: "Dag Runs",
+  },
 ];
 
 export const BrowseButton = ({ authorizedMenuItems }: { readonly authorizedMenuItems: Array<MenuItem> }) => {
