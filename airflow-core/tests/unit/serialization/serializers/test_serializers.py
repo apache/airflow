@@ -31,6 +31,7 @@ from kubernetes.client import models as k8s
 from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
+from pydantic import BaseModel, Field
 
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
@@ -58,6 +59,13 @@ class CustomTZ(datetime.tzinfo):
 class NoNameTZ(datetime.tzinfo):
     def utcoffset(self, dt):
         return datetime.timedelta(hours=2)
+
+
+class FooBarModel(BaseModel):
+    """Pydantic BaseModel for testing Pydantic Serialization/Deserialization."""
+
+    banana: float = 1.1
+    foo: str = Field()
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -366,6 +374,14 @@ class TestSerializers:
         monkeypatch.setattr(PodGenerator, "serialize_pod", lambda o: (_ for _ in ()).throw(Exception("fail")))
         assert serialize(pod) == ("", "", 0, False)
         assert serialize(123) == ("", "", 0, False)
+
+    def test_pydantic(self):
+        m = FooBarModel(banana=3.14, foo="hello")
+        e = serialize(m)
+        d = deserialize(e)
+
+        assert m.banana == d.banana
+        assert m.foo == d.foo
 
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(
