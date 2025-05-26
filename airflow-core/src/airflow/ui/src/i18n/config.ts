@@ -26,8 +26,8 @@ import enCommon from "./locales/en/common.json";
 import enDashboard from "./locales/en/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
-import zhTWCommon from "./locales/zh_TW/common.json";
-import zhTWDashboard from "./locales/zh_TW/dashboard.json";
+import zhTWCommon from "./locales/zh-TW/common.json";
+import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 
 // TODO: Dynamically load translation files
 // import Backend from 'i18next-http-backend';
@@ -36,7 +36,7 @@ export const supportedLanguages = [
   { code: "de", name: "Deutsch" },
   { code: "en", name: "English" },
   { code: "ko", name: "한국어" },
-  { code: "zh_TW", name: "繁體中文" },
+  { code: "zh-TW", name: "繁體中文" },
 ] as const;
 
 export const defaultLanguage = "en";
@@ -55,7 +55,7 @@ const resources = {
     common: koCommon,
     dashboard: koDashboard,
   },
-  zh_TW: {
+  "zh-TW": {
     common: zhTWCommon,
     dashboard: zhTWDashboard,
   },
