@@ -82,7 +82,12 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "id_",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -166,7 +171,12 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain", "location")
+    template_fields: Sequence[str] = (
+        "build",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -307,7 +317,12 @@ class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "trigger",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (
         CloudBuildTriggersListLink(),
         CloudBuildTriggerDetailsLink(),
@@ -393,7 +408,12 @@ class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "trigger_id",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (CloudBuildTriggersListLink(),)
 
     def __init__(
@@ -467,7 +487,12 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "id_",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -543,7 +568,12 @@ class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "trigger_id",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (CloudBuildTriggerDetailsLink(),)
 
     def __init__(
@@ -621,7 +651,7 @@ class CloudBuildListBuildTriggersOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ("location", "project_id", "gcp_conn_id")
+    template_fields: Sequence[str] = ("location", "gcp_conn_id", *GoogleCloudBaseOperator.template_fields)
     operator_extra_links = (CloudBuildTriggersListLink(),)
 
     def __init__(
@@ -701,7 +731,7 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ("location", "project_id", "gcp_conn_id")
+    template_fields: Sequence[str] = ("location", "gcp_conn_id", *GoogleCloudBaseOperator.template_fields)
     operator_extra_links = (CloudBuildListLink(),)
 
     def __init__(
@@ -777,7 +807,12 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "id_",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -861,7 +896,13 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "source", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "trigger_id",
+        "source",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -946,7 +987,13 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "trigger", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "trigger_id",
+        "trigger",
+        "gcp_conn_id",
+        "location",
+        *GoogleCloudBaseOperator.template_fields,
+    )
     operator_extra_links = (CloudBuildTriggerDetailsLink(),)
 
     def __init__(
