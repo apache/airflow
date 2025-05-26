@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from importlib import import_module
-from airflow.utils.module_loading import qualname
+from typing import TYPE_CHECKING, cast
+
 from pydantic import BaseModel
+
 from airflow.serialization.serde import _is_pydantic_basemodel
+from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
@@ -45,11 +46,14 @@ def _resolve_pydantic_class(qn: str):
 def serialize(o: object) -> tuple[U, str, int, bool]:
     if not _is_pydantic_basemodel(o):
         return "", "", 0, False
-    
-    data = o.model_dump()
+
+    # to convince mypy
+    m = cast("BaseModel", o)
+    # Serialize
+    data = m.model_dump()
     # Store the actual qualified name for the pydantic class. This classname will be used to import the module and load the data.
     data["__class__"] = qualname(o)
-    
+
     return data, qualname(BaseModel), __version__, True
 
 
@@ -62,7 +66,7 @@ def deserialize(classname: str, version: int, data: dict):
         # the actual qualified name for the pydantic.main.BaseModel subclass is stored in this key.
         if "__class__" not in data:
             raise TypeError("Missing '__class__' in serialized Pydantic.main.BaseModel data")
-        
+
         qn = data.pop("__class__")
         cls = _resolve_pydantic_class(qn=qn)
 

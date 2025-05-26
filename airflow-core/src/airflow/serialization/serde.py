@@ -29,12 +29,12 @@ from re import Pattern
 from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
 import attr
+from pydantic import BaseModel
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
-from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -357,7 +357,7 @@ def _is_pydantic_basemodel(o: Any) -> bool:
     """
     # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
     # __pydantic_validator__ is an internal validator object, always set after model build
-    return hasattr(o, '__pydantic_fields__') and hasattr(o, '__pydantic_validator__')
+    return hasattr(o, "__pydantic_fields__") and hasattr(o, "__pydantic_validator__")
 
 
 def _register():
