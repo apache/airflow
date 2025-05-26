@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+import contextlib
+import itertools
 import json
 from collections import defaultdict
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
+import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, status
@@ -37,6 +40,7 @@ from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    InvalidAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskStatesResponse,
     TIDeferredStatePayload,
@@ -51,6 +55,8 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TITerminalStatePayload,
 )
 from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException, TaskNotFound
+from airflow.models.asset import AssetActive
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
@@ -58,6 +64,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
+from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
@@ -838,6 +845,68 @@ def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logic
     ).all()
 
     return group_tasks
+
+
+@ti_id_router.get(
+    "/{task_instance_id}/validate-inlets-and-outlets",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+    },
+)
+def validate_inlets_and_outlets(
+    task_instance_id: UUID,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+) -> InvalidAssetsResponse:
+    """Validate whether there're inactive assets in inlets and outlets of a given task instance."""
+    ti_id_str = str(task_instance_id)
+    bind_contextvars(ti_id=ti_id_str)
+
+    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if not ti or not ti.logical_date:
+        log.error("Task Instance not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Task Instance not found",
+            },
+        )
+
+    if not ti.task:
+        dag = dag_bag.get_dag(ti.dag_id)
+        if dag:
+            with contextlib.suppress(TaskNotFound):
+                ti.task = dag.get_task(ti.task_id)
+
+    inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+    outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+    if not (inlets or outlets):
+        return InvalidAssetsResponse(invalid_assets=[])
+
+    all_asset_unique_keys: set[AssetUniqueKey] = {
+        AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+        for inlet_or_outlet in itertools.chain(inlets, outlets)
+    }
+    active_asset_unique_keys = {
+        AssetUniqueKey(name, uri)
+        for name, uri in session.execute(
+            select(AssetActive.name, AssetActive.uri).where(
+                tuple_(AssetActive.name, AssetActive.uri).in_(
+                    attrs.astuple(key) for key in all_asset_unique_keys
+                )
+            )
+        )
+    }
+    different = all_asset_unique_keys - active_asset_unique_keys
+
+    return InvalidAssetsResponse(
+        invalid_assets=[
+            asset_unique_key.to_asset().asprofile()  # type: ignore
+            for asset_unique_key in different
+        ]
+    )
 
 
 # This line should be at the end of the file to ensure all routes are registered
