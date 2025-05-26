@@ -49,7 +49,7 @@ def upgrade():
             existing_nullable=False,
             new_column_name="time",
         )
-        batch_op.create_index("time_idx", ["time"], unique=False)
+    op.create_index("time_idx", "deadline", ["time"], unique=False)
 
 
 def downgrade():
