@@ -241,7 +241,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.3"
+AIRFLOW_UV_VERSION = "0.7.8"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -3147,7 +3147,7 @@ def _generate_python_client_sources(python_client_version: str) -> None:
             "--git-repo-id",
             "airflow-client-python",
             "--additional-properties",
-            f'packageVersion="{python_client_version}"',
+            f"packageVersion={python_client_version}",
         ],
         capture_output=True,
         text=True,
@@ -3457,7 +3457,7 @@ def prepare_python_client(
     version = _get_python_client_version(version_suffix)
     original_version = VERSION_FILE.read_text().strip()
     if version_suffix:
-        VERSION_FILE.write_text(version)
+        VERSION_FILE.write_text(version + "\n")
     try:
         if use_local_hatch:
             _build_client_packages_with_hatch(
