@@ -147,3 +147,73 @@ def test_logs_are_masked(captured_logs):
         "try_number=1, map_index=-1, hostname=None, context_carrier=None)",
         "timestamp": "2025-03-25T05:13:27.073918Z",
     }
+
+
+def test_logging_processors_with_colors():
+    """Test that logging_processors creates colored console renderer when enable_colors=True."""
+    from airflow.sdk.log import logging_processors
+
+    _, named = logging_processors(enable_pretty_log=True, enable_colors=True)
+    assert "console" in named
+    console_renderer = named["console"]
+    assert hasattr(console_renderer, "_styles")
+
+
+def test_logging_processors_without_colors():
+    """Test that logging_processors creates non-colored console renderer when enable_colors=False."""
+    from airflow.sdk.log import logging_processors
+
+    _, named = logging_processors(enable_pretty_log=True, enable_colors=False)
+    assert "console" in named
+    console_renderer = named["console"]
+    assert hasattr(console_renderer, "_styles")
+    assert console_renderer._styles.__name__ == "_PlainStyles"
+
+
+def test_logging_processors_json_format():
+    """Test that logging_processors creates JSON renderer when enable_pretty_log=False."""
+    from airflow.sdk.log import logging_processors
+
+    _, named = logging_processors(enable_pretty_log=False, enable_colors=True)
+    assert "console" not in named
+    assert "json" in named
+
+
+def test_configure_logging_respects_colored_console_log_config():
+    """Test that configure_logging respects the colored_console_log configuration."""
+    from airflow.sdk.log import configure_logging, reset_logging
+
+    mock_conf = mock.MagicMock()
+    mock_conf.get.return_value = "INFO"
+    mock_conf.getboolean.return_value = False  # colored_console_log = False
+    mock_config_module = mock.MagicMock()
+    mock_config_module.conf = mock_conf
+    with mock.patch.dict("sys.modules", {"airflow.configuration": mock_config_module}):
+        reset_logging()
+        configure_logging(enable_pretty_log=True)
+        mock_conf.getboolean.assert_called_with("logging", "colored_console_log", fallback=True)
+
+
+def test_configure_logging_explicit_enable_colors():
+    """Test that configure_logging respects explicit enable_colors parameter."""
+    from airflow.sdk.log import configure_logging, reset_logging
+
+    mock_conf = mock.MagicMock()
+    mock_conf.get.return_value = "INFO"
+    mock_conf.getboolean.return_value = True  # colored_console_log = True
+
+    with mock.patch("airflow.sdk.log.sys.modules", {"airflow.configuration": mock.MagicMock()}):
+        with mock.patch("airflow.configuration.conf", mock_conf):
+            reset_logging()
+            # Explicitly disable colors despite config saying True
+            configure_logging(enable_pretty_log=True, enable_colors=False)
+            mock_conf.getboolean.assert_not_called()
+
+
+def test_configure_logging_no_airflow_config():
+    """Test that configure_logging works when airflow.configuration is not available."""
+    from airflow.sdk.log import configure_logging, reset_logging
+
+    with mock.patch("airflow.sdk.log.sys.modules", {}):
+        reset_logging()
+        configure_logging(enable_pretty_log=True)
