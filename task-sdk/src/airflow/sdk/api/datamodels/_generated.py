@@ -168,6 +168,14 @@ class IntermediateTIState(str, Enum):
     DEFERRED = "deferred"
 
 
+class InvalidAssetsResponse(BaseModel):
+    """
+    Response for invalid assets.
+    """
+
+    invalid_assets: Annotated[list[AssetProfile] | None, Field(title="Invalid Assets")] = None
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.

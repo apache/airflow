@@ -345,3 +345,9 @@ class TaskStatesResponse(BaseModel):
     """Response for task states with run_id, task and state."""
 
     task_states: dict[str, Any]
+
+
+class InvalidAssetsResponse(BaseModel):
+    """Response for invalid assets."""
+
+    invalid_assets: Annotated[list[AssetProfile], Field(default_factory=list)]
