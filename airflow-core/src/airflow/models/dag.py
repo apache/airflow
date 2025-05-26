@@ -87,7 +87,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
-from airflow.sdk.definitions.deadline import DeadlineAlert
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.settings import json
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -462,6 +462,11 @@ class DAG(TaskSDKDag, LoggingMixin):
                         "configured. Review the core.executors Airflow configuration to add it or "
                         "update the executor configuration for this task."
                     )
+
+    def has_dagrun_deadline(self):
+        return self.deadline is not None and isinstance(
+            self.deadline.reference, tuple(DeadlineReference.TYPES.DAGRUN)
+        )
 
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):

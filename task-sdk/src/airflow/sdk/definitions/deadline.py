@@ -18,14 +18,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
-from airflow.models.deadline import ReferenceModels
+from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.utils.module_loading import import_string, is_valid_dotpath
-
-if TYPE_CHECKING:
-    from airflow.models.deadline import DeadlineReferenceType
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +176,18 @@ class DeadlineReference:
            deadline.evaluate_with()
     """
 
+    class TYPES:
+        """Collection of DeadlineReference types for type checking."""
+
+        from airflow.models.deadline import ReferenceModels
+
+        # Consider a FIXED_DATETIME to be one of the dagrun-based Deadlines.
+        DAGRUN = {
+            ReferenceModels.DagRunLogicalDateDeadline,
+            ReferenceModels.DagRunQueuedAtDeadline,
+            ReferenceModels.FixedDatetimeDeadline,
+        }
+
     from airflow.models.deadline import ReferenceModels
 
     DAGRUN_LOGICAL_DATE: DeadlineReferenceType = ReferenceModels.DagRunLogicalDateDeadline()
@@ -187,3 +196,13 @@ class DeadlineReference:
     @classmethod
     def FIXED_DATETIME(cls, datetime: datetime) -> DeadlineReferenceType:
         return cls.ReferenceModels.FixedDatetimeDeadline(datetime)
+
+    # TODO: Remove this once other deadline types exist.
+    #   This is a temporary reference type used only in tests to verify that
+    #   dag.has_dagrun_deadline() returns false if the dag has a non-dagrun deadline type.
+    #   It should be replaced with a real non-dagrun deadline type when one is available.
+    _TEMPORARY_TEST_REFERENCE = type(
+        "TemporaryTestDeadlineForTypeChecking",
+        (DeadlineReferenceType,),
+        {"_evaluate_with": lambda self, **kwargs: datetime.now()},
+    )()
