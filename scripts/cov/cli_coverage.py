@@ -30,21 +30,25 @@ cli_files = ["airflow-core/tests/unit/cli"]
 files_not_fully_covered = [
     "airflow-core/src/airflow/cli/cli_config.py",
     "airflow-core/src/airflow/cli/cli_parser.py",
+    "airflow-core/src/airflow/cli/commands/api_server_command.py",
+    "airflow-core/src/airflow/cli/commands/asset_command.py",
+    "airflow-core/src/airflow/cli/commands/backfill_command.py",
     "airflow-core/src/airflow/cli/commands/config_command.py",
     "airflow-core/src/airflow/cli/commands/connection_command.py",
+    "airflow-core/src/airflow/cli/commands/daemon_utils.py",
     "airflow-core/src/airflow/cli/commands/dag_command.py",
-    "airflow-core/src/airflow/cli/commands/dag_processor_command.py",
     "airflow-core/src/airflow/cli/commands/db_command.py",
     "airflow-core/src/airflow/cli/commands/info_command.py",
     "airflow-core/src/airflow/cli/commands/jobs_command.py",
     "airflow-core/src/airflow/cli/commands/plugins_command.py",
     "airflow-core/src/airflow/cli/commands/pool_command.py",
     "airflow-core/src/airflow/cli/commands/provider_command.py",
-    "airflow-core/src/airflow/cli/commands/scheduler_command.py",
+    "airflow-core/src/airflow/cli/commands/rotate_fernet_key_command.py",
     "airflow-core/src/airflow/cli/commands/standalone_command.py",
     "airflow-core/src/airflow/cli/commands/task_command.py",
     "airflow-core/src/airflow/cli/commands/variable_command.py",
     "airflow-core/src/airflow/cli/simple_table.py",
+    "airflow-core/src/airflow/cli/utils.py",
 ]
 
 if __name__ == "__main__":

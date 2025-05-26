@@ -58,6 +58,5 @@ def run_tests(command_list, source, files_not_fully_covered):
         print("There are some coverage errors. Please fix them")
     if len(files_not_fully_covered) > 0:
         print("Coverage run completed. Use the following commands to see the coverage report")
-    print("cd htmlcov/")
-    print("python -m http.server 5555")
+    print("cd htmlcov/; python -m http.server 5555")
     print("Once the server is running, open this link in your browser: http://localhost:25555")
