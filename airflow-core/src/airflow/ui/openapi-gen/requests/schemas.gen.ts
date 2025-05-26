@@ -3284,6 +3284,58 @@ export const $HealthInfoResponse = {
   description: "Health serializer for responses.",
 } as const;
 
+export const $IFrameViewsResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    src: {
+      type: "string",
+      title: "Src",
+    },
+    icon: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Icon",
+    },
+    url_route: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url Route",
+    },
+    destination: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["nav", "dag", "dag_run", "task", "task_instance"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Destination",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["name", "src"],
+  title: "IFrameViewsResponse",
+  description: "Serializer for IFrame Plugin responses.",
+} as const;
+
 export const $ImportErrorCollectionResponse = {
   properties: {
     import_errors: {
@@ -3674,6 +3726,13 @@ export const $PluginResponse = {
       type: "array",
       title: "Fastapi Root Middlewares",
     },
+    iframe_views: {
+      items: {
+        $ref: "#/components/schemas/IFrameViewsResponse",
+      },
+      type: "array",
+      title: "Iframe Views",
+    },
     appbuilder_views: {
       items: {
         $ref: "#/components/schemas/AppBuilderViewResponse",
@@ -3728,6 +3787,7 @@ export const $PluginResponse = {
     "flask_blueprints",
     "fastapi_apps",
     "fastapi_root_middlewares",
+    "iframe_views",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
@@ -6030,14 +6090,6 @@ export const $ConfigResponse = {
       type: "boolean",
       title: "Default Wrap",
     },
-    audit_view_excluded_events: {
-      type: "string",
-      title: "Audit View Excluded Events",
-    },
-    audit_view_included_events: {
-      type: "string",
-      title: "Audit View Included Events",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -6074,8 +6126,6 @@ export const $ConfigResponse = {
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",
-    "audit_view_excluded_events",
-    "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
     "show_external_log_redirect",

@@ -371,6 +371,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
         ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
+        ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).

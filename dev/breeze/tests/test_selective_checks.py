@@ -80,9 +80,9 @@ ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
     [
         {
-            "description": "-amazon,googl...standard",
-            "test_types": "Providers[-amazon,google,standard] "
-            "Providers[amazon] Providers[google] Providers[standard]",
+            "description": "-amazon,celer...standard",
+            "test_types": "Providers[-amazon,celery,google,standard] "
+            "Providers[amazon] Providers[celery] Providers[google] Providers[standard]",
         }
     ]
 )
@@ -1244,6 +1244,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "mypy-checks": "[]",
             },
             id="Run docs-build for SECURITY.md",
+        ),
+        pytest.param(
+            ("go-sdk/sdk/variable.go",),
+            {"run-go-sdk-tests": "true"},
+            id="Run go tests for go-sdk",
         ),
     ],
 )
