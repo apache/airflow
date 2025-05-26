@@ -18,11 +18,12 @@
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { MdArrowDropDown } from "react-icons/md";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { Menu } from "src/components/ui";
+import { Menu, Tooltip } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
 import { allowedStates } from "../utils";
@@ -30,12 +31,31 @@ import MarkRunAsDialog from "./MarkRunAsDialog";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
+  readonly isHotkeyEnabled?: boolean;
   readonly withText?: boolean;
 };
 
-const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
+const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<DAGRunPatchStates>("success");
+
+  useHotkeys(
+    "shift+f",
+    () => {
+      setState("failed");
+      onOpen();
+    },
+    { enabled: isHotkeyEnabled && dagRun.state !== "failed" },
+  );
+
+  useHotkeys(
+    "shift+s",
+    () => {
+      setState("success");
+      onOpen();
+    },
+    { enabled: isHotkeyEnabled && dagRun.state !== "success" },
+  );
 
   return (
     <Box>
@@ -50,24 +70,39 @@ const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
           />
         </Menu.Trigger>
         <Menu.Content>
-          {allowedStates.map((menuState) => (
-            <Menu.Item
-              asChild
-              disabled={dagRun.state === menuState}
-              key={menuState}
-              onClick={() => {
-                if (dagRun.state !== menuState) {
-                  setState(menuState);
-                  onOpen();
-                }
-              }}
-              value={menuState}
-            >
-              <StateBadge my={1} state={menuState}>
-                {menuState}
-              </StateBadge>
-            </Menu.Item>
-          ))}
+          {allowedStates.map((menuState) => {
+            const content =
+              menuState === "success"
+                ? "Press shift+s to mark as success"
+                : "Press shift+f to mark as failed";
+
+            return (
+              <Tooltip
+                closeDelay={100}
+                content={content}
+                disabled={!isHotkeyEnabled || dagRun.state === menuState}
+                key={menuState}
+                openDelay={100}
+              >
+                <Menu.Item
+                  asChild
+                  disabled={dagRun.state === menuState}
+                  key={menuState}
+                  onClick={() => {
+                    if (dagRun.state !== menuState) {
+                      setState(menuState);
+                      onOpen();
+                    }
+                  }}
+                  value={menuState}
+                >
+                  <StateBadge my={1} state={menuState}>
+                    {menuState}
+                  </StateBadge>
+                </Menu.Item>
+              </Tooltip>
+            );
+          })}
         </Menu.Content>
       </Menu.Root>
 
