@@ -146,7 +146,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         """Return the login page url."""
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
-            return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token"
+            return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/login"
 
         return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
@@ -308,7 +308,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         def webapp(request: Request, rest_of_path: str):
             return templates.TemplateResponse(
                 "/index.html",
-                {"request": request, "backend_server_base_url": conf.get("api", "base_url")},
+                {"request": request, "backend_server_base_url": request.base_url.path},
                 media_type="text/html",
             )
 

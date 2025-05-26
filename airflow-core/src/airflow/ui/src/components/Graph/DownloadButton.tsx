@@ -23,8 +23,8 @@ import { FiDownload } from "react-icons/fi";
 
 import { toaster } from "src/components/ui";
 
-export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
-  const { getNodes } = useReactFlow();
+export const DownloadButton = ({ name }: { readonly name: string }) => {
+  const { getNodes, getZoom } = useReactFlow();
 
   const onClick = () => {
     const nodesBounds = getNodesBounds(getNodes());
@@ -34,7 +34,8 @@ export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
 
     if (container instanceof HTMLElement) {
       const dimensions = { height: container.clientHeight, width: container.clientWidth };
-      const viewport = getViewportForBounds(nodesBounds, dimensions.width, dimensions.height, 0.5, 2, 0.25);
+      const zoom = getZoom();
+      const viewport = getViewportForBounds(nodesBounds, dimensions.width, dimensions.height, zoom, zoom, 2);
 
       toPng(container, {
         height: dimensions.height,
@@ -48,7 +49,7 @@ export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
         .then((dataUrl) => {
           const downloadLink = document.createElement("a");
 
-          downloadLink.setAttribute("download", `${dagId}-graph.png`);
+          downloadLink.setAttribute("download", `${name}-graph.png`);
           downloadLink.setAttribute("href", dataUrl);
           downloadLink.click();
         })
@@ -64,7 +65,13 @@ export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
 
   return (
     <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
-      <IconButton aria-label="Download graph image" onClick={onClick} size="xs" variant="ghost">
+      <IconButton
+        aria-label="Download graph image"
+        onClick={onClick}
+        size="xs"
+        title="Download graph image"
+        variant="ghost"
+      >
         <FiDownload />
       </IconButton>
     </Panel>

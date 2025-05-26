@@ -54,10 +54,10 @@ Variable                                    Type                  Description
                                             | ``None``
 ``{{ start_date }}``                        `pendulum.DateTime`_  Datetime of when current task has been started.
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
-``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/datasets>`. Added in version 2.10.
+``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
 ``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to asset events that will be emitted by the current task.
-                                                                  | See :doc:`Assets <authoring-and-scheduling/datasets>`. Added in version 2.10.
+                                                                  | See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
 ``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about dags in :doc:`Dags <core-concepts/dags>`.
 ``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ task_reschedule_count }}``             int                   How many times current task has been rescheduled. Relevant to ``mode="reschedule"`` sensors.
@@ -81,7 +81,7 @@ Variable                                    Type                  Description
                                                                   | Added in version 2.5.
 ``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled DAG, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
-                                                                  | Read more here :doc:`Assets <authoring-and-scheduling/datasets>`.
+                                                                  | Read more here :doc:`Assets <authoring-and-scheduling/asset-scheduling>`.
                                                                   | Added in version 2.4.
 =========================================== ===================== ===================================================================
 
@@ -113,7 +113,7 @@ While ``@task`` decorated tasks don't support rendering jinja templates passed a
 all of the variables listed above can be accessed directly from tasks. The following code block
 is an example of accessing a ``task_instance`` object from its task:
 
-.. include:: ../shared/template-examples/taskflow.rst
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow.rst
 
 Note that you can access the object's attributes and methods with simple
 dot notation. Here are some examples of what is possible:
@@ -186,7 +186,7 @@ Variable                            Description
 ``macros.random``                   The standard lib's :class:`random.random`
 =================================   ==============================================
 
-Some airflow specific macros are also defined:
+Some Airflow specific macros are also defined:
 
 .. automodule:: airflow.macros
     :members:

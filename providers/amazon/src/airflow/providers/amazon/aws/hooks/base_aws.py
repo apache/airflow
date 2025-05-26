@@ -58,11 +58,15 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
     from aiobotocore.session import AioSession
@@ -191,15 +195,13 @@ class BaseSessionFactory(LoggingMixin):
                 session = self.get_async_session()
                 self._apply_session_kwargs(session)
                 return session
-            else:
-                return boto3.session.Session(region_name=self.region_name)
-        elif not self.role_arn:
+            return boto3.session.Session(region_name=self.region_name)
+        if not self.role_arn:
             if deferrable:
                 session = self.get_async_session()
                 self._apply_session_kwargs(session)
                 return session
-            else:
-                return self.basic_session
+            return self.basic_session
 
         # Values stored in ``AwsConnectionWrapper.session_kwargs`` are intended to be used only
         # to create the initial boto3 session.
@@ -605,12 +607,24 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Get the Airflow Connection object and wrap it in helper (cached)."""
         connection = None
         if self.aws_conn_id:
+            possible_exceptions: tuple[type[Exception], ...]
+
+            if AIRFLOW_V_3_0_PLUS:
+                possible_exceptions = (AirflowNotFoundException, AirflowRuntimeError)
+            else:
+                possible_exceptions = (AirflowNotFoundException,)
+
             try:
                 connection = self.get_connection(self.aws_conn_id)
-            except AirflowNotFoundException:
-                self.log.warning(
-                    "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
-                )
+            except possible_exceptions as e:
+                if isinstance(
+                    e, AirflowNotFoundException
+                ) or f"Connection with ID {self.aws_conn_id} not found" in str(e):
+                    self.log.warning(
+                        "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
+                    )
+                else:
+                    raise
 
         return AwsConnectionWrapper(
             conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
@@ -624,7 +638,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 if is_resource_type:
                     raise LookupError("Requested `resource_type`, but `client_type` was set instead.")
                 return self.client_type
-            elif self.resource_type:
+            if self.resource_type:
                 if not is_resource_type:
                     raise LookupError("Requested `client_type`, but `resource_type` was set instead.")
                 return self.resource_type
@@ -840,15 +854,14 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """
         if "/" in role:
             return role
-        else:
-            session = self.get_session(region_name=region_name)
-            _client = session.client(
-                service_name="iam",
-                endpoint_url=self.conn_config.get_service_endpoint_url("iam"),
-                config=self.config,
-                verify=self.verify,
-            )
-            return _client.get_role(RoleName=role)["Role"]["Arn"]
+        session = self.get_session(region_name=region_name)
+        _client = session.client(
+            service_name="iam",
+            endpoint_url=self.conn_config.get_service_endpoint_url("iam"),
+            config=self.config,
+            verify=self.verify,
+        )
+        return _client.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
     def retry(should_retry: Callable[[Exception], bool]):

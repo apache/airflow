@@ -40,7 +40,12 @@ export const useDependencyGraph = (
 
   // Update the queries for all connected assets and dags so we save an API request
   query.data?.nodes.forEach((node) => {
-    queryClient.setQueryData(UseDependenciesServiceGetDependenciesKeyFn({ nodeId: node.id }), query.data);
+    const key = UseDependenciesServiceGetDependenciesKeyFn({ nodeId: node.id });
+    const queryData = queryClient.getQueryData(key);
+
+    if (!Boolean(queryData)) {
+      queryClient.setQueryData(key, query.data);
+    }
   });
 
   return query;

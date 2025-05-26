@@ -101,7 +101,7 @@ then you will want to turn catchup off, which is the default setting or can be d
     https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
     """
 
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.bash import BashOperator
 
     import datetime
@@ -199,7 +199,7 @@ Task Instance History
 ---------------------
 When a task instance retries or is cleared, the task instance history is preserved. You can see this history by clicking on the task instance in the Grid view.
 
-.. image:: ../img/task_instance_history.png
+.. image:: ../img/ui-dark/task_instance_history.png
 
 .. note::
     The try selector shown above is only available for tasks that have been retried or cleared.
@@ -207,7 +207,7 @@ When a task instance retries or is cleared, the task instance history is preserv
 The history shows the value of the task instance attributes at the end of the particular run. On the log page, you can also see the logs for each of the task instance tries.
 This can be useful for debugging.
 
-.. image:: ../img/task_instance_history_log.png
+.. image:: ../img/ui-dark/task_instance_history_log.png
 
 .. note::
     Related task instance objects like the XComs, rendered template fields, etc., are not preserved in the history. Only the task instance attributes, including the logs, are preserved.
@@ -219,7 +219,7 @@ Note that DAG Runs can also be created manually through the CLI. Just run the co
 
 .. code-block:: bash
 
-    airflow dags trigger --exec-date logical_date run_id
+    airflow dags trigger --logical-date logical_date run_id
 
 The DAG Runs created externally to the scheduler get associated with the trigger's timestamp and are displayed
 in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
@@ -241,7 +241,7 @@ Example of a parameterized DAG:
 
     import pendulum
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.bash import BashOperator
 
     dag = DAG(

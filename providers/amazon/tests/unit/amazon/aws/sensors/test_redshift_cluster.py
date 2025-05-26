@@ -113,9 +113,9 @@ class TestRedshiftClusterSensor:
 
         with pytest.raises(TaskDeferred) as exc:
             deferrable_op.execute(None)
-        assert isinstance(
-            exc.value.trigger, RedshiftClusterTrigger
-        ), "Trigger is not a RedshiftClusterTrigger"
+        assert isinstance(exc.value.trigger, RedshiftClusterTrigger), (
+            "Trigger is not a RedshiftClusterTrigger"
+        )
 
     def test_redshift_sensor_async_execute_failure(self, deferrable_op):
         """Test RedshiftClusterSensor with an AirflowException is raised in case of error event"""

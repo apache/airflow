@@ -115,14 +115,13 @@ class EventsTimetable(Timetable):
         # or for the first event if all events are in the future
         if run_after < self.event_dates[0]:
             return DataInterval.exact(self.event_dates[0])
-        else:
-            past_events = itertools.dropwhile(lambda when: when > run_after, self.event_dates[::-1])
-            most_recent_event = next(past_events)
-            return DataInterval.exact(most_recent_event)
+        past_events = itertools.dropwhile(lambda when: when > run_after, self.event_dates[::-1])
+        most_recent_event = next(past_events)
+        return DataInterval.exact(most_recent_event)
 
     def serialize(self):
         return {
-            "event_dates": [str(x) for x in self.event_dates],
+            "event_dates": [x.isoformat(sep="T") for x in self.event_dates],
             "restrict_to_events": self.restrict_to_events,
         }
 

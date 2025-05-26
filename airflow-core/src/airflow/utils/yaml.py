@@ -59,7 +59,7 @@ def dump(data: Any, **kwargs) -> str:
     except ImportError:
         from yaml import SafeDumper  # type: ignore[assignment, no-redef]
 
-    return cast(str, orig(data, Dumper=SafeDumper, **kwargs))
+    return cast("str", orig(data, Dumper=SafeDumper, **kwargs))
 
 
 def __getattr__(name):

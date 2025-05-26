@@ -46,6 +46,7 @@ from airflow_breeze.commands.common_options import (
 from airflow_breeze.commands.production_image_commands import prod_image
 from airflow_breeze.commands.testing_commands import group_for_testing
 from airflow_breeze.configure_rich_click import click
+from airflow_breeze.global_constants import generate_provider_dependencies_if_needed
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
@@ -128,6 +129,7 @@ def main(ctx: click.Context, **kwargs: dict[str, Any]):
 
     check_for_rosetta_environment()
     check_for_python_emulation()
+    generate_provider_dependencies_if_needed()
 
     if not ctx.invoked_subcommand:
         ctx.forward(shell, extra_args={})
@@ -300,6 +302,35 @@ def cleanup(all: bool):
         if not get_dry_run():
             shutil.rmtree(AIRFLOW_HOME_PATH, ignore_errors=True)
             AIRFLOW_HOME_PATH.mkdir(exist_ok=True, parents=True)
-            run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
+            run_command(["uv", "pip", "uninstall", "apache-airflow"], check=False)
+    elif given_answer == Answer.QUIT:
+        sys.exit(0)
+
+    to_be_excluded_from_deletion = (
+        # dirs
+        ".idea/",  # Pycharm config
+        ".vscode/",  # VSCode config
+        ".venv/",
+        "files/",
+        "logs/",
+        # files
+        ".bash_history",
+        ".bash_aliases",
+    )
+
+    get_console().print(
+        "Removing build file and git untracked files. This also removes files ignored in .gitignore.\n"
+        f"The following files will not be removed: `{to_be_excluded_from_deletion}`."
+    )
+    given_answer = user_confirm("Are you sure with the removal of build files?")
+    if given_answer == Answer.YES:
+        system_prune_command_to_execute = ["git", "clean", "-fdx"]
+        for excluded_object in to_be_excluded_from_deletion:
+            system_prune_command_to_execute.extend(["-e", excluded_object])
+
+        run_command(
+            system_prune_command_to_execute,
+            check=False,
+        )
     elif given_answer == Answer.QUIT:
         sys.exit(0)

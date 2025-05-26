@@ -142,9 +142,9 @@ class TestEmrContainerOperator:
         self.emr_container.wait_for_completion = False
         with pytest.raises(TaskDeferred) as exc:
             self.emr_container.execute(context=None)
-        assert isinstance(
-            exc.value.trigger, EmrContainerTrigger
-        ), f"{exc.value.trigger} is not a EmrContainerTrigger"
+        assert isinstance(exc.value.trigger, EmrContainerTrigger), (
+            f"{exc.value.trigger} is not a EmrContainerTrigger"
+        )
 
     @mock.patch.object(EmrContainerHook, "submit_job")
     @mock.patch.object(

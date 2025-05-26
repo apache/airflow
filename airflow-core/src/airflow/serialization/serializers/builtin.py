@@ -32,7 +32,7 @@ stringifiers = serializers
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
-    return list(cast(list, o)), qualname(o), __version__, True
+    return list(cast("list", o)), qualname(o), __version__, True
 
 
 def deserialize(classname: str, version: int, data: list) -> tuple | set | frozenset:

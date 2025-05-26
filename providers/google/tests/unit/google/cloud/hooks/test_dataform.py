@@ -210,9 +210,11 @@ class TestDataformHook:
     @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
     def test_cancel_workflow_invocation_is_not_called(self, mock_client, mock_state, caplog):
         mock_state.return_value.state = WorkflowInvocation.State.SUCCEEDED
-        expected_log = "Workflow is not active. Either the execution has already "
-        "finished or has been canceled. Please check the logs above "
-        "for more details."
+        expected_log = (
+            "Workflow is not active. Either the execution has already "
+            "finished or has been canceled. Please check the logs above "
+            "for more details."
+        )
 
         with caplog.at_level(logging.INFO):
             self.hook.cancel_workflow_invocation(
@@ -288,8 +290,7 @@ class TestDataformHook:
             workspace_id=WORKSPACE_ID,
         )
         name = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.delete_workspace.assert_called_once_with(
@@ -312,8 +313,7 @@ class TestDataformHook:
             contents=FILE_CONTENTS,
         )
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.write_file.assert_called_once_with(
@@ -337,8 +337,7 @@ class TestDataformHook:
             path=PATH_TO_FOLDER,
         )
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.make_directory.assert_called_once_with(
@@ -361,8 +360,7 @@ class TestDataformHook:
             path=PATH_TO_FOLDER,
         )
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.remove_directory.assert_called_once_with(
@@ -385,8 +383,7 @@ class TestDataformHook:
             filepath=FILEPATH,
         )
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.remove_file.assert_called_once_with(
@@ -409,8 +406,7 @@ class TestDataformHook:
         )
 
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.install_npm_packages.assert_called_once_with(

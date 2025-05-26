@@ -38,7 +38,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
     conn_type: connection.conn_type,
     connection_id: connection.connection_id,
     description: connection.description ?? "",
-    extra: connection.extra ?? "{}",
+    extra: connection.extra === "" || connection.extra === null ? "{}" : connection.extra,
     host: connection.host ?? "",
     login: connection.login ?? "",
     password: connection.password ?? "",
@@ -70,7 +70,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Edit Variable</Heading>
+            <Heading size="xl">Edit Connection</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />

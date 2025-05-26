@@ -20,19 +20,19 @@
 Dags
 ====
 
-.. include:: ../../exts/includes/dag-definition.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-definition-start
     :end-before: .. dag-definition-end
 
 Here's a basic example DAG:
 
-.. image:: /img/basic-dag.png
+.. image:: /img/ui-light/basic_dag.png
 
 It defines four Tasks - A, B, C, and D - and dictates the order in which they have to run, and which tasks depend on what others. It will also say how often to run the DAG - maybe "every 5 minutes starting tomorrow", or "every day since January 1st, 2020".
 
 The DAG itself doesn't care about *what* is happening inside the tasks; it is merely concerned with *how* to execute them - the order to run them in, how many times to retry them, if they have timeouts, and so on.
 
-.. include:: ../../exts/includes/dag-definition.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-etymology-start
     :end-before: .. dag-etymology-end
 
@@ -47,7 +47,7 @@ which will add anything inside it to the DAG implicitly:
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
@@ -65,7 +65,7 @@ Or, you can use a standard constructor, passing the DAG into any operators you u
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     my_dag = DAG(
@@ -83,7 +83,7 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
 
     import datetime
 
-    from airflow.decorators import dag
+    from airflow.sdk import dag
     from airflow.providers.standard.operators.empty import EmptyOperator
 
 
@@ -147,7 +147,7 @@ Chain can also do *pairwise* dependencies for lists the same size (this is diffe
 Loading dags
 ------------
 
-Airflow loads dags from Python source files, which it looks for inside its configured ``DAG_FOLDER``. It will take each file, execute it, and then load any DAG objects from that file.
+Airflow loads dags from Python source files in dag bundles. It will take each file, execute it, and then load any DAG objects from that file.
 
 This means you can define multiple dags per Python file, or even spread one very complex DAG across multiple Python files using imports.
 
@@ -164,11 +164,11 @@ While both DAG constructors get called when the file is accessed, only ``dag_1``
 
 .. note::
 
-    When searching for dags inside the ``DAG_FOLDER``, Airflow only considers Python files that contain the strings ``airflow`` and ``dag`` (case-insensitively) as an optimization.
+    When searching for dags inside the dag bundle, Airflow only considers Python files that contain the strings ``airflow`` and ``dag`` (case-insensitively) as an optimization.
 
     To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
 
-You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
+You can also provide an ``.airflowignore`` file inside your dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
 In the case where the ``.airflowignore`` does not meet your needs and you want a more flexible way to control if a python file needs to be parsed by airflow, you can plug your callable by setting ``might_contain_dag_callable`` in the config file.
 Note, this callable will replace the default Airflow heuristic, i.e. checking if the strings ``airflow`` and ``dag`` (case-insensitively) are present in the python file.
@@ -292,7 +292,7 @@ The DAG decorator
 
 As well as the more traditional ways of declaring a single DAG using a context manager or the ``DAG()`` constructor, you can also decorate a function with ``@dag`` to turn it into a DAG generator function:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_dag_decorator.py
+.. exampleinclude:: /../src/airflow/example_dags/example_dag_decorator.py
     :language: python
     :start-after: [START dag_decorator_usage]
     :end-before: [END dag_decorator_usage]
@@ -331,7 +331,7 @@ The task_id returned by the Python function has to reference a task directly dow
 .. note::
     When a Task is downstream of both the branching operator *and* downstream of one or more of the selected tasks, it will not be skipped:
 
-    .. image:: /img/branch_note.png
+    .. image:: /img/ui-light/branch_note.png
 
     The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will still be run, even though it was not returned as part of the branch decision.
 
@@ -399,7 +399,7 @@ This special Operator skips all tasks downstream of itself if you are not on the
 
 Here's an example:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_latest_only_with_trigger.py
+.. exampleinclude:: /../src/airflow/example_dags/example_latest_only_with_trigger.py
     :language: python
     :start-after: [START example]
     :end-before: [END example]
@@ -458,8 +458,8 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         # dags/branch_without_trigger.py
         import pendulum
 
-        from airflow.decorators import task
-        from airflow.models import DAG
+        from airflow.sdk import task
+        from airflow.sdk import DAG
         from airflow.providers.standard.operators.empty import EmptyOperator
 
         dag = DAG(
@@ -491,11 +491,11 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
     ``join`` is downstream of ``follow_branch_a`` and ``branch_false``. The ``join`` task will show up as skipped because its ``trigger_rule`` is set to ``all_success`` by default, and the skip caused by the branching operation cascades down to skip a task marked as ``all_success``.
 
-    .. image:: /img/branch_without_trigger.png
+    .. image:: /img/ui-light/branch_without_trigger.png
 
     By setting ``trigger_rule`` to ``none_failed_min_one_success`` in the ``join`` task, we can instead get the intended behaviour:
 
-    .. image:: /img/branch_with_trigger.png
+    .. image:: /img/ui-light/branch_with_trigger.png
 
 
 Setup and teardown
@@ -550,14 +550,14 @@ A TaskGroup can be used to organize tasks into hierarchical groups in Graph view
 
 Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
 
-.. image:: /img/task_group.gif
+.. image:: /img/ui-light/task_group.gif
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:
 
 .. code-block:: python
    :emphasize-lines: 4,12
 
-    from airflow.decorators import task_group
+    from airflow.sdk import task_group
 
 
     @task_group()
@@ -577,8 +577,8 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
 
     import datetime
 
-    from airflow import DAG
-    from airflow.decorators import task_group
+    from airflow.sdk import DAG
+    from airflow.sdk import task_group
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -620,7 +620,7 @@ To add labels, you can use them directly inline with the ``>>`` and ``<<`` opera
 
 .. code-block:: python
 
-    from airflow.utils.edgemodifier import Label
+    from airflow.sdk import Label
 
     my_task >> Label("When empty") >> other_task
 
@@ -628,17 +628,17 @@ Or, you can pass a Label object to ``set_upstream``/``set_downstream``:
 
 .. code-block:: python
 
-    from airflow.utils.edgemodifier import Label
+    from airflow.sdk import Label
 
     my_task.set_downstream(other_task, Label("When empty"))
 
 Here's an example DAG which illustrates labeling different branches:
 
-.. image:: /img/edge_label_example.png
+.. image:: /img/ui-light/edge_label_example.png
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_branch_labels.py
+.. exampleinclude:: /../src/airflow/example_dags/example_branch_labels.py
     :language: python
-    :start-after: from airflow.utils.edgemodifier import Label
+    :start-after: from airflow.sdk import DAG, Label
 
 
 DAG & Task Documentation
@@ -691,7 +691,7 @@ Packaging dags
 
 While simpler dags are usually only in a single Python file, it is not uncommon that more complex dags might be spread across multiple files and have dependencies that should be shipped with them ("vendored").
 
-You can either do this all inside of the ``DAG_FOLDER``, with a standard filesystem layout, or you can package the DAG and all of its Python files up as a single zip file. For instance, you could ship two dags along with a dependency they need as a zip file with the following contents::
+You can either do this all inside of the dag bundle, with a standard filesystem layout, or you can package the DAG and all of its Python files up as a single zip file. For instance, you could ship two dags along with a dependency they need as a zip file with the following contents::
 
     my_dag1.py
     my_dag2.py
@@ -711,7 +711,7 @@ In general, if you have a complex set of compiled dependencies and modules, you 
 ``.airflowignore``
 ------------------
 
-An ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+An ``.airflowignore`` file specifies the directories or files in the dag bundle
 or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore. Airflow supports
 two syntax flavors for patterns in the file, as specified by the ``DAG_IGNORE_FILE_SYNTAX``
 configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
@@ -740,7 +740,7 @@ match any of the patterns would be ignored (under the hood, ``Pattern.search()``
 to match the pattern). Use the ``#`` character to indicate a comment; all characters
 on lines starting with ``#`` will be ignored.
 
-The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
+The ``.airflowignore`` file should be put in your dag bundle. For example, you can prepare
 a ``.airflowignore`` file with the ``glob`` syntax
 
 .. code-block::
@@ -749,12 +749,12 @@ a ``.airflowignore`` file with the ``glob`` syntax
     tenant_[0-9]*
 
 Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
-``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored
+``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your dag bundle would be ignored
 (If a directory's name matches any of the patterns, this directory and all its subfolders
 would not be scanned by Airflow at all. This improves efficiency of DAG finding).
 
 The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
-You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
+You can also prepare ``.airflowignore`` file for a subfolder in your dag bundle and it
 would only be applicable for that subfolder.
 
 DAG Dependencies

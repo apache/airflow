@@ -25,7 +25,7 @@ settings as a simple key value store within Airflow. Variables can be
 listed, created, updated and deleted from the UI (``Admin -> Variables``),
 code or CLI.
 
-.. image:: ../img/variable_hidden.png
+.. image:: ../img/ui-dark/variable_hidden.png
 
 See the :doc:`Variables Concepts </core-concepts/variables>` documentation for
 more information.
@@ -52,7 +52,7 @@ You can use them in your dags as:
 
 .. code-block:: python
 
-    from airflow.models import Variable
+    from airflow.sdk import Variable
 
     foo = Variable.get("foo")
     foo_json = Variable.get("foo_baz", deserialize_json=True)

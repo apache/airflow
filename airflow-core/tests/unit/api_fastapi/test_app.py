@@ -32,17 +32,13 @@ def test_main_app_lifespan(client):
         assert test_app.state.lifespan_called, "Lifespan not called on Execution API app."
 
 
-@mock.patch("airflow.api_fastapi.app.init_dag_bag")
 @mock.patch("airflow.api_fastapi.app.init_views")
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
-def test_core_api_app(
-    mock_create_task_exec_api, mock_init_plugins, mock_init_views, mock_init_dag_bag, client
-):
+def test_core_api_app(mock_create_task_exec_api, mock_init_plugins, mock_init_views, client):
     test_app = client(apps="core").app
 
     # Assert that core-related functions were called
-    mock_init_dag_bag.assert_called_once_with(test_app)
     mock_init_views.assert_called_once_with(test_app)
     mock_init_plugins.assert_called_once_with(test_app)
 
@@ -50,43 +46,34 @@ def test_core_api_app(
     mock_create_task_exec_api.assert_not_called()
 
 
-@mock.patch("airflow.api_fastapi.app.init_dag_bag")
 @mock.patch("airflow.api_fastapi.app.init_views")
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
-def test_execution_api_app(
-    mock_create_task_exec_api, mock_init_plugins, mock_init_views, mock_init_dag_bag, client
-):
+def test_execution_api_app(mock_create_task_exec_api, mock_init_plugins, mock_init_views, client):
     client(apps="execution")
 
     # Assert that execution-related functions were called
     mock_create_task_exec_api.assert_called_once()
 
     # Assert that core-related functions were NOT called
-    mock_init_dag_bag.assert_not_called()
     mock_init_views.assert_not_called()
     mock_init_plugins.assert_not_called()
 
 
-def test_execution_api_app_lifespan(client):
+def test_execution_api_app_lifespan(client, get_execution_app):
     with client(apps="execution") as test_client:
-        test_app = test_client.app
-
-        # assert the execution app was created and lifespan was called
-        execution_app = [route.app for route in test_app.router.routes if route.path == "/execution"]
+        execution_app = get_execution_app(test_client)
         assert execution_app, "Execution API app not found in FastAPI app."
-        assert execution_app[0].state.lifespan_called, "Lifespan not called on Execution API app."
+        assert execution_app.state.lifespan_called, "Lifespan not called on Execution API app."
 
 
-@mock.patch("airflow.api_fastapi.app.init_dag_bag")
 @mock.patch("airflow.api_fastapi.app.init_views")
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
-def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views, mock_init_dag_bag, client):
+def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views, client):
     test_app = client(apps="all").app
 
     # Assert that core-related functions were called
-    mock_init_dag_bag.assert_called_once_with(test_app)
     mock_init_views.assert_called_once_with(test_app)
     mock_init_plugins.assert_called_once_with(test_app)
 

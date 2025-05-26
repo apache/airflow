@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import functools
 import os
 import sys
 import traceback
@@ -35,9 +34,12 @@ from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
+    DeleteVariable,
     ErrorResponse,
     GetConnection,
     GetVariable,
+    OKResponse,
+    PutVariable,
     VariableResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
@@ -52,20 +54,52 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.typing_compat import Self
 
+
+class DagFileParseRequest(BaseModel):
+    """
+    Request for DAG File Parsing.
+
+    This is the request that the manager will send to the DAG parser with the dag file and
+    any other necessary metadata.
+    """
+
+    file: str
+
+    bundle_path: Path
+    """Passing bundle path around lets us figure out relative file path."""
+
+    requests_fd: int
+    callback_requests: list[CallbackRequest] = Field(default_factory=list)
+    type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
+
+
+class DagFileParsingResult(BaseModel):
+    """
+    Result of DAG File Parsing.
+
+    This is the result of a successful DAG parse, in this class, we gather all serialized DAGs,
+    import errors and warnings to send back to the scheduler to store in the DB.
+    """
+
+    fileloc: str
+    serialized_dags: list[LazyDeserializedDAG]
+    warnings: list | None = None
+    import_errors: dict[str, str] | None = None
+    type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
+
+
 ToManager = Annotated[
-    Union["DagFileParsingResult", GetConnection, GetVariable],
+    Union[DagFileParsingResult, GetConnection, GetVariable, PutVariable, DeleteVariable],
     Field(discriminator="type"),
 ]
 
 ToDagProcessor = Annotated[
-    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse],
+    Union[DagFileParseRequest, ConnectionResult, VariableResult, ErrorResponse, OKResponse],
     Field(discriminator="type"),
 ]
 
 
 def _parse_file_entrypoint():
-    import os
-
     import structlog
 
     from airflow.sdk.execution_time import task_runner
@@ -83,6 +117,11 @@ def _parse_file_entrypoint():
 
     task_runner.SUPERVISOR_COMMS = comms_decoder
     log = structlog.get_logger(logger_name="task")
+
+    # Put bundle root on sys.path if needed. This allows the dag bundle to add
+    # code in util modules to be shared between files within the same bundle.
+    if (bundle_root := os.fspath(msg.bundle_path)) not in sys.path:
+        sys.path.append(bundle_root)
 
     result = _parse_file(msg, log)
     if result is not None:
@@ -144,7 +183,7 @@ def _execute_callbacks(
                 "Haven't coded Task callback yet - https://github.com/apache/airflow/issues/44354!"
             )
             # _execute_task_callbacks(dagbag, request)
-        elif isinstance(request, DagCallbackRequest):
+        if isinstance(request, DagCallbackRequest):
             _execute_dag_callbacks(dagbag, request, log)
 
 
@@ -158,7 +197,11 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
 
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
     # TODO:We need a proper context object!
-    context: Context = {}  # type: ignore[assignment]
+    context: Context = {  # type: ignore[assignment]
+        "dag": dag,
+        "run_id": request.run_id,
+        "reason": request.msg,
+    }
 
     for callback in callbacks:
         log.info(
@@ -173,40 +216,6 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             Stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
 
 
-class DagFileParseRequest(BaseModel):
-    """
-    Request for DAG File Parsing.
-
-    This is the request that the manager will send to the DAG parser with the dag file and
-    any other necessary metadata.
-    """
-
-    file: str
-
-    bundle_path: Path
-    """Passing bundle path around lets us figure out relative file path."""
-
-    requests_fd: int
-    callback_requests: list[CallbackRequest] = Field(default_factory=list)
-    type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
-
-
-class DagFileParsingResult(BaseModel):
-    """
-    Result of DAG File Parsing.
-
-    This is the result of a successful DAG parse, in this class, we gather all serialized DAGs,
-    import errors and warnings to send back to the scheduler to store in the DB.
-    """
-
-    fileloc: str
-    serialized_dags: list[LazyDeserializedDAG]
-    warnings: list | None = None
-    import_errors: dict[str, str] | None = None
-    type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
-
-
-@functools.cache
 def in_process_api_server() -> InProcessExecutionAPI:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
@@ -230,6 +239,9 @@ class DagFileProcessorProcess(WatchedSubprocess):
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
+    client: Client
+    """The HTTP client to use for communication with the API server."""
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -238,9 +250,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         bundle_path: Path,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
+        client: Client,
         **kwargs,
     ) -> Self:
-        proc: Self = super().start(target=target, **kwargs)
+        proc: Self = super().start(target=target, client=client, **kwargs)
         proc._on_child_started(callbacks, path, bundle_path)
         return proc
 
@@ -256,44 +269,42 @@ class DagFileProcessorProcess(WatchedSubprocess):
             requests_fd=self._requests_fd,
             callback_requests=callbacks,
         )
-        self.stdin.write(msg.model_dump_json().encode() + b"\n")
-
-    @functools.cached_property
-    def client(self) -> Client:
-        from airflow.sdk.api.client import Client
-
-        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
-        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
-        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
-        return client
+        self.send_msg(msg)
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger) -> None:  # type: ignore[override]
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 
-        resp = None
+        resp: BaseModel | None = None
+        dump_opts = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
             return
-        elif isinstance(msg, GetConnection):
+        if isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
+                resp = conn_result
+                dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
-                resp = conn.model_dump_json().encode()
+                resp = conn
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 var_result = VariableResult.from_variable_response(var)
-                resp = var_result.model_dump_json(exclude_unset=True).encode()
+                resp = var_result
+                dump_opts = {"exclude_unset": True}
             else:
-                resp = var.model_dump_json().encode()
+                resp = var
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
             return
 
         if resp:
-            self.stdin.write(resp + b"\n")
+            self.send_msg(resp, **dump_opts)
 
     @property
     def is_ready(self) -> bool:
@@ -302,10 +313,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
             return False
 
         return self._num_open_sockets == 0
-
-    @property
-    def start_time(self) -> float:
-        return self._process.create_time()
 
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")

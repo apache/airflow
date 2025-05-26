@@ -22,7 +22,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FieldString = ({ name }: FlexibleFormElementProps) => {
+export const FieldString = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
@@ -33,6 +33,7 @@ export const FieldString = ({ name }: FlexibleFormElementProps) => {
     }
 
     setParamsDict(paramsDict);
+    onUpdate(value);
   };
 
   return (
@@ -48,7 +49,7 @@ export const FieldString = ({ name }: FlexibleFormElementProps) => {
         }}
         placeholder={param.schema.examples ? "Start typing to see options." : undefined}
         size="sm"
-        value={JSON.stringify(param.value ?? "")}
+        value={(param.value ?? "") as string}
       />
       {param.schema.examples ? (
         <datalist id={`list_${name}`}>

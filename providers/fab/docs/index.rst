@@ -84,7 +84,7 @@ apache-airflow-providers-fab package
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -102,24 +102,30 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``3.0.0.dev0``.
+The minimum Apache Airflow version supported by this provider distribution is ``3.0.2``.
 
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=3.0.0.dev0``
+``apache-airflow``                          ``>=3.0.2``
 ``apache-airflow-providers-common-compat``  ``>=1.2.1``
-``flask``                                   ``>=2.2,<2.3``
-``flask-appbuilder``                        ``==4.5.3``
+``blinker``                                 ``>=1.6.2``
+``flask``                                   ``>=2.2.1,<2.3``
+``flask-appbuilder``                        ``==4.6.3``
 ``flask-login``                             ``>=0.6.2``
+``flask-session``                           ``>=0.4.0,<0.6``
+``flask-wtf``                               ``>=1.1.0``
+``connexion[flask]``                        ``>=2.14.2,<3.0``
 ``jmespath``                                ``>=0.7.0``
+``werkzeug``                                ``>=2.2,<4``
+``wtforms``                                 ``>=3.0,<4``
 ==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -140,5 +146,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-fab 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-fab 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-fab 2.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-fab 2.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_fab-2.1.0-py3-none-any.whl.sha512>`__)

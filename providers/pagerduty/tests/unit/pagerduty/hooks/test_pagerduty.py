@@ -72,6 +72,6 @@ class TestPagerdutyHook:
             "self": "https://api.pagerduty.com/services/PZYX321",
         }
         requests_mock.get("https://api.pagerduty.com/services/PZYX321", json={"service": mock_response_body})
-        session = hook.get_session()
-        resp = session.rget("/services/PZYX321")
+        client = hook.client()
+        resp = client.rget("/services/PZYX321")
         assert resp == mock_response_body

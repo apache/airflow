@@ -70,9 +70,9 @@ class EdgeModifier(DependencyMixin):
         nodes: DependencyMixin | Sequence[DependencyMixin],
         stream: list[DependencyMixin],
     ):
-        from airflow.models.xcom_arg import XComArg
         from airflow.sdk.definitions._internal.node import DAGNode
         from airflow.sdk.definitions.taskgroup import TaskGroup
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         for node in self._make_list(nodes):
             if isinstance(node, (TaskGroup, XComArg, DAGNode)):
@@ -92,9 +92,9 @@ class EdgeModifier(DependencyMixin):
         the nodes are from the same TaskGroup, we will leave them as DAGNodes and not
         convert them to TaskGroups
         """
-        from airflow.models.xcom_arg import XComArg
         from airflow.sdk.definitions._internal.node import DAGNode
         from airflow.sdk.definitions.taskgroup import TaskGroup
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         group_ids = set()
         for node in [*self._upstream, *self._downstream]:

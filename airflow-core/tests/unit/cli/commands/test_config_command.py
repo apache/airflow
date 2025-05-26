@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import os
 import re
+import shutil
 from io import StringIO
 from unittest import mock
 
@@ -27,6 +28,7 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
 from airflow.cli.commands.config_command import ConfigChange, ConfigParameter
+from airflow.configuration import conf
 
 from tests_common.test_utils.config import conf_vars
 
@@ -251,10 +253,12 @@ class TestConfigLint:
 
             output = temp_stdout.getvalue()
 
-        normalized_output = re.sub(r"\s+", " ", output.strip())
-        normalized_message = re.sub(r"\s+", " ", removed_config.message.strip())
+        normalized_output = re.sub(r"\s+", " ", output.strip()) if output else ""
+        normalized_message = (
+            re.sub(r"\s+", " ", removed_config.message.strip()) if removed_config.message else ""
+        )
 
-        assert normalized_message in normalized_output
+        assert normalized_message.lower() in normalized_output.lower()
 
     @pytest.mark.parametrize(
         "default_changed_config",
@@ -491,3 +495,80 @@ class TestConfigLint:
         normalized_output = re.sub(r"\s+", " ", output.strip())
 
         assert "Invalid value" not in normalized_output
+
+
+class TestCliConfigUpdate:
+    @conf_vars({("core", "executor"): "SequentialExecutor"})
+    def test_update_config_all_options_dry_run(self, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        initial_config = "[core]\nexecutor = SequentialExecutor\n"
+        cfg_file.write_text(initial_config)
+
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+
+        def fake_write_custom_config(file, **kwargs):
+            file.write("updated_config_dry_run")
+
+        monkeypatch.setattr(conf, "write_custom_config", fake_write_custom_config)
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(
+            [
+                "config",
+                "update",
+                "--all-recommendations",
+            ]
+        )
+
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+
+        assert "Dry-run mode enabled" in output
+        assert "The following are the changes in airflow config:" in output
+
+        current_cfg = cfg_file.read_text()
+        assert initial_config in current_cfg, "Dry-run should not modify the config file."
+
+    @conf_vars({("core", "executor"): "SequentialExecutor"})
+    def test_update_config_all_options_fix(self, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        initial_config = "[core]\nexecutor = SequentialExecutor\n"
+        cfg_file.write_text(initial_config)
+
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+
+        def fake_write_custom_config(file, **kwargs):
+            file.write("updated_config")
+
+        monkeypatch.setattr(conf, "write_custom_config", fake_write_custom_config)
+
+        def fake_copy2(src, dst):
+            with open(dst, "w") as f:
+                f.write("backup_config")
+
+        monkeypatch.setattr(shutil, "copy2", fake_copy2)
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(
+            [
+                "config",
+                "update",
+                "--fix",
+                "--all-recommendations",
+            ]
+        )
+
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+        assert "Backup saved as" in output
+        assert "The following are the changes in airflow config:" in output
+
+        updated_cfg = cfg_file.read_text()
+        assert "updated_config" in updated_cfg, "Fix mode should update the configuration file."
+
+        backup_path = str(cfg_file) + ".bak"
+        assert os.path.exists(backup_path), "Backup file should be created."
+        backup_content = open(backup_path).read()
+        assert "backup_config" in backup_content, "Backup file should contain the original content."

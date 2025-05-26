@@ -43,8 +43,6 @@ from airflow.providers.amazon.aws.hooks.s3 import (
 )
 from airflow.utils.timezone import datetime
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
-
 
 @pytest.fixture
 def mocked_s3_res():
@@ -59,19 +57,17 @@ def s3_bucket(mocked_s3_res):
     return bucket
 
 
-if AIRFLOW_V_2_10_PLUS:
+@pytest.fixture
+def hook_lineage_collector():
+    from airflow.lineage import hook
+    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
-    @pytest.fixture
-    def hook_lineage_collector():
-        from airflow.lineage import hook
-        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+    hook._hook_lineage_collector = None
+    hook._hook_lineage_collector = hook.HookLineageCollector()
 
-        hook._hook_lineage_collector = None
-        hook._hook_lineage_collector = hook.HookLineageCollector()
+    yield get_hook_lineage_collector()
 
-        yield get_hook_lineage_collector()
-
-        hook._hook_lineage_collector = None
+    hook._hook_lineage_collector = None
 
 
 class TestAwsS3Hook:
@@ -448,7 +444,6 @@ class TestAwsS3Hook:
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         assert resource.get()["Body"].read() == b"Cont\xc3\xa9nt"
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
     def test_load_string_exposes_lineage(self, s3_bucket, hook_lineage_collector):
         hook = S3Hook()
 
@@ -913,9 +908,10 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
-    async def test_s3_key_hook_is_keys_unchanged_inactivity_error_async(self, mock_list_keys):
+    async def test_s3_key_hook_is_keys_unchanged_inactivity_async(self, mock_list_keys):
         """
-        Test is_key_unchanged gives AirflowException.
+        Test is_key_unchanged gives False response when the key value is unchanged in specified period
+        and not enough objects found.
         """
         mock_list_keys.return_value = []
 
@@ -934,10 +930,7 @@ class TestAwsS3Hook:
             last_activity_time=None,
         )
 
-        assert response == {
-            "status": "error",
-            "message": "FAILURE: Inactivity Period passed, not enough objects found in test_bucket/test",
-        }
+        assert response.get("status") == "pending"
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
@@ -1025,7 +1018,6 @@ class TestAwsS3Hook:
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         assert gz.decompress(resource.get()["Body"].read()) == b"Content"
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
     def test_load_file_exposes_lineage(self, s3_bucket, tmp_path, hook_lineage_collector):
         hook = S3Hook()
         path = tmp_path / "testfile"
@@ -1093,7 +1085,6 @@ class TestAwsS3Hook:
                 ACL="private",
             )
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
     @mock_aws
     def test_copy_object_ol_instrumentation(self, s3_bucket, hook_lineage_collector):
         mock_hook = S3Hook()
@@ -1153,9 +1144,9 @@ class TestAwsS3Hook:
 
             # Test: `bucket_name` should use the explicitly provided value over `service_config`
             test_bucket_name = fake_s3_hook.test_function(bucket_name="some_custom_bucket")
-            assert (
-                test_bucket_name == "some_custom_bucket"
-            ), "Expected provided bucket_name to take precedence over fallback"
+            assert test_bucket_name == "some_custom_bucket", (
+                "Expected provided bucket_name to take precedence over fallback"
+            )
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.
@@ -1232,7 +1223,6 @@ class TestAwsS3Hook:
 
         assert path.name == output_file
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file_exposes_lineage(self, mock_temp_file, tmp_path, hook_lineage_collector):
         path = tmp_path / "airflow_tmp_test_s3_hook"
@@ -1275,7 +1265,6 @@ class TestAwsS3Hook:
 
         mock_open.assert_called_once_with(path, "wb")
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")
     def test_download_file_with_preserve_name_exposes_lineage(
         self, mock_open, tmp_path, hook_lineage_collector

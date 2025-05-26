@@ -29,11 +29,11 @@ import textwrap
 
 import pendulum
 
-# The DAG object; we'll need this to instantiate a DAG
-from airflow.models.dag import DAG
-
 # Operators; we need this to operate!
 from airflow.providers.standard.operators.python import PythonOperator
+
+# The DAG object; we'll need this to instantiate a DAG
+from airflow.sdk import DAG
 
 # [END import_module]
 

@@ -79,7 +79,7 @@ code you will need to restart those processes. However, it will not be reflected
 By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
 and re-parsing all of Airflow's code and startup routines. This approach offers significant benefits, especially for shorter tasks.
 This does mean that if you use plugins in your tasks, and want them to update you will either
-need to restart the worker (if using CeleryExecutor) or scheduler (Local or Sequential executors). The other
+need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor). The other
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.
 
@@ -104,16 +104,12 @@ looks like:
         name = None
         # A list of references to inject into the macros namespace
         macros = []
-        # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
-        flask_blueprints = []
-        # A list of dictionaries contanning FastAPI object and some metadata. See example below.
+        # A list of dictionaries containing FastAPI app objects and some metadata. See the example below.
         fastapi_apps = []
-        # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
-        appbuilder_views = []
-        # A list of dictionaries containing kwargs for FlaskAppBuilder add_link. See example below
-        appbuilder_menu_items = []
+        # A list of dictionaries containing FastAPI middleware factory objects and some metadata. See the example below.
+        fastapi_root_middlewares = []
 
-        # A callback to perform actions when airflow starts and the plugin is loaded.
+        # A callback to perform actions when Airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
         #   to protect against extra parameters injected into the on_load(...)
         #   function in future changes
@@ -162,34 +158,21 @@ definitions in Airflow.
 
     # This is the class you derive to create a plugin
     from airflow.plugins_manager import AirflowPlugin
-    from airflow.security import permissions
-    from airflow.providers.fab.www.auth import has_access
 
     from fastapi import FastAPI
-    from flask import Blueprint
-    from flask_appbuilder import expose, BaseView as AppBuilderBaseView
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
     # Importing base classes that we need to derive
     from airflow.hooks.base import BaseHook
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
 
-    # Will show up under airflow.macros.test_plugin.plugin_macro
-    # and in templates through {{ macros.test_plugin.plugin_macro }}
+    # Will show up in templates through {{ macros.test_plugin.plugin_macro }}
     def plugin_macro():
         pass
 
 
-    # Creating a flask blueprint to integrate the templates and static folder
-    bp = Blueprint(
-        "test_plugin",
-        __name__,
-        template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
-        static_folder="static",
-        static_url_path="/static/test_plugin",
-    )
-
-    # Creating a FastAPI application to integrate in airflow Rest API.
+    # Creating a FastAPI application to integrate in Airflow Rest API.
     app = FastAPI()
 
 
@@ -201,53 +184,12 @@ definitions in Airflow.
     app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
 
-    # Creating a flask appbuilder BaseView
-    class TestAppBuilderBaseView(AppBuilderBaseView):
-        default_view = "test"
-
-        @expose("/")
-        @has_access(
-            [
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            ]
-        )
-        def test(self):
-            return self.render_template("test_plugin/test.html", content="Hello galaxy!")
-
-
-    # Creating a flask appbuilder BaseView
-    class TestAppBuilderBaseNoMenuView(AppBuilderBaseView):
-        default_view = "test"
-
-        @expose("/")
-        @has_access(
-            [
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            ]
-        )
-        def test(self):
-            return self.render_template("test_plugin/test.html", content="Hello galaxy!")
-
-
-    v_appbuilder_view = TestAppBuilderBaseView()
-    v_appbuilder_package = {
-        "name": "Test View",
-        "category": "Test Plugin",
-        "view": v_appbuilder_view,
-    }
-
-    v_appbuilder_nomenu_view = TestAppBuilderBaseNoMenuView()
-    v_appbuilder_nomenu_package = {"view": v_appbuilder_nomenu_view}
-
-    # Creating flask appbuilder Menu Items
-    appbuilder_mitem = {
-        "name": "Google",
-        "href": "https://www.google.com",
-        "category": "Search",
-    }
-    appbuilder_mitem_toplevel = {
-        "name": "Apache",
-        "href": "https://www.apache.org/",
+    # Creating a FastAPI middleware that will operates on all the server api requests.
+    middleware_with_metadata = {
+        "middleware": TrustedHostMiddleware,
+        "args": [],
+        "kwargs": {"allowed_hosts": ["example.com", "*.example.com"]},
+        "name": "Name of the Middleware",
     }
 
 
@@ -255,10 +197,8 @@ definitions in Airflow.
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
         macros = [plugin_macro]
-        flask_blueprints = [bp]
         fastapi_apps = [app_with_metadata]
-        appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
-        appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
+        fastapi_root_middlewares = [middleware_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
 
@@ -294,21 +234,10 @@ will automatically load the registered plugins from the entrypoint list.
 
     # my_package/my_plugin.py
     from airflow.plugins_manager import AirflowPlugin
-    from flask import Blueprint
-
-    # Creating a flask blueprint to integrate the templates and static folder
-    bp = Blueprint(
-        "test_plugin",
-        __name__,
-        template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
-        static_folder="static",
-        static_url_path="/static/test_plugin",
-    )
 
 
     class MyAirflowPlugin(AirflowPlugin):
         name = "my_namespace"
-        flask_blueprints = [bp]
 
 Then inside pyproject.toml:
 
@@ -316,6 +245,15 @@ Then inside pyproject.toml:
 
     [project.entry-points."airflow.plugins"]
     my_plugin = "my_package.my_plugin:MyAirflowPlugin"
+
+Flask Appbuilder and Flask Blueprints in Airflow 3
+--------------------------------------------------
+
+Airflow 2 supported Flask Appbuilder views (``appbuilder_views``), Flask AppBuilder menu items (``appbuilder_menu_items``),
+and Flask Blueprints (``flask_blueprints``) in plugins. These has been superseded by FastAPI apps in Airflow 3. All new plugins should use FastAPI apps (``fastapi_apps``) instead.
+
+However, a compatibility layer is provided for Flask and FAB plugins to ease the transition to Airflow 3 - simply install the FAB provider.
+Ideally, you should convert your plugins to FastAPI apps (`fastapi_apps`) during the upgrade process, as this compatibility layer is deprecated.
 
 Troubleshooting
 ---------------

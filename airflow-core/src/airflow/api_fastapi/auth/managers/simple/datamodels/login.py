@@ -25,7 +25,7 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 class LoginResponse(BaseModel):
     """Login serializer for responses."""
 
-    jwt_token: str
+    access_token: str
 
 
 class LoginBody(StrictBaseModel):

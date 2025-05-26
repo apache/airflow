@@ -26,6 +26,73 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``add root parent information to OpenLineage events (#49237)``
+* ``feat: Add DAG versioning information to OpenLineage events (#48741)``
+* ``Improve execution time messages for DAG or Task not found (#49352)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``nit: Remove duplicate warning when no OL metadata returned (#50350)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Fix clearing Variables for OpenLineage system tests (#50234)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Bump openlineage provider (#50230)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``tests: Fix OpenLineage VariableTransport's initialization (#49550)``
+   * ``Delete duplicate 'mock_supervisor_comms' pytest fixtures from OL provider (#49520)``
+   * ``Remove redundant fixtures in OL provider (#49357)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add support for task's manual state change notification in OpenLineage listener (#49040)``
+* ``feat: Explicitly propagate airflow logging level to OL client (#49108)``
+* ``feat: Add owner_links in DAG object in airflow facet (#49085)``
+
+Misc
+~~~~
+
+* ``gate import behind Airflow 2 path (#49209)``
+* ``remove superfluous else block (#49199)``
+* ``chore: Update requirement for openlineage client to >=1.31.0 (#49083)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.3
+.....
+
+Misc
+~~~~
+
+* ``Move ObjectStoragePath and attach to Task SDK (#48906)``
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: verify openlineage airflow models serialization (#47915)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 2.1.2
 .....
 
@@ -35,6 +102,10 @@ Bug Fixes
 * ``fix: Adjust OpenLineage DefaultExtractor for RuntimeTaskInstance in Airflow 3 (#47673)``
 * ``Stop trying to reconfigure the ORM in the OpenLineage workers (#47580)``
 * ``fix: Re-add configuring orm for OpenLineage's listener on scheduler (#48049)``
+* ``fix: remove use of get_inlet_defs and get_outlet_defs from OpenLineage (#48792)``
+* ``Make datetime objects in Context as Pendulum objects (#48592)``
+* ``fix: OpenLineage BaseExtractor's on_failure should call on_complete by default (#48456)``
+* ``Fix OL tests due to decorators move to standard provider (#48808)``
 
 Misc
 ~~~~
@@ -44,6 +115,9 @@ Misc
 * ``serialize http transports contained in composite transport (#47444)``
 * ``Implement task-level "on" callbacks in sdk (#48002)``
 * ``Calculate retry eligibility before task runs (#47996)``
+* ``Implement triggering_asset_events in task sdk (#48650)``
+* ``nit: log more details about OpenLineage exceptions being caught (#48459)``
+* ``Add backcompat to openlineage provider method (#48406)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -51,6 +125,13 @@ Misc
    * ``Move airflow sources to airflow-core package (#47798)``
    * ``Bump OL provider for Airflow 3.0.0b4 release (#48011)``
    * ``Remove links to x/twitter.com (#47801)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``docs: Update OL docs after BaseExtractor changes (#48585)``
+   * ``Remove auto lineage from Airflow (#48421)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move BaseOperator to 'airflow/sdk/bases/operator.py' (#48529)``
+   * ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
 
 2.1.1
 .....

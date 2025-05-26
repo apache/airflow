@@ -111,7 +111,7 @@ class SparkSubmitOperator(BaseOperator):
         self,
         *,
         application: str = "",
-        conf: dict[str, Any] | None = None,
+        conf: dict[Any, Any] | None = None,
         conn_id: str = "spark_default",
         files: str | None = None,
         py_files: str | None = None,
@@ -185,6 +185,7 @@ class SparkSubmitOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job."""
+        self.conf = self.conf or {}
         if self._openlineage_inject_parent_job_info:
             self.log.debug("Injecting OpenLineage parent job information into Spark properties.")
             self.conf = inject_parent_job_information_into_spark_properties(self.conf, context)

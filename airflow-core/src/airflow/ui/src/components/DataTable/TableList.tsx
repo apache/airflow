@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Table, Box } from "@chakra-ui/react";
+import { Button, Table } from "@chakra-ui/react";
 import { flexRender, type Row, type Table as TanStackTable } from "@tanstack/react-table";
 import React, { Fragment } from "react";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
@@ -34,11 +34,13 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
     <Table.Header bg="chakra-body-bg" position="sticky" top={0} zIndex={1}>
       {table.getHeaderGroups().map((headerGroup) => (
         <Table.Row key={headerGroup.id}>
-          {headerGroup.headers.map(({ colSpan, column, getContext, id, isPlaceholder }) => {
+          {headerGroup.headers.map(({ colSpan, column, getContext, id, isPlaceholder }, index) => {
             const sort = column.getIsSorted();
             const canSort = column.getCanSort();
             const text = flexRender(column.columnDef.header, getContext());
             let rightIcon;
+
+            const showFilters = allowFiltering && index === headerGroup.headers.length - 1;
 
             if (canSort) {
               if (sort === "desc") {
@@ -62,6 +64,7 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
                       {rightIcon}
                     </Button>
                   )}
+                  {showFilters ? <FilterMenuButton table={table} /> : undefined}
                 </Table.ColumnHeader>
               );
             }
@@ -69,16 +72,12 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
             return (
               <Table.ColumnHeader colSpan={colSpan} key={id} whiteSpace="nowrap">
                 {isPlaceholder ? undefined : text}
+                {showFilters ? <FilterMenuButton table={table} /> : undefined}
               </Table.ColumnHeader>
             );
           })}
         </Table.Row>
       ))}
-      {allowFiltering ? (
-        <Box position="absolute" right={0} top={2}>
-          <FilterMenuButton table={table} />
-        </Box>
-      ) : undefined}
     </Table.Header>
     <Table.Body>
       {table.getRowModel().rows.map((row) => (

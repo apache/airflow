@@ -57,11 +57,11 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
             return "UTC", name, __version__, True
         return o.offset, name, __version__, True
 
-    tz_name = _get_tzinfo_name(cast(datetime.tzinfo, o))
+    tz_name = _get_tzinfo_name(cast("datetime.tzinfo", o))
     if tz_name is not None:
         return tz_name, name, __version__, True
 
-    if cast(datetime.tzinfo, o).utcoffset(None) == datetime.timedelta(0):
+    if cast("datetime.tzinfo", o).utcoffset(None) == datetime.timedelta(0):
         return "UTC", qualname(FixedTimezone), __version__, True
 
     return "", "", 0, False
@@ -92,10 +92,10 @@ def _get_tzinfo_name(tzinfo: datetime.tzinfo | None) -> str | None:
     if hasattr(tzinfo, "key"):
         # zoneinfo timezone
         return tzinfo.key
-    elif hasattr(tzinfo, "name"):
+    if hasattr(tzinfo, "name"):
         # Pendulum timezone
         return tzinfo.name
-    elif hasattr(tzinfo, "zone"):
+    if hasattr(tzinfo, "zone"):
         # pytz timezone
         return tzinfo.zone  # type: ignore[no-any-return]
 

@@ -178,7 +178,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
     # attr annotated
     if attr.has(cls):
         # Only include attributes which we can pass back to the classes constructor
-        data = attr.asdict(cast(attr.AttrsInstance, o), recurse=False, filter=lambda a, v: a.init)
+        data = attr.asdict(cast("attr.AttrsInstance", o), recurse=False, filter=lambda a, v: a.init)
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -285,8 +285,7 @@ def _convert(old: dict) -> dict:
         # Return old style dicts directly as they do not need wrapping
         if old[OLD_TYPE] == OLD_DICT:
             return old[OLD_DATA]
-        else:
-            return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
+        return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
 
     return old
 

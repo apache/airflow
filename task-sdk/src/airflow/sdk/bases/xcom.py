@@ -17,13 +17,20 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
 
 import structlog
 
 from airflow.sdk.execution_time.comms import DeleteXCom, GetXCom, SetXCom, XComResult
 
 log = structlog.get_logger(logger_name="task")
+
+
+class TIKeyProtocol(Protocol):
+    dag_id: str
+    task_id: str
+    run_id: str
+    map_index: int
 
 
 class BaseXCom:
@@ -116,15 +123,14 @@ class BaseXCom:
     def get_value(
         cls,
         *,
-        ti_key: Any,
+        ti_key: TIKeyProtocol,
         key: str,
     ) -> Any:
         """
         Retrieve an XCom value for a task instance.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
+        from the XCom backend).
 
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.
@@ -155,8 +161,7 @@ class BaseXCom:
         Retrieve an XCom value, optionally meeting certain criteria.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
+        from the XCom backend).
 
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.
@@ -176,18 +181,23 @@ class BaseXCom:
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetXCom(
-                key=key,
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
-                map_index=map_index,
-            ),
-        )
+        # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
+        # we need to make sure that we "atomically" send a request and get the response to that
+        # back so that two triggers don't end up interleaving requests and create a possible
+        # race condition where the wrong trigger reads the response.
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetXCom(
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    run_id=run_id,
+                    map_index=map_index,
+                ),
+            )
 
-        msg = SUPERVISOR_COMMS.get_message()
+            msg = SUPERVISOR_COMMS.get_message()
         if not isinstance(msg, XComResult):
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
@@ -208,8 +218,7 @@ class BaseXCom:
         Retrieve an XCom value, optionally meeting certain criteria.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
+        from the XCom backend).
 
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.
@@ -232,19 +241,24 @@ class BaseXCom:
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetXCom(
-                key=key,
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
-                map_index=map_index,
-                include_prior_dates=include_prior_dates,
-            ),
-        )
+        # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
+        # we need to make sure that we "atomically" send a request and get the response to that
+        # back so that two triggers don't end up interleaving requests and create a possible
+        # race condition where the wrong trigger reads the response.
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetXCom(
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    run_id=run_id,
+                    map_index=map_index,
+                    include_prior_dates=include_prior_dates,
+                ),
+            )
+            msg = SUPERVISOR_COMMS.get_message()
 
-        msg = SUPERVISOR_COMMS.get_message()
         if not isinstance(msg, XComResult):
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 

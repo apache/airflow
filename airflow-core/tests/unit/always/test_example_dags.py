@@ -32,6 +32,7 @@ from airflow.models import Connection, DagBag
 from airflow.utils import yaml
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_ROOT_PATH
 
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -183,6 +184,7 @@ def relative_path(path):
     return os.path.relpath(path, AIRFLOW_ROOT_PATH.as_posix())
 
 
+@skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags())
 def test_should_be_importable(example: str):
@@ -194,6 +196,7 @@ def test_should_be_importable(example: str):
     assert len(dagbag.dag_ids) >= 1
 
 
+@skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
 def test_should_not_do_database_queries(example: str):

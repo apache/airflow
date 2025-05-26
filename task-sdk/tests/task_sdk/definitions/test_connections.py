@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from urllib.parse import urlparse
 
 import pytest
 
@@ -75,6 +76,31 @@ class TestConnections:
 
         with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
+
+    def test_get_uri(self):
+        """Test that get_uri generates the correct URI based on connection attributes."""
+
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mysql",
+            host="localhost",
+            login="user",
+            password="password",
+            schema="test_schema",
+            port=3306,
+            extra=None,
+        )
+
+        uri = conn.get_uri()
+        parsed_uri = urlparse(uri)
+
+        assert uri == "mysql://user:password@localhost:3306/test_schema"
+        assert parsed_uri.scheme == "mysql"
+        assert parsed_uri.hostname == "localhost"
+        assert parsed_uri.username == "user"
+        assert parsed_uri.password == "password"
+        assert parsed_uri.port == 3306
+        assert parsed_uri.path.lstrip("/") == "test_schema"
 
     def test_conn_get(self, mock_supervisor_comms):
         conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)

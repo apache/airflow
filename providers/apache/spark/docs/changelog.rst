@@ -29,6 +29,64 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``add root parent information to OpenLineage events (#49237)``
+
+Misc
+~~~~
+
+* ``Bump Pyspark to even higher version (#50308)``
+* ``Lower bind pyspark and pydruid to relatively new versions (#50205)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
+5.2.1
+.....
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add openlineage as Extra dep for Spark provider (#48972)``
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+
 5.1.1
 .....
 

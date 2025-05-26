@@ -48,7 +48,6 @@ class TestCliDeprecatedCommandsValue:
         mock_action._prog_prefix = "airflow"
         with pytest.raises(
             ArgumentError,
-            match="argument : Command `airflow webserver` has been removed. "
-            "Please use `airflow api-server`",
+            match="argument : Command `airflow webserver` has been removed. Please use `airflow api-server`",
         ):
             check_legacy_command(mock_action, "webserver")

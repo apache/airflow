@@ -91,8 +91,7 @@ INSTANCE_GROUP_MANAGER_BODY = {
 }
 
 SOURCE_TEMPLATE_URL = (
-    f"https://www.googleapis.com/compute/beta/projects/{PROJECT_ID}/"
-    f"global/instanceTemplates/{TEMPLATE_NAME}"
+    f"https://www.googleapis.com/compute/beta/projects/{PROJECT_ID}/global/instanceTemplates/{TEMPLATE_NAME}"
 )
 
 

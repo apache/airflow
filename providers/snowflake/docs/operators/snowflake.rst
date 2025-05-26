@@ -17,14 +17,11 @@
 
 .. _howto/operator:SnowflakeOperator:
 
-SQLExecuteQueryOperator to connect to Snowflake
-===============================================
+SQLExecuteQueryOperator for Snowflake
+=====================================
 
 Use the :class:`SQLExecuteQueryOperator <airflow.providers.common.sql.operators.sql>` to execute
 SQL commands in a `Snowflake <https://docs.snowflake.com/en/>`__ database.
-
-.. warning::
-    Previously, SnowflakeOperator was used to perform this kind of operation. But at the moment SnowflakeOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
 
 
 Using the Operator
@@ -50,7 +47,7 @@ the connection metadata is structured as follows:
 
 An example usage of the SQLExecuteQueryOperator to connect to Snowflake is as follows:
 
-.. exampleinclude:: /../../providers/snowflake/tests/system/snowflake/example_snowflake.py
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake.py
     :language: python
     :start-after: [START howto_operator_snowflake]
     :end-before: [END howto_operator_snowflake]
@@ -95,7 +92,7 @@ the connection metadata is structured as follows:
 
 An example usage of the SnowflakeSqlApiHook is as follows:
 
-.. exampleinclude:: /../../providers/snowflake/tests/system/snowflake/example_snowflake.py
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake.py
     :language: python
     :start-after: [START howto_snowflake_sql_api_operator]
     :end-before: [END howto_snowflake_sql_api_operator]

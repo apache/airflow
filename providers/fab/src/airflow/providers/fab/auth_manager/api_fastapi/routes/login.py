@@ -47,5 +47,5 @@ def create_token(body: LoginBody) -> LoginResponse:
 def create_token_cli(body: LoginBody) -> LoginResponse:
     """Generate a new CLI API token."""
     return FABAuthManagerLogin.create_token(
-        body=body, expiration_time_in_sec=conf.getint("api_auth", "jwt_cli_expiration_time")
+        body=body, expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time")
     )

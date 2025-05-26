@@ -28,7 +28,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.sdk.definitions.context import Context
 
 

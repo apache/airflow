@@ -47,7 +47,7 @@ The following Operator copies a single file from a shared Google Drive folder to
 Note that you can transfer a file from the root folder of a shared drive by passing the id of the shared
 drive to both the ``folder_id`` and ``drive_id`` parameters.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gdrive_to_gcs.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gdrive_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START upload_gdrive_to_gcs]

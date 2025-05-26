@@ -324,7 +324,7 @@ with DAG(
     )
     # [END howto_operator_dms_create_task]
 
-    task_arn = cast(str, create_task.output)
+    task_arn = cast("str", create_task.output)
 
     # [START howto_operator_dms_start_task]
     start_task = DmsStartTaskOperator(

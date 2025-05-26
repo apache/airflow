@@ -54,6 +54,8 @@ DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
 AWS_CONN = "amazon_default"
 
+REGION = "us-east-1"
+
 DB_INSTANCE_NAME = "my-db-instance"
 DB_CLUSTER_NAME = "my-db-cluster"
 
@@ -282,6 +284,7 @@ class TestRdsCreateDbSnapshotOperator:
             db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
             db_identifier=DB_INSTANCE_NAME,
             aws_conn_id=AWS_CONN,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -410,6 +413,7 @@ class TestRdsCopyDbSnapshotOperator:
             source_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
             target_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT_COPY,
             aws_conn_id=AWS_CONN,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -527,6 +531,7 @@ class TestRdsDeleteDbSnapshotOperator:
             db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
             aws_conn_id=AWS_CONN,
             wait_for_completion=False,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -610,6 +615,7 @@ class TestRdsStartExportTaskOperator:
             s3_bucket_name=EXPORT_TASK_BUCKET,
             aws_conn_id=AWS_CONN,
             wait_for_completion=False,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -682,6 +688,7 @@ class TestRdsCancelExportTaskOperator:
             task_id="test_cancel",
             export_task_identifier=EXPORT_TASK_NAME,
             aws_conn_id=AWS_CONN,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -759,6 +766,7 @@ class TestRdsCreateEventSubscriptionOperator:
             source_type="db-instance",
             source_ids=[DB_INSTANCE_NAME],
             aws_conn_id=AWS_CONN,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -800,6 +808,7 @@ class TestRdsDeleteEventSubscriptionOperator:
             task_id="test_delete",
             subscription_name=SUBSCRIPTION_NAME,
             aws_conn_id=AWS_CONN,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -879,6 +888,7 @@ class TestRdsCreateDbInstanceOperator:
                 "DBName": DB_INSTANCE_NAME,
             },
             aws_conn_id=AWS_CONN,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -949,6 +959,7 @@ class TestRdsDeleteDbInstanceOperator:
             },
             aws_conn_id=AWS_CONN,
             wait_for_completion=False,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -1062,6 +1073,7 @@ class TestRdsStopDbOperator:
             db_identifier=DB_CLUSTER_NAME,
             db_type="cluster",
             db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+            region_name=REGION,
         )
         validate_template_fields(operator)
 
@@ -1133,6 +1145,10 @@ class TestRdsStartDbOperator:
 
     def test_template_fields(self):
         operator = RdsStartDbOperator(
-            task_id="test_start_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+            region_name=REGION,
+            aws_conn_id=AWS_CONN,
+            task_id="test_start_db_cluster",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type="cluster",
         )
         validate_template_fields(operator)

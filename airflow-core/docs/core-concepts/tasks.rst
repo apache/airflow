@@ -200,7 +200,7 @@ If you'd like to reproduce task instance heartbeat timeouts for development/test
 
 .. code-block:: python
 
-    from airflow.decorators import dag
+    from airflow.sdk import dag
     from airflow.providers.standard.operators.bash import BashOperator
     from datetime import datetime
 

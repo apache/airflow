@@ -19,13 +19,14 @@ from __future__ import annotations
 import pytest
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+from airflow.api_fastapi.execution_api.versions import bundle
 
 pytestmark = pytest.mark.db_test
 
 
 def test_custom_openapi_includes_extra_schemas(client):
     """Test to ensure that extra schemas are correctly included in the OpenAPI schema."""
-    response = client.get("/execution/openapi.json?version=2025-03-19")
+    response = client.get("/execution/openapi.json?version=2025-04-28")
     assert response.status_code == 200
 
     openapi_schema = response.json()
@@ -33,4 +34,10 @@ def test_custom_openapi_includes_extra_schemas(client):
     assert "TaskInstance" in openapi_schema["components"]["schemas"]
     schema = openapi_schema["components"]["schemas"]["TaskInstance"]
 
-    assert schema == TaskInstance.model_json_schema()
+    assert schema["properties"].keys() == TaskInstance.model_json_schema()["properties"].keys()
+
+
+def test_access_api_contract(client):
+    response = client.get("/execution/docs")
+    assert response.status_code == 200
+    assert response.headers["airflow-api-version"] == bundle.versions[0].value

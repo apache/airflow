@@ -184,8 +184,7 @@ class TestSsmSecrets:
         mock_ssm_client.assert_called_once_with(service_name="ssm", use_ssl=False)
 
     @mock.patch(
-        "airflow.providers.amazon.aws.secrets.systems_manager."
-        "SystemsManagerParameterStoreBackend._get_secret"
+        "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend._get_secret"
     )
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
@@ -201,8 +200,7 @@ class TestSsmSecrets:
         mock_get_secret.assert_not_called()
 
     @mock.patch(
-        "airflow.providers.amazon.aws.secrets.systems_manager."
-        "SystemsManagerParameterStoreBackend._get_secret"
+        "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend._get_secret"
     )
     def test_variable_prefix_none_value(self, mock_get_secret):
         """
@@ -218,8 +216,7 @@ class TestSsmSecrets:
         mock_get_secret.assert_not_called()
 
     @mock.patch(
-        "airflow.providers.amazon.aws.secrets.systems_manager."
-        "SystemsManagerParameterStoreBackend._get_secret"
+        "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend._get_secret"
     )
     def test_config_prefix_none_value(self, mock_get_secret):
         """

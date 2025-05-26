@@ -66,6 +66,6 @@ class TestQdrantIngestOperator:
 
         operator.execute(self.mock_context)
 
-        assert (
-            hook.conn.count(collection_name=collection_name).count == points_count
-        ), f"Added {points_count} points to the Qdrant collection"
+        assert hook.conn.count(collection_name=collection_name).count == points_count, (
+            f"Added {points_count} points to the Qdrant collection"
+        )

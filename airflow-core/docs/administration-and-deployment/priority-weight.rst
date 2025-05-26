@@ -77,7 +77,7 @@ Custom Weight Rule
 You can implement your own custom weighting method by extending the ``PriorityWeightStrategy`` class and
 registering it in a plugin.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/decreasing_priority_weight_strategy.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/decreasing_priority_weight_strategy.py
     :language: python
     :dedent: 0
     :start-after: [START custom_priority_weight_strategy]
@@ -88,7 +88,7 @@ To check if the custom priority weight strategy is already available in Airflow,
 ``airflow plugins``. Then to use it, you can create an instance of the custom class and provide it in the
 ``weight_rule`` parameter of the task or provide the path of the custom class:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_custom_weight.py
+.. exampleinclude:: /../src/airflow/example_dags/example_custom_weight.py
     :language: python
     :dedent: 0
     :start-after: [START example_custom_weight_dag]

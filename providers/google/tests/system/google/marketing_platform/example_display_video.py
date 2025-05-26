@@ -183,7 +183,7 @@ with DAG(
     # [START howto_google_display_video_create_query_operator]
     create_query_v2 = GoogleDisplayVideo360CreateQueryOperator(body=REPORT_V2, task_id="create_query")
 
-    query_id = cast(str, XComArg(create_query_v2, key="query_id"))
+    query_id = cast("str", XComArg(create_query_v2, key="query_id"))
     # [END howto_google_display_video_create_query_operator]
 
     # [START howto_google_display_video_run_query_report_operator]
@@ -191,8 +191,8 @@ with DAG(
         query_id=query_id, parameters=PARAMETERS, task_id="run_report"
     )
 
-    query_id = cast(str, XComArg(run_query_v2, key="query_id"))
-    report_id = cast(str, XComArg(run_query_v2, key="report_id"))
+    query_id = cast("str", XComArg(run_query_v2, key="query_id"))
+    report_id = cast("str", XComArg(run_query_v2, key="report_id"))
     # [END howto_google_display_video_run_query_report_operator]
 
     # [START howto_google_display_video_wait_run_query_sensor]

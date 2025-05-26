@@ -36,13 +36,11 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferralTimeout,
 )
-from airflow.executors.executor_loader import ExecutorLoader
-from airflow.sdk.bases.baseoperator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
-    from airflow.typing_compat import Self
 
 
 class PokeReturnValue:
@@ -214,7 +212,7 @@ class BaseSensorOperator(BaseOperator):
             ) as e:
                 if self.soft_fail:
                     raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
-                elif self.never_fail:
+                if self.never_fail:
                     raise AirflowSkipException("Skipping due to never_fail is set to True.") from e
                 raise e
             except AirflowSkipException as e:
@@ -242,15 +240,13 @@ class BaseSensorOperator(BaseOperator):
 
                 if self.soft_fail:
                     raise AirflowSkipException(message)
-                else:
-                    raise AirflowSensorTimeout(message)
+                raise AirflowSensorTimeout(message)
             if self.reschedule:
                 next_poke_interval = self._get_next_poke_interval(started_at, run_duration, poke_count)
                 reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
                 raise AirflowRescheduleException(reschedule_date)
-            else:
-                time.sleep(self._get_next_poke_interval(started_at, run_duration, poke_count))
-                poke_count += 1
+            time.sleep(self._get_next_poke_interval(started_at, run_duration, poke_count))
+            poke_count += 1
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
@@ -325,18 +321,6 @@ class BaseSensorOperator(BaseOperator):
 
         self.log.info("new %s interval is %s", self.mode, new_interval)
         return new_interval
-
-    def prepare_for_execution(self) -> Self:
-        task = super().prepare_for_execution()
-
-        # Sensors in `poke` mode can block execution of DAGs when running
-        # with single process executor, thus we change the mode to`reschedule`
-        # to allow parallel task being scheduled and executed
-        executor, _ = ExecutorLoader.import_default_executor_cls()
-        if executor.change_sensor_mode_to_reschedule:
-            self.log.warning("%s changes sensor mode to 'reschedule'.", executor.__name__)
-            task.mode = "reschedule"
-        return task
 
     @property
     def reschedule(self):

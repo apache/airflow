@@ -16,15 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from openlineage.client.serde import Serde
-from openlineage.client.transport import Transport, get_default_factory
+from openlineage.client.transport import Config, Transport, get_default_factory
 
+# We use `airflow.models.variable.Variable` instead of `airflow.sdk.Variable`, even for Airflow 3, as it also
+# works on scheduler. It may emit DeprecationWarning on workers, but it's needed for DAG events to be emitted.
 from airflow.models.variable import Variable
 
 if TYPE_CHECKING:
     from openlineage.client.client import Event
+
+log = logging.getLogger(__name__)
 
 
 class VariableTransport(Transport):
@@ -37,12 +42,17 @@ class VariableTransport(Transport):
 
     kind = "variable"
 
+    def __init__(self, config: Config) -> None:
+        log.debug("Constructing OpenLineage transport that will send events to Airflow Variables.")
+
     def emit(self, event: Event) -> None:
         key = f"{event.job.name}.event.{event.eventType.value.lower()}"  # type: ignore[union-attr]
         event_str = Serde.to_json(event)
         if (var := Variable.get(key=key, default_var=None, deserialize_json=True)) is not None:
+            log.debug("Appending OL event to Airflow Variable `%s`", key)
             Variable.set(key=key, value=var + [event_str], serialize_json=True)
         else:
+            log.debug("Emitting OL event to new Airflow Variable `%s`", key)
             Variable.set(key=key, value=[event_str], serialize_json=True)
 
 

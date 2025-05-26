@@ -57,6 +57,7 @@ authenticated_router = AirflowRouter(
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 
+
 authenticated_router.include_router(assets_router)
 authenticated_router.include_router(backfills_router)
 authenticated_router.include_router(connections_router)

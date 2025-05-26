@@ -72,6 +72,9 @@ labelPRBasedOnFilePath:
   provider:apache-spark:
     - providers/apache/spark/**
 
+  provider:apache-tinkerpop:
+    - providers/apache/tinkerpop/**
+
   provider:apprise:
     - providers/apprise/**
 
@@ -130,7 +133,7 @@ labelPRBasedOnFilePath:
     - providers/docker/**
 
   provider:edge:
-    - providers/edge/**
+    - providers/edge3/**
 
   provider:elasticsearch:
     - providers/elasticsearch/**
@@ -146,6 +149,9 @@ labelPRBasedOnFilePath:
 
   provider:ftp:
     - providers/ftp/**
+
+  provider:git:
+    - providers/git/**
 
   provider:github:
     - providers/github/**
@@ -324,11 +330,15 @@ labelPRBasedOnFilePath:
     - .readthedocs.yml
 
   kind:documentation:
-    - docs/**/*
+    - airflow-core/docs/**/*
+    - chart/docs/**/*
+    - devel-common/src/docs/**/*
+    - providers/**/docs/**/*
+    - providers-summary-docs/**/*
+    - docker-stack-docs/**/*
 
   area:helm-chart:
     - chart/**/*
-    - docs/helm-chart/**
 
   area:UI:
     - airflow-core/docs/ui.rst
@@ -346,10 +356,15 @@ labelPRBasedOnFilePath:
     - airflow-core/docs/administration-and-deployment/lineage.rst
 
   area:Logging:
+    - airflow-core/src/airflow/config_templates/airflow_local_settings.py
+    - airflow-core/tests/unit/core/test_logging_config.py
     - airflow-core/src/airflow/utils/log/**/*
     - airflow-core/docs/administration-and-deployment/logging-monitoring/logging-*.rst
     - airflow-core/tests/unit/utils/log/**/*
     - providers/**/log/*
+
+  area:ConfigTemplates:
+    - airflow-core/src/airflow/config_templates/*
 
   area:Plugins:
     - airflow-core/src/airflow/cli/commands/plugins_command.py
@@ -407,8 +422,8 @@ labelPRBasedOnFilePath:
 
   area:production-image:
     - Dockerfile
-    - docs/docker-stack/**/*
-    - docker_tests/**/*
+    - docker-stack-docs/**/*
+    - docker-tests/**/*
 
   area:system-tests:
     - airflow-core/tests/system/**/*
@@ -421,6 +436,15 @@ labelPRBasedOnFilePath:
 
   area:providers:
     - providers/**/*
+
+  area:airflow-ctl:
+    - airflow-ctl/**/*
+
+  area:docker-tests:
+    - docker-tests/**/*
+
+  area:kubernetes-tests:
+    - kubernetes-tests/**/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

@@ -161,7 +161,12 @@ class BaseSQLOperator(BaseOperator):
         :param hook_params: hook parameters
         :return: default hook for this connection
         """
+        hook_params = hook_params or {}
         connection = BaseHook.get_connection(conn_id)
+        conn_params = connection.extra_dejson
+        for conn_param in conn_params:
+            if conn_param not in hook_params:
+                hook_params[conn_param] = conn_params[conn_param]
         return connection.get_hook(hook_params=hook_params)
 
     @cached_property
@@ -224,6 +229,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param return_last: (optional) return the result of only last statement (default: True).
     :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
         Use with caution. It's not recommended to dump large datasets to the log. (default: False).
+    :param requires_result_fetch: (optional) if True, ensures that query results are fetched before
+        completing execution. If `do_xcom_push` is True, results are fetched automatically,
+        making this parameter redundant.  (default: False).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -254,6 +262,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         split_statements: bool | None = None,
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
+        requires_result_fetch: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -265,6 +274,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.split_statements = split_statements
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
+        self.requires_result_fetch = requires_result_fetch
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -303,7 +313,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             sql=self.sql,
             autocommit=self.autocommit,
             parameters=self.parameters,
-            handler=self.handler if self._should_run_output_processing() else None,
+            handler=self.handler
+            if self._should_run_output_processing() or self.requires_result_fetch
+            else None,
             return_last=self.return_last,
             **extra_kwargs,
         )
@@ -527,12 +539,11 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         def _generate_partition_clause(check):
             if self.partition_clause and "partition_clause" not in checks[check]:
                 return f"WHERE {self.partition_clause}"
-            elif not self.partition_clause and "partition_clause" in checks[check]:
+            if not self.partition_clause and "partition_clause" in checks[check]:
                 return f"WHERE {checks[check]['partition_clause']}"
-            elif self.partition_clause and "partition_clause" in checks[check]:
+            if self.partition_clause and "partition_clause" in checks[check]:
                 return f"WHERE {self.partition_clause} AND {checks[check]['partition_clause']}"
-            else:
-                return ""
+            return ""
 
         checks_sql = "UNION ALL".join(
             self.sql_check_template.format(
@@ -735,12 +746,11 @@ class SQLTableCheckOperator(BaseSQLOperator):
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:
                 return f"WHERE {self.partition_clause}"
-            elif not self.partition_clause and "partition_clause" in self.checks[check_name]:
+            if not self.partition_clause and "partition_clause" in self.checks[check_name]:
                 return f"WHERE {self.checks[check_name]['partition_clause']}"
-            elif self.partition_clause and "partition_clause" in self.checks[check_name]:
+            if self.partition_clause and "partition_clause" in self.checks[check_name]:
                 return f"WHERE {self.partition_clause} AND {self.checks[check_name]['partition_clause']}"
-            else:
-                return ""
+            return ""
 
         return "UNION ALL".join(
             self.sql_check_template.format(
@@ -1015,12 +1025,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                     test_results[metric] = self.ignore_zero
 
             self.log.info(
-                (
-                    "Current metric for %s: %s\n"
-                    "Past metric for %s: %s\n"
-                    "Ratio for %s: %s\n"
-                    "Threshold: %s\n"
-                ),
+                ("Current metric for %s: %s\nPast metric for %s: %s\nRatio for %s: %s\nThreshold: %s\n"),
                 metric,
                 cur,
                 metric,
@@ -1134,11 +1139,11 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
             )
             error_msg = (
                 f'Threshold Check: "{meta_data.get("task_id")}" failed.\n'
-                f'DAG: {self.dag_id}\nTask_id: {meta_data.get("task_id")}\n'
-                f'Check description: {meta_data.get("description")}\n'
+                f"DAG: {self.dag_id}\nTask_id: {meta_data.get('task_id')}\n"
+                f"Check description: {meta_data.get('description')}\n"
                 f"SQL: {self.sql}\n"
                 f"Result: {result} is not within thresholds "
-                f'{meta_data.get("min_threshold")} and {meta_data.get("max_threshold")}'
+                f"{meta_data.get('min_threshold')} and {meta_data.get('max_threshold')}"
             )
             self._raise_exception(error_msg)
 

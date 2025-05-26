@@ -46,14 +46,15 @@ If you want to check which executor is currently set, you can use the ``airflow 
 .. code-block:: bash
 
     $ airflow config get-value core executor
-    SequentialExecutor
-
-
+    LocalExecutor
 
 Executor Types
 --------------
 
-There are two types of executors - those that run tasks *locally* (inside the ``scheduler`` process), and those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``SequentialExecutor`` by default, which is a local executor, and the simplest option for execution. However, the ``SequentialExecutor`` is not suitable for production since it does not allow for parallel task running and due to that, some Airflow features (e.g. running sensors) will not work properly. You should instead use the ``LocalExecutor`` for small, single-machine production installations, or one of the remote executors for a multi-machine/cloud installation.
+There is only one type of executor that runs tasks *locally* (inside the ``scheduler`` process) in the repo tree, but custom ones
+can be written to achieve similar results, and there are those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``LocalExecutor`` by default, which is a local executor, and the simplest option for execution.
+However, as the ``LocalExecutor`` runs processes in the scheduler process that can have an impact on the performance of the scheduler. You can use the ``LocalExecutor``
+for small, single-machine production installations, or one of the remote executors for a multi-machine/cloud installation.
 
 
 .. _executor-types-comparison:
@@ -73,7 +74,6 @@ Airflow tasks are run locally within the scheduler process.
     :maxdepth: 1
 
     local
-    sequential
 
 Remote Executors
 ^^^^^^^^^^^^^^^^
@@ -92,7 +92,7 @@ Airflow tasks are sent to a central queue where remote workers pull tasks to exe
 
 * :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`
 * :doc:`BatchExecutor <apache-airflow-providers-amazon:executors/batch-executor>`
-* :doc:`EdgeExecutor <apache-airflow-providers-edge:edge_executor>` (Experimental Pre-Release)
+* :doc:`EdgeExecutor <apache-airflow-providers-edge3:edge_executor>` (Experimental Pre-Release)
 
 
 *Containerized Executors*
@@ -110,7 +110,7 @@ Airflow tasks are executed ad hoc inside containers/pods. Each task is isolated 
 
 .. note::
 
-    New Airflow users may assume they need to run a separate executor process using one of the Local or Remote Executors. This is not correct. The executor logic runs *inside* the scheduler process, and will run the tasks locally or not depending the executor selected.
+    New Airflow users may assume they need to run a separate executor process using one of the Local or Remote Executors. This is not correct. The executor logic runs *inside* the scheduler process, and will run the tasks locally or not depending on the executor selected.
 
 Using Multiple Executors Concurrently
 -------------------------------------
@@ -230,6 +230,40 @@ Some reasons you may want to write a custom executor include:
 * You'd like to use an executor that leverages a compute service from your preferred cloud provider.
 * You have a private tool/service for task execution that is only available to you or your organization.
 
+Workloads
+^^^^^^^^^
+
+A workload in context of an Executor is the fundamental unit of execution for an executor. It represents a discrete
+operation or job that the executor runs on a worker. For example, it can run user code encapsulated in an Airflow task
+on a worker.
+
+Example:
+
+.. code-block:: python
+
+    ExecuteTask(
+        token="mock",
+        ti=TaskInstance(
+            id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+            task_id="mock",
+            dag_id="mock",
+            run_id="mock",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+            executor_config=None,
+            parent_context_carrier=None,
+            context_carrier=None,
+            queued_dttm=None,
+        ),
+        dag_rel_path=PurePosixPath("mock.py"),
+        bundle_info=BundleInfo(name="n/a", version="no matter"),
+        log_path="mock.log",
+        type="ExecuteTask",
+    )
+
 
 Important BaseExecutor Methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -237,7 +271,7 @@ Important BaseExecutor Methods
 These methods don't require overriding to implement your own executor, but are useful to be aware of:
 
 * ``heartbeat``: The Airflow scheduler Job loop will periodically call heartbeat on the executor. This is one of the main points of interaction between the Airflow scheduler and the executor. This method updates some metrics, triggers newly queued tasks to execute and updates state of running/completed tasks.
-* ``queue_command``: The Airflow Executor will call this method of the BaseExecutor to provide tasks to be run by the executor. The BaseExecutor simply adds the TaskInstances to an internal list of queued tasks within the executor.
+* ``queue_workload``: The Airflow Executor will call this method of the BaseExecutor to provide tasks to be run by the executor. The BaseExecutor simply adds the *workloads* (check section above to understand) to an internal list of queued workloads to run within the executor. All executors present in the repository use this method.
 * ``get_event_buffer``: The Airflow scheduler calls this method to retrieve the current state of the TaskInstances the executor is executing.
 * ``has_task``: The scheduler uses this BaseExecutor method to determine if an executor already has a specific task instance queued or running.
 * ``send_callback``: Sends any callbacks to the sink configured on the executor.
@@ -249,7 +283,7 @@ Mandatory Methods to Implement
 The following methods must be overridden at minimum to have your executor supported by Airflow:
 
 * ``sync``: Sync will get called periodically during executor heartbeats. Implement this method to update the state of the tasks which the executor knows about. Optionally, attempting to execute queued tasks that have been received from the scheduler.
-* ``execute_async``: Executes a command asynchronously. A command in this context is an Airflow CLI command to run an Airflow task. This method is called (after a few layers) during executor heartbeat which is run periodically by the scheduler. In practice, this method often just enqueues tasks into an internal or external queue of tasks to be run (e.g. ``KubernetesExecutor``). But can also execute the tasks directly as well (e.g. ``LocalExecutor``). This will depend on the executor.
+* ``execute_async``: Executes a *workload* asynchronously. This method is called (after a few layers) during executor heartbeat which is run periodically by the scheduler. In practice, this method often just enqueues tasks into an internal or external queue of tasks to be run (e.g. ``KubernetesExecutor``). But can also execute the tasks directly as well (e.g. ``LocalExecutor``). This will depend on the executor.
 
 
 Optional Interface Methods to Implement
@@ -276,7 +310,6 @@ The ``BaseExecutor`` class interface contains a set of attributes that Airflow c
 * ``is_single_threaded``: Whether or not the executor is single threaded. This is particularly relevant to what database backends are supported. Single threaded executors can run with any backend, including SQLite.
 * ``is_production``: Whether or not the executor should be used for production purposes. A UI message is displayed to users when they are using a non-production ready executor.
 
-* ``change_sensor_mode_to_reschedule``: Running Airflow sensors in poke mode can block the thread of executors and in some cases Airflow.
 * ``serve_logs``: Whether or not the executor supports serving logs, see :doc:`/administration-and-deployment/logging-monitoring/logging-tasks`.
 
 CLI

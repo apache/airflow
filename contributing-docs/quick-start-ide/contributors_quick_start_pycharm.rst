@@ -63,7 +63,7 @@ Next: Configure your IDEA project.
    ``module.xml`` file using the ``setup_idea.py`` script:
 
    To setup the source roots for all the modules that exist in the project, you can run the following command:
-   This needs to done on the airflow repository root directory. It overwrites the existing ``.idea/airflow.iml`` and
+   This needs to done on the Airflow repository root directory. It overwrites the existing ``.idea/airflow.iml`` and
    ``.idea/modules.xml`` files if they exist.
 
     .. code-block:: bash
@@ -107,7 +107,7 @@ Next: Configure your IDEA project.
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/pycharm_add_task-sdk_sources.png"
+        <img src="images/pycharm_add_task_sdk_sources.png"
              alt="Adding Source Root directories to Pycharm">
       </div>
 
@@ -165,8 +165,8 @@ It requires "airflow-env" virtual environment configured locally.
            alt="Adding existing interpreter">
     </div>
 
-- In PyCharm IDE open airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
-  machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
+- In PyCharm IDE open Airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
+  machine when breeze Airflow is started. So any DAG file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
 - Copy any example DAG present in the ``/airflow/example_dags`` directory to ``/files/dags/``.

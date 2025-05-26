@@ -116,10 +116,13 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
 
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         if self.use_task_logical_date:
-            now = context["logical_date"]
+            now = context.get("logical_date")
+            if not now:
+                dag_run = context.get("dag_run")
+                now = dag_run.run_after  # type: ignore[union-attr, assignment]
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 
-        if now.isoweekday() in self._week_day_num:
+        if now.isoweekday() in self._week_day_num:  # type: ignore[union-attr]
             return self.follow_task_ids_if_true
         return self.follow_task_ids_if_false

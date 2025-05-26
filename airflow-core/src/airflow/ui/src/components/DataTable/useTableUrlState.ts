@@ -18,6 +18,8 @@
  */
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useConfig } from "src/queries/useConfig";
 
@@ -26,6 +28,13 @@ import type { TableState } from "./types";
 
 export const useTableURLState = (defaultState?: Partial<TableState>) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const pageName = location.pathname;
+
+  const [sorting, setSorting] = useLocalStorage<TableState["sorting"]>(
+    `${pageName.replaceAll("/", "-").slice(1)}-table-sort`,
+    [],
+  );
 
   const pageSize = useConfig("page_size") as number;
 
@@ -34,7 +43,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
       pageIndex: 0,
       pageSize,
     },
-    sorting: [],
+    sorting,
   } as const satisfies TableState;
 
   const handleStateChange = useCallback(
@@ -42,8 +51,9 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
       setSearchParams(stateToSearchParams(state, defaultTableState), {
         replace: true,
       });
+      setSorting(state.sorting);
     },
-    [setSearchParams, defaultTableState],
+    [setSearchParams, defaultTableState, setSorting],
   );
 
   const tableURLState = useMemo(

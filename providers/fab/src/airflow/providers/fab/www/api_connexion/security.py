@@ -22,18 +22,18 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 from flask import Response, current_app
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.providers.fab.www.airflow_flask_app import AirflowApp
 from airflow.providers.fab.www.api_connexion.exceptions import PermissionDenied, Unauthenticated
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.providers.fab.www.airflow_flask_app import AirflowApp
 
 T = TypeVar("T", bound=Callable)
 
 
 def check_authentication() -> None:
     """Check that the request has valid authorization information."""
-    for auth in cast(AirflowApp, current_app).api_auth:
+    for auth in cast("AirflowApp", current_app).api_auth:
         response = auth.requires_authentication(Response)()
         if response.status_code == 200:
             return
@@ -79,6 +79,6 @@ def requires_access_custom_view(
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return requires_access_decorator

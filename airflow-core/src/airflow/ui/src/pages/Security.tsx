@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
-import { useAuthLinksServiceGetAuthLinks } from "openapi/queries";
+import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
@@ -27,9 +27,9 @@ import { ErrorPage } from "./Error";
 export const Security = () => {
   const { page } = useParams();
 
-  const { data: authLinks, isLoading } = useAuthLinksServiceGetAuthLinks();
+  const { data: authLinks, isLoading } = useAuthLinksServiceGetAuthMenus();
 
-  const link = authLinks?.menu_items.find((mi) => mi.text.toLowerCase().replace(" ", "-") === page);
+  const link = authLinks?.extra_menu_items.find((mi) => mi.text.toLowerCase().replace(" ", "-") === page);
 
   if (!link) {
     if (isLoading) {

@@ -52,11 +52,6 @@ function core_tests() {
         breeze testing core-tests --test-type "All-Quarantined" || true
         RESULT=$?
         set +x
-    elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
-        set -x
-        breeze testing core-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
-        RESULT=$?
-        set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
         set -x
         breeze testing system-tests airflow-core/tests/system/example_empty.py
@@ -100,11 +95,6 @@ function providers_tests() {
         breeze testing providers-tests --test-type "All-Quarantined" || true
         RESULT=$?
         set +x
-    elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
-        set -x
-        breeze testing providers-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
-        RESULT=$?
-        set +x
     else
         echo "Unknown test scope: ${TEST_SCOPE}"
         set -e
@@ -130,6 +120,15 @@ function task_sdk_tests() {
 }
 
 
+function airflow_ctl_tests() {
+    echo "${COLOR_BLUE}Running Airflow CTL tests${COLOR_RESET}"
+    set -x
+    breeze testing airflow-ctl-tests
+    set +x
+    echo "${COLOR_BLUE}Airflow CTL tests completed${COLOR_RESET}"
+}
+
+
 function run_tests() {
     if [[ "${TEST_GROUP}" == "core" ]]; then
         core_tests
@@ -137,6 +136,8 @@ function run_tests() {
         providers_tests
     elif [[ "${TEST_GROUP}" == "task-sdk" ]]; then
         task_sdk_tests
+    elif [[ "${TEST_GROUP}" == "airflow-ctl" ]]; then
+        airflow_ctl_tests
     else
         echo "Unknown test group: ${TEST_GROUP}"
         exit 1

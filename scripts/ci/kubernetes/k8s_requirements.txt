@@ -1,5 +1,0 @@
--e ./providers/standard
--e ./task-sdk
--e ./devel-common
--e ./providers/cncf/kubernetes
--e ./airflow-core  # Need this until all airflow.models are migrated to Task SDK

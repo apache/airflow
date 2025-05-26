@@ -43,6 +43,7 @@ Here you can find detailed documentation about each one of the core concepts of 
     auth-manager/index
     objectstorage
     backfill
+    message-queues
 
 **Communication**
 

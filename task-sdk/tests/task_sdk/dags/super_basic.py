@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.sdk.bases.baseoperator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import dag
 
 

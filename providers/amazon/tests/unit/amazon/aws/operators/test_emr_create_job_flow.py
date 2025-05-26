@@ -229,9 +229,9 @@ class TestEmrCreateJobFlowOperator:
         with pytest.raises(TaskDeferred) as exc:
             self.operator.execute(self.mock_context)
 
-        assert isinstance(
-            exc.value.trigger, EmrCreateJobFlowTrigger
-        ), "Trigger is not a EmrCreateJobFlowTrigger"
+        assert isinstance(exc.value.trigger, EmrCreateJobFlowTrigger), (
+            "Trigger is not a EmrCreateJobFlowTrigger"
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

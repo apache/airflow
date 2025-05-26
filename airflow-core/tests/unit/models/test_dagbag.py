@@ -32,8 +32,8 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
-import airflow.example_dags
 from airflow import settings
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -43,6 +43,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
 
+from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -51,7 +52,7 @@ from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
-example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
+example_dags_folder = AIRFLOW_ROOT_PATH / "providers" / "standard" / "tests" / "system" / "standard"
 
 PY311 = sys.version_info >= (3, 11)
 
@@ -166,7 +167,7 @@ class TestDagBag:
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
         def create_dag():
-            from airflow.decorators import dag
+            from airflow.sdk import dag
 
             @dag(schedule=None, default_args={"owner": "owner1"})
             def my_flow():
@@ -360,12 +361,15 @@ class TestDagBag:
         (
             pytest.param(
                 pathlib.Path(example_dags_folder) / "example_bash_operator.py",
-                {"example_bash_operator": "airflow/example_dags/example_bash_operator.py"},
+                {
+                    "example_bash_operator": f"{example_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
+                },
                 id="example_bash_operator",
             ),
         ),
     )
     def test_get_dag_registration(self, file_to_load, expected):
+        pytest.importorskip("system.standard")
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
         dagbag.process_file(os.fspath(file_to_load))
         for dag_id, path in expected.items():
@@ -470,7 +474,7 @@ class TestDagBag:
         assert dag_id == dag.dag_id
         assert dagbag.process_file_calls == 2
 
-    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path):
+    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path, session):
         """
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
@@ -483,14 +487,31 @@ class TestDagBag:
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
             EmptyOperator(task_id="task_1")
-        dag_maker.create_dagrun()
+
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
         dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
         dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
         dagbag.dags_hash = {dag.dag_id: mock.ANY}
 
+        # observe we have serdag and dag is in dagbag
+        assert SerializedDagModel.has_dag(dag.dag_id) is True
+        assert dagbag.get_dag(dag.dag_id) is not None
+
+        # now delete serdags for this dag
+        SDM = SerializedDagModel
+        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag.dag_id))
+        for sdm in sdms:
+            session.delete(sdm)
+        session.commit()
+
+        # first, confirm that serdags are gone for this dag
         assert SerializedDagModel.has_dag(dag.dag_id) is False
 
+        # now see the dag is still in dagbag
+        assert dagbag.get_dag(dag.dag_id) is not None
+
+        # but, let's recreate the dagbag and see if the dag will be there
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
         assert dagbag.get_dag(dag.dag_id) is None
         assert dag.dag_id not in dagbag.dags
         assert dag.dag_id not in dagbag.dags_last_fetched
@@ -514,11 +535,11 @@ class TestDagBag:
         dag_id = expected_dag.dag_id
         actual_dagbag.log.info("validating %s", dag_id)
         assert (dag_id in actual_found_dag_ids) == should_be_found, (
-            f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
+            f'dag "{dag_id}" should {"" if should_be_found else "not "}'
             f'have been found after processing dag "{expected_dag.dag_id}"'
         )
         assert (dag_id in actual_dagbag.dags) == should_be_found, (
-            f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
+            f'dag "{dag_id}" should {"" if should_be_found else "not "}'
             f'be in dagbag.dags after processing dag "{expected_dag.dag_id}"'
         )
 
@@ -573,15 +594,15 @@ class TestDagBag:
         dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        model_before = DagModel(dag_id=dag_id, is_active=True)
+        model_before = DagModel(dag_id=dag_id, is_stale=False)
         with create_session() as session:
             session.merge(model_before)
 
         DAG.deactivate_unknown_dags(expected_active_dags)
 
         after_model = DagModel.get_dagmodel(dag_id)
-        assert model_before.is_active
-        assert not after_model.is_active
+        assert not model_before.is_stale
+        assert after_model.is_stale
 
         # clean up
         with create_session() as session:
@@ -681,7 +702,7 @@ with airflow.DAG(
         """
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
-            example_bash_op_dag.sync_to_db()
+            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
             dag_bag = DagBag(read_dags_from_db=True)
@@ -699,7 +720,7 @@ with airflow.DAG(
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
-            example_bash_op_dag.sync_to_db()
+            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -723,7 +744,7 @@ with airflow.DAG(
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
-            example_bash_op_dag.sync_to_db()
+            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # deserialize the DAG
@@ -749,7 +770,7 @@ with airflow.DAG(
         # long before the transaction is committed
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
-            example_bash_op_dag.sync_to_db()
+            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -769,7 +790,7 @@ with airflow.DAG(
 
         example_dags = dagbag.dags
         for dag in example_dags.values():
-            dag.sync_to_db()
+            DAG.from_sdk_dag(dag).sync_to_db()
             SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
 
         new_dagbag = DagBag(read_dags_from_db=True)

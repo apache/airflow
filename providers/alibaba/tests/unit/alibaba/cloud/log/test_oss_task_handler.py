@@ -24,7 +24,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSTaskHandler
+from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO, OSSTaskHandler  # noqa: F401
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -74,33 +74,33 @@ class TestOSSTaskHandler:
         mock_conf_get.return_value = "oss_default"
 
         # When
-        self.oss_task_handler.hook
+        self.oss_task_handler.io.hook
 
         # Then
         mock_conf_get.assert_called_once_with("logging", "REMOTE_LOG_CONN_ID")
         mock_service.assert_called_once_with(oss_conn_id="oss_default")
 
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.hook"), new_callable=PropertyMock)
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
     def test_oss_log_exists(self, mock_service):
-        self.oss_task_handler.oss_log_exists("1.log")
+        self.oss_task_handler.io.oss_log_exists("1.log")
         mock_service.assert_called_once_with()
         mock_service.return_value.key_exist.assert_called_once_with(MOCK_BUCKET_NAME, "airflow/logs/1.log")
 
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.hook"), new_callable=PropertyMock)
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
     def test_oss_read(self, mock_service):
-        self.oss_task_handler.oss_read("1.log")
+        self.oss_task_handler.io.oss_read("1.log")
         mock_service.assert_called_once_with()
         mock_service.return_value.read_key(MOCK_BUCKET_NAME, "airflow/logs/1.log")
 
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.oss_log_exists"))
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.hook"), new_callable=PropertyMock)
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_log_exists"))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
     def test_oss_write_into_remote_existing_file_via_append(self, mock_service, mock_oss_log_exists):
         # Given
         mock_oss_log_exists.return_value = True
         mock_service.return_value.head_key.return_value.content_length = 1
 
         # When
-        self.oss_task_handler.oss_write(MOCK_CONTENT, "1.log", append=True)
+        self.oss_task_handler.io.oss_write(MOCK_CONTENT, "1.log", append=True)
 
         # Then
         assert mock_service.call_count == 2
@@ -110,14 +110,14 @@ class TestOSSTaskHandler:
             MOCK_BUCKET_NAME, MOCK_CONTENT, "airflow/logs/1.log", 1
         )
 
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.oss_log_exists"))
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.hook"), new_callable=PropertyMock)
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_log_exists"))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
     def test_oss_write_into_remote_non_existing_file_via_append(self, mock_service, mock_oss_log_exists):
         # Given
         mock_oss_log_exists.return_value = False
 
         # When
-        self.oss_task_handler.oss_write(MOCK_CONTENT, "1.log", append=True)
+        self.oss_task_handler.io.oss_write(MOCK_CONTENT, "1.log", append=True)
 
         # Then
         assert mock_service.call_count == 1
@@ -127,14 +127,14 @@ class TestOSSTaskHandler:
             MOCK_BUCKET_NAME, MOCK_CONTENT, "airflow/logs/1.log", 0
         )
 
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.oss_log_exists"))
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.hook"), new_callable=PropertyMock)
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_log_exists"))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
     def test_oss_write_into_remote_existing_file_not_via_append(self, mock_service, mock_oss_log_exists):
         # Given
         mock_oss_log_exists.return_value = True
 
         # When
-        self.oss_task_handler.oss_write(MOCK_CONTENT, "1.log", append=False)
+        self.oss_task_handler.io.oss_write(MOCK_CONTENT, "1.log", append=False)
 
         # Then
         assert mock_service.call_count == 1
@@ -144,14 +144,14 @@ class TestOSSTaskHandler:
             MOCK_BUCKET_NAME, MOCK_CONTENT, "airflow/logs/1.log", 0
         )
 
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.oss_log_exists"))
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.hook"), new_callable=PropertyMock)
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_log_exists"))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
     def test_oss_write_into_remote_non_existing_file_not_via_append(self, mock_service, mock_oss_log_exists):
         # Given
         mock_oss_log_exists.return_value = False
 
         # When
-        self.oss_task_handler.oss_write(MOCK_CONTENT, "1.log", append=False)
+        self.oss_task_handler.io.oss_write(MOCK_CONTENT, "1.log", append=False)
 
         # Then
         assert mock_service.call_count == 1
@@ -165,7 +165,7 @@ class TestOSSTaskHandler:
         "delete_local_copy, expected_existence_of_local_copy",
         [(True, False), (False, True)],
     )
-    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.hook"), new_callable=PropertyMock)
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
     def test_close_with_delete_local_copy_conf(
         self,
         mock_service,

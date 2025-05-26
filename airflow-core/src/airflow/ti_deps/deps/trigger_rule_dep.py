@@ -127,9 +127,9 @@ class TriggerRuleDep(BaseTIDep):
         :param dep_context: The current dependency context.
         :param session: Database session.
         """
-        from airflow.models.abstractoperator import NotMapped
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance
+        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 
         @functools.lru_cache
         def _get_expanded_ti_count() -> int:

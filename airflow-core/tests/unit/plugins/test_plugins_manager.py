@@ -32,6 +32,7 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
@@ -227,17 +228,18 @@ class TestPluginsManager:
         """
         Tests whether macros that originate from plugins are being registered correctly.
         """
-        from airflow import macros
         from airflow.plugins_manager import integrate_macros_plugins
+        from airflow.sdk.execution_time import macros
 
         def cleanup_macros():
-            """Reloads the airflow.macros module such that the symbol table is reset after the test."""
+            """Reloads the macros module such that the symbol table is reset after the test."""
             # We're explicitly deleting the module from sys.modules and importing it again
             # using import_module() as opposed to using importlib.reload() because the latter
-            # does not undo the changes to the airflow.macros module that are being caused by
+            # does not undo the changes to the airflow.sdk.execution_time.macros module that are being caused by
             # invoking integrate_macros_plugins()
-            del sys.modules["airflow.macros"]
-            importlib.import_module("airflow.macros")
+
+            del sys.modules["airflow.sdk.execution_time.macros"]
+            importlib.import_module("airflow.sdk.execution_time.macros")
 
         request.addfinalizer(cleanup_macros)
 
@@ -252,16 +254,17 @@ class TestPluginsManager:
             # Ensure the macros for the plugin have been integrated.
             integrate_macros_plugins()
             # Test whether the modules have been created as expected.
-            plugin_macros = importlib.import_module(f"airflow.macros.{MacroPlugin.name}")
+            plugin_macros = importlib.import_module(f"airflow.sdk.execution_time.macros.{MacroPlugin.name}")
             for macro in MacroPlugin.macros:
                 # Verify that the macros added by the plugin are being set correctly
                 # on the plugin's macro module.
                 assert hasattr(plugin_macros, macro.__name__)
-            # Verify that the symbol table in airflow.macros has been updated with an entry for
+            # Verify that the symbol table in airflow.sdk.execution_time.macros has been updated with an entry for
             # this plugin, this is necessary in order to allow the plugin's macros to be used when
             # rendering templates.
             assert hasattr(macros, MacroPlugin.name)
 
+    @skip_if_force_lowest_dependencies_marker
     def test_registering_plugin_listeners(self):
         from airflow import plugins_manager
 
@@ -282,6 +285,7 @@ class TestPluginsManager:
         finally:
             get_listener_manager().clear()
 
+    @skip_if_force_lowest_dependencies_marker
     def test_should_import_plugin_from_providers(self):
         from airflow import plugins_manager
 
@@ -290,6 +294,7 @@ class TestPluginsManager:
             plugins_manager.load_providers_plugins()
             assert len(plugins_manager.plugins) >= 2
 
+    @skip_if_force_lowest_dependencies_marker
     def test_does_not_double_import_entrypoint_provider_plugins(self):
         from airflow import plugins_manager
 

@@ -44,14 +44,14 @@ Using this plugin, following events can be listened:
     * dag run is in running state.
     * dag run is in success state.
     * dag run is in failure state.
-    * on start before event like airflow job, scheduler
-    * before stop for event like airflow job, scheduler
+    * on start before event like Airflow job, scheduler
+    * before stop for event like Airflow job, scheduler
 
 Listener Registration
 ---------------------
 
 A listener plugin with object reference to listener object is registered
-as part of airflow plugin. The following is a
+as part of Airflow plugin. The following is a
 skeleton for us to implement a new listener:
 
 .. code-block:: python
@@ -75,7 +75,7 @@ For reference, here's the plugin code within ``listener.py`` class that shows li
 
 This example listens when the task instance is in running state
 
-.. exampleinclude:: ../../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_ti_running_task]
     :end-before: [END howto_listen_ti_running_task]
@@ -84,7 +84,7 @@ Similarly, code to listen after task_instance success and failure can be impleme
 
 This example listens when the dag run is change to failed state
 
-.. exampleinclude:: ../../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_dagrun_failure_task]
     :end-before: [END howto_listen_dagrun_failure_task]

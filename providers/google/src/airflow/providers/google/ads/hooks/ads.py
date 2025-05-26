@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Literal
@@ -28,7 +27,7 @@ from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from google.auth.exceptions import GoogleAuthError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
 
@@ -102,6 +101,40 @@ class GoogleAdsHook(BaseHook):
     :param api_version: The Google Ads API version to use.
     """
 
+    conn_name_attr = "google_ads_conn_id"
+    default_conn_name = "google_ads_default"
+    conn_type = "google_ads"
+    hook_name = "Google Ads"
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to Google Ads connection form."""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "developer_token": StringField(lazy_gettext("Developer token"), widget=BS3TextFieldWidget()),
+            "client_id": StringField(lazy_gettext("OAuth2 Client ID"), widget=BS3TextFieldWidget()),
+            "client_secret": PasswordField(
+                lazy_gettext("OAuth2 Client Secret"), widget=BS3PasswordFieldWidget()
+            ),
+            "refresh_token": PasswordField(
+                lazy_gettext("OAuth2 Refresh Token"), widget=BS3PasswordFieldWidget()
+            ),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Google Ads connection."""
+        return {
+            "hidden_fields": ["host", "login", "schema", "port"],
+            "relabeling": {},
+            "placeholders": {
+                "password": "Leave blank (optional)",
+            },
+        }
+
     def __init__(
         self,
         api_version: str | None = None,
@@ -116,9 +149,7 @@ class GoogleAdsHook(BaseHook):
         self.google_ads_config: dict[str, Any] = {}
         self.authentication_method: Literal["service_account", "developer_token"] = "service_account"
 
-    def search(
-        self, client_ids: list[str], query: str, page_size: int | None = None, **kwargs
-    ) -> list[GoogleAdsRow]:
+    def search(self, client_ids: list[str], query: str, **kwargs) -> list[GoogleAdsRow]:
         """
         Pull data from the Google Ads API.
 
@@ -134,18 +165,14 @@ class GoogleAdsHook(BaseHook):
 
         :param client_ids: Google Ads client ID(s) to query the API for.
         :param query: Google Ads Query Language query.
-        :param page_size: Number of results to return per page. Max 10000 (for version 16 and 16.1)
-            This parameter deprecated. After February 05, 2025, it will be removed.
         :return: Google Ads API response, converted to Google Ads Row objects.
         """
-        data_proto_plus = self._search(client_ids, query, page_size, **kwargs)
+        data_proto_plus = self._search(client_ids, query, **kwargs)
         data_native_pb = [row._pb for row in data_proto_plus]
 
         return data_native_pb
 
-    def search_proto_plus(
-        self, client_ids: list[str], query: str, page_size: int | None = None, **kwargs
-    ) -> list[GoogleAdsRow]:
+    def search_proto_plus(self, client_ids: list[str], query: str, **kwargs) -> list[GoogleAdsRow]:
         """
         Pull data from the Google Ads API.
 
@@ -154,11 +181,9 @@ class GoogleAdsHook(BaseHook):
 
         :param client_ids: Google Ads client ID(s) to query the API for.
         :param query: Google Ads Query Language query.
-        :param page_size: Number of results to return per page. Max 10000 (for version 16 and 16.1)
-            This parameter is deprecated. After February 05, 2025, it will be removed.
         :return: Google Ads API response, converted to Google Ads Row objects
         """
-        return self._search(client_ids, query, page_size, **kwargs)
+        return self._search(client_ids, query, **kwargs)
 
     def list_accessible_customers(self) -> list[str]:
         """
@@ -269,37 +294,20 @@ class GoogleAdsHook(BaseHook):
 
         self.google_ads_config["json_key_file_path"] = secrets_temp.name
 
-    def _search(
-        self, client_ids: list[str], query: str, page_size: int | None = None, **kwargs
-    ) -> list[GoogleAdsRow]:
+    def _search(self, client_ids: list[str], query: str, **kwargs) -> list[GoogleAdsRow]:
         """
         Pull data from the Google Ads API.
 
         :param client_ids: Google Ads client ID(s) to query the API for.
         :param query: Google Ads Query Language query.
-        :param page_size: Number of results to return per page. Max 10000 (for version 16 and 16.1)
-            This parameter is deprecated. After February 05, 2025, it will be removed.
 
         :return: Google Ads API response, converted to Google Ads Row objects
         """
         service = self._get_service
 
-        extra_req_params = {}
-        if self.api_version == "v16":  # TODO: remove this after deprecation removal for page_size parameter
-            extra_req_params["page_size"] = page_size or 10000
-        else:
-            if page_size:
-                warnings.warn(
-                    "page_size parameter for the GoogleAdsHook.search and "
-                    "GoogleAdsHook.search_proto_plus method is deprecated and will be removed "
-                    "after February 05, 2025.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-
         iterators = []
         for client_id in client_ids:
-            iterator = service.search(request={"customer_id": client_id, "query": query, **extra_req_params})
+            iterator = service.search(request={"customer_id": client_id, "query": query})
             iterators.append(iterator)
 
         self.log.info("Fetched Google Ads Iterators")

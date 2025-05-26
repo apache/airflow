@@ -150,7 +150,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-skip-constraints",
                 "--clean-airflow-installation",
                 "--excluded-providers",
-                "--force-lowest-dependencies",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",
                 "--distribution-format",
@@ -299,21 +298,35 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--cleanup-build-cache",
             ],
         },
     ],
     "breeze build-docs": [
         {
-            "name": "Doc flags",
+            "name": "Build scope (default is to build docs and spellcheck)",
+            "options": ["--docs-only", "--spellcheck-only"],
+        },
+        {
+            "name": "Type of build",
+            "options": ["--one-pass-only"],
+        },
+        {
+            "name": "Cleaning inventories",
+            "options": ["--clean-build", "--refresh-airflow-inventories"],
+        },
+        {
+            "name": "Filtering options",
             "options": [
-                "--docs-only",
-                "--spellcheck-only",
-                "--clean-build",
-                "--one-pass-only",
-                "--skip-deletion",
                 "--package-filter",
                 "--include-not-ready-providers",
                 "--include-removed-providers",
+            ],
+        },
+        {
+            "name": "Misc options",
+            "options": [
+                "--include-commits",
                 "--github-repository",
                 "--builder",
                 "--distributions-list",
