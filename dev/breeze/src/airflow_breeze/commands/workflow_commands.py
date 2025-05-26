@@ -125,20 +125,20 @@ def workflow_run_publish(
         **workflow_fields,
     )
 
+    if site_env == "auto":
+        pattern = re.compile(r"^.*[0-9]+\.[0-9]+\.[0-9]+$")
+        if pattern.match(ref):
+            site_env = "live"
+        else:
+            site_env = "staging"
+
+    branch = "main" if site_env == "live" else "staging"
+
     if refresh_site:
         get_console().print(
             f"[blue]Refreshing site at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
         )
         wf_name = WORKFLOW_NAME_MAPS["airflow-refresh-site"]
-
-        if site_env == "auto":
-            pattern = re.compile(r"^.*[0-9]+\.[0-9]+\.[0-9]+$")
-            if pattern.match(ref):
-                site_env = "live"
-            else:
-                site_env = "staging"
-
-        branch = "main" if site_env == "live" else "staging"
 
         get_console().print(
             f"[blue]Triggering workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
@@ -159,6 +159,7 @@ def workflow_run_publish(
         trigger_workflow_and_monitor(
             workflow_name=WORKFLOW_NAME_MAPS["sync-s3-to-github"],
             repo=APACHE_AIRFLOW_SITE_ARCHIVE_REPO,
+            branch=branch,
             **workflow_fields,
             monitor=False,
         )
