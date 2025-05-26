@@ -196,8 +196,9 @@ definitions in Airflow.
 
     # Creating a iframe view that will be rendered in the Airflow UI.
     iframe_view_with_metadata = {
-        "name": "Name of the Iframe View",
-        # Source URL of the iframe. This URL can be templated using context variables.
+        "name": "Name of the Iframe View as displayed in the UI",
+        # Source URL of the iframe. This URL can be templated using context variables, depending on the location where the iframe is rendered
+        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX)
         "src": "https://example.com/{DAG_ID}/{RUN_ID}/{TASK_ID}",
         # Destination of the iframe view. This is used to determine where the iframe will be loaded in the UI.
         # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"]
