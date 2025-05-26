@@ -7,7 +7,7 @@
   "timezone": "timezone",
   "user": "User",
   "language": {
-    "zh_TW": "Traditional Chinese",
+    "zh-TW": "Traditional Chinese",
     "en": "English",
     "de": "German",
     "ko": "Korean",
