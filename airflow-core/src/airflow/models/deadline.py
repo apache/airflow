@@ -36,7 +36,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.deadline_reference import DeadlineReference
+    from airflow.sdk.definitions.deadline_reference import DeadlineReference
 
 logger = logging.getLogger(__name__)
 
