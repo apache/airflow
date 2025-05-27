@@ -24,11 +24,7 @@ import ActionButton from "src/components/ui/ActionButton";
 import { useConfig } from "src/queries/useConfig";
 import { useTestConnection } from "src/queries/useTestConnection";
 
-enum TestConnectionOption {
-  Disabled = "Disabled",
-  Enabled = "Enabled",
-  Hidden = "Hidden",
-}
+type TestConnectionOption = "Disabled" | "Enabled" | "Hidden";
 
 type Props = {
   readonly connection: ConnectionResponse;
@@ -38,19 +34,17 @@ const TestConnectionButton = ({ connection }: Props) => {
   const defaultIcon = <FiActivity />;
   const connectedIcon = <FiWifi color="green" />;
   const disconnectedIcon = <FiWifiOff color="red" />;
-  const [connected, setConnected] = useState<boolean | undefined>(undefined);
   const [icon, setIcon] = useState(defaultIcon);
-  const [hasClicked, setHasClicked] = useState(false);
 
   const testConnection = useConfig("test_connection");
-  let option;
+  let option: TestConnectionOption;
 
   if (testConnection === "Enabled") {
-    option = TestConnectionOption.Enabled;
+    option = "Enabled";
   } else if (testConnection === "Hidden") {
-    option = TestConnectionOption.Hidden;
+    option = "Hidden";
   } else {
-    option = TestConnectionOption.Disabled;
+    option = "Disabled";
   }
 
   const connectionBody: ConnectionBody = {
@@ -66,8 +60,6 @@ const TestConnectionButton = ({ connection }: Props) => {
   };
 
   const { mutate } = useTestConnection((result) => {
-    setConnected(result);
-    setHasClicked(true);
     if (result === undefined) {
       setIcon(defaultIcon);
     } else if (result === true) {
@@ -80,36 +72,15 @@ const TestConnectionButton = ({ connection }: Props) => {
   return (
     <ActionButton
       actionName={
-        option === TestConnectionOption.Enabled
+        option === "Enabled"
           ? "Test Connection"
           : "Testing connections disabled. Contact your admin to enable it."
       }
-      disabled={option === TestConnectionOption.Disabled}
-      display={option === TestConnectionOption.Hidden ? "none" : "flex"}
+      disabled={option === "Disabled"}
+      display={option === "Hidden" ? "none" : "flex"}
       icon={icon}
       onClick={() => {
-        setHasClicked(false);
         mutate({ requestBody: connectionBody });
-      }}
-      onLoad={() => {
-        setConnected(undefined);
-        setHasClicked(false);
-        setIcon(defaultIcon);
-      }}
-      onMouseLeave={() => {
-        setHasClicked(false);
-        if (connected === undefined) {
-          setIcon(defaultIcon);
-        } else if (connected) {
-          setIcon(connectedIcon);
-        } else {
-          setIcon(disconnectedIcon);
-        }
-      }}
-      onMouseMove={() => {
-        if (!hasClicked) {
-          setIcon(defaultIcon);
-        }
       }}
       text="Test Connection"
       withText={false}
