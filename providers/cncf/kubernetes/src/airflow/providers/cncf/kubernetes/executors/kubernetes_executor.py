@@ -76,13 +76,13 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     import argparse
+    from collections.abc import Sequence
 
     from kubernetes import client
     from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -254,7 +254,7 @@ class KubernetesExecutor(BaseExecutor):
     def execute_async(
         self,
         key: TaskInstanceKey,
-        command: CommandType,
+        command: Any,
         queue: str | None = None,
         executor_config: Any | None = None,
     ) -> None:
@@ -292,7 +292,7 @@ class KubernetesExecutor(BaseExecutor):
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
-    def _process_workloads(self, workloads: list[workloads.All]) -> None:
+    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
 
         # Airflow V3 version

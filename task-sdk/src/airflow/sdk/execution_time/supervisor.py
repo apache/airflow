@@ -685,7 +685,9 @@ class WatchedSubprocess:
         :param expect_signal: Signal not to log if the task exits with this code.
         :returns: The process exit code, or None if it's still alive
         """
-        events = self.selector.select(timeout=max_wait_time)
+        # Ensure minimum timeout to prevent CPU spike with tight loop when timeout is 0 or negative
+        timeout = max(0.01, max_wait_time)
+        events = self.selector.select(timeout=timeout)
         for key, _ in events:
             # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
             socket_handler = key.data

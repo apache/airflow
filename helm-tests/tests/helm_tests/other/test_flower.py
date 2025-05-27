@@ -712,3 +712,23 @@ class TestFlowerServiceAccount:
             show_only=["templates/flower/flower-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestFlowerSecret:
+    """Tests flower secret."""
+
+    def test_should_add_annotations_to_flower_secret(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "username": "username",
+                    "password": "password",
+                    "secretAnnotations": {"test_annotation": "test_annotation_value"},
+                }
+            },
+            show_only=["templates/secrets/flower-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
