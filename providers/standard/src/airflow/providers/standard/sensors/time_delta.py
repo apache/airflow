@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from time import sleep
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from deprecated.classic import deprecated
 from packaging.version import Version
 
 from airflow.configuration import conf
@@ -52,6 +53,7 @@ class TimeDeltaSensor(BaseSensorOperator):
     otherwise run_after will be used.
 
     :param delta: time to wait before succeeding.
+    :param deferrable: Run sensor in deferrable mode. If set to True, task will defer itself to avoid taking up a worker slot while it is waiting.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -59,9 +61,10 @@ class TimeDeltaSensor(BaseSensorOperator):
 
     """
 
-    def __init__(self, *, delta, **kwargs):
+    def __init__(self, *, delta: timedelta, deferrable: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.delta = delta
+        self.deferrable = deferrable
 
     def _derive_base_time(self, context: Context) -> datetime:
         """
@@ -90,7 +93,56 @@ class TimeDeltaSensor(BaseSensorOperator):
         self.log.info("Checking if the delta has elapsed base_time=%s, delta=%s", base_time, self.delta)
         return timezone.utcnow() > target_dttm
 
+    """
+    Asynchronous execution
+    """
 
+    def execute(self, context: Context) -> bool | NoReturn:
+        """
+        Depending on the deferrable flag, either execute the sensor in a blocking way or defer it.
+
+        - Sync path → use BaseSensorOperator.execute() which loops over ``poke``.
+        - Async path → defer to DateTimeTrigger and free the worker slot.
+        """
+        if not self.deferrable:
+            return super().execute(context=context)
+
+        # Deferrable path
+        base_time = self._derive_base_time(context=context)
+        target_dttm: datetime = base_time + self.delta
+
+        if timezone.utcnow() > target_dttm:
+            # If the target datetime is in the past, return immediately
+            return True
+        try:
+            if AIRFLOW_V_3_0_PLUS:
+                trigger = DateTimeTrigger(moment=target_dttm, end_from_trigger=self.end_from_trigger)
+            else:
+                trigger = DateTimeTrigger(moment=target_dttm)
+        except (TypeError, ValueError) as e:
+            if self.soft_fail:
+                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+            raise
+
+        # todo: remove backcompat when min airflow version greater than 2.11
+        timeout: int | float | timedelta
+        if AIRFLOW_V_3_0_PLUS:
+            timeout = self.timeout
+        else:
+            # <=2.11 requires timedelta
+            timeout = timedelta(seconds=self.timeout)
+
+        self.defer(
+            trigger=trigger,
+            method_name="execute_complete",
+            timeout=timeout,
+        )
+
+
+# TODO: Remember to remove
+@deprecated(
+    "use `TimeDeltaSensor` with flag `deferrable=True` instead", category="AirflowProvidersDeprecationWarning"
+)
 class TimeDeltaSensorAsync(TimeDeltaSensor):
     """
     A deferrable drop-in replacement for TimeDeltaSensor.
