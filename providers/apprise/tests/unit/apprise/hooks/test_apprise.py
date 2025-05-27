@@ -124,3 +124,36 @@ class TestAppriseHook:
             attach=None,
             interpret_escapes=None,
         )
+
+    @mock.patch("airflow.providers.apprise.hooks.apprise.AppriseAsset")
+    @mock.patch("apprise.Apprise")
+    def test_notify_persistent_storage(self, mock_apprise_cls, mock_asset_cls):
+        """
+        Test that AppriseHook.notify instantiates Apprise with persistent storage enabled.
+        """
+        mock_asset = mock.Mock()
+        mock_asset_cls.return_value = mock_asset
+        mock_apprise_obj = mock.Mock()
+        mock_apprise_cls.return_value = mock_apprise_obj
+
+        with mock.patch(
+            "airflow.providers.apprise.hooks.apprise.AppriseHook.get_connection",
+            return_value=Connection(
+                conn_id="apprise",
+                extra={
+                    "config": [
+                        {"path": "http://some_path_that_dont_exist/", "tag": "p0"},
+                    ]
+                },
+            ),
+        ):
+            hook = AppriseHook()
+            hook.notify(body="test")
+
+        # Ensure AppriseAsset was created with correct arguments
+        assert mock_asset_cls.call_count == 1
+        asset_args, asset_kwargs = mock_asset_cls.call_args
+        assert "storage_path" in asset_kwargs
+        assert "storage_mode" in asset_kwargs
+        # Ensure Apprise was instantiated with the asset
+        mock_apprise_cls.assert_called_once_with(asset=mock_asset)
