@@ -88,18 +88,18 @@ def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_mak
     with dag_maker() as dag:
         op = TimeDeltaSensor(task_id="wait_sensor_check", delta=delta, dag=dag, mode="reschedule")
 
-        kwargs = {}
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.types import DagRunTriggeredByType
+    kwargs = {}
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.types import DagRunTriggeredByType
 
-            kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
-        dr = dag.create_dagrun(
-            run_id="abcrhroceuh",
-            run_type=DagRunType.MANUAL,
-            state=None,
-            session=session,
-            **kwargs,
-        )
+        kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
+    dr = dag.create_dagrun(
+        run_id="abcrhroceuh",
+        run_type=DagRunType.MANUAL,
+        state=None,
+        session=session,
+        **kwargs,
+    )
     ti = dr.task_instances[0]
     context.update(dag_run=dr, ti=ti)
     expected = interval_end or run_after
@@ -221,22 +221,30 @@ class TestTimeDeltaSensorAsync:
             kwargs = {}
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
+        context = {}
+        if interval_end:
+            context["data_interval_end"] = interval_end
+        with dag_maker() as dag:
+            ...
+        kwargs = {}
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.types import DagRunTriggeredByType
 
                 kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
 
-            dr = dag.create_dagrun(
-                run_id="abcrhroceuh",
-                run_type=DagRunType.MANUAL,
-                state=None,
-                **kwargs,
-            )
-            context.update(dag_run=dr)
-            delta = timedelta(seconds=1)
-            with pytest.warns(AirflowProviderDeprecationWarning):
-                op = TimeDeltaSensorAsync(task_id="wait_sensor_check", delta=delta, dag=dag)
-            base_time = interval_end or run_after
-            expected_time = base_time + delta
-            with pytest.raises(TaskDeferred) as caught:
-                op.execute(context)
+        dr = dag.create_dagrun(
+            run_id="abcrhroceuh",
+            run_type=DagRunType.MANUAL,
+            state=None,
+            **kwargs,
+        )
+        context.update(dag_run=dr)
+        delta = timedelta(seconds=1)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = TimeDeltaSensorAsync(task_id="wait_sensor_check", delta=delta, dag=dag)
+        base_time = interval_end or run_after
+        expected_time = base_time + delta
+        with pytest.raises(TaskDeferred) as caught:
+            op.execute(context)
 
-            assert caught.value.trigger.moment == expected_time
+        assert caught.value.trigger.moment == expected_time
