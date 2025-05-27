@@ -24,6 +24,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import DAG, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator,
     GoogleCampaignManagerBatchUpdateConversionsOperator,
@@ -34,6 +35,8 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 )
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 API_VERSION = "v4"
 GCP_CONN_ID = "google_cloud_default"
@@ -190,6 +193,9 @@ class TestGoogleCampaignManagerDownloadReportOperator:
 
             taskflow_op = f()
             taskflow_op.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         op = GoogleCampaignManagerDownloadReportOperator(
             profile_id=PROFILE_ID,
