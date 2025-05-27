@@ -7118,14 +7118,6 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    BulkAction:
-      type: string
-      enum:
-      - create
-      - delete
-      - update
-      title: BulkAction
-      description: Bulk Action to be performed on the used model.
     BulkActionNotOnExistence:
       type: string
       enum:
@@ -7219,7 +7211,9 @@ components:
     BulkCreateAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7239,7 +7233,9 @@ components:
     BulkCreateAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7259,7 +7255,9 @@ components:
     BulkCreateAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7279,7 +7277,9 @@ components:
     BulkDeleteAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7299,7 +7299,9 @@ components:
     BulkDeleteAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7319,7 +7321,9 @@ components:
     BulkDeleteAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7372,7 +7376,9 @@ components:
     BulkUpdateAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7392,7 +7398,9 @@ components:
     BulkUpdateAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7412,7 +7420,9 @@ components:
     BulkUpdateAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:

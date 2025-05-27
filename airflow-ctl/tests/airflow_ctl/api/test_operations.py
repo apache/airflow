@@ -36,7 +36,6 @@ from airflowctl.api.datamodels.generated import (
     AssetResponse,
     BackfillPostBody,
     BackfillResponse,
-    BulkAction,
     BulkActionOnExistence,
     BulkActionResponse,
     BulkBodyConnectionBody,
@@ -270,7 +269,7 @@ class TestConnectionsOperations:
     connection_bulk_body = BulkBodyConnectionBody(
         actions=[
             BulkCreateActionConnectionBody(
-                action=BulkAction.CREATE,
+                action="create",
                 entities=[connection],
                 action_on_existence=BulkActionOnExistence.FAIL,
             )
@@ -563,7 +562,7 @@ class TestPoolsOperations:
     pools_bulk_body = BulkBodyPoolBody(
         actions=[
             BulkCreateActionPoolBody(
-                action=BulkAction.CREATE,
+                action="create",
                 entities=[pool],
                 action_on_existence=BulkActionOnExistence.FAIL,
             )
@@ -681,7 +680,7 @@ class TestVariablesOperations:
     variable_bulk = BulkBodyVariableBody(
         actions=[
             BulkCreateActionVariableBody(
-                action=BulkAction.CREATE,
+                action="create",
                 entities=[variable],
                 action_on_existence=BulkActionOnExistence.FAIL,
             )
