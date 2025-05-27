@@ -170,6 +170,9 @@ spec:
           resources: {{- toYaml .Values.apiServer.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+              {{- include "airflow_api_server_config_mount" . | nindent 12 }}
+            {{- end }}
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -225,6 +228,11 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+        - name: api-server-config
+          configMap:
+            name: {{ template "airflow_api_server_config_configmap_name" . }}
+        {{- end }}
         {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}

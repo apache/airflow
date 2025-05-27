@@ -5107,6 +5107,30 @@
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
+                "apiServerConfig": {
+                    "description": "This string (templated) will be mounted into the Airflow API Server as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                    ]
+                },
+                "apiServerConfigConfigMapName": {
+                    "description": "The configmap name containing the webserver_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "my-api-server-configmap"
+                    ]
+                },
                 "defaultUser": {
                     "description": "Optional default Airflow user information",
                     "type": "object",
