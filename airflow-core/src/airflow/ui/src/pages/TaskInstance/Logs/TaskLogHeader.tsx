@@ -38,10 +38,12 @@ import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/
 
 type Props = {
   readonly isFullscreen?: boolean;
+  readonly nested?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
   readonly toggleFullscreen: () => void;
+  readonly toggleNested?: () => void;
   readonly toggleWrap: () => void;
   readonly tryNumber?: number;
   readonly wrap: boolean;
@@ -49,10 +51,12 @@ type Props = {
 
 export const TaskLogHeader = ({
   isFullscreen = false,
+  nested,
   onSelectTryNumber,
   sourceOptions,
   taskInstance,
   toggleFullscreen,
+  toggleNested,
   toggleWrap,
   tryNumber,
   wrap,
@@ -191,6 +195,18 @@ export const TaskLogHeader = ({
               {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
             </Button>
           </Tooltip>
+          {toggleNested ? (
+            <Button
+              aria-label={nested ? "Deactivate groups" : "Activate groups"}
+              bg="bg.panel"
+              ml={2}
+              onClick={toggleNested}
+              size="sm"
+              variant="outline"
+            >
+              {nested ? "Deactivate groups" : "Activate groups"}
+            </Button>
+          ) : undefined}
           {!isFullscreen && (
             <Tooltip
               closeDelay={100}

@@ -67,9 +67,11 @@ export const Logs = () => {
 
   const [wrap, setWrap] = useState(defaultWrap);
   const [fullscreen, setFullscreen] = useState(false);
+  const [nested, setNested] = useState(true);
 
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
+  const toggleNested = () => setNested((act) => !act);
 
   useHotkeys("w", toggleWrap);
   useHotkeys("f", toggleFullscreen);
@@ -85,6 +87,7 @@ export const Logs = () => {
   } = useLogs({
     dagId,
     logLevelFilters,
+    nested,
     sourceFilters,
     taskInstance,
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
@@ -96,10 +99,12 @@ export const Logs = () => {
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
+        nested={nested}
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
         taskInstance={taskInstance}
         toggleFullscreen={toggleFullscreen}
+        toggleNested={toggleNested}
         toggleWrap={toggleWrap}
         tryNumber={tryNumber}
         wrap={wrap}
@@ -129,9 +134,11 @@ export const Logs = () => {
               <Heading size="xl">{taskId}</Heading>
               <TaskLogHeader
                 isFullscreen
+                nested={nested}
                 onSelectTryNumber={onSelectTryNumber}
                 taskInstance={taskInstance}
                 toggleFullscreen={toggleFullscreen}
+                toggleNested={toggleNested}
                 toggleWrap={toggleWrap}
                 tryNumber={tryNumber}
                 wrap={wrap}

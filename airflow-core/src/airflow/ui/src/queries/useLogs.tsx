@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chakra } from "@chakra-ui/react";
+import { chakra, Box } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
@@ -33,6 +33,7 @@ type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
   logLevelFilters?: Array<string>;
+  nested?: boolean; // Adicionado parâmetro nested
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
@@ -41,25 +42,16 @@ type Props = {
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   logLevelFilters?: Array<string>;
+  nested?: boolean; // Adicionado parâmetro nested
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   translate: TFunction;
   tryNumber: number;
 };
 
-const parseLogs = ({
-  data,
-  logLevelFilters,
-  sourceFilters,
-  taskInstance,
-  translate,
-  tryNumber,
-}: ParseLogsProps) => {
+const parseLogs = ({ data, logLevelFilters,nested = true, sourceFilters, taskInstance,translate, tryNumber }: ParseLogsProps) => {
   let warning;
   let parsedLines;
-  let startGroup = false;
-  let groupLines: Array<JSX.Element | ""> = [];
-  let groupName = "";
   const sources: Array<string> = [];
 
   // open the summary when hash is present since the link might have a hash linking to a line
@@ -95,40 +87,82 @@ const parseLogs = ({
     return { data, warning };
   }
 
+  if (!nested) {
+    return {
+      parsedLogs: parsedLines,
+      sources,
+      warning,
+    };
+  }
+
   // TODO: Add support for nested groups
 
-  parsedLines = parsedLines.map((line) => {
-    const text = innerText(line);
+  parsedLines = (() => {
+    type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
+    const groupStack: Array<Group> = [];
+    const result: Array<JSX.Element | ""> = [];
 
-    if (text.includes("::group::") && !startGroup) {
-      startGroup = true;
-      groupName = text.split("::group::")[1] as string;
-    } else if (text.includes("::endgroup::")) {
-      startGroup = false;
-      const group = (
-        <details key={groupName} open={open} style={{ width: "100%" }}>
-          <summary data-testid={`summary-${groupName}`}>
-            <chakra.span color="fg.info" cursor="pointer">
-              {groupName}
-            </chakra.span>
-          </summary>
-          {groupLines}
-        </details>
-      );
+    parsedLines.forEach((line) => {
+      const text = innerText(line);
 
-      groupLines = [];
+      if (text.includes("::group::")) {
+        const groupName = text.split("::group::")[1] as string;
 
-      return group;
+        groupStack.push({ level: groupStack.length, lines: [], name: groupName });
+
+        return;
+      }
+
+      if (text.includes("::endgroup::")) {
+        const finishedGroup = groupStack.pop();
+
+        if (finishedGroup) {
+          const groupElement = (
+            <Box key={finishedGroup.name + Math.random()} mb={2} pl={finishedGroup.level * 2}>
+              <details open={open} style={{ width: "100%" }}>
+                <summary data-testid={`summary-${finishedGroup.name}`}>
+                  <chakra.span color="fg.info" cursor="pointer">
+                    {finishedGroup.name}
+                  </chakra.span>
+                </summary>
+                {finishedGroup.lines}
+              </details>
+            </Box>
+          );
+
+          const lastGroup = groupStack[groupStack.length - 1];
+
+          if (groupStack.length > 0 && lastGroup) {
+            lastGroup.lines.push(groupElement);
+          } else {
+            result.push(groupElement);
+          }
+        }
+
+        return;
+      }
+
+      if (groupStack.length > 0 && groupStack[groupStack.length - 1]) {
+        groupStack[groupStack.length - 1]?.lines.push(line);
+      } else {
+        result.push(line);
+      }
+    });
+
+    while (groupStack.length > 0) {
+      const unfinished = groupStack.pop();
+
+      if (unfinished) {
+        result.push(
+          <Box key={unfinished.name + Math.random()} mb={2} pl={unfinished.level * 2}>
+            {unfinished.lines}
+          </Box>,
+        );
+      }
     }
 
-    if (startGroup) {
-      groupLines.push(line);
-
-      return undefined;
-    } else {
-      return line;
-    }
-  });
+    return result;
+  })();
 
   return {
     parsedLogs: parsedLines,
@@ -138,7 +172,7 @@ const parseLogs = ({
 };
 
 export const useLogs = (
-  { accept = "application/json", dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
+  {accept = "application/json", dagId, logLevelFilters, nested = true, sourceFilters, taskInstance, tryNumber = 1 }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
   const { t: translate } = useTranslation("common");
@@ -168,6 +202,7 @@ export const useLogs = (
   const parsedData = parseLogs({
     data: data?.content ?? [],
     logLevelFilters,
+    nested,
     sourceFilters,
     taskInstance,
     translate,
