@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-26T12:54:27.913379
+# This constraints file was automatically generated on 2025-05-27T15:50:31.042246
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiobotocore==2.22.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.12.0
+aiohttp==3.12.2
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -61,7 +61,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.16.1
-alibabacloud-adb20211201==3.0.3
+alibabacloud-adb20211201==3.1.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -234,7 +234,7 @@ google-cloud-bigquery==3.33.0
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
-google-cloud-container==2.56.1
+google-cloud-container==2.57.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
@@ -246,7 +246,7 @@ google-cloud-dlp==3.29.0
 google-cloud-kms==3.5.1
 google-cloud-language==2.17.1
 google-cloud-logging==3.12.1
-google-cloud-managedkafka==0.1.10
+google-cloud-managedkafka==0.1.11
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
 google-cloud-orchestration-airflow==1.17.5
@@ -258,7 +258,7 @@ google-cloud-run==0.10.18
 google-cloud-secret-manager==2.23.3
 google-cloud-spanner==3.54.0
 google-cloud-speech==2.32.0
-google-cloud-storage-transfer==1.16.1
+google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.2
 google-cloud-texttospeech==2.27.0
@@ -295,7 +295,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.32.1
+huggingface-hub==0.32.2
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -338,9 +338,9 @@ jsonpickle==3.4.2
 jsonpointer==3.0.0
 jsonschema-path==0.3.4
 jsonschema-specifications==2025.4.1
-jsonschema==4.23.0
+jsonschema==4.24.0
 jupyter_client==8.6.3
-jupyter_core==5.8.0
+jupyter_core==5.8.1
 jupyterlab_pygments==0.3.0
 kerberos==1.3.1
 keyring==25.6.0
@@ -352,7 +352,7 @@ kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.11.0
-libcst==1.7.0
+libcst==1.8.0
 limits==5.2.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
@@ -431,7 +431,7 @@ orjson==3.10.18
 oss2==2.19.1
 packaging==25.0
 pandas-gbq==0.29.0
-pandas-stubs==2.2.3.250308
+pandas-stubs==2.2.3.250527
 pandas==2.1.4
 pandocfilters==1.5.1
 papermill==2.6.0
@@ -440,7 +440,7 @@ parso==0.8.4
 pathable==0.4.4
 pathspec==0.12.1
 pbr==6.1.1
-pdbr==0.9.0
+pdbr==0.9.2
 pdpyras==5.4.0
 pendulum==3.1.0
 pexpect==4.9.0
@@ -504,11 +504,11 @@ pytest-cov==6.1.1
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
-pytest-mock==3.14.0
+pytest-mock==3.14.1
 pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
-pytest-xdist==3.6.1
+pytest-xdist==3.7.0
 pytest==8.3.5
 python-arango==8.1.7
 python-daemon==3.1.2
@@ -518,7 +518,7 @@ python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
 python-multipart==0.0.20
-python-on-whales==0.76.1
+python-on-whales==0.77.0
 python-slugify==8.0.4
 python-telegram-bot==22.1
 python3-saml==1.16.0
@@ -636,7 +636,7 @@ traitlets==5.14.3
 trino==0.334.0
 trove-classifiers==2025.5.9.12
 twine==6.1.0
-typer==0.15.4
+typer==0.16.0
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415
 types-PyMySQL==1.1.0.20250516
@@ -694,7 +694,7 @@ ydb-dbapi==0.1.12
 ydb==3.21.2
 zeep==4.3.1
 zenpy==2.0.56
-zipp==3.21.0
+zipp==3.22.0
 zope.event==5.0
 zope.interface==7.2
 zstandard==0.23.0
