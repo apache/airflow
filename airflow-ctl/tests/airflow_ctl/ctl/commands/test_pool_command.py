@@ -25,7 +25,6 @@ import pytest
 
 from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
-    BulkAction,
     BulkActionOnExistence,
     BulkBodyPoolBody,
     BulkCreateActionPoolBody,
@@ -93,7 +92,7 @@ class TestPoolImportCommand:
         assert len(call_args["pools"].actions) == 1
         action = call_args["pools"].actions[0]
         assert isinstance(action, BulkCreateActionPoolBody)
-        assert action.action == BulkAction.CREATE
+        assert action.action == "create"
         assert action.action_on_existence == BulkActionOnExistence.FAIL
         assert len(action.entities) == 1
         assert action.entities[0].name == "test_pool"

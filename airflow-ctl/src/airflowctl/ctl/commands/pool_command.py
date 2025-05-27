@@ -26,7 +26,6 @@ import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
-    BulkAction,
     BulkActionOnExistence,
     BulkBodyPoolBody,
     BulkCreateActionPoolBody,
@@ -52,7 +51,7 @@ def export(args, api_client: Client = NEW_API_CLIENT):
     """
     Export all pools.
 
-    If output is json, write to file. Otherwise print to console.
+    If output is json, write to file. Otherwise, print to console.
     """
     try:
         pools_response = api_client.pools.list()
@@ -112,7 +111,7 @@ def _import_helper(api_client: Client, filepath: Path):
     bulk_body = BulkBodyPoolBody(
         actions=[
             BulkCreateActionPoolBody(
-                action=BulkAction.CREATE,
+                action="create",
                 entities=pools_to_update,
                 action_on_existence=BulkActionOnExistence.FAIL,
             )

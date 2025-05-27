@@ -207,10 +207,10 @@ ARG_OUTPUT = Arg(
 )
 
 # Pool Commands Args
-ARG_POOL_IMPORT = Arg(
+ARG_POOL_FILE = Arg(
     ("file",),
     metavar="FILEPATH",
-    help="Import pools from JSON file. Example format::\n"
+    help="Pools JSON file. Example format::\n"
     + textwrap.indent(
         textwrap.dedent(
             """
@@ -232,7 +232,6 @@ ARG_POOL_IMPORT = Arg(
         " " * 4,
     ),
 )
-ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to JSON file")
 
 
 class ActionCommand(NamedTuple):
@@ -599,8 +598,6 @@ def merge_commands(
 
 command_factory = CommandFactory()
 
-AUTH_ARGS = ()
-
 AUTH_COMMANDS = (
     ActionCommand(
         name="login",
@@ -616,14 +613,14 @@ POOL_COMMANDS = (
         name="import",
         help="Import pools",
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.import_"),
-        args=(ARG_POOL_IMPORT,),
+        args=(ARG_POOL_FILE,),
     ),
     ActionCommand(
         name="export",
         help="Export all pools",
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
         args=(
-            ARG_POOL_EXPORT,
+            ARG_POOL_FILE,
             ARG_OUTPUT,
         ),
     ),
