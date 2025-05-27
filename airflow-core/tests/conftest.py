@@ -24,7 +24,6 @@ import zipfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest import mock
 
 import pytest
 
@@ -78,17 +77,6 @@ def clear_all_logger_handlers():
     remove_all_non_pytest_log_handlers()
 
 
-@pytest.fixture
-def testing_dag_bundle():
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.utils.session import create_session
-
-    with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
-            testing = DagBundleModel(name="testing")
-            session.add(testing)
-
-
 @contextmanager
 def _config_bundles(bundles: dict[str, Path | str]):
     from tests_common.test_utils.config import conf_vars
@@ -135,14 +123,6 @@ def test_zip_path(tmp_path: Path):
                 zf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), test_zip_folder))
 
     return os.fspath(zipped)
-
-
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
 
 
 if TYPE_CHECKING:

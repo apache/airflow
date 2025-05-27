@@ -25,6 +25,7 @@ type Props = {
 export const TruncatedText = ({ text, ...rest }: Props) => (
   <Text
     display="-webkit-box"
+    minWidth={200}
     overflow="hidden"
     style={{
       WebkitBoxOrient: "vertical",

@@ -19,12 +19,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request, Response, status
+from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -36,10 +37,10 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
+    QueryExcludeStaleFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
-    QueryOnlyActiveFilter,
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
@@ -78,7 +79,7 @@ def get_dags(
     owners: QueryOwnersFilter,
     dag_id_pattern: QueryDagIdPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
-    only_active: QueryOnlyActiveFilter,
+    exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     dag_run_start_date_range: Annotated[
@@ -131,7 +132,7 @@ def get_dags(
     dags_select, total_entries = paginated_select(
         statement=generate_dag_with_latest_run_query(dag_runs_select),
         filters=[
-            only_active,
+            exclude_stale,
             paused,
             dag_id_pattern,
             dag_display_name_pattern,
@@ -165,9 +166,13 @@ def get_dags(
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
-def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
+def get_dag(
+    dag_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+) -> DAGResponse:
     """Get basic information about a DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
@@ -192,9 +197,9 @@ def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
-def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDetailsResponse:
+def get_dag_details(dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAGDetailsResponse:
     """Get details of DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
@@ -269,7 +274,7 @@ def patch_dags(
     tags: QueryTagsFilter,
     owners: QueryOwnersFilter,
     dag_id_pattern: QueryDagIdPatternSearchWithNone,
-    only_active: QueryOnlyActiveFilter,
+    exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     editable_dags_filter: EditableDagsFilterDep,
@@ -293,7 +298,15 @@ def patch_dags(
 
     dags_select, total_entries = paginated_select(
         statement=generate_dag_with_latest_run_query(),
-        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state, editable_dags_filter],
+        filters=[
+            exclude_stale,
+            paused,
+            dag_id_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+            editable_dags_filter,
+        ],
         order_by=None,
         offset=offset,
         limit=limit,

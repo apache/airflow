@@ -16,7 +16,6 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
-  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -39,42 +38,13 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
- * @returns MenuItemCollectionResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseAuthLinksServiceGetAuthLinksData = (queryClient: QueryClient) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(),
-    queryFn: () => AuthLinksService.getAuthLinks(),
-  });
-/**
- * Next Run Assets
- * @param data The data for the request.
- * @param data.dagId
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const ensureUseAssetServiceNextRunAssetsData = (
-  queryClient: QueryClient,
-  {
-    dagId,
-  }: {
-    dagId: string;
-  },
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
-    queryFn: () => AssetService.nextRunAssets({ dagId }),
-  });
-/**
  * Get Assets
  * Get assets.
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
- * @param data.uriPattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.dagIds
  * @param data.onlyActive
  * @param data.orderBy
@@ -120,7 +90,7 @@ export const ensureUseAssetServiceGetAssetsData = (
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.orderBy
  * @returns AssetAliasCollectionResponse Successful Response
  * @throws ApiError
@@ -326,73 +296,101 @@ export const ensureUseAssetServiceGetDagAssetQueuedEventData = (
     queryFn: () => AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }),
   });
 /**
- * Get Configs
- * Get configs for UI.
- * @returns ConfigResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseConfigServiceGetConfigsData = (queryClient: QueryClient) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseConfigServiceGetConfigsKeyFn(),
-    queryFn: () => ConfigService.getConfigs(),
-  });
-/**
- * Get Config
+ * Next Run Assets
  * @param data The data for the request.
- * @param data.section
- * @param data.accept
- * @returns Config Successful Response
+ * @param data.dagId
+ * @returns unknown Successful Response
  * @throws ApiError
  */
-export const ensureUseConfigServiceGetConfigData = (
+export const ensureUseAssetServiceNextRunAssetsData = (
   queryClient: QueryClient,
   {
-    accept,
-    section,
+    dagId,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
-    section?: string;
-  } = {},
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }),
-    queryFn: () => ConfigService.getConfig({ accept, section }),
-  });
-/**
- * Get Config Value
- * @param data The data for the request.
- * @param data.section
- * @param data.option
- * @param data.accept
- * @returns Config Successful Response
- * @throws ApiError
- */
-export const ensureUseConfigServiceGetConfigValueData = (
-  queryClient: QueryClient,
-  {
-    accept,
-    option,
-    section,
-  }: {
-    accept?: "application/json" | "text/plain" | "*/*";
-    option: string;
-    section: string;
+    dagId: string;
   },
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }),
-    queryFn: () => ConfigService.getConfigValue({ accept, option, section }),
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
+    queryFn: () => AssetService.nextRunAssets({ dagId }),
   });
 /**
- * Hook Meta Data
- * Retrieve information about available connection types (hook classes) and their parameters.
- * @returns ConnectionHookMetaData Successful Response
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseConnectionServiceHookMetaDataData = (queryClient: QueryClient) =>
+export const ensureUseBackfillServiceListBackfillsData = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  },
+) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(),
-    queryFn: () => ConnectionService.hookMetaData(),
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({ dagId, limit, offset, orderBy }),
+    queryFn: () => BackfillService.listBackfills({ dagId, limit, offset, orderBy }),
+  });
+/**
+ * Get Backfill
+ * @param data The data for the request.
+ * @param data.backfillId
+ * @returns BackfillResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseBackfillServiceGetBackfillData = (
+  queryClient: QueryClient,
+  {
+    backfillId,
+  }: {
+    backfillId: number;
+  },
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }),
+    queryFn: () => BackfillService.getBackfill({ backfillId }),
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.dagId
+ * @param data.active
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseBackfillServiceListBackfills1Data = (
+  queryClient: QueryClient,
+  {
+    active,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    active?: boolean;
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({ active, dagId, limit, offset, orderBy }),
+    queryFn: () => BackfillService.listBackfills1({ active, dagId, limit, offset, orderBy }),
   });
 /**
  * Get Connection
@@ -421,7 +419,7 @@ export const ensureUseConnectionServiceGetConnectionData = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.connectionIdPattern
+ * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -444,340 +442,15 @@ export const ensureUseConnectionServiceGetConnectionsData = (
     queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }),
   });
 /**
- * Recent Dag Runs
- * Get recent DAG runs.
- * @param data The data for the request.
- * @param data.dagRunsLimit
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.tagsMatchMode
- * @param data.owners
- * @param data.dagIds
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
- * @param data.onlyActive
- * @param data.paused
- * @param data.lastDagRunState
- * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * Hook Meta Data
+ * Retrieve information about available connection types (hook classes) and their parameters.
+ * @returns ConnectionHookMetaData Successful Response
  * @throws ApiError
  */
-export const ensureUseDagsServiceRecentDagRunsData = (
-  queryClient: QueryClient,
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagIds,
-    dagRunsLimit,
-    lastDagRunState,
-    limit,
-    offset,
-    onlyActive,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagIds?: string[];
-    dagRunsLimit?: number;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    onlyActive?: boolean;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-) =>
+export const ensureUseConnectionServiceHookMetaDataData = (queryClient: QueryClient) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
-      dagDisplayNamePattern,
-      dagIdPattern,
-      dagIds,
-      dagRunsLimit,
-      lastDagRunState,
-      limit,
-      offset,
-      onlyActive,
-      owners,
-      paused,
-      tags,
-      tagsMatchMode,
-    }),
-    queryFn: () =>
-      DagsService.recentDagRuns({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        lastDagRunState,
-        limit,
-        offset,
-        onlyActive,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }),
-  });
-/**
- * Get Dependencies
- * Dependencies graph.
- * @param data The data for the request.
- * @param data.nodeId
- * @returns BaseGraphResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseDependenciesServiceGetDependenciesData = (
-  queryClient: QueryClient,
-  {
-    nodeId,
-  }: {
-    nodeId?: string;
-  } = {},
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }),
-    queryFn: () => DependenciesService.getDependencies({ nodeId }),
-  });
-/**
- * Historical Metrics
- * Return cluster activity historical metrics.
- * @param data The data for the request.
- * @param data.startDate
- * @param data.endDate
- * @returns HistoricalMetricDataResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseDashboardServiceHistoricalMetricsData = (
-  queryClient: QueryClient,
-  {
-    endDate,
-    startDate,
-  }: {
-    endDate?: string;
-    startDate: string;
-  },
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }),
-    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
-  });
-/**
- * Structure Data
- * Get Structure Data.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.includeUpstream
- * @param data.includeDownstream
- * @param data.root
- * @param data.externalDependencies
- * @param data.versionNumber
- * @returns StructureDataResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseStructureServiceStructureDataData = (
-  queryClient: QueryClient,
-  {
-    dagId,
-    externalDependencies,
-    includeDownstream,
-    includeUpstream,
-    root,
-    versionNumber,
-  }: {
-    dagId: string;
-    externalDependencies?: boolean;
-    includeDownstream?: boolean;
-    includeUpstream?: boolean;
-    root?: string;
-    versionNumber?: number;
-  },
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseStructureServiceStructureDataKeyFn({
-      dagId,
-      externalDependencies,
-      includeDownstream,
-      includeUpstream,
-      root,
-      versionNumber,
-    }),
-    queryFn: () =>
-      StructureService.structureData({
-        dagId,
-        externalDependencies,
-        includeDownstream,
-        includeUpstream,
-        root,
-        versionNumber,
-      }),
-  });
-/**
- * List Backfills
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.dagId
- * @param data.active
- * @returns BackfillCollectionResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseBackfillServiceListBackfillsData = (
-  queryClient: QueryClient,
-  {
-    active,
-    dagId,
-    limit,
-    offset,
-    orderBy,
-  }: {
-    active?: boolean;
-    dagId?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({ active, dagId, limit, offset, orderBy }),
-    queryFn: () => BackfillService.listBackfills({ active, dagId, limit, offset, orderBy }),
-  });
-/**
- * List Backfills
- * @param data The data for the request.
- * @param data.dagId
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns BackfillCollectionResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseBackfillServiceListBackfills1Data = (
-  queryClient: QueryClient,
-  {
-    dagId,
-    limit,
-    offset,
-    orderBy,
-  }: {
-    dagId: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  },
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({ dagId, limit, offset, orderBy }),
-    queryFn: () => BackfillService.listBackfills1({ dagId, limit, offset, orderBy }),
-  });
-/**
- * Get Backfill
- * @param data The data for the request.
- * @param data.backfillId
- * @returns BackfillResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseBackfillServiceGetBackfillData = (
-  queryClient: QueryClient,
-  {
-    backfillId,
-  }: {
-    backfillId: string;
-  },
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }),
-    queryFn: () => BackfillService.getBackfill({ backfillId }),
-  });
-/**
- * Grid Data
- * Return grid data.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.includeUpstream
- * @param data.includeDownstream
- * @param data.root
- * @param data.offset
- * @param data.runType
- * @param data.state
- * @param data.limit
- * @param data.orderBy
- * @param data.runAfterGte
- * @param data.runAfterLte
- * @param data.logicalDateGte
- * @param data.logicalDateLte
- * @returns GridResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseGridServiceGridDataData = (
-  queryClient: QueryClient,
-  {
-    dagId,
-    includeDownstream,
-    includeUpstream,
-    limit,
-    logicalDateGte,
-    logicalDateLte,
-    offset,
-    orderBy,
-    root,
-    runAfterGte,
-    runAfterLte,
-    runType,
-    state,
-  }: {
-    dagId: string;
-    includeDownstream?: boolean;
-    includeUpstream?: boolean;
-    limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
-    offset?: number;
-    orderBy?: string;
-    root?: string;
-    runAfterGte?: string;
-    runAfterLte?: string;
-    runType?: string[];
-    state?: string[];
-  },
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseGridServiceGridDataKeyFn({
-      dagId,
-      includeDownstream,
-      includeUpstream,
-      limit,
-      logicalDateGte,
-      logicalDateLte,
-      offset,
-      orderBy,
-      root,
-      runAfterGte,
-      runAfterLte,
-      runType,
-      state,
-    }),
-    queryFn: () =>
-      GridService.gridData({
-        dagId,
-        includeDownstream,
-        includeUpstream,
-        limit,
-        logicalDateGte,
-        logicalDateLte,
-        offset,
-        orderBy,
-        root,
-        runAfterGte,
-        runAfterLte,
-        runType,
-        state,
-      }),
+    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(),
+    queryFn: () => ConnectionService.hookMetaData(),
   });
 /**
  * Get Dag Run
@@ -843,6 +516,7 @@ export const ensureUseDagRunServiceGetUpstreamAssetEventsData = (
  * @param data.endDateLte
  * @param data.updatedAtGte
  * @param data.updatedAtLte
+ * @param data.runType
  * @param data.state
  * @param data.orderBy
  * @returns DAGRunCollectionResponse Successful Response
@@ -861,6 +535,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -877,6 +552,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -896,6 +572,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
       orderBy,
       runAfterGte,
       runAfterLte,
+      runType,
       startDateGte,
       startDateLte,
       state,
@@ -914,6 +591,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -988,6 +666,64 @@ export const ensureUseDagReportServiceGetDagReportsData = (
     queryFn: () => DagReportService.getDagReports({ subdir }),
   });
 /**
+ * Get Config
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.accept
+ * @returns Config Successful Response
+ * @throws ApiError
+ */
+export const ensureUseConfigServiceGetConfigData = (
+  queryClient: QueryClient,
+  {
+    accept,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    section?: string;
+  } = {},
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }),
+    queryFn: () => ConfigService.getConfig({ accept, section }),
+  });
+/**
+ * Get Config Value
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.option
+ * @param data.accept
+ * @returns Config Successful Response
+ * @throws ApiError
+ */
+export const ensureUseConfigServiceGetConfigValueData = (
+  queryClient: QueryClient,
+  {
+    accept,
+    option,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    option: string;
+    section: string;
+  },
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }),
+    queryFn: () => ConfigService.getConfigValue({ accept, option, section }),
+  });
+/**
+ * Get Configs
+ * Get configs for UI.
+ * @returns ConfigResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseConfigServiceGetConfigsData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseConfigServiceGetConfigsKeyFn(),
+    queryFn: () => ConfigService.getConfigs(),
+  });
+/**
  * List Dag Warnings
  * Get a list of DAG warnings.
  * @param data The data for the request.
@@ -1028,9 +764,9 @@ export const ensureUseDagWarningServiceListDagWarningsData = (
  * @param data.tags
  * @param data.tagsMatchMode
  * @param data.owners
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @param data.dagRunStartDateGte
@@ -1052,10 +788,10 @@ export const ensureUseDagServiceGetDagsData = (
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -1069,10 +805,10 @@ export const ensureUseDagServiceGetDagsData = (
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -1089,10 +825,10 @@ export const ensureUseDagServiceGetDagsData = (
       dagRunStartDateGte,
       dagRunStartDateLte,
       dagRunState,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       orderBy,
       owners,
       paused,
@@ -1108,10 +844,10 @@ export const ensureUseDagServiceGetDagsData = (
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -1166,7 +902,7 @@ export const ensureUseDagServiceGetDagDetailsData = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.tagNamePattern
+ * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns DAGTagCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1305,7 +1041,7 @@ export const ensureUseEventLogServiceGetEventLogsData = (
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const ensureUseExtraLinksServiceGetExtraLinksData = (
@@ -1334,7 +1070,7 @@ export const ensureUseExtraLinksServiceGetExtraLinksData = (
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const ensureUseTaskInstanceServiceGetExtraLinksData = (
@@ -1527,7 +1263,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstancesData = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1542,13 +1278,14 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
   },
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Dependencies
@@ -1561,7 +1298,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseTaskInstanceServiceGetTaskInstanceDependencies1Data = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1576,13 +1313,13 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependencies1Data = (
   },
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Tries
@@ -1697,7 +1434,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (
  * @param data.updatedAtLte
  * @param data.durationGte
  * @param data.durationLte
- * @param data.taskDisplayNamePattern
+ * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.state
  * @param data.pool
  * @param data.queue
@@ -1928,7 +1665,7 @@ export const ensureUseTaskInstanceServiceGetLogData = (
     token,
     tryNumber,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "application/json" | "*/*" | "application/x-ndjson";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -1960,6 +1697,44 @@ export const ensureUseTaskInstanceServiceGetLogData = (
         token,
         tryNumber,
       }),
+  });
+/**
+ * Get External Log Url
+ * Get external log URL for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.mapIndex
+ * @returns ExternalLogUrlResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseTaskInstanceServiceGetExternalLogUrlData = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+      tryNumber,
+    }),
+    queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }),
   });
 /**
  * Get Import Error
@@ -2110,6 +1885,16 @@ export const ensureUsePluginServiceGetPluginsData = (
     queryFn: () => PluginService.getPlugins({ limit, offset }),
   });
 /**
+ * Import Errors
+ * @returns PluginImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUsePluginServiceImportErrorsData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UsePluginServiceImportErrorsKeyFn(),
+    queryFn: () => PluginService.importErrors(),
+  });
+/**
  * Get Pool
  * Get a pool.
  * @param data The data for the request.
@@ -2136,7 +1921,7 @@ export const ensureUsePoolServiceGetPoolData = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.poolNamePattern
+ * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2349,7 +2134,7 @@ export const ensureUseVariableServiceGetVariableData = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.variableKeyPattern
+ * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2513,22 +2298,281 @@ export const ensureUseLoginServiceLogoutData = (
     queryFn: () => LoginService.logout({ next }),
   });
 /**
- * Not Found Handler
- * Catch all route to handle invalid endpoints.
- * @param data The data for the request.
- * @param data.restOfPath
- * @returns unknown Successful Response
+ * Get Auth Menus
+ * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseDefaultServiceNotFoundHandlerData = (
+export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(),
+    queryFn: () => AuthLinksService.getAuthMenus(),
+  });
+/**
+ * Recent Dag Runs
+ * Get recent DAG runs.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.tagsMatchMode
+ * @param data.owners
+ * @param data.dagIds
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.excludeStale
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseDagsServiceRecentDagRunsData = (
   queryClient: QueryClient,
   {
-    restOfPath,
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagIds,
+    dagRunsLimit,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
   }: {
-    restOfPath: string;
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagIds?: string[];
+    dagRunsLimit?: number;
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagIds,
+      dagRunsLimit,
+      excludeStale,
+      lastDagRunState,
+      limit,
+      offset,
+      owners,
+      paused,
+      tags,
+      tagsMatchMode,
+    }),
+    queryFn: () =>
+      DagsService.recentDagRuns({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }),
+  });
+/**
+ * Get Dependencies
+ * Dependencies graph.
+ * @param data The data for the request.
+ * @param data.nodeId
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseDependenciesServiceGetDependenciesData = (
+  queryClient: QueryClient,
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }),
+    queryFn: () => DependenciesService.getDependencies({ nodeId }),
+  });
+/**
+ * Historical Metrics
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseDashboardServiceHistoricalMetricsData = (
+  queryClient: QueryClient,
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate?: string;
+    startDate: string;
   },
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }),
-    queryFn: () => DefaultService.notFoundHandler({ restOfPath }),
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }),
+    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
+  });
+/**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(),
+    queryFn: () => DashboardService.dagStats(),
+  });
+/**
+ * Structure Data
+ * Get Structure Data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @param data.root
+ * @param data.externalDependencies
+ * @param data.versionNumber
+ * @returns StructureDataResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseStructureServiceStructureDataData = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    externalDependencies,
+    includeDownstream,
+    includeUpstream,
+    root,
+    versionNumber,
+  }: {
+    dagId: string;
+    externalDependencies?: boolean;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+    versionNumber?: number;
+  },
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseStructureServiceStructureDataKeyFn({
+      dagId,
+      externalDependencies,
+      includeDownstream,
+      includeUpstream,
+      root,
+      versionNumber,
+    }),
+    queryFn: () =>
+      StructureService.structureData({
+        dagId,
+        externalDependencies,
+        includeDownstream,
+        includeUpstream,
+        root,
+        versionNumber,
+      }),
+  });
+/**
+ * Grid Data
+ * Return grid data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @param data.root
+ * @param data.offset
+ * @param data.runType
+ * @param data.state
+ * @param data.limit
+ * @param data.orderBy
+ * @param data.runAfterGte
+ * @param data.runAfterLte
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
+ * @returns GridResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseGridServiceGridDataData = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    root,
+    runAfterGte,
+    runAfterLte,
+    runType,
+    state,
+  }: {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    root?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
+    runType?: string[];
+    state?: string[];
+  },
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseGridServiceGridDataKeyFn({
+      dagId,
+      includeDownstream,
+      includeUpstream,
+      limit,
+      logicalDateGte,
+      logicalDateLte,
+      offset,
+      orderBy,
+      root,
+      runAfterGte,
+      runAfterLte,
+      runType,
+      state,
+    }),
+    queryFn: () =>
+      GridService.gridData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        root,
+        runAfterGte,
+        runAfterLte,
+        runType,
+        state,
+      }),
   });

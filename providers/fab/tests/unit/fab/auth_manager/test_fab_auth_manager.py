@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -34,14 +34,12 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
-try:
+with suppress(ImportError):
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         DagAccessEntity,
         DagDetails,
     )
-except ImportError:
-    pass
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
@@ -60,6 +58,7 @@ from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_DELETE,
     ACTION_CAN_EDIT,
     ACTION_CAN_READ,
+    RESOURCE_AUDIT_LOG,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
@@ -488,9 +487,9 @@ class TestFabAuthManager:
                 [],
             ),
             (
-                [MenuItem.ASSET_EVENTS, MenuItem.VARIABLES],
-                [(ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
-                [MenuItem.ASSET_EVENTS],
+                [MenuItem.AUDIT_LOG, MenuItem.VARIABLES],
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_AUDIT_LOG), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
+                [MenuItem.AUDIT_LOG],
             ),
             (
                 [],
@@ -617,11 +616,11 @@ class TestFabAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
 
     def test_get_url_logout(self, auth_manager):
         result = auth_manager.get_url_logout()
-        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/"
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/"
 
     @mock.patch.object(FabAuthManager, "_is_authorized", return_value=True)
     def test_get_extra_menu_items(self, _, auth_manager_with_appbuilder, flask_app):

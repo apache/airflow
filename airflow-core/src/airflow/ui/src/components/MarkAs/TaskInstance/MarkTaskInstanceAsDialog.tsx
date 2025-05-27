@@ -63,6 +63,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
     mapIndex,
     options: {
       enabled: open,
+      refetchOnMount: "always",
     },
     requestBody: {
       include_downstream: downstream,

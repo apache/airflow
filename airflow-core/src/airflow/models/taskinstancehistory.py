@@ -25,6 +25,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -40,6 +41,7 @@ from sqlalchemy_utils import UUIDType
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
@@ -61,10 +63,10 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    try_id = Column(UUIDType(binary=False), nullable=False, primary_key=True)
     task_instance_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         nullable=False,
+        primary_key=True,
     )
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
@@ -92,6 +94,8 @@ class TaskInstanceHistory(Base):
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
+    context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
+    span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
 
     external_executor_id = Column(StringID())
     trigger_id = Column(Integer)
@@ -107,6 +111,13 @@ class TaskInstanceHistory(Base):
         primaryjoin="TaskInstanceHistory.dag_version_id == DagVersion.id",
         viewonly=True,
         foreign_keys=[dag_version_id],
+    )
+
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="and_(TaskInstanceHistory.run_id == DagRun.run_id, DagRun.dag_id == TaskInstanceHistory.dag_id)",
+        viewonly=True,
+        foreign_keys=[run_id, dag_id],
     )
 
     def __init__(
@@ -147,6 +158,7 @@ class TaskInstanceHistory(Base):
             "try_number",
             name="task_instance_history_dtrt_uq",
         ),
+        Index("idx_tih_dag_run", dag_id, run_id),
     )
 
     @staticmethod

@@ -32,7 +32,7 @@ __deprecated_classes = {
         "PythonSensor": "airflow.providers.standard.sensors.python.PythonSensor",
     },
     "bash":{
-        "BashSensor": "airflow.providers.standard.sensor.bash.BashSensor",
+        "BashSensor": "airflow.providers.standard.sensors.bash.BashSensor",
     },
     "date_time":{
         "DateTimeSensor": "airflow.providers.standard.sensors.date_time.DateTimeSensor",

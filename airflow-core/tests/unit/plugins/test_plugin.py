@@ -20,6 +20,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView, expose
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
@@ -89,6 +90,27 @@ app = FastAPI()
 app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
 
+class DummyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        return await call_next(request)
+
+
+middleware_with_metadata = {
+    "middleware": DummyMiddleware,
+    "args": [],
+    "kwargs": {},
+    "name": "Name of the Middleware",
+}
+
+iframe_view_with_metadata = {
+    "name": "Test IFrame Plugin",
+    "src": "https://www.google.com",
+    "icon": "https://example.com/icon.svg",
+    "url_route": "/test_iframe_plugin",
+    "destination": "nav",
+}
+
+
 # Extend an existing class to avoid the need to implement the full interface
 class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
     pass
@@ -105,6 +127,8 @@ class AirflowTestPlugin(AirflowPlugin):
     macros = [plugin_macro]
     flask_blueprints = [bp]
     fastapi_apps = [app_with_metadata]
+    fastapi_root_middlewares = [middleware_with_metadata]
+    iframe_views = [iframe_view_with_metadata]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
     global_operator_extra_links = [

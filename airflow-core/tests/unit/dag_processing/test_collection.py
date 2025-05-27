@@ -31,8 +31,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
+from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
+    DagModelOperation,
     _get_latest_runs_stmt,
     update_dag_parsing_results_in_db,
 )
@@ -41,9 +43,9 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun, Trigger
 from airflow.models.asset import (
     AssetActive,
+    AssetModel,
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
-    asset_trigger_association_table,
 )
 from airflow.models.dag import DAG
 from airflow.models.errors import ParseImportError
@@ -53,7 +55,6 @@ from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.utils import timezone as tz
-from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -128,38 +129,37 @@ class TestAssetModelOperation:
             (False, False, 0),
         ],
     )
-    def test_add_asset_trigger_references(self, is_active, is_paused, expected_num_triggers, dag_maker):
-        trigger = TimeDeltaTrigger(timedelta(seconds=0))
-        classpath, kwargs = trigger.serialize()
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_trigger_references(self, session, is_active, is_paused, expected_num_triggers):
+        classpath, kwargs = TimeDeltaTrigger(timedelta(seconds=0)).serialize()
         asset = Asset(
             "test_add_asset_trigger_references_asset",
             watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
         )
 
-        with dag_maker(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:
+        with DAG(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:
             EmptyOperator(task_id="mytask")
 
-            asset_op = AssetModelOperation.collect({"test_add_asset_trigger_references_dag": dag})
+        dags = {dag.dag_id: dag}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
 
-        with create_session() as session:
-            # Update `is_active` and `is_paused` properties from DAG
-            dags = session.query(DagModel).all()
-            for dag in dags:
-                dag.is_active = is_active
-                dag.is_paused = is_paused
+        # Simulate dag unpause and deletion.
+        dag_model = orm_dags[dag.dag_id]
+        dag_model.is_stale = not is_active
+        dag_model.is_paused = is_paused
 
-            orm_assets = asset_op.sync_assets(session=session)
-            # Create AssetActive objects from assets. It is usually done in the scheduler
-            for asset in orm_assets.values():
-                session.add(AssetActive.for_asset(asset))
-            session.commit()
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
 
-            asset_op.add_asset_trigger_references(orm_assets, session=session)
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
 
-            session.commit()
-
-            assert session.query(Trigger).count() == expected_num_triggers
-            assert session.query(asset_trigger_association_table).count() == expected_num_triggers
+        asset_model = session.scalars(select(AssetModel)).one()
+        assert len(asset_model.triggers) == expected_num_triggers
+        assert session.scalar(select(func.count()).select_from(Trigger)) == expected_num_triggers
 
     @pytest.mark.parametrize(
         "schedule, model, columns, expected",
@@ -241,6 +241,82 @@ class TestAssetModelOperation:
 
 
 @pytest.mark.db_test
+@pytest.mark.want_activate_assets(False)
+class TestAssetModelOperationSyncAssetActive:
+    @staticmethod
+    def clean_db():
+        clear_db_dags()
+        clear_db_assets()
+        clear_db_triggers()
+
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> Generator:
+        self.clean_db()
+        yield
+        self.clean_db()
+
+    def test_add_asset_activate(self, dag_maker, session):
+        asset = Asset("myasset", "file://myasset/", group="old_group")
+        with dag_maker(schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        assert len(orm_assets) == 1
+
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+        assert orm_assets["myasset", "file://myasset/"].active is not None
+
+    def test_add_asset_activate_already_exists(self, dag_maker, session):
+        asset = Asset("myasset", "file://myasset/", group="old_group")
+
+        session.add(AssetModel.from_public(asset))
+        session.flush()
+        session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        with dag_maker(schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        assert len(orm_assets) == 1
+
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+        assert orm_assets["myasset", "file://myasset/"].active is not None, "should pick up existing active"
+
+    @pytest.mark.parametrize(
+        "existing_assets",
+        [
+            pytest.param([Asset("myasset", uri="file://different/asset")], id="name"),
+            pytest.param([Asset("another", uri="file://myasset/")], id="uri"),
+        ],
+    )
+    def test_add_asset_activate_conflict(self, dag_maker, session, existing_assets):
+        session.add_all(AssetModel.from_public(a) for a in existing_assets)
+        session.flush()
+        session.add_all(AssetActive.for_asset(a) for a in existing_assets)
+        session.flush()
+
+        asset = Asset(name="myasset", uri="file://myasset/", group="old_group")
+        with dag_maker(schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        assert len(orm_assets) == 1
+
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+        assert orm_assets["myasset", "file://myasset/"].active is None, "should not activate due to conflict"
+
+
+@pytest.mark.db_test
 class TestUpdateDagParsingResults:
     """Tests centred around the ``update_dag_parsing_results_in_db`` function."""
 
@@ -264,6 +340,10 @@ class TestUpdateDagParsingResults:
         ser_dict = SerializedDAG.to_dict(dag)
         return LazyDeserializedDAG(data=ser_dict)
 
+    @pytest.mark.skipif(
+        condition="FabAuthManager" not in conf.get("core", "auth_manager"),
+        reason="This is only for FabAuthManager",
+    )
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
     def test_sync_perms_syncs_dag_specific_perms_on_update(
         self, monkeypatch, spy_agency: SpyAgency, session, time_machine, testing_dag_bundle
@@ -490,6 +570,36 @@ class TestUpdateDagParsingResults:
         import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
 
         assert import_errors == {("def.py", bundle_name)}
+
+    def test_remove_error_updates_loaded_dag_model(self, testing_dag_bundle, session):
+        bundle_name = "testing"
+        filename = "abc.py"
+        session.add(
+            ParseImportError(
+                filename=filename,
+                bundle_name=bundle_name,
+                timestamp=tz.utcnow(),
+                stacktrace="Some error",
+            )
+        )
+        session.add(
+            ParseImportError(
+                filename="def.py",
+                bundle_name=bundle_name,
+                timestamp=tz.utcnow(),
+                stacktrace="Some error",
+            )
+        )
+        session.flush()
+        dag = DAG(dag_id="test")
+        dag.fileloc = filename
+        import_errors = {filename: "Some error"}
+        update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
+        dag_model = session.get(DagModel, (dag.dag_id,))
+        assert dag_model.has_import_errors is True
+        import_errors = {}
+        update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
+        assert dag_model.has_import_errors is False
 
     @pytest.mark.parametrize(
         ("attrs", "expected"),

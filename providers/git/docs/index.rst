@@ -72,7 +72,7 @@ apache-airflow-providers-git package
 `Distributed version control system (GIT) <https://git-scm.com/>`__
 
 
-Release: 0.0.1
+Release: 0.0.2
 
 Provider package
 ----------------
@@ -90,11 +90,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``3.0.0.dev0``.
+The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=3.0.0.dev0``
+``apache-airflow``  ``>=3.0.0``
 ``GitPython``       ``>=3.1.44``
 ==================  ==================

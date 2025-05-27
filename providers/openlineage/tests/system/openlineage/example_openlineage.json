@@ -33,9 +33,7 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}",
-                        "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ result is string }}"
+                        "try_number": "{{ result is number }}"
                     },
                     "task": {
                         "inlets": "[]",
@@ -54,7 +52,6 @@
                         "operator_class_path": "{{ result.endswith('.PythonOperator') }}",
                         "wait_for_downstream": false,
                         "retry_exponential_backoff": false,
-                        "ignore_first_depends_on_past": false,
                         "wait_for_past_depends_before_skipping": false
                     },
                     "taskUuid": "{{ is_uuid(result) }}"
@@ -123,9 +120,7 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}",
-                        "queued_dttm": "{{ is_datetime(result) }}",
-                        "log_url": "{{ result is string }}"
+                        "try_number": "{{ result is number }}"
                     },
                     "task": {
                         "inlets": "[]",
@@ -144,7 +139,6 @@
                         "operator_class_path": "{{ result.endswith('.PythonOperator') }}",
                         "wait_for_downstream": false,
                         "retry_exponential_backoff": false,
-                        "ignore_first_depends_on_past": false,
                         "wait_for_past_depends_before_skipping": false
                     },
                     "taskUuid": "{{ is_uuid(result) }}"

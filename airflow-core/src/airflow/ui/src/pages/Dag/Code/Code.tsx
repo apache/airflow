@@ -18,6 +18,7 @@
  */
 import { Box, Button, Heading, HStack, Link } from "@chakra-ui/react";
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useParams } from "react-router-dom";
 import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
@@ -28,10 +29,12 @@ import {
   useDagSourceServiceGetDagSource,
   useDagVersionServiceGetDagVersion,
 } from "openapi/queries";
-import DagVersionSelect from "src/components/DagVersionSelect";
+import type { ApiError } from "openapi/requests/core/ApiError";
+import type { DAGSourceResponse } from "openapi/requests/types.gen";
+import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardButton } from "src/components/ui";
+import { ClipboardRoot, ClipboardButton, Tooltip } from "src/components/ui";
 import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -65,7 +68,7 @@ export const Code = () => {
     data: code,
     error: codeError,
     isLoading: isCodeLoading,
-  } = useDagSourceServiceGetDagSource({
+  } = useDagSourceServiceGetDagSource<DAGSourceResponse, ApiError | null>({
     dagId: dagId ?? "",
     versionNumber: selectedVersion,
   });
@@ -76,6 +79,8 @@ export const Code = () => {
 
   const toggleWrap = () => setWrap(!wrap);
   const { colorMode } = useColorMode();
+
+  useHotkeys("w", toggleWrap);
 
   const style = colorMode === "dark" ? oneDark : oneLight;
 
@@ -121,17 +126,28 @@ export const Code = () => {
           <ClipboardRoot value={code?.content ?? ""}>
             <ClipboardButton />
           </ClipboardRoot>
-          <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
-            {wrap ? "Unwrap" : "Wrap"}
-          </Button>
+          <Tooltip closeDelay={100} content="Press w to toggle wrap" openDelay={100}>
+            <Button
+              aria-label={wrap ? "Unwrap" : "Wrap"}
+              bg="bg.panel"
+              onClick={toggleWrap}
+              variant="outline"
+            >
+              {wrap ? "Unwrap" : "Wrap"}
+            </Button>
+          </Tooltip>
         </HStack>
       </HStack>
-      <ErrorAlert error={error ?? codeError} />
+      {/* We want to show an empty state on 404 instead of an error */}
+      <ErrorAlert error={error ?? (codeError?.status === 404 ? undefined : codeError)} />
       <ProgressBar size="xs" visibility={isLoading || isCodeLoading ? "visible" : "hidden"} />
-      <div
-        style={{
-          fontSize: "14px",
+      <Box
+        css={{
+          "& *::selection": {
+            bg: "gray.emphasized",
+          },
         }}
+        fontSize="14px"
       >
         <SyntaxHighlighter
           language="python"
@@ -174,9 +190,9 @@ export const Code = () => {
           style={style}
           wrapLongLines={wrap}
         >
-          {code?.content ?? ""}
+          {codeError?.status === 404 && !Boolean(code?.content) ? "No Code Found" : (code?.content ?? "")}
         </SyntaxHighlighter>
-      </div>
+      </Box>
     </Box>
   );
 };

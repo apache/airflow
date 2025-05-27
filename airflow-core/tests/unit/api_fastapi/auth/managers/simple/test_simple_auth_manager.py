@@ -118,7 +118,7 @@ class TestSimpleAuthManager:
     def test_get_url_login_with_all_admins(self, auth_manager):
         with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
             result = auth_manager.get_url_login()
-            assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token"
+            assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/login"
 
     def test_deserialize_user(self, auth_manager):
         result = auth_manager.deserialize_user({"sub": "test", "role": "admin"})

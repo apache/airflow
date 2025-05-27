@@ -23,13 +23,8 @@ from typing import Any
 
 import pendulum
 
-from airflow.exceptions import AirflowException
-from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import BaseTrigger, TaskSuccessEvent, TriggerEvent
 from airflow.utils import timezone
-
-if AIRFLOW_V_2_10_PLUS:
-    from airflow.triggers.base import TaskSuccessEvent
 
 
 class DateTimeTrigger(BaseTrigger):
@@ -51,13 +46,9 @@ class DateTimeTrigger(BaseTrigger):
         if not isinstance(moment, datetime.datetime):
             raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
         # Make sure it's in UTC
-        elif moment.tzinfo is None:
+        if moment.tzinfo is None:
             raise ValueError("You cannot pass naive datetimes")
-        else:
-            self.moment: pendulum.DateTime = timezone.convert_to_utc(moment)
-        if not AIRFLOW_V_2_10_PLUS and end_from_trigger:
-            raise AirflowException("end_from_trigger is only supported in Airflow 2.10 and later. ")
-
+        self.moment: pendulum.DateTime = timezone.convert_to_utc(moment)
         self.end_from_trigger = end_from_trigger
 
     def serialize(self) -> tuple[str, dict[str, Any]]:

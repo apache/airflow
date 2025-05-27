@@ -28,7 +28,7 @@ from rich.console import Console
 
 console = Console(color_system="standard", width=200)
 
-LOGGIN_MATCHER = re.compile(r'^log.?[a-z]*\.[a-z]*\(f.*["\']')
+LOGGING_MATCHER = re.compile(r'^log.?[a-z]*\.[a-z]*\(f.*["\']')
 SELF_LOG_MATCHER = re.compile(r'^self\.log\.[a-z]*\(f.*["\']')
 
 
@@ -48,7 +48,7 @@ class LogFinder(astor.TreeWalk):
             or (self.cur_node.func.attr in ["log", "debug", "warning", "info", "error", "critical"])
         ):
             line = astor.to_source(self.cur_node, add_line_information=True)
-            if LOGGIN_MATCHER.match(line) or SELF_LOG_MATCHER.match(line):
+            if LOGGING_MATCHER.match(line) or SELF_LOG_MATCHER.match(line):
                 if not self.module_printed:
                     self.module_printed = True
                     console.print(f"[red]Error:[/] {self.name}")

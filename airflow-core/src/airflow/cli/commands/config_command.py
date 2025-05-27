@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from io import StringIO
 from typing import Any, NamedTuple
@@ -26,7 +27,7 @@ import pygments
 from pygments.lexers.configs import IniLexer
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
+from airflow.configuration import AIRFLOW_CONFIG, ConfigModifications, conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.cli import should_use_colors
 from airflow.utils.code_utils import get_terminal_formatter
@@ -83,22 +84,28 @@ class ConfigChange:
 
     :param config: The configuration parameter being changed.
     :param default_change: If the change is a default value change.
+    :param old_default: The old default value (valid only if default_change is True).
     :param new_default: The new default value for the configuration parameter.
     :param suggestion: A suggestion for replacing or handling the removed configuration.
     :param renamed_to: The new section and option if the configuration is renamed.
     :param was_deprecated: If the config is removed, whether the old config was deprecated.
     :param was_removed: If the config is removed.
     :param is_invalid_if: If the current config value is invalid in the future.
+    :param breaking: Mark if this change is known to be breaking and causing errors/ warnings / deprecations.
+    :param remove_if_equals: For removal rules, remove the option only if its current value equals this value.
     """
 
     config: ConfigParameter
     default_change: bool = False
+    old_default: str | bool | int | float | None = None
     new_default: str | bool | int | float | None = None
     suggestion: str = ""
     renamed_to: ConfigParameter | None = None
     was_deprecated: bool = True
     was_removed: bool = True
     is_invalid_if: Any = None
+    breaking: bool = False
+    remove_if_equals: str | bool | int | float | None = None
 
     @property
     def message(self) -> str | None:
@@ -107,10 +114,9 @@ class ConfigChange:
             value = conf.get(self.config.section, self.config.option)
             if value != self.new_default:
                 return (
-                    f"Changed default value of `{self.config.option}` "
-                    f"configuration parameter in `{self.config.section}` to `{self.new_default}`. "
-                    f"You currently have `{value}` set. "
-                    f"{self.suggestion} "
+                    f"Changed default value of `{self.config.option}` in `{self.config.section}` "
+                    f"from `{self.old_default}` to `{self.new_default}`. "
+                    f"You currently have `{value}` set. {self.suggestion}"
                 )
         if self.renamed_to:
             if self.config.section != self.renamed_to.section:
@@ -122,7 +128,7 @@ class ConfigChange:
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
-        if self.was_removed:
+        if self.was_removed and not self.remove_if_equals:
             return (
                 f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
                 f"from `{self.config.section}` section. "
@@ -150,6 +156,18 @@ CONFIGS_CHANGES = [
     ),
     # core
     ConfigChange(
+        config=ConfigParameter("core", "executor"),
+        default_change=True,
+        old_default="SequentialExecutor",
+        new_default="LocalExecutor",
+        was_removed=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "hostname"),
+        was_removed=True,
+        remove_if_equals=":",
+    ),
+    ConfigChange(
         config=ConfigParameter("core", "check_slas"),
         suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
     ),
@@ -157,6 +175,14 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("core", "strict_dataset_uri_validation"),
         suggestion="Dataset URI with a defined scheme will now always be validated strictly, "
         "raising a hard error on validation failure.",
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dag_default_view"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dag_orientation"),
+        was_deprecated=False,
     ),
     ConfigChange(
         config=ConfigParameter("core", "dataset_manager_class"),
@@ -275,6 +301,18 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("logging", "log_processor_filename_template"),
         was_deprecated=False,
     ),
+    ConfigChange(
+        config=ConfigParameter("logging", "log_filename_template"),
+        was_removed=True,
+        remove_if_equals="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("logging", "log_filename_template"),
+        was_removed=True,
+        remove_if_equals="dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}attempt={{ try_number }}.log",
+        breaking=True,
+    ),
     # metrics
     ConfigChange(
         config=ConfigParameter("metrics", "metrics_use_pattern_match"),
@@ -309,6 +347,16 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "cookie_samesite"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "audit_view_included_events"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "audit_view_excluded_events"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "instance_name"),
+        renamed_to=ConfigParameter("api", "instance_name"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "update_fab_perms"),
         renamed_to=ConfigParameter("fab", "update_fab_perms"),
     ),
@@ -321,12 +369,60 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "auth_rate_limit"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "config_file"),
+        renamed_to=ConfigParameter("fab", "config_file"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "session_backend"),
+        renamed_to=ConfigParameter("fab", "session_backend"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "session_lifetime_days"),
-        renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "force_log_out_after"),
-        renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "access_denied_message"),
+        renamed_to=ConfigParameter("fab", "access_denied_message"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "expose_hostname"),
+        renamed_to=ConfigParameter("fab", "expose_hostname"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_color"),
+        renamed_to=ConfigParameter("fab", "navbar_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_text_color"),
+        renamed_to=ConfigParameter("fab", "navbar_text_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_hover_color"),
+        renamed_to=ConfigParameter("fab", "navbar_hover_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_text_hover_color"),
+        renamed_to=ConfigParameter("fab", "navbar_text_hover_color"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "x_frame_enabled"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "base_url"),
+        renamed_to=ConfigParameter("api", "base_url"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "secret_key"),
+        renamed_to=ConfigParameter("api", "secret_key"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
@@ -355,6 +451,14 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "access_logfile"),
         renamed_to=ConfigParameter("api", "access_logfile"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "grid_view_sorting_order"),
+        renamed_to=ConfigParameter("api", "grid_view_sorting_order"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "enable_swagger_ui"),
+        renamed_to=ConfigParameter("api", "enable_swagger_ui"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "error_logfile"),
@@ -405,28 +509,64 @@ CONFIGS_CHANGES = [
         was_deprecated=False,
     ),
     ConfigChange(
-        config=ConfigParameter("webserver", "enable_proxy_fix"),
+        config=ConfigParameter("webserver", "log_fetch_timeout_sec"),
+        renamed_to=ConfigParameter("api", "log_fetch_timeout_sec"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "hide_paused_dags_by_default"),
+        renamed_to=ConfigParameter("api", "hide_paused_dags_by_default"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "page_size"),
+        renamed_to=ConfigParameter("api", "page_size"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "default_wrap"),
+        renamed_to=ConfigParameter("api", "default_wrap"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "require_confirmation_dag_change"),
+        renamed_to=ConfigParameter("api", "require_confirmation_dag_change"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "instance_name_has_markup"),
         was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "warn_deployment_exposure"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "auto_refresh_interval"),
+        renamed_to=ConfigParameter("api", "auto_refresh_interval"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "enable_proxy_fix"),
+        renamed_to=ConfigParameter("fab", "enable_proxy_fix"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_for"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_for"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_proto"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_proto"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_host"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_host"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_port"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_port"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "proxy_fix_x_prefix"),
-        was_deprecated=False,
+        renamed_to=ConfigParameter("fab", "proxy_fix_x_prefix"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "expose_config"),
+        renamed_to=ConfigParameter("api", "expose_config"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_secure"),
@@ -476,10 +616,18 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "max_form_parts"),
         was_deprecated=False,
     ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "default_ui_timezone"),
+        was_deprecated=False,
+    ),
     # policy
     ConfigChange(
         config=ConfigParameter("policy", "airflow_local_settings"),
         renamed_to=ConfigParameter("policy", "task_policy"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_logo_text_color"),
+        was_deprecated=False,
     ),
     # scheduler
     ConfigChange(
@@ -491,6 +639,7 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("scheduler", "catchup_by_default"),
         default_change=True,
+        old_default="True",
         was_removed=False,
         new_default="False",
         suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
@@ -499,6 +648,20 @@ CONFIGS_CHANGES = [
         "If your DAGs rely on catchup behavior, not explicitly defined in the DAG definition, "
         "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` "
         "to enable the behavior from Airflow 2.x.",
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "create_cron_data_intervals"),
+        default_change=True,
+        old_default="True",
+        new_default="False",
+        was_removed=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "create_delta_data_intervals"),
+        default_change=True,
+        old_default="True",
+        new_default="False",
+        was_removed=False,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),
@@ -591,6 +754,10 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "zombie_detection_interval"),
         renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_timeout_detection_interval"),
     ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "child_process_log_directory"),
+        renamed_to=ConfigParameter("logging", "dag_processor_child_process_log_directory"),
+    ),
     # celery
     ConfigChange(
         config=ConfigParameter("celery", "stalled_task_timeout"),
@@ -631,6 +798,19 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("triggerer", "default_capacity"),
         renamed_to=ConfigParameter("triggerer", "capacity"),
     ),
+    # email
+    ConfigChange(
+        config=ConfigParameter("email", "email_backend"),
+        was_removed=True,
+        remove_if_equals="airflow.contrib.utils.sendgrid.send_email",
+    ),
+    # elasticsearch
+    ConfigChange(
+        config=ConfigParameter("elasticsearch", "log_id_template"),
+        was_removed=True,
+        remove_if_equals="{dag_id}-{task_id}-{logical_date}-{try_number}",
+        breaking=True,
+    ),
 ]
 
 
@@ -666,14 +846,14 @@ def lint_config(args) -> None:
         1. Lint all sections and options:
             airflow config lint
 
-        2. Lint a specific sections:
+        2. Lint a specific section:
             airflow config lint --section core,webserver
 
-        3. Lint a specific sections and options:
+        3. Lint specific sections and options:
             airflow config lint --section smtp --option smtp_user
 
-        4. Ignore a sections:
-            irflow config lint --ignore-section webserver,api
+        4. Ignore a section:
+            airflow config lint --ignore-section webserver,api
 
         5. Ignore an options:
             airflow config lint --ignore-option smtp_user,session_lifetime_days
@@ -719,3 +899,179 @@ def lint_config(args) -> None:
         console.print("\n[red]Please update your configuration file accordingly.[/red]")
     else:
         console.print("[green]No issues found in your airflow.cfg. It is ready for Airflow 3![/green]")
+
+
+@providers_configuration_loaded
+def update_config(args) -> None:
+    """
+    Update the airflow.cfg file to migrate configuration changes from Airflow 2.x to Airflow 3.
+
+    By default, this command will perform a dry-run (showing the changes only) and list only
+    the breaking configuration changes by scanning the current configuration file for parameters that have
+    been renamed, removed, or had their default values changed in Airflow 3.0. To see or fix all recommended
+    changes, use the --all-recommendations argument. To automatically update your airflow.cfg file, use
+    the --fix argument. This command cleans up the existing comments in airflow.cfg but creates a backup of
+    the old airflow.cfg file.
+
+    CLI Arguments:
+        --fix: flag (optional)
+            Automatically fix/apply the breaking changes (or all changes if --all-recommendations is also
+            specified)
+            Example: --fix
+
+        --all-recommendations: flag (optional)
+            Include non-breaking (recommended) changes as well as breaking ones.
+            Can be used with --fix.
+            Example: --all-recommendations
+
+        --section: str (optional)
+            Comma-separated list of configuration sections to update.
+            Example: --section core,database
+
+        --option: str (optional)
+            Comma-separated list of configuration options to update.
+            Example: --option sql_alchemy_conn,dag_concurrency
+
+        --ignore-section: str (optional)
+            Comma-separated list of configuration sections to ignore during update.
+            Example: --ignore-section webserver
+
+        --ignore-option: str (optional)
+            Comma-separated list of configuration options to ignore during update.
+            Example: --ignore-option check_slas
+
+    Examples:
+        1. Dry-run mode (print the changes in modified airflow.cfg) showing only breaking changes:
+            airflow config update
+
+        2. Dry-run mode showing all recommendations:
+            airflow config update --all-recommendations
+
+        3. Apply (fix) only breaking changes:
+            airflow config update --fix
+
+        4. Apply (fix) all recommended changes:
+            airflow config update --fix --all-recommendations
+
+        5. Show changes only the specific sections:
+            airflow config update --section core,database
+
+        6.Show changes only the specific options:
+            airflow config update --option sql_alchemy_conn,dag_concurrency
+
+        7. Ignores the specific section:
+            airflow config update --ignore-section webserver
+
+    :param args: The CLI arguments for updating configuration.
+    """
+    console = AirflowConsole()
+    changes_applied: list[str] = []
+    modifications = ConfigModifications()
+
+    include_all = args.all_recommendations if args.all_recommendations else False
+    apply_fix = args.fix if args.fix else False
+    dry_run = not apply_fix
+    update_sections = args.section if args.section else None
+    update_options = args.option if args.option else None
+    ignore_sections = args.ignore_section if args.ignore_section else []
+    ignore_options = args.ignore_option if args.ignore_option else []
+
+    config_dict = conf.as_dict(
+        display_source=True,
+        include_env=False,
+        include_cmds=False,
+        include_secret=True,
+        display_sensitive=True,
+    )
+    for change in CONFIGS_CHANGES:
+        if not include_all and not change.breaking:
+            continue
+        conf_section = change.config.section.lower()
+        conf_option = change.config.option.lower()
+        full_key = f"{conf_section}.{conf_option}"
+
+        if update_sections is not None and conf_section not in [s.lower() for s in update_sections]:
+            continue
+        if update_options is not None and full_key not in [opt.lower() for opt in update_options]:
+            continue
+        if conf_section in [s.lower() for s in ignore_sections] or full_key in [
+            opt.lower() for opt in ignore_options
+        ]:
+            continue
+
+        if conf_section not in config_dict or conf_option not in config_dict[conf_section]:
+            continue
+        value_data = config_dict[conf_section][conf_option]
+        if not (isinstance(value_data, tuple) and value_data[1] == "airflow.cfg"):
+            continue
+
+        current_value = value_data[0]
+        prefix = "[[red]BREAKING[/red]]" if change.breaking else "[[yellow]Recommended[/yellow]]"
+        if change.default_change:
+            if str(current_value) != str(change.new_default):
+                modifications.add_default_update(conf_section, conf_option, str(change.new_default))
+                changes_applied.append(
+                    f"{prefix} Updated default value of '{conf_section}/{conf_option}' from "
+                    f"'{current_value}' to '{change.new_default}'."
+                )
+        if change.renamed_to:
+            modifications.add_rename(
+                conf_section, conf_option, change.renamed_to.section, change.renamed_to.option
+            )
+            changes_applied.append(
+                f"{prefix} Renamed '{conf_section}/{conf_option}' to "
+                f"'{change.renamed_to.section.lower()}/{change.renamed_to.option.lower()}'."
+            )
+        elif change.was_removed:
+            if change.remove_if_equals is not None:
+                if str(current_value) == str(change.remove_if_equals):
+                    modifications.add_remove(conf_section, conf_option)
+                    changes_applied.append(
+                        f"{prefix} Removed '{conf_section}/{conf_option}' from configuration."
+                    )
+            else:
+                modifications.add_remove(conf_section, conf_option)
+                changes_applied.append(f"{prefix} Removed '{conf_section}/{conf_option}' from configuration.")
+
+    backup_path = f"{AIRFLOW_CONFIG}.bak"
+    try:
+        shutil.copy2(AIRFLOW_CONFIG, backup_path)
+        console.print(f"Backup saved as '{backup_path}'.")
+    except Exception as e:
+        console.print(f"Failed to create backup: {e}")
+        raise AirflowConfigException("Backup creation failed. Aborting update_config operation.")
+
+    if dry_run:
+        console.print("[blue]Dry-run mode enabled. No changes will be written to airflow.cfg.[/blue]")
+        with StringIO() as config_output:
+            conf.write_custom_config(
+                file=config_output,
+                comment_out_defaults=True,
+                include_descriptions=True,
+                modifications=modifications,
+            )
+            new_config = config_output.getvalue()
+        console.print(new_config)
+    else:
+        with open(AIRFLOW_CONFIG, "w") as config_file:
+            conf.write_custom_config(
+                file=config_file,
+                comment_out_defaults=True,
+                include_descriptions=True,
+                modifications=modifications,
+            )
+
+    if changes_applied:
+        console.print("[green]The following are the changes in airflow config:[/green]")
+        for change_msg in changes_applied:
+            console.print(f"  - {change_msg}")
+        if dry_run:
+            console.print(
+                "[blue]Dry-run mode is enabled. To apply above airflow.cfg run the command "
+                "with `--fix`.[/blue]"
+            )
+    else:
+        console.print("[green]No updates needed. Your configuration is already up-to-date.[/green]")
+
+    if args.verbose:
+        console.print("[blue]Configuration update completed with verbose output enabled.[/blue]")

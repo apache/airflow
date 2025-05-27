@@ -46,6 +46,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 from unit.utils.test_config import (
     remove_all_configurations,
@@ -70,6 +71,12 @@ conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
 def restore_env():
     with mock.patch.dict("os.environ"):
         yield
+
+
+@pytest.fixture(scope="module", autouse=True)
+def restore_providers_manager_configuration():
+    yield
+    ProvidersManager().initialize_providers_configuration()
 
 
 def parameterized_config(template) -> str:
@@ -266,6 +273,7 @@ key1 = true
         ):
             assert test_conf.getboolean(section, key) is False
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
@@ -336,6 +344,7 @@ sql_alchemy_conn = airflow
         # is True
         assert test_conf.as_dict(display_sensitive=True, include_cmds=False)
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
@@ -600,8 +609,8 @@ key3 = value3
         cmd_file.write_text("#!/usr/bin/env bash\necho -n difficult_unpredictable_cat_password\n")
         cmd_file.chmod(0o0555)
 
-        monkeypatch.setenv("AIRFLOW__WEBSERVER__SECRET_KEY_CMD", str(cmd_file))
-        content = conf.getsection("webserver")
+        monkeypatch.setenv("AIRFLOW__API__SECRET_KEY_CMD", str(cmd_file))
+        content = conf.getsection("api")
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
 
     @pytest.mark.parametrize(
@@ -619,11 +628,13 @@ key3 = value3
         assert isinstance(section_dict[key], type)
 
     def test_command_from_env(self):
-        test_cmdenv_config = textwrap.dedent("""\
+        test_cmdenv_config = textwrap.dedent(
+            """\
             [testcmdenv]
             itsacommand=NOT OK
             notacommand=OK
-        """)
+        """
+        )
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
@@ -737,7 +748,7 @@ key3 = value3
             run_command('bash -c "exit 1"')
 
     def test_confirm_unittest_mod(self):
-        assert conf.get("core", "unit_test_mode")
+        assert conf.getboolean("core", "unit_test_mode")
 
     def test_enum_default_task_weight_rule_from_conf(self):
         test_conf = AirflowConfigParser(default_config="")
@@ -886,6 +897,7 @@ key7 =
         assert isinstance(test_conf.gettimedelta("default", "key7"), type(None))
         assert test_conf.gettimedelta("default", "key7") is None
 
+    @skip_if_force_lowest_dependencies_marker
     @conf_vars(
         {
             (
@@ -903,6 +915,7 @@ key7 =
         assert len(backends) == 2
         assert "SystemsManagerParameterStoreBackend" in backend_classes
 
+    @skip_if_force_lowest_dependencies_marker
     @conf_vars(
         {
             (
@@ -923,6 +936,7 @@ key7 =
         assert systems_manager.kwargs == {}
         assert systems_manager.use_ssl is False
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
         (
             "secrets_backend",
@@ -1107,7 +1121,7 @@ class TestDeprecatedConf:
         test_conf = AirflowConfigParser(
             default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """
@@ -1136,7 +1150,7 @@ sql_alchemy_conn=sqlite://test
         test_conf = AirflowConfigParser(
             default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """
@@ -1172,7 +1186,7 @@ sql_alchemy_conn=sqlite://test
             test_conf = AirflowConfigParser(
                 default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """
@@ -1688,6 +1702,7 @@ sql_alchemy_conn=sqlite://test
         assert sum(1 for option in all_core_options_including_defaults if option == "hostname_callable") == 1
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_sensitive_values():
     from airflow.settings import conf
 
@@ -1698,9 +1713,8 @@ def test_sensitive_values():
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
-        ("core", "internal_api_secret_key"),
         ("api_auth", "jwt_secret"),
-        ("webserver", "secret_key"),
+        ("api", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
@@ -1711,6 +1725,7 @@ def test_sensitive_values():
         ("celery", "result_backend"),
         ("opensearch", "username"),
         ("opensearch", "password"),
+        ("webserver", "secret_key"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
@@ -1724,6 +1739,7 @@ def test_sensitive_values():
     assert sensitive_values == conf.sensitive_config_values
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_restore_and_reload_provider_configuration():
     from airflow.settings import conf
 
@@ -1738,6 +1754,7 @@ def test_restore_and_reload_provider_configuration():
     assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_error_when_contributing_to_existing_section():
     from airflow.settings import conf
 

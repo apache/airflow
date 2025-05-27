@@ -41,8 +41,7 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    RUNS_ON_PUBLIC_RUNNER,
-    RUNS_ON_SELF_HOSTED_RUNNER,
+    PUBLIC_AMD_RUNNERS,
     GithubEvents,
     github_events,
 )
@@ -156,7 +155,7 @@ def fix_ownership(use_sudo: bool):
         fix_ownership_without_docker()
         sys.exit(0)
     get_console().print("[info]Fixing ownership using docker.")
-    fix_ownership_using_docker()
+    fix_ownership_using_docker(quiet=False)
     # Always succeed
     sys.exit(0)
 
@@ -307,10 +306,8 @@ class WorkflowInfo(NamedTuple):
         for label in self.pull_request_labels:
             if "use public runners" in label:
                 get_console().print("[info]Force running on public runners")
-                return RUNS_ON_PUBLIC_RUNNER
-        if not os.environ.get("AIRFLOW_SELF_HOSTED_RUNNER"):
-            return RUNS_ON_PUBLIC_RUNNER
-        return RUNS_ON_SELF_HOSTED_RUNNER
+                return PUBLIC_AMD_RUNNERS
+        return PUBLIC_AMD_RUNNERS
 
     def is_canary_run(self) -> str:
         if (
@@ -422,13 +419,3 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
         sys.exit(1)
     wi = workflow_info(context=context)
     wi.print_all_ga_outputs()
-
-
-@ci_group.command(
-    name="find-backtracking-candidates",
-    help="Find new releases of dependencies that could be the reason of backtracking.",
-)
-def find_backtracking_candidates():
-    from airflow_breeze.utils.backtracking import print_backtracking_candidates
-
-    print_backtracking_candidates()

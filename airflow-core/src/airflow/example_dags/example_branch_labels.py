@@ -23,9 +23,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.edgemodifier import Label
+from airflow.sdk import DAG, Label
 
 with DAG(
     "example_branch_labels",

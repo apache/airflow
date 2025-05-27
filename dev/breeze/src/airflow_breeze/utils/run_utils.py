@@ -66,6 +66,7 @@ def run_command(
     output_outside_the_group: bool = False,
     verbose_override: bool | None = None,
     dry_run_override: bool | None = None,
+    quiet: bool = False,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -91,6 +92,7 @@ def run_command(
         outside the "CI folded group" in CI - so that it is immediately visible without unfolding.
     :param verbose_override: override verbose parameter with the one specified if not None.
     :param dry_run_override: override dry_run parameter with the one specified if not None.
+    :param quiet: if True, suppresses all output (including the command itself) and runs it in
     :param kwargs: kwargs passed to POpen
     """
 
@@ -136,7 +138,10 @@ def run_command(
             kwargs["stderr"] = subprocess.STDOUT
     command_to_print = " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
     env_to_print = get_environments_to_print(env)
-    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
+    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override) or quiet:
+        if quiet and not kwargs.get("capture_output"):
+            kwargs["stdout"] = subprocess.DEVNULL
+            kwargs["stderr"] = subprocess.DEVNULL
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     with ci_group(title=f"Running command: {title}", message_type=None):
         get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
@@ -386,8 +391,7 @@ def commit_sha():
     command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
     if command_result.stdout:
         return command_result.stdout.strip()
-    else:
-        return "COMMIT_SHA_NOT_FOUND"
+    return "COMMIT_SHA_NOT_FOUND"
 
 
 def check_if_image_exists(image: str) -> bool:
@@ -414,31 +418,30 @@ def _run_compile_internally(
             text=True,
             env=env,
         )
-    else:
-        compile_lock.parent.mkdir(parents=True, exist_ok=True)
-        compile_lock.unlink(missing_ok=True)
-        try:
-            with SoftFileLock(compile_lock, timeout=5):
-                with open(asset_out, "w") as output_file:
-                    result = run_command(
-                        command_to_execute,
-                        check=False,
-                        no_output_dump_on_exception=True,
-                        text=True,
-                        env=env,
-                        stderr=subprocess.STDOUT,
-                        stdout=output_file,
-                    )
-                if result.returncode == 0:
-                    asset_out.unlink(missing_ok=True)
-                return result
-        except Timeout:
-            get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
-            get_console().print("[warning]If you are sure there is no other compilation,[/]")
-            get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
-            get_console().print(compile_lock)
-            get_console().print()
-            sys.exit(1)
+    compile_lock.parent.mkdir(parents=True, exist_ok=True)
+    compile_lock.unlink(missing_ok=True)
+    try:
+        with SoftFileLock(compile_lock, timeout=5):
+            with open(asset_out, "w") as output_file:
+                result = run_command(
+                    command_to_execute,
+                    check=False,
+                    no_output_dump_on_exception=True,
+                    text=True,
+                    env=env,
+                    stderr=subprocess.STDOUT,
+                    stdout=output_file,
+                )
+            if result.returncode == 0:
+                asset_out.unlink(missing_ok=True)
+            return result
+    except Timeout:
+        get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
+        get_console().print("[warning]If you are sure there is no other compilation,[/]")
+        get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
+        get_console().print(compile_lock)
+        get_console().print()
+        sys.exit(1)
 
 
 def kill_process_group(gid: int):
@@ -447,10 +450,8 @@ def kill_process_group(gid: int):
 
     :param gid: process group id
     """
-    try:
+    with contextlib.suppress(OSError):
         os.killpg(gid, signal.SIGTERM)
-    except OSError:
-        pass
 
 
 def clean_ui_assets():

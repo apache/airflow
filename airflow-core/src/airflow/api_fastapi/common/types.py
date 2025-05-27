@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -72,6 +72,7 @@ class Mimetype(str, Enum):
 
     TEXT = "text/plain"
     JSON = "application/json"
+    NDJSON = "application/x-ndjson"
     ANY = "*/*"
 
 
@@ -87,7 +88,8 @@ class MenuItem(Enum):
     """Define all menu items defined in the menu."""
 
     ASSETS = "Assets"
-    ASSET_EVENTS = "Asset Events"
+    AUDIT_LOG = "Audit Log"
+    CONFIG = "Config"
     CONNECTIONS = "Connections"
     DAGS = "Dags"
     DOCS = "Docs"
@@ -96,3 +98,10 @@ class MenuItem(Enum):
     PROVIDERS = "Providers"
     VARIABLES = "Variables"
     XCOMS = "XComs"
+
+
+class UIAlert(BaseModel):
+    """Optional alert to be shown at the top of the page."""
+
+    text: str
+    category: Literal["info", "warning", "error"]

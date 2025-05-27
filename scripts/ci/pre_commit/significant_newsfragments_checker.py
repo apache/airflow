@@ -18,8 +18,8 @@
 # /// script
 # dependencies = [
 #   "docutils>=0.20.0",
-#   "Pygments>=2.19.1",
-#   "Jinja2>=3.1.5"
+#   "pygments>=2.19.1",
+#   "jinja2>=3.1.5"
 # ]
 # ///
 

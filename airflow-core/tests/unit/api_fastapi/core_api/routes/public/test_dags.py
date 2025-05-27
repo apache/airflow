@@ -67,7 +67,7 @@ class TestDagEndpoint:
             relative_fileloc="dag_del_1.py",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
-            is_active=False,
+            is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -113,6 +113,11 @@ class TestDagEndpoint:
             schedule=None,
             start_date=DAG1_START_DATE,
             doc_md="details",
+            default_args={
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+            },
             params={"foo": 1},
             tags=["example"],
         ):
@@ -125,6 +130,11 @@ class TestDagEndpoint:
             schedule=None,
             start_date=DAG2_START_DATE,
             doc_md="details",
+            default_args={
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+            },
             params={"foo": 1},
             max_active_tasks=16,
             max_active_runs=16,
@@ -154,17 +164,17 @@ class TestGetDags(TestDagEndpoint):
             ({"limit": 1}, 2, [DAG1_ID]),
             ({"offset": 1}, 2, [DAG2_ID]),
             ({"tags": ["example"]}, 1, [DAG1_ID]),
-            ({"only_active": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
-            ({"paused": True, "only_active": False}, 1, [DAG3_ID]),
+            ({"exclude_stale": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
+            ({"paused": True, "exclude_stale": False}, 1, [DAG3_ID]),
             ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
             ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
-            ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
-            ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
-            ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
+            ({"owners": ["test_owner"], "exclude_stale": False}, 1, [DAG3_ID]),
+            ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
+            ({"last_dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
             ({"dag_run_state": "failed"}, 1, [DAG1_ID]),
-            ({"dag_run_state": "failed", "only_active": False}, 2, [DAG1_ID, DAG3_ID]),
+            ({"dag_run_state": "failed", "exclude_stale": False}, 2, [DAG1_ID, DAG3_ID]),
             (
-                {"dag_run_start_date_gte": DAG3_START_DATE_2.isoformat(), "only_active": False},
+                {"dag_run_start_date_gte": DAG3_START_DATE_2.isoformat(), "exclude_stale": False},
                 1,
                 [DAG3_ID],
             ),
@@ -179,7 +189,7 @@ class TestGetDags(TestDagEndpoint):
             (
                 {
                     "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
-                    "only_active": False,
+                    "exclude_stale": False,
                 },
                 2,
                 [DAG1_ID, DAG3_ID],
@@ -188,7 +198,7 @@ class TestGetDags(TestDagEndpoint):
                 {
                     "dag_run_end_date_gte": DAG3_START_DATE_2.isoformat(),
                     "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
-                    "only_active": False,
+                    "exclude_stale": False,
                     "last_dag_run_state": "success",
                 },
                 1,
@@ -208,7 +218,7 @@ class TestGetDags(TestDagEndpoint):
                     "dag_run_start_date_lte": (DAG3_START_DATE_1 + timedelta(days=1)).isoformat(),
                     "last_dag_run_state": "success",
                     "dag_run_state": "failed",
-                    "only_active": False,
+                    "exclude_stale": False,
                 },
                 1,
                 [DAG3_ID],
@@ -217,16 +227,16 @@ class TestGetDags(TestDagEndpoint):
             ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
-            ({"order_by": "next_dagrun", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
-            ({"order_by": "last_run_state", "only_active": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
-            ({"order_by": "-last_run_state", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            ({"order_by": "next_dagrun", "exclude_stale": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            ({"order_by": "last_run_state", "exclude_stale": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
+            ({"order_by": "-last_run_state", "exclude_stale": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
             (
-                {"order_by": "last_run_start_date", "only_active": False},
+                {"order_by": "last_run_start_date", "exclude_stale": False},
                 3,
                 [DAG1_ID, DAG3_ID, DAG2_ID],
             ),
             (
-                {"order_by": "-last_run_start_date", "only_active": False},
+                {"order_by": "-last_run_start_date", "exclude_stale": False},
                 3,
                 [DAG3_ID, DAG1_ID, DAG2_ID],
             ),
@@ -305,21 +315,21 @@ class TestPatchDags(TestDagEndpoint):
         [
             ({"update_mask": ["field_1", "is_paused"]}, {"is_paused": True}, 400, None, None),
             (
-                {"only_active": False},
+                {"exclude_stale": False},
                 {"is_paused": True},
                 200,
                 [],
                 [],
             ),  # no-op because the dag_id_pattern is not provided
             (
-                {"only_active": False, "dag_id_pattern": "~"},
+                {"exclude_stale": False, "dag_id_pattern": "~"},
                 {"is_paused": True},
                 200,
                 [DAG1_ID, DAG2_ID, DAG3_ID],
                 [DAG1_ID, DAG2_ID, DAG3_ID],
             ),
             (
-                {"only_active": False, "dag_id_pattern": "~"},
+                {"exclude_stale": False, "dag_id_pattern": "~"},
                 {"is_paused": False},
                 200,
                 [DAG1_ID, DAG2_ID, DAG3_ID],
@@ -365,7 +375,7 @@ class TestPatchDags(TestDagEndpoint):
     def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.patch(
-            "/dags", json={"is_paused": False}, params={"only_active": False, "dag_id_pattern": "~"}
+            "/dags", json={"is_paused": False}, params={"exclude_stale": False, "dag_id_pattern": "~"}
         )
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="PUT")
         assert response.status_code == 200
@@ -386,15 +396,22 @@ class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name, start_date",
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z"),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z"),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_dag_details(
-        self, test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        expected_status_code,
+        dag_display_name,
+        start_date,
+        owner_links,
     ):
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
         assert response.status_code == expected_status_code
@@ -408,12 +425,18 @@ class TestDagDetails(TestDagEndpoint):
         file_token = res_json["file_token"]
         expected = {
             "bundle_name": "dag_maker",
+            "bundle_version": None,
             "asset_expression": None,
             "catchup": False,
             "concurrency": 16,
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "dag_run_timeout": None,
+            "default_args": {
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": "PT5M",
+            },
             "description": None,
             "doc_md": "details",
             "end_date": None,
@@ -421,7 +444,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
-            "is_active": True,
+            "is_stale": False,
             "is_paused": False,
             "is_paused_upon_creation": None,
             "latest_dag_version": {
@@ -432,6 +455,7 @@ class TestDagDetails(TestDagEndpoint):
                 "dag_id": "test_dag2",
                 "id": mock.ANY,
                 "version_number": 1,
+                "dag_display_name": dag_display_name,
             },
             "last_expired": None,
             "last_parsed": last_parsed,
@@ -444,6 +468,7 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_logical_date": None,
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
+            "owner_links": {},
             "params": {
                 "foo": {
                     "__class": "airflow.sdk.definitions.param.Param",
@@ -499,7 +524,7 @@ class TestGetDag(TestDagEndpoint):
             "fileloc": __file__,
             "file_token": file_token,
             "is_paused": False,
-            "is_active": True,
+            "is_stale": False,
             "owners": ["airflow"],
             "timetable_summary": None,
             "tags": [],
@@ -516,6 +541,7 @@ class TestGetDag(TestDagEndpoint):
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "bundle_name": "dag_maker",
+            "bundle_version": None,
             "relative_fileloc": "test_dags.py",
         }
         assert res_json == expected

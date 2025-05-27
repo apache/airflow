@@ -16,16 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-import atexit
+import contextlib
 import os
 import signal
 import subprocess
 import sys
 import time
 from copy import deepcopy
-from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING
 
 import click
 
@@ -77,6 +76,7 @@ from airflow_breeze.commands.common_options import (
     option_use_uv,
     option_uv_http_timeout,
     option_verbose,
+    option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -137,6 +137,7 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
         capture_output=True,
         text=True,
         check=False,
+        output=output,
     )
     if result.returncode != 0:
         return True
@@ -198,29 +199,12 @@ def build_timout_handler(build_process_group_id: int, signum, frame):
     if os.environ.get("GITHUB_ACTIONS", "false") != "true":
         get_console().print("::endgroup::")
     get_console().print()
-    get_console().print(
-        "[error]The build timed out. This is likely because `pip` "
-        "started to backtrack dependency resolution.\n"
-    )
-    get_console().print(
-        "[warning]Please follow the instructions in `dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md"
-    )
-    get_console().print(
-        "[warning]in the `How to figure out backtracking dependencies` "
-        "chapter as soon as possible. The longer it is delayed, "
-        "the more difficult it will be to find the culprit.\n"
-    )
-    from airflow_breeze.utils.backtracking import print_backtracking_candidates
-
-    print_backtracking_candidates()
     sys.exit(1)
 
 
 def kill_process_group(build_process_group_id: int):
-    try:
+    with contextlib.suppress(OSError):
         os.killpg(build_process_group_id, signal.SIGTERM)
-    except OSError:
-        pass
 
 
 def get_exitcode(status: int) -> int:
@@ -229,30 +213,12 @@ def get_exitcode(status: int) -> int:
     # but until then we need to do this ugly conversion
     if os.WIFSIGNALED(status):
         return -os.WTERMSIG(status)
-    elif os.WIFEXITED(status):
+    if os.WIFEXITED(status):
         return os.WEXITSTATUS(status)
-    elif os.WIFSTOPPED(status):
+    if os.WIFSTOPPED(status):
         return -os.WSTOPSIG(status)
-    else:
-        return 1
+    return 1
 
-
-option_build_timeout_minutes = click.option(
-    "--build-timeout-minutes",
-    required=False,
-    type=int,
-    envvar="BUILD_TIMEOUT_MINUTES",
-    help="Optional timeout for the build in minutes. Useful to detect `pip` backtracking problems.",
-)
-
-option_eager_upgrade_additional_requirements = click.option(
-    "--eager-upgrade-additional-requirements",
-    required=False,
-    type=str,
-    envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
-    help="Optional additional requirements to upgrade eagerly to avoid backtracking "
-    "(see `breeze ci find-backtracking-candidates`).",
-)
 
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
@@ -270,14 +236,6 @@ option_upgrade_on_failure = click.option(
     envvar="UPGRADE_ON_FAILURE",
     show_default=True,
     default=not os.environ.get("CI", "") if not generating_command_images() else True,
-)
-
-option_version_suffix_for_pypi_ci = click.option(
-    "--version-suffix-for-pypi",
-    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
-    default="dev0",
-    show_default=True,
-    envvar="VERSION_SUFFIX_FOR_PYPI",
 )
 
 option_ci_image_file_to_save = click.option(
@@ -312,7 +270,6 @@ option_ci_image_file_to_load = click.option(
 @option_airflow_constraints_reference_build
 @option_answer
 @option_build_progress
-@option_build_timeout_minutes
 @option_builder
 @option_commit_sha
 @option_debian_version
@@ -323,7 +280,6 @@ option_ci_image_file_to_load = click.option(
 @option_docker_cache
 @option_docker_host
 @option_dry_run
-@option_eager_upgrade_additional_requirements
 @option_github_repository
 @option_github_token
 @option_install_mysql_client_type
@@ -342,7 +298,7 @@ option_ci_image_file_to_load = click.option(
 @option_use_uv
 @option_uv_http_timeout
 @option_verbose
-@option_version_suffix_for_pypi_ci
+@option_version_suffix
 def build(
     additional_airflow_extras: str | None,
     additional_dev_apt_command: str | None,
@@ -354,7 +310,6 @@ def build(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     build_progress: str,
-    build_timeout_minutes: int | None,
     builder: str,
     commit_sha: str | None,
     debian_version: str,
@@ -364,7 +319,6 @@ def build(
     disable_airflow_repo_cache: bool,
     docker_cache: str,
     docker_host: str | None,
-    eager_upgrade_additional_requirements: str | None,
     github_repository: str,
     github_token: str | None,
     include_success_outputs,
@@ -382,7 +336,7 @@ def build(
     upgrade_to_newer_dependencies: bool,
     use_uv: bool,
     uv_http_timeout: int,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
 
@@ -395,26 +349,6 @@ def build(
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
-
-    if build_timeout_minutes:
-        pid = os.fork()
-        if pid:
-            # Parent process - send signal to process group of the child process
-            handler: Callable[..., tuple[Any, Any]] = partial(build_timout_handler, pid)
-            # kill the child process group when we exit before - for example when we are Ctrl-C-ed
-            atexit.register(kill_process_group, pid)
-            signal.signal(signal.SIGALRM, handler)
-            signal.alarm(build_timeout_minutes * 60)
-            child_pid, status = os.waitpid(pid, 0)
-            exit_code = get_exitcode(status)
-            if exit_code:
-                get_console().print(f"[error]Exiting with exit code {exit_code}")
-            else:
-                get_console().print(f"[success]Exiting with exit code {exit_code}")
-            sys.exit(exit_code)
-        else:
-            # turn us into a process group leader
-            os.setpgid(0, 0)
 
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -437,7 +371,6 @@ def build(
         disable_airflow_repo_cache=disable_airflow_repo_cache,
         docker_cache=docker_cache,
         docker_host=docker_host,
-        eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
         force_build=True,
         github_repository=github_repository,
         github_token=github_token,
@@ -450,7 +383,7 @@ def build(
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
-        version_suffix_for_pypi=version_suffix_for_pypi,
+        version_suffix=version_suffix,
     )
     if platform:
         base_build_params.platform = platform
@@ -829,26 +762,24 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
         if answer == answer.YES:
             if is_repo_rebased(build_ci_params.github_repository, build_ci_params.airflow_branch):
                 return True
-            else:
-                get_console().print(
-                    "\n[warning]This might take a lot of time (more than 10 minutes) even if you have "
-                    "a good network connection. We think you should attempt to rebase first.[/]\n"
-                )
-                answer = user_confirm(
-                    "But if you really, really want - you can attempt it. Are you really sure?",
-                    timeout=STANDARD_TIMEOUT,
-                    default_answer=Answer.NO,
-                )
-                if answer == Answer.YES:
-                    return True
-                else:
-                    get_console().print(
-                        f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
-                        "before continuing.[/]\nCheck this link to find out how "
-                        "https://github.com/apache/airflow/blob/main/contributing-docs/10_working_with_git.rst\n"
-                    )
-                    get_console().print("[error]Exiting the process[/]\n")
-                    sys.exit(1)
+            get_console().print(
+                "\n[warning]This might take a lot of time (more than 10 minutes) even if you have "
+                "a good network connection. We think you should attempt to rebase first.[/]\n"
+            )
+            answer = user_confirm(
+                "But if you really, really want - you can attempt it. Are you really sure?",
+                timeout=STANDARD_TIMEOUT,
+                default_answer=Answer.NO,
+            )
+            if answer == Answer.YES:
+                return True
+            get_console().print(
+                f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
+                "before continuing.[/]\nCheck this link to find out how "
+                "https://github.com/apache/airflow/blob/main/contributing-docs/10_working_with_git.rst\n"
+            )
+            get_console().print("[error]Exiting the process[/]\n")
+            sys.exit(1)
         elif answer == Answer.NO:
             instruct_build_image(build_ci_params.python)
             return False

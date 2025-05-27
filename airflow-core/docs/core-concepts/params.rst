@@ -38,8 +38,8 @@ Use a dictionary that maps Param names to either a :class:`~airflow.sdk.definiti
 .. code-block::
    :emphasize-lines: 7-10
 
-    from airflow import DAG
-    from airflow.decorators import task
+    from airflow.sdk import DAG
+    from airflow.sdk import task
     from airflow.sdk import Param
 
     with DAG(
@@ -361,24 +361,24 @@ The following features are supported in the Trigger UI Form:
 For examples, please take a look at the two example dags provided: :ref:`Params trigger example DAG <params-trigger-ui>` and :ref:`Params UI example DAG <params-ui-tutorial>`.
 
 .. _params-trigger-ui:
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_params_trigger_ui.py
+.. exampleinclude:: /../src/airflow/example_dags/example_params_trigger_ui.py
     :language: python
     :start-after: [START params_trigger]
     :end-before: [END params_trigger]
 
 
 .. _params-ui-tutorial:
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_params_ui_tutorial.py
+.. exampleinclude:: /../src/airflow/example_dags/example_params_ui_tutorial.py
     :language: python
     :start-after: [START section_1]
     :end-before: [END section_1]
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_params_ui_tutorial.py
+.. exampleinclude:: /../src/airflow/example_dags/example_params_ui_tutorial.py
     :language: python
     :start-after: [START section_2]
     :end-before: [END section_2]
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_params_ui_tutorial.py
+.. exampleinclude:: /../src/airflow/example_dags/example_params_ui_tutorial.py
     :language: python
     :start-after: [START section_3]
     :end-before: [END section_3]
@@ -386,19 +386,19 @@ For examples, please take a look at the two example dags provided: :ref:`Params 
 The Params UI Tutorial is rendered in 4 sections with the most common examples. The first section shows the basic usage without
 ``Param`` class.
 
-.. image:: ../img/trigger-dag-tutorial-form-1.png
+.. image:: ../img/ui-dark/trigger-dag-tutorial-form-1.png
 
 The second section shows how to use the ``Param`` class to define more attributes.
 
-.. image:: ../img/trigger-dag-tutorial-form-2.png
+.. image:: ../img/ui-dark/trigger-dag-tutorial-form-2.png
 
 The third section shows how to model selection lists and drop-downs.
 
-.. image:: ../img/trigger-dag-tutorial-form-3.png
+.. image:: ../img/ui-dark/trigger-dag-tutorial-form-3.png
 
 Finally the fourth section shows advanced form elements.
 
-.. image:: ../img/trigger-dag-tutorial-form-4.png
+.. image:: ../img/ui-dark/trigger-dag-tutorial-form-4.png
 
 .. versionchanged:: 3.0.0
     By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. The previous field named

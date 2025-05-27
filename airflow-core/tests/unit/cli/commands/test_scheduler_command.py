@@ -43,7 +43,6 @@ class TestSchedulerCommand:
         [
             ("CeleryExecutor", False),
             ("LocalExecutor", True),
-            ("SequentialExecutor", True),
             ("KubernetesExecutor", False),
         ],
     )
@@ -64,7 +63,7 @@ class TestSchedulerCommand:
 
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
+    @pytest.mark.parametrize("executor", ["LocalExecutor"])
     def test_skip_serve_logs(self, mock_process, mock_scheduler_job, executor):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler", "--skip-serve-logs"])
@@ -100,7 +99,7 @@ class TestSchedulerCommand:
 
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
+    @pytest.mark.parametrize("executor", ["LocalExecutor"])
     def test_graceful_shutdown(self, mock_process, mock_scheduler_job, executor):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])

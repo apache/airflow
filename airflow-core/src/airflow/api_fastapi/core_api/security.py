@@ -18,11 +18,12 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Callable
-from urllib.parse import urljoin, urlparse
+from urllib.parse import ParseResult, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -193,12 +194,12 @@ ReadableTagsFilterDep = Annotated[
 ]
 
 
-def requires_access_backfill(method: ResourceMethod) -> Callable:
+def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
-        backfill_id: str | None = request.path_params.get("backfill_id")
+        backfill_id: NonNegativeInt | None = request.path_params.get("backfill_id")
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_backfill(
@@ -241,10 +242,10 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
     return inner
 
 
-def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         section: str | None = request.query_params.get("section") or request.path_params.get("section")
 
@@ -259,10 +260,10 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
     return inner
 
 
-def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
 
@@ -275,10 +276,10 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
     return inner
 
 
-def requires_access_asset(method: ResourceMethod) -> Callable:
+def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         asset_id = request.path_params.get("asset_id")
 
@@ -291,10 +292,10 @@ def requires_access_asset(method: ResourceMethod) -> Callable:
     return inner
 
 
-def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser | None], None]:
+def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
@@ -305,10 +306,10 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
     return inner
 
 
-def requires_access_asset_alias(method: ResourceMethod) -> Callable:
+def requires_access_asset_alias(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         asset_alias_id: str | None = request.path_params.get("asset_alias_id")
 
@@ -321,6 +322,18 @@ def requires_access_asset_alias(method: ResourceMethod) -> Callable:
     return inner
 
 
+def requires_authenticated() -> Callable:
+    """Just ensure the user is authenticated - no need to check any specific permissions."""
+
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        pass
+
+    return inner
+
+
 def _requires_access(
     *,
     is_authorized_callback: Callable[[], bool],
@@ -329,21 +342,34 @@ def _requires_access(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
 
 
-def is_safe_url(target_url: str) -> bool:
+def is_safe_url(target_url: str, request: Request | None = None) -> bool:
     """
     Check that the URL is safe.
 
     Needs to belong to the same domain as base_url, use HTTP or HTTPS (no JavaScript/data schemes),
     is a valid normalized path.
     """
-    base_url = conf.get("api", "base_url")
+    parsed_bases: tuple[tuple[str, ParseResult], ...] = ()
 
-    parsed_base = urlparse(base_url)
-    parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+    # Check if the target URL matches either the configured base URL, or the URL used to make the request
+    if request is not None:
+        url = str(request.base_url)
+        parsed_bases += ((url, urlparse(url)),)
+    if base_url := conf.get("api", "base_url", fallback=None):
+        parsed_bases += ((base_url, urlparse(base_url)),)
 
-    target_path = Path(parsed_target.path).resolve()
+    if not parsed_bases:
+        # Can't enforce any security check.
+        return True
 
-    if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
-        return False
+    for base_url, parsed_base in parsed_bases:
+        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
 
-    return parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc
+        target_path = Path(parsed_target.path).resolve()
+
+        if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
+            continue
+
+        if parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc:
+            return True
+    return False

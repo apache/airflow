@@ -26,10 +26,8 @@ from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CORE_EXECUTOR_NAMES,
-    DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
-    SEQUENTIAL_EXECUTOR,
     ConnectorSource,
 )
 from airflow.executors.executor_utils import ExecutorName
@@ -57,11 +55,9 @@ class ExecutorLoader:
 
     executors = {
         LOCAL_EXECUTOR: "airflow.executors.local_executor.LocalExecutor",
-        SEQUENTIAL_EXECUTOR: "airflow.executors.sequential_executor.SequentialExecutor",
         CELERY_EXECUTOR: "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
         KUBERNETES_EXECUTOR: "airflow.providers.cncf.kubernetes."
         "executors.kubernetes_executor.KubernetesExecutor",
-        DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
     }
 
     @classmethod
@@ -112,10 +108,9 @@ class ExecutorLoader:
                             "Incorrectly formatted executor configuration. Second portion of an executor "
                             f"configuration must be a module path but received: {module_path}"
                         )
-                    else:
-                        executor_names_per_team.append(
-                            ExecutorName(alias=split_name[0], module_path=split_name[1], team_id=team_id)
-                        )
+                    executor_names_per_team.append(
+                        ExecutorName(alias=split_name[0], module_path=split_name[1], team_id=team_id)
+                    )
                 else:
                     raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
 
@@ -231,12 +226,11 @@ class ExecutorLoader:
 
         if executor_name := _alias_to_executors.get(executor_name_str):
             return executor_name
-        elif executor_name := _module_to_executors.get(executor_name_str):
+        if executor_name := _module_to_executors.get(executor_name_str):
             return executor_name
-        elif executor_name := _classname_to_executors.get(executor_name_str):
+        if executor_name := _classname_to_executors.get(executor_name_str):
             return executor_name
-        else:
-            raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
+        raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
 
     @classmethod
     def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:

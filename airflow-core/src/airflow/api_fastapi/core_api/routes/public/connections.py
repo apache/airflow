@@ -44,7 +44,10 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_connection
-from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
+from airflow.api_fastapi.core_api.services.public.connections import (
+    BulkConnectionService,
+    update_orm_from_pydantic,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.models import Connection
@@ -187,29 +190,19 @@ def patch_connection(
             "The connection_id in the request body does not match the URL parameter",
         )
 
-    non_update_fields = {"connection_id", "conn_id"}
-    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+    connection: Connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
 
     if connection is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
         )
 
-    fields_to_update = patch_body.model_fields_set
+    try:
+        ConnectionBody(**patch_body.model_dump())
+    except ValidationError as e:
+        raise RequestValidationError(errors=e.errors())
 
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            ConnectionBody(**patch_body.model_dump())
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
-
-    for key, val in data.items():
-        setattr(connection, key, val)
-
+    update_orm_from_pydantic(connection, patch_body, update_mask)
     return connection
 
 

@@ -24,7 +24,7 @@ import os
 import re
 import sys
 from functools import lru_cache
-from subprocess import DEVNULL, CalledProcessError, CompletedProcess
+from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
 
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -88,6 +88,8 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
+    ("docker-stack-docs", "/opt/airflow/docker-stack-docs"),
+    ("providers-summary-docs", "/opt/airflow/providers-summary-docs"),
     ("generated", "/opt/airflow/generated"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
@@ -96,11 +98,10 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("devel-common", "/opt/airflow/devel-common"),
-    ("helm_tests", "/opt/airflow/helm_tests"),
-    ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
-    ("docker_tests", "/opt/airflow/docker_tests"),
+    ("helm-tests", "/opt/airflow/helm-tests"),
+    ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
+    ("docker-tests", "/opt/airflow/docker-tests"),
     ("chart", "/opt/airflow/chart"),
-    ("hatch_build.py", "/opt/airflow/hatch_build.py"),
 ]
 
 
@@ -434,7 +435,7 @@ def construct_docker_push_command(
 
 
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
-    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
+    build_command_result: RunCommandResult = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
         platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -560,7 +561,7 @@ OWNERSHIP_CLEANUP_DOCKER_TAG = (
 )
 
 
-def fix_ownership_using_docker(quiet: bool = False):
+def fix_ownership_using_docker(quiet: bool = True):
     if get_host_os() != "linux":
         # no need to even attempt fixing ownership on MacOS/Windows
         return
@@ -584,7 +585,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
-    run_command(cmd, text=True, check=False, capture_output=quiet)
+    run_command(cmd, text=True, check=False, quiet=quiet)
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
@@ -601,6 +602,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
             ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
             check=False,
             stderr=DEVNULL,
+            quiet=True,
         )
     else:
         for network in networks:
@@ -608,6 +610,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
                 ["docker", "network", "rm", network],
                 check=False,
                 stderr=DEVNULL,
+                quiet=True,
             )
 
 
@@ -730,7 +733,6 @@ def execute_command_in_shell(
 
     * backend - to force sqlite backend
     * clean_sql_db=True - to clean the sqlite DB
-    * executor - to force SequentialExecutor
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
       allow to avoid clashes with other commands and opened breeze shell
     * project_name - to avoid name clashes with default "breeze" project name used
@@ -836,12 +838,11 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     )
     if command_result.returncode == 0:
         return command_result
-    else:
-        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
-        if get_verbose():
-            get_console().print(command_result.stderr)
-        notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
-        return command_result
+    get_console().print(f"[red]Error {command_result.returncode} returned[/]")
+    if get_verbose():
+        get_console().print(command_result.stderr)
+    notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
+    return command_result
 
 
 def notify_on_unhealthy_backend_container(project_name: str, backend: str, output: Output | None = None):
@@ -894,6 +895,7 @@ def is_docker_rootless() -> bool:
             capture_output=True,
             check=False,
             text=True,
+            quiet=True,
         )
         if response.returncode == 0 and "rootless" in response.stdout.strip():
             get_console().print("[info]Docker is running in rootless mode.[/]\n")
@@ -902,3 +904,56 @@ def is_docker_rootless() -> bool:
         # we ignore if docker is missing
         pass
     return False
+
+
+def check_airflow_cache_builder_configured():
+    result_inspect_builder = run_command(["docker", "buildx", "inspect", "airflow_cache"], check=False)
+    if result_inspect_builder.returncode != 0:
+        get_console().print(
+            "[error]Airflow Cache builder must be configured to "
+            "build multi-platform images with multiple builders[/]"
+        )
+        get_console().print()
+        get_console().print(
+            "See https://github.com/apache/airflow/blob/main/dev/MANUALLY_BUILDING_IMAGES.md"
+            " for instructions on setting it up."
+        )
+        sys.exit(1)
+
+
+def check_regctl_installed():
+    result_regctl = run_command(["regctl", "version"], check=False)
+    if result_regctl.returncode != 0:
+        get_console().print("[error]Regctl must be installed and on PATH to release the images[/]")
+        get_console().print()
+        get_console().print(
+            "See https://github.com/regclient/regclient/blob/main/docs/regctl.md for installation info."
+        )
+        sys.exit(1)
+
+
+def check_docker_buildx_plugin():
+    result_docker_buildx = run_command(
+        ["docker", "buildx", "version"],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result_docker_buildx.returncode != 0:
+        get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
+        get_console().print()
+        get_console().print("See https://docs.docker.com/buildx/working-with-buildx/ for installation info.")
+        sys.exit(1)
+    from packaging.version import Version
+
+    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v")
+    packaging_version = Version(version)
+    if packaging_version < Version("0.13.0"):
+        get_console().print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")
+        get_console().print()
+        get_console().print(
+            "See https://github.com/docker/buildx?tab=readme-ov-file#installing for installation info."
+        )
+        sys.exit(1)
+    else:
+        get_console().print(f"[success]Docker buildx plugin is installed and in good version: {version}[/]")

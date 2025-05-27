@@ -39,6 +39,11 @@ classifiers = [
   "Framework :: Apache Airflow",
 ]
 
+[project.optional-dependencies]
+"dev" = [
+    "keyrings.alt>=5.0.2",
+]
+
 [project.scripts]
 airflowctl = "airflowctl.__main__:main"
 
@@ -70,6 +75,7 @@ namespace-packages = ["src/airflowctl"]
 
 # Generated file, be less strict
 "src/airflowctl/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
+"src/airflowctl/api/datamodels/auth_generated.py" = ["UP007", "D101", "D200"]
 
 [tool.coverage.run]
 branch = true
@@ -90,15 +96,30 @@ exclude_also = [
 ]
 
 [dependency-groups]
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
+]
+dev = [
+    "apache-airflow-ctl[dev]",
+]
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
+    "apache-airflow-devel-common"
 ]
 
-# To use:
-#
-# TODO: Automate this in CI via pre-commit hook and generate the file each time
-# The API should be running in the background to serve the OpenAPI schema
-# uv run --group codegen --project apache-airflow --directory airflow/ datamodel-codegen
+# uv run --verbose --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --url="http://0.0.0.0:28080/auth/openapi.json" --output=src/airflowctl/api/datamodels/auth_generated.py
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true
@@ -116,5 +137,50 @@ use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
 
-url = "http://0.0.0.0:8080/openapi.json"
+input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 output = "src/airflowctl/api/datamodels/generated.py"
+
+## pytest settings ##
+[tool.pytest.ini_options]
+addopts = [
+    "--tb=short",
+    "-rasl",
+    "--verbosity=2",
+    # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
+    "-p", "no:flaky",
+    # Disable `nose` builtin plugin for pytest. This feature is deprecated in 7.2 and will be removed in pytest>=8
+    "-p", "no:nose",
+    # Disable support of a legacy `LocalPath` in favor of stdlib `pathlib.Path`.
+    "-p", "no:legacypath",
+    # Disable warnings summary, because we use our warning summary.
+    "--disable-warnings",
+    "--asyncio-mode=strict",
+]
+
+norecursedirs = [
+    ".eggs",
+]
+log_level = "INFO"
+filterwarnings = [
+    "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+]
+python_files = [
+    "test_*.py",
+]
+testpaths = [
+    "tests",
+]
+asyncio_default_fixture_loop_scope = "function"
+
+pythonpath = "tests"
+
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"
+
+[tool.uv]
+required-version = ">=0.6.3"
+
+[tool.uv.sources]
+apache-airflow-devel-common = { workspace = true }

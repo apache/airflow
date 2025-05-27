@@ -141,10 +141,10 @@ When storing connections in the database, you may manage them using either the w
 Creating a Connection with the UI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Open the ``Admin->Connections`` section of the UI. Click the ``Create`` link
+Open the ``Admin->Connections`` section of the UI. Click the ``Add Connection`` link
 to create a new connection.
 
-.. image:: ../img/connection_create.png
+.. image:: ../img/ui-dark/connection_create.png
 
 1. Fill in the ``Connection Id`` field with the desired connection ID. It is
    recommended that you use lower-case characters and separate words with
@@ -163,7 +163,7 @@ Editing a Connection with the UI
 Open the ``Admin->Connections`` section of the UI. Click the pencil icon next
 to the connection you wish to edit in the connection list.
 
-.. image:: ../img/connection_edit.png
+.. image:: ../img/ui-dark/connection_edit.png
 
 Modify the connection properties and click the ``Save`` button to save your
 changes.
@@ -406,7 +406,7 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
 .. code-block:: pycon
 
     >>> import json
-    >>> from airflow.models.connection import Connection
+    >>> from airflow.sdk import Connection
     >>> c = Connection(
     ...     conn_id="some_conn",
     ...     conn_type="mysql",
@@ -483,7 +483,7 @@ You can verify a URI is parsed correctly like so:
 
 .. code-block:: pycon
 
-    >>> from airflow.models.connection import Connection
+    >>> from airflow.sdk import Connection
 
     >>> c = Connection(uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2")
     >>> print(c.login)

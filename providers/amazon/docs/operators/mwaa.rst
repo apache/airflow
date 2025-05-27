@@ -51,7 +51,7 @@ To trigger a DAG run in an Amazon MWAA environment you can use the
 In the following example, the task ``trigger_dag_run`` triggers a DAG run for the DAG ``hello_world`` in the environment
 ``MyAirflowEnvironment`` and waits for the run to complete.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_mwaa.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_mwaa_trigger_dag_run]
@@ -70,7 +70,7 @@ To wait for a DAG Run running on Amazon MWAA until it reaches one of the given s
 
 In the following example, the task ``wait_for_dag_run`` waits for the DAG run created in the above task to complete.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_mwaa.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_mwaa_dag_run]

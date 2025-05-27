@@ -25,7 +25,8 @@
 # lib.)  This is required by some IDEs to resolve the import paths.
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
-__version__ = "3.0.0.dev0"
+__version__ = "3.1.0"
+
 
 import os
 import sys
@@ -85,7 +86,7 @@ __lazy_imports: dict[str, tuple[str, str, bool]] = {
     "version": (".version", "", False),
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),
-    "Dataset": (".sdk.definitions.asset", "Dataset", True),
+    "Dataset": (".sdk.definitions.asset", "Asset", True),
 }
 if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's
@@ -101,7 +102,7 @@ def __getattr__(name: str):
     module_path, attr_name, deprecated = __lazy_imports.get(name, ("", "", False))
     if not module_path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    elif deprecated:
+    if deprecated:
         warnings.warn(
             f"Import {name!r} directly from the airflow module is deprecated and "
             f"will be removed in the future. Please import it from 'airflow{module_path}.{attr_name}'.",

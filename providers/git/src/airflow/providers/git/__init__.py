@@ -29,11 +29,11 @@ from airflow import __version__ as airflow_version
 
 __all__ = ["__version__"]
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "3.0.0.dev0"
+    "3.0.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-git:{__version__}` needs Apache Airflow 3.0.0.dev0+"
+        f"The package `apache-airflow-providers-git:{__version__}` needs Apache Airflow 3.0.0+"
     )

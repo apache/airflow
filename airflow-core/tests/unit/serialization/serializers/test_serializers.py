@@ -34,9 +34,12 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
 
+@skip_if_force_lowest_dependencies_marker
 class TestSerializers:
     def test_datetime(self):
         i = datetime.datetime(2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC)

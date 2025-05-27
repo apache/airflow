@@ -83,7 +83,7 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
 }
 BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
 
-OTEL_NAME_MAX_LENGTH = 63
+OTEL_NAME_MAX_LENGTH = 255
 DEFAULT_VALIDATOR_TYPE = "allow"
 
 
@@ -259,8 +259,7 @@ class PatternAllowListValidator(ListValidator):
     def test(self, name: str) -> bool:
         if self.validate_list is not None:
             return super()._has_pattern_match(name)
-        else:
-            return True  # default is all metrics are allowed
+        return True  # default is all metrics are allowed
 
 
 class PatternBlockListValidator(ListValidator):
@@ -269,5 +268,4 @@ class PatternBlockListValidator(ListValidator):
     def test(self, name: str) -> bool:
         if self.validate_list is not None:
             return not super()._has_pattern_match(name)
-        else:
-            return True  # default is all metrics are allowed
+        return True  # default is all metrics are allowed

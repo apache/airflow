@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.decorators import task
+from airflow.sdk import task
 
 if TYPE_CHECKING:
-    from airflow.decorators.base import Task, TaskDecorator
+    from airflow.sdk.bases.decorator import TaskDecorator
 
 _CONDITION_DECORATORS = frozenset({"skip_if", "run_if"})
 _NO_SOURCE_DECORATORS = frozenset({"sensor"})
@@ -118,7 +118,7 @@ def test_run_if_allow_decorator():
     assert parse_python_source(f) == '@non_task_decorator\ndef f():\n    return "hello world"\n'
 
 
-def parse_python_source(task: Task, custom_operator_name: str | None = None) -> str:
+def parse_python_source(task, custom_operator_name: str | None = None) -> str:
     operator = task().operator
     if custom_operator_name:
         custom_operator_name = (

@@ -62,7 +62,7 @@ class BaseHook(LoggingMixin):
         from airflow.models.connection import Connection
 
         conn = Connection.get_connection_from_secrets(conn_id)
-        log.info("Retrieving connection '%s'", conn.conn_id)
+        log.info("Connection Retrieved '%s'", conn.conn_id)
         return conn
 
     @classmethod

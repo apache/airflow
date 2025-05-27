@@ -35,7 +35,7 @@ SDK_DEFINITIONS_PKG = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "defin
 DAG_PY = SDK_DEFINITIONS_PKG / "dag.py"
 TG_PY = SDK_DEFINITIONS_PKG / "taskgroup.py"
 AIRFLOW_CORE_PACKAGE_ROOT = AIRFLOW_CORE_SOURCES_PATH / "airflow"
-DECOS_TG_PY = AIRFLOW_CORE_PACKAGE_ROOT / "decorators" / "task_group.py"
+DECOS_TG_PY = SDK_DEFINITIONS_PKG / "decorators" / "task_group.py"
 
 
 def _name(node: ast.expr) -> str:

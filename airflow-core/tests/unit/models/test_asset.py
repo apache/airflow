@@ -154,7 +154,7 @@ def test_remove_reference_for_inactive_dag(
     assert set(session.execute(select_stmt)) == expected_before_clear_1
 
     def _simulate_soft_dag_deletion(dag_id):
-        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_active=False))
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_stale=True))
 
     _simulate_soft_dag_deletion("test1")
     remove_references_to_deleted_dags(session=session)

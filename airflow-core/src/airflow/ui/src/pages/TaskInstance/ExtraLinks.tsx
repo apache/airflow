@@ -31,14 +31,14 @@ export const ExtraLinks = () => {
     taskId,
   });
 
-  return data && Object.keys(data).length > 0 ? (
+  return data && Object.keys(data.extra_links).length > 0 ? (
     <Box py={1}>
       <Heading size="sm">Extra Links</Heading>
       <HStack gap={2} py={2}>
-        {Object.entries(data).map(([key, value], _) =>
+        {Object.entries(data.extra_links).map(([key, value], _) =>
           value === null ? undefined : (
             <Button asChild colorPalette="blue" key={key} variant="surface">
-              <a href={value} rel="noreferrer" target="_blank">
+              <a href={value} rel="noopener noreferrer" target="_blank">
                 {key}
               </a>
             </Button>

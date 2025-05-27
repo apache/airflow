@@ -20,39 +20,68 @@ from __future__ import annotations
 import logging
 import warnings
 from logging.config import dictConfig
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.module_loading import import_string
 
+if TYPE_CHECKING:
+    from airflow.logging.remote import RemoteLogIO
+
 log = logging.getLogger(__name__)
 
 
-def configure_logging():
+REMOTE_TASK_LOG: RemoteLogIO | None
+
+
+def __getattr__(name: str):
+    if name == "REMOTE_TASK_LOG":
+        global REMOTE_TASK_LOG
+        load_logging_config()
+        return REMOTE_TASK_LOG
+
+
+def load_logging_config() -> tuple[dict[str, Any], str]:
     """Configure & Validate Airflow Logging."""
-    logging_class_path = ""
+    global REMOTE_TASK_LOG
+    fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
+    logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
+
+    # Sometimes we end up with `""` as the value!
+    logging_class_path = logging_class_path or fallback
+
+    user_defined = logging_class_path != fallback
+
     try:
-        logging_class_path = conf.get("logging", "logging_config_class")
-    except AirflowConfigException:
-        log.debug("Could not find key logging_config_class in config")
-
-    if logging_class_path:
-        try:
-            logging_config = import_string(logging_class_path)
-
-            # Make sure that the variable is in scope
-            if not isinstance(logging_config, dict):
-                raise ValueError("Logging Config should be of dict type")
-
-            log.info("Successfully imported user-defined logging config from %s", logging_class_path)
-        except Exception as err:
-            # Import default logging configurations.
-            raise ImportError(f"Unable to load custom logging from {logging_class_path} due to {err}")
-    else:
-        logging_class_path = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
         logging_config = import_string(logging_class_path)
-        log.debug("Unable to load custom logging, using default config instead")
 
+        # Make sure that the variable is in scope
+        if not isinstance(logging_config, dict):
+            raise ValueError("Logging Config should be of dict type")
+
+        if user_defined:
+            log.info("Successfully imported user-defined logging config from %s", logging_class_path)
+
+    except Exception as err:
+        # Import default logging configurations.
+        raise ImportError(
+            f"Unable to load {'custom ' if user_defined else ''}logging config from {logging_class_path} due "
+            f"to: {type(err).__name__}:{err}"
+        )
+    else:
+        mod = logging_class_path.rsplit(".", 1)[0]
+        try:
+            remote_task_log = import_string(f"{mod}.REMOTE_TASK_LOG")
+            REMOTE_TASK_LOG = remote_task_log
+        except Exception as err:
+            log.info("Remote task logs will not be available due to an error:  %s", err)
+
+    return logging_config, logging_class_path
+
+
+def configure_logging():
+    logging_config, logging_class_path = load_logging_config()
     try:
         # Ensure that the password masking filter is applied to the 'task' handler
         # no matter what the user did.

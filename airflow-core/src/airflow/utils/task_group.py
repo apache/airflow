@@ -19,15 +19,27 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from functools import cache
+from operator import methodcaller
+from typing import TYPE_CHECKING, Callable
 
 import airflow.sdk.definitions.taskgroup
+from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.typing_compat import TypeAlias
 
 TaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.TaskGroup
 MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup
+
+
+@cache
+def get_task_group_children_getter() -> Callable:
+    """Get the Task Group Children Getter for the DAG."""
+    sort_order = conf.get("api", "grid_view_sorting_order")
+    if sort_order == "topological":
+        return methodcaller("topological_sort")
+    return methodcaller("hierarchical_alphabetical_sort")
 
 
 def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
@@ -63,7 +75,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     is_mapped = isinstance(task_group, MappedTaskGroup)
     children = [
         task_group_to_dict(child, parent_group_is_mapped=parent_group_is_mapped or is_mapped)
-        for child in sorted(task_group.children.values(), key=lambda t: t.label)
+        for child in get_task_group_children_getter()(task_group)
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
@@ -81,84 +93,4 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
         "is_mapped": is_mapped,
         "children": children,
         "type": "task",
-    }
-
-
-def task_group_to_dict_legacy(task_item_or_group):
-    """
-    Legacy function to create a nested dict representation of this TaskGroup and its children used to construct the Graph.
-
-    TODO: To remove for airflow 3 once the legacy UI is deleted.
-    """
-    from airflow.models.abstractoperator import AbstractOperator
-    from airflow.models.mappedoperator import MappedOperator
-
-    if isinstance(task := task_item_or_group, AbstractOperator):
-        setup_teardown_type = {}
-        is_mapped = {}
-        if task.is_setup is True:
-            setup_teardown_type["setupTeardownType"] = "setup"
-        elif task.is_teardown is True:
-            setup_teardown_type["setupTeardownType"] = "teardown"
-        if isinstance(task, MappedOperator):
-            is_mapped["isMapped"] = True
-        return {
-            "id": task.task_id,
-            "value": {
-                "label": task.label,
-                "labelStyle": f"fill:{task.ui_fgcolor};",
-                "style": f"fill:{task.ui_color};",
-                "rx": 5,
-                "ry": 5,
-                **is_mapped,
-                **setup_teardown_type,
-            },
-        }
-    task_group = task_item_or_group
-    is_mapped = isinstance(task_group, MappedTaskGroup)
-    children = [
-        task_group_to_dict_legacy(child)
-        for child in sorted(task_group.children.values(), key=lambda t: t.label)
-    ]
-
-    if task_group.upstream_group_ids or task_group.upstream_task_ids:
-        children.append(
-            {
-                "id": task_group.upstream_join_id,
-                "value": {
-                    "label": "",
-                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
-                    "style": f"fill:{task_group.ui_color};",
-                    "shape": "circle",
-                },
-            }
-        )
-
-    if task_group.downstream_group_ids or task_group.downstream_task_ids:
-        # This is the join node used to reduce the number of edges between two TaskGroup.
-        children.append(
-            {
-                "id": task_group.downstream_join_id,
-                "value": {
-                    "label": "",
-                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
-                    "style": f"fill:{task_group.ui_color};",
-                    "shape": "circle",
-                },
-            }
-        )
-
-    return {
-        "id": task_group.group_id,
-        "value": {
-            "label": task_group.label,
-            "labelStyle": f"fill:{task_group.ui_fgcolor};",
-            "style": f"fill:{task_group.ui_color}",
-            "rx": 5,
-            "ry": 5,
-            "clusterLabelPos": "top",
-            "tooltip": task_group.tooltip,
-            "isMapped": is_mapped,
-        },
-        "children": children,
     }

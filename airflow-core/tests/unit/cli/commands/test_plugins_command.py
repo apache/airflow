@@ -84,6 +84,21 @@ class TestPluginsCommand:
                         "name": "Name of the App",
                     }
                 ],
+                "fastapi_root_middlewares": [
+                    {
+                        "middleware": "unit.plugins.test_plugin.DummyMiddleware",
+                        "name": "Name of the Middleware",
+                    }
+                ],
+                "iframe_views": [
+                    {
+                        "destination": "nav",
+                        "icon": "https://example.com/icon.svg",
+                        "name": "Test IFrame Plugin",
+                        "src": "https://www.google.com",
+                        "url_route": "/test_iframe_plugin",
+                    },
+                ],
                 "appbuilder_views": [
                     {
                         "name": "Test View",

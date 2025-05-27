@@ -17,25 +17,49 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest.mock import patch
 
 import httpx
 import pytest
 
-from airflowctl.api.client import Client, Credentials
+from airflowctl.api.client import Client, ClientKind, Credentials
+
+pytest_plugins = "tests_common.pytest_plugin"
+
+# Task SDK does not need access to the Airflow database
+os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
+
+
+@pytest.hookimpl()
+def pytest_addhooks(pluginmanager: pytest.PytestPluginManager):
+    # Python 3.12 starts warning about mixing os.fork + Threads, and the pytest-rerunfailures plugin uses
+    # threads internally. Since this is new code, and it should be flake free, we disable the re-run failures
+    # plugin early (so that it doesn't run it's pytest_configure which is where the thread starts up if xdist
+    # is discovered).
+    pluginmanager.set_blocked("rerunfailures")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    if next(item.iter_markers(name="db_test"), None):
+        pytest.fail("Airflow CTL tests must not use database")
 
 
 @pytest.fixture(scope="session")
-def cli_api_client_maker(client_credentials):
+def api_client_maker(client_credentials):
     """
     Create a CLI API client with a custom transport and returns callable to create a client with a custom transport
     """
 
-    def make_cli_api_client(transport: httpx.MockTransport) -> Client:
+    def make_api_client(transport: httpx.MockTransport, kind: ClientKind = ClientKind.CLI) -> Client:
         """Get a client with a custom transport"""
-        return Client(base_url="test://server", transport=transport, token="")
+        return Client(base_url="test://server", transport=transport, token="", kind=kind)
 
-    def _cli_api_client(path: str, response_json: dict, expected_http_status_code: int) -> Client:
+    def _api_client(
+        path: str, response_json: dict, expected_http_status_code: int, kind: ClientKind = ClientKind.CLI
+    ) -> Client:
         """Get a client with a custom transport"""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -43,9 +67,9 @@ def cli_api_client_maker(client_credentials):
             assert request.url.path == path
             return httpx.Response(expected_http_status_code, json=response_json)
 
-        return make_cli_api_client(transport=httpx.MockTransport(handle_request))
+        return make_api_client(transport=httpx.MockTransport(handle_request), kind=kind)
 
-    return _cli_api_client
+    return _api_client
 
 
 @pytest.fixture(scope="session")

@@ -25,14 +25,13 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
-from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.execution_time.comms import XComCountResponse
+from airflow.sdk import setup, task, task_group, teardown
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -47,7 +46,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
 
-@patch("airflow.models.abstractoperator.AbstractOperator.render_template")
+@patch("airflow.sdk.definitions._internal.abstractoperator.AbstractOperator.render_template")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
     class UnrenderableClass:
         def __bool__(self):
@@ -334,7 +333,7 @@ def _create_mapped_with_name_template_classic(*, task_id, map_names, template):
 
 
 def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
     @task(task_id=task_id, map_index_template=template)
     def task1(map_name):
@@ -360,7 +359,7 @@ def _create_named_map_index_renders_on_failure_classic(*, task_id, map_names, te
 
 
 def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, template):
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
     @task(task_id=task_id, map_index_template=template)
     def task1(map_name):
@@ -397,11 +396,16 @@ def test_expand_mapped_task_instance_with_named_index(
     expected_rendered_names,
 ) -> None:
     """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
-    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
+    dag_id = "test_dag_12345"
+    with dag_maker(
+        dag_id=dag_id,
+        start_date=DEFAULT_DATE,
+        serialized=True,
+    ):
         create_mapped_task(task_id="task1", map_names=["a", "b"], template=template)
 
-    dr = dag_maker.create_dagrun()
-    tis = dr.get_task_instances()
+    dr = dag_maker.create_dagrun(session=session)
+    tis = dr.get_task_instances(session=session)
     for ti in tis:
         ti.run()
     session.flush()
@@ -409,7 +413,7 @@ def test_expand_mapped_task_instance_with_named_index(
     indices = session.scalars(
         select(TaskInstance.rendered_map_index)
         .where(
-            TaskInstance.dag_id == "test-dag",
+            TaskInstance.dag_id == dag_id,
             TaskInstance.task_id == "task1",
             TaskInstance.run_id == dr.run_id,
         )
@@ -479,8 +483,7 @@ class TestMappedSetupTeardown:
             kwargs.update(python_callable=failure_callable())
         if partial:
             return PythonOperator.partial(**kwargs)
-        else:
-            return PythonOperator(**kwargs)
+        return PythonOperator(**kwargs)
 
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_one_to_many_work_failed(self, type_, dag_maker):
@@ -745,7 +748,7 @@ class TestMappedSetupTeardown:
                 def my_setup(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
                     return val
@@ -788,7 +791,7 @@ class TestMappedSetupTeardown:
                 def my_setup_callable(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
                     return val
@@ -960,7 +963,7 @@ class TestMappedSetupTeardown:
                 def my_setup(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
 
@@ -987,7 +990,7 @@ class TestMappedSetupTeardown:
                 def my_setup_callable(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
 
@@ -1038,7 +1041,7 @@ class TestMappedSetupTeardown:
                 def my_work(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"work: {val}")
 
@@ -1062,7 +1065,7 @@ class TestMappedSetupTeardown:
                     val = vals[0]
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"work: {val}")
 
@@ -1106,7 +1109,7 @@ class TestMappedSetupTeardown:
                 def my_setup(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
                     return val
@@ -1128,7 +1131,7 @@ class TestMappedSetupTeardown:
                 def my_setup_callable(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
                     return val
@@ -1266,13 +1269,7 @@ class TestMappedSetupTeardown:
         tg1, tg2 = dag.task_group.children.values()
         tg1 >> tg2
 
-        with mock.patch(
-            "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-        ) as supervisor_comms:
-            # TODO: TaskSDK: this is a bit of a hack that we need to stub this at all. `dag.test()` should
-            # really work without this!
-            supervisor_comms.get_message.return_value = XComCountResponse(len=3)
-            dr = dag.test()
+        dr = dag.test()
         states = self.get_states(dr)
         expected = {
             "tg_1.my_pre_setup": "success",

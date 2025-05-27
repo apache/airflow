@@ -18,12 +18,16 @@
 from __future__ import annotations
 
 import os
+import re
+import shlex
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from common_precommit_utils import (
+    AIRFLOW_ROOT_PATH,
+    KNOWN_SECOND_LEVEL_PATHS,
     console,
     get_all_provider_ids,
     initialize_breeze_precommit,
@@ -34,12 +38,13 @@ initialize_breeze_precommit(__name__, __file__)
 
 
 ALLOWED_FOLDERS = [
-    "airflow-core/src/airflow",
-    *[f"providers/{provider_id.replace('.', '/')}/src" for provider_id in get_all_provider_ids()],
+    "airflow-core",
+    *[f"providers/{provider_id.replace('.', '/')}" for provider_id in get_all_provider_ids()],
     "dev",
-    "docs",
-    "task-sdk/src/airflow/sdk",
-    "all_providers",
+    "devel-common",
+    "task-sdk",
+    "airflow-ctl",
+    "providers",
 ]
 
 if len(sys.argv) < 2:
@@ -58,26 +63,72 @@ for mypy_folder in mypy_folders:
 
 arguments = mypy_folders.copy()
 
-for mypy_folder in mypy_folders:
-    if mypy_folder == "all_providers":
-        arguments.remove("all_providers")
-        for provider_id in get_all_provider_ids():
-            arguments.append(f"providers/{provider_id.replace('.', '/')}/src")
-            arguments.append(f"providers/{provider_id.replace('.', '/')}/tests")
-    elif mypy_folder.startswith("providers/"):
-        arguments.append(f"{Path(mypy_folder).parent.as_posix()}/tests")
-    if mypy_folder == "task-sdk/src/airflow/sdk":
-        arguments.append("task-sdk/tests")
-    if mypy_folder == "airflow-core/src/airflow":
-        arguments.append("airflow-core/tests")
+MYPY_FILE_LIST = AIRFLOW_ROOT_PATH / "files" / "mypy_files.txt"
+MYPY_FILE_LIST.parent.mkdir(parents=True, exist_ok=True)
 
-print("Running /opt/airflow/scripts/in_container/run_mypy.sh with arguments: ", arguments)
+FILE_ARGUMENT = "@/files/mypy_files.txt"
+
+all_provider_duplicated_path_to_ignore = []
+
+for second_level_path in KNOWN_SECOND_LEVEL_PATHS:
+    all_provider_duplicated_path_to_ignore.extend(
+        [
+            rf"^.*/providers/{second_level_path}/.*/src/airflow/providers/{second_level_path}/__init__.py$",
+            rf"^.*/providers/{second_level_path}/.*/tests/unit/{second_level_path}/__init__.py$",
+            rf"^.*/providers/{second_level_path}/.*/tests/integration/{second_level_path}/__init__.py$",
+            rf"^.*/providers/{second_level_path}/.*/tests/system/{second_level_path}/__init__.py$",
+        ]
+    )
+
+exclude_regexps = [
+    re.compile(x)
+    for x in [
+        r"^.*/node_modules/.*",
+        r"^.*\\..*",
+        r"^.*/src/airflow/__init__.py$",
+        # Remove duplicated (legacy namespace packages) __init__.py files from providers
+        r"^.*/providers/src/airflow/__init__.py$",
+        r"^.*/providers/src/airflow/providers/__init__.py$",
+        r"^.*/providers/.*/tests/unit/__init__.py$",
+        r"^.*/providers/.*/tests/integration/__init__.py$",
+        r"^.*/providers/.*/tests/system/__init__.py$",
+        *all_provider_duplicated_path_to_ignore,
+    ]
+]
+
+
+def get_all_files(folder: str) -> list[str]:
+    files_to_check = []
+    python_file_paths = (AIRFLOW_ROOT_PATH / folder).resolve().rglob("*.py")
+    for file in python_file_paths:
+        if (
+            (file.name not in ("conftest.py",) and not any(x.match(file.as_posix()) for x in exclude_regexps))
+            and not any(part.startswith(".") for part in file.parts)
+        ) and not file.as_posix().endswith("src/airflow/providers/__init__.py"):
+            files_to_check.append(file.relative_to(AIRFLOW_ROOT_PATH).as_posix())
+    file_spec = "@/files/mypy_files.txt"
+    console.print(f"[info]Running mypy with {file_spec}")
+    return files_to_check
+
+
+all_files_to_check = []
+
+for mypy_folder in mypy_folders:
+    all_files_to_check.extend(get_all_files(mypy_folder))
+MYPY_FILE_LIST.write_text("\n".join(all_files_to_check))
+
+if os.environ.get("CI"):
+    console.print("[info]The content of the file is:")
+    console.print(all_files_to_check)
+else:
+    console.print(f"[info]You cand check the list of files in:[/] {MYPY_FILE_LIST}")
+
+print(f"Running mypy with {FILE_ARGUMENT}")
+
+cmd = ["bash", "-c", f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)}"]
 
 res = run_command_via_breeze_shell(
-    [
-        "/opt/airflow/scripts/in_container/run_mypy.sh",
-        *arguments,
-    ],
+    cmd=cmd,
     warn_image_upgrade_needed=True,
     extra_env={
         "INCLUDE_MYPY_VOLUME": os.environ.get("INCLUDE_MYPY_VOLUME", "true"),

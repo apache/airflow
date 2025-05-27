@@ -31,7 +31,8 @@ from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
-from airflow.utils.state import State
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.state import DagRunState, State
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
@@ -187,7 +188,6 @@ class SystemTestContextBuilder:
 
     def __init__(self):
         self.variables = set()
-        self.env_id = set_env_id()
         self.test_name = _get_test_name()
 
     def add_variable(
@@ -228,7 +228,7 @@ class SystemTestContextBuilder:
 
         @task
         def variable_fetcher(ti=None):
-            ti.xcom_push(ENV_ID_KEY, self.env_id)
+            ti.xcom_push(ENV_ID_KEY, set_env_id())
             for variable in self.variables:
                 ti.xcom_push(variable.name, variable.get_value())
 
@@ -279,6 +279,14 @@ def set_env_id() -> str:
 
 
 def all_tasks_passed(ti) -> bool:
+    if AIRFLOW_V_3_0_PLUS:
+        # If the test is being run with task SDK, ti is an instance of RuntimeTaskInstance
+        # This is the case when executed with an executor
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        if isinstance(ti, RuntimeTaskInstance):
+            return RuntimeTaskInstance.get_dagrun_state(ti.dag_id, ti.run_id) != DagRunState.FAILED
+
     task_runs = ti.get_dagrun().get_task_instances()
     return all([_task.state != State.FAILED for _task in task_runs])
 

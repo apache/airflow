@@ -22,7 +22,7 @@ Airflow is a platform that lets you build and run *workflows*. A workflow is rep
 :doc:`DAG <dags>` (a Directed Acyclic Graph), and contains individual pieces of work called
 :doc:`tasks`, arranged with dependencies and data flows taken into account.
 
-.. image:: ../img/edge_label_example.png
+.. image:: ../img/ui-light/edge_label_example.png
   :alt: An example Airflow DAG, rendered in Graph
 
 A DAG specifies the dependencies between tasks, which defines the order in which to execute the tasks.
@@ -59,7 +59,7 @@ A minimal Airflow installation consists of the following components:
 * A folder of *DAG files*, which is read by the *scheduler* to figure out what tasks to run and when to
   run them.
 
-* A *metadata database*, which airflow components use to store state of workflows and tasks.
+* A *metadata database*, which Airflow components use to store state of workflows and tasks.
   Setting up a metadata database is described in :doc:`/howto/set-up-database` and is required for
   Airflow to work.
 
@@ -243,6 +243,6 @@ User interface
 
 Airflow comes with a user interface that lets you see what dags and their tasks are doing, trigger runs of dags, view logs, and do some limited debugging and resolution of problems with your dags.
 
-.. image:: ../img/dags.png
+.. image:: ../img/ui-dark/dags.png
 
 It's generally the best way to see the status of your Airflow installation as a whole, as well as diving into individual dags to see their layout, the status of each task, and the logs from each task.

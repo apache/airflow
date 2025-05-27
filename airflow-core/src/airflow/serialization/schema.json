@@ -176,6 +176,7 @@
           }
         },
         "catchup": { "type": "boolean" },
+        "fail_fast": { "type": "boolean" },
         "fileloc": { "type" : "string"},
         "relative_fileloc": { "type" : "string"},
         "_processor_dags_folder": {
@@ -186,6 +187,12 @@
         },
         "dag_display_name": { "type" : "string"},
         "description": { "type" : "string"},
+        "deadline": {
+            "anyOf": [
+                { "$ref": "#/definitions/dict" },
+                { "type": "null" }
+            ]
+        },
         "_concurrency": { "type" : "number"},
         "max_active_tasks": { "type" : "number"},
         "max_active_runs": { "type" : "number"},

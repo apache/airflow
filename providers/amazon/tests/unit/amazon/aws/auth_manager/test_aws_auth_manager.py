@@ -84,8 +84,7 @@ def auth_manager():
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
         }
     ):
-        with patch.object(AwsAuthManager, "_check_avp_schema_version"):
-            return AwsAuthManager()
+        return AwsAuthManager()
 
 
 @pytest.fixture
@@ -211,7 +210,7 @@ class TestAwsAuthManager:
         "details, user, expected_user, expected_entity_id",
         [
             (None, mock, ANY, None),
-            (BackfillDetails(id="1"), mock, mock, "1"),
+            (BackfillDetails(id=1), mock, mock, 1),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
@@ -689,7 +688,7 @@ class TestAwsAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0

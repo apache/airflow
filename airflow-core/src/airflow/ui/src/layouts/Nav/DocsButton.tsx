@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 
 import { Menu } from "src/components/ui";
@@ -24,39 +25,62 @@ import { useConfig } from "src/queries/useConfig";
 
 import { NavButton } from "./NavButton";
 
+const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
+
 const links = [
   {
     href: "https://airflow.apache.org/docs/",
-    title: "Documentation",
+    key: "documentation",
   },
   {
     href: "https://github.com/apache/airflow",
-    title: "GitHub Repo",
+    key: "githubRepo",
   },
   {
-    href: "/docs",
-    title: "REST API Reference",
+    href: new URL("docs", baseUrl).href,
+    key: "restApiReference",
   },
 ];
 
-export const DocsButton = () => {
-  const showAPIDocs = Boolean(useConfig("enable_swagger_ui"));
+export const DocsButton = ({
+  showAPI,
+  version,
+}: {
+  readonly showAPI?: boolean;
+  readonly version?: string;
+}) => {
+  const { t: translate } = useTranslation("common");
+  const showAPIDocs = Boolean(useConfig("enable_swagger_ui")) && showAPI;
+
+  const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiBookOpen size="1.75rem" />} title="Docs" />
+        <NavButton icon={<FiBookOpen size="1.75rem" />} title={translate("nav.docs")} />
       </Menu.Trigger>
       <Menu.Content>
         {links
           .filter((link) => !(!showAPIDocs && link.href === "/docs"))
           .map((link) => (
-            <Menu.Item asChild key={link.title} value={link.title}>
-              <Link aria-label={link.title} href={link.href} rel="noopener noreferrer" target="_blank">
-                {link.title}
+            <Menu.Item asChild key={link.key} value={translate(`docs.${link.key}`)}>
+              <Link
+                aria-label={translate(`docs.${link.key}`)}
+                href={link.href}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {translate(`docs.${link.key}`)}
               </Link>
             </Menu.Item>
           ))}
+        {version === undefined ? undefined : (
+          <Menu.Item asChild key={version} value={version}>
+            <Link aria-label={version} href={versionLink} rel="noopener noreferrer" target="_blank">
+              {version}
+            </Link>
+          </Menu.Item>
+        )}
       </Menu.Content>
     </Menu.Root>
   );

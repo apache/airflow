@@ -44,7 +44,7 @@ from airflow.utils.state import State
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -226,8 +226,8 @@ class TestCeleryExecutor:
 
         not_adopted_tis = executor.try_adopt_task_instances(tis)
 
-        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0 if AIRFLOW_V_2_10_PLUS else 1)
-        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, 0 if AIRFLOW_V_2_10_PLUS else 1)
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0)
+        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, 0)
         assert executor.running == {key_1, key_2}
 
         assert executor.tasks == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}

@@ -64,10 +64,17 @@ def get_dag_source(
             status.HTTP_404_NOT_FOUND,
             f"The source code of the DAG {dag_id}, version_number {version_number} was not found",
         )
-
-    dag_source = dag_version.dag_code.source_code
-    version_number = dag_version.version_number
-    dag_source_model = DAGSourceResponse(dag_id=dag_id, content=dag_source, version_number=version_number)
+    if not dag_version.dag_code:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=f"Code not found. dag_id='{dag_id}' version_number='{version_number}'",
+        )
+    dag_source_model = DAGSourceResponse(
+        dag_id=dag_id,
+        content=dag_version.dag_code.source_code,
+        version_number=dag_version.version_number,
+        dag_display_name=dag_version.dag_model.dag_display_name,
+    )
 
     if accept == Mimetype.TEXT:
         return Response(dag_source_model.content, media_type=Mimetype.TEXT)

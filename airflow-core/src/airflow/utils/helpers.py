@@ -22,8 +22,7 @@ import itertools
 import re
 import signal
 from collections.abc import Generator, Iterable, Mapping, MutableMapping
-from datetime import datetime
-from functools import cache, reduce
+from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urljoin
 
@@ -58,42 +57,6 @@ def validate_key(k: str, max_length: int = 250):
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots and underscores exclusively"
         )
-
-
-def validate_instance_args(instance: object, expected_arg_types: dict[str, Any]) -> None:
-    """Validate that the instance has the expected types for the arguments."""
-    for arg_name, expected_arg_type in expected_arg_types.items():
-        instance_arg_value = getattr(instance, arg_name, None)
-        if instance_arg_value is not None and not isinstance(instance_arg_value, expected_arg_type):
-            raise TypeError(
-                f"'{arg_name}' has an invalid type {type(instance_arg_value)} with value "
-                f"{instance_arg_value}, expected type is {expected_arg_type}"
-            )
-
-
-def validate_group_key(k: str, max_length: int = 200):
-    """Validate value used as a group key."""
-    if not isinstance(k, str):
-        raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
-    if len(k) > max_length:
-        raise AirflowException(f"The key has to be less than {max_length} characters")
-    if not GROUP_KEY_REGEX.match(k):
-        raise AirflowException(
-            f"The key {k!r} has to be made of alphanumeric characters, dashes and underscores exclusively"
-        )
-
-
-def alchemy_to_dict(obj: Any) -> dict | None:
-    """Transform a SQLAlchemy model instance into a dictionary."""
-    if not obj:
-        return None
-    output = {}
-    for col in obj.__table__.columns:
-        value = getattr(obj, col.name)
-        if isinstance(value, datetime):
-            value = value.isoformat()
-        output[col.name] = value
-    return output
 
 
 def ask_yesno(question: str, default: bool | None = None) -> bool:
@@ -137,29 +100,12 @@ def is_container(obj: Any) -> bool:
     return hasattr(obj, "__iter__") and not isinstance(obj, str)
 
 
-def as_tuple(obj: Any) -> tuple:
-    """Return obj as a tuple if obj is a container, otherwise return a tuple containing obj."""
-    if is_container(obj):
-        return tuple(obj)
-    else:
-        return tuple([obj])
-
-
 def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
     """Yield successive chunks of a given size from a list of items."""
     if chunk_size <= 0:
         raise ValueError("Chunk size must be a positive integer")
     for i in range(0, len(items), chunk_size):
         yield items[i : i + chunk_size]
-
-
-def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
-    """Split the list of items into chunks of a given size and pass each chunk through the reducer."""
-    if not iterable:
-        return initializer
-    if chunk_size == 0:
-        chunk_size = len(iterable)
-    return reduce(fn, chunks(iterable, chunk_size), initializer)
 
 
 def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
@@ -178,8 +124,7 @@ def parse_template_string(template_string: str) -> tuple[str, None] | tuple[None
 
     if "{{" in template_string:  # jinja mode
         return None, jinja2.Template(template_string)
-    else:
-        return template_string, None
+    return template_string, None
 
 
 @cache
@@ -190,17 +135,16 @@ def log_filename_template_renderer() -> Callable[..., str]:
         import jinja2
 
         return jinja2.Template(template).render
-    else:
 
-        def f_str_format(ti: TaskInstance, try_number: int | None = None):
-            return template.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                logical_date=ti.logical_date.isoformat(),
-                try_number=try_number or ti.try_number,
-            )
+    def f_str_format(ti: TaskInstance, try_number: int | None = None):
+        return template.format(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            logical_date=ti.logical_date.isoformat(),
+            try_number=try_number or ti.try_number,
+        )
 
-        return f_str_format
+    return f_str_format
 
 
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
@@ -259,7 +203,7 @@ def build_airflow_dagrun_url(dag_id: str, run_id: str) -> str:
     For example:
     http://localhost:8080/dags/hi/runs/manual__2025-02-23T18:27:39.051358+00:00_RZa1at4Q
     """
-    baseurl = conf.get("api", "base_url")
+    baseurl = conf.get("api", "base_url", fallback="/")
     return urljoin(baseurl, f"dags/{dag_id}/runs/{run_id}")
 
 
@@ -330,8 +274,7 @@ def at_most_one(*args) -> bool:
     def is_set(val):
         if val is NOTSET:
             return False
-        else:
-            return bool(val)
+        return bool(val)
 
     return sum(map(is_set, args)) in (0, 1)
 
@@ -348,7 +291,7 @@ def prune_dict(val: Any, mode="strict"):
     def is_empty(x):
         if mode == "strict":
             return x is None
-        elif mode == "truthy":
+        if mode == "truthy":
             return bool(x) is False
         raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
 
@@ -357,27 +300,26 @@ def prune_dict(val: Any, mode="strict"):
         for k, v in val.items():
             if is_empty(v):
                 continue
-            elif isinstance(v, (list, dict)):
+            if isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
                 if not is_empty(new_val):
                     new_dict[k] = new_val
             else:
                 new_dict[k] = v
         return new_dict
-    elif isinstance(val, list):
+    if isinstance(val, list):
         new_list = []
         for v in val:
             if is_empty(v):
                 continue
-            elif isinstance(v, (list, dict)):
+            if isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
                 if not is_empty(new_val):
                     new_list.append(new_val)
             else:
                 new_list.append(v)
         return new_list
-    else:
-        return val
+    return val
 
 
 def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:

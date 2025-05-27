@@ -27,7 +27,7 @@ from contextlib import suppress
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Union
 from urllib.parse import urljoin
 
 import pendulum
@@ -46,6 +46,15 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.typing_compat import TypeAlias
+
+
+# These types are similar, but have distinct names to make processing them less error prone
+LogMessages: TypeAlias = Union[list["StructuredLogMessage"], list[str]]
+"""The log messages themselves, either in already sturcutured form, or a single string blob to be parsed later"""
+LogSourceInfo: TypeAlias = list[str]
+"""Information _about_ the log fetching process for display to a user"""
+LogMetadata: TypeAlias = dict[str, Any]
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +107,11 @@ def _fetch_logs_from_service(url, log_relative_path):
 
     from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_key
 
-    timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
+    timeout = conf.getint("api", "log_fetch_timeout_sec", fallback=None)
     generator = JWTGenerator(
-        secret_key=get_signing_key("webserver", "secret_key"),
+        secret_key=get_signing_key("api", "secret_key"),
+        # Since we are using a secret key, we need to be explicit about the algorithm here too
+        algorithm="HS512",
         private_key=None,
         issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
@@ -124,31 +135,44 @@ if not _parse_timestamp:
         return pendulum.parse(timestamp_str.strip("[]"))
 
 
-def _parse_log_lines(lines: Iterable[str]) -> Iterable[tuple[datetime | None, int, StructuredLogMessage]]:
+def _parse_log_lines(
+    lines: str | LogMessages,
+) -> Iterable[tuple[datetime | None, int, StructuredLogMessage]]:
     from airflow.utils.timezone import coerce_datetime
 
     timestamp = None
     next_timestamp = None
-    for idx, line in enumerate(lines):
+    if isinstance(lines, str):
+        lines = lines.splitlines()
+    if isinstance(lines, list) and len(lines) and isinstance(lines[0], str):
+        # A list of content from each location. It's a super odd format, but this is what we load
+        # [['a\nb\n'], ['c\nd\ne\n']] -> ['a', 'b', 'c', 'd', 'e']
+        lines = itertools.chain.from_iterable(map(str.splitlines, lines))  # type: ignore[assignment,arg-type]
+
+    # https://github.com/python/mypy/issues/8586
+    for idx, line in enumerate[Union[str, StructuredLogMessage]](lines):
         if line:
             try:
-                # Try to parse it as json first
-                log = StructuredLogMessage.model_validate_json(line)
+                if isinstance(line, StructuredLogMessage):
+                    log = line
+                else:
+                    log = StructuredLogMessage.model_validate_json(line)
             except ValidationError:
                 with suppress(Exception):
                     # If we can't parse the timestamp, don't attach one to the row
-                    next_timestamp = _parse_timestamp(line)
-                log = StructuredLogMessage(event=line, timestamp=next_timestamp)
+                    if isinstance(line, str):
+                        next_timestamp = _parse_timestamp(line)
+                log = StructuredLogMessage(event=str(line), timestamp=next_timestamp)
             if log.timestamp:
                 log.timestamp = coerce_datetime(log.timestamp)
                 timestamp = log.timestamp
             yield timestamp, idx, log
 
 
-def _interleave_logs(*logs: str) -> Iterable[StructuredLogMessage]:
+def _interleave_logs(*logs: str | LogMessages) -> Iterable[StructuredLogMessage]:
     min_date = pendulum.datetime(2000, 1, 1)
 
-    records = itertools.chain.from_iterable(_parse_log_lines(log.splitlines()) for log in logs)
+    records = itertools.chain.from_iterable(_parse_log_lines(log) for log in logs)
     last = None
     for timestamp, _, msg in sorted(records, key=lambda x: (x[0] or min_date, x[1])):
         if msg != last or not timestamp:  # dedupe
@@ -317,8 +341,7 @@ class FileTaskHandler(logging.Handler):
                 logical_date=date,
                 try_number=try_number,
             )
-        else:
-            raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
+        raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _get_executor_get_task_log(
         self, ti: TaskInstance
@@ -372,13 +395,14 @@ class FileTaskHandler(logging.Handler):
         # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
         source_list: list[str] = []
-        remote_logs: list[str] = []
+        remote_logs: LogMessages | None = []
         local_logs: list[str] = []
         sources: list[str] = []
         executor_logs: list[str] = []
-        served_logs: list[str] = []
+        served_logs: LogMessages = []
         with suppress(NotImplementedError):
             sources, remote_logs = self._read_remote_logs(ti, try_number, metadata)
+
             source_list.extend(sources)
         has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
@@ -407,7 +431,7 @@ class FileTaskHandler(logging.Handler):
         logs = list(
             _interleave_logs(
                 *local_logs,
-                *remote_logs,
+                (remote_logs or []),
                 *(executor_logs or []),
                 *served_logs,
             )
@@ -558,11 +582,13 @@ class FileTaskHandler(logging.Handler):
         logs = [file.read_text() for file in paths]
         return sources, logs
 
-    def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
+    def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[LogSourceInfo, LogMessages]:
         sources = []
         logs = []
         try:
-            log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
+            log_type = (
+                LogType.TRIGGER if hasattr(ti, "triggerer_job") and ti.triggerer_job else LogType.WORKER
+            )
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
@@ -581,16 +607,16 @@ class FileTaskHandler(logging.Handler):
                     sources.append(url)
                     logs.append(response.text)
         except Exception as e:
-            from requests.exceptions import InvalidSchema
+            from requests.exceptions import InvalidURL
 
-            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidURL) and ti.task.inherits_from_empty_operator is True:
                 sources.append(self.inherits_from_empty_operator_log_message)
             else:
                 sources.append(f"Could not read served logs: {e}")
                 logger.exception("Could not read served logs")
         return sources, logs
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[LogSourceInfo, LogMessages]:
         """
         Implement in subclasses to read from the remote service.
 
@@ -600,4 +626,20 @@ class FileTaskHandler(logging.Handler):
           such as, "reading from x file".
         * Each element in the logs list should be the content of one file.
         """
-        raise NotImplementedError
+        remote_io = None
+        try:
+            from airflow.logging_config import REMOTE_TASK_LOG
+
+            remote_io = REMOTE_TASK_LOG
+        except Exception:
+            pass
+
+        if remote_io is None:
+            # Import not found, or explicitly set to None
+            raise NotImplementedError
+
+        # This living here is not really a good plan, but it just about works for now.
+        # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
+        path = self._render_filename(ti, try_number)
+        sources, logs = remote_io.read(path, ti)
+        return sources, logs or []

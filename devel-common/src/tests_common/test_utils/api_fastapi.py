@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import json
 
-from airflow.models import Log
+from airflow.models import DagRun, Log
+from airflow.models.dagrun import DagRunNote
+from airflow.models.taskinstance import TaskInstanceNote
 from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS as sensitive_fields
 
 
@@ -66,3 +68,30 @@ def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, c
     if check_masked:
         extra_json = json.loads(logs[0].extra)
         _masked_value_check(extra_json, sensitive_fields)
+
+
+def _check_dag_run_note(session, dr_id, note_data):
+    dr_note = (
+        session.query(DagRunNote)
+        .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
+        .filter(DagRun.run_id == dr_id)
+        .one_or_none()
+    )
+    if note_data is None:
+        assert dr_note is None
+    else:
+        assert dr_note.user_id == note_data.get("user_id")
+        assert dr_note.content == note_data.get("content")
+
+
+def _check_task_instance_note(session, ti_id, note_data):
+    ti_note = session.query(TaskInstanceNote).filter_by(ti_id=ti_id).one_or_none()
+    if note_data is None:
+        assert ti_note is None
+    else:
+        # Had to add this refresh because TestPatchTaskInstance::test_set_note_should_respond_200_mapped_task_instance_with_rtif
+        # was failing for map index = 2. Unless I force refresh ti_note, it was returning the old value.
+        # Even if I reverse the order of map indexes, only the map index 2 was returning older value.
+        session.refresh(ti_note)
+        assert ti_note.content == note_data["content"]
+        assert ti_note.user_id == note_data["user_id"]

@@ -56,6 +56,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagRunId,
     options: {
       enabled: open,
+      refetchOnMount: "always",
     },
     requestBody: {
       only_failed: onlyFailed,

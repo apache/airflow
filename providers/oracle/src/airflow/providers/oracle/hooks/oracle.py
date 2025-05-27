@@ -25,6 +25,7 @@ import oracledb
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
+DEFAULT_DB_PORT = 1521
 PARAM_TYPES = {bool, float, int, str}
 
 
@@ -183,7 +184,7 @@ class OracleHook(DbApiHook):
 
         # Set up DSN
         service_name = conn.extra_dejson.get("service_name")
-        port = conn.port if conn.port else 1521
+        port = conn.port if conn.port else DEFAULT_DB_PORT
         if conn.host and sid and not service_name:
             conn_config["dsn"] = oracledb.makedsn(conn.host, port, sid)
         elif conn.host and service_name and not sid:
@@ -225,7 +226,11 @@ class OracleHook(DbApiHook):
         elif purity == "default":
             conn_config["purity"] = oracledb.PURITY_DEFAULT
 
-        conn = oracledb.connect(**conn_config)
+        expire_time = conn.extra_dejson.get("expire_time")
+        if expire_time:
+            conn_config["expire_time"] = expire_time
+
+        conn = oracledb.connect(**conn_config)  # type: ignore[assignment]
         if mod is not None:
             conn.module = mod
 
@@ -443,3 +448,26 @@ class OracleHook(DbApiHook):
         )
 
         return result
+
+    def get_uri(self) -> str:
+        """Get the URI for the Oracle connection."""
+        conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
+        login = conn.login
+        password = conn.password
+        host = conn.host
+        port = conn.port or DEFAULT_DB_PORT
+        service_name = conn.extra_dejson.get("service_name")
+        sid = conn.extra_dejson.get("sid")
+
+        if sid and service_name:
+            raise ValueError("At most one allowed for 'sid', and 'service name'.")
+
+        uri = f"oracle+oracledb://{login}:{password}@{host}:{port}"
+        if service_name:
+            uri = f"{uri}?service_name={service_name}"
+        elif sid:
+            uri = f"{uri}/{sid}"
+        elif conn.schema:
+            uri = f"{uri}/{conn.schema}"
+
+        return uri

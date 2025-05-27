@@ -97,7 +97,7 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         note: str | None = None,
         wait_for_completion: bool = False,
         waiter_delay: int = 60,
-        waiter_max_attempts: int = 720,
+        waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):

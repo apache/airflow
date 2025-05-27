@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pydantic import AliasPath, Field, NonNegativeInt
+
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.backfill import ReprocessBehavior
 
@@ -38,7 +40,7 @@ class BackfillPostBody(StrictBaseModel):
 class BackfillResponse(BaseModel):
     """Base serializer for Backfill."""
 
-    id: int
+    id: NonNegativeInt
     dag_id: str
     from_date: datetime
     to_date: datetime
@@ -49,6 +51,7 @@ class BackfillResponse(BaseModel):
     created_at: datetime
     completed_at: datetime | None
     updated_at: datetime
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
 
 class BackfillCollectionResponse(BaseModel):

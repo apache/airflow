@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BeforeValidator, ConfigDict, field_validator
 
@@ -36,6 +36,15 @@ class FastAPIAppResponse(BaseModel):
 
     app: str
     url_prefix: str
+    name: str
+
+
+class FastAPIRootMiddlewareResponse(BaseModel):
+    """Serializer for Plugin FastAPI root middleware responses."""
+
+    model_config = ConfigDict(extra="allow")
+
+    middleware: str
     name: str
 
 
@@ -60,6 +69,18 @@ class AppBuilderMenuItemResponse(BaseModel):
     category: str | None = None
 
 
+class IFrameViewsResponse(BaseModel):
+    """Serializer for IFrame Plugin responses."""
+
+    model_config = ConfigDict(extra="allow")
+
+    name: str
+    src: str
+    icon: str | None = None
+    url_route: str | None = None
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] | None = None
+
+
 class PluginResponse(BaseModel):
     """Plugin serializer."""
 
@@ -67,6 +88,8 @@ class PluginResponse(BaseModel):
     macros: list[str]
     flask_blueprints: list[str]
     fastapi_apps: list[FastAPIAppResponse]
+    fastapi_root_middlewares: list[FastAPIRootMiddlewareResponse]
+    iframe_views: list[IFrameViewsResponse]
     appbuilder_views: list[AppBuilderViewResponse]
     appbuilder_menu_items: list[AppBuilderMenuItemResponse]
     global_operator_extra_links: list[str]
@@ -87,4 +110,18 @@ class PluginCollectionResponse(BaseModel):
     """Plugin Collection serializer."""
 
     plugins: list[PluginResponse]
+    total_entries: int
+
+
+class PluginImportErrorResponse(BaseModel):
+    """Plugin Import Error serializer for responses."""
+
+    source: str
+    error: str
+
+
+class PluginImportErrorCollectionResponse(BaseModel):
+    """Plugin Import Error Collection serializer."""
+
+    import_errors: list[PluginImportErrorResponse]
     total_entries: int

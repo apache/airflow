@@ -25,9 +25,8 @@ import textwrap
 
 import pendulum
 
-from airflow.decorators import task
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.sdk import DAG, task
 
 
 @task(task_id="run_this")
@@ -47,15 +46,14 @@ def my_py_command(params, test_mode=None, task=None):
 
 
 @task(task_id="env_var_test_task")
-def print_env_vars(test_mode=None):
+def print_env_vars():
     """
     Print out the "foo" param passed in via
     `airflow tasks test example_passing_params_via_test_command env_var_test_task <date>
     --env-vars '{"foo":"bar"}'`
     """
-    if test_mode:
-        print(f"foo={os.environ.get('foo')}")
-        print(f"AIRFLOW_TEST_MODE={os.environ.get('AIRFLOW_TEST_MODE')}")
+    print(f"foo={os.environ.get('foo')}")
+    print(f"AIRFLOW_TEST_MODE={os.environ.get('AIRFLOW_TEST_MODE')}")
 
 
 with DAG(

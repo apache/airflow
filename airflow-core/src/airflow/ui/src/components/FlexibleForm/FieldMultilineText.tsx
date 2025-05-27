@@ -22,7 +22,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FieldMultilineText = ({ name }: FlexibleFormElementProps) => {
+export const FieldMultilineText = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
@@ -33,6 +33,7 @@ export const FieldMultilineText = ({ name }: FlexibleFormElementProps) => {
     }
 
     setParamsDict(paramsDict);
+    onUpdate(value);
   };
 
   return (
@@ -42,7 +43,7 @@ export const FieldMultilineText = ({ name }: FlexibleFormElementProps) => {
       onChange={(event) => handleChange(event.target.value)}
       rows={6}
       size="sm"
-      value={JSON.stringify(param.value ?? "")}
+      value={(param.value ?? "") as string}
     />
   );
 };

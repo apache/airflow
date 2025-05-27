@@ -120,7 +120,7 @@ class DagCode(Base):
                 code = f.read()
             return code
         except FileNotFoundError:
-            test_mode = conf.get("core", "unit_test_mode")
+            test_mode = conf.getboolean("core", "unit_test_mode")
             if test_mode:
                 return "source_code"
             raise
@@ -133,8 +133,7 @@ class DagCode(Base):
         )
         if not dag_code:
             raise DagCodeNotFound()
-        else:
-            code = dag_code.source_code
+        code = dag_code.source_code
         return code
 
     @staticmethod

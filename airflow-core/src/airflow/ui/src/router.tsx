@@ -52,8 +52,10 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
+import { Configs } from "./pages/Configs";
+import { GroupTaskInstance } from "./pages/GroupTaskInstance";
 import { Security } from "./pages/Security";
-import { queryClient } from "./queryClient";
+import { client } from "./queryClient";
 
 const taskInstanceRoutes = [
   { element: <Logs />, index: true },
@@ -95,6 +97,10 @@ export const routerConfig = [
       {
         element: <AssetsList />,
         path: "assets",
+      },
+      {
+        element: <Configs />,
+        path: "configs",
       },
       {
         element: <Asset />,
@@ -166,6 +172,19 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },
       {
+        children: [{ element: <TaskInstances />, index: true }],
+        element: <GroupTaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
+      },
+      {
+        children: [
+          { element: <TaskOverview />, index: true },
+          { element: <TaskInstances />, path: "task_instances" },
+        ],
+        element: <Task />,
+        path: "dags/:dagId/tasks/group/:groupId",
+      },
+      {
         children: taskInstanceRoutes,
         element: <TaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
@@ -188,7 +207,7 @@ export const routerConfig = [
     ),
     // Use react router loader to ensure we have the config before any other requests are made
     loader: async () => {
-      const data = await queryClient.ensureQueryData(
+      const data = await client.ensureQueryData(
         queryOptions({
           queryFn: ConfigService.getConfigs,
           queryKey: UseConfigServiceGetConfigsKeyFn(),

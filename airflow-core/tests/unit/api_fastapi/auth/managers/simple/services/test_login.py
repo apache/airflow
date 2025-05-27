@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
-from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
+from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
 from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
 
 from tests_common.test_utils.config import conf_vars
@@ -58,11 +58,11 @@ class TestLogin:
             auth_manager.init()
             users = auth_manager.get_users()
             passwords = auth_manager.get_passwords(users=users)
-            login_response: LoginResponse = SimpleAuthManagerLogin.create_token(
+            result = SimpleAuthManagerLogin.create_token(
                 body=LoginBody(username=test_user, password=passwords.get(test_user, "invalid_password")),
-                expiration_time_in_sec=1,
+                expiration_time_in_seconds=1,
             )
-            assert login_response.jwt_token if test_user in [TEST_USER_1, TEST_USER_2] else True
+            assert result if test_user in [TEST_USER_1, TEST_USER_2] else True
 
     @pytest.mark.parametrize(
         "json_body",
@@ -76,7 +76,34 @@ class TestLogin:
         with pytest.raises(HTTPException) as ex:
             SimpleAuthManagerLogin.create_token(
                 body=LoginBody(username=json_body["username"], password=json_body["password"]),
-                expiration_time_in_sec=1,
+                expiration_time_in_seconds=1,
             )
         assert ex.value.status_code == 400
         assert "Username and password must be provided" in ex.value.detail
+
+    @pytest.mark.parametrize(
+        "json_body",
+        [
+            {"username": "test", "password": ""},
+            {"username": "", "password": "test"},
+            {"username": "", "password": ""},
+            {"username": "test", "password": "test"},
+        ],
+    )
+    def test_create_token_with_all_admins(self, test_client, json_body):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "True"}):
+            result = SimpleAuthManagerLogin.create_token(
+                body=LoginBody(username=json_body["username"], password=json_body["password"]),
+                expiration_time_in_seconds=1,
+            )
+            assert result
+
+    def test_create_token_all_admins(self, test_client):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "True"}):
+            result = SimpleAuthManagerLogin.create_token_all_admins()
+            assert result
+
+    def test_create_token_all_admins_config_disabled(self, test_client):
+        with pytest.raises(HTTPException) as ex:
+            SimpleAuthManagerLogin.create_token_all_admins()
+        assert ex.value.status_code == 403

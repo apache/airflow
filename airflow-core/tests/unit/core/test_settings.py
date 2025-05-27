@@ -28,8 +28,6 @@ import pytest
 
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
 
-from tests_common.test_utils.config import conf_vars
-
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):
     task_instance.run_as_user = "myself"
@@ -93,16 +91,9 @@ class TestLocalSettings:
 
     @mock.patch("airflow.settings.prepare_syspath_for_config_and_plugins")
     @mock.patch("airflow.settings.import_local_settings")
-    @mock.patch("airflow.settings.prepare_syspath_for_dags_folder")
-    def test_initialize_order(
-        self,
-        mock_prepare_syspath_for_dags_folder,
-        mock_import_local_settings,
-        mock_prepare_syspath_for_config_and_plugins,
-    ):
+    def test_initialize_order(self, mock_import_local_settings, mock_prepare_syspath_for_config_and_plugins):
         """
-        Tests that import_local_settings is called between prepare_syspath_for_config_and_plugins
-        and prepare_syspath_for_dags_folder
+        Tests that import_local_settings is called after prepare_syspath_for_config_and_plugins
         """
         mock_local_settings = mock.Mock()
 
@@ -110,9 +101,6 @@ class TestLocalSettings:
             mock_prepare_syspath_for_config_and_plugins, "prepare_syspath_for_config_and_plugins"
         )
         mock_local_settings.attach_mock(mock_import_local_settings, "import_local_settings")
-        mock_local_settings.attach_mock(
-            mock_prepare_syspath_for_dags_folder, "prepare_syspath_for_dags_folder"
-        )
 
         import airflow.settings
 
@@ -121,7 +109,6 @@ class TestLocalSettings:
         expected_calls = [
             call.prepare_syspath_for_config_and_plugins(),
             call.import_local_settings(),
-            call.prepare_syspath_for_dags_folder(),
         ]
 
         mock_local_settings.assert_has_calls(expected_calls)
@@ -207,30 +194,6 @@ class TestLocalSettings:
             task_instance.owner = "airflow"
             with pytest.raises(AirflowClusterPolicyViolation):
                 settings.task_must_have_owners(task_instance)
-
-
-class TestUpdatedConfigNames:
-    @conf_vars({("webserver", "session_lifetime_minutes"): "43200"})
-    def test_config_val_is_default(self):
-        from airflow import settings
-
-        session_lifetime_config = settings.get_session_lifetime_config()
-        assert session_lifetime_config == 43200
-
-    @conf_vars({("webserver", "session_lifetime_minutes"): "43201"})
-    def test_config_val_is_not_default(self):
-        from airflow import settings
-
-        session_lifetime_config = settings.get_session_lifetime_config()
-        assert session_lifetime_config == 43201
-
-    @conf_vars({("webserver", "session_lifetime_days"): ""})
-    def test_uses_updated_session_timeout_config_by_default(self):
-        from airflow import settings
-
-        session_lifetime_config = settings.get_session_lifetime_config()
-        default_timeout_minutes = 30 * 24 * 60
-        assert session_lifetime_config == default_timeout_minutes
 
 
 _local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use relative path:")

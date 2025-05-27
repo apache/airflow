@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, func, select
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
@@ -35,10 +36,10 @@ assets_router = AirflowRouter(tags=["Asset"])
 )
 def next_run_assets(
     dag_id: str,
-    request: Request,
+    dag_bag: DagBagDep,
     session: SessionDep,
 ) -> dict:
-    dag = request.app.state.dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag(dag_id)
 
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find dag {dag_id}")
@@ -55,6 +56,7 @@ def next_run_assets(
             select(
                 AssetModel.id,
                 AssetModel.uri,
+                AssetModel.name,
                 func.max(AssetEvent.timestamp).label("lastUpdate"),
             )
             .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
@@ -79,9 +81,10 @@ def next_run_assets(
                 isouter=True,
             )
             .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.has())
-            .group_by(AssetModel.id, AssetModel.uri)
+            .group_by(AssetModel.id, AssetModel.uri, AssetModel.name)
             .order_by(AssetModel.uri)
         )
     ]
+
     data = {"asset_expression": dag_model.asset_expression, "events": events}
     return data

@@ -27,7 +27,7 @@ Use the
 
 Below is an example of using this sensor to poll the status of a PowerBI workspace.
 
-.. exampleinclude:: /../../providers/microsoft/azure/tests/system/microsoft/azure/example_powerbi.py
+.. exampleinclude:: /../tests/system/microsoft/azure/example_powerbi.py
     :language: python
     :dedent: 0
     :start-after: [START howto_sensor_powerbi_scan_status]

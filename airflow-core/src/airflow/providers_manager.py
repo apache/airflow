@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import inspect
 import json
@@ -72,8 +73,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
     def ensure_prefix(field):
         if field not in conn_attrs and not field.startswith("extra__"):
             return f"extra__{conn_type}__{field}"
-        else:
-            return field
+        return field
 
     if "placeholders" in field_behaviors:
         placeholders = field_behaviors["placeholders"]
@@ -85,8 +85,8 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
+    from airflow.sdk.bases.decorator import TaskDecorator
     from airflow.sdk.definitions.asset import Asset
 
 
@@ -118,10 +118,8 @@ class LazyDictWithCache(MutableMapping):
         return value
 
     def __delitem__(self, key):
-        try:
+        with contextlib.suppress(KeyError):
             self._resolved.remove(key)
-        except KeyError:
-            pass
         self._raw_dict.__delitem__(key)
 
     def __iter__(self):
@@ -418,6 +416,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._auth_manager_class_name_set: set[str] = set()
         self._secrets_backend_class_name_set: set[str] = set()
         self._executor_class_name_set: set[str] = set()
+        self._queue_class_name_set: set[str] = set()
         self._provider_configs: dict[str, dict[str, Any]] = {}
         self._trigger_info_set: set[TriggerInfo] = set()
         self._notification_info_set: set[NotificationInfo] = set()
@@ -534,6 +533,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers executors information."""
         self.initialize_providers_list()
         self._discover_executors()
+
+    @provider_info_cache("queues")
+    def initialize_providers_queues(self):
+        """Lazy initialization of providers queue information."""
+        self.initialize_providers_list()
+        self._discover_queues()
 
     @provider_info_cache("notifications")
     def initialize_providers_notifications(self):
@@ -1093,6 +1098,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     if _correctness_check(provider_package, executors_class_name, provider):
                         self._executor_class_name_set.add(executors_class_name)
 
+    def _discover_queues(self) -> None:
+        """Retrieve all queues defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("queues"):
+                for queue_class_name in provider.data["queues"]:
+                    if _correctness_check(provider_package, queue_class_name, provider):
+                        self._queue_class_name_set.add(queue_class_name)
+
     def _discover_config(self) -> None:
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1224,6 +1237,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._executor_class_name_set)
 
     @property
+    def queue_class_names(self) -> list[str]:
+        self.initialize_providers_queues()
+        return sorted(self._queue_class_name_set)
+
+    @property
     def filesystem_module_names(self) -> list[str]:
         self.initialize_providers_filesystems()
         return sorted(self._fs_set)
@@ -1270,9 +1288,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._auth_manager_class_name_set.clear()
         self._secrets_backend_class_name_set.clear()
         self._executor_class_name_set.clear()
+        self._queue_class_name_set.clear()
         self._provider_configs.clear()
         self._trigger_info_set.clear()
         self._notification_info_set.clear()
         self._plugins_set.clear()
+
         self._initialized = False
         self._initialization_stack_trace = None

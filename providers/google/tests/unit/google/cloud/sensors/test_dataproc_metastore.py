@@ -48,6 +48,7 @@ TEST_REGION = "test-region"
 TEST_TABLE = "test_table"
 GCP_PROJECT = "test-project"
 GCP_CONN_ID = "test-conn"
+TEST_URI = "test-uri"
 
 
 class TestMetastoreHivePartitionSensor:
@@ -142,3 +143,43 @@ class TestMetastoreHivePartitionSensor:
 
         with pytest.raises(AirflowException, match=f"Request failed: {error_message}"):
             sensor.poke(context={})
+
+    @pytest.mark.parametrize(
+        "requested_partitions, result_files_with_rows, expected_result",
+        [
+            ([PARTITION_1, PARTITION_1], [(RESULT_FILE_NAME_1, [ROW_1])], True),
+        ],
+    )
+    @mock.patch(DATAPROC_METASTORE_SENSOR_PATH.format("DataprocMetastoreHook"))
+    @mock.patch(DATAPROC_METASTORE_SENSOR_PATH.format("parse_json_from_gcs"))
+    def test_file_uri(
+        self,
+        mock_parse_json_from_gcs,
+        mock_hook,
+        requested_partitions,
+        result_files_with_rows,
+        expected_result,
+    ):
+        mock_hook.return_value.wait_for_operation.return_value = mock.MagicMock(result_manifest_uri=TEST_URI)
+        manifest = deepcopy(MANIFEST_SUCCESS)
+        parse_json_from_gcs_side_effect = []
+        for file_name, rows in result_files_with_rows:
+            manifest["filenames"].append(file_name)
+            file = deepcopy(RESULT_FILE_CONTENT)
+            file["rows"] = rows
+            parse_json_from_gcs_side_effect.append(file)
+
+        mock_parse_json_from_gcs.side_effect = [manifest, *parse_json_from_gcs_side_effect]
+
+        sensor = MetastoreHivePartitionSensor(
+            task_id=TEST_TASK_ID,
+            service_id=TEST_SERVICE_ID,
+            region=TEST_REGION,
+            table=TEST_TABLE,
+            partitions=requested_partitions,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        assert sensor.poke(context={}) == expected_result
+        mock_parse_json_from_gcs.assert_called_with(
+            file_uri=TEST_URI + "/" + RESULT_FILE_NAME_1, gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )

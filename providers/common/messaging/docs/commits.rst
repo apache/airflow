@@ -32,15 +32,4 @@ Package apache-airflow-providers-common-messaging
 This is detailed commit list of changes for versions provider package: ``common.messaging``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
-
-
-1.0.0
-.....
-
-Latest change: 2025-03-15
-
-==================================================================================================  ===========  ======================================================================
-Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ======================================================================
-`ca4f094c76 <https://github.com/apache/airflow/commit/ca4f094c76cfc5970fe2451b2d3919d6d78bc693>`__  2025-03-01   ``Common Message Queue (#46694)``
-==================================================================================================  ===========  ======================================================================
+.. airflow-providers-commits::

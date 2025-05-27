@@ -73,7 +73,7 @@ file:
 
     import pendulum
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 
 
@@ -101,7 +101,7 @@ know when to schedule the DAG's next run.
 
 We'll start with ``infer_manual_data_interval`` since it's the easier of the two:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/workday.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/workday.py
     :language: python
     :dedent: 4
     :start-after: [START howto_timetable_infer_manual_data_interval]
@@ -119,7 +119,7 @@ interval.
 
 Next is the implementation of ``next_dagrun_info``:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/workday.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/workday.py
     :language: python
     :dedent: 4
     :start-after: [START howto_timetable_next_dagrun_info]
@@ -185,7 +185,7 @@ provides a shortcut for this:
 
 For reference, here's our plugin and DAG files in their entirety:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/workday.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/workday.py
     :language: python
     :start-after: [START howto_timetable]
     :end-before: [END howto_timetable]
@@ -194,7 +194,7 @@ For reference, here's our plugin and DAG files in their entirety:
 
     import pendulum
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
     from airflow.providers.standard.operators.empty import EmptyOperator
 

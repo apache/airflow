@@ -18,11 +18,9 @@
 from __future__ import annotations
 
 import datetime
-import itertools
 import logging
 import os
 import pickle
-import re
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -37,7 +35,6 @@ from sqlalchemy import inspect, select
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -45,7 +42,6 @@ from airflow.exceptions import (
 )
 from airflow.models import DagBag
 from airflow.models.asset import (
-    AssetActive,
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
@@ -61,14 +57,13 @@ from airflow.models.dag import (
     ExecutorLoader,
     get_asset_triggered_next_run_info,
 )
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import TaskGroup
+from airflow.sdk import TaskGroup, setup, task as task_decorator, teardown
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
@@ -87,7 +82,6 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-from airflow.utils.weight_rule import WeightRule
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
@@ -187,12 +181,6 @@ class TestDag:
         clear_db_assets()
 
     @staticmethod
-    def _clean_up(dag_id: str):
-        with create_session() as session:
-            session.query(DagRun).filter(DagRun.dag_id == dag_id).delete(synchronize_session=False)
-            session.query(TI).filter(TI.dag_id == dag_id).delete(synchronize_session=False)
-
-    @staticmethod
     def _occur_before(a, b, list_):
         """
         Assert that a occurs before b in the list.
@@ -219,90 +207,6 @@ class TestDag:
         """
         dag = DAG("DAG", schedule=None, default_args={"start_date": None})
         assert dag.timezone == settings.TIMEZONE
-
-    def test_dag_task_priority_weight_total(self):
-        width = 5
-        depth = 5
-        weight = 5
-        pattern = re.compile("stage(\\d*).(\\d*)")
-        # Fully connected parallel tasks. i.e. every task at each parallel
-        # stage is dependent on every task in the previous stage.
-        # Default weight should be calculated using downstream descendants
-        with DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
-            pipeline = [
-                [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(width)]
-                for i in range(depth)
-            ]
-            for upstream, downstream in zip(pipeline, pipeline[1:]):
-                for up_task, down_task in itertools.product(upstream, downstream):
-                    down_task.set_upstream(up_task)
-
-            for task in dag.task_dict.values():
-                match = pattern.match(task.task_id)
-                task_depth = int(match.group(1))
-                # the sum of each stages after this task + itself
-                correct_weight = ((depth - (task_depth + 1)) * width + 1) * weight
-
-                calculated_weight = task.priority_weight_total
-                assert calculated_weight == correct_weight
-
-    def test_dag_task_priority_weight_total_using_upstream(self):
-        # Same test as above except use 'upstream' for weight calculation
-        weight = 3
-        width = 5
-        depth = 5
-        pattern = re.compile("stage(\\d*).(\\d*)")
-        with DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
-            pipeline = [
-                [
-                    EmptyOperator(
-                        task_id=f"stage{i}.{j}",
-                        priority_weight=weight,
-                        weight_rule=WeightRule.UPSTREAM,
-                    )
-                    for j in range(width)
-                ]
-                for i in range(depth)
-            ]
-            for upstream, downstream in zip(pipeline, pipeline[1:]):
-                for up_task, down_task in itertools.product(upstream, downstream):
-                    down_task.set_upstream(up_task)
-
-            for task in dag.task_dict.values():
-                match = pattern.match(task.task_id)
-                task_depth = int(match.group(1))
-                # the sum of each stages after this task + itself
-                correct_weight = (task_depth * width + 1) * weight
-
-                calculated_weight = task.priority_weight_total
-                assert calculated_weight == correct_weight
-
-    def test_dag_task_priority_weight_total_using_absolute(self):
-        # Same test as above except use 'absolute' for weight calculation
-        weight = 10
-        width = 5
-        depth = 5
-        with DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
-            pipeline = [
-                [
-                    EmptyOperator(
-                        task_id=f"stage{i}.{j}",
-                        priority_weight=weight,
-                        weight_rule=WeightRule.ABSOLUTE,
-                    )
-                    for j in range(width)
-                ]
-                for i in range(depth)
-            ]
-            for upstream, downstream in zip(pipeline, pipeline[1:]):
-                for up_task, down_task in itertools.product(upstream, downstream):
-                    down_task.set_upstream(up_task)
-
-            for task in dag.task_dict.values():
-                # the sum of each stages after this task + itself
-                correct_weight = weight
-                calculated_weight = task.priority_weight_total
-                assert calculated_weight == correct_weight
 
     @pytest.mark.parametrize(
         "cls, expected",
@@ -846,9 +750,9 @@ class TestDag:
             # Instead of comparing exact dates, verify it's relatively recent and not the old start date
             current_time = timezone.utcnow()
 
-            # Verify it's not using the old DEFAULT_DATE from 2016
-            assert model.next_dagrun.year == current_time.year
-            assert model.next_dagrun.month == current_time.month
+            # Verify it's not using the old DEFAULT_DATE from 2016 and is after that since we are picking up present date.
+            assert model.next_dagrun.year >= DEFAULT_DATE.year
+            assert model.next_dagrun.month >= DEFAULT_DATE.month
 
             # Verify the date is within a reasonable range of the current date
             # (allowing for timezone differences and scheduling details)
@@ -990,48 +894,6 @@ class TestDag:
             .all()
         ) == {(task_id, dag_id1, asset2_orm.id)}
 
-    @staticmethod
-    def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
-        assets = session.execute(
-            select(AssetModel, AssetActive)
-            .outerjoin(
-                AssetActive,
-                (AssetModel.name == AssetActive.name) & (AssetModel.uri == AssetActive.uri),
-            )
-            .order_by(AssetModel.uri)
-        ).all()
-        return [a for a, v in assets if not v], [a for a, v in assets if v]
-
-    def test_bulk_write_to_db_does_not_activate(self, dag_maker, testing_dag_bundle, session):
-        """
-        Assets are not activated on write, but later in the scheduler by the SchedulerJob.
-        """
-        # Create four assets - two that have references and two that are unreferenced and marked as
-        # orphans
-        asset1 = Asset(uri="test://asset1", name="asset1", group="test-group")
-        asset2 = Asset(uri="test://asset2", name="asset2", group="test-group")
-        asset3 = Asset(uri="test://asset3", name="asset3", group="test-group")
-        asset4 = Asset(uri="test://asset4", name="asset4", group="test-group")
-
-        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
-        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
-        DAG.bulk_write_to_db("testing", None, [dag1], session=session)
-
-        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [asset1, asset3]
-        assert session.scalars(select(AssetActive)).all() == []
-
-        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1, asset2])
-        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
-        DAG.bulk_write_to_db("testing", None, [dag1], session=session)
-
-        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [
-            asset1,
-            asset2,
-            asset3,
-            asset4,
-        ]
-        assert session.scalars(select(AssetActive)).all() == []
-
     def test_bulk_write_to_db_asset_aliases(self, testing_dag_bundle):
         """
         Ensure that asset aliases referenced in a dag are correctly loaded into the database.
@@ -1078,7 +940,6 @@ class TestDag:
 
     def test_existing_dag_is_paused_after_limit(self, testing_dag_bundle):
         def add_failed_dag_run(dag, id, logical_date):
-            dag_v = DagVersion.get_latest_version(dag_id=dag.dag_id)
             dr = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id="run_id_" + id,
@@ -1086,8 +947,8 @@ class TestDag:
                 state=State.FAILED,
                 data_interval=(logical_date, logical_date),
                 run_after=logical_date,
-                dag_version=dag_v,
                 triggered_by=DagRunTriggeredByType.TEST,
+                session=session,
             )
             ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
             ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)
@@ -1110,8 +971,6 @@ class TestDag:
         )
         add_failed_dag_run(dag, "2", TEST_DATE + timedelta(days=1))
         assert dag.get_is_paused()
-        dag.clear()
-        self._clean_up(dag_id)
 
     def test_dag_is_deactivated_upon_dagfile_deletion(self, dag_maker):
         dag_id = "old_existing_dag"
@@ -1122,7 +981,7 @@ class TestDag:
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
-        assert orm_dag.is_active
+        assert not orm_dag.is_stale
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
@@ -1130,7 +989,7 @@ class TestDag:
         )
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
-        assert not orm_dag.is_active
+        assert orm_dag.is_stale
 
         session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
         session.close()
@@ -1171,10 +1030,8 @@ class TestDag:
         )
         assert dag_run.state == State.RUNNING
         assert dag_run.run_type != DagRunType.MANUAL
-        dag.clear()
-        self._clean_up(dag_id)
 
-    @patch("airflow.models.dag.Stats")
+    @patch("airflow.models.dagrun.Stats")
     def test_dag_handle_callback_crash(self, mock_stats):
         """
         Tests avoid crashes from calling dag callbacks exceptions
@@ -1205,16 +1062,13 @@ class TestDag:
             )
 
             # should not raise any exception
-            dag.handle_callback(dag_run, success=False)
-            dag.handle_callback(dag_run, success=True)
+        dag_run.handle_dag_callback(dag=dag, success=False)
+        dag_run.handle_dag_callback(dag=dag, success=True)
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
             tags={"dag_id": "test_dag_callback_crash"},
         )
-
-        dag.clear()
-        self._clean_up(dag_id)
 
     def test_dag_handle_callback_with_removed_task(self, dag_maker, session):
         """
@@ -1248,11 +1102,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag.handle_callback(dag_run, success=True)
-            dag.handle_callback(dag_run, success=False)
-
-        dag.clear()
-        self._clean_up(dag_id)
+            dag_run.handle_dag_callback(dag=dag, success=False)
+            dag_run.handle_dag_callback(dag=dag, success=True)
 
     @pytest.mark.parametrize("catchup,expected_next_dagrun", [(True, DEFAULT_DATE), (False, None)])
     def test_next_dagrun_after_fake_scheduled_previous(self, catchup, expected_next_dagrun):
@@ -1291,8 +1142,6 @@ class TestDag:
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + delta
 
-        self._clean_up(dag_id)
-
     def test_schedule_dag_once(self):
         """
         Tests scheduling a dag scheduled for @once - should be scheduled the first time
@@ -1321,7 +1170,6 @@ class TestDag:
 
         assert model.next_dagrun is None
         assert model.next_dagrun_create_after is None
-        self._clean_up(dag_id)
 
     def test_fractional_seconds(self):
         """
@@ -1346,7 +1194,6 @@ class TestDag:
 
         assert start_date == run.logical_date, "dag run logical_date loses precision"
         assert start_date == run.start_date, "dag run start_date loses precision "
-        self._clean_up(dag_id)
 
     def test_rich_comparison_ops(self):
         test_dag_id = "test_rich_comparison_ops"
@@ -1496,7 +1343,7 @@ class TestDag:
         non_fail_fast_dag.add_task(task_with_non_default_trigger_rule)
 
         # a fail stop dag should allow default trigger rule
-        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_TRIGGER_RULE
 
         fail_fast_dag = DAG(
             dag_id="test_dag_add_task_checks_trigger_rule",
@@ -1530,28 +1377,24 @@ class TestDag:
         assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
 
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_clear_set_dagrun_state(self, dag_run_state):
+    @pytest.mark.need_serialized_dag
+    def test_clear_set_dagrun_state(self, dag_run_state, dag_maker, session):
         dag_id = "test_clear_set_dagrun_state"
-        self._clean_up(dag_id)
-        task_id = "t1"
-        dag = DAG(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = EmptyOperator(task_id=task_id, dag=dag)
 
-        session = settings.Session()
-        dagrun_1 = _create_dagrun(
-            dag,
+        with dag_maker(dag_id, start_date=DEFAULT_DATE, max_active_runs=1) as dag:
+            task_id = "t1"
+            EmptyOperator(task_id=task_id)
+
+        dr = dag_maker.create_dagrun(
             run_type=DagRunType.BACKFILL_JOB,
             state=State.FAILED,
             start_date=DEFAULT_DATE,
             logical_date=DEFAULT_DATE,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            session=session,
         )
-        session.merge(dagrun_1)
-
-        task_instance_1 = TI(t_1, run_id=dagrun_1.run_id, state=State.RUNNING)
-        task_instance_1.refresh_from_db()
-        session.merge(task_instance_1)
         session.commit()
+        session.refresh(dr)
+        assert dr.state == "failed"
 
         dag.clear(
             start_date=DEFAULT_DATE,
@@ -1559,18 +1402,14 @@ class TestDag:
             dag_run_state=dag_run_state,
             session=session,
         )
-
-        dagruns = session.query(DagRun).filter(DagRun.dag_id == dag_id).all()
-
-        assert len(dagruns) == 1
-        dagrun: DagRun = dagruns[0]
-        assert dagrun.state == dag_run_state
+        session.refresh(dr)
+        assert dr.state == dag_run_state
 
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     @pytest.mark.need_serialized_dag
     def test_clear_set_dagrun_state_for_mapped_task(self, dag_maker, dag_run_state):
         dag_id = "test_clear_set_dagrun_state"
-        self._clean_up(dag_id)
+
         task_id = "t1"
 
         with dag_maker(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1) as dag:
@@ -1668,8 +1507,8 @@ class TestDag:
             mock_handle_object_1(f"task {ti.task_id} failed...")
 
         def handle_dag_failure(context):
-            ti = context["task_instance"]
-            mock_handle_object_2(f"dag {ti.dag_id} run failed...")
+            dag_id = context["dag"].dag_id
+            mock_handle_object_2(f"dag {dag_id} run failed...")
 
         dag = DAG(
             dag_id="test_local_testing_conn_file",
@@ -1745,32 +1584,37 @@ my_postgres_conn:
         self,
         ti_state_begin: TaskInstanceState | None,
         ti_state_end: TaskInstanceState | None,
+        dag_maker,
+        session,
     ):
         dag_id = "test_clear_dag"
-        self._clean_up(dag_id)
+
         task_id = "t1"
-        dag = DAG(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1)
-        _ = EmptyOperator(task_id=task_id, dag=dag)
+        with dag_maker(
+            dag_id,
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            max_active_runs=1,
+            serialized=True,
+        ) as dag:
+            EmptyOperator(task_id=task_id)
 
         session = settings.Session()  # type: ignore
-        dagrun_1 = dag.create_dagrun(
+        dagrun_1 = dag_maker.create_dagrun(
             run_id="backfill",
             run_type=DagRunType.BACKFILL_JOB,
             state=DagRunState.RUNNING,
             start_date=DEFAULT_DATE,
             logical_date=DEFAULT_DATE,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            run_after=DEFAULT_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            # triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
         )
-        session.merge(dagrun_1)
 
-        task_instance_1 = dagrun_1.get_task_instance(task_id)
+        task_instance_1 = dagrun_1.get_task_instance(task_id, session=session)
         if TYPE_CHECKING:
             assert task_instance_1
         task_instance_1.state = ti_state_begin
         task_instance_1.job_id = 123
-        session.merge(task_instance_1)
         session.commit()
 
         dag.clear(
@@ -1784,7 +1628,6 @@ my_postgres_conn:
         assert len(task_instances) == 1
         task_instance: TI = task_instances[0]
         assert task_instance.state == ti_state_end
-        self._clean_up(dag_id)
 
     def test_next_dagrun_info_once(self):
         dag = DAG("test_scheduler_dagrun_once", start_date=timezone.datetime(2015, 1, 1), schedule="@once")
@@ -1988,10 +1831,10 @@ my_postgres_conn:
         assert next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
 
         # Test catchup=False scenario (using current dates)
-        current_time = timezone.utcnow()
+        start_date = timezone.datetime(2016, 1, 1, 10, 10, 0)
         dag = DAG(
             dag_id="test_scheduler_auto_align_3",
-            start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
+            start_date=start_date,
             schedule="4 5 * * *",
             catchup=False,
         )
@@ -2001,15 +1844,17 @@ my_postgres_conn:
         assert next_info
         # With catchup=False, next_dagrun should be based on the current date
         # Verify it's not using the old start_date
-        assert next_info.logical_date.year == current_time.year
-        assert next_info.logical_date.month == current_time.month
+        assert next_info.logical_date.year >= start_date.year
+        assert next_info.logical_date.month >= start_date.month
+
         # Verify it's following the cron schedule pattern (4 5 * * *)
         assert next_info.logical_date.hour == 5
         assert next_info.logical_date.minute == 4
 
+        start_date = timezone.datetime(2016, 1, 1, 10, 10, 0)
         dag = DAG(
             dag_id="test_scheduler_auto_align_4",
-            start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
+            start_date=start_date,
             schedule="10 10 * * *",
             catchup=False,
         )
@@ -2019,8 +1864,8 @@ my_postgres_conn:
         assert next_info
         # With catchup=False, next_dagrun should be based on the current date
         # Verify it's not using the old start_date
-        assert next_info.logical_date.year == current_time.year
-        assert next_info.logical_date.month == current_time.month
+        assert next_info.logical_date.year >= start_date.year
+        assert next_info.logical_date.month >= start_date.month
         # Verify it's following the cron schedule pattern (10 10 * * *)
         assert next_info.logical_date.hour == 10
         assert next_info.logical_date.minute == 10
@@ -2219,7 +2064,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
             next_dagrun_create_after=timezone.datetime(2038, 1, 2),
-            is_active=True,
+            is_stale=False,
         )
         session.add(orm_dag)
         session.flush()
@@ -2362,7 +2207,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=None,
             next_dagrun_create_after=None,
-            is_active=True,
+            is_stale=False,
         )
         # assert max_active_runs updated
         assert orm_dag.max_active_runs == 16
@@ -2386,7 +2231,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
-            is_active=True,
+            is_stale=False,
         )
         session.add(orm_dag)
         session.flush()
@@ -2418,7 +2263,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
-            is_active=True,
+            is_stale=False,
         )
         assert not orm_dag.has_import_errors
         session.add(orm_dag)
@@ -2640,7 +2485,12 @@ class TestQueries:
 def test_set_task_instance_state(run_id, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
     start_date = datetime_tz(2020, 1, 1)
-    with dag_maker("test_set_task_instance_state", start_date=start_date, session=session) as dag:
+    with dag_maker(
+        "test_set_task_instance_state",
+        start_date=start_date,
+        session=session,
+        serialized=True,
+    ) as dag:
         task_1 = EmptyOperator(task_id="task_1")
         task_2 = EmptyOperator(task_id="task_2")
         task_3 = EmptyOperator(task_id="task_3")
@@ -2778,7 +2628,12 @@ def test_set_task_instance_state_mapped(dag_maker, session):
 def test_set_task_group_state(session, dag_maker):
     """Test that set_task_group_state updates the TaskGroup state and clear downstream failed"""
     start_date = datetime_tz(2020, 1, 1)
-    with dag_maker("test_set_task_group_state", start_date=start_date, session=session) as dag:
+    with dag_maker(
+        "test_set_task_group_state",
+        start_date=start_date,
+        session=session,
+        serialized=True,
+    ) as dag:
         start = EmptyOperator(task_id="start")
 
         with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:

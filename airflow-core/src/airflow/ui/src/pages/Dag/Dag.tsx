@@ -24,6 +24,7 @@ import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
+import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -58,7 +59,7 @@ export const Dag = () => {
     data: runsData,
     error: runsError,
     isLoading: isLoadingRuns,
-  } = useDagsServiceRecentDagRuns({ dagIds: [dagId] }, undefined, {
+  } = useDagsServiceRecentDagRuns({ dagIds: [dagId], dagRunsLimit: 1 }, undefined, {
     enabled: Boolean(dagId),
     refetchInterval: (query) =>
       query.state.data?.dags
@@ -68,7 +69,14 @@ export const Dag = () => {
         : false,
   });
 
-  const dagWithRuns = runsData?.dags.find((recentDag) => recentDag.dag_id === dagId);
+  let dagWithRuns = runsData?.dags.find((recentDag) => recentDag.dag_id === dagId);
+
+  if (dagWithRuns === undefined && dag !== undefined) {
+    dagWithRuns = {
+      latest_dag_runs: [],
+      ...dag,
+    } satisfies DAGWithLatestDagRunsResponse;
+  }
 
   return (
     <ReactFlowProvider>

@@ -20,7 +20,7 @@ import { Box, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useParams } from "react-router-dom";
 
-import { useBackfillServiceListBackfills } from "openapi/queries";
+import { useBackfillServiceListBackfills1 } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -30,6 +30,26 @@ import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { getDuration, pluralize } from "src/utils";
 
 const columns: Array<ColumnDef<BackfillResponse>> = [
+  {
+    accessorKey: "date_from",
+    cell: ({ row }) => (
+      <Text>
+        <Time datetime={row.original.from_date} />
+      </Text>
+    ),
+    enableSorting: false,
+    header: "From",
+  },
+  {
+    accessorKey: "date_to",
+    cell: ({ row }) => (
+      <Text>
+        <Time datetime={row.original.to_date} />
+      </Text>
+    ),
+    enableSorting: false,
+    header: "To",
+  },
   {
     accessorKey: "reprocess_behavior",
     cell: ({ row }) => (
@@ -42,11 +62,6 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
     ),
     enableSorting: false,
     header: "Reprocess Behavior",
-  },
-  {
-    accessorKey: "max_active_runs",
-    enableSorting: false,
-    header: "Max Active Runs",
   },
   {
     accessorKey: "created_at",
@@ -69,36 +84,21 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
     header: "Completed at",
   },
   {
-    accessorKey: "date_from",
-    cell: ({ row }) => (
-      <Text>
-        <Time datetime={row.original.from_date} />
-      </Text>
-    ),
-    enableSorting: false,
-    header: "From",
-  },
-  {
-    accessorKey: "date_to",
-    cell: ({ row }) => (
-      <Text>
-        <Time datetime={row.original.to_date} />
-      </Text>
-    ),
-    enableSorting: false,
-    header: "To",
-  },
-  {
     accessorKey: "duration",
     cell: ({ row }) => (
       <Text>
         {row.original.completed_at === null
           ? ""
-          : `${getDuration(row.original.created_at, row.original.completed_at)}s`}
+          : getDuration(row.original.created_at, row.original.completed_at)}
       </Text>
     ),
     enableSorting: false,
     header: "Duration",
+  },
+  {
+    accessorKey: "max_active_runs",
+    enableSorting: false,
+    header: "Max Active Runs",
   },
 ];
 
@@ -109,7 +109,7 @@ export const Backfills = () => {
 
   const { dagId = "" } = useParams();
 
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfills({
+  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfills1({
     dagId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
