@@ -26,12 +26,18 @@ if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
 
 from fastapi.testclient import TestClient
-from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+# onelogin is optional dependency from apache-airflow-providers-amazon[python3-saml]
+# we want to skip it for the lowest dependency checks as it does not install extra dependencies
+# https://github.com/apache/airflow/pull/50449#issuecomment-2897572327
+OneLogin_Saml2_IdPMetadataParser = pytest.importorskip(
+    "onelogin.saml2.idp_metadata_parser"
+).OneLogin_Saml2_IdPMetadataParser
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {

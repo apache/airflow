@@ -36,3 +36,7 @@ class AirflowCtlNotFoundException(AirflowCtlException):
 
 class AirflowCtlCredentialNotFoundException(AirflowCtlNotFoundException):
     """Raise when a credential couldn't be found while performing an operation."""
+
+
+class AirflowCtlConnectionException(AirflowCtlException):
+    """Raise when a connection error occurs while performing an operation."""

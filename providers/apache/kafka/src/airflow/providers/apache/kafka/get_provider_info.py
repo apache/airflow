@@ -72,4 +72,5 @@ def get_provider_info():
                 "connection-type": "kafka",
             }
         ],
+        "queues": ["airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider"],
     }

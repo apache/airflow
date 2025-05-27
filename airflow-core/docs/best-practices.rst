@@ -296,18 +296,12 @@ When you execute that code you will see:
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
 
-.. _best_practices/dynamic_dag_generation:
-
 Code Quality and Linting
 ------------------------
 
 Maintaining high code quality is essential for the reliability and maintainability of your Airflow workflows. Utilizing linting tools can help identify potential issues and enforce coding standards. One such tool is ``ruff``, a fast Python linter that now includes specific rules for Airflow.
 
-ruff assists in detecting deprecated features and patterns that may affect your migration to Airflow 3.0. For instance, it includes rules prefixed with ``AIR`` to flag potential issues:
-
-- **AIR301**: Flags DAGs without an explicit ``schedule`` argument.
-- **AIR302**: Identifies usage of deprecated ``schedule_interval`` parameter.
-- **AIR303**: Detects imports from modules that have been relocated or removed in Airflow 3.0.
+ruff assists in detecting deprecated features and patterns that may affect your migration to Airflow 3.0. For instance, it includes rules prefixed with ``AIR`` to flag potential issues. The full list is detailed in `Airflow (AIR) <https://docs.astral.sh/ruff/rules/#airflow-air>`_.
 
 Installing and Using ruff
 -------------------------
@@ -316,13 +310,13 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.9.5"
+      pip install "ruff>=0.11.6"
 
 2. **Running ruff**: Execute ``ruff`` to check your dags for potential issues:
 
    .. code-block:: bash
 
-      ruff check dags/ --select AIR301,AIR302,AIR303
+      ruff check dags/ --select AIR3 --preview
 
    This command will analyze your dags located in the ``dags/`` directory and report any issues related to the specified rules.
 
@@ -355,6 +349,7 @@ By integrating ``ruff`` into your development workflow, you can proactively addr
 
 For more information on ``ruff`` and its integration with Airflow, refer to the `official Airflow documentation <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>`_.
 
+.. _best_practices/dynamic_dag_generation:
 
 Dynamic DAG Generation
 ----------------------

@@ -36,6 +36,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
@@ -43,6 +44,7 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 const {
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
+  POOL: POOL_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -56,7 +58,7 @@ const taskInstanceColumns = (
     ? []
     : [
         {
-          accessorKey: "dag_id",
+          accessorKey: "dag_display_name",
           enableSorting: false,
           header: "Dag ID",
         },
@@ -97,6 +99,10 @@ const taskInstanceColumns = (
         },
       ]),
   {
+    accessorKey: "rendered_map_index",
+    header: "Map Index",
+  },
+  {
     accessorKey: "state",
     cell: ({
       row: {
@@ -125,10 +131,6 @@ const taskInstanceColumns = (
     header: "End Date",
   },
   {
-    accessorKey: "rendered_map_index",
-    header: "Map Index",
-  },
-  {
     accessorKey: "try_number",
     enableSorting: false,
     header: "Try Number",
@@ -155,6 +157,7 @@ const taskInstanceColumns = (
       <Flex justifyContent="end">
         <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
         <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
+        <DeleteTaskInstanceButton taskInstance={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
@@ -166,7 +169,7 @@ const taskInstanceColumns = (
 ];
 
 export const TaskInstances = () => {
-  const { dagId, runId, taskId } = useParams();
+  const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -176,7 +179,9 @@ export const TaskInstances = () => {
   const filteredState = searchParams.getAll(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
+  const pool = searchParams.getAll(POOL_PARAM);
   const hasFilteredState = filteredState.length > 0;
+  const hasFilteredPool = pool.length > 0;
 
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
@@ -192,10 +197,11 @@ export const TaskInstances = () => {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      pool: hasFilteredPool ? pool : undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
-      taskId: taskId ?? undefined,
+      taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
+      taskId: Boolean(groupId) ? undefined : taskId,
     },
     undefined,
     {
@@ -212,7 +218,7 @@ export const TaskInstances = () => {
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
       <DataTable
-        columns={taskInstanceColumns(dagId, runId, taskId)}
+        columns={taskInstanceColumns(dagId, runId, Boolean(groupId) ? undefined : taskId)}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

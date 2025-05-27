@@ -197,12 +197,17 @@ class TestSchedulerJob:
 
     @pytest.fixture
     def mock_executors(self):
+        mock_jwt_generator = MagicMock()
+        mock_jwt_generator.generate.return_value = "mock-token"
+
         default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
+        default_executor.jwt_generator = mock_jwt_generator
         second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
+        second_executor.jwt_generator = mock_jwt_generator
 
-        # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_command
+        # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_workload
         # interface from executors
         default_executor.queue_workload.__func__ = BaseExecutor.queue_workload
         second_executor.queue_workload.__func__ = BaseExecutor.queue_workload
@@ -1544,12 +1549,12 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun()
         ti1 = dr1.get_task_instance(task1.task_id, session)
 
-        with patch.object(BaseExecutor, "queue_command") as mock_queue_command:
+        with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
             self.job_runner._enqueue_task_instances_with_queued_state(
                 [ti1], executor=scheduler_job.executor, session=session
             )
 
-        assert mock_queue_command.called
+        assert mock_queue_workload.called
         session.rollback()
 
     @pytest.mark.parametrize("state", [State.FAILED, State.SUCCESS])
@@ -1570,14 +1575,14 @@ class TestSchedulerJob:
         session.merge(ti)
         session.commit()
 
-        with patch.object(BaseExecutor, "queue_command") as mock_queue_command:
+        with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
             self.job_runner._enqueue_task_instances_with_queued_state(
                 [ti], executor=scheduler_job.executor, session=session
             )
         session.flush()
         ti.refresh_from_db(session=session)
         assert ti.state == State.NONE
-        mock_queue_command.assert_not_called()
+        mock_queue_workload.assert_not_called()
 
     @pytest.mark.parametrize(
         "task1_exec, task2_exec",
@@ -4115,7 +4120,7 @@ class TestSchedulerJob:
         # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
         assert not custom_task.operator_extra_links
 
-    def test_scheduler_create_dag_runs_does_not_raise_error(self, caplog, dag_maker):
+    def test_scheduler_create_dag_runs_does_not_raise_error_when_no_serdag(self, caplog, dag_maker):
         """
         Test that scheduler._create_dag_runs does not raise an error when the DAG does not exist
         in serialized_dag table
@@ -4137,10 +4142,18 @@ class TestSchedulerJob:
                 logger="airflow.jobs.scheduler_job_runner",
             ),
         ):
+            self._clear_serdags(dag_id=dag_maker.dag.dag_id, session=session)
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
             assert caplog.messages == [
                 "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
             ]
+
+    def _clear_serdags(self, dag_id, session):
+        SDM = SerializedDagModel
+        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag_id))
+        for sdm in sdms:
+            session.delete(sdm)
+        session.commit()
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """

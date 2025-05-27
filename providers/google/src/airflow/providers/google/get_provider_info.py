@@ -1368,6 +1368,10 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
                 "connection-type": "leveldb",
             },
+            {
+                "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
+                "connection-type": "google_ads",
+            },
         ],
         "extra-links": [
             "airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink",
@@ -1461,11 +1465,6 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink",
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink",
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLDatasetLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLDatasetListLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelTrainLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelPredictLink",
             "airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink",
             "airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink",
             "airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink",

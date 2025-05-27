@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI
 from starlette.routing import Mount
 
+from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_error_handlers,
@@ -31,7 +32,6 @@ from airflow.api_fastapi.core_api.app import (
     init_middlewares,
     init_views,
 )
-from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -80,7 +80,7 @@ def create_app(apps: str = "all") -> FastAPI:
         version="2",
     )
 
-    dag_bag = get_dag_bag()
+    dag_bag = create_dag_bag()
 
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
@@ -167,9 +167,10 @@ def get_auth_manager() -> BaseAuthManager:
 
 
 def init_plugins(app: FastAPI) -> None:
-    """Integrate FastAPI app and middleware plugins."""
+    """Integrate FastAPI app, middlewares and UI plugins."""
     from airflow import plugins_manager
 
+    plugins_manager.initialize_fastapi_plugins()
     plugins_manager.initialize_fastapi_plugins()
 
     # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.
@@ -187,6 +188,7 @@ def init_plugins(app: FastAPI) -> None:
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
 
+    # After calling initialize_fastapi_plugins, fastapi_root_middlewares cannot be None anymore.
     for middleware_dict in cast("list", plugins_manager.fastapi_root_middlewares):
         name = middleware_dict.get("name")
         middleware = middleware_dict.get("middleware")

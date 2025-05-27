@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import {
   useDagRunServiceGetDagRun,
   useDagServiceGetDagDetails,
+  useTaskInstanceServiceGetMappedTaskInstance,
   useTaskServiceGetTask,
 } from "openapi/queries";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
@@ -31,7 +32,7 @@ import { TogglePause } from "src/components/TogglePause";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const DagBreadcrumb = () => {
-  const { dagId = "", mapIndex = "-1", runId, taskId } = useParams();
+  const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: dag } = useDagServiceGetDagDetails({
@@ -51,6 +52,12 @@ export const DagBreadcrumb = () => {
   );
 
   const { data: task } = useTaskServiceGetTask({ dagId, taskId }, undefined, { enabled: Boolean(taskId) });
+
+  const { data: mappedTaskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
+    { dagId, dagRunId: runId ?? "", mapIndex: parseInt(mapIndex, 10), taskId: taskId ?? "" },
+    undefined,
+    { enabled: Boolean(runId) && Boolean(taskId) && mapIndex !== "-1" },
+  );
 
   const links: Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }> =
     [
@@ -79,6 +86,23 @@ export const DagBreadcrumb = () => {
     });
   }
 
+  // Add group breadcrumb
+  if (groupId !== undefined) {
+    if (runId === undefined) {
+      links.push({
+        label: "All Runs",
+        title: "Dag Run",
+        value: `/dags/${dagId}/runs`,
+      });
+    }
+
+    links.push({
+      label: groupId,
+      title: "Group",
+      value: `/dags/${dagId}/groups/${groupId}`,
+    });
+  }
+
   // Add task breadcrumb
   if (runId !== undefined && taskId !== undefined) {
     if (task?.is_mapped) {
@@ -101,7 +125,7 @@ export const DagBreadcrumb = () => {
   }
 
   if (mapIndex !== "-1") {
-    links.push({ label: mapIndex, title: "Map Index" });
+    links.push({ label: mappedTaskInstance?.rendered_map_index ?? mapIndex, title: "Map Index" });
   }
 
   return <BreadcrumbStats links={links} />;

@@ -64,12 +64,12 @@ if TYPE_CHECKING:
         TaskStateChangeCallback,
     )
     from airflow.models.expandinput import (
-        ExpandInput,
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.definitions.xcom_arg import XComArg
@@ -401,6 +401,10 @@ class MappedOperator(AbstractOperator):
     @property
     def owner(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
+
+    @owner.setter
+    def owner(self, value: str) -> None:
+        self.partial_kwargs["owner"] = value
 
     @property
     def email(self) -> None | str | Iterable[str]:

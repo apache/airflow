@@ -25,7 +25,7 @@ from uuid import UUID
 
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, Depends, HTTPException, Query, Request, status
+from fastapi import Body, HTTPException, Query, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -33,6 +33,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -49,13 +50,14 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearer
+from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
+from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
@@ -69,7 +71,7 @@ router = VersionedAPIRouter()
 ti_id_router = VersionedAPIRouter(
     dependencies=[
         # This checks that the UUID in the url matches the one in the token for us.
-        Depends(JWTBearer(path_param_name="task_instance_id")),
+        JWTBearerTIPathDep
     ]
 )
 
@@ -91,7 +93,7 @@ def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -242,8 +244,10 @@ def ti_run(
             or 0
         )
 
-        if dag := request.app.state.dag_bag.get_dag(ti.dag_id):
-            upstream_map_indexes = dict(_get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index))
+        if dag := dag_bag.get_dag(ti.dag_id):
+            upstream_map_indexes = dict(
+                _get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index, ti.run_id, session)
+            )
         else:
             upstream_map_indexes = None
 
@@ -273,7 +277,7 @@ def ti_run(
 
 
 def _get_upstream_map_indexes(
-    task: Operator, ti_map_index: int
+    task: Operator, ti_map_index: int, run_id: str, session: SessionDep
 ) -> Iterator[tuple[str, int | list[int] | None]]:
     for upstream_task in task.upstream_list:
         map_indexes: int | list[int] | None
@@ -286,8 +290,17 @@ def _get_upstream_map_indexes(
             map_indexes = ti_map_index
         else:
             # tasks not in the same mapped task group
-            # the upstream mapped task group should combine the xcom as a list and return it
-            mapped_ti_count: int = upstream_task.task_group.get_parse_time_mapped_ti_count()
+            # the upstream mapped task group should combine the return xcom as a list and return it
+            mapped_ti_count: int
+            upstream_mapped_group = upstream_task.task_group
+            try:
+                # for cases that does not need to resolve xcom
+                mapped_ti_count = upstream_mapped_group.get_parse_time_mapped_ti_count()
+            except NotFullyPopulated:
+                # for cases that needs to resolve xcom to get the correct count
+                mapped_ti_count = upstream_mapped_group._expand_input.get_total_map_length(
+                    run_id, session=session
+                )
             map_indexes = list(range(mapped_ti_count)) if mapped_ti_count is not None else None
 
         yield upstream_task.task_id, map_indexes
@@ -306,7 +319,7 @@ def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ):
     """
     Update the state of a TaskInstance.
@@ -371,7 +384,7 @@ def ti_update_state(
 
         if updated_state == TerminalTIState.FAILED:
             ti = session.get(TI, ti_id_str)
-            ser_dag = request.app.state.dag_bag.get_dag(dag_id)
+            ser_dag = dag_bag.get_dag(dag_id)
             if ser_dag and getattr(ser_dag, "fail_fast", False):
                 task_dict = getattr(ser_dag, "task_dict")
                 task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}

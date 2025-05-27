@@ -124,7 +124,7 @@ permissions:
   contents: read
 jobs:
   tests:
-    timeout-minutes: 120
+    timeout-minutes: 65
     name: "\
       ${{ inputs.test-scope }}-${{ inputs.test-group }}:\
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
@@ -151,6 +151,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
+      PLATFORM: "${{ inputs.platform }}"
       # yamllint disable rule:line-length
       JOB_ID: "${{ inputs.test-group }}-${{ matrix.test-types.description }}-${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
       MOUNT_SOURCES: "skip"

@@ -19,12 +19,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request, Response, status
+from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -165,9 +166,13 @@ def get_dags(
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
-def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
+def get_dag(
+    dag_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+) -> DAGResponse:
     """Get basic information about a DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
@@ -192,9 +197,9 @@ def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
-def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDetailsResponse:
+def get_dag_details(dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAGDetailsResponse:
     """Get details of DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 

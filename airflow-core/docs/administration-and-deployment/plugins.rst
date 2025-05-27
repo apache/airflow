@@ -108,6 +108,8 @@ looks like:
         fastapi_apps = []
         # A list of dictionaries containing FastAPI middleware factory objects and some metadata. See the example below.
         fastapi_root_middlewares = []
+        # A list of dictionaries containing iframe views and some metadata. See the example below.
+        iframe_views = []
 
         # A callback to perform actions when Airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
@@ -167,8 +169,7 @@ definitions in Airflow.
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
 
-    # Will show up under airflow.macros.test_plugin.plugin_macro
-    # and in templates through {{ macros.test_plugin.plugin_macro }}
+    # Will show up in templates through {{ macros.test_plugin.plugin_macro }}
     def plugin_macro():
         pass
 
@@ -193,6 +194,21 @@ definitions in Airflow.
         "name": "Name of the Middleware",
     }
 
+    # Creating a iframe view that will be rendered in the Airflow UI.
+    iframe_view_with_metadata = {
+        "name": "Name of the Iframe View as displayed in the UI",
+        # Source URL of the iframe. This URL can be templated using context variables, depending on the location where the iframe is rendered
+        # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX)
+        "src": "https://example.com/{DAG_ID}/{RUN_ID}/{TASK_ID}",
+        # Destination of the iframe view. This is used to determine where the iframe will be loaded in the UI.
+        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"]
+        "destination": "dag_run",
+        # Optional icon, url to an svg file.
+        "icon": "https://example.com/icon.svg",
+        # Optional parameters, relative URL location when opening the iframe
+        "url_route": "/my_iframe_view",
+    }
+
 
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
@@ -200,6 +216,7 @@ definitions in Airflow.
         macros = [plugin_macro]
         fastapi_apps = [app_with_metadata]
         fastapi_root_middlewares = [middleware_with_metadata]
+        iframe_views = [iframe_view_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
 
