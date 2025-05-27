@@ -1,0 +1,80 @@
+{
+  "defaultToGraphView": "Standaard grafiekweergave",
+  "defaultToGridView": "Standaard rasterweergave",
+  "logout": "Uitloggen",
+  "switchToDarkMode": "Schakel over naar donkere modus",
+  "switchToLightMode": "Schakel over naar lichte modus",
+  "timezone": "Tijdzone",
+  "user": "Gebruiker",
+  "language": {
+    "zh-TW": "Traditioneel Chinees",
+    "en": "Engels",
+    "de": "Duits",
+    "ko": "Koreaans",
+    "nl": "Nederlands",
+    "select": "Selecteer taal"
+  },
+  "nav": {
+    "home": "Home",
+    "assets": "Assets",
+    "browse": "Verken",
+    "admin": "Beheer",
+    "docs": "Documentatie",
+    "plugins": "Plugins"
+  },
+  "browse": {
+    "auditLog": "Audit Log",
+    "xcoms": "XComs"
+  },
+  "admin": {
+    "Variables": "Variabelen",
+    "Pools": "Pools",
+    "Providers": "Providers",
+    "Plugins": "Plugins",
+    "Connections": "Connecties",
+    "Config": "Configuratie"
+  },
+  "timeRange": {
+    "duration": "Duur",
+    "lastHour": "Laatste uur",
+    "last12Hours": "Laatste 12 uur",
+    "last24Hours": "Laatste 24 uur",
+    "pastWeek": "Laatste week"
+  },
+  "docs": {
+    "documentation": "Documentatie",
+    "githubRepo": "GitHub Repo",
+    "restApiReference": "REST API referentie"
+  },
+  "states": {
+    "queued": "Wachtend",
+    "running": "Lopend",
+    "success": "Succesvol",
+    "failed": "Mislukt",
+    "skipped": "Overgeslagen",
+    "removed": "Verwijderd",
+    "scheduled": "Gepland",
+    "restarting": "Herstartend",
+    "up_for_retry": "Wachtend op een nieuwe poging",
+    "up_for_reschedule": "Wachtend op herplanning",
+    "upstream_failed": "Upstream mislukt",
+    "deferred": "Uitgesteld",
+    "no_status": "Geen Status"
+  },
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "taskInstance_one": "Task Instance",
+  "taskInstance_other": "Task Instances",
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
+  "triggered": "Triggered",
+  "pools": {
+    "open": "Open",
+    "running": "Lopend",
+    "queued": "Wachtend",
+    "scheduled": "Gepland",
+    "deferred": "Uitgesteld",
+    "pools_one": "pool",
+    "pools_other": "pools"
+  }
+}
