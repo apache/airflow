@@ -80,6 +80,13 @@ class DiscordWebhookHook(HttpHook):
         avatar_url: str | None = None,
         tts: bool = False,
         proxy: str | None = None,
+        embeds: list[dict[str, Any]] | None = None,
+        mentions: list[dict[str, Any]] | None = None,
+        mention_everyone: bool = False,
+        mention_roles: list[str] | None = None,
+        mention_channels: list[dict[str, Any]] | None = None,
+        reactions: list[dict[str, Any]] | None = None,
+        application_id: str = "airflow",
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -91,6 +98,13 @@ class DiscordWebhookHook(HttpHook):
         self.avatar_url = avatar_url
         self.tts = tts
         self.proxy = proxy
+        self.embeds = embeds
+        self.mentions = mentions
+        self.mention_everyone = mention_everyone
+        self.mention_roles = mention_roles
+        self.mention_channels = mention_channels
+        self.reactions = reactions
+        self.application_id = application_id
 
     def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
         """
@@ -119,6 +133,26 @@ class DiscordWebhookHook(HttpHook):
 
         return endpoint
 
+    def _validate_embeds(self, embeds: list[dict[str, Any]]) -> None:
+        """
+        Validate the structure of the embeds.
+
+        :param embeds: List of embed objects to validate
+        :raises AirflowException: If any embed object is invalid
+        """
+        for embed in embeds:
+            if not isinstance(embed, dict):
+                raise AirflowException("Each embed must be a dictionary.")
+            if "title" in embed and not isinstance(embed["title"], str):
+                raise AirflowException("Embed title must be a string.")
+            if "description" in embed and not isinstance(embed["description"], str):
+                raise AirflowException("Embed description must be a string.")
+            if "url" in embed and not isinstance(embed["url"], str):
+                raise AirflowException("Embed URL must be a string.")
+            if "color" in embed and not isinstance(embed["color"], int):
+                raise AirflowException("Embed color must be an integer.")
+            # Add more validations as needed
+
     def _build_discord_payload(self) -> str:
         """
         Combine all relevant parameters into a valid Discord JSON payload.
@@ -134,10 +168,26 @@ class DiscordWebhookHook(HttpHook):
 
         payload["tts"] = self.tts
 
-        if len(self.message) <= 2000:
+        if self.message and len(self.message) <= 2000:
             payload["content"] = self.message
+        elif not self.message:
+            print("No message")
         else:
             raise AirflowException("Discord message length must be 2000 or fewer characters.")
+
+        if self.embeds:
+            self._validate_embeds(self.embeds)
+            payload["embeds"] = self.embeds
+        if self.mentions:
+            payload["mentions"] = self.mentions
+        payload["mention_everyone"] = self.mention_everyone
+        if self.mention_roles:
+            payload["mention_roles"] = self.mention_roles
+        if self.mention_channels:
+            payload["mention_channels"] = self.mention_channels
+        if self.reactions:
+            payload["reactions"] = self.reactions
+        payload["application_id"] = self.application_id
 
         return json.dumps(payload)
 
@@ -150,9 +200,12 @@ class DiscordWebhookHook(HttpHook):
 
         discord_payload = self._build_discord_payload()
 
-        self.run(
+        response = self.run(
             endpoint=self.webhook_endpoint,
             data=discord_payload,
             headers={"Content-type": "application/json"},
             extra_options={"proxies": proxies},
         )
+
+        if response.status_code != 204:
+            raise AirflowException(f"Discord webhook call failed: {response.text}")
