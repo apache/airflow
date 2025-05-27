@@ -124,8 +124,7 @@ def test_timedelta_sensor_deferrable_run_after_vs_interval(run_after, interval_e
         context["data_interval_end"] = interval_end
 
     with dag_maker() as dag:
-        # DagRun kwargs differ slightly between 2.x and 3.0+
-        dagrun_kwargs = {"run_id": "test_deferrable"}
+        dagrun_kwargs = {}
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.types import DagRunTriggeredByType
 
