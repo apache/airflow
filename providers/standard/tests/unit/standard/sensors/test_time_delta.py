@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 from unittest import mock
 
 import pendulum
+from providers.standard.src.airflow.providers.standard.sensors.time_delta import DateTimeTrigger
 import pytest
 import time_machine
 
@@ -103,6 +105,53 @@ def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_mak
     expected = interval_end or run_after
     actual = op._derive_base_time(context)
     assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "run_after, interval_end",
+    [
+        (timezone.utcnow() + timedelta(days=1), timezone.utcnow() + timedelta(days=2)),
+        (timezone.utcnow() + timedelta(days=1), None),
+    ],
+)
+def test_timedelta_sensor_deferrable_run_after_vs_interval(run_after, interval_end, dag_maker):
+    """Test that TimeDeltaSensor defers correctly when flag is enabled."""
+    if not AIRFLOW_V_3_0_PLUS and not interval_end:
+        pytest.skip("not applicable")
+
+    context: dict[str, Any] = {}
+    if interval_end:
+        context["data_interval_end"] = interval_end
+
+    with dag_maker() as dag:
+        # DagRun kwargs differ slightly between 2.x and 3.0+
+        dagrun_kwargs = {"run_id": "test_deferrable"}
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.types import DagRunTriggeredByType
+
+            dagrun_kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
+
+        delta = timedelta(minutes=5)
+        sensor = TimeDeltaSensor(
+            task_id="timedelta_sensor_deferrable",
+            delta=delta,
+            dag=dag,
+            deferrable=True,  # <-- the feature under test
+        )
+
+        dr = dag.create_dagrun(state=None, run_type=DagRunType.MANUAL, **dagrun_kwargs)
+        context.update(dag_run=dr)
+
+        expected_base = interval_end or run_after
+        expected_fire_time = expected_base + delta
+
+        with pytest.raises(TaskDeferred) as td:
+            sensor.execute(context)
+
+    # The sensor should defer once with a DateTimeTrigger
+    trigger = td.value.trigger
+    assert isinstance(trigger, DateTimeTrigger)
+    assert trigger.moment == expected_fire_time
 
 
 class TestTimeDeltaSensorAsync:
