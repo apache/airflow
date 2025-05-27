@@ -20,7 +20,7 @@
 name: Publish Chart
 on:
   push:
-    branches: ['helm-chart/v[0-9]+-[0-9]+-[0-9]']
+    branches: ['helm-chart/v[0-9]+-[0-9]+-[0-9]+-astro']
 jobs:
   publish-chart:
     runs-on: ubuntu-latest
