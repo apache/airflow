@@ -139,6 +139,9 @@ class TestCloudRemoteLogIO:
             # We need to close in order to flush the logs etc.
             self.subject.close()
 
+            # close call should only flush the logs and not set shutting_down to True
+            assert self.subject.handler.shutting_down is False
+
             # Inside the Cloudwatch logger we swap colons for underscores since colons are not allowed in
             # stream names.
             stream_name = self.task_log_path.replace(":", "_")

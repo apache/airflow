@@ -14,10 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    volumes:
-      # We should be ok with sharing the cache between the builds - now that we are using uv
-      # The cache should be safe to share between parallel builds as UV is build to support it.
-      - /mnt/.cache:/root/.cache
+from __future__ import annotations
+
+import re
+
+from airflow.api_fastapi.core_api.datamodels.providers import ProviderResponse
+from airflow.providers_manager import ProviderInfo
+
+
+def _remove_rst_syntax(value: str) -> str:
+    return re.sub("[`_<>]", "", value.strip(" \n."))
+
+
+def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
+    return ProviderResponse(
+        package_name=provider.data["package-name"],
+        description=_remove_rst_syntax(provider.data["description"]),
+        version=provider.version,
+    )

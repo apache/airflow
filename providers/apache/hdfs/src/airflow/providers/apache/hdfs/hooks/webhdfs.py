@@ -133,6 +133,14 @@ class WebHDFSHook(BaseHook):
                 else:
                     session.cert = cert
 
+        cookies = extra_dejson.get("cookies", False)
+        if cookies:
+            session.cookies.update(cookies)
+
+        headers = extra_dejson.get("headers", False)
+        if extra_dejson.get("headers", False):
+            session.headers.update(headers)
+
         if port is not None:
             connection_str += f":{port}"
 

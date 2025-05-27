@@ -30,7 +30,7 @@ database schema that you have made. To generate a new migration file, run the fo
 
     # starting at the root of the project
     $ breeze --backend postgres
-    $ cd airflow
+    $ cd airflow-core/src/airflow
     $ alembic revision -m "add new field to db" --autogenerate
 
        Generating
