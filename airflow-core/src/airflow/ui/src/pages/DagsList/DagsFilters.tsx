@@ -22,6 +22,7 @@ import {
   createListCollection,
   Field,
   HStack,
+  Text,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
@@ -34,6 +35,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
+import { Switch } from "src/components/ui/Switch.tsx";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { pluralize } from "src/utils";
@@ -42,6 +44,7 @@ const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
+  TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const enabledOptions = createListCollection({
@@ -58,6 +61,7 @@ export const DagsFilters = () => {
   const showPaused = searchParams.get(PAUSED_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const selectedTags = searchParams.getAll(TAGS_PARAM);
+  const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
   const isAll = state === null;
   const isRunning = state === "running";
   const isFailed = state === "failed";
@@ -117,6 +121,9 @@ export const DagsFilters = () => {
       tags.forEach(({ value }) => {
         searchParams.append(TAGS_PARAM, value);
       });
+      if (tags.length < 2) {
+        searchParams.delete(TAGS_MATCH_MODE_PARAM);
+      }
       setSearchParams(searchParams);
     },
     [searchParams, setSearchParams],
@@ -126,6 +133,7 @@ export const DagsFilters = () => {
     searchParams.delete(PAUSED_PARAM);
     searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     searchParams.delete(TAGS_PARAM);
+    searchParams.delete(TAGS_MATCH_MODE_PARAM);
 
     setSearchParams(searchParams);
   };
@@ -141,6 +149,16 @@ export const DagsFilters = () => {
   if (selectedTags.length > 0) {
     filterCount += 1;
   }
+
+  const handleTagModeChange = useCallback(
+    ({ checked }: { checked: boolean }) => {
+      const mode = checked ? "all" : "any";
+
+      searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams],
+  );
 
   return (
     <HStack justifyContent="space-between">
@@ -231,6 +249,29 @@ export const DagsFilters = () => {
             }))}
           />
         </Field.Root>
+        {selectedTags.length >= 2 && (
+          <HStack align="center" gap={1}>
+            <Text
+              color={tagFilterMode === "any" ? "blue.400" : "gray.500"}
+              fontSize="sm"
+              fontWeight={tagFilterMode === "any" ? "bold" : "normal"}
+            >
+              Any
+            </Text>
+            <Switch
+              checked={tagFilterMode === "all"}
+              onCheckedChange={handleTagModeChange}
+              variant="raised"
+            />
+            <Text
+              color={tagFilterMode === "all" ? "blue.400" : "gray.500"}
+              fontSize="sm"
+              fontWeight={tagFilterMode === "all" ? "bold" : "normal"}
+            >
+              All
+            </Text>
+          </HStack>
+        )}
       </HStack>
       <Box>
         {filterCount > 0 && (
