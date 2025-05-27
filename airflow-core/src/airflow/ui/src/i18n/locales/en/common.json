@@ -16,6 +16,7 @@
   },
   "nav": {
     "home": "Home",
+    "dags": "Dags",
     "assets": "Assets",
     "browse": "Browse",
     "admin": "Admin",
