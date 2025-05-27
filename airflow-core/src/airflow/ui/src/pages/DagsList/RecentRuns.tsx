@@ -35,11 +35,14 @@ export const RecentRuns = ({
 }: {
   readonly latestRuns: DAGWithLatestDagRunsResponse["latest_dag_runs"];
 }) => {
-  if (!latestRuns.length) {
+  // Because of the styling (`row-reverse`), we need to reverse the runs so that the most recent run is on the right.
+  const reversedRuns = [...latestRuns].reverse();
+
+  if (!reversedRuns.length) {
     return undefined;
   }
 
-  const runsWithDuration = latestRuns.map((run) => ({
+  const runsWithDuration = reversedRuns.map((run) => ({
     ...run,
     duration: dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds(),
   }));

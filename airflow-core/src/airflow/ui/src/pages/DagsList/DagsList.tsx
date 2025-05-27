@@ -244,7 +244,7 @@ export const DagsList = () => {
         <HStack justifyContent="space-between">
           <HStack>
             <Heading py={3} size="md">
-              {pluralize("Dag", data.total_entries)}
+              {pluralize("Dag", data?.total_entries ?? 0)}
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>
@@ -255,19 +255,21 @@ export const DagsList = () => {
       </VStack>
       <ToggleTableDisplay display={display} setDisplay={setDisplay} />
       <Box overflow="auto">
-        <DataTable
-          cardDef={cardDef}
-          columns={columns}
-          data={data.dags}
-          displayMode={display}
-          errorMessage={<ErrorAlert error={error} />}
-          initialState={tableURLState}
-          isLoading={isLoading}
-          modelName="Dag"
-          onStateChange={setTableURLState}
-          skeletonCount={display === "card" ? 5 : undefined}
-          total={data.total_entries}
-        />
+        {data !== undefined && (
+          <DataTable
+            cardDef={cardDef}
+            columns={columns}
+            data={data.dags}
+            displayMode={display}
+            errorMessage={<ErrorAlert error={error} />}
+            initialState={tableURLState}
+            isLoading={isLoading}
+            modelName="Dag"
+            onStateChange={setTableURLState}
+            skeletonCount={display === "card" ? 5 : undefined}
+            total={data.total_entries}
+          />
+        )}
       </Box>
     </DagsLayout>
   );
