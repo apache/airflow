@@ -27,6 +27,11 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    ExternalQueryRunFacet,
+    SQLJobFacet,
+)
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
@@ -2117,6 +2122,155 @@ class TestDatabricksSQLStatementsOperator:
 
         with pytest.raises(AirflowException, match="^SQL Statement execution failed with terminal state: .*"):
             op.execute_complete(context=None, event=event)
+
+    def test_execute_complete_sets_statement_id(self):
+        """
+        Test `execute_complete` function is setting statement_id as operator attribute.
+        """
+        event = {
+            "statement_id": STATEMENT_ID,
+            "state": SQLStatementState("SUCCEEDED").to_json(),
+            "error": {},
+        }
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            deferrable=True,
+        )
+        assert op.statement_id is None
+        op.execute_complete(context=None, event=event)
+        assert op.statement_id == STATEMENT_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_get_openlineage_facets(self, db_mock_class):
+        query = "insert into dest_schema.dest_table select * from source_schema.source_table"
+        op = DatabricksSQLStatementsOperator(task_id=TASK_ID, statement=query, warehouse_id=WAREHOUSE_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.host = "host"
+
+        op.execute(None)
+
+        result = op.get_openlineage_facets_on_complete(None)
+        assert result.inputs == [Dataset(namespace="databricks://host", name="source_schema.source_table")]
+        assert result.outputs == [Dataset(namespace="databricks://host", name="dest_schema.dest_table")]
+        assert result.run_facets == {
+            "externalQuery": ExternalQueryRunFacet(externalQueryId=STATEMENT_ID, source="databricks://host")
+        }
+        assert result.job_facets == {"sql": SQLJobFacet(query=query)}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_get_openlineage_facets_with_parametrized_query(self, db_mock_class):
+        query = "insert into dest_schema.:dest select * from source_schema.:src"
+        filled_query = "insert into dest_schema.dest_table select * from source_schema.source_table"
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement=query,
+            warehouse_id=WAREHOUSE_ID,
+            parameters=[{"name": "dest", "value": "dest_table"}, {"name": "src", "value": "source_table"}],
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.host = "host"
+
+        op.execute(None)
+
+        result = op.get_openlineage_facets_on_complete(None)
+        assert result.inputs == [Dataset(namespace="databricks://host", name="source_schema.source_table")]
+        assert result.outputs == [Dataset(namespace="databricks://host", name="dest_schema.dest_table")]
+        assert result.run_facets == {
+            "externalQuery": ExternalQueryRunFacet(externalQueryId=STATEMENT_ID, source="databricks://host")
+        }
+        assert result.job_facets == {"sql": SQLJobFacet(query=filled_query)}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_get_openlineage_facets_with_default_catalog_and_schema(self, db_mock_class):
+        query = "insert into dest_cat.dest_schema.dest_table select * from source_table"
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement=query,
+            warehouse_id=WAREHOUSE_ID,
+            catalog="default_catalog",
+            schema="default_schema",
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.host = "host"
+
+        op.execute(None)
+
+        result = op.get_openlineage_facets_on_complete(None)
+        assert result.inputs == [
+            Dataset(namespace="databricks://host", name="default_catalog.default_schema.source_table")
+        ]
+        assert result.outputs == [
+            Dataset(namespace="databricks://host", name="dest_cat.dest_schema.dest_table")
+        ]
+        assert result.run_facets == {
+            "externalQuery": ExternalQueryRunFacet(externalQueryId=STATEMENT_ID, source="databricks://host")
+        }
+        assert result.job_facets == {"sql": SQLJobFacet(query=query)}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_get_openlineage_facets_without_statement_id(self, db_mock_class):
+        """Test missing statement_id, even though that should not happen."""
+        query = "insert into dest_cat.dest_schema.dest_table select * from source_table"
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement=query,
+            warehouse_id=WAREHOUSE_ID,
+            catalog="default_catalog",
+            schema="default_schema",
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.host = "host"
+
+        op.execute(None)
+        op.statement_id = None
+
+        result = op.get_openlineage_facets_on_complete(None)
+        assert result.inputs == [
+            Dataset(namespace="databricks://host", name="default_catalog.default_schema.source_table")
+        ]
+        assert result.outputs == [
+            Dataset(namespace="databricks://host", name="dest_cat.dest_schema.dest_table")
+        ]
+        assert result.run_facets == {}
+        assert result.job_facets == {"sql": SQLJobFacet(query=query)}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch("airflow.providers.openlineage.sqlparser.SQLParser")
+    def test_get_openlineage_facets_with_sql_parser_error(self, mock_sql_parser, db_mock_class):
+        def raise_func():
+            raise ValueError("sql parsing error")
+
+        query = (
+            "insert into dest_cat.dest_schema.dest_table select * from source_cat.source_schema.source_table"
+        )
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement=query,
+            warehouse_id=WAREHOUSE_ID,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.host = "host"
+        mock_sql_parser().generate_openlineage_metadata_from_sql.side_effect = raise_func
+        mock_sql_parser().create_namespace.return_value = "dbx_namespace"
+        mock_sql_parser.normalize_sql.side_effect = lambda x: "normalized" + x
+
+        op.execute(None)
+
+        result = op.get_openlineage_facets_on_complete(None)
+        assert result.inputs == []
+        assert result.outputs == []
+        assert result.run_facets == {
+            "externalQuery": ExternalQueryRunFacet(externalQueryId=STATEMENT_ID, source="dbx_namespace")
+        }
+        assert result.job_facets == {"sql": SQLJobFacet(query="normalized" + query)}
 
 
 class TestDatabricksNotebookOperator:
