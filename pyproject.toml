@@ -252,6 +252,9 @@ packages = []
 "jenkins" = [
     "apache-airflow-providers-jenkins>=3.7.2"
 ]
+"keycloak" = [
+    "apache-airflow-providers-keycloak"
+]
 "microsoft.azure" = [
     "apache-airflow-providers-microsoft-azure>=10.5.1"
 ]
@@ -437,6 +440,7 @@ packages = []
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
+    "apache-airflow-providers-keycloak",
     "apache-airflow-providers-microsoft-azure>=10.5.1",
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
@@ -1090,6 +1094,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/src",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/keycloak/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/keycloak/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/azure/src",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/azure/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/mssql/src",
@@ -1329,6 +1335,7 @@ apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
+apache-airflow-providers-keycloak = { workspace = true }
 apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-microsoft-psrp = { workspace = true }
@@ -1442,6 +1449,7 @@ members = [
     "providers/influxdb",
     "providers/jdbc",
     "providers/jenkins",
+    "providers/keycloak",
     "providers/microsoft/azure",
     "providers/microsoft/mssql",
     "providers/microsoft/psrp",
