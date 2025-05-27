@@ -207,12 +207,12 @@ export const DagsList = () => {
     paused = false;
   }
 
-  const { data, error, isLoading } = useDags(dagRunsLimit, {
+  const { data, error, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
+    dagRunsLimit,
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    onlyActive: true,
     orderBy,
     paused,
     tags: selectedTags,

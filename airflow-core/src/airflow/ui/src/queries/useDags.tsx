@@ -24,25 +24,47 @@ export type DagWithLatest = {
   last_run_start_date: string;
 } & DAGWithLatestDagRunsResponse;
 
-export const useDags = (
-  dagRunsLimit: number,
-  searchParams: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    onlyActive?: boolean;
-    orderBy?: string;
-    owners?: Array<string>;
-    paused?: boolean;
-    tags?: Array<string>;
-  } = {},
-) => {
+export const useDags = ({
+  dagDisplayNamePattern,
+  dagIdPattern,
+  dagRunsLimit,
+  excludeStale = true,
+  lastDagRunState,
+  limit,
+  offset,
+  orderBy,
+  owners,
+  paused,
+  tags,
+}: {
+  dagDisplayNamePattern?: string;
+  dagIdPattern?: string;
+  dagRunsLimit: number;
+  excludeStale?: boolean;
+  lastDagRunState?: DagRunState;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  owners?: Array<string>;
+  paused?: boolean;
+  tags?: Array<string>;
+}) => {
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isFetching, isLoading } = useDagsServiceGetDagsUi(
-    { ...searchParams, dagRunsLimit },
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunsLimit,
+      excludeStale,
+      lastDagRunState,
+      limit,
+      offset,
+      orderBy,
+      owners,
+      paused,
+      tags,
+    },
     undefined,
     {
       refetchInterval: (query) =>
