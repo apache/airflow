@@ -71,10 +71,13 @@ class MaxComputeHook(AlibabaBaseHook):
     :param maxcompute_conn_id: The connection ID to use when fetching connection info.
     """
 
-    conn_name_attr = "alibabacloud_conn_id"
-    default_conn_name = "alibabacloud_default"
+    conn_name_attr = "maxcompute_conn_id"
+    default_conn_name = "maxcompute_default"
     conn_type = "maxcompute"
     hook_name = "MaxCompute"
+
+    def __init__(self, maxcompute_conn_id="maxcompute_default", **kwargs) -> None:
+        super().__init__(alibabacloud_conn_id=maxcompute_conn_id, **kwargs)
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
