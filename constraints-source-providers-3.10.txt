@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-26T19:51:17.354662
+# This constraints file was automatically generated on 2025-05-27T02:27:03.698312
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -52,7 +52,7 @@ aiobotocore==2.22.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.12.0
+aiohttp==3.12.2
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -513,7 +513,7 @@ pytest-mock==3.14.1
 pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
-pytest-xdist==3.6.1
+pytest-xdist==3.7.0
 pytest==8.3.5
 python-arango==8.1.7
 python-daemon==3.1.2
