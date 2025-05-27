@@ -223,6 +223,7 @@ def create_context(task, dag=None):
     }
 
 
+@pytest.mark.db_test
 class TestSnowflakeSqlApiOperator:
     @pytest.fixture
     def mock_execute_query(self):
