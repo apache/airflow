@@ -30,6 +30,7 @@ from unittest import mock
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
+import uuid6
 from celery import Celery
 from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
@@ -220,7 +221,10 @@ class TestCeleryExecutor:
                 dag=DAG(dag_id="dag_id"),
                 start_date=datetime.now(),
             )
-            ti = TaskInstance(task=task, run_id="abc")
+            if AIRFLOW_V_3_0_PLUS:
+                ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
+            else:
+                ti = TaskInstance(task=task, run_id="abc")
             workload = workloads.ExecuteTask.model_construct(
                 ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
             )
