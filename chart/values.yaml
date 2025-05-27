@@ -1433,6 +1433,24 @@ apiServer:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # Add custom annotations to the apiServer configmap
+  configMapAnnotations: {}
+
+  # This string (templated) will be mounted into the Airflow API Server
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
+  apiServerConfig: ~
+  # apiServerConfig: |
+  #   from airflow import configuration as conf
+
+  #   # The SQLAlchemy connection string.
+  #   SQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')
+
+  #   # Flask-WTF flag for CSRF
+  #   CSRF_ENABLED = True
+  apiServerConfigConfigMapName: ~
+
   livenessProbe:
     initialDelaySeconds: 15
     timeoutSeconds: 5
