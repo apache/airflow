@@ -162,7 +162,7 @@ class GenericTransfer(BaseOperator):
             self.log.info("Extracting data from %s", self.source_conn_id)
             self.log.info("Executing: \n %s", self.sql)
 
-            results = self.destination_hook.get_records(self.sql)
+            results = self.source_hook.get_records(self.sql)
 
             self.log.info("Inserting rows into %s", self.destination_conn_id)
             self.destination_hook.insert_rows(table=self.destination_table, rows=results, **self.insert_args)

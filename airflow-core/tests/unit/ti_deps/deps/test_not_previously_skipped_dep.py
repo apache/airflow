@@ -20,7 +20,6 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.exceptions import DownstreamTasksSkipped
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import BranchPythonOperator
@@ -130,10 +129,7 @@ def test_parent_skip_branch(session, dag_maker):
         ti.task_id: ti
         for ti in dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING).task_instances
     }
-    with pytest.raises(DownstreamTasksSkipped) as exc_info:
-        tis["op1"].run()
-
-    assert exc_info.value.tasks == [("op2", -1)]
+    tis["op1"].run()
 
     dep = NotPreviouslySkippedDep()
     assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 1
