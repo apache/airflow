@@ -56,5 +56,3 @@ def update_dags(
         warnings=set(parsing_result.warnings or []),
         session=session,
     )
-
-    return {"message": "DAGs updated successfully"}
