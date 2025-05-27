@@ -77,6 +77,7 @@ class MaxComputeHook(AlibabaBaseHook):
     hook_name = "MaxCompute"
 
     def __init__(self, maxcompute_conn_id="maxcompute_default", **kwargs) -> None:
+        self.maxcompute_conn_id = maxcompute_conn_id
         super().__init__(alibabacloud_conn_id=maxcompute_conn_id, **kwargs)
 
     @classmethod
