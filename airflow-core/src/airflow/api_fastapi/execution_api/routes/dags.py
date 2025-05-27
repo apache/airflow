@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, status
-import tenacity
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
@@ -47,35 +46,15 @@ def update_dags(
     session: SessionDep,
 ):
     """Store DAG parsing results in the database."""
-
     log.info("Updating DAGs for bundle %s version %s", bundle_name, bundle_version)
-    log.info(f"payload: {parsing_result}")
-    try:
-        @tenacity.retry(
-            stop=tenacity.stop_after_attempt(5),
-            wait=tenacity.wait_exponential(multiplier=1, min=4, max=15),
-            retry=tenacity.retry_if_exception_type(Exception),
-            before_sleep=lambda retry_state: log.info(
-                "Retrying update_dag_parsing_results_in_db. Attempt %d", retry_state.attempt_number
-            ),
-        )
-        def _update_dags():
-            update_dag_parsing_results_in_db(
-                bundle_name=bundle_name,
-                bundle_version=bundle_version,
-                dags=parsing_result.serialized_dags,
-                import_errors=parsing_result.import_errors or {},
-                warnings=set(parsing_result.warnings or []),
-                session=session,
-            )
-        
-        _update_dags()
-    except Exception as e:
-        log.error("Failed to update DAGs: %s", str(e))
-        log.exception(e)
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            detail={"reason": "Something went wrong while updating DAGs", "message": str(e)},
-        )
+
+    update_dag_parsing_results_in_db(
+        bundle_name=bundle_name,
+        bundle_version=bundle_version,
+        dags=parsing_result.serialized_dags,
+        import_errors=parsing_result.import_errors or {},
+        warnings=set(parsing_result.warnings or []),
+        session=session,
+    )
 
     return {"message": "DAGs updated successfully"}
