@@ -2497,7 +2497,7 @@ export type GetJobsData = {
   endDateLte?: string | null;
   executorClass?: string | null;
   hostname?: string | null;
-  isAlive?: boolean;
+  isAlive?: boolean | null;
   jobState?: string | null;
   jobType?: string | null;
   limit?: number;

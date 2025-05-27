@@ -789,6 +789,7 @@ class TestJobsOperations:
         response = client.jobs.list(
             job_type="job_type",
             hostname="hostname",
+            is_alive=True,
         )
         assert response == self.job_collection_response
 

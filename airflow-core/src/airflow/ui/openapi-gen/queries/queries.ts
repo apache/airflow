@@ -2127,6 +2127,7 @@ export const useImportErrorServiceGetImportErrors = <
  * Get Jobs
  * Get all jobs.
  * @param data The data for the request.
+ * @param data.isAlive
  * @param data.startDateGte
  * @param data.startDateLte
  * @param data.endDateGte
@@ -2138,7 +2139,6 @@ export const useImportErrorServiceGetImportErrors = <
  * @param data.jobType
  * @param data.hostname
  * @param data.executorClass
- * @param data.isAlive
  * @returns JobCollectionResponse Successful Response
  * @throws ApiError
  */

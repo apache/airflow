@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import select
@@ -27,7 +27,6 @@ from airflow.api_fastapi.common.db.common import (
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
-    BaseParam,
     FilterParam,
     QueryLimit,
     QueryOffset,
@@ -45,23 +44,7 @@ from airflow.api_fastapi.core_api.security import AccessView, requires_access_vi
 from airflow.jobs.job import Job
 from airflow.utils.state import JobState
 
-if TYPE_CHECKING:
-    from sqlalchemy.sql import Select
-
 job_router = AirflowRouter(tags=["Job"], prefix="/jobs")
-
-
-class IsAliveFilter(BaseParam[bool]):
-    """Filter on jobs if is alive."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select(Job).where(Job().is_alive())
-        return select
-
-    @classmethod
-    def depends(cls, is_alive: bool = True) -> IsAliveFilter:
-        return cls().set_value(is_alive)
 
 
 @job_router.get(
@@ -95,7 +78,6 @@ def get_jobs(
                     "executor_class",
                     "hostname",
                     "unixname",
-                    "is_alive",
                 ],
                 Job,
             ).dynamic_depends(default="id")
@@ -117,7 +99,7 @@ def get_jobs(
         FilterParam[str | None],
         Depends(filter_param_factory(Job.executor_class, str | None, filter_name="executor_class")),
     ],
-    is_alive: Annotated[IsAliveFilter, Depends(IsAliveFilter.depends)],
+    is_alive: bool | None = None,
 ) -> JobCollectionResponse:
     """Get all jobs."""
     base_select = (

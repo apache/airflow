@@ -497,10 +497,12 @@ class DagRunOperations(BaseOperations):
 class JobsOperations(BaseOperations):
     """Job operations."""
 
-    def list(self, job_type: str, hostname: str) -> JobCollectionResponse | ServerResponseError:
+    def list(
+        self, job_type: str, hostname: str, is_alive: bool
+    ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
         try:
-            params = {"job_type": job_type, "hostname": hostname}
+            params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
             self.response = self.client.get("jobs", params=params)  # type: ignore
             return JobCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:

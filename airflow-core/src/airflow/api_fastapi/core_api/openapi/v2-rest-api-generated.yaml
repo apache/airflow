@@ -3528,6 +3528,14 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
+      - name: is_alive
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Alive
       - name: start_date_gte
         in: query
         required: false
@@ -3619,13 +3627,6 @@ paths:
           - type: string
           - type: 'null'
           title: Executor Class
-      - name: is_alive
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: true
-          title: Is Alive
       responses:
         '200':
           description: Successful Response
