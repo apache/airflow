@@ -698,3 +698,42 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
             ),
         ]
     )
+
+
+@pytest.mark.parametrize(
+    ("setter_name", "old_value", "new_value"),
+    [
+        ("owner", "old_owner", "new_owner"),
+        ("map_index_template", "old_mit", "new_mit"),
+        ("trigger_rule", TriggerRule.ALL_SUCCESS, TriggerRule.ALL_FAILED),
+        ("is_setup", True, False),
+        ("is_teardown", True, False),
+        ("depends_on_past", True, False),
+        ("ignore_first_depends_on_past", True, False),
+        ("wait_for_past_depends_before_skipping", True, False),
+        ("wait_for_downstream", True, False),
+        ("retries", 3, 5),
+        ("queue", "old_queue", "new_queue"),
+        ("pool", "old_pool", "new_pool"),
+        ("pool_slots", 1, 10),
+        ("execution_timeout", timedelta(minutes=5), timedelta(minutes=10)),
+        ("max_retry_delay", timedelta(minutes=5), timedelta(minutes=10)),
+        ("retry_delay", timedelta(minutes=5), timedelta(minutes=10)),
+        ("retry_exponential_backoff", True, False),
+        ("priority_weight", 1, 10),
+        ("max_active_tis_per_dag", 1, 10),
+        ("on_execute_callback", [], [id]),
+        ("on_failure_callback", [], [id]),
+        ("on_retry_callback", [], [id]),
+        ("on_success_callback", [], [id]),
+        ("on_skipped_callback", [], [id]),
+        ("inlets", ["a"], ["b"]),
+        ("outlets", ["a"], ["b"]),
+    ],
+)
+def test_setters(setter_name: str, old_value: object, new_value: object) -> None:
+    op = MockOperator.partial(task_id="a", arg1="a").expand(arg2=["a", "b", "c"])
+    setattr(op, setter_name, old_value)
+    assert getattr(op, setter_name) == old_value
+    setattr(op, setter_name, new_value)
+    assert getattr(op, setter_name) == new_value

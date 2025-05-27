@@ -193,6 +193,7 @@ class S3Hook(AwsBaseHook):
     ) -> None:
         kwargs["client_type"] = "s3"
         kwargs["aws_conn_id"] = aws_conn_id
+        self._requester_pays = kwargs.pop("requester_pays", False)
 
         if transfer_config_args and not isinstance(transfer_config_args, dict):
             raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
@@ -409,12 +410,15 @@ class S3Hook(AwsBaseHook):
         }
 
         paginator = self.get_conn().get_paginator("list_objects_v2")
-        response = paginator.paginate(
-            Bucket=bucket_name,
-            Prefix=prefix,
-            Delimiter=delimiter,
-            PaginationConfig=config,
-        )
+        params = {
+            "Bucket": bucket_name,
+            "Prefix": prefix,
+            "Delimiter": delimiter,
+            "PaginationConfig": config,
+        }
+        if self._requester_pays:
+            params["RequestPayer"] = "requester"
+        response = paginator.paginate(**params)
 
         prefixes: list[str] = []
         for page in response:
@@ -437,7 +441,13 @@ class S3Hook(AwsBaseHook):
         """
         head_object_val: dict[str, Any] | None = None
         try:
-            head_object_val = await client.head_object(Bucket=bucket_name, Key=key)
+            params = {
+                "Bucket": bucket_name,
+                "Key": key,
+            }
+            if self._requester_pays:
+                params["RequestPayer"] = "requester"
+            head_object_val = await client.head_object(**params)
             return head_object_val
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
@@ -472,12 +482,15 @@ class S3Hook(AwsBaseHook):
         }
 
         paginator = client.get_paginator("list_objects_v2")
-        response = paginator.paginate(
-            Bucket=bucket_name,
-            Prefix=prefix,
-            Delimiter=delimiter,
-            PaginationConfig=config,
-        )
+        params = {
+            "Bucket": bucket_name,
+            "Prefix": prefix,
+            "Delimiter": delimiter,
+            "PaginationConfig": config,
+        }
+        if self._requester_pays:
+            params["RequestPayer"] = "requester"
+        response = paginator.paginate(**params)
 
         prefixes = []
         async for page in response:
@@ -501,7 +514,14 @@ class S3Hook(AwsBaseHook):
         prefix = re.split(r"[\[\*\?]", key, 1)[0] if key else ""
         delimiter = ""
         paginator = client.get_paginator("list_objects_v2")
-        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
+        params = {
+            "Bucket": bucket_name,
+            "Prefix": prefix,
+            "Delimiter": delimiter,
+        }
+        if self._requester_pays:
+            params["RequestPayer"] = "requester"
+        response = paginator.paginate(**params)
         async for page in response:
             if "Contents" in page:
                 for row in page["Contents"]:
@@ -622,14 +642,21 @@ class S3Hook(AwsBaseHook):
                 prefix = re.split(r"[\[*?]", key, 1)[0]
 
             paginator = client.get_paginator("list_objects_v2")
-            response = paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter=delimiter)
+            params = {
+                "Bucket": bucket,
+                "Prefix": prefix,
+                "Delimiter": delimiter,
+            }
+            if self._requester_pays:
+                params["RequestPayer"] = "requester"
+            response = paginator.paginate(**params)
             async for page in response:
                 if "Contents" in page:
                     keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), (int, float)))
         return keys
 
-    @staticmethod
     async def _list_keys_async(
+        self,
         client: AioBaseClient,
         bucket_name: str | None = None,
         prefix: str | None = None,
@@ -655,12 +682,15 @@ class S3Hook(AwsBaseHook):
         }
 
         paginator = client.get_paginator("list_objects_v2")
-        response = paginator.paginate(
-            Bucket=bucket_name,
-            Prefix=prefix,
-            Delimiter=delimiter,
-            PaginationConfig=config,
-        )
+        params = {
+            "Bucket": bucket_name,
+            "Prefix": prefix,
+            "Delimiter": delimiter,
+            "PaginationConfig": config,
+        }
+        if self._requester_pays:
+            params["RequestPayer"] = "requester"
+        response = paginator.paginate(**params)
 
         keys = []
         async for page in response:
@@ -863,13 +893,16 @@ class S3Hook(AwsBaseHook):
         }
 
         paginator = self.get_conn().get_paginator("list_objects_v2")
-        response = paginator.paginate(
-            Bucket=bucket_name,
-            Prefix=_prefix,
-            Delimiter=delimiter,
-            PaginationConfig=config,
-            StartAfter=start_after_key,
-        )
+        params = {
+            "Bucket": bucket_name,
+            "Prefix": _prefix,
+            "Delimiter": delimiter,
+            "PaginationConfig": config,
+            "StartAfter": start_after_key,
+        }
+        if self._requester_pays:
+            params["RequestPayer"] = "requester"
+        response = paginator.paginate(**params)
 
         keys: list[str] = []
         for page in response:
@@ -909,7 +942,14 @@ class S3Hook(AwsBaseHook):
         }
 
         paginator = self.get_conn().get_paginator("list_objects_v2")
-        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, PaginationConfig=config)
+        params = {
+            "Bucket": bucket_name,
+            "Prefix": prefix,
+            "PaginationConfig": config,
+        }
+        if self._requester_pays:
+            params["RequestPayer"] = "requester"
+        response = paginator.paginate(**params)
 
         files = []
         for page in response:
@@ -931,7 +971,13 @@ class S3Hook(AwsBaseHook):
         :return: metadata of an object
         """
         try:
-            return self.get_conn().head_object(Bucket=bucket_name, Key=key)
+            params = {
+                "Bucket": bucket_name,
+                "Key": key,
+            }
+            if self._requester_pays:
+                params["RequestPayer"] = "requester"
+            return self.get_conn().head_object(**params)
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
                 return None
@@ -975,8 +1021,11 @@ class S3Hook(AwsBaseHook):
                 if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
             }
 
+        params = sanitize_extra_args()
+        if self._requester_pays:
+            params["RequestPayer"] = "requester"
         obj = self.resource.Object(bucket_name, key)
-        obj.load(**sanitize_extra_args())
+        obj.load(**params)
         return obj
 
     @unify_bucket_name_and_key
@@ -1022,11 +1071,14 @@ class S3Hook(AwsBaseHook):
         """
         expression = expression or "SELECT * FROM S3Object"
         expression_type = expression_type or "SQL"
+        extra_args = {}
 
         if input_serialization is None:
             input_serialization = {"CSV": {}}
         if output_serialization is None:
             output_serialization = {"CSV": {}}
+        if self._requester_pays:
+            extra_args["RequestPayer"] = "requester"
 
         response = self.get_conn().select_object_content(
             Bucket=bucket_name,
@@ -1035,6 +1087,7 @@ class S3Hook(AwsBaseHook):
             ExpressionType=expression_type,
             InputSerialization=input_serialization,
             OutputSerialization=output_serialization,
+            ExtraArgs=extra_args,
         )
 
         return b"".join(
@@ -1124,6 +1177,8 @@ class S3Hook(AwsBaseHook):
                     filename = filename_gz
         if acl_policy:
             extra_args["ACL"] = acl_policy
+        if self._requester_pays:
+            extra_args["RequestPayer"] = "requester"
 
         client = self.get_conn()
         client.upload_file(
@@ -1270,6 +1325,8 @@ class S3Hook(AwsBaseHook):
             extra_args["ServerSideEncryption"] = "AES256"
         if acl_policy:
             extra_args["ACL"] = acl_policy
+        if self._requester_pays:
+            extra_args["RequestPayer"] = "requester"
 
         client = self.get_conn()
         client.upload_fileobj(
@@ -1330,6 +1387,8 @@ class S3Hook(AwsBaseHook):
             kwargs["ACL"] = acl_policy
         if meta_data_directive:
             kwargs["MetadataDirective"] = meta_data_directive
+        if self._requester_pays:
+            kwargs["RequestPayer"] = "requester"
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
@@ -1412,12 +1471,17 @@ class S3Hook(AwsBaseHook):
             keys = [keys]
 
         s3 = self.get_conn()
+        extra_kwargs = {}
+        if self._requester_pays:
+            extra_kwargs["RequestPayer"] = "requester"
 
         # We can only send a maximum of 1000 keys per request.
         # For details see:
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_objects
         for chunk in chunks(keys, chunk_size=1000):
-            response = s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in chunk]})
+            response = s3.delete_objects(
+                Bucket=bucket, Delete={"Objects": [{"Key": k} for k in chunk]}, **extra_kwargs
+            )
             deleted_keys = [x["Key"] for x in response.get("Deleted", [])]
             self.log.info("Deleted: %s", deleted_keys)
             if "Errors" in response:
@@ -1496,9 +1560,12 @@ class S3Hook(AwsBaseHook):
             file = NamedTemporaryFile(dir=local_path, prefix="airflow_tmp_", delete=False)  # type: ignore
 
         with file:
+            extra_args = {**self.extra_args}
+            if self._requester_pays:
+                extra_args["RequestPayer"] = "requester"
             s3_obj.download_fileobj(
                 file,
-                ExtraArgs=self.extra_args,
+                ExtraArgs=extra_args,
                 Config=self.transfer_config,
             )
         get_hook_lineage_collector().add_input_asset(

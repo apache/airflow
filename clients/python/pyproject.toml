@@ -50,6 +50,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "pydantic >= 2.11.0",
     "python-dateutil",
     "urllib3 >= 2.1.0",
 ]
@@ -65,7 +66,6 @@ Homepage = "https://airflow.apache.org/"
 [tool.hatch.envs.test]
 dependencies = [
     "pytest-cov>=2.8.1",
-    "urllib3 >= 2.1.0",
 ]
 
 [tool.hatch.envs.test.scripts]
@@ -84,7 +84,7 @@ artifacts = [
     "/airflow_client",
     "/docs",
     "/test",
-    "v1.yaml",
+    "v2.yaml",
 ]
 include = [
     "version.txt",
@@ -97,7 +97,7 @@ artifacts = [
     "/airflow_client",
     "/docs",
     "/test",
-    "v1.yaml",
+    "v2.yaml",
 ]
 include = [
     "/airflow_client",

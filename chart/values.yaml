@@ -523,8 +523,12 @@ data:
     port: 5432
     db: postgres
     sslmode: disable
+    # Add custom annotations to the metadata connection secret
+    secretAnnotations: {}
   # resultBackendConnection defaults to the same database as metadataConnection
   resultBackendConnection: ~
+  # Add custom annotations to the result backend connection secret
+  resultBackendConnectionSecretAnnotations: {}
   # or, you can use a different database
   # resultBackendConnection:
   #   user: postgres
@@ -536,14 +540,20 @@ data:
   #   sslmode: disable
   # Note: brokerUrl can only be set during install, not upgrade
   brokerUrl: ~
+  # Add custom annotations to the broker url secret
+  brokerUrlSecretAnnotations: {}
 
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
 fernetKeySecretName: ~
+# Add custom annotations to the fernet key secret
+fernetKeySecretAnnotations: {}
 
 # Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
+# Add custom annotations to the webserver secret
+webserverSecretAnnotations: {}
 webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -1310,7 +1320,12 @@ migrateDatabaseJob:
 
 apiServer:
 
-  # Labels specific to workers objects and pods
+  # Number of Airflow API servers in the deployment
+  replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
+
+  # Labels specific to Airflow API server objects and pods
   labels: {}
 
   # Command to use when running the Airflow API server (templated).
@@ -1329,7 +1344,7 @@ apiServer:
     # If not set and create is true, a name is generated using the release name
     name: ~
 
-    # Annotations to add to webserver kubernetes service account.
+    # Annotations to add to Airflow API server kubernetes service account.
     annotations: {}
   service:
     type: ClusterIP
@@ -1354,10 +1369,16 @@ apiServer:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # Detailed default security contexts for webserver deployments for container and pod level
+  # Allow overriding Update Strategy for API server
+  strategy: ~
+
+  # Detailed default security contexts for Airflow API server deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1367,14 +1388,47 @@ apiServer:
     securityContexts:
       container: {}
 
-  # Launch additional containers into the flower pods.
+  # Launch additional containers into the Airflow API server pods.
   extraContainers: []
+  # Add additional init containers into API server (templated).
+  extraInitContainers: []
+
+  # Mount additional volumes into API server. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  # Select certain nodes for Airflow API server pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+
+  priorityClassName: ~
+
+  #  hostAliases for API server pod
+  hostAliases: []
+
+  # annotations for Airflow API server deployment
+  annotations: {}
+
+  podAnnotations: {}
 
   networkPolicy:
     ingress:
-      # Peers for webserver NetworkPolicy ingress
+      # Peers for Airflow API server NetworkPolicy ingress
       from: []
-      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      # Ports for Airflow API server NetworkPolicy ingress (if `from` is set)
       ports:
         - port: "{{ .Values.ports.apiServer }}"
 
@@ -1385,6 +1439,24 @@ apiServer:
   #   requests:
   #     cpu: 100m
   #     memory: 128Mi
+
+  # Add custom annotations to the apiServer configmap
+  configMapAnnotations: {}
+
+  # This string (templated) will be mounted into the Airflow API Server
+  # as a custom webserver_config.py. You can bake a webserver_config.py in to
+  # your image instead or specify a configmap containing the
+  # webserver_config.py.
+  apiServerConfig: ~
+  # apiServerConfig: |
+  #   from airflow import configuration as conf
+
+  #   # The SQLAlchemy connection string.
+  #   SQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')
+
+  #   # Flask-WTF flag for CSRF
+  #   CSRF_ENABLED = True
+  apiServerConfigConfigMapName: ~
 
   livenessProbe:
     initialDelaySeconds: 15
@@ -2108,6 +2180,8 @@ flower:
 
   # A secret containing the connection
   secretName: ~
+  # Add custom annotations to the flower secret
+  secretAnnotations: {}
 
   # Else, if username and password are set, create secret from username and password
   username: ~
@@ -2272,6 +2346,9 @@ pgbouncer:
 
   podAnnotations: {}
 
+  # Add custom annotations to the pgbouncer certificates secret
+  certificatesSecretAnnotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2310,6 +2387,8 @@ pgbouncer:
   #  configSecretName: pgbouncer-config-secret
   #
   configSecretName: ~
+  # Add custom annotations to the pgbouncer config secret
+  configSecretAnnotations: {}
 
   # PgBouncer pod disruption budget
   podDisruptionBudget:
@@ -2430,6 +2509,8 @@ pgbouncer:
 
     # Key containing the PGBouncer connection URI, defaults to `connection` if not defined
     statsSecretKey: ~
+    # Add custom annotations to the pgbouncer stats secret
+    statsSecretAnnotations: {}
 
     # Detailed default security context for metricsExporterSidecar for container level
     securityContexts:
@@ -2523,6 +2604,9 @@ redis:
   # Note: password can only be set during install, not upgrade.
   password: ~
 
+  # Add custom annotations to the redis password secret
+  passwordSecretAnnotations: {}
+
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
@@ -2569,6 +2653,8 @@ elasticsearch:
   enabled: false
   # A secret containing the connection
   secretName: ~
+  # Add custom annotations to the elasticsearch secret
+  secretAnnotations: {}
   # Or an object representing the connection
   # Example:
   # connection:

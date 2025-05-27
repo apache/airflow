@@ -63,8 +63,8 @@ files_not_fully_covered = [
 ]
 
 other_tests = [
-    "airflow-core/tests/dag_processing",
-    "airflow-core/tests/jobs",
+    "airflow-core/tests/unit/dag_processing",
+    "airflow-core/tests/unit/jobs",
 ]
 
 """

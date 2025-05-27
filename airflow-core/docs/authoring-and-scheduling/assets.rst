@@ -298,7 +298,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
     @task(outlets=[AssetAlias("my-task-outputs")])
     def my_task_with_metadata():
         s3_asset = Asset(uri="s3://bucket/my-task", name="example_s3")
-        yield Metadata(s3_asset, extra={"k": "v"}, alias="my-task-outputs")
+        yield Metadata(s3_asset, extra={"k": "v"}, alias=AssetAlias("my-task-outputs"))
 
 Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
 

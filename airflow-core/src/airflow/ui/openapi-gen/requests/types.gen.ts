@@ -144,11 +144,6 @@ export type BaseInfoResponse = {
 };
 
 /**
- * Bulk Action to be performed on the used model.
- */
-export type BulkAction = "create" | "delete" | "update";
-
-/**
  * Bulk Action to be taken if the entity does not exist.
  */
 export type BulkActionNotOnExistence = "fail" | "skip";
@@ -198,7 +193,7 @@ export type BulkCreateAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -210,7 +205,7 @@ export type BulkCreateAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -222,7 +217,7 @@ export type BulkCreateAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -234,7 +229,7 @@ export type BulkDeleteAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -246,7 +241,7 @@ export type BulkDeleteAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -258,7 +253,7 @@ export type BulkDeleteAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -292,7 +287,7 @@ export type BulkUpdateAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -304,7 +299,7 @@ export type BulkUpdateAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -316,7 +311,7 @@ export type BulkUpdateAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -582,7 +577,7 @@ export type DAGRunResponse = {
   triggered_by: DagRunTriggeredByType | null;
   conf: {
     [key: string]: unknown;
-  };
+  } | null;
   note: string | null;
   dag_versions: Array<DagVersionResponse>;
   bundle_version: string | null;
@@ -867,6 +862,18 @@ export type HealthInfoResponse = {
 };
 
 /**
+ * Serializer for IFrame Plugin responses.
+ */
+export type IFrameViewsResponse = {
+  name: string;
+  src: string;
+  icon?: string | null;
+  url_route?: string | null;
+  destination?: "nav" | "dag" | "dag_run" | "task" | "task_instance" | null;
+  [key: string]: unknown | string;
+};
+
+/**
  * Import Error Collection Response.
  */
 export type ImportErrorCollectionResponse = {
@@ -965,6 +972,7 @@ export type PluginResponse = {
   flask_blueprints: Array<string>;
   fastapi_apps: Array<FastAPIAppResponse>;
   fastapi_root_middlewares: Array<FastAPIRootMiddlewareResponse>;
+  iframe_views: Array<IFrameViewsResponse>;
   appbuilder_views: Array<AppBuilderViewResponse>;
   appbuilder_menu_items: Array<AppBuilderMenuItemResponse>;
   global_operator_extra_links: Array<string>;
@@ -1496,21 +1504,13 @@ export type type =
  * configuration serializer.
  */
 export type ConfigResponse = {
-  navbar_color: string;
-  navbar_text_color: string;
-  navbar_hover_color: string;
-  navbar_text_hover_color: string;
   page_size: number;
   auto_refresh_interval: number;
   hide_paused_dags_by_default: boolean;
   instance_name: string;
-  instance_name_has_markup: boolean;
   enable_swagger_ui: boolean;
   require_confirmation_dag_change: boolean;
   default_wrap: boolean;
-  warn_deployment_exposure: boolean;
-  audit_view_excluded_events: string;
-  audit_view_included_events: string;
   test_connection: string;
   dashboard_alert: Array<UIAlert>;
   show_external_log_redirect: boolean;
