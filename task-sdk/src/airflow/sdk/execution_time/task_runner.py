@@ -802,6 +802,9 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
 
 def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -> None:
+    if not ti.task.inlets and not ti.task.outlets:
+        return
+
     SUPERVISOR_COMMS.send_request(msg=ValidateInletsAndOutlets(ti_id=ti.id), log=log)
     invalid_assets_resp = SUPERVISOR_COMMS.get_message()
     if TYPE_CHECKING:
