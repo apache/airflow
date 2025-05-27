@@ -57,6 +57,7 @@ from airflow.models.dag import (
     ExecutorLoader,
     get_asset_triggered_next_run_info,
 )
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -554,6 +555,19 @@ class TestDag:
     def test_dagtag_repr(self):
         clear_db_dags()
         dag = DAG("dag-test-dagtag", schedule=None, start_date=DEFAULT_DATE, tags=["tag-1", "tag-2"])
+        session = settings.Session()
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
+
         dag.sync_to_db()
         with create_session() as session:
             assert {"tag-1", "tag-2"} == {
@@ -959,8 +973,20 @@ class TestDag:
         op1 = BashOperator(task_id="task", bash_command="exit 1;")
         dag.add_task(op1)
         session = settings.Session()
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
+
         dag.sync_to_db(session=session)
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         assert not dag.get_is_paused()
 
         # dag should be paused after 2 failed dag_runs
@@ -1117,6 +1143,19 @@ class TestDag:
         dag = DAG(dag_id=dag_id, schedule=delta, start_date=DEFAULT_DATE, catchup=catchup)
         dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=DEFAULT_DATE))
 
+        session = settings.Session()
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
+
         _create_dagrun(
             dag,
             run_type=DagRunType.SCHEDULED,
@@ -1151,6 +1190,19 @@ class TestDag:
         dag = DAG(dag_id=dag_id, schedule="@once", start_date=TEST_DATE)
         assert isinstance(dag.timetable, OnceTimetable)
         dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE))
+
+        session = settings.Session()
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
 
         # Sync once to create the DagModel
         dag.sync_to_db()
@@ -1247,6 +1299,19 @@ class TestDag:
     def test_get_paused_dag_ids(self):
         dag_id = "test_get_paused_dag_ids"
         dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
+        session = settings.Session()
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            is_stale=False,
+            is_paused=True,  # Set is_paused to match DAG's is_paused_upon_creation
+        )
+        session.add(orm_dag)
+        session.flush()
         dag.sync_to_db()
         assert DagModel.get_dagmodel(dag_id) is not None
 
@@ -2003,9 +2068,19 @@ my_postgres_conn:
             start_date=DEFAULT_DATE,
             owner_links={"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"},
         )
-
-        assert dag.owner_links == {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}
         session = settings.Session()
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
+        assert dag.owner_links == {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}
         dag.sync_to_db(session=session)
 
         expected_owners = {"dag": {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}}
@@ -2058,8 +2133,13 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name=bundle_name,
             max_active_tasks=1,
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
@@ -2202,8 +2282,10 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=None,
             next_dagrun_create_after=None,
@@ -2211,6 +2293,8 @@ class TestDagModel:
         )
         # assert max_active_runs updated
         assert orm_dag.max_active_runs == 16
+        session.merge(orm_dag_bundle)
+        session.flush()
         session.add(orm_dag)
         session.flush()
         assert orm_dag.max_active_runs is not None
@@ -2226,21 +2310,26 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_stale=False,
         )
-        session.add(orm_dag)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        session.merge(orm_dag)
         session.flush()
 
         query, _ = DagModel.dags_needing_dagruns(session)
         needed = query.all()
-        assert needed == [orm_dag]
+        assert [d.dag_id for d in needed] == [orm_dag.dag_id]
 
         orm_dag.is_paused = True
+        session.merge(orm_dag)
         session.flush()
 
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2258,26 +2347,35 @@ class TestDagModel:
         dag = DAG(dag_id="test_dags", schedule=None, start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
+        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
+            bundle_name="test_bundle",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_stale=False,
         )
         assert not orm_dag.has_import_errors
-        session.add(orm_dag)
+        session.merge(orm_dag_bundle)
+        session.flush()
+        session.merge(orm_dag)
         session.flush()
 
         query, _ = DagModel.dags_needing_dagruns(session)
         needed = query.all()
-        assert needed == [orm_dag]
+        assert [d.dag_id for d in needed] == [orm_dag.dag_id]
+
         orm_dag.has_import_errors = True
         session.merge(orm_dag)
         session.flush()
+
         query, _ = DagModel.dags_needing_dagruns(session)
-        needed = query.all()
-        assert needed == []
+        dag_models = query.all()
+        assert dag_models == []
+
+        session.rollback()
+        session.close()
 
     def test_relative_fileloc(self, session):
         rel_path = "test_assets.py"
@@ -2286,12 +2384,24 @@ class TestDagModel:
         bag = DagBag(dag_folder=file_path, bundle_path=bundle_path)
 
         dag = bag.get_dag("dag_with_skip_task")
+
+        bundle_name = "dag_maker"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+
+        dag_model = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+        )
+        session.merge(dag_model)
+        session.flush()
+
         dag.sync_to_db(session=session)
 
         assert dag.fileloc == str(file_path)
         assert dag.relative_fileloc == str(rel_path)
 
-        SerializedDagModel.write_dag(dag, bundle_name="dag_maker", session=session)
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name, session=session)
         session.commit()
         session.expunge_all()
         dm = session.get(DagModel, dag.dag_id)
@@ -2303,11 +2413,23 @@ class TestDagModel:
 
     def test__processor_dags_folder(self, session, testing_dag_bundle):
         """Only populated after deserializtion"""
+        bundle_name = "testing"
+        session.merge(DagBundleModel(name=bundle_name))
+        session.flush()
+
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = "/abc/test.py"
+
+        dag_model = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+        )
+        session.merge(dag_model)
+        session.flush()
+
         dag.sync_to_db()
         assert dag._processor_dags_folder is None
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
         sdm = SerializedDagModel.get(dag.dag_id, session)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
@@ -2849,6 +2971,7 @@ def test_get_next_data_interval(
     dag = DAG(dag_id="test_get_next_data_interval", schedule="@daily", start_date=DEFAULT_DATE)
     dag_model = DagModel(
         dag_id="test_get_next_data_interval",
+        bundle_name="dags-folder",
         next_dagrun=logical_date,
         next_dagrun_data_interval_start=data_interval_start,
         next_dagrun_data_interval_end=data_interval_end,
