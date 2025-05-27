@@ -2,6 +2,7 @@
   "defaultToGraphView": "Graph-Ansicht als Standard",
   "defaultToGridView": "Gitter-Ansicht als Standard",
   "logout": "Abmelden",
+  "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
   "switchToDarkMode": "Zum Dunkelmodus wechseln",
   "switchToLightMode": "Zum Hellmodus wechseln",
   "timezone": "Zeitzone",
@@ -19,6 +20,7 @@
     "assets": "Datensets (Assets)",
     "browse": "Browsen",
     "admin": "Verwaltung",
+    "security": "Sicherheit",
     "docs": "Doku",
     "plugins": "Plug-ins"
   },
@@ -33,6 +35,13 @@
     "Plugins": "Plug-ins",
     "Connections": "Verbindungen",
     "Config": "Konfiguration"
+  },
+  "security": {
+    "users": "Benutzer",
+    "roles": "Rollen",
+    "actions": "Aktionen",
+    "resources": "Ressourcen",
+    "permissions": "Berechtigungen"
   },
   "timeRange": {
     "duration": "Laufzeit",
@@ -76,5 +85,15 @@
     "deferred": "Delegiert",
     "pools_one": "Pool",
     "pools_other": "Pools"
+  },
+  "modal": {
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen"
+  },
+  "timezoneModal": {
+    "title": "Auswahl der Zeitzone",
+    "placeholder": "Wählen Sie eine Zeitzone",
+    "current-timezone": "Aktuelle Zeit in",
+    "utc": "UTC (Koordinierte Weltzeit)"
   }
 }
