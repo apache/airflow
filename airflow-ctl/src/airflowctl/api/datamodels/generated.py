@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
@@ -74,16 +74,6 @@ class BaseInfoResponse(BaseModel):
     status: Annotated[str | None, Field(title="Status")] = None
 
 
-class BulkAction(str, Enum):
-    """
-    Bulk Action to be performed on the used model.
-    """
-
-    CREATE = "create"
-    DELETE = "delete"
-    UPDATE = "update"
-
-
 class BulkActionNotOnExistence(str, Enum):
     """
     Bulk Action to be taken if the entity does not exist.
@@ -129,7 +119,9 @@ class BulkDeleteActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
@@ -140,7 +132,9 @@ class BulkDeleteActionPoolBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
@@ -151,7 +145,9 @@ class BulkDeleteActionVariableBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
@@ -1018,7 +1014,9 @@ class BulkCreateActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[ConnectionBody], Field(description="A list of entities to be created.", title="Entities")
     ]
@@ -1029,7 +1027,9 @@ class BulkCreateActionPoolBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[PoolBody], Field(description="A list of entities to be created.", title="Entities")
     ]
@@ -1040,7 +1040,9 @@ class BulkCreateActionVariableBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[VariableBody], Field(description="A list of entities to be created.", title="Entities")
     ]
@@ -1051,7 +1053,9 @@ class BulkUpdateActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[ConnectionBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
@@ -1062,7 +1066,9 @@ class BulkUpdateActionPoolBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[PoolBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
@@ -1073,7 +1079,9 @@ class BulkUpdateActionVariableBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    action: Annotated[BulkAction, Field(description="The action to be performed on the entities.")]
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
     entities: Annotated[
         list[VariableBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
