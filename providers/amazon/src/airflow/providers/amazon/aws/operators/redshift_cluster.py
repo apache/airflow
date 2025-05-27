@@ -233,7 +233,6 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
         self.kwargs = kwargs
 
     def execute(self, context: Context):
-        # redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Creating Redshift cluster %s", self.cluster_identifier)
         params: dict[str, Any] = {}
         if self.db_name:
