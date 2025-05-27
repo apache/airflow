@@ -20,10 +20,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
 
 import { useConnectionServiceTestConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
-import type { ConnectionServiceTestConnectionMutationResult } from "openapi/queries/common";
+import type { ConnectionTestResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
-type Error = {
+type ConnectionTestError = {
   body: { detail: string };
   status: number;
 };
@@ -31,7 +31,7 @@ type Error = {
 export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
   const queryClient = useQueryClient();
 
-  const onSuccess = async (res: ConnectionServiceTestConnectionMutationResult) => {
+  const onSuccess = async (res: ConnectionTestResponse) => {
     await queryClient.invalidateQueries({
       queryKey: [useConnectionServiceGetConnectionsKey],
     });
@@ -44,7 +44,7 @@ export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean 
     setConnected(res.status);
   };
 
-  const onError = (err: Error) => {
+  const onError = (err: ConnectionTestError) => {
     toaster.create({
       description: err.body.detail,
       title: `Test Connection (${err.status})`,

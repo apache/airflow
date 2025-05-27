@@ -21,20 +21,37 @@ import { FiActivity, FiWifi, FiWifiOff } from "react-icons/fi";
 
 import type { ConnectionResponse, ConnectionBody } from "openapi/requests/types.gen";
 import ActionButton from "src/components/ui/ActionButton";
+import { useConfig } from "src/queries/useConfig";
 import { useTestConnection } from "src/queries/useTestConnection";
+
+enum TestConnectionOption {
+  Disabled = "Disabled",
+  Enabled = "Enabled",
+  Hidden = "Hidden",
+}
 
 type Props = {
   readonly connection: ConnectionResponse;
-  readonly disabled: boolean;
 };
 
-const TestConnectionButton = ({ connection, disabled }: Props) => {
+const TestConnectionButton = ({ connection }: Props) => {
   const defaultIcon = <FiActivity />;
   const connectedIcon = <FiWifi color="green" />;
   const disconnectedIcon = <FiWifiOff color="red" />;
   const [connected, setConnected] = useState<boolean | undefined>(undefined);
   const [icon, setIcon] = useState(defaultIcon);
   const [hasClicked, setHasClicked] = useState(false);
+
+  const testConnection = useConfig("test_connection");
+  let option;
+
+  if (testConnection === "Enabled") {
+    option = TestConnectionOption.Enabled;
+  } else if (testConnection === "Hidden") {
+    option = TestConnectionOption.Hidden;
+  } else {
+    option = TestConnectionOption.Disabled;
+  }
 
   const connectionBody: ConnectionBody = {
     conn_type: connection.conn_type,
@@ -62,8 +79,13 @@ const TestConnectionButton = ({ connection, disabled }: Props) => {
 
   return (
     <ActionButton
-      actionName="Test Connection"
-      disabled={disabled}
+      actionName={
+        option === TestConnectionOption.Enabled
+          ? "Test Connection"
+          : "Testing connections disabled. Contact your admin to enable it."
+      }
+      disabled={option === TestConnectionOption.Disabled}
+      display={option === TestConnectionOption.Hidden ? "none" : "flex"}
       icon={icon}
       onClick={() => {
         setHasClicked(false);

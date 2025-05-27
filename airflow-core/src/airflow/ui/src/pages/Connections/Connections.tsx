@@ -72,7 +72,7 @@ const columns: Array<ColumnDef<ConnectionResponse>> = [
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
-        <TestConnectionButton connection={original} disabled={false} />
+        <TestConnectionButton connection={original} />
         <EditConnectionButton connection={original} disabled={false} />
         <DeleteConnectionButton connectionId={original.connection_id} disabled={false} />
         {/* For now disabled is set as false, will depend on selected rows once multi action PR merges */}
