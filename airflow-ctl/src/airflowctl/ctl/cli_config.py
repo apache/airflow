@@ -255,6 +255,7 @@ ARG_POOL_FILE = Arg(
 )
 
 
+
 class ActionCommand(NamedTuple):
     """Single CLI command."""
 
@@ -578,10 +579,19 @@ def merge_commands(
         List of merged commands.
     """
     merge_command_map = {}
+    new_commands: list[CLICommand] = []
     for command in commands_will_be_merged:
+        if isinstance(command,ActionCommand):
+            new_commands.append(command)
         if isinstance(command, GroupCommand):
             merge_command_map[command.name] = command
+<<<<<<< HEAD
     new_commands: list[CLICommand] = []
+=======
+        """ if isinstance(command, ActionCommand):
+            merge_command_map[command.name] = command """
+    
+>>>>>>> dafb085c3d (Append actioncommand to commandlist and remove print statements)
     merged_commands = []
     # Common commands
     for command in base_commands:
@@ -679,7 +689,11 @@ core_commands: list[CLICommand] = [
         help="Show version information",
         description="Show version information",
         func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
+<<<<<<< HEAD
         args=(ARG_VERSION_GET,)
+=======
+        args=(),
+>>>>>>> dafb085c3d (Append actioncommand to commandlist and remove print statements)
     ),
     GroupCommand(
         name="variables",
