@@ -103,7 +103,6 @@ def get_json_error(response: httpx.Response):
     """Raise a ServerResponseError if we can extract error info from the error."""
     err = ServerResponseError.from_response(response)
     if err:
-        log.warning("Server error", detail=err.detail)
         raise err
 
 

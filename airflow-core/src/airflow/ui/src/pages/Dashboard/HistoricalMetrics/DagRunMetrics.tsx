@@ -36,7 +36,7 @@ type DagRunMetricsProps = {
 const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success", "failed"];
 
 export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRunMetricsProps) => {
-  const { t: translate } = useTranslation("dashboard");
+  const { t: translate } = useTranslation();
 
   return (
     <Box borderRadius={5} borderWidth={1} p={4}>

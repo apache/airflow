@@ -7344,14 +7344,6 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    BulkAction:
-      type: string
-      enum:
-      - create
-      - delete
-      - update
-      title: BulkAction
-      description: Bulk Action to be performed on the used model.
     BulkActionNotOnExistence:
       type: string
       enum:
@@ -7445,7 +7437,9 @@ components:
     BulkCreateAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7465,7 +7459,9 @@ components:
     BulkCreateAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7485,7 +7481,9 @@ components:
     BulkCreateAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7505,7 +7503,9 @@ components:
     BulkDeleteAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7525,7 +7525,9 @@ components:
     BulkDeleteAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7545,7 +7547,9 @@ components:
     BulkDeleteAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7598,7 +7602,9 @@ components:
     BulkUpdateAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7618,7 +7624,9 @@ components:
     BulkUpdateAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7638,7 +7646,9 @@ components:
     BulkUpdateAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -9156,6 +9166,42 @@ components:
       - triggerer
       title: HealthInfoResponse
       description: Health serializer for responses.
+    IFrameViewsResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        src:
+          type: string
+          title: Src
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+        destination:
+          anyOf:
+          - type: string
+            enum:
+            - nav
+            - dag
+            - dag_run
+            - task
+            - task_instance
+          - type: 'null'
+          title: Destination
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - src
+      title: IFrameViewsResponse
+      description: Serializer for IFrame Plugin responses.
     ImportErrorCollectionResponse:
       properties:
         import_errors:
@@ -9410,6 +9456,11 @@ components:
             $ref: '#/components/schemas/FastAPIRootMiddlewareResponse'
           type: array
           title: Fastapi Root Middlewares
+        iframe_views:
+          items:
+            $ref: '#/components/schemas/IFrameViewsResponse'
+          type: array
+          title: Iframe Views
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'
@@ -9450,6 +9501,7 @@ components:
       - flask_blueprints
       - fastapi_apps
       - fastapi_root_middlewares
+      - iframe_views
       - appbuilder_views
       - appbuilder_menu_items
       - global_operator_extra_links

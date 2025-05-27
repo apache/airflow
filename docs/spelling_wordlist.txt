@@ -983,6 +983,7 @@ kerberized
 Kerberos
 kerberos
 KerberosClient
+keycloak
 Keyfile
 keyfile
 KeyManagementServiceClient

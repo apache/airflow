@@ -52,6 +52,7 @@ from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 
@@ -1095,6 +1096,62 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
             self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
         else:
             self._handle_execution()  # type: ignore[misc]
+
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
+        """Implement _on_complete because we use statement_id."""
+        from airflow.providers.common.compat.openlineage.facet import (
+            ExternalQueryRunFacet,
+            SQLJobFacet,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo, SQLParser
+
+        db_info = DatabaseInfo(
+            scheme="databricks",
+            authority=self._hook.host,
+            database=self.catalog,
+            is_uppercase_names=False,
+            # Other args will not be used as we'll not query DB for details, we only do sql parsing.
+        )
+
+        sql_parser = SQLParser(
+            dialect="databricks",
+            default_schema=self.schema or "default",
+        )
+
+        run_facets = {}
+        if self.statement_id:
+            run_facets["externalQuery"] = ExternalQueryRunFacet(
+                externalQueryId=self.statement_id, source=sql_parser.create_namespace(db_info)
+            )
+        job_facets = {"sql": SQLJobFacet(query=SQLParser.normalize_sql(self.statement))}
+
+        query = f"{self.statement}"
+        if self.parameters:
+            # Catalog, schema or table can be parameterized, so it's crucial to fill them before parsing
+            for param in self.parameters:
+                query = query.replace(f":{param['name']}", param.get("value") or "null")
+
+        parser_result = None
+        try:
+            # Try performing offline sql parsing, without db access,
+            parser_result = sql_parser.generate_openlineage_metadata_from_sql(
+                sql=query,
+                database_info=db_info,
+                database=None,  # Provided in db_info
+                use_connection=False,  # Prevents DB call for table details, that will fail with API
+                sqlalchemy_engine=None,  # Not needed when use_connection is False
+                hook=None,  # type: ignore[arg-type] # Not needed when use_connection is False
+            )
+        except Exception as e:
+            self.log.debug("OpenLineage failed to parse query `%s` with error %s", query, e)
+
+        return OperatorLineage(
+            inputs=parser_result.inputs if parser_result else [],
+            outputs=parser_result.outputs if parser_result else [],
+            job_facets=parser_result.job_facets if parser_result else job_facets,
+            run_facets={**parser_result.run_facets, **run_facets} if parser_result else run_facets,
+        )
 
 
 class DatabricksTaskBaseOperator(BaseOperator, ABC):

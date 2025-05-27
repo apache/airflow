@@ -1,3 +1,5 @@
+# Disable Flake8 because of all the sphinx imports
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,10 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    volumes:
-      # We should be ok with sharing the cache between the builds - now that we are using uv
-      # The cache should be safe to share between parallel builds as UV is build to support it.
-      - /mnt/.cache:/root/.cache
+"""Configuration of Providers docs building."""
+
+from __future__ import annotations
+
+import os
+
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-keycloak"
+
+from docs.provider_conf import *  # noqa: F403
