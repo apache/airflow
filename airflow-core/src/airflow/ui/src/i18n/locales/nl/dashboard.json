@@ -1,0 +1,38 @@
+{
+  "welcome": "Welkom",
+  "stats": {
+    "stats": "Statistieken",
+    "failedDags": "Mislukte Dags",
+    "runningDags": "Lopende Dags",
+    "activeDags": "Actieve Dags",
+    "queuedDags": "Dags in de wachtrij"
+  },
+  "health": {
+    "health": "Status",
+    "metaDatabase": "MetaDatabase",
+    "scheduler": "Scheduler",
+    "triggerer": "Triggerer",
+    "dagProcessor": "Dag Processor",
+    "status": "Status",
+    "lastHeartbeat": "Laatste hartslag",
+    "healthy": "OK",
+    "unhealthy": "Fout"
+  },
+  "importErrors": {
+    "searchByFile": "Zoek op bestand",
+    "dagImportError_one": "Dag leesfout",
+    "dagImportError_other": "Dag leesfouten",
+    "timestamp": "Tijd"
+  },
+  "poolSlots": "Pool Slots",
+  "managePools": "Beheer Pools",
+  "history": "Geschiedenis",
+  "sortBy": {
+    "newestFirst": "Nieuwste eerst",
+    "oldestFirst": "Oudste eerst"
+  },
+  "source": "Bron",
+  "group": "Groep",
+  "uri": "Uri",
+  "noAssetEvents": "Geen Asset Events gevonden."
+}
