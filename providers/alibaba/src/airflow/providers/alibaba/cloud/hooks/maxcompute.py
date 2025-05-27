@@ -42,12 +42,7 @@ def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..
     """
 
     @functools.wraps(func)
-    def inner_wrapper(self, *args, **kwargs) -> RT:
-        if args:
-            raise MaxComputeConfigurationException(
-                "You must use keyword arguments in this methods rather than positional"
-            )
-
+    def inner_wrapper(self, **kwargs) -> RT:
         kwargs["project"] = kwargs.get("project", self.project)
         kwargs["endpoint"] = kwargs.get("endpoint", self.endpoint)
 
@@ -64,7 +59,7 @@ def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..
                 "keyword parameter or as extra "
                 "in MaxCompute connection definition. Both are not set!"
             )
-        return func(self, *args, **kwargs)
+        return func(self, **kwargs)
 
     return inner_wrapper
 
