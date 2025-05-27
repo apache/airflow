@@ -21,8 +21,6 @@ from pathlib import Path
 
 import structlog
 
-log = structlog.get_logger(__name__)
-
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -58,6 +56,7 @@ class S3DagBundle(BaseDagBundle):
         # Local path where S3 DAGs are downloaded
         self.s3_dags_dir: Path = self.base_dir
 
+        log = structlog.get_logger(__name__)
         self._log = log.bind(
             bundle_name=self.name,
             version=self.version,
