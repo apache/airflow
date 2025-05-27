@@ -381,7 +381,7 @@ class BaseOperator(TaskSDKBaseOperator):
             # definition code
             assert isinstance(self.dag, SchedulerDAG)
 
-        clear_task_instances(results, session, dag=self.dag)
+        clear_task_instances(results, session)
         session.commit()
         return count
 
@@ -621,7 +621,7 @@ class BaseOperator(TaskSDKBaseOperator):
             raise NotImplementedError(f"Not implemented for {type(task)}")
 
         # https://github.com/python/cpython/issues/86153
-        # WHile we support Python 3.9 we can't rely on the type hint, we need to pass the type explicitly to
+        # While we support Python 3.9 we can't rely on the type hint, we need to pass the type explicitly to
         # register.
         @get_mapped_ti_count.register(TaskSDKAbstractOperator)
         @classmethod

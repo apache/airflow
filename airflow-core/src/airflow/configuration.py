@@ -355,6 +355,23 @@ class AirflowConfigParser(ConfigParser):
         ("api", "ssl_key"): ("webserver", "web_server_ssl_key", "3.0"),
         ("api", "access_logfile"): ("webserver", "access_logfile", "3.0"),
         ("triggerer", "capacity"): ("triggerer", "default_capacity", "3.0"),
+        ("api", "expose_config"): ("webserver", "expose_config", "3.0.1"),
+        ("fab", "access_denied_message"): ("webserver", "access_denied_message", "3.0.2"),
+        ("fab", "expose_hostname"): ("webserver", "expose_hostname", "3.0.2"),
+        ("fab", "navbar_color"): ("webserver", "navbar_color", "3.0.2"),
+        ("fab", "navbar_text_color"): ("webserver", "navbar_text_color", "3.0.2"),
+        ("fab", "navbar_hover_color"): ("webserver", "navbar_hover_color", "3.0.2"),
+        ("fab", "navbar_text_hover_color"): ("webserver", "navbar_text_hover_color", "3.0.2"),
+        ("api", "secret_key"): ("webserver", "secret_key", "3.0.2"),
+        ("api", "enable_swagger_ui"): ("webserver", "enable_swagger_ui", "3.0.2"),
+        ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
+        ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
+        ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
+        ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
+        ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
+        ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
+        ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
+        ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -406,7 +423,7 @@ class AirflowConfigParser(ConfigParser):
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
-        ("webserver", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
+        ("api", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
     }
 
     upgraded_values: dict[tuple[str, str], str]
@@ -1294,7 +1311,7 @@ class AirflowConfigParser(ConfigParser):
 
     def read(
         self,
-        filenames: (str | bytes | os.PathLike | Iterable[str | bytes | os.PathLike]),
+        filenames: str | bytes | os.PathLike | Iterable[str | bytes | os.PathLike],
         encoding=None,
     ):
         super().read(filenames=filenames, encoding=encoding)

@@ -25,7 +25,7 @@ predefined time-based schedules.
 This is particularly useful in modern data architectures where workflows need to react to real-time data changes,
 messages, or system signals.
 
-By using assets, as described in :doc:`datasets`, you can configure dags to start execution when specific external events
+By using assets, as described in :doc:`asset-scheduling`, you can configure dags to start execution when specific external events
 occur. Assets provide a mechanism to establish dependencies between external events and DAG execution, ensuring that
 workflows react dynamically to changes in the external environment.
 
@@ -55,7 +55,7 @@ main scenarios for working with triggers in this context:
 1. **Creating a new event-driven trigger**: If you need a new trigger for an unsupported event source, you should create
 a new class inheriting from ``BaseEventTrigger`` and implement its logic.
 
-2. **Adapting an existing compatible trigger**: If an existing trigger (inheriting from ``BaseEvent``) is proven to be
+2. **Adapting an existing compatible trigger**: If an existing trigger (inheriting from ``BaseTrigger``) is proven to be
 already compatible with event-driven scheduling, then you just need to change the base class from ``BaseTrigger`` to
 ``BaseEventTrigger``.
 

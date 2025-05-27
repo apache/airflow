@@ -48,13 +48,16 @@ const validateHeaderName = (requestBody: CreateBackfillDryRunData) => {
 export const useCreateBackfillDryRun = <TData = DryRunBackfillCollectionResponse, TError = unknown>({
   options,
   requestBody,
-}: Props<TData, TError>) =>
-  useQuery<TData, TError>({
+}: Props<TData, TError>) => {
+  const { max_active_runs: maxActiveRuns, ...bodyForKey } = requestBody.requestBody;
+
+  return useQuery<TData, TError>({
     ...options,
     enabled: validateHeaderName(requestBody),
     queryFn: () =>
       BackfillService.createBackfillDryRun({
         ...requestBody,
       }) as TData,
-    queryKey: [useCreateBackfillDryRunKey, requestBody],
+    queryKey: [useCreateBackfillDryRunKey, bodyForKey],
   });
+};

@@ -675,6 +675,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.operators.vertex_ai.pipeline_job",
                     "airflow.providers.google.cloud.operators.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.operators.vertex_ai.feature_store",
+                    "airflow.providers.google.cloud.operators.vertex_ai.ray",
                 ],
             },
             {
@@ -1041,6 +1042,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.hooks.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.hooks.vertex_ai.prediction_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.feature_store",
+                    "airflow.providers.google.cloud.hooks.vertex_ai.ray",
                 ],
             },
             {
@@ -1366,6 +1368,10 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
                 "connection-type": "leveldb",
             },
+            {
+                "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
+                "connection-type": "google_ads",
+            },
         ],
         "extra-links": [
             "airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink",
@@ -1427,6 +1433,8 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink",
+            "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterLink",
+            "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterListLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink",
@@ -1457,11 +1465,6 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink",
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink",
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLDatasetLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLDatasetListLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelTrainLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelPredictLink",
             "airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink",
             "airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink",
             "airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink",

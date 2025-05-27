@@ -144,7 +144,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId,
+        isSelected: node.id === taskId || node.id === `dag:${dagId}`,
         taskInstance,
       },
     };
@@ -173,7 +173,7 @@ export const Graph = () => {
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
-      maxZoom={1}
+      maxZoom={1.5}
       minZoom={0.25}
       nodes={nodes}
       nodesDraggable={false}
@@ -198,7 +198,7 @@ export const Graph = () => {
         style={{ height: 150, width: 200 }}
         zoomable
       />
-      <DownloadButton dagId={dagId} />
+      <DownloadButton name={dagId} />
     </ReactFlow>
   );
 };

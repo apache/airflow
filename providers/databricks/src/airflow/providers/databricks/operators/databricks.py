@@ -34,7 +34,6 @@ from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
     RunState,
-    SQLStatementState,
 )
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
@@ -46,9 +45,9 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
-    DatabricksSQLStatementExecutionTrigger,
 )
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -978,7 +977,7 @@ class DatabricksRunNowOperator(BaseOperator):
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
 
-class DatabricksSQLStatementsOperator(BaseOperator):
+class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator):
     """
     Submits a Databricks SQL Statement to Databricks using the api/2.0/sql/statements/ API endpoint.
 
@@ -1073,59 +1072,6 @@ class DatabricksSQLStatementsOperator(BaseOperator):
             caller=caller,
         )
 
-    def _handle_operator_execution(self) -> None:
-        end_time = time.time() + self.timeout
-        while end_time > time.time():
-            statement_state = self._hook.get_sql_statement_state(self.statement_id)
-            if statement_state.is_terminal:
-                if statement_state.is_successful:
-                    self.log.info("%s completed successfully.", self.task_id)
-                    return
-                error_message = (
-                    f"{self.task_id} failed with terminal state: {statement_state.state} "
-                    f"and with the error code {statement_state.error_code} "
-                    f"and error message {statement_state.error_message}"
-                )
-                raise AirflowException(error_message)
-
-            self.log.info("%s in run state: %s", self.task_id, statement_state.state)
-            self.log.info("Sleeping for %s seconds.", self.polling_period_seconds)
-            time.sleep(self.polling_period_seconds)
-
-        self._hook.cancel_sql_statement(self.statement_id)
-        raise AirflowException(
-            f"{self.task_id} timed out after {self.timeout} seconds with state: {statement_state.state}",
-        )
-
-    def _handle_deferrable_operator_execution(self) -> None:
-        statement_state = self._hook.get_sql_statement_state(self.statement_id)
-        end_time = time.time() + self.timeout
-        if not statement_state.is_terminal:
-            if not self.statement_id:
-                raise AirflowException("Failed to retrieve statement_id after submitting SQL statement.")
-            self.defer(
-                trigger=DatabricksSQLStatementExecutionTrigger(
-                    statement_id=self.statement_id,
-                    databricks_conn_id=self.databricks_conn_id,
-                    end_time=end_time,
-                    polling_period_seconds=self.polling_period_seconds,
-                    retry_limit=self.databricks_retry_limit,
-                    retry_delay=self.databricks_retry_delay,
-                    retry_args=self.databricks_retry_args,
-                ),
-                method_name=DEFER_METHOD_NAME,
-            )
-        else:
-            if statement_state.is_successful:
-                self.log.info("%s completed successfully.", self.task_id)
-            else:
-                error_message = (
-                    f"{self.task_id} failed with terminal state: {statement_state.state} "
-                    f"and with the error code {statement_state.error_code} "
-                    f"and error message {statement_state.error_message}"
-                )
-                raise AirflowException(error_message)
-
     def execute(self, context: Context):
         json = {
             "statement": self.statement,
@@ -1146,34 +1092,9 @@ class DatabricksSQLStatementsOperator(BaseOperator):
         if not self.wait_for_termination:
             return
         if self.deferrable:
-            self._handle_deferrable_operator_execution()
+            self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
         else:
-            self._handle_operator_execution()
-
-    def on_kill(self):
-        if self.statement_id:
-            self._hook.cancel_sql_statement(self.statement_id)
-            self.log.info(
-                "Task: %s with statement ID: %s was requested to be cancelled.",
-                self.task_id,
-                self.statement_id,
-            )
-        else:
-            self.log.error(
-                "Error: Task: %s with invalid statement_id was requested to be cancelled.", self.task_id
-            )
-
-    def execute_complete(self, context: dict | None, event: dict):
-        statement_state = SQLStatementState.from_json(event["state"])
-        error = event["error"]
-        statement_id = event["statement_id"]
-
-        if statement_state.is_successful:
-            self.log.info("SQL Statement with ID %s completed successfully.", statement_id)
-            return
-
-        error_message = f"SQL Statement execution failed with terminal state: {statement_state} and with the error {error}"
-        raise AirflowException(error_message)
+            self._handle_execution()  # type: ignore[misc]
 
 
 class DatabricksTaskBaseOperator(BaseOperator, ABC):

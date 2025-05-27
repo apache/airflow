@@ -674,7 +674,7 @@ class TestGKEStartPodOperator:
 
     def test_template_fields(self):
         expected_template_fields = (
-            {"on_finish_action", "deferrable"}
+            {"deferrable"}
             | (set(KubernetesPodOperator.template_fields) - {"is_delete_operator_pod", "regional"})
             | set(GKEOperatorMixin.template_fields)
         )

@@ -374,6 +374,7 @@ Dagbag
 dagbag
 dagbags
 DagCallbackRequest
+dagfile
 DagFileProcessorManager
 dagfolder
 dagmodel
@@ -655,6 +656,7 @@ falsy
 faq
 Fargate
 fargate
+FastAPI
 fastapi
 fbee
 fc
@@ -768,6 +770,7 @@ googleapiclient
 GoogleDisplayVideo
 gpu
 gpus
+Grafana
 graphviz
 greenlet
 Groupalia
@@ -799,6 +802,7 @@ hdfscli
 hdp
 healthjump
 heartrate
+heatmap
 Highcharts
 hivecmd
 hiveconf
@@ -1082,6 +1086,7 @@ MarketingTeam
 MarkupSafe
 Masternode
 masterType
+materializations
 Matomo
 matomo
 Maxime
@@ -1466,6 +1471,7 @@ RefreshError
 regexes
 reidentify
 ReidentifyContentResponse
+reimagined
 reinit
 Reinitialising
 reinitialization
@@ -1475,6 +1481,7 @@ remoting
 renderer
 renderers
 renewer
+reparse
 replicaSet
 repo
 repos
@@ -1808,6 +1815,9 @@ timedeltas
 timeframe
 timespan
 timezones
+TinkerPop
+Tinkerpop
+tinkerpop
 tis
 TLS
 tls
@@ -1959,6 +1969,7 @@ volumeMounts
 VolumeSizeInGB
 vpc
 WaiterModel
+walkthrough
 wape
 warmup
 Wasb

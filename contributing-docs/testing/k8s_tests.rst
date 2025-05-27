@@ -443,7 +443,7 @@ Should show the status of current KinD cluster.
     Your release is named airflow.
     You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
-    Airflow Webserver:     kubectl port-forward svc/airflow-webserver 8080:8080 --namespace airflow
+    Airflow API server:     kubectl port-forward svc/airflow-api-server 8080:8080 --namespace airflow
     Default Webserver (Airflow UI) Login credentials:
         username: admin
         password: admin
@@ -469,7 +469,7 @@ Should show the status of current KinD cluster.
     unnecessary restarts of your Airflow components.
 
     Information on how to set a static webserver secret key can be found here:
-    https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
+    https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
     Deployed kind-airflow-python-3.9-v1.24.2 with Airflow Helm Chart.
 
     Airflow for Python 3.9 and K8S version v1.24.2 has been successfully deployed.

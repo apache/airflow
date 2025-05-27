@@ -176,7 +176,7 @@ with DAG(
 
     get_data_result = BashOperator(
         task_id="get_data_result",
-        bash_command=f"echo {get_data.output}",
+        bash_command=f'echo "{get_data.output}"',
     )
 
     # [START howto_operator_bigquery_check]

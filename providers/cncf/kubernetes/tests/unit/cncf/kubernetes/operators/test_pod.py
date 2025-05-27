@@ -973,6 +973,7 @@ class TestKubernetesPodOperator:
                 foo: bar
             spec:
               serviceAccountName: foo
+              automountServiceAccountToken: false
               affinity:
                 nodeAffinity:
                   requiredDuringSchedulingIgnoredDuringExecution:
@@ -1036,6 +1037,8 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].image_pull_policy == "Always"
         assert pod.spec.containers[0].command == ["something"]
         assert pod.spec.service_account_name == "foo"
+        assert not pod.spec.automount_service_account_token
+
         affinity = {
             "node_affinity": {
                 "preferred_during_scheduling_ignored_during_execution": [
@@ -1295,6 +1298,19 @@ class TestKubernetesPodOperator:
         sanitized_pod = self.sanitize_for_serialization(pod)
         assert isinstance(pod.spec.node_selector, dict)
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
+
+    def test_automount_service_account_token(self):
+        automount_service_account_token = False
+
+        k = KubernetesPodOperator(
+            task_id="task",
+            automount_service_account_token=automount_service_account_token,
+        )
+
+        pod = k.build_pod_request_obj(create_context(k))
+        sanitized_pod = self.sanitize_for_serialization(pod)
+        assert isinstance(pod.spec.automount_service_account_token, bool)
+        assert sanitized_pod["spec"]["automountServiceAccountToken"] == automount_service_account_token
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")

@@ -38,7 +38,7 @@ export const ExtraLinks = () => {
         {Object.entries(data.extra_links).map(([key, value], _) =>
           value === null ? undefined : (
             <Button asChild colorPalette="blue" key={key} variant="surface">
-              <a href={value} rel="noreferrer" target="_blank">
+              <a href={value} rel="noopener noreferrer" target="_blank">
                 {key}
               </a>
             </Button>

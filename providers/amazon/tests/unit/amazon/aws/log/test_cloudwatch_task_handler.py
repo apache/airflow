@@ -44,7 +44,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def get_time_str(time_in_milliseconds):
@@ -138,6 +138,9 @@ class TestCloudRemoteLogIO:
             log.info("Hi", foo="bar")
             # We need to close in order to flush the logs etc.
             self.subject.close()
+
+            # close call should only flush the logs and not set shutting_down to True
+            assert self.subject.handler.shutting_down is False
 
             # Inside the Cloudwatch logger we swap colons for underscores since colons are not allowed in
             # stream names.
@@ -270,19 +273,13 @@ class TestCloudwatchTaskHandler:
                 {"timestamp": current_time, "message": "Third"},
             ],
         )
-        if AIRFLOW_V_2_10_PLUS:
-            monkeypatch.setattr(self.cloudwatch_task_handler, "_read_from_logs_server", lambda a, b: ([], []))
-            msg_template = textwrap.dedent("""
-                 INFO - ::group::Log message source details
-                *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
-                 INFO - ::endgroup::
-                {}
-            """)[1:][:-1]  # Strip off leading and trailing new lines, but not spaces
-        else:
-            msg_template = textwrap.dedent("""
-                *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
-                {}
-            """).strip()
+        monkeypatch.setattr(self.cloudwatch_task_handler, "_read_from_logs_server", lambda a, b: ([], []))
+        msg_template = textwrap.dedent("""
+             INFO - ::group::Log message source details
+            *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
+             INFO - ::endgroup::
+            {}
+        """)[1:][:-1]  # Strip off leading and trailing new lines, but not spaces
 
         logs, metadata = self.cloudwatch_task_handler.read(self.ti)
         if AIRFLOW_V_3_0_PLUS:

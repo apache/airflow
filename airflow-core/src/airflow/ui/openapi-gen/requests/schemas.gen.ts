@@ -342,6 +342,16 @@ export const $AssetResponse = {
       type: "array",
       title: "Aliases",
     },
+    last_asset_event: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/LastAssetEventResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -427,6 +437,7 @@ export const $BackfillResponse = {
   properties: {
     id: {
       type: "integer",
+      minimum: 0,
       title: "Id",
     },
     dag_id: {
@@ -481,6 +492,10 @@ export const $BackfillResponse = {
       format: "date-time",
       title: "Updated At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -495,6 +510,7 @@ export const $BackfillResponse = {
     "created_at",
     "completed_at",
     "updated_at",
+    "dag_display_name",
   ],
   title: "BackfillResponse",
   description: "Base serializer for Backfill.",
@@ -1714,6 +1730,32 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Parsed",
     },
+    default_args: {
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Default Args",
+    },
+    owner_links: {
+      anyOf: [
+        {
+          additionalProperties: {
+            type: "string",
+          },
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Owner Links",
+    },
     file_token: {
       type: "string",
       title: "File Token",
@@ -1777,6 +1819,7 @@ export const $DAGDetailsResponse = {
     "template_search_path",
     "timezone",
     "last_parsed",
+    "default_args",
     "file_token",
     "concurrency",
     "latest_dag_version",
@@ -2232,8 +2275,15 @@ export const $DAGRunResponse = {
       ],
     },
     conf: {
-      additionalProperties: true,
-      type: "object",
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Conf",
     },
     note: {
@@ -2254,6 +2304,21 @@ export const $DAGRunResponse = {
       type: "array",
       title: "Dag Versions",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -2273,6 +2338,8 @@ export const $DAGRunResponse = {
     "conf",
     "note",
     "dag_versions",
+    "bundle_version",
+    "dag_display_name",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",
@@ -2469,9 +2536,13 @@ export const $DAGSourceResponse = {
       ],
       title: "Version Number",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["content", "dag_id", "version_number"],
+  required: ["content", "dag_id", "version_number", "dag_display_name"],
   title: "DAGSourceResponse",
   description: "DAG Source serializer for responses.",
 } as const;
@@ -2840,6 +2911,10 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     bundle_url: {
       anyOf: [
         {
@@ -2854,7 +2929,16 @@ export const $DagVersionResponse = {
     },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
+  required: [
+    "id",
+    "version_number",
+    "dag_id",
+    "bundle_name",
+    "bundle_version",
+    "created_at",
+    "dag_display_name",
+    "bundle_url",
+  ],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;
@@ -3027,6 +3111,17 @@ export const $EventLogResponse = {
       ],
       title: "Extra",
     },
+    dag_display_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -3044,6 +3139,19 @@ export const $EventLogResponse = {
   ],
   title: "EventLogResponse",
   description: "Event Log Response.",
+} as const;
+
+export const $ExternalLogUrlResponse = {
+  properties: {
+    url: {
+      type: "string",
+      title: "Url",
+    },
+  },
+  type: "object",
+  required: ["url"],
+  title: "ExternalLogUrlResponse",
+  description: "Response for the external log URL endpoint.",
 } as const;
 
 export const $ExtraLinkCollectionResponse = {
@@ -3174,6 +3282,58 @@ export const $HealthInfoResponse = {
   required: ["metadatabase", "scheduler", "triggerer"],
   title: "HealthInfoResponse",
   description: "Health serializer for responses.",
+} as const;
+
+export const $IFrameViewsResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    src: {
+      type: "string",
+      title: "Src",
+    },
+    icon: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Icon",
+    },
+    url_route: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url Route",
+    },
+    destination: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["nav", "dag", "dag_run", "task", "task_instance"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Destination",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["name", "src"],
+  title: "IFrameViewsResponse",
+  description: "Serializer for IFrame Plugin responses.",
 } as const;
 
 export const $ImportErrorCollectionResponse = {
@@ -3361,6 +3521,17 @@ export const $JobResponse = {
       ],
       title: "Unixname",
     },
+    dag_display_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -3377,6 +3548,40 @@ export const $JobResponse = {
   ],
   title: "JobResponse",
   description: "Job serializer for responses.",
+} as const;
+
+export const $JsonValue = {} as const;
+
+export const $LastAssetEventResponse = {
+  properties: {
+    id: {
+      anyOf: [
+        {
+          type: "integer",
+          minimum: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Id",
+    },
+    timestamp: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  title: "LastAssetEventResponse",
+  description: "Last asset event response serializer.",
 } as const;
 
 export const $PatchTaskInstanceBody = {
@@ -3521,6 +3726,13 @@ export const $PluginResponse = {
       type: "array",
       title: "Fastapi Root Middlewares",
     },
+    iframe_views: {
+      items: {
+        $ref: "#/components/schemas/IFrameViewsResponse",
+      },
+      type: "array",
+      title: "Iframe Views",
+    },
     appbuilder_views: {
       items: {
         $ref: "#/components/schemas/AppBuilderViewResponse",
@@ -3575,6 +3787,7 @@ export const $PluginResponse = {
     "flask_blueprints",
     "fastapi_apps",
     "fastapi_root_middlewares",
+    "iframe_views",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
@@ -3838,9 +4051,13 @@ export const $QueuedEventResponse = {
       format: "date-time",
       title: "Created At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["dag_id", "asset_id", "created_at"],
+  required: ["dag_id", "asset_id", "created_at", "dag_display_name"],
   title: "QueuedEventResponse",
   description: "Queued Event serializer for responses..",
 } as const;
@@ -4072,6 +4289,10 @@ export const $TaskInstanceHistoryResponse = {
       type: "string",
       title: "Task Display Name",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     hostname: {
       anyOf: [
         {
@@ -4209,6 +4430,7 @@ export const $TaskInstanceHistoryResponse = {
     "try_number",
     "max_tries",
     "task_display_name",
+    "dag_display_name",
     "hostname",
     "unixname",
     "pool",
@@ -4322,6 +4544,10 @@ export const $TaskInstanceResponse = {
     task_display_name: {
       type: "string",
       title: "Task Display Name",
+    },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
     },
     hostname: {
       anyOf: [
@@ -4510,6 +4736,7 @@ export const $TaskInstanceResponse = {
     "try_number",
     "max_tries",
     "task_display_name",
+    "dag_display_name",
     "hostname",
     "unixname",
     "pool",
@@ -5410,8 +5637,7 @@ export const $VariableBody = {
       title: "Key",
     },
     value: {
-      type: "string",
-      title: "Value",
+      $ref: "#/components/schemas/JsonValue",
     },
     description: {
       anyOf: [
@@ -5589,9 +5815,22 @@ export const $XComResponse = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+  ],
   title: "XComResponse",
   description: "Serializer for a xcom item.",
 } as const;
@@ -5635,12 +5874,26 @@ export const $XComResponseNative = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     value: {
       title: "Value",
     },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+    "value",
+  ],
   title: "XComResponseNative",
   description: "XCom response serializer with native return type.",
 } as const;
@@ -5684,6 +5937,10 @@ export const $XComResponseString = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     value: {
       anyOf: [
         {
@@ -5697,7 +5954,17 @@ export const $XComResponseString = {
     },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+    "value",
+  ],
   title: "XComResponseString",
   description: "XCom response serializer with string return type.",
 } as const;
@@ -5795,22 +6062,6 @@ export const $BaseNodeResponse = {
 
 export const $ConfigResponse = {
   properties: {
-    navbar_color: {
-      type: "string",
-      title: "Navbar Color",
-    },
-    navbar_text_color: {
-      type: "string",
-      title: "Navbar Text Color",
-    },
-    navbar_hover_color: {
-      type: "string",
-      title: "Navbar Hover Color",
-    },
-    navbar_text_hover_color: {
-      type: "string",
-      title: "Navbar Text Hover Color",
-    },
     page_size: {
       type: "integer",
       title: "Page Size",
@@ -5827,10 +6078,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Instance Name",
     },
-    instance_name_has_markup: {
-      type: "boolean",
-      title: "Instance Name Has Markup",
-    },
     enable_swagger_ui: {
       type: "boolean",
       title: "Enable Swagger Ui",
@@ -5843,18 +6090,6 @@ export const $ConfigResponse = {
       type: "boolean",
       title: "Default Wrap",
     },
-    warn_deployment_exposure: {
-      type: "boolean",
-      title: "Warn Deployment Exposure",
-    },
-    audit_view_excluded_events: {
-      type: "string",
-      title: "Audit View Excluded Events",
-    },
-    audit_view_included_events: {
-      type: "string",
-      title: "Audit View Included Events",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -5866,26 +6101,34 @@ export const $ConfigResponse = {
       type: "array",
       title: "Dashboard Alert",
     },
+    show_external_log_redirect: {
+      type: "boolean",
+      title: "Show External Log Redirect",
+    },
+    external_log_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "External Log Name",
+    },
   },
   type: "object",
   required: [
-    "navbar_color",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
     "instance_name",
-    "instance_name_has_markup",
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",
-    "warn_deployment_exposure",
-    "audit_view_excluded_events",
-    "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
+    "show_external_log_redirect",
   ],
   title: "ConfigResponse",
   description: "configuration serializer.",
@@ -6337,6 +6580,31 @@ export const $DAGWithLatestDagRunsResponse = {
   ],
   title: "DAGWithLatestDagRunsResponse",
   description: "DAG with latest dag runs response serializer.",
+} as const;
+
+export const $DashboardDagStatsResponse = {
+  properties: {
+    active_dag_count: {
+      type: "integer",
+      title: "Active Dag Count",
+    },
+    failed_dag_count: {
+      type: "integer",
+      title: "Failed Dag Count",
+    },
+    running_dag_count: {
+      type: "integer",
+      title: "Running Dag Count",
+    },
+    queued_dag_count: {
+      type: "integer",
+      title: "Queued Dag Count",
+    },
+  },
+  type: "object",
+  required: ["active_dag_count", "failed_dag_count", "running_dag_count", "queued_dag_count"],
+  title: "DashboardDagStatsResponse",
+  description: "Dashboard DAG Stats serializer for responses.",
 } as const;
 
 export const $EdgeResponse = {

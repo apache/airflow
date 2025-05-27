@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
+import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
@@ -41,7 +42,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   });
 
   const nodes = graphData?.nodes.map((node) =>
-    node.data.label === asset?.name ? { ...node, data: { ...node.data, isSelected: true } } : node,
+    node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
   );
 
   const [selectedDarkColor, selectedLightColor] = useToken("colors", ["gray.200", "gray.800"]);
@@ -67,7 +68,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
-      maxZoom={1}
+      maxZoom={1.5}
       minZoom={0.25}
       nodes={nodes}
       nodesDraggable={false}
@@ -84,6 +85,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
         pannable
         zoomable
       />
+      <DownloadButton name={asset?.name ?? asset?.uri ?? "asset"} />
     </ReactFlow>
   );
 };

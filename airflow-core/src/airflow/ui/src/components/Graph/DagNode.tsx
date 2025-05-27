@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Link } from "@chakra-ui/react";
+import { Flex, HStack, LinkOverlay } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -36,22 +36,28 @@ export const DagNode = ({
     <NodeWrapper>
       <Flex
         bg={isOpen ? "bg.muted" : "bg"}
+        borderColor={isSelected ? "border.inverted" : "border"}
         borderRadius={5}
-        borderWidth={isSelected ? 6 : 2}
+        borderWidth={isSelected ? 4 : 2}
         cursor="default"
         flexDirection="column"
         height={`${height}px`}
         px={3}
-        py={isSelected ? 0 : 1}
+        py={1}
         width={`${width}px`}
       >
         <HStack alignItems="center" justifyContent="space-between">
           <DagIcon />
-          <TogglePause dagId={dag?.dag_id ?? label} disabled={!Boolean(dag)} isPaused={dag?.is_paused} />
+          <TogglePause
+            dagId={dag?.dag_id ?? label}
+            disabled={!Boolean(dag)}
+            isPaused={dag?.is_paused}
+            style={{ zIndex: 2 }}
+          />
         </HStack>
-        <Link asChild color="fg.info" mb={2}>
+        <LinkOverlay asChild>
           <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
-        </Link>
+        </LinkOverlay>
       </Flex>
     </NodeWrapper>
   );
