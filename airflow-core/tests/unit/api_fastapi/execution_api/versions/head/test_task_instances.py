@@ -33,7 +33,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import TaskGroup, task, task_group
+from airflow.sdk import Asset, TaskGroup, task, task_group
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
@@ -2139,3 +2139,54 @@ class TestGetTaskStates:
         response = client.get("/execution/task-instances/states", params={"dag_id": dr.dag_id, **params})
         assert response.status_code == 200
         assert response.json() == {"task_states": {dr.run_id: expected}}
+
+
+class TestInvalidInletsAndOutlets:
+    def test_ti_invalid_inlets_and_outlets(self, client, dag_maker):
+        """Test the invalid assets in inlets and outlets can be found."""
+        with dag_maker("test_inlets_and_outlets"):
+            EmptyOperator(
+                task_id="task1",
+                inlets=[Asset(name="inlet-name"), Asset(name="inlet-name", uri="but-different-uri")],
+                outlets=[
+                    Asset(name="outlet-name", uri="uri"),
+                    Asset(name="outlet-name", uri="second-different-uri"),
+                ],
+            )
+
+        dr = dag_maker.create_dagrun()
+
+        task1_ti = dr.get_task_instance("task1")
+        response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
+        assert response.status_code == 200
+        invalid_assets = response.json()["invalid_assets"]
+        expected_invalid_assets = (
+            {
+                "name": "inlet-name",
+                "type": "Asset",
+                "uri": "but-different-uri",
+            },
+            {
+                "name": "outlet-name",
+                "type": "Asset",
+                "uri": "second-different-uri",
+            },
+        )
+        for asset in expected_invalid_assets:
+            assert asset in invalid_assets
+
+    def test_ti_invalid_inlets_and_outlets_without_invalid_assets(self, client, dag_maker):
+        """Test the task without invalid assets in its inlets or outlets returns empty list."""
+        with dag_maker("test_inlets_and_outlets_invalid"):
+            EmptyOperator(
+                task_id="invalid_task1",
+                inlets=[Asset(name="inlet-name")],
+                outlets=[Asset(name="outlet-name", uri="uri")],
+            )
+
+        dr = dag_maker.create_dagrun()
+
+        task1_ti = dr.get_task_instance("invalid_task1")
+        response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
+        assert response.status_code == 200
+        assert response.json() == {"invalid_assets": []}
