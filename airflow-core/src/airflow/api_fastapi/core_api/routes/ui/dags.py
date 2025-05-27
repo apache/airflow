@@ -157,7 +157,6 @@ def get_dags(
         )
         .where(recent_runs_subquery.c.rank <= dag_runs_limit)
         .group_by(
-            # DagModel.dag_id,
             recent_runs_subquery.c.run_after,
             DagRun.run_after,
             DagRun.id,
@@ -180,7 +179,6 @@ def get_dags(
     }
 
     for row in recent_dag_runs:
-        print(row)
         _, dag_run = row
         dag_id = dag_run.dag_id
         dag_run_response = DAGRunResponse.model_validate(dag_run)
