@@ -8,20 +8,20 @@
     "queuedDags": "Dags in de wachtrij"
   },
   "health": {
-    "health": "Gezondheid",
+    "health": "Status",
     "metaDatabase": "MetaDatabase",
     "scheduler": "Scheduler",
     "triggerer": "Triggerer",
     "dagProcessor": "Dag Processor",
     "status": "Status",
     "lastHeartbeat": "Laatste hartslag",
-    "healthy": "Gezond",
-    "unhealthy": "Ongezond"
+    "healthy": "OK",
+    "unhealthy": "Fout"
   },
   "importErrors": {
     "searchByFile": "Zoek op bestand",
-    "dagImportError_one": "Dag importfout",
-    "dagImportError_other": "Dag importfouten",
+    "dagImportError_one": "Dag leesfout",
+    "dagImportError_other": "Dag leesfouten",
     "timestamp": "Tijd"
   },
   "poolSlots": "Pool Slots",
