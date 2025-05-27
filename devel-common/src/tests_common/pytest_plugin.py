@@ -1966,6 +1966,13 @@ def mock_supervisor_comms():
     with mock.patch(
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as supervisor_comms:
+        # This is used to check whether there're invalid assets in inlets and outlets.
+        # As we're mocking the whole SUPERVISOR_COMMS, this is most likely something we don't
+        # care in such cases.
+        # For cases that we want to check whether their inlets or outlets are valid,
+        # we should do it separately.
+        supervisor_comms.get_message.return_value.invalid_assets = None
+
         yield supervisor_comms
 
 
