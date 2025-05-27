@@ -47,6 +47,9 @@ class DiscordWebhookHook(HttpHook):
     :param avatar_url: Override the default avatar of the webhook
     :param tts: Is a text-to-speech message
     :param proxy: Proxy to use to make the Discord webhook call
+    :param embeds: List of embed objects to send with the message. Each embed can contain
+                   an author object with name (required), url, and icon_url fields.
+                   URLs must use HTTPS.
     """
 
     conn_name_attr = "http_conn_id"
@@ -143,15 +146,13 @@ class DiscordWebhookHook(HttpHook):
         for embed in embeds:
             if not isinstance(embed, dict):
                 raise AirflowException("Each embed must be a dictionary.")
-            if "title" in embed and not isinstance(embed["title"], str):
-                raise AirflowException("Embed title must be a string.")
-            if "description" in embed and not isinstance(embed["description"], str):
-                raise AirflowException("Embed description must be a string.")
-            if "url" in embed and not isinstance(embed["url"], str):
-                raise AirflowException("Embed URL must be a string.")
+            if "url" in embed:
+                if not isinstance(embed["url"], str) or not embed["url"].startswith("https://"):
+                    raise AirflowException("Embed URL must be a string starting with 'https://'.")
             if "color" in embed and not isinstance(embed["color"], int):
                 raise AirflowException("Embed color must be an integer.")
-            # Add more validations as needed
+            if "author" in embed and not isinstance(embed["author"], dict):
+                raise AirflowException("Embed author must be a dictionary.")
 
     def _build_discord_payload(self) -> str:
         """
