@@ -49,7 +49,7 @@ def upgrade():
             existing_nullable=False,
             new_column_name="deadline_at",
         )
-    op.create_index("deadline_at_idx", "deadline", ["time"], unique=False)
+    op.create_index("deadline_at_idx", "deadline", ["deadline_at"], unique=False)
 
 
 def downgrade():
