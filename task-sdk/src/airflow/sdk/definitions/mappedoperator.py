@@ -402,6 +402,10 @@ class MappedOperator(AbstractOperator):
     def owner(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
+    @owner.setter
+    def owner(self, value: str) -> None:
+        self.partial_kwargs["owner"] = value
+
     @property
     def email(self) -> None | str | Iterable[str]:
         return self.partial_kwargs.get("email")
