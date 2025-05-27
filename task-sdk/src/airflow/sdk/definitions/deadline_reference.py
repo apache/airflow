@@ -120,9 +120,9 @@ class DeadlineReference:
            deadline.evaluate_with()
     """
 
-    DAGRUN_LOGICAL_DATE = DagRunLogicalDateDeadline()
-    DAGRUN_QUEUED_AT = DagRunQueuedAtDeadline()
+    DAGRUN_LOGICAL_DATE: BaseDeadlineReference = DagRunLogicalDateDeadline()
+    DAGRUN_QUEUED_AT: BaseDeadlineReference = DagRunQueuedAtDeadline()
 
     @classmethod
-    def FIXED_DATETIME(cls, datetime: datetime) -> FixedDatetimeDeadline:
+    def FIXED_DATETIME(cls, datetime: datetime) -> BaseDeadlineReference:
         return FixedDatetimeDeadline(datetime)
