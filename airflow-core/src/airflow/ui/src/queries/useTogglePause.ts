@@ -24,7 +24,7 @@ import {
   UseDagServiceGetDagKeyFn,
   useDagServiceGetDagsKey,
   useDagServicePatchDag,
-  useDagServiceRecentDagRunsKey,
+  useDagServiceGetDagsUiKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 
@@ -34,7 +34,7 @@ export const useTogglePause = ({ dagId }: { dagId: string }) => {
   const onSuccess = async () => {
     const queryKeys = [
       [useDagServiceGetDagsKey],
-      [useDagServiceRecentDagRunsKey],
+      [useDagServiceGetDagsUiKey],
       UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
       UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
