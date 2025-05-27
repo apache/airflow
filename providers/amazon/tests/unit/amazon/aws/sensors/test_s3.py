@@ -26,6 +26,7 @@ from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
@@ -129,6 +130,11 @@ class TestS3KeySensor:
         )
 
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=logical_date,
@@ -136,6 +142,7 @@ class TestS3KeySensor:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
+            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=dag.dag_id,
@@ -144,7 +151,7 @@ class TestS3KeySensor:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=op)
+            ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
@@ -179,7 +186,13 @@ class TestS3KeySensor:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
+            ti = TaskInstance(task=op)
         else:
+            from airflow.models.dag_version import DagVersion
+
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=logical_date,
@@ -187,7 +200,7 @@ class TestS3KeySensor:
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-        ti = TaskInstance(task=op)
+            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
