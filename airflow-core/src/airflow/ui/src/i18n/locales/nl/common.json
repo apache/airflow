@@ -7,11 +7,6 @@
   "timezone": "Tijdzone",
   "user": "Gebruiker",
   "language": {
-    "zh-TW": "Traditioneel Chinees",
-    "en": "Engels",
-    "de": "Duits",
-    "ko": "Koreaans",
-    "nl": "Nederlands",
     "select": "Selecteer taal"
   },
   "nav": {

@@ -8,11 +8,6 @@
   "timezone": "Zeitzone",
   "user": "Benutzer",
   "language": {
-    "zh-TW": "Traditionelles Chinesisch",
-    "en": "Englisch",
-    "de": "Deutsch",
-    "ko": "Koreanisch",
-    "nl": "Niederländisch",
     "select": "Sprache wählen"
   },
   "nav": {
