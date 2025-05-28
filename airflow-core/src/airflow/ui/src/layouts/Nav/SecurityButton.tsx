@@ -39,13 +39,17 @@ export const SecurityButton = () => {
         <NavButton icon={<FiLock size="1.75rem" />} title={translate("nav.security")} />
       </Menu.Trigger>
       <Menu.Content>
-        {authLinks.extra_menu_items.map(({ text }) => (
-          <Menu.Item asChild key={text} value={text}>
-            <Link aria-label={text} to={`security/${text.toLowerCase().replace(" ", "-")}`}>
-              {translate(`security.${text.toLowerCase().replace(" ", "-")}`)}
-            </Link>
-          </Menu.Item>
-        ))}
+        {authLinks.extra_menu_items.map(({ text }) => {
+          const securityKey = text.toLowerCase().replace(" ", "-");
+
+          return (
+            <Menu.Item asChild key={text} value={text}>
+              <Link aria-label={text} to={`security/${securityKey}`}>
+                {translate(`security.${securityKey}`)}
+              </Link>
+            </Menu.Item>
+          );
+        })}
       </Menu.Content>
     </Menu.Root>
   );
