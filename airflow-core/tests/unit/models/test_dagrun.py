@@ -1244,6 +1244,46 @@ class TestDagRun:
         # the latest task instance dag_version
         assert dag_run.version_number == dag_v.version_number
 
+    def test_triggered_by_in_conf(self, dag_maker, session):
+        """Test that triggered_by parameter is added to conf for non-manual runs"""
+        dag = DAG(dag_id="test_dags", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
+
+        # Test for scheduled run type
+        scheduled_run = dag.create_dagrun(
+            run_id="test_triggered_by_in_conf_1",
+            run_after=None,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.RUNNING,
+            start_date=timezone.utcnow(),
+            session=session,
+        )
+        assert scheduled_run.conf.get("triggered_by") == "scheduler"
+
+        # Test for backfill run type
+        backfill_run = dag.create_dagrun(
+            run_id="test_triggered_by_in_conf_2",
+            run_after=None,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.BACKFILL_JOB,
+            state=DagRunState.RUNNING,
+            start_date=timezone.utcnow(),
+            session=session,
+        )
+        assert backfill_run.conf.get("triggered_by") == "scheduler"
+
+        # Test for manual run type - should not have triggered_by
+        manual_run = dag.create_dagrun(
+            run_id="test_triggered_by_in_conf_3",
+            run_after=None,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.RUNNING,
+            start_date=timezone.utcnow(),
+            session=session,
+        )
+        assert "triggered_by" not in manual_run.conf
+
 
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),

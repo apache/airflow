@@ -317,7 +317,10 @@ class DagRun(Base, LoggingMixin):
         self.logical_date = logical_date
         self.run_after = run_after
         self.start_date = start_date
-        self.conf = conf or {}
+        params = conf or {}
+        if run_type != DagRunType.MANUAL:
+            params["triggered_by"] = "scheduler"
+        self.conf = params
         if state is not None:
             self.state = state
         if queued_at is NOTSET:

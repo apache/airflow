@@ -1307,7 +1307,7 @@ class TestTriggerDagRun:
         )
         expected_response_json = {
             "bundle_version": None,
-            "conf": {},
+            "conf": {"triggered_by": "test"},
             "dag_display_name": DAG1_DISPLAY_NAME,
             "dag_id": DAG1_ID,
             "dag_run_id": expected_dag_run_id,
@@ -1513,7 +1513,7 @@ class TestTriggerDagRun:
             "run_type": "manual",
             "state": "queued",
             "triggered_by": "rest_api",
-            "conf": {},
+            "conf": {"triggered_by": "test"},
             "note": note,
         }
 
@@ -1599,6 +1599,61 @@ class TestTriggerDagRun:
             "run_type": "manual",
             "state": "queued",
             "triggered_by": "rest_api",
-            "conf": {},
+            "conf": {"triggered_by": "test"},
             "note": None,
         }
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_triggered_by_in_conf(self, test_client, session):
+        """Test that triggered_by is added to conf with the correct username."""
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now},
+        )
+        assert response.status_code == 200
+
+        # Get the created DAG run from the database
+        dag_run = session.query(DagRun).filter_by(dag_id=DAG1_ID, run_id=response.json()["dag_run_id"]).one()
+
+        # Verify that triggered_by is in conf and has the correct value
+        assert "triggered_by" in dag_run.conf
+        assert dag_run.conf["triggered_by"] == "test"  # Default test user name
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_triggered_by_with_custom_conf(self, test_client, session):
+        """Test that triggered_by is added to conf while preserving custom conf values."""
+        now = timezone.utcnow().isoformat()
+        custom_conf = {"custom_key": "custom_value"}
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "conf": custom_conf},
+        )
+        assert response.status_code == 200
+
+        # Get the created DAG run from the database
+        dag_run = session.query(DagRun).filter_by(dag_id=DAG1_ID, run_id=response.json()["dag_run_id"]).one()
+
+        # Verify that both triggered_by and custom conf values are present
+        assert "triggered_by" in dag_run.conf
+        assert dag_run.conf["triggered_by"] == "test"
+        assert "custom_key" in dag_run.conf
+        assert dag_run.conf["custom_key"] == "custom_value"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_triggered_by_overrides_existing(self, test_client, session):
+        """Test that triggered_by overrides any existing triggered_by in conf."""
+        now = timezone.utcnow().isoformat()
+        custom_conf = {"triggered_by": "custom_user"}
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "conf": custom_conf},
+        )
+        assert response.status_code == 200
+
+        # Get the created DAG run from the database
+        dag_run = session.query(DagRun).filter_by(dag_id=DAG1_ID, run_id=response.json()["dag_run_id"]).one()
+
+        # Verify that triggered_by is overridden with the actual user
+        assert "triggered_by" in dag_run.conf
+        assert dag_run.conf["triggered_by"] == "test"  # Should be overridden with actual user

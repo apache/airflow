@@ -409,12 +409,19 @@ def trigger_dag_run(
         dag: DAG = dag_bag.get_dag(dag_id)
         params = body.validate_context(dag)
 
+        conf = params["conf"]
+        # Get the logged in username and add it to conf as 'triggered_by'
+        username = "unknown"
+        if hasattr(user, "get_name"):
+            username = user.get_name()
+        conf["triggered_by"] = username
+
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
             data_interval=params["data_interval"],
             run_after=params["run_after"],
-            conf=params["conf"],
+            conf=conf,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
             state=DagRunState.QUEUED,
