@@ -20,7 +20,7 @@ import asyncio
 import base64
 import pickle
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
 import requests
@@ -29,7 +29,15 @@ from requests.structures import CaseInsensitiveDict
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+else:
+    from airflow.triggers.base import (  # type: ignore
+        BaseTrigger as BaseEventTrigger,
+        TriggerEvent,
+    )
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -203,3 +211,15 @@ class HttpSensorTrigger(BaseTrigger):
             method=self.method,
             http_conn_id=self.http_conn_id,
         )
+
+
+class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
+    """
+    HttpEventTrigger for event-based DAG scheduling when the API response satisfies the response check.
+
+    :param response_check: method that evaluates whether the API response passes the criteria set by the user to trigger DAGs
+    """
+
+    def __init__(self, http_conn_id: str = "http_default", response_check: Callable[..., bool] | None = None):
+        super().__init__()
+        self.response_check = response_check
