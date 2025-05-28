@@ -24,7 +24,6 @@ import {
   useDagServiceGetDagDetailsKey,
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
-  useDagServiceGetDagsKey,
   useDagsServiceRecentDagRunsKey,
   UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
@@ -38,12 +37,8 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
   const { data } = useDagRunServiceGetDagRuns({ dagId, limit: 1, orderBy: "-run_after" }, undefined, {
-    enabled: Boolean(dagId),
-    refetchInterval: hasPendingRuns
-      ? false
-      : Boolean(autoRefreshInterval)
-        ? autoRefreshInterval * 1000
-        : 5000,
+    enabled: Boolean(dagId) && !hasPendingRuns,
+    refetchInterval: Boolean(autoRefreshInterval) ? autoRefreshInterval * 1000 : 5000,
   });
 
   useEffect(() => {
@@ -55,7 +50,6 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
       previousDagRunIdRef.current = latestDagRunId;
 
       const queryKeys = [
-        [useDagServiceGetDagsKey],
         [useDagsServiceRecentDagRunsKey],
         [useDagServiceGetDagDetailsKey],
         UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),

@@ -75,6 +75,7 @@ export const Dag = () => {
     },
   });
 
+  // Ensures continuous refresh to detect new runs when there's no pending state and new runs are initiated from other page
   useRefreshOnNewDagRuns(dagId, hasPendingRuns);
 
   let dagWithRuns = runsData?.dags.find((recentDag) => recentDag.dag_id === dagId);
