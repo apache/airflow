@@ -22,6 +22,8 @@ from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import chain
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 DAG_ID = "example_empty"
 
 with DAG(
@@ -43,6 +45,12 @@ with DAG(
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    dag.sync_to_db()
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)
