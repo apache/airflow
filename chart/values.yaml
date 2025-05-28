@@ -581,6 +581,14 @@ workers:
     failureThreshold: 5
     periodSeconds: 60
     command: ~
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
 
   # Update Strategy when worker is deployed as a StatefulSet
   updateStrategy: ~
@@ -880,6 +888,13 @@ scheduler:
   # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
   # scheduler and let Kubernetes restart it
   livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
+  
+  readinessProbe:
     initialDelaySeconds: 10
     timeoutSeconds: 20
     failureThreshold: 5
@@ -1612,6 +1627,13 @@ triggerer:
   # If the triggerer stops heartbeating for 5 minutes (5*60s) kill the
   # triggerer and let Kubernetes restart it
   livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
+  
+  readinessProbe:
     initialDelaySeconds: 10
     timeoutSeconds: 20
     failureThreshold: 5
@@ -2386,6 +2408,20 @@ redis:
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
+
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+    periodSeconds: 10
+    command: ~
+
+  readinessProbe:
+    initialDelaySeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 3
+    periodSeconds: 10
+    command: ~
 
   service:
     # service type, default: ClusterIP
