@@ -35,6 +35,7 @@
     :caption: References
 
     Python API <_api/airflow/providers/keycloak/index>
+    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:
