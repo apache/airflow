@@ -23,7 +23,8 @@ import pickle
 import sys
 from collections.abc import AsyncIterator
 from importlib import import_module
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
+
 
 import aiohttp
 import requests
