@@ -536,13 +536,6 @@ export const $BaseInfoResponse = {
   description: "Base info serializer for responses.",
 } as const;
 
-export const $BulkAction = {
-  type: "string",
-  enum: ["create", "delete", "update"],
-  title: "BulkAction",
-  description: "Bulk Action to be performed on the used model.",
-} as const;
-
 export const $BulkActionNotOnExistence = {
   type: "string",
   enum: ["fail", "skip"],
@@ -670,7 +663,9 @@ export const $BulkBody_VariableBody_ = {
 export const $BulkCreateAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -695,7 +690,9 @@ export const $BulkCreateAction_ConnectionBody_ = {
 export const $BulkCreateAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -720,7 +717,9 @@ export const $BulkCreateAction_PoolBody_ = {
 export const $BulkCreateAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -745,7 +744,9 @@ export const $BulkCreateAction_VariableBody_ = {
 export const $BulkDeleteAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -770,7 +771,9 @@ export const $BulkDeleteAction_ConnectionBody_ = {
 export const $BulkDeleteAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -795,7 +798,9 @@ export const $BulkDeleteAction_PoolBody_ = {
 export const $BulkDeleteAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -865,7 +870,9 @@ Fields are populated in the response only if the respective action was part of t
 export const $BulkUpdateAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -890,7 +897,9 @@ export const $BulkUpdateAction_ConnectionBody_ = {
 export const $BulkUpdateAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -915,7 +924,9 @@ export const $BulkUpdateAction_PoolBody_ = {
 export const $BulkUpdateAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -3284,6 +3295,58 @@ export const $HealthInfoResponse = {
   description: "Health serializer for responses.",
 } as const;
 
+export const $IFrameViewsResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    src: {
+      type: "string",
+      title: "Src",
+    },
+    icon: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Icon",
+    },
+    url_route: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url Route",
+    },
+    destination: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["nav", "dag", "dag_run", "task", "task_instance"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Destination",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["name", "src"],
+  title: "IFrameViewsResponse",
+  description: "Serializer for IFrame Plugin responses.",
+} as const;
+
 export const $ImportErrorCollectionResponse = {
   properties: {
     import_errors: {
@@ -3674,6 +3737,13 @@ export const $PluginResponse = {
       type: "array",
       title: "Fastapi Root Middlewares",
     },
+    iframe_views: {
+      items: {
+        $ref: "#/components/schemas/IFrameViewsResponse",
+      },
+      type: "array",
+      title: "Iframe Views",
+    },
     appbuilder_views: {
       items: {
         $ref: "#/components/schemas/AppBuilderViewResponse",
@@ -3728,6 +3798,7 @@ export const $PluginResponse = {
     "flask_blueprints",
     "fastapi_apps",
     "fastapi_root_middlewares",
+    "iframe_views",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",

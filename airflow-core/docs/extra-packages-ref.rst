@@ -397,6 +397,8 @@ pre-installed when Airflow is installed.
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | jdbc                | ``pip install 'apache-airflow[jdbc]'``              | JDBC hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| keycloak            | ``pip install apache-airflow[keycloak]``            | Keycloak hooks and operators         |              +
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | microsoft-psrp      | ``pip install 'apache-airflow[microsoft-psrp]'``    | PSRP hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | microsoft-winrm     | ``pip install 'apache-airflow[microsoft-winrm]'``   | WinRM hooks and operators            |              |
