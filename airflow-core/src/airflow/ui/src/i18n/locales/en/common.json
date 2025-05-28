@@ -2,6 +2,7 @@
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
   "logout": "Logout",
+  "logoutConfirmation": "You are about to logout from the application.",
   "switchToDarkMode": "Switch to Dark Mode",
   "switchToLightMode": "Switch to Light Mode",
   "timezone": "timezone",
@@ -20,6 +21,7 @@
     "assets": "Assets",
     "browse": "Browse",
     "admin": "Admin",
+    "security": "Security",
     "docs": "Docs",
     "plugins": "Plugins"
   },
@@ -34,6 +36,13 @@
     "Plugins": "Plugins",
     "Connections": "Connections",
     "Config": "Config"
+  },
+  "security": {
+    "users": "Users",
+    "roles": "Roles",
+    "actions": "Actions",
+    "resources": "Resources",
+    "permissions": "Permissions"
   },
   "timeRange": {
     "duration": "Duration",
@@ -77,5 +86,15 @@
     "deferred": "Deferred",
     "pools_one": "pool",
     "pools_other": "pools"
+  },
+  "modal": {
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "timezoneModal": {
+    "title": "Select Timezone",
+    "placeholder": "Select a timezone",
+    "current-timezone": "Current time in",
+    "utc": "UTC (Coordinated Universal Time)"
   }
 }
