@@ -25,6 +25,7 @@ CONF_DIR = Path(__file__).parent.absolute()
 project = "Apache Airflow Task SDK"
 
 language = "en"
+locale_dirs: list[str] = []
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -63,15 +64,9 @@ rst_epilog = "\n".join(f".. |{key}| replace:: {replace}" for key, replace in glo
 
 intersphinx_resolve_self = "airflow"
 intersphinx_mapping = {
-    "airflow": (
-        "https://airflow.apache.org/docs/apache-airflow/stable/",
-        (
-            "../../docs/_inventory_cache/apache-airflow/objects.inv",
-            "../../docs/_build/apache-airflow/objects.inv",
-            None,
-        ),
-    )
+    "airflow": ("https://airflow.apache.org/docs/apache-airflow/stable/", None),
 }
+suppress_warnings = ["autoapi.python_import_resolution"]
 
 
 def skip_util_classes(app, objtype, name, obj, skip, options):
