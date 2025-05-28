@@ -63,7 +63,12 @@ class TimeDeltaSensor(BaseSensorOperator):
     """
 
     def __init__(
-        self, *, delta: timedelta, deferrable: bool = False, end_from_trigger: bool = False, **kwargs
+        self,
+        *,
+        delta: timedelta,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        end_from_trigger: bool = False,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.delta = delta
@@ -149,7 +154,7 @@ class TimeDeltaSensor(BaseSensorOperator):
 
 # TODO: Remember to remove
 @deprecated(
-    "Use `TimeDeltaSensor` with `deferrable=True` instead", category="AirflowProvidersDeprecationWarning"
+    "Use `TimeDeltaSensor` with `deferrable=True` instead", category=AirflowProviderDeprecationWarning
 )
 class TimeDeltaSensorAsync(TimeDeltaSensor):
     """
