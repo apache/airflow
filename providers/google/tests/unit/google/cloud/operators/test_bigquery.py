@@ -2442,6 +2442,17 @@ class TestBigQueryIntervalCheckOperator:
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
+    def test_bigquery_interval_check_operator_project_id(self):
+        operator = BigQueryIntervalCheckOperator(
+            task_id="bq_interval_check_operator_project_id",
+            table="test_table",
+            metrics_thresholds={"COUNT(*)": 1.5},
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_JOB_PROJECT_ID,
+        )
+
+        assert operator.project_id == TEST_JOB_PROJECT_ID
+
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_interval_check_operator_async(self, mock_hook, create_task_instance_of_operator):
@@ -2710,6 +2721,16 @@ class TestBigQueryCheckOperator:
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
+    def test_bigquery_check_operator_project_id(self):
+        operator = BigQueryCheckOperator(
+            task_id="bq_check_operator_project_id",
+            sql="SELECT * FROM any",
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_JOB_PROJECT_ID,
+        )
+
+        assert operator.project_id == TEST_JOB_PROJECT_ID
+
     def test_bigquery_check_op_execute_complete_with_no_records(self):
         """Asserts that exception is raised with correct expected exception message"""
 
@@ -2869,6 +2890,17 @@ class TestBigQueryValueCheckOperator:
             BigQueryValueCheckOperator(deferrable=True, kwargs={})
         assert missing_param.value.args[0] in (expected, expected1)
 
+    def test_bigquery_value_check_project_id(self):
+        operator = BigQueryValueCheckOperator(
+            task_id="check_value",
+            sql="SELECT COUNT(*) FROM Any",
+            pass_value=2,
+            use_legacy_sql=False,
+            project_id=TEST_JOB_PROJECT_ID,
+        )
+
+        assert operator.project_id == TEST_JOB_PROJECT_ID
+
     def test_bigquery_value_check_operator_execute_complete_success(self):
         """Tests response message in case of success event"""
         operator = BigQueryValueCheckOperator(
@@ -2954,7 +2986,7 @@ class TestBigQueryColumnCheckOperator:
             ("leq_to", 0, -1),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHookWithFlexibleProjectId")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
     def test_bigquery_column_check_operator_succeeds(
         self, mock_job, mock_hook, check_type, check_value, check_result, create_task_instance_of_operator
@@ -2986,7 +3018,7 @@ class TestBigQueryColumnCheckOperator:
             ("leq_to", 0, 1),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHookWithFlexibleProjectId")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
     def test_bigquery_column_check_operator_fails(
         self, mock_job, mock_hook, check_type, check_value, check_result, create_task_instance_of_operator
@@ -3017,7 +3049,7 @@ class TestBigQueryColumnCheckOperator:
             ("less_than", 0, -1),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHookWithFlexibleProjectId")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
     def test_encryption_configuration(self, mock_job, mock_hook, check_type, check_value, check_result):
         encryption_configuration = {
@@ -3058,7 +3090,7 @@ class TestBigQueryColumnCheckOperator:
 
 
 class TestBigQueryTableCheckOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHookWithFlexibleProjectId")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
     def test_encryption_configuration(self, mock_job, mock_hook):
         encryption_configuration = {
