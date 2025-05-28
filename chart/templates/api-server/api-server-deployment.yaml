@@ -172,6 +172,7 @@ spec:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
               {{- include "airflow_api_server_config_mount" . | nindent 12 }}
+            {{- end }}
             {{- if .Values.devMode.enabled }}
               {{- include "airflow_code_mount" . | nindent 12 }}
             {{- end }}

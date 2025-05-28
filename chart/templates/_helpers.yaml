@@ -518,6 +518,20 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- printf "%s/logs" .Values.airflowHome }}
 {{- end }}
 
+{{- define "airflow_code_mount" -}}
+- name: code
+  mountPath: {{ printf "%s/airflow-core" .Values.airflowHome }}
+  subPath: airflow-core
+  readOnly: true
+- name: code
+  mountPath: {{ printf "%s/airflow-ctl" .Values.airflowHome }}
+  subPath: airflow-ctl
+  readOnly: true
+- name: code
+  mountPath: {{ printf "%s/task-sdk" .Values.airflowHome }}
+  subPath: task-sdk
+  readOnly: true
+{{- end }}
 {{- define "airflow_code_volume_claim" -}}
   {{- if .Values.devMode.persistence.existingClaim }}
     {{- .Values.devMode.persistence.existingClaim }}
@@ -556,12 +570,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- else }}
     {{- printf "%s-dags" .Release.Name }}
   {{- end }}
-{{- end }}
-
-{{- define "airflow_code_mount" -}}
-- name: code
-  mountPath: {{  .Values.airflowHome }}
-  readOnly: true
 {{- end }}
 
 {{- define "airflow_dags_mount" -}}
