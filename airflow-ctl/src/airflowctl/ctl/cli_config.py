@@ -198,6 +198,23 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
+ARG_VARIABLE_IMPORT = Arg(
+    flags=("file",),
+    metavar="file",
+    help="Import variables from JSON file",
+)
+ARG_VARIABLE_ACTION_ON_EXISTING_KEY = Arg(
+    flags=("-a", "--action-on-existing-key"),
+    type=str,
+    default="overwrite",
+    help="Action to take if we encounter a variable key that already exists.",
+    choices=("overwrite", "fail", "skip"),
+)
+ARG_VARIABLE_EXPORT = Arg(
+    flags=("file",),
+    metavar="file",
+    help="Export all variables to JSON file",
+)
 
 ARG_OUTPUT = Arg(
     flags=("-o", "--output"),
@@ -626,6 +643,21 @@ POOL_COMMANDS = (
     ),
 )
 
+VARIABLE_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import variables",
+        func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
+        args=(ARG_VARIABLE_IMPORT, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
+    ),
+    ActionCommand(
+        name="export",
+        help="Export all variables",
+        func=lazy_load_command("airflowctl.ctl.commands.variable_command.export"),
+        args=(ARG_VARIABLE_EXPORT,),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -637,6 +669,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="variables",
+        help="Manage Airflow variables",
+        subcommands=VARIABLE_COMMANDS,
     ),
 ]
 # Add generated group commands
