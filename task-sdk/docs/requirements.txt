@@ -1,0 +1,3 @@
+sphinx>=5.0
+sphinx-autoapi>=1.8
+sphinx-airflow-theme>=0.2.2
