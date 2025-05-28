@@ -116,9 +116,9 @@ class HookMetaService:
         """Mock any flask appbuilder widget."""
 
     @staticmethod
-    def _get_hooks_with_mocked_fab() -> tuple[
-        MutableMapping[str, HookInfo | None], dict[str, ConnectionFormWidgetInfo], dict[str, dict]
-    ]:
+    def _get_hooks_with_mocked_fab() -> (
+        tuple[MutableMapping[str, HookInfo | None], dict[str, ConnectionFormWidgetInfo], dict[str, dict]]
+    ):
         """Get hooks with all details w/o FAB needing to be installed."""
         from unittest import mock
 
@@ -185,7 +185,9 @@ class HookMetaService:
                 pass
 
             pm = ProvidersManager()
-            return pm.hooks, pm.connection_form_widgets, pm.field_behaviours
+            pm._cleanup()  # Remove any cached hooks with non mocked FAB
+            pm._init_airflow_core_hooks()  # Initialize core hooks
+            return pm.hooks, pm.connection_form_widgets, pm.field_behaviours  # Will init providers hooks
 
         return (
             {},
