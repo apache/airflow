@@ -260,7 +260,10 @@ class TestCeleryExecutor:
                 dag=DAG(dag_id="id"),
                 start_date=datetime.now(),
             )
-            ti = TaskInstance(task=task, run_id="abc")
+            if AIRFLOW_V_3_0_PLUS:
+                ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
+            else:
+                ti = TaskInstance(task=task, run_id="abc")
             workload = workloads.ExecuteTask.model_construct(
                 ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
             )
