@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -216,6 +217,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         "content",
         "title",
         "snippet_type",
+        "interval",
     )
     ui_color = "#44BEDF"
 
@@ -229,6 +231,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         title: str | None = None,
         method_version: Literal["v1", "v2"] = "v2",
         snippet_type: str | None = None,
+        interval: float = 0.0,
         **kwargs,
     ) -> None:
         super().__init__(method="files.upload", **kwargs)
@@ -240,6 +243,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.title = title
         self.method_version = method_version
         self.snippet_type = snippet_type
+        self.interval = interval
 
     @property
     def _method_resolver(self):
@@ -258,3 +262,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             title=self.title,
             snippet_type=self.snippet_type,
         )
+
+        if self.interval > 0:
+            self.log.debug("Sleeping %.2fs to respect interval", self.interval)
+            time.sleep(self.interval)
