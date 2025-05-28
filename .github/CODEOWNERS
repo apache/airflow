@@ -37,7 +37,7 @@
 
 # Translations
 airflow-core/src/airflow/ui/src/i18n/locales/de/ @jscheffl
-airflow-core/src/airflow/ui/src/i18n/locales/zh_TW/ @Lee-W
+airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/ @Lee-W
 airflow-core/src/airflow/ui/src/i18n/locales/nl/ @BasPH # not codeowner but engaged: @DjVinnii
 
 # Security/Permissions
