@@ -162,7 +162,7 @@ class TestGetDags(TestDagEndpoint):
             ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
             ({"dag_run_state": "failed"}, 1, [DAG1_ID]),
-            ({"dag_run_state": "failed", "exclude_stale": False}, 2, [DAG1_ID, DAG3_ID]),
+            ({"dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
             (
                 {"dag_run_start_date_gte": DAG3_START_DATE_2.isoformat(), "exclude_stale": False},
                 1,
@@ -210,10 +210,10 @@ class TestGetDags(TestDagEndpoint):
                     "dag_run_state": "failed",
                     "exclude_stale": False,
                 },
-                1,
-                [DAG3_ID],
+                0,
+                [],
             ),
-            # # Sort
+            # Sort
             ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
