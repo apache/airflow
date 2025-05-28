@@ -21,12 +21,8 @@ from unittest import mock
 import pytest
 from task_sdk.definitions.test_dag import DEFAULT_DATE
 
-from airflow.sdk.definitions.deadline_reference import (
-    DagRunLogicalDateDeadline,
-    DagRunQueuedAtDeadline,
-    DeadlineReference,
-    FixedDatetimeDeadline,
-)
+from airflow.models.deadline import ReferenceModels
+from airflow.sdk.definitions.deadline import DeadlineReference
 
 DAG_ID = "dag_id_1"
 
@@ -75,11 +71,11 @@ class TestDeadlineReference:
     def test_deadline_reference_creation(self):
         """Test that DeadlineReference provides consistent interface and types."""
         fixed_reference = DeadlineReference.FIXED_DATETIME(DEFAULT_DATE)
-        assert isinstance(fixed_reference, FixedDatetimeDeadline)
+        assert isinstance(fixed_reference, ReferenceModels.FixedDatetimeDeadline)
         assert fixed_reference._datetime == DEFAULT_DATE
 
         logical_date_reference = DeadlineReference.DAGRUN_LOGICAL_DATE
-        assert isinstance(logical_date_reference, DagRunLogicalDateDeadline)
+        assert isinstance(logical_date_reference, ReferenceModels.DagRunLogicalDateDeadline)
 
         queued_reference = DeadlineReference.DAGRUN_QUEUED_AT
-        assert isinstance(queued_reference, DagRunQueuedAtDeadline)
+        assert isinstance(queued_reference, ReferenceModels.DagRunQueuedAtDeadline)

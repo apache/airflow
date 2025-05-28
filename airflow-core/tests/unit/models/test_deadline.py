@@ -29,7 +29,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, DeadlineAlert, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.deadline_reference import DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
@@ -298,7 +298,7 @@ class TestCalculatedDeadlineDatabaseCalls:
         """
         conditions = {"dag_id": DAG_ID}
 
-        with mock.patch("airflow.sdk.definitions.deadline_reference._fetch_from_db") as mock_fetch:
+        with mock.patch("airflow.models.deadline._fetch_from_db") as mock_fetch:
             mock_fetch.return_value = DEFAULT_DATE
 
             if expected_column is not None:

@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import sqlalchemy_jsonfield
 import uuid6
@@ -29,6 +31,7 @@ from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, is_valid_dotpath
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -36,7 +39,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.sdk.definitions.deadline_reference import DeadlineReference
+    from airflow.sdk.definitions.deadline import DeadlineReference
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +103,69 @@ class Deadline(Base):
     def add_deadline(cls, deadline: Deadline, session: Session = NEW_SESSION):
         """Add the provided deadline to the table."""
         session.add(deadline)
+
+
+class ReferenceModels:
+    """
+    Store the implementations for the different Deadline References.
+
+    After adding the implementations here, all DeadlineReferences should be added
+    to the user interface in airflow.sdk.definitions.deadline.DeadlineReference
+    """
+
+    class BaseDeadlineReference(LoggingMixin, ABC):
+        """Base class for all Deadline implementations."""
+
+        # Set of required kwargs - subclasses should override this.
+        required_kwargs: set[str] = set()
+
+        def evaluate_with(self, **kwargs: Any) -> datetime:
+            """Validate the provided kwargs and evaluate this deadline with the given conditions."""
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
+
+            if missing_kwargs := self.required_kwargs - filtered_kwargs.keys():
+                raise ValueError(
+                    f"{self.__class__.__name__} is missing required parameters: {', '.join(missing_kwargs)}"
+                )
+
+            if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
+                self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
+
+            return self._evaluate_with(**filtered_kwargs)
+
+        @abstractmethod
+        def _evaluate_with(self, **kwargs: Any) -> datetime:
+            """Must be implemented by subclasses to perform the actual evaluation."""
+            raise NotImplementedError
+
+    @dataclass
+    class FixedDatetimeDeadline(BaseDeadlineReference):
+        """A deadline that always returns a fixed datetime."""
+
+        _datetime: datetime
+
+        def _evaluate_with(self, **kwargs: Any) -> datetime:
+            return self._datetime
+
+    class DagRunLogicalDateDeadline(BaseDeadlineReference):
+        """A deadline that returns a DagRun's logical date."""
+
+        required_kwargs = {"dag_id"}
+
+        def _evaluate_with(self, **kwargs: Any) -> datetime:
+            from airflow.models import DagRun
+
+            return _fetch_from_db(DagRun.logical_date, **kwargs)
+
+    class DagRunQueuedAtDeadline(BaseDeadlineReference):
+        """A deadline that returns when a DagRun was queued."""
+
+        required_kwargs = {"dag_id"}
+
+        def _evaluate_with(self, **kwargs: Any) -> datetime:
+            from airflow.models import DagRun
+
+            return _fetch_from_db(DagRun.queued_at, **kwargs)
 
 
 class DeadlineAlert:
@@ -198,8 +264,8 @@ def _fetch_from_db(model_reference: Column, session=None, **conditions) -> datet
 
     try:
         result = session.scalar(query)
-    except SQLAlchemyError as e:
-        logger.error("Database query failed: (%s)", str(e))
+    except SQLAlchemyError:
+        logger.exception("Database query failed.")
         raise
 
     if result is None:
