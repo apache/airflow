@@ -23,7 +23,7 @@ from pathlib import Path
 
 import rich
 
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkActionOnExistence
+from airflow.api_fastapi.core_api.datamodels.common import BulkActionOnExistence
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
     BulkBodyVariableBody,
@@ -64,7 +64,7 @@ def import_(args, api_client=NEW_API_CLIENT):
     bulk_body = BulkBodyVariableBody(
         actions=[
             BulkCreateActionVariableBody(
-                action=BulkAction.CREATE,
+                action="create",
                 entities=vars_to_update,
                 action_on_existence=action_on_existence,
             )
