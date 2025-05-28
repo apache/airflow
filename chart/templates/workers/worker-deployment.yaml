@@ -332,6 +332,7 @@ spec:
           {{- if $containerLifecycleHooksLogGroomerSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
           {{- end }}
+          {{- if hasKey .Values.workers.logGroomerSidecar "livenessProbe" }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.workers.logGroomerSidecar.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.workers.logGroomerSidecar.livenessProbe.timeoutSeconds }}
