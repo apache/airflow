@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-27T19:48:15.283736
+# This constraints file was automatically generated on 2025-05-28T14:01:12.444010
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -21,17 +21,13 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 Werkzeug==2.2.3
 a2wsgi==1.10.8
-aiohappyeyeballs==2.6.1
-aiohttp==3.12.2
 aiologic==0.14.0
-aiosignal==1.3.2
 aiosqlite==0.21.0
 alembic==1.16.1
 annotated-types==0.7.0
 anyio==4.9.0
 argcomplete==3.6.2
 asgiref==3.8.1
-async-timeout==4.0.3
 attrs==25.3.0
 backports.strenum==1.3.1
 cadwyn==5.3.3
@@ -49,7 +45,6 @@ email_validator==2.2.0
 exceptiongroup==1.3.0
 fastapi-cli==0.0.7
 fastapi==0.115.12
-frozenlist==1.6.0
 fsspec==2025.5.1
 googleapis-common-protos==1.70.0
 greenlet==3.2.2
@@ -73,7 +68,6 @@ mdurl==0.1.2
 methodtools==0.4.7
 more-itertools==10.7.0
 msgspec==0.19.0
-multidict==6.4.4
 opentelemetry-api==1.27.0
 opentelemetry-exporter-otlp-proto-common==1.27.0
 opentelemetry-exporter-otlp-proto-grpc==1.27.0
@@ -86,7 +80,6 @@ packaging==24.2
 pathspec==0.12.1
 pendulum==3.1.0
 pluggy==1.6.0
-propcache==0.3.1
 protobuf==4.25.7
 psutil==7.0.0
 pycparser==2.22
@@ -135,5 +128,4 @@ watchfiles==1.0.5
 websockets==14.2
 wirerope==1.0.0
 wrapt==1.17.2
-yarl==1.20.0
 zipp==3.22.0
