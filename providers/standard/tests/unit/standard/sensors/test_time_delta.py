@@ -170,7 +170,7 @@ class TestTimeDeltaSensorAsync:
     )
     @mock.patch(DEFER_PATH)
     def test_timedelta_sensor(self, defer_mock, should_defer):
-        with pytest.warns(AirflowProviderDeprecationWarning) as m:
+        with pytest.warns(AirflowProviderDeprecationWarning):
             delta = timedelta(hours=1)
             op = TimeDeltaSensorAsync(task_id="timedelta_sensor_check", delta=delta, dag=self.dag)
             if should_defer:
@@ -213,7 +213,7 @@ class TestTimeDeltaSensorAsync:
     )
     def test_timedelta_sensor_async_run_after_vs_interval(self, run_after, interval_end, dag_maker):
         """Interval end should be used as base time when present else run_after"""
-        with pytest.warns(AirflowProviderDeprecationWarning) as m:
+        with pytest.warns(AirflowProviderDeprecationWarning):
             if not AIRFLOW_V_3_0_PLUS and not interval_end:
                 pytest.skip("not applicable")
 
