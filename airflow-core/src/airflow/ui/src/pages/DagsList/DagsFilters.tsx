@@ -34,8 +34,7 @@ import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 import { StateBadge } from "src/components/StateBadge";
-import { Select } from "src/components/ui";
-import { Switch } from "src/components/ui/Switch.tsx";
+import { Select, Switch } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { pluralize } from "src/utils";
@@ -252,7 +251,7 @@ export const DagsFilters = () => {
         {selectedTags.length >= 2 && (
           <HStack align="center" gap={1}>
             <Text
-              color={tagFilterMode === "any" ? "blue.400" : "gray.500"}
+              color={tagFilterMode === "any" ? "fg.info" : "fg.muted"}
               fontSize="sm"
               fontWeight={tagFilterMode === "any" ? "bold" : "normal"}
             >
@@ -264,7 +263,7 @@ export const DagsFilters = () => {
               variant="raised"
             />
             <Text
-              color={tagFilterMode === "all" ? "blue.400" : "gray.500"}
+              color={tagFilterMode === "all" ? "fg.info" : "fg.muted"}
               fontSize="sm"
               fontWeight={tagFilterMode === "all" ? "bold" : "normal"}
             >
