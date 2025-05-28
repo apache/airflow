@@ -2771,8 +2771,8 @@ export const useAuthLinksServiceGetAuthMenus = <
     ...options,
   });
 /**
- * Recent Dag Runs
- * Get recent DAG runs.
+ * Get Dags
+ * Get DAGs with recent DagRun.
  * @param data The data for the request.
  * @param data.dagRunsLimit
  * @param data.limit
@@ -2786,11 +2786,12 @@ export const useAuthLinksServiceGetAuthMenus = <
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.orderBy
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagsServiceRecentDagRuns = <
-  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
+export const useDagsServiceGetDagsUi = <
+  TData = Common.DagsServiceGetDagsUiDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -2803,6 +2804,7 @@ export const useDagsServiceRecentDagRuns = <
     lastDagRunState,
     limit,
     offset,
+    orderBy,
     owners,
     paused,
     tags,
@@ -2816,6 +2818,7 @@ export const useDagsServiceRecentDagRuns = <
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -2825,7 +2828,7 @@ export const useDagsServiceRecentDagRuns = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
+    queryKey: Common.UseDagsServiceGetDagsUiKeyFn(
       {
         dagDisplayNamePattern,
         dagIdPattern,
@@ -2835,6 +2838,7 @@ export const useDagsServiceRecentDagRuns = <
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,
@@ -2843,7 +2847,7 @@ export const useDagsServiceRecentDagRuns = <
       queryKey,
     ),
     queryFn: () =>
-      DagsService.recentDagRuns({
+      DagsService.getDagsUi({
         dagDisplayNamePattern,
         dagIdPattern,
         dagIds,
@@ -2852,6 +2856,7 @@ export const useDagsServiceRecentDagRuns = <
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,

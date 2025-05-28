@@ -2308,8 +2308,8 @@ export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient
     queryFn: () => AuthLinksService.getAuthMenus(),
   });
 /**
- * Recent Dag Runs
- * Get recent DAG runs.
+ * Get Dags
+ * Get DAGs with recent DagRun.
  * @param data The data for the request.
  * @param data.dagRunsLimit
  * @param data.limit
@@ -2323,10 +2323,11 @@ export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.orderBy
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagsServiceRecentDagRuns = (
+export const prefetchUseDagsServiceGetDagsUi = (
   queryClient: QueryClient,
   {
     dagDisplayNamePattern,
@@ -2337,6 +2338,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     lastDagRunState,
     limit,
     offset,
+    orderBy,
     owners,
     paused,
     tags,
@@ -2350,6 +2352,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -2357,7 +2360,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
+    queryKey: Common.UseDagsServiceGetDagsUiKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
       dagIds,
@@ -2366,13 +2369,14 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       lastDagRunState,
       limit,
       offset,
+      orderBy,
       owners,
       paused,
       tags,
       tagsMatchMode,
     }),
     queryFn: () =>
-      DagsService.recentDagRuns({
+      DagsService.getDagsUi({
         dagDisplayNamePattern,
         dagIdPattern,
         dagIds,
@@ -2381,6 +2385,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,

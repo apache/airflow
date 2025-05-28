@@ -1660,13 +1660,13 @@ export const UseAuthLinksServiceGetAuthMenusKeyFn = (queryKey?: Array<unknown>) 
   useAuthLinksServiceGetAuthMenusKey,
   ...(queryKey ?? []),
 ];
-export type DagsServiceRecentDagRunsDefaultResponse = Awaited<ReturnType<typeof DagsService.recentDagRuns>>;
-export type DagsServiceRecentDagRunsQueryResult<
-  TData = DagsServiceRecentDagRunsDefaultResponse,
+export type DagsServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagsService.getDagsUi>>;
+export type DagsServiceGetDagsUiQueryResult<
+  TData = DagsServiceGetDagsUiDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useDagsServiceRecentDagRunsKey = "DagsServiceRecentDagRuns";
-export const UseDagsServiceRecentDagRunsKeyFn = (
+export const useDagsServiceGetDagsUiKey = "DagsServiceGetDagsUi";
+export const UseDagsServiceGetDagsUiKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
@@ -1676,6 +1676,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     lastDagRunState,
     limit,
     offset,
+    orderBy,
     owners,
     paused,
     tags,
@@ -1689,6 +1690,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -1696,7 +1698,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [
-  useDagsServiceRecentDagRunsKey,
+  useDagsServiceGetDagsUiKey,
   ...(queryKey ?? [
     {
       dagDisplayNamePattern,
@@ -1707,6 +1709,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
       lastDagRunState,
       limit,
       offset,
+      orderBy,
       owners,
       paused,
       tags,
