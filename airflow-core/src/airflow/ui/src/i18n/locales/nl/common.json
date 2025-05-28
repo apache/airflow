@@ -6,9 +6,7 @@
   "switchToLightMode": "Schakel over naar lichte modus",
   "timezone": "Tijdzone",
   "user": "Gebruiker",
-  "language": {
-    "select": "Selecteer taal"
-  },
+  "selectLanguage": "Selecteer taal",
   "nav": {
     "home": "Home",
     "assets": "Assets",

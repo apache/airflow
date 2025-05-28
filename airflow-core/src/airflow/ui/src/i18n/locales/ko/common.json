@@ -6,9 +6,7 @@
   "switchToLightMode": "라이트 모드로 전환",
   "timezone": "시간대",
   "user": "사용자",
-  "language": {
-    "select": "언어 선택"
-  },
+  "selectLanguage": "언어 선택",
   "nav": {
     "home": "홈",
     "assets": "에셋",

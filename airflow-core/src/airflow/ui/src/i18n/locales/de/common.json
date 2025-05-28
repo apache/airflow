@@ -7,9 +7,7 @@
   "switchToLightMode": "Zum Hellmodus wechseln",
   "timezone": "Zeitzone",
   "user": "Benutzer",
-  "language": {
-    "select": "Sprache wählen"
-  },
+  "selectLanguage": "Sprache wählen",
   "nav": {
     "home": "Start",
     "assets": "Datensets (Assets)",
