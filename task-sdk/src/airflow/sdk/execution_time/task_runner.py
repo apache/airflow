@@ -703,6 +703,34 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
+def impersonate_user(username: str, log: Logger):
+    """
+    Impersonate as the specified user by changing the process's UID and GID.
+
+    Helper to attempt to set privileges from the current user (root) to the provided username in the task
+    by setting the effective UID and GID.
+
+    Example:
+        impersonate_user("airflowuser")
+    """
+    import pwd
+
+    try:
+        pw_record = pwd.getpwnam(username)
+        uid, gid = pw_record.pw_uid, pw_record.pw_gid
+
+        os.setgid(uid)
+        os.setuid(gid)
+
+        log.info("Running task as impersonated user", impersonated_user=username)
+    except KeyError:
+        log.warning("User not found on the worker; skipping impersonation", username=username)
+    except PermissionError as e:
+        log.error("Permission denied while trying impersonation", username=username, error=str(e))
+    except Exception as e:
+        log.error("Unexpected error during impersonation", error=str(e))
+
+
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
@@ -727,6 +755,11 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             ti = parse(msg, log)
             ti.log_url = get_log_url_from_ti(ti)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
+
+        run_as_user = getattr(ti.task, "run_as_user", None)
+        if run_as_user:
+            impersonate_user(run_as_user, log)
+
     else:
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
 
