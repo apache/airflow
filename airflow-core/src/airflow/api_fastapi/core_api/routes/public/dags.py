@@ -118,11 +118,22 @@ def get_dags(
     """Get all DAGs."""
     query = select(DagModel)
 
-    max_run_id_query = (  # ordering by id will not always be "latest run", but it's a simplifying assumption
-        select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
+    max_id_inner_query = (
+        select(
+            DagRun.id.label("max_run_id"),
+            DagRun.dag_id,
+            func.row_number().over(partition_by=DagRun.dag_id, order_by=DagRun.start_date.desc()).label("rn"),
+        )
         .where(DagRun.start_date.is_not(null()))
-        .group_by(DagRun.dag_id)
-        .subquery(name="mrq")
+        .subquery("mrq_inner")
+    )
+    max_id_query = (
+        select(
+            max_id_inner_query.c.dag_id,
+            max_id_inner_query.c.max_run_id,
+        )
+        .where(max_id_inner_query.c.rn == 1)
+        .subquery("mrq")
     )
 
     has_max_run_filter = (
@@ -139,10 +150,10 @@ def get_dags(
         "-last_run_start_date",
     ):
         query = query.join(
-            max_run_id_query,
-            DagModel.dag_id == max_run_id_query.c.dag_id,
+            max_id_query,
+            DagModel.dag_id == max_id_query.c.dag_id,
             isouter=True,
-        ).join(DagRun, DagRun.id == max_run_id_query.c.max_dag_run_id, isouter=True)
+        ).join(DagRun, DagRun.id == max_id_query.c.max_run_id, isouter=True)
 
     if has_max_run_filter:
         query = apply_filters_to_select(
