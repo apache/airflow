@@ -365,7 +365,10 @@ class DagBag(LoggingMixin):
             self.log.error(msg)
             self.import_errors[filepath] = msg
 
-        signal.signal(signal.SIGSEGV, handler)
+        try:
+            signal.signal(signal.SIGSEGV, handler)
+        except ValueError:
+            self.log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
 
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages

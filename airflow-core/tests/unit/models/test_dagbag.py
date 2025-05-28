@@ -988,3 +988,27 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
         assert "Received SIGSEGV signal while processing" in caplog.text
         assert dag_file.as_posix() in dagbag.import_errors
+
+    def test_failed_signal_registration_does_not_crash_the_process(self, tmp_path, caplog):
+        """Test that a ValueError raised by a signal setting on child process does not crash the main process.
+        This was raised in test_dag_report.py module in api_fastapi/core_api/routes/public tests
+        """
+        dag_file = tmp_path / "test_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                from airflow import DAG
+                from airflow.decorators import task
+
+                with DAG('testbug'):
+                    @task
+                    def mytask():
+                        print(1)
+                    mytask()
+                """
+            )
+        )
+        with mock.patch("airflow.models.dagbag.signal.signal") as mock_signal:
+            mock_signal.side_effect = ValueError("Invalid signal setting")
+            DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+            assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text
