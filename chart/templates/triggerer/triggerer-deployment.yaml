@@ -216,6 +216,7 @@ spec:
                 {{- else }}
                   {{- include "triggerer_liveness_check_command" . | indent 14 }}
                 {{- end }}
+          {{- if .Values.triggerer.readinessProbe }}
           readinessProbe:
             initialDelaySeconds: {{ .Values.triggerer.readinessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.triggerer.readinessProbe.timeoutSeconds }}
@@ -228,6 +229,7 @@ spec:
                 {{- else }}
                   {{- include "triggerer_readiness_check_command" . | indent 14 }}
                 {{- end }}
+          {{- end }}
         {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
           {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
           ports:

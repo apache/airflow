@@ -206,6 +206,7 @@ spec:
                 {{- else }}
                   {{- include "scheduler_liveness_check_command" . | indent 14 }}
                 {{- end }}
+          {{- if .Values.scheduler.readinessProbe }}
           readinessProbe:
             initialDelaySeconds: {{ .Values.scheduler.readinessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.readinessProbe.timeoutSeconds }}
@@ -218,6 +219,7 @@ spec:
                 {{- else }}
                   {{- include "scheduler_readiness_check_command" . | indent 14 }}
                 {{- end }}
+          {{- end }}
           startupProbe:
             timeoutSeconds: {{ .Values.scheduler.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.scheduler.startupProbe.failureThreshold }}
@@ -287,7 +289,7 @@ spec:
                 - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
               {{- end }}
           {{- end }}
-          
+
           # Add readinessProbe
           {{- if hasKey .Values.scheduler.logGroomerSidecar "readinessProbe" }}
           readinessProbe:
