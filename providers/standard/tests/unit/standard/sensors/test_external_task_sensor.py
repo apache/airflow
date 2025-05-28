@@ -41,7 +41,6 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 from airflow.models.dag import DAG
-from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.exceptions import (
@@ -76,6 +75,7 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.dag_version import DagVersion
     from airflow.sdk import task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
 else:

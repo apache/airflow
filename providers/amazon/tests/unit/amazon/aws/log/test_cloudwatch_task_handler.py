@@ -33,7 +33,6 @@ from pydantic_core import TzInfo
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
@@ -227,6 +226,8 @@ class TestCloudwatchTaskHandler:
         session.refresh(dag_run)
 
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
             dag_version = DagVersion.get_latest_version(self.dag.dag_id, session=session)
             self.ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:

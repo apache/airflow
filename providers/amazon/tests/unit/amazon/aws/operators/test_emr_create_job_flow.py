@@ -28,7 +28,6 @@ from jinja2 import StrictUndefined
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
@@ -102,6 +101,8 @@ class TestEmrCreateJobFlowOperator:
     def test_render_template(self, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = self._config
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
             self.operator.dag.sync_to_db()
             SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
