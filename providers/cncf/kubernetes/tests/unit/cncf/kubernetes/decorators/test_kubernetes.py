@@ -19,6 +19,8 @@ from __future__ import annotations
 import base64
 import pickle
 
+import pytest
+
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -71,6 +73,7 @@ class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
         decoded_input = pickle.loads(base64.b64decode(containers[0].env[1].value))
         assert decoded_input == {"args": [], "kwargs": {}}
 
+    @pytest.mark.asyncio
     def test_kubernetes_with_input_output(self):
         """Verify @task.kubernetes will run XCom container if do_xcom_push is set."""
         with self.dag:

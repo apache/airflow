@@ -449,7 +449,7 @@ class TestPodManager:
             )
 
     @pytest.mark.asyncio
-    def test_start_pod_raises_fast_error_on_image_error(self):
+    async def test_start_pod_raises_fast_error_on_image_error(self):
         pod_response = mock.MagicMock()
         pod_response.status.phase = "Pending"
         container_statuse = mock.MagicMock()
