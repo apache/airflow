@@ -34,8 +34,8 @@ const allExtensions = "*.{j,t}s{x,}";
  */
 export const i18nextRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
   files: [
-    // Check files in the UI directory
-    `**/src/${allExtensions}`,
+    // Check files in the ui/src directory
+    `src/**/${allExtensions}`,
   ],
   plugins: {
     i18next: i18nextPlugin,
