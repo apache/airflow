@@ -13,6 +13,8 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
+  "dag_one": "Dag",
+  "dag_other": "Dags",
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "defaultToGraphView": "Default to graph view",
@@ -26,7 +28,26 @@
   "logoutConfirmation": "You are about to logout from the application.",
   "modal": {
     "cancel": "Cancel",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "delete": {
+      "button": "Delete",
+      "confirmation": "Are you sure you want to delete {{resourceName}}? This action cannot be undone."
+    }
+  },
+  "table": {
+    "filterColumns": "Filter table columns",
+    "filterByTag": "Filter Dags by tag",
+    "noTagsFound": "No tags found",
+    "tagPlaceholder": "Filter by tag",
+    "tagMode": {
+      "any": "Any",
+      "all": "All"
+    },
+    "filters": {
+      "reset": "Reset",
+      "filter_one": "filter",
+      "filter_other": "filters"
+    }
   },
   "nav": {
     "admin": "Admin",

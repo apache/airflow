@@ -1,0 +1,52 @@
+{
+  "list": {
+    "searchPlaceholder": "Search Dags",
+    "columns": {
+      "dagId": "Dag ID",
+      "schedule": "Schedule",
+      "nextDagRun": "Next Dag Run",
+      "lastDagRun": "Last Dag Run",
+      "tags": "Tags"
+    },
+    "runs": {
+      "state": "State",
+      "runAfter": "Run After",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "duration": "Duration"
+    }
+  },
+  "actions": {
+    "triggerDag": "Trigger Dag",
+    "trigger": "Trigger",
+    "delete": "Delete Dag",
+    "deleteDagWarning": "This will remove all metadata related to the DAG, including DAG Runs and Tasks."
+  },
+  "filters": {
+    "paused": {
+      "all": "All",
+      "active": "Active",
+      "paused": "Paused"
+    }
+  },
+  "assetSchedule": "{{count}} of {{total}} Asset Events updated",
+  "sort": {
+    "placeholder": "Sort by",
+    "displayName": {
+      "asc": "Sort by Display Name (A-Z)",
+      "desc": "Sort by Display Name (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Sort by Next Dag Run (Earliest-Latest)",
+      "desc": "Sort by Next Dag Run (Latest-Earliest)"
+    },
+    "lastRunState": {
+      "asc": "Sort by Latest Run State (A-Z)",
+      "desc": "Sort by Latest Run State (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Sort by Latest Run Start Date (Earliest-Latest)",
+      "desc": "Sort by Latest Run Start Date (Latest-Earliest)"
+    }
+  }
+}
