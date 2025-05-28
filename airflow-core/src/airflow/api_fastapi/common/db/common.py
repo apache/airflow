@@ -28,7 +28,9 @@ from typing import TYPE_CHECKING, Annotated, Literal, overload
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlalchemy import select,func
 
+from airflow.models.base import Base
 from airflow.utils.db import get_query_count, get_query_count_async
 from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
@@ -181,18 +183,23 @@ def paginated_select(
     return statement, total_entries
 
 
-def return_all_entities(*,
-    total_entities: int,
-    all_entities: list,
+@provide_session
+def return_all_entries(
+    *,
+    operation: Base,
     statement: Select,
     filters: Sequence[OrmClause] | None = None,
     order_by: OrmClause | None = None,
-    offset: OrmClause ,
-    limit: OrmClause ,
-    session: SessionDep,
-) -> list:
-    while total_entries > 0:
-        entity, total_entries = paginated_select(
+    offset: OrmClause | None = None,
+    limit: OrmClause | None = None,
+    session: Session = NEW_SESSION,
+    return_total_entries=True,
+    all_results: list,
+):
+    all_entries = session.scalar(func.count(operation.id))
+
+    for _entry in range(0, all_entries, limit.value):
+        entities, total_entries = paginated_select(
             statement=statement,
             filters=filters,
             order_by=order_by,
@@ -201,8 +208,7 @@ def return_all_entities(*,
             session=session,
             return_total_entries=True,
         )
-        offset.value = offset.value + limit.value
-        entity = session.scalars(entity).all()
-        total_entries = total_entries - limit.value
-        all_entities.append(entity)
-    return all_entities
+        all_results.append(session.scalars(select(entities)).all())
+        offset.value += limit.value
+        total_entries = total_entries
+    return all_results, total_entries
