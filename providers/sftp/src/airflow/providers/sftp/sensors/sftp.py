@@ -96,8 +96,9 @@ class SFTPSensor(BaseSensorOperator):
                 return False
         else:
             try:
-                self.hook.isfile(self.path)
-                actual_files_to_check = [self.path]
+                # File that did not exist was still being added to the list, which was causing the Sensor
+                # to return True, even if the file was not present
+                actual_files_to_check = [self.path] if self.hook.isfile(self.path) else []
             except OSError as e:
                 if e.errno != SFTP_NO_SUCH_FILE:
                     raise AirflowException from e
