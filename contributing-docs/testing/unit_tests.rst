@@ -1343,7 +1343,7 @@ to figure out one of the problems:
   dependency group for the provider - sometimes tests need another provider to be installed that is not
   normally needed as required dependencies of the provider being tested. Those dependencies
   should be added after the ``# Additional devel dependencies`` comment in case of providers. Adding the
-  dependencies here means that when ``uv sync`` is run, the packages and it's dependencies will be installed.
+  dependencies here means that when ``uv sync`` is run, the packages and its dependencies will be installed.
 
 .. code-block:: toml
 
