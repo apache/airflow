@@ -122,7 +122,7 @@ Misc
 Features
 ~~~~~~~~
 
-* ``refactor: OdbcHook must use it's own connection when creating a sqlalchemy engine (#43145)``
+* ``refactor: OdbcHook must use its own connection when creating a sqlalchemy engine (#43145)``
 
 
 .. Below changes are excluded from the changelog. Move them to
