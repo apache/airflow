@@ -1249,6 +1249,7 @@ class TestAwsEcsExecutor:
             "test failure" in caplog.messages[0]
         )
 
+    @pytest.mark.skip(reason="Adopting task instances hasn't been ported over to Airflow 3 yet")
     def test_try_adopt_task_instances(self, mock_executor):
         """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
         mock_executor.ecs.describe_tasks.return_value = {

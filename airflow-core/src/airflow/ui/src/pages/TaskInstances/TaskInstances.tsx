@@ -44,6 +44,7 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 const {
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
+  POOL: POOL_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -178,7 +179,9 @@ export const TaskInstances = () => {
   const filteredState = searchParams.getAll(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
+  const pool = searchParams.getAll(POOL_PARAM);
   const hasFilteredState = filteredState.length > 0;
+  const hasFilteredPool = pool.length > 0;
 
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
@@ -194,6 +197,7 @@ export const TaskInstances = () => {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      pool: hasFilteredPool ? pool : undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,

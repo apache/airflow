@@ -25,6 +25,7 @@ export type DagWithLatest = {
 } & DAGWithLatestDagRunsResponse;
 
 export const useDags = (
+  dagRunsLimit: number,
   searchParams: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
@@ -51,7 +52,7 @@ export const useDags = (
   } = useDagsServiceRecentDagRuns(
     {
       ...runsParams,
-      dagRunsLimit: 14,
+      dagRunsLimit,
     },
     undefined,
     {

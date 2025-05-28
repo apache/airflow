@@ -84,7 +84,7 @@ artifacts = [
     "/airflow_client",
     "/docs",
     "/test",
-    "v1.yaml",
+    "v2.yaml",
 ]
 include = [
     "version.txt",
@@ -97,7 +97,7 @@ artifacts = [
     "/airflow_client",
     "/docs",
     "/test",
-    "v1.yaml",
+    "v2.yaml",
 ]
 include = [
     "/airflow_client",

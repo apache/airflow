@@ -69,7 +69,7 @@ jobs:
       destination: ${{ steps.parameters.outputs.destination }}
       extra-build-options: ${{ steps.parameters.outputs.extra-build-options }}
       # yamllint disable rule:line-length
-      skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder == 'true' && '--skip-write-to-stable-folder' || '' }}
+      skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -143,6 +143,8 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          fetch-tags: true
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:

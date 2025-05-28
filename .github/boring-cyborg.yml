@@ -431,6 +431,9 @@ labelPRBasedOnFilePath:
   area:task-sdk:
     - task-sdk/**/*
 
+  area:go-sdk:
+    - go-sdk/**/*
+
   area:db-migrations:
     - airflow-core/src/airflow/migrations/versions/*
 

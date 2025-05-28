@@ -1193,7 +1193,7 @@ class DAG:
                                 ti.set_state(State.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", ti.task, ti.logical_date)
                             else:
-                                _run_task(ti=ti)
+                                _run_task(ti=ti, run_triggerer=True)
                         except Exception:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
@@ -1208,7 +1208,7 @@ class DAG:
         return dr
 
 
-def _run_task(*, ti):
+def _run_task(*, ti, run_triggerer=False):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1244,8 +1244,10 @@ def _run_task(*, ti):
             )
 
             msg = taskrun_result.msg
+            ti.set_state(taskrun_result.ti.state)
+            ti.task = taskrun_result.ti.task
 
-            if taskrun_result.ti.state == State.DEFERRED and isinstance(msg, DeferTask):
+            if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(State.QUEUED)
@@ -1254,11 +1256,12 @@ def _run_task(*, ti):
                 trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
                 event = _run_inline_trigger(trigger)
                 ti.next_method = msg.next_method
-                ti.next_kwargs = {"event": event.payload} if event else msg.kwargs
+                ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
                 ti.set_state(State.SUCCESS)
-            break
+
+            return taskrun_result
         except Exception:
             log.exception("[DAG TEST] Error running task %s", ti)
             if ti.state not in State.finished:

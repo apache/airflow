@@ -40,6 +40,7 @@ from google.cloud.pubsub_v1.types import (
     SchemaSettings,
 )
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
@@ -770,7 +771,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 300,
         **kwargs,
     ) -> None:

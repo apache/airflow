@@ -18,21 +18,21 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class RedshiftClusterSensor(BaseSensorOperator):
+class RedshiftClusterSensor(AwsBaseSensor[RedshiftHook]):
     """
     Waits for a Redshift cluster to reach a specific status.
 
@@ -43,23 +43,30 @@ class RedshiftClusterSensor(BaseSensorOperator):
     :param cluster_identifier: The identifier for the cluster being pinged.
     :param target_status: The cluster status desired.
     :param deferrable: Run operator in the deferrable mode.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+         If this is ``None`` or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then default boto3 configuration would be used (and must be
+         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = ("cluster_identifier", "target_status")
+    template_fields: Sequence[str] = aws_template_fields("cluster_identifier", "target_status")
+    aws_hook_class = RedshiftHook
 
     def __init__(
         self,
         *,
         cluster_identifier: str,
         target_status: str = "available",
-        aws_conn_id: str | None = "aws_default",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status
-        self.aws_conn_id = aws_conn_id
         self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
@@ -96,7 +103,3 @@ class RedshiftClusterSensor(BaseSensorOperator):
         if status == "success":
             self.log.info("%s completed successfully.", self.task_id)
             self.log.info("Cluster Identifier %s is in %s state", self.cluster_identifier, self.target_status)
-
-    @cached_property
-    def hook(self) -> RedshiftHook:
-        return RedshiftHook(aws_conn_id=self.aws_conn_id)

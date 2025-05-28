@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Heading, Flex, Skeleton, Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -27,6 +28,7 @@ import { useAutoRefresh } from "src/utils";
 import { type Slots, slotKeys } from "src/utils/slots";
 
 export const PoolSummary = () => {
+  const { t: translate } = useTranslation("dashboard");
   const refetchInterval = useAutoRefresh({});
   const { data, isLoading } = usePoolServiceGetPools(undefined, undefined, {
     refetchInterval,
@@ -69,12 +71,12 @@ export const PoolSummary = () => {
         <Flex alignItems="center">
           <BiTargetLock />
           <Heading ml={1} size="xs">
-            Pool Slots
+            {translate("poolSlots")}
           </Heading>
         </Flex>
         {hasPoolsAccess ? (
           <Link asChild color="fg.info" fontSize="xs" h={4}>
-            <RouterLink to="/pools">Manage Pools</RouterLink>
+            <RouterLink to="/pools">{translate("managePools")}</RouterLink>
           </Link>
         ) : undefined}
       </Flex>

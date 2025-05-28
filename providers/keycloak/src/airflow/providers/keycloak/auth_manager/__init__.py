@@ -14,10 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    volumes:
-      # We should be ok with sharing the cache between the builds - now that we are using uv
-      # The cache should be safe to share between parallel builds as UV is build to support it.
-      - /mnt/.cache:/root/.cache

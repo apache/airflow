@@ -38,7 +38,8 @@ Airflow offers two ways to query data using Amazon Athena.
 **Amazon Athena SQL (DB API Connection):** Opt for this if you need to execute multiple queries in the same operator and it's essential to retrieve and process query results directly in Airflow, such as for sensing values or further data manipulation.
 
 .. note::
-   Both connection methods uses `Amazon Web Services Connection <../../connections/aws>`_ under the hood for authentication.
+   Both connection methods uses :doc:`Amazon Web Services Connection <../../connections/aws>`
+   under the hood for authentication.
    You should decide which connection method to use based on your use case.
 
 .. toctree::

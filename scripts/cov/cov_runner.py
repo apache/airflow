@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import glob
-import os
 
 import pytest
 from coverage import Coverage
@@ -58,10 +57,6 @@ def run_tests(command_list, source, files_not_fully_covered):
     if failed:
         print("There are some coverage errors. Please fix them")
     if len(files_not_fully_covered) > 0:
-        print("Coverage run completed. Use the link below to see the coverage report")
-    breeze = os.environ.get("BREEZE", "false")
-    port = "8080"
-    if breeze.lower() == "true":
-        port = "28080"
-    print(f"http://localhost:{port}/dev/coverage/index.html")
-    print("You need to start the webserver before you can access the above link.")
+        print("Coverage run completed. Use the following commands to see the coverage report")
+    print("cd htmlcov/; python -m http.server 5555")
+    print("Once the server is running, open this link in your browser: http://localhost:25555")
