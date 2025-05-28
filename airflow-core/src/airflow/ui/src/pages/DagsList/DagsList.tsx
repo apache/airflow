@@ -149,6 +149,7 @@ const {
   NAME_PATTERN: NAME_PATTERN_PARAM,
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
+  TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
@@ -172,6 +173,7 @@ export const DagsList = () => {
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE_PARAM) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS_PARAM);
+  const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE_PARAM) as "all" | "any";
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -216,6 +218,7 @@ export const DagsList = () => {
     orderBy,
     paused,
     tags: selectedTags,
+    tagsMatchMode: selectedMatchMode,
   });
 
   const handleSortChange = useCallback(
