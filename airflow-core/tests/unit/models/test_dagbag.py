@@ -959,3 +959,32 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder="", include_examples=False, collect_dags=False, known_pools=known_pools)
         dagbag.bag_dag(dag)
         assert dagbag.dag_warnings == expected
+
+    def test_sigsegv_handling(self, tmp_path, caplog):
+        """
+        Test that a SIGSEGV in a DAG file is handled gracefully and does not crash the process.
+        """
+        # Create a DAG file that will raise a SIGSEGV
+        dag_file = tmp_path / "bad_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                import signal
+                from airflow import DAG
+                import os
+                from airflow.decorators import task
+
+                os.kill(os.getpid(), signal.SIGSEGV)
+
+                with DAG('testbug'):
+                    @task
+                    def mytask():
+                        print(1)
+                    mytask()
+                """
+            )
+        )
+
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+        assert "Received SIGSEGV signal while processing" in caplog.text
+        assert dag_file.as_posix() in dagbag.import_errors
