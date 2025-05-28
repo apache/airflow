@@ -287,8 +287,9 @@ class TestHttpOpSensor:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
 
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_get(self):

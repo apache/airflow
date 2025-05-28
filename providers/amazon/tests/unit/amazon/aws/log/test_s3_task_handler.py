@@ -28,7 +28,6 @@ from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
@@ -84,6 +83,8 @@ class TestS3RemoteLogIO:
         session.commit()
         session.refresh(dag_run)
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             self.ti = TaskInstance(task=task, dag_version_id=dag_version.id)
         else:
@@ -209,6 +210,8 @@ class TestS3TaskHandler:
         session.commit()
         session.refresh(dag_run)
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             self.ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:
