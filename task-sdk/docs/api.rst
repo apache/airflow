@@ -27,32 +27,82 @@ If something is not on this page it is best to assume that it is not part of the
 
 Defining DAGs
 -------------
-
 .. autoapiclass:: airflow.sdk.DAG
 
 .. autoapifunction:: airflow.sdk.dag
 
-.. autoapiclass:: airflow.sdk.TaskGroup
+Decorators
+----------
+.. autoapifunction:: airflow.sdk.task
 
-.. autoapifunction:: airflow.sdk.get_parsing_context
+.. autoapifunction:: airflow.sdk.task_group
 
-.. autoapiclass:: airflow.sdk.definitions.context.AirflowParsingContext
-   :undoc-members:
-   :members:
+.. autoapifunction:: airflow.sdk.setup
 
+.. autoapifunction:: airflow.sdk.teardown
 
-Tasks and Operators
--------------------
+.. autofunction:: airflow.sdk.task
+.. autofunction:: airflow.sdk.setup
+.. autofunction:: airflow.sdk.teardown
+.. autofunction:: airflow.sdk.asset
 
+Utilities
+---------
+.. autoapifunction:: airflow.sdk.chain
+
+.. autoapifunction:: airflow.sdk.chain_linear
+
+.. autoapifunction:: airflow.sdk.cross_downstream
+
+.. autoapifunction:: airflow.sdk.literal
+
+.. autoapifunction:: airflow.sdk.__version__
+.. autofunction:: airflow.sdk.__version__
+
+Bases
+-----
 .. autoapiclass:: airflow.sdk.BaseOperator
+
+.. autoapiclass:: airflow.sdk.BaseSensorOperator
+
+.. autoapiclass:: airflow.sdk.BaseNotifier
+
+.. autoapiclass:: airflow.sdk.BaseOperatorLink
 
 .. autoapiclass:: airflow.sdk.XComArg
 
+.. autoapiclass:: airflow.sdk.PokeReturnValue
+
+Connections & Variables
+-----------------------
+.. autoapiclass:: airflow.sdk.Connection
+
+.. autoapiclass:: airflow.sdk.Variable
+
+Tasks & Operators
+-----------------
+.. autoapiclass:: airflow.sdk.TaskGroup
+
+.. autoapiclass:: airflow.sdk.MappedOperator
+
 .. autoapifunction:: airflow.sdk.get_current_context
+
+.. autoapifunction:: airflow.sdk.get_parsing_context
+
+.. autoapiclass:: airflow.sdk.Param
+
+Edges & Labels
+--------------
+.. autoapiclass:: airflow.sdk.EdgeModifier
+
+.. autoapiclass:: airflow.sdk.Label
+
+Metadata
+--------
+.. autoapiclass:: airflow.sdk.Metadata
 
 Assets
 ------
-
 .. autoapiclass:: airflow.sdk.Asset
 
 .. autoapiclass:: airflow.sdk.AssetAlias
@@ -63,8 +113,40 @@ Assets
 
 .. autoapiclass:: airflow.sdk.AssetWatcher
 
+I/O Helpers
+-----------
+.. autoapiclass:: airflow.sdk.ObjectStoragePath
 
-.. Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
+Execution Time Components
+-------------------------
+.. rubric:: Supervisor
+
+.. autoapimodule:: airflow.sdk.execution_time.supervisor
+   :members:
+   :undoc-members:
+
+.. rubric:: TaskRunner
+
+.. autoapimodule:: airflow.sdk.execution_time.task_runner
+   :members:
+   :undoc-members:
+
+.. rubric:: Context
+.. autoapiclass:: airflow.sdk.Context
+.. autoapimodule:: airflow.sdk.execution_time.context
+   :members:
+   :undoc-members:
+
+.. rubric:: Cache
+
+.. autoapiclass:: airflow.sdk.SecretCache
+.. autoclass:: airflow.sdk.SecretCache
+
+API Client
+----------
+.. autoapimodule:: airflow.sdk.api.client
+   :members:
+   :undoc-members:
 
 Everything else
 ---------------

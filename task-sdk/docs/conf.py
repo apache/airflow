@@ -25,6 +25,7 @@ CONF_DIR = Path(__file__).parent.absolute()
 project = "Apache Airflow Task SDK"
 
 language = "en"
+locale_dirs: list[str] = []
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -42,6 +43,7 @@ autoapi_ignore = [
 autoapi_options = [
     "undoc-members",
     "members",
+    "imported-members",
 ]
 autoapi_add_toctree_entry = False
 autoapi_generate_api_docs = False
@@ -63,15 +65,12 @@ rst_epilog = "\n".join(f".. |{key}| replace:: {replace}" for key, replace in glo
 
 intersphinx_resolve_self = "airflow"
 intersphinx_mapping = {
-    "airflow": (
-        "https://airflow.apache.org/docs/apache-airflow/stable/",
-        (
-            "../../docs/_inventory_cache/apache-airflow/objects.inv",
-            "../../docs/_build/apache-airflow/objects.inv",
-            None,
-        ),
-    )
+    "airflow": ("https://airflow.apache.org/docs/apache-airflow/stable/", None),
 }
+suppress_warnings = [
+    "autoapi.python_import_resolution",
+    "autodoc",
+]
 
 
 def skip_util_classes(app, objtype, name, obj, skip, options):
@@ -83,6 +82,6 @@ def skip_util_classes(app, objtype, name, obj, skip, options):
     return skip
 
 
-def setup(sphinx):
-    # sphinx.connect("autoapi-skip-member", skip_util_classes)
-    ...
+def setup(app):
+    # Skip utility classes from definitions modules, but expose DAG under airflow.sdk.DAG
+    app.connect("autoapi-skip-member", skip_util_classes)
