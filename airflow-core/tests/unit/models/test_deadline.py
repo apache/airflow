@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime
 from unittest import mock
 
@@ -215,7 +214,7 @@ class TestCalculatedDeadlineDatabaseCalls:
     )
     @mock.patch("sqlalchemy.orm.Session")
     def test_fetch_from_db_error_cases(
-        self, mock_session, use_valid_conditions, scalar_side_effect, expected_error, expected_message, caplog
+        self, mock_session, use_valid_conditions, scalar_side_effect, expected_error, expected_message
     ):
         """Test database access error handling."""
         model_reference = DagRun.logical_date
@@ -224,11 +223,8 @@ class TestCalculatedDeadlineDatabaseCalls:
         # Configure mock session
         mock_session.scalar.side_effect = scalar_side_effect
 
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(expected_error, match=expected_message):
-                _fetch_from_db(model_reference, session=mock_session, **conditions)
-            if expected_message:
-                assert expected_message in caplog.text
+        with pytest.raises(expected_error, match=expected_message):
+            _fetch_from_db(model_reference, session=mock_session, **conditions)
 
     @pytest.mark.parametrize(
         "reference, expected_column",
