@@ -23,7 +23,6 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models.dag_version import DagVersion
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -38,6 +37,7 @@ pytestmark = pytest.mark.db_test
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.models.dag_version import DagVersion
     from airflow.providers.standard.utils.skipmixin import SkipMixin
     from airflow.sdk import task, task_group
 else:
