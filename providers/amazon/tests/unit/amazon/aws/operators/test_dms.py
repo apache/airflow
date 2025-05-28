@@ -25,7 +25,6 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -52,6 +51,9 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.dag_version import DagVersion
 
 TASK_ARN = "test_arn"
 
