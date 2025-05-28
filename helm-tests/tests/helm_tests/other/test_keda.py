@@ -334,3 +334,47 @@ class TestKeda:
             "spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler
         )
         assert autoscaler_connection_env_var == "KEDA_DB_CONN"
+
+    def test_prometheus_keda(self):
+        """Verify keda prometheus configuration."""
+
+        docs = render_chart(
+            values={
+                "workers": {
+                    "keda": {
+                        "enabled": True,
+                        "prometheus": {
+                            "enabled": True,
+                            "serverAddress": "http://prometheus:9090",
+                        },
+                    }
+                },
+                "executor": "CeleryExecutor",
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/workers/worker-kedaautoscaler.yaml",
+                "templates/secrets/metadata-connection-secret.yaml",
+            ],
+        )
+        worker_deployment = docs[0]
+        keda_autoscaler = docs[1]
+        metadata_connection_secret = docs[2]
+
+        worker_container_env_vars = jmespath.search(
+            "spec.template.spec.containers[?name=='worker'].env[].name", worker_deployment
+        )
+        assert "KEDA_DB_CONN" not in worker_container_env_vars
+
+        keda_autoscaler = jmespath.search("spec.triggers[0]", keda_autoscaler)
+        assert keda_autoscaler["type"] == "prometheus"
+
+        keda_autoscaler_metadata = jmespath.search("spec.triggers[0].metadata", keda_autoscaler)
+        assert "threshold" in keda_autoscaler_metadata
+        assert "serverAddress" in keda_autoscaler_metadata
+        assert "metricName" in keda_autoscaler_metadata
+        assert "query" in keda_autoscaler_metadata
+
+        secret_data = jmespath.search("data", metadata_connection_secret)
+        assert "connection" in secret_data.keys()
+        assert "kedaConnection" not in secret_data.keys()
