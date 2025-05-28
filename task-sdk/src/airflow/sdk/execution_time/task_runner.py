@@ -719,8 +719,8 @@ def impersonate_user(username: str, log: Logger):
         pw_record = pwd.getpwnam(username)
         uid, gid = pw_record.pw_uid, pw_record.pw_gid
 
-        os.setgid(uid)
-        os.setuid(gid)
+        os.setuid(uid)
+        os.setgid(gid)
 
         log.info("Running task as impersonated user", impersonated_user=username)
     except KeyError:
