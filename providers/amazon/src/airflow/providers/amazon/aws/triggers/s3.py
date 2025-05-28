@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from functools import cached_property
 from typing import Any
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 
@@ -142,6 +143,9 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
         fail_on_missing: bool = False,  # TODO: Probably should get removed?
+        is_incremental: bool = False,
+        process_namespace: str | None = None,
+        process_name: str | None = None,
         **kwargs
     ):
         # TODO: Add validation for the bucket_name and bucket_key
@@ -156,6 +160,16 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
         self.verify = verify
         self.botocore_config = botocore_config
         self.fail_on_missing = fail_on_missing
+        self.is_incremental = is_incremental
+
+        if self.is_incremental:
+            if not (process_namespace and process_name):
+                raise AirflowException(
+                    "If is_incremental is True, process_namespace and process_name cannot be empty"
+            )
+
+        self.process_namespace = process_namespace
+        self.process_name = process_name
 
         self.from_datetime = datetime.fromisoformat(from_datetime) \
             if isinstance(from_datetime, str) \
@@ -183,6 +197,24 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
             },
         )
 
+    def store_process_state(self, key, value):
+        # TODO: This would need to actually "POST" something
+        return {
+            "process_namespace": self.process_namespace,
+            "process_name": self.process_name,
+            "process_key": key,
+            "process_value": value,
+        }
+
+    def get_process_state(self, key, default_value) -> datetime:
+        # TODO: This would need to actually "GET" something
+        _ = {
+            "process_namespace": self.process_namespace,
+            "process_name": self.process_name,
+            "process_key": key
+        }
+        return datetime(2025, 1, 1)
+
     @cached_property
     def hook(self) -> S3Hook:
         return S3Hook(
@@ -204,6 +236,16 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
                         wildcard_match=self.wildcard_match,
                         # not including regex, as it's not available in list_keys
                     ):
+                        if self.is_incremental:
+                            from_datetime: datetime = self.get_process_state(
+                                key="last_check_datetime",
+                                default_value=self.from_datetime
+                            )
+                        else:
+                            # If it's not incremental, then it's always going to load using the
+                            # self.from_datetime as the lower bound
+                            from_datetime = self.from_datetime
+
                         # The goal here is to be safe and eliminate the risk of potentially missing a file
                         # that's landed. With this approach, a timestamp is actually captured before the
                         # operation takes place. This way, there isn't the possibility of a gap between the
@@ -215,13 +257,18 @@ class S3KeyUpsertedTrigger(BaseEventTrigger):
                         keys_changed: list = self.hook.list_keys(
                             bucket_name=self.bucket_name,
                             prefix=self.bucket_key,
-                            from_datetime=self.from_datetime,
+                            from_datetime=from_datetime,
                             to_datetime=_safe_to_datetime,
                             apply_wildcard=self.wildcard_match,  # TODO: Change this
                         )
 
                         # Regardless if there are or are not keys that have changed, last_activity_time
                         # should still be updated
+                        if self.is_incremental:
+                            self.store_process_state(key="last_check_datetime", value=_safe_to_datetime)
+
+                        # TODO: Remove this
+                        # This will eventually need to go, but maintains parity with pre-persistence logic
                         self.from_datetime = _safe_to_datetime
 
                         if len(keys_changed) == 0:
