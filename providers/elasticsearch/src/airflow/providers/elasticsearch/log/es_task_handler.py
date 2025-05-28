@@ -44,7 +44,7 @@ from airflow.providers.elasticsearch.log.es_json_formatter import (
     ElasticsearchJSONFormatter,
 )
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
-from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0, AIRFLOW_V_3_0_PLUS
+from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -55,21 +55,15 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.typing_compat import TypeAlias
 
 if AIRFLOW_V_3_0_PLUS:
-    from collections.abc import Generator
-    from itertools import chain
     from typing import Union
 
     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-    StructuredLogStream: TypeAlias = Generator[StructuredLogMessage, None, None]
-
-    StreamBasedEsLogMsgType = Union[StructuredLogStream, chain[StructuredLogMessage]]
-    LegacyEsLogMsgType = Union[list[StructuredLogMessage], str]
+    EsLogMsgType = Union[list[StructuredLogMessage], str]
 else:
-    LegacyEsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+    EsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -309,12 +303,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def _read(
         self, ti: TaskInstance, try_number: int, metadata: dict | None = None
-    ) -> tuple[LegacyEsLogMsgType | StreamBasedEsLogMsgType, dict]:
+    ) -> tuple[EsLogMsgType, dict]:
         """
         Endpoint for streaming log.
-
-        For Airflow 2.0 and 3.0, it returns LegacyEsLogMsgType.
-        For Airflow 3.0+, it returns StreamBasedEsLogMsgType.
 
         :param ti: task instance object
         :param try_number: try_number of the task instance
@@ -363,20 +354,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     "Otherwise, the logs for this task instance may have been removed."
                 )
                 if AIRFLOW_V_3_0_PLUS:
-                    from airflow.utils.log.file_task_handler import StructuredLogMessage
-
-                    if AIRFLOW_V_3_0:
-                        # return list of StructuredLogMessage for Airflow 3.0
-                        return [StructuredLogMessage(event=missing_log_message)], metadata
-                    # return generator of StructuredLogMessage for Airflow 3.0+
-                    from airflow.providers.elasticsearch.version_compat import (
-                        get_compatible_output_log_stream,
-                    )
-
-                    return get_compatible_output_log_stream(
-                        [StructuredLogMessage(event=missing_log_message)]
-                    ), metadata
-
+                    return missing_log_message, metadata
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
@@ -409,15 +387,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
                 message = header + [
                     StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
-                ]
-
-                # greater than 3.0
-                if not AIRFLOW_V_3_0:
-                    from airflow.providers.elasticsearch.version_compat import (
-                        get_compatible_output_log_stream,
-                    )
-
-                    message = get_compatible_output_log_stream(message)  # type: ignore[assignment]
+                ]  # type: ignore[misc]
             else:
                 message = [
                     (host, concat_logs(hits))  # type: ignore[misc]

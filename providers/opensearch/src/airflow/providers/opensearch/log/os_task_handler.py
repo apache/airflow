@@ -22,7 +22,6 @@ import logging
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Generator
 from datetime import datetime
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Callable, Literal
@@ -36,7 +35,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagRun
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
-from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0, AIRFLOW_V_3_0_PLUS
+from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -45,22 +44,16 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.typing_compat import TypeAlias
 
 
 if AIRFLOW_V_3_0_PLUS:
-    from collections.abc import Generator
-    from itertools import chain
     from typing import Union
 
     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-    StructuredLogStream: TypeAlias = Generator[StructuredLogMessage, None, None]
-
-    StreamBasedOsLogMsgType = Union[StructuredLogStream, chain[StructuredLogMessage]]
-    LegacyOsLogMsgType = Union[list[StructuredLogMessage], str]
+    OsLogMsgType = Union[list[StructuredLogMessage], str]
 else:
-    LegacyOsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+    OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
 
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
@@ -342,12 +335,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
     def _read(
         self, ti: TaskInstance, try_number: int, metadata: dict | None = None
-    ) -> tuple[LegacyOsLogMsgType | StreamBasedOsLogMsgType, dict]:
+    ) -> tuple[OsLogMsgType, dict]:
         """
-        Endpoint for streaming log, compatible with Airflow 2.0+, 3.0 and 3.0+.
-
-        For Airflow 2.0 and 3.0, it returns LegacyOsLogMsgType.
-        For Airflow 3.0+, it returns StreamBasedOsLogMsgType.
+        Endpoint for streaming log.
 
         :param ti: task instance object
         :param try_number: try_number of the task instance
@@ -398,15 +388,8 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-                    if AIRFLOW_V_3_0:
-                        # return list of StructuredLogMessage for Airflow 3.0
-                        return [StructuredLogMessage(event=missing_log_message)], metadata
-                    # return generator of StructuredLogMessage for Airflow 3.0+
-                    from airflow.providers.opensearch.version_compat import get_compatible_output_log_stream
-
-                    return get_compatible_output_log_stream(
-                        [StructuredLogMessage(event=missing_log_message)]
-                    ), metadata
+                    # return list of StructuredLogMessage for Airflow 3.0+
+                    return [StructuredLogMessage(event=missing_log_message)], metadata
 
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
@@ -441,12 +424,6 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 message = header + [
                     StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
                 ]
-
-                # greater than 3.0
-                if not AIRFLOW_V_3_0:
-                    from airflow.providers.opensearch.version_compat import get_compatible_output_log_stream
-
-                    message = get_compatible_output_log_stream(message)  # type: ignore[assignment]
             else:
                 message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
         else:

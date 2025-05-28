@@ -23,7 +23,7 @@ import heapq
 import io
 import logging
 import os
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
@@ -85,7 +85,9 @@ LogResponseWithSize: TypeAlias = tuple[LogSourceInfo, list[RawLogStream], int]
 """Log response, containing source information, stream of log lines, and total log size."""
 StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
 """Structured log stream, containing structured log messages."""
-LogHandlerOutputStream: TypeAlias = Union[StructuredLogStream, chain["StructuredLogMessage"]]
+LogHandlerOutputStream: TypeAlias = Union[
+    StructuredLogStream, Iterator["StructuredLogMessage"], chain["StructuredLogMessage"]
+]
 """Output stream, containing structured log messages or a chain of them."""
 ParsedLog: TypeAlias = tuple[Optional[datetime], int, "StructuredLogMessage"]
 """Parsed log record, containing timestamp, line_num and the structured log message."""
@@ -394,21 +396,6 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
     val.try_number = ti.try_number
     return val
-
-
-def get_compatible_output_log_stream(
-    input_logs: list[StructuredLogMessage],
-) -> Generator[StructuredLogMessage, None, None]:
-    """
-    Convert a list of structured log messages into a generator.
-
-    This helper ensures compatibility with `os_task_handler` and `es_task_handler`,
-    and is intended to be removed after the log handler refactor in providers.
-
-    :param input_logs: List of structured log messages.
-    :return: A generator yielding structured log messages.
-    """
-    yield from input_logs
 
 
 class FileTaskHandler(logging.Handler):
@@ -753,7 +740,7 @@ class FileTaskHandler(logging.Handler):
             return out_stream, metadata
         if isinstance(out_stream, list) and isinstance(out_stream[0], StructuredLogMessage):
             out_stream = cast("list[StructuredLogMessage]", out_stream)
-            return get_compatible_output_log_stream(out_stream), metadata
+            return (log for log in out_stream), metadata
         if isinstance(out_stream, list) and isinstance(out_stream[0], str):
             # If the out_stream is a list of strings, convert it to a generator
             out_stream = cast("list[str]", out_stream)
@@ -766,8 +753,9 @@ class FileTaskHandler(logging.Handler):
             out_stream = (log for _, _, log in _log_stream_to_parsed_log_stream(raw_stream))
             return out_stream, metadata
         raise TypeError(
-            "Invalid log stream type. Expected a generator, list of StructuredLogMessage, or string."
+            "Invalid log stream type. Expected a generator of StructuredLogMessage, list of StructuredLogMessage, list of str or str."
             f" Got {type(out_stream).__name__} instead."
+            f" Content type: {type(out_stream[0]).__name__ if isinstance(out_stream, (list, tuple)) and out_stream else 'empty'}"
         )
 
     @staticmethod
