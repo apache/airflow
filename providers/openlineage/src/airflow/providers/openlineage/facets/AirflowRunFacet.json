@@ -145,7 +145,21 @@
             }
           },
           "additionalProperties": true,
-          "required": ["group_id"]
+          "required": [
+            "group_id"
+          ]
+        },
+        "inlets": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "outlets": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
         }
       },
       "additionalProperties": true,
@@ -157,6 +171,9 @@
       "type": "object",
       "properties": {
         "dag_id": {
+          "type": "string"
+        },
+        "fileloc": {
           "type": "string"
         },
         "description": {
@@ -173,7 +190,10 @@
           "format": "date-time"
         },
         "tags": {
-          "type": "string"
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "timetable": {
           "description": "Describes timetable (successor of schedule_interval)",
