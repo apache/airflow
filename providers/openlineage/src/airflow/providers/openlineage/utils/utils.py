@@ -53,7 +53,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator, encode_priority_weight_strategy
 from airflow.utils.module_loading import import_string
 
 if not AIRFLOW_V_3_0_PLUS:
@@ -506,6 +506,7 @@ class TaskInfo(InfoJsonEncodable):
         ),
         "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
         "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
+        "weight_rule": lambda task: encode_priority_weight_strategy(task.weight_rule),
     }
 
 

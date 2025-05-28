@@ -52,7 +52,8 @@
                         "operator_class_path": "{{ result.endswith('.PythonOperator') }}",
                         "wait_for_downstream": false,
                         "retry_exponential_backoff": false,
-                        "wait_for_past_depends_before_skipping": false
+                        "wait_for_past_depends_before_skipping": false,
+                        "weight_rule": "downstream"
                     },
                     "taskUuid": "{{ is_uuid(result) }}"
                 },

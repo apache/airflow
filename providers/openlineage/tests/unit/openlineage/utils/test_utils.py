@@ -1601,6 +1601,7 @@ def test_task_info_af3():
         "upstream_task_ids": "['task_0']",
         "wait_for_downstream": False,
         "wait_for_past_depends_before_skipping": False,
+        "weight_rule": "downstream",
     }
 
 
@@ -1678,6 +1679,7 @@ def test_task_info_af2():
         "upstream_task_ids": "['task_0']",
         "wait_for_downstream": False,
         "wait_for_past_depends_before_skipping": False,
+        "weight_rule": "downstream",
     }
 
 
