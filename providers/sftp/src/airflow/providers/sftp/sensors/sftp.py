@@ -89,7 +89,7 @@ class SFTPSensor(BaseSensorOperator):
         if self.file_pattern:
             files_from_pattern = self.hook.get_files_by_pattern(self.path, self.file_pattern)
             if files_from_pattern:
-                actual_files_to_check = [
+                actual_files_present = [
                     os.path.join(self.path, file_from_pattern) for file_from_pattern in files_from_pattern
                 ]
             else:
@@ -98,14 +98,14 @@ class SFTPSensor(BaseSensorOperator):
             try:
                 # File that did not exist was still being added to the list, which was causing the Sensor
                 # to return True, even if the file was not present
-                actual_files_to_check = [self.path] if self.hook.isfile(self.path) else []
+                actual_files_present = [self.path] if self.hook.isfile(self.path) else []
             except OSError as e:
                 if e.errno != SFTP_NO_SUCH_FILE:
                     raise AirflowException from e
-                actual_files_to_check = []
+                actual_files_present = []
 
         if self.newer_than:
-            for actual_file_to_check in actual_files_to_check:
+            for actual_file_to_check in actual_files_present:
                 try:
                     mod_time = self.hook.get_mod_time(actual_file_to_check)
                     self.log.info("Found File %s last modified: %s", actual_file_to_check, mod_time)
@@ -134,7 +134,7 @@ class SFTPSensor(BaseSensorOperator):
                         str(_newer_than),
                     )
         else:
-            files_found = actual_files_to_check
+            files_found = actual_files_present
 
         if not len(files_found):
             return False
