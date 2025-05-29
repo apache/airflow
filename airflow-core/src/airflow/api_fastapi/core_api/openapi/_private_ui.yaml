@@ -396,8 +396,8 @@ paths:
     get:
       tags:
       - Backfill
-      summary: List Backfills
-      operationId: list_backfills
+      summary: List Backfills Ui
+      operationId: list_backfills_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:

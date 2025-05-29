@@ -274,15 +274,15 @@ export const UseBackfillServiceGetBackfillKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useBackfillServiceGetBackfillKey, ...(queryKey ?? [{ backfillId }])];
-export type BackfillServiceListBackfills1DefaultResponse = Awaited<
-  ReturnType<typeof BackfillService.listBackfills1>
+export type BackfillServiceListBackfillsUiDefaultResponse = Awaited<
+  ReturnType<typeof BackfillService.listBackfillsUi>
 >;
-export type BackfillServiceListBackfills1QueryResult<
-  TData = BackfillServiceListBackfills1DefaultResponse,
+export type BackfillServiceListBackfillsUiQueryResult<
+  TData = BackfillServiceListBackfillsUiDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useBackfillServiceListBackfills1Key = "BackfillServiceListBackfills1";
-export const UseBackfillServiceListBackfills1KeyFn = (
+export const useBackfillServiceListBackfillsUiKey = "BackfillServiceListBackfillsUi";
+export const UseBackfillServiceListBackfillsUiKeyFn = (
   {
     active,
     dagId,
@@ -297,7 +297,7 @@ export const UseBackfillServiceListBackfills1KeyFn = (
     orderBy?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [useBackfillServiceListBackfills1Key, ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }])];
+) => [useBackfillServiceListBackfillsUiKey, ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }])];
 export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
   ReturnType<typeof ConnectionService.getConnection>
 >;
