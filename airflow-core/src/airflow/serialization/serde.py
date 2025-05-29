@@ -29,7 +29,6 @@ from re import Pattern
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import attr
-from pydantic import BaseModel
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
@@ -84,6 +83,28 @@ def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
     data = d.get(DATA)
 
     return classname, version, data
+
+
+def _is_namedtuple(cls: Any) -> bool:
+    """
+    Return True if the class is a namedtuple.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    return hasattr(cls, "_asdict") and hasattr(cls, "_fields") and hasattr(cls, "_field_defaults")
+
+
+def _is_pydantic_model(cls: Any) -> bool:
+    """
+    Return True if the class is a pydantic.main.BaseModel.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance. The input can be an object or a class.
+    """
+    # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
+    # __pydantic_validator__ is an internal validator object, always set after model build
+    return hasattr(cls, "__pydantic_fields__") and hasattr(cls, "__pydantic_validator__")
 
 
 def serialize(o: object, depth: int = 0) -> U | None:
@@ -146,22 +167,11 @@ def serialize(o: object, depth: int = 0) -> U | None:
         qn = "builtins.tuple"
         classname = qn
 
-    # Serialize pydantic.BaseModel
-    if _is_pydantic_basemodel(o):
-        qn = qualname(BaseModel)
-        classname = qn
-
-    # if there is a builtin serializer available use that
-    if qn in _serializers:
-        data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
-        if is_serialized:
-            return encode(classname or serialized_classname, version, serialize(data, depth + 1))
-
-    # custom serializers
-    dct = {
-        CLASSNAME: qn,
-        VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
-    }
+    if _is_pydantic_model(o):
+        # to match the generic Pydantic serializer and deserializer in _serializers and _deserializers
+        qn = "pydantic.main.BaseModel"
+        # the actual Pydantic model class to encode
+        classname = qualname(o)
 
     # object / class brings their own
     if hasattr(o, "serialize"):
@@ -171,22 +181,37 @@ def serialize(o: object, depth: int = 0) -> U | None:
         if isinstance(data, dict):
             data = serialize(data, depth + 1)
 
-        dct[DATA] = data
-        return dct
+        return {
+            CLASSNAME: qn,
+            VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
+            DATA: data,
+        }
+
+    # if there is a builtin serializer available use that
+    if qn in _serializers:
+        data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
+        if is_serialized:
+            return encode(classname or serialized_classname, version, serialize(data, depth + 1))
 
     # dataclasses
     if dataclasses.is_dataclass(cls):
         # fixme: unfortunately using asdict with nested dataclasses it looses information
         data = dataclasses.asdict(o)  # type: ignore[call-overload]
-        dct[DATA] = serialize(data, depth + 1)
-        return dct
+        return {
+            CLASSNAME: qn,
+            VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
+            DATA: serialize(data, depth + 1),
+        }
 
     # attr annotated
     if attr.has(cls):
         # Only include attributes which we can pass back to the classes constructor
         data = attr.asdict(cast("attr.AttrsInstance", o), recurse=False, filter=lambda a, v: a.init)
-        dct[DATA] = serialize(data, depth + 1)
-        return dct
+        return {
+            CLASSNAME: qn,
+            VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
+            DATA: serialize(data, depth + 1),
+        }
 
     raise TypeError(f"cannot serialize object of type {cls}")
 
@@ -260,13 +285,18 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     cls = import_string(classname)
 
-    # registered deserializer
-    if classname in _deserializers:
-        return _deserializers[classname].deserialize(classname, version, deserialize(value))
-
     # class has deserialization function
     if hasattr(cls, "deserialize"):
         return getattr(cls, "deserialize")(deserialize(value), version)
+
+    # registered deserializer
+    if classname in _deserializers:
+        return _deserializers[classname].deserialize(classname, version, deserialize(value))
+    if _is_pydantic_model(cls):
+        # fallback: match registered base class for pydantic model
+        pydantic_base_qn = "pydantic.main.BaseModel"
+        if pydantic_base_qn in _deserializers:
+            return _deserializers[pydantic_base_qn].deserialize(classname, version, deserialize(value))
 
     # attr or dataclass
     if attr.has(cls) or dataclasses.is_dataclass(cls):
@@ -336,28 +366,6 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
     s += ")"
 
     return s
-
-
-def _is_namedtuple(cls: Any) -> bool:
-    """
-    Return True if the class is a namedtuple.
-
-    Checking is done by attributes as it is significantly faster than
-    using isinstance.
-    """
-    return hasattr(cls, "_asdict") and hasattr(cls, "_fields") and hasattr(cls, "_field_defaults")
-
-
-def _is_pydantic_basemodel(o: Any) -> bool:
-    """
-    Return True if the class is a pydantic.main.BaseModel.
-
-    Checking is done by attributes as it is significantly faster than
-    using isinstance. The input can be an object or a class.
-    """
-    # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
-    # __pydantic_validator__ is an internal validator object, always set after model build
-    return hasattr(o, "__pydantic_fields__") and hasattr(o, "__pydantic_validator__")
 
 
 def _register():
