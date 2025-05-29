@@ -7,14 +7,7 @@
   "switchToLightMode": "Zum Hellmodus wechseln",
   "timezone": "Zeitzone",
   "user": "Benutzer",
-  "language": {
-    "zh-TW": "Traditionelles Chinesisch",
-    "en": "Englisch",
-    "de": "Deutsch",
-    "ko": "Koreanisch",
-    "nl": "Niederländisch",
-    "select": "Sprache wählen"
-  },
+  "selectLanguage": "Sprache wählen",
   "nav": {
     "home": "Start",
     "assets": "Datensets (Assets)",

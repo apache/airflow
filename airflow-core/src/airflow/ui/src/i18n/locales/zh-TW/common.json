@@ -6,14 +6,7 @@
   "switchToLightMode": "切換到淺色模式",
   "timezone": "時區",
   "user": "使用者",
-  "language": {
-    "zh-TW": "繁體中文",
-    "en": "英文",
-    "de": "德文",
-    "ko": "韓文",
-    "nl": "荷蘭文",
-    "select": "選擇語言"
-  },
+  "selectLanguage": "選擇語言",
   "nav": {
     "home": "首頁",
     "assets": "資源",
