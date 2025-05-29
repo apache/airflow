@@ -16,4 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 pytest_plugins = "tests_common.pytest_plugin"
+
+@pytest.fixture(autouse=True)
+def clear_metadata():
+    from flask_appbuilder.extensions import db
+
+    db.metadata.clear()
