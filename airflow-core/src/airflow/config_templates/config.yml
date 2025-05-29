@@ -1549,9 +1549,9 @@ workers:
       default: "90.0"
     socket_cleanup_timeout:
       description: |
-        Seconds to wait after a task process exits before forcibly closing any
-        remaining communication sockets. Missed EOF events can otherwise leave
-        the task supervisor running indefinitely.
+        Number of seconds to wait after a task process exits before forcibly closing any
+        remaining communication sockets. This helps prevent the task supervisor from hanging 
+        indefinitely due to missed EOF signals.
       version_added: 3.0.2
       type: float
       example: ~
