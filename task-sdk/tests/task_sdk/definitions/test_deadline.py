@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -24,28 +25,22 @@ from task_sdk.definitions.test_dag import DEFAULT_DATE
 from airflow.models.deadline import ReferenceModels
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 
-DAG_ID = "dag_id_1"
+from unit.models.test_deadline import TEST_CALLBACK_PATH
+from unit.utils.test_deadlines import (
+    DAG_ID,
+    REFERENCE_TYPES,
+    TEST_CALLBACK_KWARGS,
+    test_callback_for_deadline,
+)
 
-TEST_CALLBACK_PATH = f"{__name__}.test_callback"
 UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
-
-REFERENCE_TYPES = [
-    pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
-    pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
-    pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
-]
-
-
-def test_callback():
-    """An empty Callable to use for the callback tests in this suite."""
-    pass
 
 
 class TestDeadlineAlert:
     @pytest.mark.parametrize(
         "callback_value, expected_path",
         [
-            pytest.param(test_callback, TEST_CALLBACK_PATH, id="valid_callable"),
+            pytest.param(test_callback_for_deadline, TEST_CALLBACK_PATH, id="valid_callable"),
             pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
             pytest.param(lambda x: x, None, id="lambda_function"),
             pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
@@ -76,6 +71,114 @@ class TestDeadlineAlert:
 
         with pytest.raises(error_type, match=expected_message):
             DeadlineAlert.get_callback_path(callback_value)
+
+    @pytest.mark.parametrize(
+        "test_alert, should_equal",
+        [
+            pytest.param(
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(hours=1),
+                    callback=TEST_CALLBACK_PATH,
+                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                ),
+                True,
+                id="same_alert",
+            ),
+            pytest.param(
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=timedelta(hours=1),
+                    callback=TEST_CALLBACK_PATH,
+                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                ),
+                False,
+                id="different_reference",
+            ),
+            pytest.param(
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(hours=2),
+                    callback=TEST_CALLBACK_PATH,
+                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                ),
+                False,
+                id="different_interval",
+            ),
+            pytest.param(
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(hours=1),
+                    callback="other.callback",
+                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                ),
+                False,
+                id="different_callback",
+            ),
+            pytest.param(
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(hours=1),
+                    callback=TEST_CALLBACK_PATH,
+                    callback_kwargs={"arg2": "value2"},
+                ),
+                False,
+                id="different_kwargs",
+            ),
+            pytest.param("not a DeadlineAlert", False, id="non_deadline_alert"),
+        ],
+    )
+    def test_deadline_alert_equality(self, test_alert, should_equal):
+        base_alert = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(hours=1),
+            callback=TEST_CALLBACK_PATH,
+            callback_kwargs=TEST_CALLBACK_KWARGS,
+        )
+
+        assert (base_alert == test_alert) == should_equal
+
+    def test_deadline_alert_hash(self):
+        std_interval = timedelta(hours=1)
+        std_callback = TEST_CALLBACK_PATH
+        std_kwargs = TEST_CALLBACK_KWARGS
+
+        alert1 = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=std_interval,
+            callback=std_callback,
+            callback_kwargs=std_kwargs,
+        )
+        alert2 = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=std_interval,
+            callback=std_callback,
+            callback_kwargs=std_kwargs,
+        )
+
+        assert hash(alert1) == hash(alert1)
+        assert hash(alert1) == hash(alert2)
+
+    def test_deadline_alert_in_set(self):
+        std_interval = timedelta(hours=1)
+        std_callback = TEST_CALLBACK_PATH
+        std_kwargs = TEST_CALLBACK_KWARGS
+
+        alert1 = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=std_interval,
+            callback=std_callback,
+            callback_kwargs=std_kwargs,
+        )
+        alert2 = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=std_interval,
+            callback=std_callback,
+            callback_kwargs=std_kwargs,
+        )
+
+        alert_set = {alert1, alert2}
+        assert len(alert_set) == 1
 
 
 class TestDeadlineReference:

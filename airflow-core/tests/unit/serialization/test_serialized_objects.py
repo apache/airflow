@@ -44,6 +44,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey, AssetWatcher
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineAlertFields, DeadlineReference
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
@@ -56,6 +57,13 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+
+from unit.utils.test_deadlines import (
+    REFERENCE_TYPES,
+    TEST_CALLBACK_KWARGS,
+    TEST_CALLBACK_PATH,
+    test_callback_for_deadline,
+)
 
 
 def test_recursive_serialize_calls_must_forward_kwargs():
@@ -315,6 +323,16 @@ class MockLazySelectSequence(LazySelectSequence):
             DAT.DAG,
             lambda _, b: list(b.task_group.children.keys()) == sorted(b.task_group.children.keys()),
         ),
+        (
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(hours=1),
+                callback="valid.callback.path",
+                callback_kwargs={"arg1": "value1"},
+            ),
+            DAT.DEADLINE_ALERT,
+            equals,
+        ),
     ],
 )
 def test_serialize_deserialize(input, encoded_type, cmp_func):
@@ -323,8 +341,8 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     serialized = BaseSerialization.serialize(input)  # does not raise
     json.dumps(serialized)  # does not raise
     if encoded_type is not None:
-        assert serialized["__type"] == encoded_type
-        assert serialized["__var"] is not None
+        assert serialized[Encoding.TYPE] == encoded_type
+        assert serialized[Encoding.VAR] is not None
     if cmp_func is not None:
         deserialized = BaseSerialization.deserialize(serialized)
         assert cmp_func(input, deserialized)
@@ -334,6 +352,30 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     serialized = BaseSerialization.serialize(obj)  # does not raise
     # Verify the result is JSON-serializable
     json.dumps(serialized)  # does not raise
+
+
+@pytest.mark.parametrize("reference", REFERENCE_TYPES)
+def test_serialize_deserialize_deadline_alert(reference):
+    public_deadline_alert_fields = {
+        field.lower() for field in vars(DeadlineAlertFields) if not field.startswith("_")
+    }
+    original = DeadlineAlert(
+        reference=reference,
+        interval=timedelta(hours=1),
+        callback=test_callback_for_deadline,
+        callback_kwargs=TEST_CALLBACK_KWARGS,
+    )
+
+    serialized = original.serialize_deadline_alert()
+    assert serialized[Encoding.TYPE] == DAT.DEADLINE_ALERT
+    assert set(serialized[Encoding.VAR].keys()) == public_deadline_alert_fields
+
+    deserialized = DeadlineAlert.deserialize_deadline_alert(serialized)
+    assert deserialized.reference.serialize_reference() == reference.serialize_reference()
+    assert deserialized.interval == original.interval
+    assert deserialized.callback_kwargs == original.callback_kwargs
+    assert isinstance(deserialized.callback, str)
+    assert deserialized.callback == TEST_CALLBACK_PATH
 
 
 @pytest.mark.parametrize(
