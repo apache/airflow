@@ -88,7 +88,7 @@ export const Logs = () => {
   });
 
   return (
-    <Box p={2}>
+    <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
@@ -102,7 +102,7 @@ export const Logs = () => {
         error={error}
         isLoading={isLoading || isLoadingLogs}
         logError={logError}
-        parsedLogs={data.parsedLogs}
+        parsedLogs={data.parsedLogs ?? []}
         wrap={wrap}
       />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
@@ -124,12 +124,12 @@ export const Logs = () => {
 
           <Dialog.CloseTrigger />
 
-          <Dialog.Body>
+          <Dialog.Body display="flex" flexDirection="column">
             <TaskLogContent
               error={error}
               isLoading={isLoading || isLoadingLogs}
               logError={logError}
-              parsedLogs={data.parsedLogs}
+              parsedLogs={data.parsedLogs ?? []}
               wrap={wrap}
             />
           </Dialog.Body>
