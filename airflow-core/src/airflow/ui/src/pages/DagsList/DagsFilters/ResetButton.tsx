@@ -16,31 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiCalendar } from "react-icons/fi";
-
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import { Tooltip } from "src/components/ui";
-
-import { AssetSchedule } from "./AssetSchedule";
+import { LuX } from "react-icons/lu";
 
 type Props = {
-  readonly dag: DAGWithLatestDagRunsResponse;
+  readonly filterCount: number;
+  readonly onClearFilters: () => void;
 };
 
-export const Schedule = ({ dag }: Props) => {
-  const { t: translate } = useTranslation("dags");
+export const ResetButton = ({ filterCount, onClearFilters }: Props) => {
+  const { t: translate } = useTranslation("common");
 
-  return Boolean(dag.timetable_summary) ? (
-    Boolean(dag.asset_expression) || dag.timetable_summary === translate("schedule.asset") ? (
-      <AssetSchedule dag={dag} />
-    ) : (
-      <Tooltip content={dag.timetable_description}>
-        <Text fontSize="sm">
-          <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}
-        </Text>
-      </Tooltip>
-    )
-  ) : undefined;
+  if (filterCount === 0) {
+    return undefined;
+  }
+
+  return (
+    <Button onClick={onClearFilters} size="sm" variant="outline">
+      <LuX /> {translate("table.filters.reset")}{" "}
+      {filterCount === 1 ? translate("table.filters.filter_one") : translate("table.filters.filter_other")}
+    </Button>
+  );
 };

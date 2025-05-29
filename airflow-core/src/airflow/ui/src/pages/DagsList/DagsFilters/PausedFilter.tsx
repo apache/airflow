@@ -16,35 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { SelectValueChangeDetails } from "@chakra-ui/react";
+import { createListCollection, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { Select } from "src/components/ui";
-import { createDagSortOptions } from "src/constants/sortParams";
 
 type Props = {
-  readonly handleSortChange: ({ value }: SelectValueChangeDetails<Array<string>>) => void;
-  readonly orderBy?: string;
+  readonly defaultShowPaused: string;
+  readonly onPausedChange: (details: SelectValueChangeDetails<string>) => void;
+  readonly showPaused: string | null;
 };
 
-export const SortSelect = ({ handleSortChange, orderBy }: Props) => {
+export const PausedFilter = ({ defaultShowPaused, onPausedChange, showPaused }: Props) => {
   const { t: translate } = useTranslation("dags");
-  const dagSortOptions = createDagSortOptions(translate);
+
+  const enabledOptions = createListCollection({
+    items: [
+      { label: translate("filters.paused.all"), value: "all" },
+      { label: translate("filters.paused.active"), value: "false" },
+      { label: translate("filters.paused.paused"), value: "true" },
+    ],
+  });
 
   return (
     <Select.Root
-      collection={dagSortOptions}
-      data-testid="sort-by-select"
-      onValueChange={handleSortChange}
-      value={orderBy === undefined ? undefined : [orderBy]}
-      width="310px"
+      collection={enabledOptions}
+      onValueChange={onPausedChange}
+      value={[showPaused ?? defaultShowPaused]}
     >
-      <Select.Trigger>
-        <Select.ValueText placeholder={translate("sort.placeholder")} />
+      <Select.Trigger colorPalette="blue" isActive={Boolean(showPaused)}>
+        <Select.ValueText width={20} />
       </Select.Trigger>
       <Select.Content>
-        {dagSortOptions.items.map((option) => (
-          <Select.Item item={option} key={option.value}>
+        {enabledOptions.items.map((option) => (
+          <Select.Item item={option} key={option.label}>
             {option.label}
           </Select.Item>
         ))}
