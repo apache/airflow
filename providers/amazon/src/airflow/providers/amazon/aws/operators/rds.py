@@ -54,7 +54,7 @@ class RdsBaseOperator(AwsBaseOperator[RdsHook]):
     def __init__(
         self,
         *args,
-        aws_conn_id: str | None = None,
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
