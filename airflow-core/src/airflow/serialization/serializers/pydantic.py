@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from airflow.serialization.serde import _is_pydantic_model
-from airflow.utils.module_loading import import_string, qualname
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
