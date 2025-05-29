@@ -17,22 +17,42 @@
  * under the License.
  */
 import { createListCollection } from "@chakra-ui/react/collection";
+import type { TFunction } from "i18next";
 
-export const dagSortOptions = createListCollection({
-  items: [
-    { label: "Sort by Display Name (A-Z)", value: "dag_display_name" },
-    { label: "Sort by Display Name (Z-A)", value: "-dag_display_name" },
-    { label: "Sort by Next DAG Run (Earliest-Latest)", value: "next_dagrun" },
-    { label: "Sort by Next DAG Run (Latest-Earliest)", value: "-next_dagrun" },
-    { label: "Sort by Latest Run State (A-Z)", value: "last_run_state" },
-    { label: "Sort by Latest Run State (Z-A)", value: "-last_run_state" },
-    {
-      label: "Sort by Latest Run Start Date (Earliest-Latest)",
-      value: "last_run_start_date",
-    },
-    {
-      label: "Sort by Latest Run Start Date (Latest-Earliest)",
-      value: "-last_run_start_date",
-    },
-  ],
-});
+export const createDagSortOptions = (translate: TFunction) =>
+  createListCollection({
+    items: [
+      {
+        label: translate("sort.displayName.asc"),
+        value: "dag_display_name",
+      },
+      {
+        label: translate("sort.displayName.desc"),
+        value: "-dag_display_name",
+      },
+      {
+        label: translate("sort.nextDagRun.asc"),
+        value: "next_dagrun",
+      },
+      {
+        label: translate("sort.nextDagRun.desc"),
+        value: "-next_dagrun",
+      },
+      {
+        label: translate("sort.lastRunState.asc"),
+        value: "last_run_state",
+      },
+      {
+        label: translate("sort.lastRunState.desc"),
+        value: "-last_run_state",
+      },
+      {
+        label: translate("sort.lastRunStartDate.asc"),
+        value: "last_run_start_date",
+      },
+      {
+        label: translate("sort.lastRunStartDate.desc"),
+        value: "-last_run_start_date",
+      },
+    ],
+  });
