@@ -136,6 +136,11 @@ const taskInstanceColumns = (
     header: "Try Number",
   },
   {
+    accessorKey: "pool",
+    enableSorting: false,
+    header: "Pool",
+  },
+  {
     accessorKey: "operator",
     enableSorting: false,
     header: "Operator",
