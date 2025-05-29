@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-29T07:55:09.139018
+# This constraints file was automatically generated on 2025-05-29T13:57:09.253046
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -357,8 +357,8 @@ keyrings.alt==5.0.2
 kgb==7.2
 kombu==5.5.3
 krb5==0.7.1
-kubernetes==31.0.0
-kubernetes_asyncio==30.3.1
+kubernetes==32.0.1
+kubernetes_asyncio==32.3.2
 kylinpy==2.8.4
 lazy-object-proxy==1.11.0
 libcst==1.8.0
