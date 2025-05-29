@@ -126,7 +126,7 @@ export const TaskLogHeader = ({
           taskInstance={taskInstance}
         />
       )}
-      <HStack justifyContent="space-between" mb={2}>
+      <HStack justifyContent="space-between">
         <Select.Root
           collection={logLevelOptions}
           maxW="250px"
@@ -184,12 +184,14 @@ export const TaskLogHeader = ({
             </Select.Content>
           </Select.Root>
         ) : undefined}
-        <HStack>
+        <HStack gap={1}>
           <Tooltip closeDelay={100} content={translate("wrap.tooltip", { hotkey: "w" })} openDelay={100}>
             <Button
               aria-label={wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
               bg="bg.panel"
+              m={0}
               onClick={toggleWrap}
+              p={2}
               variant="outline"
             >
               {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
@@ -199,9 +201,9 @@ export const TaskLogHeader = ({
             <Button
               aria-label={nested ? "Deactivate groups" : "Activate groups"}
               bg="bg.panel"
-              ml={1}
-              mr={1}
+              m={0}
               onClick={toggleNested}
+              p={2}
               size="md"
               variant="outline"
             >
@@ -216,7 +218,9 @@ export const TaskLogHeader = ({
             >
               <IconButton
                 aria-label={translate("dag:taskLogs.fullscreen.button")}
+                m={0}
                 bg="bg.panel"
+                p={2}
                 onClick={toggleFullscreen}
                 variant="outline"
               >
