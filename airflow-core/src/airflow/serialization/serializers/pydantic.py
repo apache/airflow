@@ -51,7 +51,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     model = cast("BaseModel", o)  # for mypy
     data = model.model_dump()
 
-    return data, qualname(BaseModel), __version__, True
+    return data, "pydantic.main.BaseModel", __version__, True
 
 
 def deserialize(classname: str, version: int, data: dict):
