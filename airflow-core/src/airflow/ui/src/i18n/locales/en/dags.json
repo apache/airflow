@@ -1,6 +1,8 @@
 {
   "list": {
     "searchPlaceholder": "Search Dags",
+    "clearSearch": "Clear search",
+    "advancedSearch": "Advanced Search",
     "columns": {
       "dagId": "Dag ID",
       "schedule": "Schedule",
@@ -14,7 +16,8 @@
       "startDate": "Start Date",
       "endDate": "End Date",
       "duration": "Duration"
-    }
+    },
+    "ownerLink": "Owner link for {{owner}}"
   },
   "actions": {
     "triggerDag": "Trigger Dag",
@@ -29,7 +32,7 @@
       "paused": "Paused"
     }
   },
-  "assetSchedule": "{{count}} of {{total}} Asset Events updated",
+  "assetSchedule": "{{count}} of {{total}} assets updated",
   "sort": {
     "placeholder": "Sort by",
     "displayName": {
