@@ -1253,6 +1253,8 @@ def _run_task(*, ti, run_triggerer=False):
             ti.task = taskrun_result.ti.task
 
             if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
+                from airflow.utils.session import create_session
+
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(State.QUEUED)
@@ -1264,7 +1266,10 @@ def _run_task(*, ti, run_triggerer=False):
                 ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
-                ti.set_state(State.SUCCESS)
+                # Set the state to SCHEDULED so that the task can be resumed.
+                with create_session() as session:
+                    ti.state = State.SCHEDULED
+                    session.add(ti)
 
             return taskrun_result
         except Exception:
