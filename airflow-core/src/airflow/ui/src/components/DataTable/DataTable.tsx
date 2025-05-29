@@ -146,7 +146,7 @@ export const DataTable = <TData,>({
       ) : undefined}
       {!hasRows && !Boolean(isLoading) && (
         <Text pl={4} pt={1}>
-          {noRowsMessage ?? translate("noItemsFound", { count: 0, modelName })}
+          {noRowsMessage ?? translate("noItemsFound", { modelName })}
         </Text>
       )}
       {hasPagination ? (
