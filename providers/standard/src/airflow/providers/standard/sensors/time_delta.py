@@ -152,7 +152,7 @@ class TimeDeltaSensor(BaseSensorOperator):
         return None
 
 
-# TODO: Remember to remove
+# TODO: Remove in the next major release
 @deprecated(
     "Use `TimeDeltaSensor` with `deferrable=True` instead", category=AirflowProviderDeprecationWarning
 )
