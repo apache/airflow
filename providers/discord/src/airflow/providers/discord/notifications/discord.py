@@ -86,7 +86,7 @@ class DiscordNotifier(BaseNotifier):
         self.success_link = None
         self.reactions = None
         self.proxy = None
-        self.embeds = None
+        self.embeds: list[dict[str, Any]] | None = None
         self.description = description
 
     @cached_property
@@ -95,7 +95,7 @@ class DiscordNotifier(BaseNotifier):
         hook = DiscordWebhookHook(
             http_conn_id=self.discord_conn_id,
             webhook_endpoint=None,
-            message=self.text,
+            message=self.text or "",
             username=self.username,
             avatar_url=self.avatar_url,
             tts=self.tts,
@@ -136,17 +136,21 @@ class DiscordNotifier(BaseNotifier):
         }
 
         if self.success_link:
-            embed["fields"].append({
-                "name": "Link",
-                "value": f"[View DAG]({self.success_link})",
-                "inline": False,
-            })
+            embed["fields"].append(
+                {
+                    "name": "Link",
+                    "value": f"[View DAG]({self.success_link})",
+                    "inline": False,
+                }
+            )
         if self.failure_link:
-            embed["fields"].append({
-                "name": "Link",
-                "value": f"[View Logs]({self.failure_link})",
-                "inline": False,
-            })
+            embed["fields"].append(
+                {
+                    "name": "Link",
+                    "value": f"[View Logs]({self.failure_link})",
+                    "inline": False,
+                }
+            )
 
         return [embed]
 
@@ -188,7 +192,10 @@ class DiscordNotifier(BaseNotifier):
                         messages.append(current_message)
                         current_message = line
                 else:
-                    current_message += "\n" + line
+                    if current_message:
+                        current_message += "\n" + line
+                    else:
+                        current_message = line
 
             if current_message:
                 if in_code_block:
