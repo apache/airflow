@@ -1,38 +1,38 @@
 {
-  "welcome": "Welcome",
-  "stats": {
-    "stats": "Stats",
-    "failedDags": "Failed Dags",
-    "runningDags": "Running Dags",
-    "activeDags": "Active Dags",
-    "queuedDags": "Queued Dags"
-  },
+  "group": "Group",
   "health": {
+    "dagProcessor": "Dag Processor",
     "health": "Health",
+    "healthy": "Healthy",
+    "lastHeartbeat": "Last Heartbeat",
     "metaDatabase": "MetaDatabase",
     "scheduler": "Scheduler",
-    "triggerer": "Triggerer",
-    "dagProcessor": "Dag Processor",
     "status": "Status",
-    "lastHeartbeat": "Last Heartbeat",
-    "healthy": "Healthy",
+    "triggerer": "Triggerer",
     "unhealthy": "Unhealthy"
   },
+  "history": "History",
   "importErrors": {
-    "searchByFile": "Search by file",
     "dagImportError_one": "Dag Import Error",
     "dagImportError_other": "Dag Import Errors",
+    "searchByFile": "Search by file",
     "timestamp": "Timestamp"
   },
-  "poolSlots": "Pool Slots",
   "managePools": "Manage Pools",
-  "history": "History",
+  "noAssetEvents": "No Asset Events found.",
+  "poolSlots": "Pool Slots",
   "sortBy": {
     "newestFirst": "Newest First",
     "oldestFirst": "Oldest First"
   },
   "source": "Source",
-  "group": "Group",
+  "stats": {
+    "activeDags": "Active Dags",
+    "failedDags": "Failed Dags",
+    "queuedDags": "Queued Dags",
+    "runningDags": "Running Dags",
+    "stats": "Stats"
+  },
   "uri": "Uri",
-  "noAssetEvents": "No Asset Events found."
+  "welcome": "Welcome"
 }

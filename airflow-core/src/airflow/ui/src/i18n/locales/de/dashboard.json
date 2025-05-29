@@ -1,38 +1,38 @@
 {
-  "welcome": "Willkommen",
-  "stats": {
-    "stats": "Statistiken",
-    "failedDags": "Fehlgeschlagene Dags",
-    "runningDags": "Laufende Dags",
-    "activeDags": "Aktive Dags",
-    "queuedDags": "Dags in Warteschlange"
-  },
+  "group": "Gruppe",
   "health": {
+    "dagProcessor": "Dag Prozessor",
     "health": "System-Gesundheit",
+    "healthy": "Gut",
+    "lastHeartbeat": "Letztes Lebenszeichen",
     "metaDatabase": "Meta-Datenbank",
     "scheduler": "Planer",
-    "triggerer": "Triggerer",
-    "dagProcessor": "Dag Prozessor",
     "status": "Status",
-    "lastHeartbeat": "Letztes Lebenszeichen",
-    "healthy": "Gut",
+    "triggerer": "Triggerer",
     "unhealthy": "Nicht in Ordnung"
   },
+  "history": "Historie",
   "importErrors": {
-    "searchByFile": "Nach Datei suchen",
     "dagImportError_one": "Fehler beim Laden des Dags",
     "dagImportError_other": "Fehler beim Laden der Dags",
+    "searchByFile": "Nach Datei suchen",
     "timestamp": "Zeitstempel"
   },
-  "poolSlots": "Pool Belegung",
   "managePools": "Pools verwalten",
-  "history": "Historie",
+  "noAssetEvents": "Keine Ereignisse zu Datensets vorliegend.",
+  "poolSlots": "Pool Belegung",
   "sortBy": {
     "newestFirst": "Neueste zuerst",
     "oldestFirst": "Älteste zuerst"
   },
   "source": "Quellcode",
-  "group": "Gruppe",
+  "stats": {
+    "activeDags": "Aktive Dags",
+    "failedDags": "Fehlgeschlagene Dags",
+    "queuedDags": "Dags in Warteschlange",
+    "runningDags": "Laufende Dags",
+    "stats": "Statistiken"
+  },
   "uri": "Uri",
-  "noAssetEvents": "Keine Ereignisse zu Datensets vorliegend."
+  "welcome": "Willkommen"
 }

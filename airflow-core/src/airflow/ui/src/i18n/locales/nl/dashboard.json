@@ -1,38 +1,38 @@
 {
-  "welcome": "Welkom",
-  "stats": {
-    "stats": "Statistieken",
-    "failedDags": "Mislukte Dags",
-    "runningDags": "Lopende Dags",
-    "activeDags": "Actieve Dags",
-    "queuedDags": "Dags in de wachtrij"
-  },
+  "group": "Groep",
   "health": {
+    "dagProcessor": "Dag Processor",
     "health": "Status",
+    "healthy": "OK",
+    "lastHeartbeat": "Laatste hartslag",
     "metaDatabase": "MetaDatabase",
     "scheduler": "Scheduler",
-    "triggerer": "Triggerer",
-    "dagProcessor": "Dag Processor",
     "status": "Status",
-    "lastHeartbeat": "Laatste hartslag",
-    "healthy": "OK",
+    "triggerer": "Triggerer",
     "unhealthy": "Fout"
   },
+  "history": "Geschiedenis",
   "importErrors": {
-    "searchByFile": "Zoek op bestand",
     "dagImportError_one": "Dag leesfout",
     "dagImportError_other": "Dag leesfouten",
+    "searchByFile": "Zoek op bestand",
     "timestamp": "Tijd"
   },
-  "poolSlots": "Pool Slots",
   "managePools": "Beheer Pools",
-  "history": "Geschiedenis",
+  "noAssetEvents": "Geen Asset Events gevonden.",
+  "poolSlots": "Pool Slots",
   "sortBy": {
     "newestFirst": "Nieuwste eerst",
     "oldestFirst": "Oudste eerst"
   },
   "source": "Bron",
-  "group": "Groep",
+  "stats": {
+    "activeDags": "Actieve Dags",
+    "failedDags": "Mislukte Dags",
+    "queuedDags": "Dags in de wachtrij",
+    "runningDags": "Lopende Dags",
+    "stats": "Statistieken"
+  },
   "uri": "Uri",
-  "noAssetEvents": "Geen Asset Events gevonden."
+  "welcome": "Welkom"
 }
