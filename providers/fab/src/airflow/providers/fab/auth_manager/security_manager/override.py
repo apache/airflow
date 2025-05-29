@@ -536,7 +536,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def reset_user_sessions(self, user: User) -> None:
         if isinstance(current_app.session_interface, AirflowDatabaseSessionInterface):
             interface = current_app.session_interface
-            session = interface.db.session
+            session = interface.client.session
             user_session_model = interface.sql_session_model
             num_sessions = session.query(user_session_model).count()
             if num_sessions > MAX_NUM_DATABASE_USER_SESSIONS:
@@ -553,7 +553,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 )
             else:
                 for s in session.query(user_session_model):
-                    session_details = interface.serializer.loads(want_bytes(s.data))
+                    session_details = interface.serializer.decode(want_bytes(s.data))
                     if session_details.get("_user_id") == user.id:
                         session.delete(s)
                 session.commit()
