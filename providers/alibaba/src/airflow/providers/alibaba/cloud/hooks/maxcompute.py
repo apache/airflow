@@ -43,9 +43,6 @@ def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..
 
     @functools.wraps(func)
     def inner_wrapper(self, **kwargs) -> RT:
-        kwargs["project"] = kwargs.get("project", self.project)
-        kwargs["endpoint"] = kwargs.get("endpoint", self.endpoint)
-
         required_args = ("project", "endpoint")
         for arg_name in required_args:
             kwargs[arg_name] = kwargs.get(arg_name, getattr(self, arg_name))
