@@ -45,8 +45,8 @@ import type {
   CancelBackfillResponse,
   CreateBackfillDryRunData,
   CreateBackfillDryRunResponse,
-  ListBackfills1Data,
-  ListBackfills1Response,
+  ListBackfillsUiData,
+  ListBackfillsUiResponse,
   DeleteConnectionData,
   DeleteConnectionResponse,
   GetConnectionData,
@@ -809,7 +809,7 @@ export class BackfillService {
   }
 
   /**
-   * List Backfills
+   * List Backfills Ui
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset
@@ -819,7 +819,7 @@ export class BackfillService {
    * @returns BackfillCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static listBackfills1(data: ListBackfills1Data = {}): CancelablePromise<ListBackfills1Response> {
+  public static listBackfillsUi(data: ListBackfillsUiData = {}): CancelablePromise<ListBackfillsUiResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/backfills",

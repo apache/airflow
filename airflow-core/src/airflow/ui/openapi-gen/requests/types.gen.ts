@@ -2018,7 +2018,7 @@ export type CreateBackfillDryRunData = {
 
 export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
 
-export type ListBackfills1Data = {
+export type ListBackfillsUiData = {
   active?: boolean | null;
   dagId?: string | null;
   limit?: number;
@@ -2026,7 +2026,7 @@ export type ListBackfills1Data = {
   orderBy?: string;
 };
 
-export type ListBackfills1Response = BackfillCollectionResponse;
+export type ListBackfillsUiResponse = BackfillCollectionResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -3432,7 +3432,7 @@ export type $OpenApiTs = {
   };
   "/ui/backfills": {
     get: {
-      req: ListBackfills1Data;
+      req: ListBackfillsUiData;
       res: {
         /**
          * Successful Response
