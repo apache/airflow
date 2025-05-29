@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiActivity, FiWifi, FiWifiOff } from "react-icons/fi";
 
 import type { ConnectionResponse, ConnectionBody } from "openapi/requests/types.gen";
@@ -25,7 +26,6 @@ import { useConfig } from "src/queries/useConfig";
 import { useTestConnection } from "src/queries/useTestConnection";
 
 type TestConnectionOption = "Disabled" | "Enabled" | "Hidden";
-
 type Props = {
   readonly connection: ConnectionResponse;
 };
@@ -35,6 +35,7 @@ const connectedIcon = <FiWifi color="green" />;
 const disconnectedIcon = <FiWifiOff color="red" />;
 
 const TestConnectionButton = ({ connection }: Props) => {
+  const { t: translate } = useTranslation("connections");
   const [icon, setIcon] = useState(defaultIcon);
   const testConnection = useConfig("test_connection");
   let option: TestConnectionOption;
@@ -71,11 +72,7 @@ const TestConnectionButton = ({ connection }: Props) => {
 
   return (
     <ActionButton
-      actionName={
-        option === "Enabled"
-          ? "Test Connection"
-          : "Testing connections disabled. Contact your admin to enable it."
-      }
+      actionName={option === "Enabled" ? translate("test") : translate("testDisabled")}
       disabled={option === "Disabled"}
       display={option === "Hidden" ? "none" : "flex"}
       icon={icon}
@@ -83,7 +80,7 @@ const TestConnectionButton = ({ connection }: Props) => {
       onClick={() => {
         mutate({ requestBody: connectionBody });
       }}
-      text="Test Connection"
+      text={translate("test")}
       withText={false}
     />
   );
