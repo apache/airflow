@@ -30,12 +30,12 @@ type Props = {
   readonly connection: ConnectionResponse;
 };
 
-const TestConnectionButton = ({ connection }: Props) => {
-  const defaultIcon = <FiActivity />;
-  const connectedIcon = <FiWifi color="green" />;
-  const disconnectedIcon = <FiWifiOff color="red" />;
-  const [icon, setIcon] = useState(defaultIcon);
+const defaultIcon = <FiActivity />;
+const connectedIcon = <FiWifi color="green" />;
+const disconnectedIcon = <FiWifiOff color="red" />;
 
+const TestConnectionButton = ({ connection }: Props) => {
+  const [icon, setIcon] = useState(defaultIcon);
   const testConnection = useConfig("test_connection");
   let option: TestConnectionOption;
 
@@ -59,7 +59,7 @@ const TestConnectionButton = ({ connection }: Props) => {
     schema: connection.schema ?? "",
   };
 
-  const { mutate } = useTestConnection((result) => {
+  const { isPending, mutate } = useTestConnection((result) => {
     if (result === undefined) {
       setIcon(defaultIcon);
     } else if (result === true) {
