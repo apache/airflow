@@ -21,9 +21,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from airflow import DAG
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensorAsync
+import pytest
 
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -45,21 +47,22 @@ with DAG(
     schedule=None,
     catchup=False,
 ) as dag:
-    # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
-    # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
-    wait = TimeDeltaSensorAsync(task_id="wait", delta=timedelta(seconds=180))
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
+        # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
+        wait = TimeDeltaSensorAsync(task_id="wait", delta=timedelta(seconds=180))
 
-    check_start_events_amount = PythonOperator(
-        task_id="check_start_events_amount", python_callable=check_start_amount_func
-    )
+        check_start_events_amount = PythonOperator(
+            task_id="check_start_events_amount", python_callable=check_start_amount_func
+        )
 
-    check_events = OpenLineageTestOperator(
-        task_id="check_events",
-        file_path=str(Path(__file__).parent / "example_openlineage_defer.json"),
-        allow_duplicate_events=True,
-    )
+        check_events = OpenLineageTestOperator(
+            task_id="check_events",
+            file_path=str(Path(__file__).parent / "example_openlineage_defer.json"),
+            allow_duplicate_events=True,
+        )
 
-    wait >> check_start_events_amount >> check_events
+        wait >> check_start_events_amount >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
