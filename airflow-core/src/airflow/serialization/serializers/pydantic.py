@@ -46,7 +46,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     from pydantic import BaseModel
 
     if not _is_pydantic_model(o):
-        return {}, "", 0, False
+        return "", "", 0, False
 
     model = cast("BaseModel", o)  # for mypy
     data = model.model_dump()
