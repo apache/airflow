@@ -54,6 +54,7 @@
     "deferred": "已延後",
     "no_status": "無狀態"
   },
+  "noItemsFound": "找不到{{modelName}}",
   "dagRun_one": "Dag 執行",
   "dagRun_other": "Dag 執行",
   "taskInstance_one": "任務實例",

@@ -64,6 +64,7 @@
     "deferred": "Deferred",
     "no_status": "No Status"
   },
+  "noItemsFound": "No {{modelName}}s found.",
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "taskInstance_one": "Task Instance",
