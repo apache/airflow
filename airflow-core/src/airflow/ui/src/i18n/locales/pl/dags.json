@@ -1,0 +1,55 @@
+{
+  "actions": {
+    "delete": "Skasuj Daga",
+    "deleteDagWarning": "Ta operacja usunie wszystkie metadane, takie jak wykonania Daga i zadania.",
+    "trigger": "Uruchom",
+    "triggerDag": "Uruchom Daga"
+  },
+  "assetSchedule": "Uaktualniono {{count}} z {{total}} zasobów",
+  "filters": {
+    "paused": {
+      "active": "Aktywne",
+      "all": "Wszystkie",
+      "paused": "Wstrzymane"
+    }
+  },
+  "list": {
+    "advancedSearch": "Wyszukiwanie zaawansowane",
+    "clearSearch": "Wyczyść wyszukiwanie",
+    "columns": {
+      "dagId": "Identyfikator Daga",
+      "lastDagRun": "Ostatnie Wykonanie Daga",
+      "nextDagRun": "Następne Wykonanie Daga",
+      "schedule": "Harmonogram",
+      "tags": "Etykiety"
+    },
+    "ownerLink": "Link do właściciela {{owner}}",
+    "runs": {
+      "duration": "Czas trwania",
+      "endDate": "Data zakończenia",
+      "runAfter": "Uruchom po",
+      "startDate": "Data rozpoczęcia",
+      "state": "Stan"
+    },
+    "searchPlaceholder": "Szukaj Dagów"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Sortuj według Nazwy Wyświetlanej (A-Z)",
+      "desc": "Sortuj według Nazwy Wyświetlanej (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najwcześniejsze-Najnowsze)",
+      "desc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najnowsze-Najwcześniejsze)"
+    },
+    "lastRunState": {
+      "asc": "Sortuj według Stanu Ostatniego Wykonania (A-Z)",
+      "desc": "Sortuj według Stanu Ostatniego Wykonania (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Sortuj według Następnego Wykonania Daga (Najwcześniejsze-Najnowsze)",
+      "desc": "Sortuj według Następnego Wykonania Daga (Najnowsze-Najwcześniejsze)"
+    },
+    "placeholder": "Sortuj według"
+  }
+}
