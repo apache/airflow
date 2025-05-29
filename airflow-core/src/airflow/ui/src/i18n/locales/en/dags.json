@@ -1,55 +1,55 @@
 {
-  "list": {
-    "searchPlaceholder": "Search Dags",
-    "clearSearch": "Clear search",
-    "advancedSearch": "Advanced Search",
-    "columns": {
-      "dagId": "Dag ID",
-      "schedule": "Schedule",
-      "nextDagRun": "Next Dag Run",
-      "lastDagRun": "Last Dag Run",
-      "tags": "Tags"
-    },
-    "runs": {
-      "state": "State",
-      "runAfter": "Run After",
-      "startDate": "Start Date",
-      "endDate": "End Date",
-      "duration": "Duration"
-    },
-    "ownerLink": "Owner link for {{owner}}"
-  },
   "actions": {
-    "triggerDag": "Trigger Dag",
-    "trigger": "Trigger",
     "delete": "Delete Dag",
-    "deleteDagWarning": "This will remove all metadata related to the DAG, including DAG Runs and Tasks."
+    "deleteDagWarning": "This will remove all metadata related to the DAG, including DAG Runs and Tasks.",
+    "trigger": "Trigger",
+    "triggerDag": "Trigger Dag"
   },
+  "assetSchedule": "{{count}} of {{total}} assets updated",
   "filters": {
     "paused": {
-      "all": "All",
       "active": "Active",
+      "all": "All",
       "paused": "Paused"
     }
   },
-  "assetSchedule": "{{count}} of {{total}} assets updated",
+  "list": {
+    "advancedSearch": "Advanced Search",
+    "clearSearch": "Clear search",
+    "columns": {
+      "dagId": "Dag ID",
+      "lastDagRun": "Last Dag Run",
+      "nextDagRun": "Next Dag Run",
+      "schedule": "Schedule",
+      "tags": "Tags"
+    },
+    "ownerLink": "Owner link for {{owner}}",
+    "runs": {
+      "duration": "Duration",
+      "endDate": "End Date",
+      "runAfter": "Run After",
+      "startDate": "Start Date",
+      "state": "State"
+    },
+    "searchPlaceholder": "Search Dags"
+  },
   "sort": {
-    "placeholder": "Sort by",
     "displayName": {
       "asc": "Sort by Display Name (A-Z)",
       "desc": "Sort by Display Name (Z-A)"
     },
-    "nextDagRun": {
-      "asc": "Sort by Next Dag Run (Earliest-Latest)",
-      "desc": "Sort by Next Dag Run (Latest-Earliest)"
+    "lastRunStartDate": {
+      "asc": "Sort by Latest Run Start Date (Earliest-Latest)",
+      "desc": "Sort by Latest Run Start Date (Latest-Earliest)"
     },
     "lastRunState": {
       "asc": "Sort by Latest Run State (A-Z)",
       "desc": "Sort by Latest Run State (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sort by Latest Run Start Date (Earliest-Latest)",
-      "desc": "Sort by Latest Run Start Date (Latest-Earliest)"
-    }
+    "nextDagRun": {
+      "asc": "Sort by Next Dag Run (Earliest-Latest)",
+      "desc": "Sort by Next Dag Run (Latest-Earliest)"
+    },
+    "placeholder": "Sort by"
   }
 }

@@ -34,21 +34,6 @@
       "confirmation": "Are you sure you want to delete {{resourceName}}? This action cannot be undone."
     }
   },
-  "table": {
-    "filterColumns": "Filter table columns",
-    "filterByTag": "Filter Dags by tag",
-    "noTagsFound": "No tags found",
-    "tagPlaceholder": "Filter by tag",
-    "tagMode": {
-      "any": "Any",
-      "all": "All"
-    },
-    "filters": {
-      "reset": "Reset",
-      "filter_one": "filter",
-      "filter_other": "filters"
-    }
-  },
   "nav": {
     "admin": "Admin",
     "assets": "Assets",
@@ -93,6 +78,21 @@
   },
   "switchToDarkMode": "Switch to Dark Mode",
   "switchToLightMode": "Switch to Light Mode",
+  "table": {
+    "filterByTag": "Filter Dags by tag",
+    "filterColumns": "Filter table columns",
+    "filters": {
+      "filter_one": "filter",
+      "filter_other": "filters",
+      "reset": "Reset"
+    },
+    "noTagsFound": "No tags found",
+    "tagMode": {
+      "all": "All",
+      "any": "Any"
+    },
+    "tagPlaceholder": "Filter by tag"
+  },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
