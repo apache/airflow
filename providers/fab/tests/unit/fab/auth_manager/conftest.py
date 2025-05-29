@@ -99,3 +99,10 @@ def configure_testing_dag_bundle():
             yield
 
     return _config_bundle
+
+
+@pytest.fixture(autouse=True)
+def clear_metadata():
+    from flask_appbuilder.extensions import db
+
+    db.metadata.clear()
