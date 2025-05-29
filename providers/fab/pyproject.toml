@@ -74,7 +74,7 @@ dependencies = [
     "flask-appbuilder==5.0.0a8",
     "flask-login>=0.6.2",
     "flask-session>=0.8.0",
-    "flask-sqlalchemy>=3.0.0",
+    "flask-sqlalchemy>=3.0.5",
     "flask-wtf>=1.1.0",
     "connexion[flask]>=2.14.2,<3.0",
     "jmespath>=0.7.0",
