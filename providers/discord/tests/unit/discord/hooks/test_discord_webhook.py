@@ -45,6 +45,8 @@ class TestDiscordWebhookHook:
         "avatar_url": _config["avatar_url"],
         "tts": _config["tts"],
         "content": _config["message"],
+        "mention_everyone": False,
+        "application_id": "airflow",
     }
 
     expected_payload = json.dumps(expected_payload_dict)
@@ -112,3 +114,69 @@ class TestDiscordWebhookHook:
         expected_message = "Discord message length must be 2000 or fewer characters"
         with pytest.raises(AirflowException, match=expected_message):
             hook._build_discord_payload()
+
+    def test_validate_embeds_valid_embed(self):
+        # Given
+        hook = DiscordWebhookHook(**self._config)
+        valid_embeds = [
+            {
+                "title": "Test Embed",
+                "description": "This is a test embed",
+                "color": 16711680,  # Red color as integer
+                "url": "https://example.com",
+                "author": {"name": "Test Author"},
+            }
+        ]
+
+        # When/Then - should not raise any exception
+        hook._validate_embeds(valid_embeds)
+
+    def test_validate_embeds_invalid_non_dict(self):
+        # Given
+        hook = DiscordWebhookHook(**self._config)
+        invalid_embeds = [
+            "not a dictionary"  # Invalid: not a dict
+        ]
+
+        # When/Then
+        expected_message = "Each embed must be a dictionary"
+        with pytest.raises(AirflowException, match=expected_message):
+            hook._validate_embeds(invalid_embeds)
+
+    def test_validate_embeds_invalid_color_type_string(self):
+        # Given
+        hook = DiscordWebhookHook(**self._config)
+        invalid_embeds = [
+            {
+                "title": "Test Embed",
+                "color": "red",  # Invalid: color must be integer, not string
+            }
+        ]
+
+        # When/Then
+        expected_message = "Embed color must be an integer"
+        with pytest.raises(AirflowException, match=expected_message):
+            hook._validate_embeds(invalid_embeds)
+
+    def test_validate_embeds_invalid_url_not_string(self):
+        # Given
+        hook = DiscordWebhookHook(**self._config)
+        invalid_embeds = [
+            {
+                "title": "Test Embed",
+                "url": 123,  # Invalid: URL must be string, not integer
+            }
+        ]
+
+        # When/Then
+        expected_message = "Embed URL must be a string starting with 'https://'"
+        with pytest.raises(AirflowException, match=expected_message):
+            hook._validate_embeds(invalid_embeds)
+
+    def test_validate_embeds_empty_list(self):
+        # Given
+        hook = DiscordWebhookHook(**self._config)
+        empty_embeds = []
+
+        # When/Then - should not raise any exception for empty list
+        hook._validate_embeds(empty_embeds)
