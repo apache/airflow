@@ -16,19 +16,25 @@
 # under the License.
 from __future__ import annotations
 
+import rich
 from airflow.utils.platform import get_airflow_git_version
 from airflow.version import version
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
-
+from airflowctl.api.operations import VersionOperations
+#from airflow.api_fastapi.core_api.routes.public.version import get_version
+#from airflow.api_fastapi.core_api.routes.public.version import VersionInfo
 
 @provide_api_client(kind=ClientKind.CLI)
 def version_info(arg, api_client=NEW_API_CLIENT):
     """Get version information."""
-    version_dict = {
-        "airflow_version": version,
-        "git_version": get_airflow_git_version(),
-        "airflowctl_version": version,
-    }
+    #version_response = api_client.version.get()
+    version_response = VersionOperations(api_client).get()
+    version_dict = version_response.model_dump()
+    version_info = {}
+    version_info["airflow_version"] = version_dict["version"]
+    version_info["git_version"] = version_dict["git_version"]
+    version_info["airflowctl_version"] = version_dict["version"]
 
-    for name, value in version_dict.items():
-        print(f"{name} : {value}")
+    rich.print(version_info)
+
+    

@@ -198,7 +198,6 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
-<<<<<<< HEAD
 ARG_VARIABLE_IMPORT = Arg(
     flags=("file",),
     metavar="file",
@@ -216,9 +215,6 @@ ARG_VARIABLE_EXPORT = Arg(
     metavar="file",
     help="Export all variables to JSON file",
 )
-=======
-ARG_VERSION_GET = Arg(dest="version", help="show Version information")
->>>>>>> de5b8cc554 (create version command using CLI side resolve conflict)
 
 ARG_OUTPUT = Arg(
     flags=("-o", "--output"),
@@ -288,7 +284,6 @@ ARG_CONFIG_VERBOSE = Arg(
     default=False,
     action="store_true",
 )
-
 
 
 class ActionCommand(NamedTuple):
@@ -616,20 +611,10 @@ def merge_commands(
     merge_command_map = {}
     new_commands: list[CLICommand] = []
     for command in commands_will_be_merged:
-        if isinstance(command, ActionCommand):
+        if isinstance(command,ActionCommand):
             new_commands.append(command)
         if isinstance(command, GroupCommand):
             merge_command_map[command.name] = command
-<<<<<<< HEAD
-<<<<<<< HEAD
-    new_commands: list[CLICommand] = []
-=======
-        """ if isinstance(command, ActionCommand):
-            merge_command_map[command.name] = command """
-    
->>>>>>> dafb085c3d (Append actioncommand to commandlist and remove print statements)
-=======
->>>>>>> a2418cf300 (remove mistakenly added code comment)
     merged_commands = []
     # Common commands
     for command in base_commands:
