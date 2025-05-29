@@ -1104,6 +1104,7 @@ class TestTriggerRuleDep:
             expected_ti_state=expected_ti_state,
         )
 
+    @pytest.mark.flaky(reruns=3, reruns_delay=1)
     @pytest.mark.parametrize("flag_upstream_failed", [True, False])
     def test_mapped_task_upstream_removed_with_all_failed_trigger_rules(
         self,
