@@ -79,6 +79,7 @@ const TestConnectionButton = ({ connection }: Props) => {
       disabled={option === "Disabled"}
       display={option === "Hidden" ? "none" : "flex"}
       icon={icon}
+      loading={isPending}
       onClick={() => {
         mutate({ requestBody: connectionBody });
       }}
