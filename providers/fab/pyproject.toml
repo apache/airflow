@@ -73,7 +73,7 @@ dependencies = [
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.0.0a8",
     "flask-login>=0.6.2",
-    "flask-session>=0.6",
+    "flask-session>=0.8.0",
     "flask-sqlalchemy>=3.0.0",
     "flask-wtf>=1.1.0",
     "connexion[flask]>=2.14.2,<3.0",
