@@ -60,6 +60,7 @@ class EventsTimetable(Timetable):
             self.event_dates.sort()
         self.restrict_to_events = restrict_to_events
         if description is None:
+            self._provided_description = False
             if self.event_dates:
                 self.description = (
                     f"{len(self.event_dates)} events between {self.event_dates[0]} and {self.event_dates[-1]}"
@@ -68,6 +69,7 @@ class EventsTimetable(Timetable):
                 self.description = "No events"
             self._summary = f"{len(self.event_dates)} events"
         else:
+            self._provided_description = True
             self._summary = description
             self.description = description
 
@@ -120,15 +122,19 @@ class EventsTimetable(Timetable):
         return DataInterval.exact(most_recent_event)
 
     def serialize(self):
-        return {
+        serialized = {
             "event_dates": [x.isoformat(sep="T") for x in self.event_dates],
             "restrict_to_events": self.restrict_to_events,
         }
+        if self._provided_description:
+            serialized["description"] = self.description
+        return serialized
 
     @classmethod
     def deserialize(cls, data) -> Timetable:
         return cls(
-            [pendulum.DateTime.fromisoformat(x) for x in data["event_dates"]],
-            data["restrict_to_events"],
+            event_dates=[pendulum.DateTime.fromisoformat(x) for x in data["event_dates"]],
+            restrict_to_events=data["restrict_to_events"],
             presorted=True,
+            description=data.get("description"),
         )
