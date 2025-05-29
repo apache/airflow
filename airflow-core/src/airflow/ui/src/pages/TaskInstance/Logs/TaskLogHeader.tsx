@@ -199,9 +199,10 @@ export const TaskLogHeader = ({
             <Button
               aria-label={nested ? "Deactivate groups" : "Activate groups"}
               bg="bg.panel"
-              ml={2}
+              ml={1}
+              mr={1}
               onClick={toggleNested}
-              size="sm"
+              size="md"
               variant="outline"
             >
               {nested ? "Deactivate groups" : "Activate groups"}
