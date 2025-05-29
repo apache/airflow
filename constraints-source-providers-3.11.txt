@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-28T10:39:59.698034
+# This constraints file was automatically generated on 2025-05-29T11:19:27.687991
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiobotocore==2.22.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.12.2
+aiohttp==3.12.4
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -82,6 +82,7 @@ apache-beam==2.59.0
 apispec==6.8.2
 apprise==1.9.3
 argcomplete==3.6.2
+arro3-core==0.5.0
 asana==5.1.0
 asgiref==3.8.1
 asn1crypto==1.5.1
@@ -171,7 +172,7 @@ db-dtypes==1.4.3
 debugpy==1.8.14
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==0.25.5
+deltalake==1.0.0
 diagrams==0.24.4
 dill==0.3.1.1
 distlib==0.3.9
@@ -219,14 +220,14 @@ google-api-python-client==2.170.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.2
-google-cloud-aiplatform==1.94.0
+google-cloud-aiplatform==1.95.0
 google-cloud-alloydb==0.4.6
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.3
 google-cloud-batch==0.17.35
 google-cloud-bigquery-datatransfer==3.19.1
-google-cloud-bigquery-storage==2.31.0
+google-cloud-bigquery-storage==2.32.0
 google-cloud-bigquery==3.33.0
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.1
@@ -462,7 +463,7 @@ prometheus_client==0.22.0
 prompt_toolkit==3.0.51
 propcache==0.3.1
 proto-plus==1.26.1
-protobuf==4.25.7
+protobuf==4.25.8
 psutil==7.0.0
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
@@ -652,7 +653,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250516
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20250515
-types-setuptools==80.8.0.20250521
+types-setuptools==80.9.0.20250529
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
