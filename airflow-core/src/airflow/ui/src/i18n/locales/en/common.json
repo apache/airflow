@@ -1,93 +1,93 @@
 {
-  "defaultToGraphView": "Default to graph view",
-  "defaultToGridView": "Default to grid view",
-  "logout": "Logout",
-  "logoutConfirmation": "You are about to logout from the application.",
-  "switchToDarkMode": "Switch to Dark Mode",
-  "switchToLightMode": "Switch to Light Mode",
-  "timezone": "timezone",
-  "user": "User",
-  "selectLanguage": "Select Language",
-  "nav": {
-    "home": "Home",
-    "dags": "Dags",
-    "assets": "Assets",
-    "browse": "Browse",
-    "admin": "Admin",
-    "security": "Security",
-    "docs": "Docs",
-    "plugins": "Plugins"
+  "admin": {
+    "Config": "Config",
+    "Connections": "Connections",
+    "Plugins": "Plugins",
+    "Pools": "Pools",
+    "Providers": "Providers",
+    "Variables": "Variables"
   },
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
   "browse": {
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
-  "admin": {
-    "Variables": "Variables",
-    "Pools": "Pools",
-    "Providers": "Providers",
-    "Plugins": "Plugins",
-    "Connections": "Connections",
-    "Config": "Config"
-  },
-  "security": {
-    "users": "Users",
-    "roles": "Roles",
-    "actions": "Actions",
-    "resources": "Resources",
-    "permissions": "Permissions"
-  },
-  "timeRange": {
-    "duration": "Duration",
-    "lastHour": "Last Hour",
-    "last12Hours": "Last 12 Hours",
-    "last24Hours": "Last 24 Hours",
-    "pastWeek": "Past Week"
-  },
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "defaultToGraphView": "Default to graph view",
+  "defaultToGridView": "Default to grid view",
   "docs": {
     "documentation": "Documentation",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
-  "states": {
-    "queued": "Queued",
-    "running": "Running",
-    "success": "Success",
-    "failed": "Failed",
-    "skipped": "Skipped",
-    "removed": "Removed",
-    "scheduled": "Scheduled",
-    "restarting": "Restarting",
-    "up_for_retry": "Up For Retry",
-    "up_for_reschedule": "Up For Reschedule",
-    "upstream_failed": "Upstream Failed",
-    "deferred": "Deferred",
-    "no_status": "No Status"
-  },
-  "dagRun_one": "Dag Run",
-  "dagRun_other": "Dag Runs",
-  "taskInstance_one": "Task Instance",
-  "taskInstance_other": "Task Instances",
-  "assetEvent_one": "Asset Event",
-  "assetEvent_other": "Asset Events",
-  "triggered": "Triggered",
-  "pools": {
-    "open": "Open",
-    "running": "Running",
-    "queued": "Queued",
-    "scheduled": "Scheduled",
-    "deferred": "Deferred",
-    "pools_one": "pool",
-    "pools_other": "pools"
-  },
+  "logout": "Logout",
+  "logoutConfirmation": "You are about to logout from the application.",
   "modal": {
     "cancel": "Cancel",
     "confirm": "Confirm"
   },
+  "nav": {
+    "admin": "Admin",
+    "assets": "Assets",
+    "browse": "Browse",
+    "dags": "Dags",
+    "docs": "Docs",
+    "home": "Home",
+    "plugins": "Plugins",
+    "security": "Security"
+  },
+  "pools": {
+    "deferred": "Deferred",
+    "open": "Open",
+    "pools_one": "pool",
+    "pools_other": "pools",
+    "queued": "Queued",
+    "running": "Running",
+    "scheduled": "Scheduled"
+  },
+  "security": {
+    "actions": "Actions",
+    "permissions": "Permissions",
+    "resources": "Resources",
+    "roles": "Roles",
+    "users": "Users"
+  },
+  "selectLanguage": "Select Language",
+  "states": {
+    "deferred": "Deferred",
+    "failed": "Failed",
+    "no_status": "No Status",
+    "queued": "Queued",
+    "removed": "Removed",
+    "restarting": "Restarting",
+    "running": "Running",
+    "scheduled": "Scheduled",
+    "skipped": "Skipped",
+    "success": "Success",
+    "up_for_reschedule": "Up For Reschedule",
+    "up_for_retry": "Up For Retry",
+    "upstream_failed": "Upstream Failed"
+  },
+  "switchToDarkMode": "Switch to Dark Mode",
+  "switchToLightMode": "Switch to Light Mode",
+  "taskInstance_one": "Task Instance",
+  "taskInstance_other": "Task Instances",
+  "timeRange": {
+    "duration": "Duration",
+    "last12Hours": "Last 12 Hours",
+    "last24Hours": "Last 24 Hours",
+    "lastHour": "Last Hour",
+    "pastWeek": "Past Week"
+  },
+  "timezone": "timezone",
   "timezoneModal": {
-    "title": "Select Timezone",
-    "placeholder": "Select a timezone",
     "current-timezone": "Current time in",
+    "placeholder": "Select a timezone",
+    "title": "Select Timezone",
     "utc": "UTC (Coordinated Universal Time)"
-  }
+  },
+  "triggered": "Triggered",
+  "user": "User"
 }
