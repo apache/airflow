@@ -69,6 +69,7 @@
         "title": "Delete {{type}}",
         "warning": "This will remove all metadata related to the {{type}}."
       },
+      "error": "Error deleting {{type}}",
       "success": {
         "description": "The {{type}} deletion request was successful.",
         "title": "{{type}} Deleted Successfully"

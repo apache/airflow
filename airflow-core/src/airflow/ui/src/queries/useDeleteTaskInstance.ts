@@ -47,10 +47,10 @@ export const useDeleteTaskInstance = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
 
-  const onError = () => {
+  const onError = (error: Error) => {
     toaster.create({
-      description: translate("dags:runAndTaskActions.delete.success.description", { type: "Task Instance" }),
-      title: translate("dags:runAndTaskActions.delete.success.title", { type: "Task Instance" }),
+      description: error.message,
+      title: translate("dags:runAndTaskActions.delete.error", { type: "Task Instance" }),
       type: "error",
     });
   };

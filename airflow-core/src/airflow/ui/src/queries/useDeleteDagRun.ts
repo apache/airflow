@@ -33,17 +33,17 @@ type DeleteDagRunParams = {
   onSuccessConfirm: () => void;
 };
 
-const onError = (error: Error) => {
-  toaster.create({
-    description: error.message,
-    title: "Error deleting DAG Run",
-    type: "error",
-  });
-};
-
 export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDagRunParams) => {
-  const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
+  const queryClient = useQueryClient();
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("dags:runAndTaskActions.delete.error", { type: "Run" }),
+      type: "error",
+    });
+  };
 
   const onSuccess = async () => {
     const queryKeys = [

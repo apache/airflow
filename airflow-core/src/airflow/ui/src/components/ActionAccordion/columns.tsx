@@ -30,22 +30,19 @@ export const getColumns = (translate: TFunction): Array<MetaColumn<TaskInstanceR
   },
   {
     accessorKey: "state",
-    cell: ({ getValue }) => {
-      const state = getValue<TaskInstanceResponse["state"]>();
-
-      return <StateBadge state={state} />;
-    },
+    cell: ({
+      row: {
+        original: { state },
+      },
+    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
     header: translate("dags:runAndTaskActions.clear.dialog.affectedTasks.columns.state"),
-    size: 100,
   },
   {
     accessorKey: "map_index",
     header: translate("dags:runAndTaskActions.clear.dialog.affectedTasks.columns.mapIndex"),
-    size: 100,
   },
   {
     accessorKey: "run_id",
     header: translate("dags:runAndTaskActions.clear.dialog.affectedTasks.columns.runId"),
-    size: 200,
   },
 ];
