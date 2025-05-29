@@ -67,7 +67,7 @@ export const TaskLogPreview = ({
           error={error}
           isLoading={isLoading}
           logError={error}
-          parsedLogs={data.parsedLogs}
+          parsedLogs={data.parsedLogs ?? []}
           wrap={wrap}
         />
       </Box>
