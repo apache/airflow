@@ -857,8 +857,8 @@ class GKEStartJobOperator(GKEOperatorMixin, KubernetesJobOperator):
                 ssl_ca_cert=self.ssl_ca_cert,
                 job_name=self.job.metadata.name,  # type: ignore[union-attr]
                 job_namespace=self.job.metadata.namespace,  # type: ignore[union-attr]
-                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
-                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+                pod_names=[pod.metadata.name for pod in self.pods],  # type: ignore[union-attr]
+                pod_namespace=self.pods[0].metadata.namespace,  # type: ignore[union-attr]
                 base_container_name=self.base_container_name,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_interval=self.job_poll_interval,
