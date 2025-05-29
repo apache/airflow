@@ -719,8 +719,11 @@ def impersonate_user(username: str, log: Logger):
         pw_record = pwd.getpwnam(username)
         uid, gid = pw_record.pw_uid, pw_record.pw_gid
 
-        os.setuid(uid)
+        # always drop group privileges before dropping user privileges;
+        # otherwise, group privileges may not be able to be fully dropped.
+
         os.setgid(gid)
+        os.setuid(uid)
 
         log.info("Running task as impersonated user", impersonated_user=username)
     except KeyError:
@@ -732,6 +735,9 @@ def impersonate_user(username: str, log: Logger):
 
 
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
+    from airflow.configuration import conf
+    from airflow.exceptions import AirflowConfigException
+
     msg = SUPERVISOR_COMMS.get_message()
 
     log = structlog.get_logger(logger_name="task")
@@ -756,7 +762,11 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             ti.log_url = get_log_url_from_ti(ti)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
 
-        run_as_user = getattr(ti.task, "run_as_user", None)
+        try:
+            run_as_user = getattr(ti.task, "run_as_user", None) or conf.get("core", "default_impersonation")
+        except AirflowConfigException:
+            run_as_user = None
+
         if run_as_user:
             impersonate_user(run_as_user, log)
 
