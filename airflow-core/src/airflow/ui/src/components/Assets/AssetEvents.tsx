@@ -110,6 +110,7 @@ export const AssetEvents = ({
         initialState={tableUrlState}
         isLoading={isLoading}
         modelName={translate("common:assetEvent_one")}
+        noRowsMessage={translate("noAssetEvents")}
         onStateChange={setTableUrlState}
         skeletonCount={5}
         total={data?.total_entries}
