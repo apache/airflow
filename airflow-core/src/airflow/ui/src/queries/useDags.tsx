@@ -37,6 +37,7 @@ export const useDags = (
     owners?: Array<string>;
     paused?: boolean;
     tags?: Array<string>;
+    tagsMatchMode?: "all" | "any";
   } = {},
 ) => {
   const { data, error, isFetching, isLoading } = useDagServiceGetDags(searchParams);

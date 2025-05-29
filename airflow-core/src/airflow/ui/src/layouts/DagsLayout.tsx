@@ -18,18 +18,23 @@
  */
 import { Box } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
+import { useTranslation } from "react-i18next";
 
 import { NavTabs } from "./Details/NavTabs";
 
-const tabs = [
-  { label: "Dags", value: "/dags" },
-  { label: "Runs", value: "/dag_runs" },
-  { label: "Task Instances", value: "/task_instances" },
-];
+export const DagsLayout = ({ children }: PropsWithChildren) => {
+  const { t: translate } = useTranslation("common");
 
-export const DagsLayout = ({ children }: PropsWithChildren) => (
-  <Box>
-    <NavTabs tabs={tabs} />
-    {children}
-  </Box>
-);
+  const tabs = [
+    { label: translate("nav.dags"), value: "/dags" },
+    { label: translate("dagRun_other"), value: "/dag_runs" },
+    { label: translate("taskInstance_other"), value: "/task_instances" },
+  ];
+
+  return (
+    <Box>
+      <NavTabs tabs={tabs} />
+      {children}
+    </Box>
+  );
+};

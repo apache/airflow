@@ -144,11 +144,6 @@ export type BaseInfoResponse = {
 };
 
 /**
- * Bulk Action to be performed on the used model.
- */
-export type BulkAction = "create" | "delete" | "update";
-
-/**
  * Bulk Action to be taken if the entity does not exist.
  */
 export type BulkActionNotOnExistence = "fail" | "skip";
@@ -178,6 +173,14 @@ export type BulkActionResponse = {
   }>;
 };
 
+export type BulkBody_BulkTaskInstanceBody_ = {
+  actions: Array<
+    | BulkCreateAction_BulkTaskInstanceBody_
+    | BulkUpdateAction_BulkTaskInstanceBody_
+    | BulkDeleteAction_BulkTaskInstanceBody_
+  >;
+};
+
 export type BulkBody_ConnectionBody_ = {
   actions: Array<
     BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_
@@ -194,11 +197,23 @@ export type BulkBody_VariableBody_ = {
   >;
 };
 
+export type BulkCreateAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: "create";
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<BulkTaskInstanceBody>;
+  action_on_existence?: BulkActionOnExistence;
+};
+
 export type BulkCreateAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -210,7 +225,7 @@ export type BulkCreateAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -222,7 +237,7 @@ export type BulkCreateAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -230,11 +245,23 @@ export type BulkCreateAction_VariableBody_ = {
   action_on_existence?: BulkActionOnExistence;
 };
 
+export type BulkDeleteAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: "delete";
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
 export type BulkDeleteAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -246,7 +273,7 @@ export type BulkDeleteAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -258,7 +285,7 @@ export type BulkDeleteAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -288,11 +315,37 @@ export type BulkResponse = {
   delete?: BulkActionResponse | null;
 };
 
+/**
+ * Request body for bulk update, and delete task instances.
+ */
+export type BulkTaskInstanceBody = {
+  new_state?: TaskInstanceState | null;
+  note?: string | null;
+  include_upstream?: boolean;
+  include_downstream?: boolean;
+  include_future?: boolean;
+  include_past?: boolean;
+  task_id: string;
+  map_index?: number | null;
+};
+
+export type BulkUpdateAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: "update";
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<BulkTaskInstanceBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
 export type BulkUpdateAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -304,7 +357,7 @@ export type BulkUpdateAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -316,7 +369,7 @@ export type BulkUpdateAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -867,6 +920,18 @@ export type HealthInfoResponse = {
 };
 
 /**
+ * Serializer for IFrame Plugin responses.
+ */
+export type IFrameViewsResponse = {
+  name: string;
+  src: string;
+  icon?: string | null;
+  url_route?: string | null;
+  destination?: "nav" | "dag" | "dag_run" | "task" | "task_instance" | null;
+  [key: string]: unknown | string;
+};
+
+/**
  * Import Error Collection Response.
  */
 export type ImportErrorCollectionResponse = {
@@ -965,6 +1030,7 @@ export type PluginResponse = {
   flask_blueprints: Array<string>;
   fastapi_apps: Array<FastAPIAppResponse>;
   fastapi_root_middlewares: Array<FastAPIRootMiddlewareResponse>;
+  iframe_views: Array<IFrameViewsResponse>;
   appbuilder_views: Array<AppBuilderViewResponse>;
   appbuilder_menu_items: Array<AppBuilderMenuItemResponse>;
   global_operator_extra_links: Array<string>;
@@ -2397,6 +2463,14 @@ export type GetTaskInstancesData = {
 };
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type BulkTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: BulkBody_BulkTaskInstanceBody_;
+};
+
+export type BulkTaskInstancesResponse = BulkResponse;
 
 export type GetTaskInstancesBatchData = {
   dagId: "~";
@@ -4570,6 +4644,27 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: BulkTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BulkResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
