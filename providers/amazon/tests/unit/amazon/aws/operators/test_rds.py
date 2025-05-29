@@ -173,16 +173,19 @@ class TestBaseRdsOperator:
     def test_hook_attribute(self):
         assert hasattr(self.op, "hook")
         assert self.op.hook.__class__.__name__ == "RdsHook"
-    
+
     def test_overwritten_conn_passed_to_hook(self):
         OVERWRITTEN_CONN = "new-conn-id"
-        op = RdsBaseOperator(task_id="test_overwritten_conn_passed_to_hook_task", aws_conn_id=OVERWRITTEN_CONN, dag=self.dag)
+        op = RdsBaseOperator(
+            task_id="test_overwritten_conn_passed_to_hook_task", aws_conn_id=OVERWRITTEN_CONN, dag=self.dag
+        )
         assert op.hook.aws_conn_id == OVERWRITTEN_CONN
 
     def test_no_conn_passed_to_hook(self):
         DEFAULT_CONN = "aws_default"
         op = RdsBaseOperator(task_id="test_no_conn_passed_to_hook_task", dag=self.dag)
         assert op.hook.aws_conn_id == DEFAULT_CONN
+
 
 class TestRdsCreateDbSnapshotOperator:
     @classmethod
