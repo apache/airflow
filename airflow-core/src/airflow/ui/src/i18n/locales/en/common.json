@@ -7,14 +7,7 @@
   "switchToLightMode": "Switch to Light Mode",
   "timezone": "timezone",
   "user": "User",
-  "language": {
-    "zh-TW": "Traditional Chinese",
-    "en": "English",
-    "de": "German",
-    "ko": "Korean",
-    "nl": "Dutch",
-    "select": "Select Language"
-  },
+  "selectLanguage": "Select Language",
   "nav": {
     "home": "Home",
     "dags": "Dags",

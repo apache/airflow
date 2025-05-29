@@ -6,14 +6,7 @@
   "switchToLightMode": "라이트 모드로 전환",
   "timezone": "시간대",
   "user": "사용자",
-  "language": {
-    "zh-TW": "중국어 번체",
-    "en": "영어",
-    "de": "독일어",
-    "ko": "한국어",
-    "nl": "네덜란드 사람",
-    "select": "언어 선택"
-  },
+  "selectLanguage": "언어 선택",
   "nav": {
     "home": "홈",
     "assets": "에셋",
