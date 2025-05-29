@@ -124,7 +124,7 @@ export const TaskLogHeader = ({
           taskInstance={taskInstance}
         />
       )}
-      <HStack justifyContent="space-between" mb={2}>
+      <HStack justifyContent="space-between">
         <Select.Root
           collection={logLevelOptions}
           maxW="250px"
@@ -182,12 +182,14 @@ export const TaskLogHeader = ({
             </Select.Content>
           </Select.Root>
         ) : undefined}
-        <HStack>
+        <HStack gap={1}>
           <Tooltip closeDelay={100} content="Press w to toggle wrap" openDelay={100}>
             <Button
               aria-label={wrap ? "Unwrap" : "Wrap"}
               bg="bg.panel"
+              m={0}
               onClick={toggleWrap}
+              p={2}
               variant="outline"
             >
               {wrap ? "Unwrap" : "Wrap"}
@@ -197,9 +199,9 @@ export const TaskLogHeader = ({
             <Button
               aria-label={nested ? "Deactivate groups" : "Activate groups"}
               bg="bg.panel"
-              ml={1}
-              mr={1}
+              m={0}
               onClick={toggleNested}
+              p={2}
               size="md"
               variant="outline"
             >
@@ -208,7 +210,14 @@ export const TaskLogHeader = ({
           ) : undefined}
           {!isFullscreen && (
             <Tooltip closeDelay={100} content="Press f for fullscreen" openDelay={100}>
-              <IconButton aria-label="Full screen" bg="bg.panel" onClick={toggleFullscreen} variant="outline">
+              <IconButton
+                aria-label="Full screen"
+                bg="bg.panel"
+                m={0}
+                onClick={toggleFullscreen}
+                p={2}
+                variant="outline"
+              >
                 <MdOutlineOpenInFull />
               </IconButton>
             </Tooltip>
