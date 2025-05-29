@@ -26,6 +26,7 @@ import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
+from contextlib import suppress
 from datetime import datetime, timezone
 from io import FileIO
 from itertools import product
@@ -1297,6 +1298,12 @@ def main():
         log = structlog.get_logger(logger_name="task")
         log.exception("Top level error")
         exit(1)
+    finally:
+        # Ensure the request socket is closed on the child side in all circumstances
+        # before the process fully terminates.
+        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.request_socket:
+            with suppress(Exception):
+                SUPERVISOR_COMMS.request_socket.close()
 
 
 if __name__ == "__main__":
