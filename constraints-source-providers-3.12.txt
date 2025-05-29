@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-28T14:01:01.755336
+# This constraints file was automatically generated on 2025-05-29T02:27:31.218264
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiobotocore==2.22.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.12.2
+aiohttp==3.12.4
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -82,11 +82,13 @@ apache-beam==2.59.0
 apispec==6.8.2
 apprise==1.9.3
 argcomplete==3.6.2
+arro3-core==0.5.0
 asana==5.1.0
 asgiref==3.8.1
 asn1crypto==1.5.1
 astroid==3.3.10
 asttokens==3.0.0
+async-property==0.2.2
 async-timeout==4.0.3
 asyncpg==0.30.0
 asyncssh==2.21.0
@@ -173,7 +175,8 @@ db-dtypes==1.4.3
 debugpy==1.8.14
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==0.25.5
+deltalake==1.0.0
+deprecation==2.1.0
 diagrams==0.24.4
 dill==0.3.1.1
 distlib==0.3.9
@@ -222,14 +225,14 @@ google-api-python-client==2.170.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.2
-google-cloud-aiplatform==1.94.0
+google-cloud-aiplatform==1.95.0
 google-cloud-alloydb==0.4.6
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.3
 google-cloud-batch==0.17.35
 google-cloud-bigquery-datatransfer==3.19.1
-google-cloud-bigquery-storage==2.31.0
+google-cloud-bigquery-storage==2.32.0
 google-cloud-bigquery==3.33.0
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.1
@@ -344,6 +347,7 @@ jsonschema==4.24.0
 jupyter_client==8.6.3
 jupyter_core==5.8.1
 jupyterlab_pygments==0.3.0
+jwcrypto==1.5.6
 kerberos==1.3.1
 keyring==25.6.0
 keyrings.alt==5.0.2
@@ -447,8 +451,9 @@ pdbr==0.9.2
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
+pinecone-plugin-assistant==1.6.1
 pinecone-plugin-interface==0.0.7
-pinecone==7.0.1
+pinecone==7.0.2
 pinotdb==5.6.0
 pipdeptree==2.26.1
 platformdirs==4.3.8
@@ -466,7 +471,7 @@ prometheus_client==0.22.0
 prompt_toolkit==3.0.51
 propcache==0.3.1
 proto-plus==1.26.1
-protobuf==4.25.7
+protobuf==4.25.8
 psutil==7.0.0
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
@@ -517,6 +522,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 python-http-client==3.3.7
 python-jenkins==1.8.2
+python-keycloak==5.5.1
 python-ldap==3.4.4
 python-multipart==0.0.20
 python-on-whales==0.77.0
