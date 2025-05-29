@@ -105,10 +105,10 @@ class SFTPSensor(BaseSensorOperator):
                 actual_files_present = []
 
         if self.newer_than:
-            for actual_file_to_check in actual_files_present:
+            for actual_file_present in actual_files_present:
                 try:
-                    mod_time = self.hook.get_mod_time(actual_file_to_check)
-                    self.log.info("Found File %s last modified: %s", actual_file_to_check, mod_time)
+                    mod_time = self.hook.get_mod_time(actual_file_present)
+                    self.log.info("Found File %s last modified: %s", actual_file_present, mod_time)
                 except OSError as e:
                     if e.errno != SFTP_NO_SUCH_FILE:
                         raise AirflowException from e
@@ -119,17 +119,17 @@ class SFTPSensor(BaseSensorOperator):
                 _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                 _newer_than = convert_to_utc(self.newer_than)
                 if _newer_than <= _mod_time:
-                    files_found.append(actual_file_to_check)
+                    files_found.append(actual_file_present)
                     self.log.info(
                         "File %s has modification time: '%s', which is newer than: '%s'",
-                        actual_file_to_check,
+                        actual_file_present,
                         str(_mod_time),
                         str(_newer_than),
                     )
                 else:
                     self.log.info(
                         "File %s has modification time: '%s', which is older than: '%s'",
-                        actual_file_to_check,
+                        actual_file_present,
                         str(_mod_time),
                         str(_newer_than),
                     )
