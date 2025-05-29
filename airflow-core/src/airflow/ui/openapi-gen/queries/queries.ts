@@ -3937,7 +3937,6 @@ export const useDagRunServicePatchDagRun = <
  * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
- * @param data.lastDagRunState
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -3953,7 +3952,6 @@ export const useDagServicePatchDags = <
       {
         dagIdPattern?: string;
         excludeStale?: boolean;
-        lastDagRunState?: DagRunState;
         limit?: number;
         offset?: number;
         owners?: string[];
@@ -3974,7 +3972,6 @@ export const useDagServicePatchDags = <
     {
       dagIdPattern?: string;
       excludeStale?: boolean;
-      lastDagRunState?: DagRunState;
       limit?: number;
       offset?: number;
       owners?: string[];
@@ -3989,7 +3986,6 @@ export const useDagServicePatchDags = <
     mutationFn: ({
       dagIdPattern,
       excludeStale,
-      lastDagRunState,
       limit,
       offset,
       owners,
@@ -4002,7 +3998,6 @@ export const useDagServicePatchDags = <
       DagService.patchDags({
         dagIdPattern,
         excludeStale,
-        lastDagRunState,
         limit,
         offset,
         owners,

@@ -1577,7 +1577,6 @@ export class DagService {
    * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.excludeStale
    * @param data.paused
-   * @param data.lastDagRunState
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1595,7 +1594,6 @@ export class DagService {
         dag_id_pattern: data.dagIdPattern,
         exclude_stale: data.excludeStale,
         paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
       },
       body: data.requestBody,
       mediaType: "application/json",
