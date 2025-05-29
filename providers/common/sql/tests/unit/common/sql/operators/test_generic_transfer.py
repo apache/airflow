@@ -30,7 +30,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
