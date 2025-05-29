@@ -196,4 +196,4 @@ class TestHdfsTaskHandler:
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
 
     def test_correct_path_for_hdfs_log(self, ti):
-        assert self.hdfs_task_handler.io.remote_base == '/remote/log/location'
+        assert self.hdfs_task_handler.io.remote_base == "/remote/log/location"
