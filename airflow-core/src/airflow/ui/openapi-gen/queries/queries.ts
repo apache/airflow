@@ -15,7 +15,6 @@ import {
   DagStatsService,
   DagVersionService,
   DagWarningService,
-  DagsService,
   DashboardService,
   DependenciesService,
   EventLogService,
@@ -1145,6 +1144,95 @@ export const useDagServiceGetDagTags = <
   useQuery<TData, TError>({
     queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey),
     queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData,
+    ...options,
+  });
+/**
+ * Recent Dag Runs
+ * Get recent DAG runs.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.tagsMatchMode
+ * @param data.owners
+ * @param data.dagIds
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.excludeStale
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceRecentDagRuns = <
+  TData = Common.DagServiceRecentDagRunsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagIds,
+    dagRunsLimit,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagIds?: string[];
+    dagRunsLimit?: number;
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceRecentDagRunsKeyFn(
+      {
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.recentDagRuns({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }) as TData,
     ...options,
   });
 /**
@@ -2769,95 +2857,6 @@ export const useAuthLinksServiceGetAuthMenus = <
   useQuery<TData, TError>({
     queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
     queryFn: () => AuthLinksService.getAuthMenus() as TData,
-    ...options,
-  });
-/**
- * Recent Dag Runs
- * Get recent DAG runs.
- * @param data The data for the request.
- * @param data.dagRunsLimit
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.tagsMatchMode
- * @param data.owners
- * @param data.dagIds
- * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
- * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
- * @param data.excludeStale
- * @param data.paused
- * @param data.lastDagRunState
- * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagsServiceRecentDagRuns = <
-  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagIds,
-    dagRunsLimit,
-    excludeStale,
-    lastDagRunState,
-    limit,
-    offset,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagIds?: string[];
-    dagRunsLimit?: number;
-    excludeStale?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
-      {
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagsService.recentDagRuns({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }) as TData,
     ...options,
   });
 /**
