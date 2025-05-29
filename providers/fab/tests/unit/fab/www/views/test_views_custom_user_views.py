@@ -186,53 +186,39 @@ class TestSecurity:
 
 
 class TestResetUserSessions:
-    def setup_method(self):
-        # We cannot reuse the app in tests (on class level) as in Flask 2.2 this causes
-        # an exception because app context teardown is removed and if even single request is run via app
-        # it cannot be re-intialized again by passing it as constructor to SQLA
-        # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
-            }
-        ):
-            self.app = application.create_app(enable_plugins=False)
-        self.appbuilder = self.app.appbuilder
-        self.app.config["WTF_CSRF_ENABLED"] = False
-        self.security_manager = self.appbuilder.sm
-        self.interface = self.app.session_interface
+    @pytest.fixture(autouse=True)
+    def app_context(self, app):
+        self.app = app
+        self.session = app.appbuilder.session
+        self.security_manager = app.appbuilder.sm
+        self.interface = app.session_interface
         self.model = self.interface.sql_session_model
         self.serializer = self.interface.serializer
-        self.db = self.interface.db
-        with self.app.app_context():
-            self.db.session.query(self.model).delete()
-            self.db.session.commit()
-            self.db.session.flush()
+        with app.app_context():
+            self.session.query(self.model).delete()
+            self.session.commit()
+            self.session.flush()
             self.user_1 = create_user(
-                self.app,
+                app,
                 username="user_to_delete_1",
                 role_name="user_to_delete",
             )
             self.user_2 = create_user(
-                self.app,
+                app,
                 username="user_to_delete_2",
                 role_name="user_to_delete",
             )
-            self.db.session.commit()
-            self.db.session.flush()
-
-    def teardown_method(self):
-        delete_user(self.app, "user_to_delete_1")
-        delete_user(self.app, "user_to_delete_2")
+            self.session.commit()
+            self.session.flush()
+            yield
+            delete_user(app, "user_to_delete_1")
+            delete_user(app, "user_to_delete_2")
 
     def create_user_db_session(self, session_id: str, time_delta: timedelta, user_id: int):
-        self.db.session.add(
+        self.session.add(
             self.model(
                 session_id=session_id,
-                data=self.serializer.dumps({"_user_id": user_id}),
+                data=self.serializer.encode({"_user_id": user_id}),
                 expiry=datetime.now() + time_delta,
             )
         )
@@ -248,25 +234,25 @@ class TestResetUserSessions:
     def test_reset_user_sessions_delete(self, time_delta: timedelta, user_sessions_deleted: bool):
         self.create_user_db_session("session_id_1", time_delta, self.user_1.id)
         self.create_user_db_session("session_id_2", time_delta, self.user_2.id)
-        self.db.session.commit()
-        self.db.session.flush()
-        assert self.db.session.query(self.model).count() == 2
+        self.session.commit()
+        self.session.flush()
+        assert self.session.query(self.model).count() == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 
         with self.app.app_context():
             self.security_manager.reset_password(self.user_1.id, "new_password")
-        self.db.session.commit()
-        self.db.session.flush()
+        self.session.commit()
+        self.session.flush()
         if user_sessions_deleted:
-            assert self.db.session.query(self.model).count() == 1
+            assert self.session.query(self.model).count() == 1
             assert self.get_session_by_id("session_id_1") is None
         else:
-            assert self.db.session.query(self.model).count() == 2
+            assert self.session.query(self.model).count() == 2
             assert self.get_session_by_id("session_id_1") is not None
 
     def get_session_by_id(self, session_id: str):
-        return self.db.session.query(self.model).filter(self.model.session_id == session_id).scalar()
+        return self.session.query(self.model).filter(self.model.session_id == session_id).scalar()
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
     @mock.patch(
@@ -278,9 +264,9 @@ class TestResetUserSessions:
     def test_refuse_delete(self, _mock_has_context, flash_mock):
         self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
         self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
-        self.db.session.commit()
-        self.db.session.flush()
-        assert self.db.session.query(self.model).count() == 2
+        self.session.commit()
+        self.session.flush()
+        assert self.session.query(self.model).count() == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
         with self.app.app_context():
@@ -290,7 +276,7 @@ class TestResetUserSessions:
             "The old sessions for user user_to_delete_1 have <b>NOT</b> been deleted!"
             in flash_mock.call_args[0][0]
         )
-        assert self.db.session.query(self.model).count() == 2
+        assert self.session.query(self.model).count() == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 
@@ -315,9 +301,9 @@ class TestResetUserSessions:
     def test_refuse_delete_cli(self, log_mock):
         self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
         self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
-        self.db.session.commit()
-        self.db.session.flush()
-        assert self.db.session.query(self.model).count() == 2
+        self.session.commit()
+        self.session.flush()
+        assert self.session.query(self.model).count() == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
         with self.app.app_context():
@@ -327,7 +313,7 @@ class TestResetUserSessions:
             "The old sessions for user user_to_delete_1 have *NOT* been deleted!\n"
             in log_mock.warning.call_args[0][0]
         )
-        assert self.db.session.query(self.model).count() == 2
+        assert self.session.query(self.model).count() == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 
