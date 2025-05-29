@@ -362,7 +362,7 @@ export const ensureUseBackfillServiceGetBackfillData = (
     queryFn: () => BackfillService.getBackfill({ backfillId }),
   });
 /**
- * List Backfills
+ * List Backfills Ui
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
@@ -372,7 +372,7 @@ export const ensureUseBackfillServiceGetBackfillData = (
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseBackfillServiceListBackfills1Data = (
+export const ensureUseBackfillServiceListBackfillsUiData = (
   queryClient: QueryClient,
   {
     active,
@@ -389,8 +389,8 @@ export const ensureUseBackfillServiceListBackfills1Data = (
   } = {},
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({ active, dagId, limit, offset, orderBy }),
-    queryFn: () => BackfillService.listBackfills1({ active, dagId, limit, offset, orderBy }),
+    queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }),
+    queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }),
   });
 /**
  * Get Connection
