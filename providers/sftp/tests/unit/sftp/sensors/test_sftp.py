@@ -45,6 +45,16 @@ class TestSFTPSensor:
         assert output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_file_irregular(self, sftp_hook_mock):
+        sftp_hook_mock.return_value.isfile.return_value = False
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
+        context = {"ds": "1970-01-01"}
+        output = sftp_sensor.poke(context)
+        sftp_hook_mock.return_value.isfile.assert_called_once_with("/path/to/file/1970-01-01.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
+        assert not output
+
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_absent(self, sftp_hook_mock):
         sftp_hook_mock.return_value.isfile.side_effect = OSError(SFTP_NO_SUCH_FILE, "File missing")
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
