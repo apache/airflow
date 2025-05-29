@@ -22,6 +22,7 @@ import importlib
 import importlib.machinery
 import importlib.util
 import os
+import signal
 import sys
 import textwrap
 import traceback
@@ -357,6 +358,17 @@ class DagBag(LoggingMixin):
 
     def _load_modules_from_file(self, filepath, safe_mode):
         from airflow.sdk.definitions._internal.contextmanager import DagContext
+
+        def handler(signum, frame):
+            """Handle SIGSEGV signal and let the user know that the import failed."""
+            msg = f"Received SIGSEGV signal while processing {filepath}."
+            self.log.error(msg)
+            self.import_errors[filepath] = msg
+
+        try:
+            signal.signal(signal.SIGSEGV, handler)
+        except ValueError:
+            self.log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
 
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages

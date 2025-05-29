@@ -74,7 +74,7 @@ config:
   openlineage:
     description: |
       This section applies settings for OpenLineage integration.
-      More about configuration and it's precedence can be found in the `user's guide
+      More about configuration and its precedence can be found in the `user's guide
       <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/guides/user.html#transport-setup>`_.
 
     options:

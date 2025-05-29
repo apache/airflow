@@ -58,6 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0",
+    "python-keycloak>=5.0.0",
 ]
 
 [dependency-groups]
