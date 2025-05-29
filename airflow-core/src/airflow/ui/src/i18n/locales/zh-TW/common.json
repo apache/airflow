@@ -23,13 +23,37 @@
     "restApiReference": "REST API 參考"
   },
   "logout": "登出",
+  "logoutConfirmation": "確定要登出嗎？",
+  "modal": {
+    "cancel": "取消",
+    "confirm": "確認"
+  },
   "nav": {
     "admin": "管理者",
     "assets": "資源",
     "browse": "瀏覽",
+    "dags": "Dags",
     "docs": "文件",
     "home": "首頁",
-    "plugins": "插件"
+    "plugins": "插件",
+    "security": "安全"
+  },
+  "noItemsFound": "找不到{{modelName}}",
+  "pools": {
+    "deferred": "已延後",
+    "open": "開啟",
+    "pools_one": "資源池",
+    "pools_other": "資源池",
+    "queued": "排隊中",
+    "running": "執行中",
+    "scheduled": "已排程"
+  },
+  "security": {
+    "actions": "操作",
+    "permissions": "權限",
+    "resources": "資源",
+    "roles": "角色",
+    "users": "使用者"
   },
   "selectLanguage": "選擇語言",
   "states": {
@@ -59,5 +83,12 @@
     "pastWeek": "過去一週"
   },
   "timezone": "時區",
+  "timezoneModal": {
+    "current-timezone": "目前時區",
+    "placeholder": "搜尋時區",
+    "title": "選擇時區",
+    "utc": "UTC"
+  },
+  "triggered": "已觸發",
   "user": "使用者"
 }
