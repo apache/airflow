@@ -2844,14 +2844,6 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
-      - name: last_dag_run_state
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - $ref: '#/components/schemas/DagRunState'
-          - type: 'null'
-          title: Last Dag Run State
       requestBody:
         required: true
         content:

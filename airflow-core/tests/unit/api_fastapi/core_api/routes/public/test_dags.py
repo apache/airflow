@@ -356,9 +356,9 @@ class TestPatchDags(TestDagEndpoint):
         assert response.status_code == expected_status_code
         if expected_status_code == 200:
             body = response.json()
-            assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
-            paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
-            assert paused_dag_ids == expected_paused_ids
+            assert {dag["dag_id"] for dag in body["dags"]} == set(expected_ids)
+            paused_dag_ids = {dag["dag_id"] for dag in body["dags"] if dag["is_paused"]}
+            assert paused_dag_ids == set(expected_paused_ids)
             check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
@@ -371,7 +371,7 @@ class TestPatchDags(TestDagEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
+        assert {dag["dag_id"] for dag in body["dags"]} == {DAG1_ID, DAG2_ID}
 
     def test_patch_dags_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/dags", json={"is_paused": True})
