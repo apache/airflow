@@ -874,7 +874,7 @@ class TestCliDags:
                             self.defer(trigger=trigger, method_name="execute")
                             return
                         print("RESUMING")
-                        return self.tfield + 1
+                        assert self.tfield + 1 == 3
 
                 task_one = one()
                 task_two = two(task_one)
