@@ -358,10 +358,11 @@ class TestLoggingSettings:
             {
                 ("logging", "remote_logging"): "True",
                 ("logging", "remote_log_conn_id"): "some_hdfs",
-                ("logging", "remote_base_log_folder"): "hdfs://some-folder",
+                ("logging", "remote_base_log_folder"): "hdfs://some-folder/log",
             }
         ):
             importlib.reload(airflow_local_settings)
             airflow.logging_config.configure_logging()
 
         assert isinstance(airflow.logging_config.REMOTE_TASK_LOG, HdfsRemoteLogIO)
+        assert getattr(airflow.logging_config.REMOTE_TASK_LOG, "remote_base") == "/log"
