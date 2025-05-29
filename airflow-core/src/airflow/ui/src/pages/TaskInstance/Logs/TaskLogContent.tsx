@@ -23,17 +23,15 @@ import { useLayoutEffect, useRef } from "react";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
 
-const EMPTY_ARRAY: Array<JSX.Element | string | undefined> = [];
-
 type Props = {
   readonly error: unknown;
   readonly isLoading: boolean;
   readonly logError: unknown;
-  readonly parsedLogs: Array<JSX.Element | string | undefined> | undefined;
+  readonly parsedLogs: Array<JSX.Element | string | undefined>;
   readonly wrap: boolean;
 };
 
-export const TaskLogContent = ({ error, isLoading, logError, parsedLogs = EMPTY_ARRAY, wrap }: Props) => {
+export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
   const [bgLine] = useToken("colors", ["blue.emphasized"]);
   const parentRef = useRef(null);
   const rowVirtualizer = useVirtualizer({

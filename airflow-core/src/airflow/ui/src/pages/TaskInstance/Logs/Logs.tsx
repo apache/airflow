@@ -117,7 +117,7 @@ export const Logs = () => {
         error={error}
         isLoading={isLoading || isLoadingLogs}
         logError={logError}
-        parsedLogs={data.parsedLogs}
+        parsedLogs={data.parsedLogs ?? []}
         wrap={wrap}
       />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
@@ -144,7 +144,7 @@ export const Logs = () => {
               error={error}
               isLoading={isLoading || isLoadingLogs}
               logError={logError}
-              parsedLogs={data.parsedLogs}
+              parsedLogs={data.parsedLogs ?? []}
               wrap={wrap}
             />
           </Dialog.Body>
