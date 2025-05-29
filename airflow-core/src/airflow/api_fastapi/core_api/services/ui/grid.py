@@ -185,7 +185,6 @@ def fill_task_instance_summaries(
         ti_start_date = min([ti.start_date for ti in tis if ti.start_date], default=None)
         ti_end_date = max([ti.end_date for ti in tis if ti.end_date], default=None)
         ti_queued_dttm = min([ti.queued_dttm for ti in tis if ti.queued_dttm], default=None)
-        ti_note = min([ti.note for ti in tis if ti.note], default=None)
 
         # Calculate the child states for the task
         # Initialize the child states with 0
@@ -242,7 +241,6 @@ def fill_task_instance_summaries(
                 state=TaskInstanceState[overall_ti_state.upper()]
                 if overall_ti_state != "no_status"
                 else None,
-                note=ti_note,
             )
         )
 

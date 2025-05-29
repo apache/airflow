@@ -7078,17 +7078,6 @@ export const $GridTaskInstanceSummary = {
         },
       ],
     },
-    note: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Note",
-    },
   },
   type: "object",
   required: [
@@ -7100,7 +7089,6 @@ export const $GridTaskInstanceSummary = {
     "child_states",
     "task_count",
     "state",
-    "note",
   ],
   title: "GridTaskInstanceSummary",
   description: "Task Instance Summary model for the Grid UI.",

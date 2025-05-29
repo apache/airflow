@@ -1742,7 +1742,6 @@ export type GridTaskInstanceSummary = {
   } | null;
   task_count: number;
   state: TaskInstanceState | null;
-  note: string | null;
 };
 
 /**

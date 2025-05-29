@@ -37,7 +37,6 @@ class GridTaskInstanceSummary(BaseModel):
     child_states: dict[str, int] | None
     task_count: int
     state: TaskInstanceState | None
-    note: str | None
 
 
 class GridDAGRunwithTIs(BaseModel):

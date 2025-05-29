@@ -1478,11 +1478,6 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
-        note:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Note
       type: object
       required:
       - task_id
@@ -1493,7 +1488,6 @@ components:
       - child_states
       - task_count
       - state
-      - note
       title: GridTaskInstanceSummary
       description: Task Instance Summary model for the Grid UI.
     HTTPExceptionResponse:
