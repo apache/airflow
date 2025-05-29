@@ -17,13 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-from importlib import import_module
 from typing import TYPE_CHECKING, cast
 
-from pydantic import BaseModel
-
-from airflow.serialization.serde import _is_pydantic_basemodel
-from airflow.utils.module_loading import qualname
+from airflow.serialization.serde import _is_pydantic_model
+from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
@@ -32,47 +29,56 @@ serializers = [
     "pydantic.main.BaseModel",
 ]
 deserializers = serializers
-stringifiers = serializers
 
 __version__ = 1
 
 
-def _resolve_pydantic_class(qn: str):
-    module_name, class_name = qn.rsplit(".", 1)
-    module = import_module(module_name)
-    return getattr(module, class_name)
-
-
 def serialize(o: object) -> tuple[U, str, int, bool]:
-    if not _is_pydantic_basemodel(o):
-        return "", "", 0, False
+    """
+    Serialize a Pydantic BaseModel instance into a dict of built-in types.
 
-    # to convince mypy
-    m = cast("BaseModel", o)
-    # Serialize
-    data = m.model_dump()
-    # Store the actual qualified name for the pydantic class. This classname will be used to import the module and load the data.
-    data["__class__"] = qualname(o)
+    Returns a tuple of:
+    - serialized data (as built-in types)
+    - fixed class name for registration (BaseModel)
+    - version number
+    - is_serialized flag (True if handled)
+    """
+    from pydantic import BaseModel
+
+    if not _is_pydantic_model(o):
+        return {}, "", 0, False
+
+    model = cast("BaseModel", o)  # for mypy
+    data = model.model_dump()
 
     return data, qualname(BaseModel), __version__, True
 
 
 def deserialize(classname: str, version: int, data: dict):
+    """
+    Deserialize a dictionary into a Pydantic model instance.
+
+    This function is used as a generic deserializer for all subclasses of BaseModel.
+    It requires serde.py to fallback from the actual model class name to this handler.
+
+    :param classname: Fully qualified name of the actual model class
+    :param version: Serialization version (must not exceed __version__)
+    :param data: Dictionary with built-in types, typically from model_dump()
+    :return: An instance of the actual Pydantic model
+    """
     if version > __version__:
-        raise TypeError(f"serialized {version} of {classname} > {__version__}")
+        raise TypeError(
+            f"Serialized version {version} of {classname} is newer than the supported version {__version__}"
+        )
 
-    # check if it the qualified name is pydantic.main.BaseModel.
-    if classname == qualname(BaseModel):
-        # the actual qualified name for the pydantic.main.BaseModel subclass is stored in this key.
-        if "__class__" not in data:
-            raise TypeError("Missing '__class__' in serialized Pydantic.main.BaseModel data")
+    try:
+        model_class = import_string(classname)
+    except ImportError as e:
+        raise ImportError(f"Cannot import Pydantic model (sub)class: {classname}") from e
 
-        qn = data.pop("__class__")
-        cls = _resolve_pydantic_class(qn=qn)
+    if not _is_pydantic_model(model_class):
+        # no deserializer available
+        raise TypeError(f"No deserializer found for {classname}")
 
-        if not _is_pydantic_basemodel(cls):
-            raise TypeError(f"{qn} is not a subclass of Pydantic.main.BaseModel")
-        return cls.model_validate(data)
-
-    # no deserializer available
-    raise TypeError(f"No deserializer found for {classname}")
+    # Perform validation-based reconstruction
+    return model_class.model_validate(data)
