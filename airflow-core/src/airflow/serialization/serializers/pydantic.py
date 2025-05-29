@@ -23,6 +23,8 @@ from airflow.serialization.serde import _is_pydantic_model
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflow.serialization.serde import U
 
 serializers = [
@@ -43,8 +45,6 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     - version number
     - is_serialized flag (True if handled)
     """
-    from pydantic import BaseModel
-
     if not _is_pydantic_model(o):
         return "", "", 0, False
 
