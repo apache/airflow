@@ -1912,6 +1912,9 @@ export type TaskInstanceServicePatchTaskInstanceMutationResult = Awaited<
 export type TaskInstanceServicePatchTaskInstanceByMapIndexMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.patchTaskInstanceByMapIndex>
 >;
+export type TaskInstanceServiceBulkTaskInstancesMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.bulkTaskInstances>
+>;
 export type TaskInstanceServicePatchTaskInstanceDryRunByMapIndexMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.patchTaskInstanceDryRunByMapIndex>
 >;

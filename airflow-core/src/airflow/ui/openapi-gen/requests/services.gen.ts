@@ -134,6 +134,8 @@ import type {
   PatchTaskInstanceByMapIndexResponse,
   GetTaskInstancesData,
   GetTaskInstancesResponse,
+  BulkTaskInstancesData,
+  BulkTaskInstancesResponse,
   GetTaskInstancesBatchData,
   GetTaskInstancesBatchResponse,
   GetTaskInstanceTryDetailsData,
@@ -2332,6 +2334,34 @@ export class TaskInstanceService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Bulk Task Instances
+   * Bulk update, and delete task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.requestBody
+   * @returns BulkResponse Successful Response
+   * @throws ApiError
+   */
+  public static bulkTaskInstances(data: BulkTaskInstancesData): CancelablePromise<BulkTaskInstancesResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
