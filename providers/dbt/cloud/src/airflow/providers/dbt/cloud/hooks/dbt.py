@@ -34,6 +34,7 @@ from requests.sessions import Session
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
+
 if TYPE_CHECKING:
     from requests.models import PreparedRequest, Response
 
