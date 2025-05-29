@@ -21,7 +21,7 @@ from unittest import mock
 
 from airflow.providers.alibaba.cloud.hooks.maxcompute import MaxComputeHook
 
-MAXCOMPUTE_HOOK_MODULE = "airflow.providers.alibaba.cloud.hooks.maxcompute.{}"
+MAXCOMPUTE_HOOK_MODULE = "airflow.providers.alibaba.cloud.hooks.maxcompute.MaxComputeHook.{}"
 MOCK_MAXCOMPUTE_CONN_ID = "mock_id"
 MOCK_MAXCOMPUTE_PROJECT = "mock_project"
 MOCK_MAXCOMPUTE_ENDPOINT = "mock_endpoint"
@@ -30,7 +30,7 @@ MOCK_MAXCOMPUTE_ENDPOINT = "mock_endpoint"
 class TestMaxComputeHook:
     def setup_method(self):
         with mock.patch(
-            MAXCOMPUTE_HOOK_MODULE.format("MaxComputeHook.get_connection"),
+            MAXCOMPUTE_HOOK_MODULE.format("get_connection"),
         ) as mock_get_connection:
             mock_conn = mock.MagicMock()
             mock_conn.extra_dejson = {
@@ -43,7 +43,7 @@ class TestMaxComputeHook:
             mock_get_connection.return_value = mock_conn
             self.hook = MaxComputeHook(maxcompute_conn_id=MOCK_MAXCOMPUTE_CONN_ID)
 
-    @mock.patch(MAXCOMPUTE_HOOK_MODULE.format("MaxComputeHook.get_client"))
+    @mock.patch(MAXCOMPUTE_HOOK_MODULE.format("get_client"))
     def test_run_sql(self, mock_get_client):
         mock_instance = mock.MagicMock()
         mock_client = mock.MagicMock()
@@ -80,7 +80,7 @@ class TestMaxComputeHook:
             quota_name=quota_name,
         )
 
-    @mock.patch(MAXCOMPUTE_HOOK_MODULE.format("MaxComputeHook.get_client"))
+    @mock.patch(MAXCOMPUTE_HOOK_MODULE.format("get_client"))
     def test_get_instance(self, mock_get_client):
         mock_client = mock.MagicMock()
         mock_client.exist_instance.return_value = True
@@ -102,7 +102,7 @@ class TestMaxComputeHook:
 
         assert instance == mock_instance
 
-    @mock.patch(MAXCOMPUTE_HOOK_MODULE.format("MaxComputeHook.get_client"))
+    @mock.patch(MAXCOMPUTE_HOOK_MODULE.format("get_client"))
     def test_stop_instance_success(self, mock_get_client):
         mock_client = mock.MagicMock()
         mock_get_client.return_value = mock_client

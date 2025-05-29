@@ -46,19 +46,16 @@ def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..
         kwargs["project"] = kwargs.get("project", self.project)
         kwargs["endpoint"] = kwargs.get("endpoint", self.endpoint)
 
-        if not kwargs["project"]:
-            raise MaxComputeConfigurationException(
-                "The project must be passed either as "
-                "keyword parameter or as extra "
-                "in MaxCompute connection definition. Both are not set!"
-            )
+        required_args = ("project", "endpoint")
+        for arg_name in required_args:
+            kwargs[arg_name] = kwargs.get(arg_name, getattr(self, arg_name))
+            if not kwargs[arg_name]:
+                raise MaxComputeConfigurationException(
+                    f'"{arg_name}" must be passed either as '
+                    "keyword parameter or as extra "
+                    "in the MaxCompute connection definition. Both are not set!"
+                )
 
-        if not kwargs["endpoint"]:
-            raise MaxComputeConfigurationException(
-                "The endpoint must be passed either as "
-                "keyword parameter or as extra "
-                "in MaxCompute connection definition. Both are not set!"
-            )
         return func(self, **kwargs)
 
     return inner_wrapper
@@ -76,7 +73,7 @@ class MaxComputeHook(AlibabaBaseHook):
     conn_type = "maxcompute"
     hook_name = "MaxCompute"
 
-    def __init__(self, maxcompute_conn_id="maxcompute_default", **kwargs) -> None:
+    def __init__(self, maxcompute_conn_id: str = "maxcompute_default", **kwargs) -> None:
         self.maxcompute_conn_id = maxcompute_conn_id
         super().__init__(alibabacloud_conn_id=maxcompute_conn_id, **kwargs)
 
