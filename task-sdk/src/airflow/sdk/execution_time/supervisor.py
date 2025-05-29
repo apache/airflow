@@ -130,6 +130,7 @@ HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeo
 MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
+SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout")
 
 SERVER_TERMINATED = "SERVER_TERMINATED"
 
@@ -357,6 +358,13 @@ def _fork_main(
             sys.stderr.flush()
         with suppress(ValueError, OSError):
             last_chance_stderr.flush()
+
+        # Explicitly close the child-end of our supervisor sockets so
+        # the parent sees EOF on both "requests" and "logs" channels.
+        with suppress(OSError):
+            os.close(log_fd)
+        with suppress(OSError):
+            os.close(child_stdin.fileno())
         os._exit(n)
 
     if hasattr(atexit, "_clear"):
@@ -429,6 +437,8 @@ class WatchedSubprocess:
 
     _num_open_sockets: int = 4
     _exit_code: int | None = attrs.field(default=None, init=False)
+    _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
+    _fd_to_socket_type: dict[int, str] = attrs.field(factory=dict, init=False)
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector, repr=False)
 
@@ -512,6 +522,14 @@ class WatchedSubprocess:
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
+
+        # Track socket types for debugging
+        self._fd_to_socket_type = {
+            stdout.fileno(): "stdout",
+            stderr.fileno(): "stderr",
+            requests.fileno(): "requests",
+            logs.fileno(): "logs",
+        }
 
         target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
         if self.subprocess_logs_to_stdout:
@@ -598,6 +616,28 @@ class WatchedSubprocess:
                 # else we get unclosed socket warnings, and likely leaking FDs too
                 sock._sock.close()
             sock.close()
+
+    def _cleanup_open_sockets(self):
+        """Force-close any sockets that never reported EOF."""
+        # In extremely busy environments the selector can fail to deliver a
+        # final read event before the subprocess exits. Without closing these
+        # sockets the supervisor would wait forever thinking they are still
+        # active. This cleanup ensures we always release resources and exit.
+        stuck_sockets = []
+        for key in list(self.selector.get_map().values()):
+            socket_type = self._fd_to_socket_type.get(key.fd, f"unknown-{key.fd}")
+            stuck_sockets.append(f"{socket_type}({key.fd})")
+            with suppress(Exception):
+                self.selector.unregister(key.fileobj)
+            with suppress(Exception):
+                key.fileobj.close()  # type: ignore[union-attr]
+
+        if stuck_sockets:
+            log.warning("Force-closed stuck sockets", pid=self.pid, sockets=stuck_sockets)
+
+        self.selector.close()
+        self._close_unused_sockets(self.stdin)
+        self._num_open_sockets = 0
 
     def kill(
         self,
@@ -732,6 +772,7 @@ class WatchedSubprocess:
             if raise_on_timeout:
                 raise
         else:
+            self._process_exit_monotonic = time.monotonic()
             self._close_unused_sockets(self.stdin)
             # Put a message in the viewable task logs
 
@@ -904,6 +945,18 @@ class ActivitySubprocess(WatchedSubprocess):
             # Block until events are ready or the timeout is reached
             # This listens for activity (e.g., subprocess output) on registered file objects
             alive = self._service_subprocess(max_wait_time=max_wait_time) is None
+
+            if self._exit_code is not None and self._num_open_sockets > 0:
+                if (
+                    self._process_exit_monotonic
+                    and time.monotonic() - self._process_exit_monotonic > SOCKET_CLEANUP_TIMEOUT
+                ):
+                    log.debug(
+                        "Forcefully closing remaining sockets",
+                        open_sockets=self._num_open_sockets,
+                        pid=self.pid,
+                    )
+                    self._cleanup_open_sockets()
 
             if alive:
                 # We don't need to heartbeat if the process has shutdown, as we are just finishing of reading the

@@ -774,6 +774,44 @@ class TestWatchedSubprocess:
         } in cap_structlog
         assert rc == -signal_to_raise
 
+    @pytest.mark.execution_timeout(3)
+    def test_cleanup_sockets_after_delay(self, monkeypatch, mocker, time_machine):
+        """Supervisor should close sockets if EOF events are missed."""
+
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.SOCKET_CLEANUP_TIMEOUT", 1.0)
+
+        mock_process = mocker.Mock(pid=12345)
+
+        time_machine.move_to(time.monotonic(), tick=False)
+
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=mock_process.pid,
+            stdin=mocker.MagicMock(),
+            client=mocker.MagicMock(),
+            process=mock_process,
+            requests_fd=-1,
+        )
+
+        proc.selector = mocker.MagicMock()
+        proc.selector.select.return_value = []
+
+        proc._exit_code = 0
+        proc._num_open_sockets = 1
+        proc._process_exit_monotonic = time.monotonic()
+
+        mocker.patch.object(
+            ActivitySubprocess,
+            "_cleanup_open_sockets",
+            side_effect=lambda: setattr(proc, "_num_open_sockets", 0),
+        )
+
+        time_machine.shift(2)
+
+        proc._monitor_subprocess()
+        assert proc._num_open_sockets == 0
+
 
 class TestWatchedSubprocessKill:
     @pytest.fixture
