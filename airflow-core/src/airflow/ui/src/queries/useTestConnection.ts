@@ -21,12 +21,6 @@ import type { Dispatch, SetStateAction } from "react";
 
 import { useConnectionServiceTestConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
 import type { ConnectionTestResponse } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
-
-type ConnectionTestError = {
-  body: { detail: string };
-  status: number;
-};
 
 export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
   const queryClient = useQueryClient();
@@ -35,21 +29,10 @@ export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean 
     await queryClient.invalidateQueries({
       queryKey: [useConnectionServiceGetConnectionsKey],
     });
-
-    toaster.create({
-      description: res.message,
-      title: `Test Connection (200 - ${res.status})`,
-      type: res.status ? "success" : "error",
-    });
     setConnected(res.status);
   };
 
-  const onError = (err: ConnectionTestError) => {
-    toaster.create({
-      description: err.body.detail,
-      title: `Test Connection (${err.status})`,
-      type: "error",
-    });
+  const onError = () => {
     setConnected(false);
   };
 
