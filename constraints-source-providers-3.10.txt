@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-29T11:19:27.590435
+# This constraints file was automatically generated on 2025-05-29T19:24:51.521487
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -231,7 +231,7 @@ google-cloud-automl==2.16.3
 google-cloud-batch==0.17.35
 google-cloud-bigquery-datatransfer==3.19.1
 google-cloud-bigquery-storage==2.32.0
-google-cloud-bigquery==3.33.0
+google-cloud-bigquery==3.34.0
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
@@ -406,7 +406,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.82.0
+openai==1.82.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 opencensus-context==0.1.3
