@@ -20,12 +20,13 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensorAsync
-import pytest
 
 from system.openlineage.operator import OpenLineageTestOperator
 
