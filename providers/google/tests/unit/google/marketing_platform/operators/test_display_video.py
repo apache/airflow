@@ -26,7 +26,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateQueryOperator,
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,

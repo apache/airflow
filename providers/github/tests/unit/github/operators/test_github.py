@@ -23,7 +23,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.github.operators.github import GithubOperator
 from airflow.utils import db, timezone
 
