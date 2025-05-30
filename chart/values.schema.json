@@ -3181,6 +3181,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable readiness probe",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "initialDelaySeconds": {
                             "description": "Number of seconds after the container has started before liveness probes are initiated.",
                             "type": "integer",
@@ -3222,6 +3227,11 @@
                     "default": {},
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable readiness probe",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "initialDelaySeconds": {
                             "description": "Number of seconds after the container has started before readiness probes are initiated.",
                             "type": "integer",
@@ -7856,6 +7866,11 @@
                     "x-docsSection": "PgBouncer",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable PgBouncer metrics exporter sidecar.",
+                            "type": "boolean",
+                            "default": false
+                        },
                         "resources": {
                             "description": "Resources for the PgBouncer metric exporter.",
                             "type": "object",
@@ -12678,6 +12693,11 @@
                     "default": {},
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                        "description": "Enable liveness probe for log groomer sidecar.",
+                        "type": "boolean",
+                        "default": false
+                    },
                         "exec": {
                             "description": "Exec specifies the action to take.",
                             "type": "object",
@@ -12719,6 +12739,11 @@
                     "default": {},
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                        "description": "Enable readiness probe for log groomer sidecar.",
+                        "type": "boolean",
+                        "default": false
+                        },
                         "exec": {
                             "description": "Exec specifies the action to take.",
                             "type": "object",

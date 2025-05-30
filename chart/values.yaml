@@ -1041,6 +1041,30 @@ scheduler:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
     env: []
+    #  Liveness probe configuration for log groomer sidecar
+    livenessProbe:
+      enabled: false
+      # initialDelaySeconds: 10
+      # timeoutSeconds: 20
+      # failureThreshold: 5
+      # periodSeconds: 60
+      # exec:
+      #   command:
+      #     - sh
+      #     - -c
+      #     - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
+    
+    readinessProbe:
+      enabled: false
+      # initialDelaySeconds: 10
+      # timeoutSeconds: 20
+      # failureThreshold: 5
+      # periodSeconds: 60
+      # exec:
+      #   command:
+      #     - sh
+      #     - -c
+      #     - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1620,12 +1644,20 @@ triggerer:
   # If the triggerer stops heartbeating for 5 minutes (5*60s) kill the
   # triggerer and let Kubernetes restart it
   livenessProbe:
+    enabled: false
     initialDelaySeconds: 10
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
     command: ~
 
+  readinessProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2326,6 +2358,7 @@ pgbouncer:
         command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
 
   metricsExporterSidecar:
+    enabled: true
     resources: {}
     #  limits:
     #   cpu: 100m
