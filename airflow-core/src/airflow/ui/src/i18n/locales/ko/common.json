@@ -31,6 +31,7 @@
     "home": "홈",
     "plugins": "플러그인"
   },
+  "noItemsFound": "{{modelName}} 을(를) 찾을 수 없음",
   "pools": {
     "deferred": "연기됨",
     "open": "열림",
