@@ -273,13 +273,13 @@ spec:
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
           {{- end }}
           # Add livenessProbe
-          {{- if .Values.scheduler.logGroomerSidecar.livenessProbe.enabled }}
+          {{- if and .Values.scheduler.logGroomerSidecar.livenessProbe .Values.scheduler.logGroomerSidecar.livenessProbe.enabled }}
           livenessProbe:
           {{- omit .Values.scheduler.logGroomerSidecar.livenessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
 
           # Add readinessProbe
-          {{- if .Values.scheduler.logGroomerSidecar.readinessProbe.enabled }}
+          {{- if and .Values.scheduler.logGroomerSidecar.readinessProbe .Values.scheduler.logGroomerSidecar.readinessProbe.enabled }}
           readinessProbe:
           {{- omit .Values.scheduler.logGroomerSidecar.readinessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
