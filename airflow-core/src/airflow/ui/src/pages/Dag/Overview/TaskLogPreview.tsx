@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -34,11 +35,13 @@ export const TaskLogPreview = ({
   readonly taskInstance: TaskInstanceResponse;
   readonly wrap: boolean;
 }) => {
+  const { t: translate } = useTranslation();
   const { data, error, isLoading } = useLogs(
     {
       dagId: taskInstance.dag_id,
       logLevelFilters: ["error", "critical"],
       taskInstance,
+      translate,
       tryNumber: taskInstance.try_number,
     },
     {
