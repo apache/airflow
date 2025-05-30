@@ -61,5 +61,5 @@ export const MOCK_DAG = {
 };
 
 export const handlers: Array<HttpHandler> = [
-  http.get("/api/v2/dags/tutorial_taskflow_api/details", () => HttpResponse.json(MOCK_DAG)),
+  http.get("/ui/dags/tutorial_taskflow_api/details", () => HttpResponse.json(MOCK_DAG)),
 ];
