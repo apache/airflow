@@ -32,6 +32,7 @@ from shutil import copyfile
 from time import time
 from typing import Any, NamedTuple
 
+import requests
 from packaging.version import Version, parse
 from rich.syntax import Syntax
 
@@ -715,6 +716,43 @@ def _update_commits_rst(
     )
 
 
+def _is_test_only_changes(pr_number: str, github_token: str | None = None) -> bool:
+    """
+    Check if a PR contains only test-related changes by querying GitHub API.
+    Only considers files in airflow/providers/{provider_name}/tests as test files.
+
+    :param pr_number: The PR number to check
+    :param github_token: GitHub token to use for authentication
+    :return: True if changes are only in test files, False otherwise
+    """
+    from urllib.parse import urljoin
+
+    if not pr_number:
+        return False
+
+    base_url = "https://api.github.com/repos/apache/airflow"
+    pr_files_url = f"/pulls/{pr_number}/files"
+
+    headers = {"Accept": "application/vnd.github.v3.raw"}
+    if os.environ.get("GITHUB_TOKEN"):
+        headers["Authorization"] = f"Bearer {github_token}"
+
+    try:
+        response = requests.get(urljoin(base_url, pr_files_url), headers=headers)
+        response.raise_for_status()
+        files = response.json()
+
+        # check if file is in a provider's test directory
+        for file in files:
+            file_path = file["filename"]
+            if not re.match(r"airflow/providers/[^/]+/tests/", file_path):
+                return False
+        return True
+    except (requests.RequestException, KeyError, ValueError):
+        # if we can't check the PR, assume it's not test-only
+        return False
+
+
 def update_release_notes(
     provider_id: str,
     reapply_templates_only: bool,
@@ -722,6 +760,7 @@ def update_release_notes(
     regenerate_missing_docs: bool,
     non_interactive: bool,
     only_min_version_update: bool,
+    github_token: str | None = None,
 ) -> tuple[bool, bool, bool]:
     """Updates generated files.
 
@@ -732,6 +771,8 @@ def update_release_notes(
     :param base_branch: base branch to check changes in apache remote for changes
     :param regenerate_missing_docs: whether to regenerate missing docs
     :param non_interactive: run in non-interactive mode (useful for CI)
+    :param only_min_version_update: whether to only update min version
+    :param github_token: GitHub token to use for authentication
     :return: tuple of three bools: (with_breaking_change, maybe_with_new_features, with_min_airflow_version_bump)
     """
     proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
@@ -781,12 +822,21 @@ def update_release_notes(
                 formatted_message = format_message_for_classification(
                     list_of_list_of_changes[0][table_iter].message_without_backticks
                 )
-                get_console().print(
-                    f"[green]Define the type of change for "
-                    f"`{formatted_message}`"
-                    f" by referring to the above table[/]"
-                )
-                type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+                change = list_of_list_of_changes[0][table_iter]
+
+                if change.pr and _is_test_only_changes(change.pr, github_token):
+                    get_console().print(
+                        f"[green]Automatically classifying change as SKIPPED since it only contains test changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.SKIP
+                else:
+                    get_console().print(
+                        f"[green]Define the type of change for "
+                        f"`{formatted_message}`"
+                        f" by referring to the above table[/]"
+                    )
+                    type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
 
                 if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
                     with_min_airflow_version_bump = True

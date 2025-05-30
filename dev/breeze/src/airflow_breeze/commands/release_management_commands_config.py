@@ -259,6 +259,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-git-fetch",
                 "--skip-changelog",
                 "--skip-readme",
+                "--github-token",
             ],
         }
     ],
