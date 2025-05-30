@@ -1,0 +1,38 @@
+{
+  "backfill": {
+    "affectedMultiple": "{{count}} Läufe werden ausgelöst.",
+    "affectedNone": "Keine Läufe entsprechend en Kriterien.",
+    "affectedOne": "1 Lauf wird ausgelöst.",
+    "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
+    "dateRange": "Datumsbereich",
+    "dateRangeFrom": "Von",
+    "dateRangeTo": "Bis",
+    "errorStartDateBeforeEndDate": "Das Startdatum muss vor dem Enddatum liegen.",
+    "maxRuns": "Anzahl aktiver paralleler Läufe",
+    "reprocessBehavior": "Aufffüll-Modus",
+    "run": "Auffüllung starten",
+    "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten"
+  },
+  "banner": {
+    "backfillInProgress": "Auffüllung läuft",
+    "cancel": "Auffüllung abbrechen",
+    "pause": "Auffüllung pausieren",
+    "unpause": "Auffüllung weiterführen"
+  },
+  "flexibleForm": {
+    "placeholder": "Wählen Sie einen Wert",
+    "placeholderArray": "Fügen Sie einen Eintrag pro Zeile um eine Liste zu erzeugen",
+    "placeholderExamples": "Tippen Sie ein paar Buchstaben für Vorschläge",
+    "placeholderMulti": "Wählen Sie einen oder mehrere Werte",
+    "validationErrorArrayNotArray": "Die Daten sind keine Liste.",
+    "validationErrorArrayNotNumbers": "Alle Elemente in der Liste müssen numerisch sein.",
+    "validationErrorArrayNotObject": "Alle Elemente in der Liste müssen Objekte (Dictionary) sein.",
+    "validationErrorRequired": "Dieses Feld ist ein Pflichtfeld und muss gefüllt werden"
+  },
+  "reparseDag": "Dag neu parsen",
+  "sortedAscending": "aufsteigend sortier",
+  "sortedDescending": "absteigend sortier",
+  "sortedUnsorted": "unsortiert",
+  "toggleCardView": "Kachelansicht anzeigen",
+  "toggleTableView": "Tabellenansicht anzeigen"
+}
