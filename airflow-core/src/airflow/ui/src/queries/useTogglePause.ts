@@ -22,7 +22,7 @@ import {
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
   UseDagServiceGetDagKeyFn,
-  useDagServiceGetDagsKey,
+  useDagServiceGetDagsUiKey,
   useDagServicePatchDag,
   useDagServiceRecentDagRunsKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
@@ -33,7 +33,7 @@ export const useTogglePause = ({ dagId }: { dagId: string }) => {
 
   const onSuccess = async () => {
     const queryKeys = [
-      [useDagServiceGetDagsKey],
+      [useDagServiceGetDagsUiKey],
       [useDagServiceRecentDagRunsKey],
       UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
       UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),

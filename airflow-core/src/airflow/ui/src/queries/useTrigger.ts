@@ -22,7 +22,7 @@ import { useState } from "react";
 import {
   UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
-  useDagServiceGetDagsKey,
+  useDagServiceGetDagsUiKey,
   useDagServiceRecentDagRunsKey,
   UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
@@ -36,7 +36,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
   const onSuccess = async () => {
     const queryKeys = [
-      [useDagServiceGetDagsKey],
+      [useDagServiceGetDagsUiKey],
       [useDagServiceRecentDagRunsKey],
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
