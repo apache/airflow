@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.bases.decorator import _TaskDecorator
 from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
 from airflow.sdk.exceptions import AirflowRuntimeError
 
@@ -109,7 +110,12 @@ class AssetDefinition(Asset):
 
     def __attrs_post_init__(self) -> None:
         with self._source.create_dag(default_dag_id=self.name):
-            _AssetMainOperator.from_definition(self)
+            if isinstance(self._function, _TaskDecorator):
+                if "outlets" not in self._function.kwargs:
+                    self._function.kwargs["outlets"] = [v for _, v in self.iter_assets()]
+                self._function()
+            else:
+                _AssetMainOperator.from_definition(self)
 
 
 @attrs.define(kw_only=True)
@@ -129,7 +135,12 @@ class MultiAssetDefinition(BaseAsset):
 
     def __attrs_post_init__(self) -> None:
         with self._source.create_dag(default_dag_id=self._function.__name__):
-            _AssetMainOperator.from_definition(self)
+            if isinstance(self._function, _TaskDecorator):
+                if "outlets" not in self._function.kwargs:
+                    self._function.kwargs["outlets"] = [v for _, v in self.iter_assets()]
+                self._function()
+            else:
+                _AssetMainOperator.from_definition(self)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         for o in self._source.outlets:
