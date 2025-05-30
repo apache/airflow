@@ -336,7 +336,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze build-task-sdk-docs": [
         {
-            "name":  "Build Task SDK docs.",
+            "name": "Build Task SDK docs.",
             "options": ["--verbose"],
         },
     ],

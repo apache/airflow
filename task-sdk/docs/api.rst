@@ -69,7 +69,7 @@ Assets
 Everything else
 ---------------
 
-.. autoapi_module:: airflow.sdk
+.. autoapi:: airflow.sdk
   :members:
   :exclude-members: BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
   :undoc-members:
