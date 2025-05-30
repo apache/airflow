@@ -138,19 +138,19 @@ def test_timedelta_sensor_deferrable_run_after_vs_interval(run_after, interval_e
             deferrable=True,  # <-- the feature under test
         )
 
-        dr = dag.create_dagrun(
-            run_id="abcrhroceuh",
-            run_type=DagRunType.MANUAL,
-            state=None,
-            **kwargs,
-        )
-        context.update(dag_run=dr)
+    dr = dag.create_dagrun(
+        run_id="abcrhroceuh",
+        run_type=DagRunType.MANUAL,
+        state=None,
+        **kwargs,
+    )
+    context.update(dag_run=dr)
 
-        expected_base = interval_end or run_after
-        expected_fire_time = expected_base + delta
+    expected_base = interval_end or run_after
+    expected_fire_time = expected_base + delta
 
-        with pytest.raises(TaskDeferred) as td:
-            sensor.execute(context)
+    with pytest.raises(TaskDeferred) as td:
+        sensor.execute(context)
 
     # The sensor should defer once with a DateTimeTrigger
     trigger = td.value.trigger
@@ -218,19 +218,12 @@ class TestTimeDeltaSensorAsync:
         if interval_end:
             context["data_interval_end"] = interval_end
         with dag_maker() as dag:
-            kwargs = {}
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.utils.types import DagRunTriggeredByType
-        context = {}
-        if interval_end:
-            context["data_interval_end"] = interval_end
-        with dag_maker() as dag:
             ...
         kwargs = {}
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.types import DagRunTriggeredByType
 
-                kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
+            kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
 
         dr = dag.create_dagrun(
             run_id="abcrhroceuh",
