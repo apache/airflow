@@ -1,0 +1,89 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "timetable": {
+                            "dataset_condition": {
+                                "__type": "dataset_all",
+                                "objects": [
+                                    {
+                                        "__type": "dataset",
+                                        "uri": "s3://bucket/file.txt",
+                                        "extra": {
+                                            "some_extra": 123
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "schedule_interval": "Dataset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_list_single_asset_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "dataset_condition": {
+                                "__type": "dataset_all",
+                                "objects": [
+                                    {
+                                        "__type": "dataset",
+                                        "uri": "s3://bucket/file.txt",
+                                        "extra": {
+                                            "some_extra": 123
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "schedule_interval": "Dataset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_list_single_asset_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "dataset_condition": {
+                                "__type": "dataset_all",
+                                "objects": [
+                                    {
+                                        "__type": "dataset",
+                                        "uri": "s3://bucket/file.txt",
+                                        "extra": {
+                                            "some_extra": 123
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "schedule_interval": "Dataset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_list_single_asset_dag.do_nothing_task"
+        }
+    }
+]
