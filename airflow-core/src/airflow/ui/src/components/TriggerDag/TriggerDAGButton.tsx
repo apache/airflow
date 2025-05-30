@@ -38,11 +38,11 @@ const TriggerDAGButton: React.FC<Props> = ({ dag, withText = true }) => {
   return (
     <Box>
       <ActionButton
-        actionName={translate("actions.triggerDag")}
+        actionName={translate("dagActions.trigger.triggerDag")}
         colorPalette="blue"
         icon={<FiPlay />}
         onClick={onOpen}
-        text={translate("actions.trigger")}
+        text={translate("dagActions.trigger.button")}
         variant="solid"
         withText={withText}
       />

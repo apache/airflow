@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -31,6 +32,7 @@ type DeleteTaskInstanceButtonProps = {
 
 const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskInstanceButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation();
 
   const { isPending, mutate: deleteTaskInstance } = useDeleteTaskInstance({
     dagId: taskInstance.dag_id,
@@ -45,11 +47,11 @@ const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskI
   return (
     <>
       <ActionButton
-        actionName="Delete Task Instance"
+        actionName={translate("dags:runAndTaskActions.delete.button", { type: "Task Instance" })}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text="Delete Task Instance"
+        text={translate("dags:runAndTaskActions.delete.button", { type: "Task Instance" })}
         variant="solid"
         withText={withText}
       />
@@ -66,9 +68,12 @@ const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskI
           });
         }}
         open={open}
-        resourceName={taskInstance.task_id}
-        title="Delete Task Instance"
-        warningText="This will remove all metadata related to the Task Instance."
+        resourceName={translate("dags:runAndTaskActions.delete.dialog.resourceName", {
+          id: taskInstance.task_id,
+          type: "Task Instance",
+        })}
+        title={translate("dags:runAndTaskActions.delete.dialog.title", { type: "Task Instance" })}
+        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", { type: "Task Instance" })}
       />
     </>
   );
