@@ -13,6 +13,8 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
+  "dag_one": "Dag",
+  "dag_other": "Dags",
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "defaultToGraphView": "Standaard grafiekweergave",
@@ -23,13 +25,24 @@
     "restApiReference": "REST API referentie"
   },
   "logout": "Uitloggen",
+  "logoutConfirmation": "Je staat op het punt om uit te loggen uit de applicatie.",
+  "modal": {
+    "cancel": "Annuleer",
+    "confirm": "Bevestig",
+    "delete": {
+      "button": "Verwijder",
+      "confirmation": "Weet je zeker dat je {{resourceName}} wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden."
+    }
+  },
   "nav": {
     "admin": "Beheer",
     "assets": "Assets",
     "browse": "Verken",
+    "dags": "Dags",
     "docs": "Documentatie",
     "home": "Home",
-    "plugins": "Plugins"
+    "plugins": "Plugins",
+    "security": "Beveiliging"
   },
   "pools": {
     "deferred": "Uitgesteld",
@@ -39,6 +52,13 @@
     "queued": "Wachtend",
     "running": "Lopend",
     "scheduled": "Gepland"
+  },
+  "security": {
+    "actions": "Acties",
+    "permissions": "Permissies",
+    "resources": "Resources",
+    "roles": "Rollen",
+    "users": "Gebruikers"
   },
   "selectLanguage": "Selecteer taal",
   "states": {
@@ -58,6 +78,21 @@
   },
   "switchToDarkMode": "Schakel over naar donkere modus",
   "switchToLightMode": "Schakel over naar lichte modus",
+  "table": {
+    "filterByTag": "Filter Dags op label",
+    "filterColumns": "Filter tabel kolommen",
+    "filters": {
+      "filter_one": "filter",
+      "filter_other": "filters",
+      "reset": "Reset"
+    },
+    "noTagsFound": "Geen labels gevonden",
+    "tagMode": {
+      "all": "All",
+      "any": "Any"
+    },
+    "tagPlaceholder": "Filter op label"
+  },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
@@ -68,6 +103,12 @@
     "pastWeek": "Laatste week"
   },
   "timezone": "Tijdzone",
+  "timezoneModal": {
+    "current-timezone": "Huidige tijd in",
+    "placeholder": "Selecteer een tijdzone",
+    "title": "Selecteer tijdzone",
+    "utc": "UTC (Gecoördineerde wereldtijd)"
+  },
   "triggered": "Triggered",
   "user": "Gebruiker"
 }
