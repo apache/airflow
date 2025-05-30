@@ -44,6 +44,7 @@
     "plugins": "Plugins",
     "security": "Security"
   },
+  "noItemsFound": "No {{modelName}} found",
   "pools": {
     "deferred": "Deferred",
     "open": "Open",
