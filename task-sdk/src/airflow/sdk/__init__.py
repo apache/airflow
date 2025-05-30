@@ -38,6 +38,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "SecretCache",
     "TaskGroup",
     "Variable",
     "XComArg",
@@ -76,6 +77,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
+    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.io.path import ObjectStoragePath
 
 __lazy_imports: dict[str, str] = {

@@ -51,6 +51,7 @@ from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
+from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
 
 __all__ = [
@@ -73,6 +74,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "SecretCache",
     "TaskGroup",
     "Variable",
     "XComArg",
