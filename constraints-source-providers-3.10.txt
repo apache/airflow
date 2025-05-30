@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-30T10:44:42.320268
+# This constraints file was automatically generated on 2025-05-30T20:16:54.612685
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -174,7 +174,7 @@ db-dtypes==1.4.3
 debugpy==1.8.14
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==1.0.0
+deltalake==1.0.1
 diagrams==0.24.4
 dill==0.3.1.1
 distlib==0.3.9
