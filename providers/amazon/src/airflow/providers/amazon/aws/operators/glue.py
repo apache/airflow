@@ -313,7 +313,6 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
         description: str = "AWS Glue Data Quality Rule Set With Airflow",
         update_rule_set: bool = False,
         data_quality_ruleset_kwargs: dict | None = None,
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -322,7 +321,6 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
         self.description = description
         self.update_rule_set = update_rule_set
         self.data_quality_ruleset_kwargs = data_quality_ruleset_kwargs or {}
-        self.aws_conn_id = aws_conn_id
 
     def validate_inputs(self) -> None:
         if not self.ruleset.startswith("Rules") or not self.ruleset.endswith("]"):
@@ -421,7 +419,6 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -437,7 +434,6 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        self.aws_conn_id = aws_conn_id
 
     def validate_inputs(self) -> None:
         glue_table = self.datasource.get("GlueTable", {})
@@ -584,7 +580,6 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -598,7 +593,6 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> str:
         glue_table = self.datasource.get("GlueTable", {})

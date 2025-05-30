@@ -91,7 +91,6 @@ class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
         table_mappings: dict,
         migration_type: str = "full-load",
         create_task_kwargs: dict | None = None,
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -102,7 +101,6 @@ class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
         self.migration_type = migration_type
         self.table_mappings = table_mappings
         self.create_task_kwargs = create_task_kwargs or {}
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
         """
