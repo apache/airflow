@@ -799,11 +799,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Skip readme generation. This is used in pre-commit that updates build-files only.",
 )
 @option_verbose
-@click.option(
-    "--github-token",
-    help="The token to use to access GitHub API",
-    envvar="GITHUB_TOKEN",
-)
 def prepare_provider_documentation(
     base_branch: str,
     github_repository: str,
@@ -816,7 +811,6 @@ def prepare_provider_documentation(
     skip_git_fetch: bool,
     skip_changelog: bool,
     skip_readme: bool,
-    github_token: str | None,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -869,7 +863,6 @@ def prepare_provider_documentation(
                             regenerate_missing_docs=reapply_templates_only,
                             non_interactive=non_interactive,
                             only_min_version_update=only_min_version_update,
-                            github_token=github_token,
                         )
                     )
                 update_min_airflow_version_and_build_files(
