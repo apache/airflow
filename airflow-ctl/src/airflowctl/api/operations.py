@@ -570,7 +570,7 @@ class JobsOperations(BaseOperations):
     """Job operations."""
 
     def list(
-        self, job_type: str, hostname: str, limit: int, is_alive: bool
+        self, job_type: str, hostname: str, is_alive: bool
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
         try:
