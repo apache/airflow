@@ -97,7 +97,7 @@ paths:
   /ui/dags/recent_dag_runs:
     get:
       tags:
-      - Dags
+      - DAG
       summary: Recent Dag Runs
       description: Get recent DAG runs.
       operationId: recent_dag_runs

@@ -106,6 +106,8 @@ import type {
   GetDagDetailsResponse,
   GetDagTagsData,
   GetDagTagsResponse,
+  RecentDagRunsData,
+  RecentDagRunsResponse,
   GetEventLogData,
   GetEventLogResponse,
   GetEventLogsData,
@@ -212,8 +214,6 @@ import type {
   LogoutData,
   LogoutResponse,
   GetAuthMenusResponse,
-  RecentDagRunsData,
-  RecentDagRunsResponse,
   GetDependenciesData,
   GetDependenciesResponse,
   HistoricalMetricsData,
@@ -1738,6 +1738,49 @@ export class DagService {
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Recent Dag Runs
+   * Get recent DAG runs.
+   * @param data The data for the request.
+   * @param data.dagRunsLimit
+   * @param data.limit
+   * @param data.offset
+   * @param data.tags
+   * @param data.tagsMatchMode
+   * @param data.owners
+   * @param data.dagIds
+   * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   * @param data.excludeStale
+   * @param data.paused
+   * @param data.lastDagRunState
+   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static recentDagRuns(data: RecentDagRunsData = {}): CancelablePromise<RecentDagRunsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dags/recent_dag_runs",
+      query: {
+        dag_runs_limit: data.dagRunsLimit,
+        limit: data.limit,
+        offset: data.offset,
+        tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
+        owners: data.owners,
+        dag_ids: data.dagIds,
+        dag_id_pattern: data.dagIdPattern,
+        dag_display_name_pattern: data.dagDisplayNamePattern,
+        exclude_stale: data.excludeStale,
+        paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
+      },
+      errors: {
         422: "Validation Error",
       },
     });
@@ -3521,51 +3564,6 @@ export class AuthLinksService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/auth/menus",
-    });
-  }
-}
-
-export class DagsService {
-  /**
-   * Recent Dag Runs
-   * Get recent DAG runs.
-   * @param data The data for the request.
-   * @param data.dagRunsLimit
-   * @param data.limit
-   * @param data.offset
-   * @param data.tags
-   * @param data.tagsMatchMode
-   * @param data.owners
-   * @param data.dagIds
-   * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   * @param data.excludeStale
-   * @param data.paused
-   * @param data.lastDagRunState
-   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static recentDagRuns(data: RecentDagRunsData = {}): CancelablePromise<RecentDagRunsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/ui/dags/recent_dag_runs",
-      query: {
-        dag_runs_limit: data.dagRunsLimit,
-        limit: data.limit,
-        offset: data.offset,
-        tags: data.tags,
-        tags_match_mode: data.tagsMatchMode,
-        owners: data.owners,
-        dag_ids: data.dagIds,
-        dag_id_pattern: data.dagIdPattern,
-        dag_display_name_pattern: data.dagDisplayNamePattern,
-        exclude_stale: data.excludeStale,
-        paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
-      },
-      errors: {
-        422: "Validation Error",
-      },
     });
   }
 }
