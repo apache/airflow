@@ -237,7 +237,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         For example, ``run(json=obj)`` is passed as
         ``aiohttp.ClientSession().get(json=obj)``.
         2XX or 3XX status codes
-    :param response_check: method that evaluates whether the API response 
+    :param response_check: method that evaluates whether the API response
         passes the conditions set by the user to trigger DAGs
     """
 
