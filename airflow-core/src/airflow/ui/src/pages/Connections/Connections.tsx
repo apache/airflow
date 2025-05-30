@@ -38,6 +38,7 @@ import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
 import EditConnectionButton from "./EditConnectionButton";
+import TestConnectionButton from "./TestConnectionButton";
 
 export type ConnectionBody = {
   conn_type: string;
@@ -104,6 +105,7 @@ const getColumns = ({
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
+        <TestConnectionButton connection={original} />
         <EditConnectionButton connection={original} disabled={selectedRows.size > 0} />
         <DeleteConnectionButton connectionId={original.connection_id} disabled={selectedRows.size > 0} />
       </Flex>
