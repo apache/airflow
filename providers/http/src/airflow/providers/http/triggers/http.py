@@ -30,6 +30,7 @@ from requests.structures import CaseInsensitiveDict
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.operator_helpers import determine_kwargs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
@@ -97,21 +98,9 @@ class HttpTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous http calls via a http hook."""
-        hook = HttpAsyncHook(
-            method=self.method,
-            http_conn_id=self.http_conn_id,
-            auth_type=self.auth_type,
-        )
+        hook = self._get_async_hook()
         try:
-            async with aiohttp.ClientSession() as session:
-                client_response = await hook.run(
-                    session=session,
-                    endpoint=self.endpoint,
-                    data=self.data,
-                    headers=self.headers,
-                    extra_options=self.extra_options,
-                )
-                response = await self._convert_response(client_response)
+            response = await self._get_response(hook)
             yield TriggerEvent(
                 {
                     "status": "success",
@@ -120,6 +109,25 @@ class HttpTrigger(BaseTrigger):
             )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
+
+    def _get_async_hook(self) -> HttpAsyncHook:
+        return HttpAsyncHook(
+            method=self.method,
+            http_conn_id=self.http_conn_id,
+            auth_type=self.auth_type,
+        )
+
+    async def _get_response(self, hook):
+        async with aiohttp.ClientSession() as session:
+            client_response = await hook.run(
+                session=session,
+                endpoint=self.endpoint,
+                data=self.data,
+                headers=self.headers,
+                extra_options=self.extra_options,
+            )
+            response = await self._convert_response(client_response)
+            return response
 
     @staticmethod
     async def _convert_response(client_response: ClientResponse) -> requests.Response:
@@ -217,9 +225,70 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     """
     HttpEventTrigger for event-based DAG scheduling when the API response satisfies the response check.
 
-    :param response_check: method that evaluates whether the API response passes the criteria set by the user to trigger DAGs
+    :param http_conn_id: http connection id that has the base
+        API url i.e https://www.google.com/ and optional authentication credentials. Default
+        headers can also be specified in the Extra field in json format.
+    :param auth_type: The auth type for the service
+    :param method: the API method to be called
+    :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
+    :param headers: Additional headers to be passed through as a dict.
+    :param data: Payload to be uploaded or request parameters.
+    :param extra_options: Additional kwargs to pass when creating a request.
+        For example, ``run(json=obj)`` is passed as
+        ``aiohttp.ClientSession().get(json=obj)``.
+        2XX or 3XX status codes
+    :param response_check: method that evaluates whether the API response 
+        passes the conditions set by the user to trigger DAGs
     """
 
-    def __init__(self, http_conn_id: str = "http_default", response_check: Callable[..., bool] | None = None):
-        super().__init__()
+    def __init__(
+        self,
+        http_conn_id: str = "http_default",
+        auth_type: Any = None,
+        method: str = "GET",
+        endpoint: str | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | None = None,
+        extra_options: dict[str, Any] | None = None,
+        response_check: Callable[..., bool] | None = None,
+    ):
+        super().__init__(http_conn_id, auth_type, method, endpoint, headers, data, extra_options)
         self.response_check = response_check
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize HttpEventTrigger arguments and classpath."""
+        return (
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            {
+                "http_conn_id": self.http_conn_id,
+                "method": self.method,
+                "auth_type": self.auth_type,
+                "endpoint": self.endpoint,
+                "headers": self.headers,
+                "data": self.data,
+                "extra_options": self.extra_options,
+                "response_check": self.response_check,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Make a series of asynchronous http calls via a http hook until the response passes the response check."""
+        hook = super()._get_async_hook()
+        try:
+            while True:
+                response = await super()._get_response(hook)
+                if not self.response_check or self._run_response_check(response):
+                    break
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                }
+            )
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+
+    def _run_response_check(self, response) -> bool:
+        """Run the response_check callable provided by the user."""
+        kwargs = determine_kwargs(self.response_check, [response], {})
+        return self.response_check(response, **kwargs)
