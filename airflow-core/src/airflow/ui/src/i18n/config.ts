@@ -23,6 +23,7 @@ import { initReactI18next } from "react-i18next";
 import deCommon from "./locales/de/common.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
+import enConnections from "./locales/en/connections.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
 import koCommon from "./locales/ko/common.json";
@@ -48,7 +49,7 @@ export const supportedLanguages = [
 ] as const;
 
 export const defaultLanguage = "en";
-export const namespaces = ["common", "dashboard", "dags"] as const;
+export const namespaces = ["common", "dashboard", "dags", "connections"] as const;
 
 const resources = {
   de: {
@@ -57,6 +58,7 @@ const resources = {
   },
   en: {
     common: enCommon,
+    connections: enConnections,
     dags: enDags,
     dashboard: enDashboard,
   },
