@@ -105,8 +105,9 @@ class TestFileTaskLogHandler:
         assert handler.name == FILE_TASK_HANDLER
 
     def test_file_task_handler_when_ti_value_is_invalid(self, dag_maker):
-        def task_callable(ti):
-            ti.log.info("test")
+        def task_callable():
+            logger = logging.getLogger(TASK_LOGGER)
+            logger.info("test")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None):
             task = PythonOperator(
@@ -149,8 +150,9 @@ class TestFileTaskLogHandler:
         os.remove(log_filename)
 
     def test_file_task_handler(self, dag_maker, session):
-        def task_callable(ti):
-            ti.log.info("test")
+        def task_callable():
+            logger = logging.getLogger(TASK_LOGGER)
+            logger.info("test")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None, session=session):
             PythonOperator(
