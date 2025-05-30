@@ -17,16 +17,14 @@
 
 from __future__ import annotations
 
-from cadwyn import HeadVersion, Version, VersionBundle
+from cadwyn import VersionChange, schema
 
-from airflow.api_fastapi.execution_api.versions.v2025_04_28 import AddRenderedMapIndexField
-from airflow.api_fastapi.execution_api.versions.v2025_05_20 import DowngradeUpstreamMapIndexes
-from airflow.api_fastapi.execution_api.versions.v2025_08_10 import AddDagVersionIdField
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 
-bundle = VersionBundle(
-    HeadVersion(),
-    Version("2025-08-10", AddDagVersionIdField),
-    Version("2025-05-20", DowngradeUpstreamMapIndexes),
-    Version("2025-04-28", AddRenderedMapIndexField),
-    Version("2025-04-11"),
-)
+
+class AddDagVersionIdField(VersionChange):
+    """Add the `dag_version_id` field to the TaskInstance model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("dag_version_id").didnt_exist,)
