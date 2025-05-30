@@ -2358,6 +2358,7 @@ pgbouncer:
         command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
 
   metricsExporterSidecar:
+    enabled: true
     resources: {}
     #  limits:
     #   cpu: 100m
