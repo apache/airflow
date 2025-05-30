@@ -226,10 +226,10 @@ class TestTimeDeltaSensorAsync:
                     from airflow.utils.types import DagRunTriggeredByType
 
                     kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
-                    delta = timedelta(seconds=1)
-                    op = TimeDeltaSensorAsync(task_id="wait_sensor_check", delta=delta, dag=dag)
-                    base_time = interval_end or run_after
-                    expected_time = base_time + delta
+                delta = timedelta(seconds=1)
+                op = TimeDeltaSensorAsync(task_id="wait_sensor_check", delta=delta, dag=dag)
+                base_time = interval_end or run_after
+                expected_time = base_time + delta
 
             dr = dag.create_dagrun(
                 run_id="abcrhroceuh",
