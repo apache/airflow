@@ -570,11 +570,11 @@ class JobsOperations(BaseOperations):
     """Job operations."""
 
     def list(
-        self, job_type: str, hostname: str, limit: int, is_alive: bool
+        self, job_type: str, hostname: str, is_alive: bool
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
         try:
-            params = {"limit": limit, "job_type": job_type, "hostname": hostname, "is_alive": is_alive}
+            params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
             self.response = self.client.get("jobs", params=params)  # type: ignore
             return JobCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
