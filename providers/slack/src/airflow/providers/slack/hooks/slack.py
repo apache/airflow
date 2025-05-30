@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import time
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
@@ -28,7 +29,7 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from typing_extensions import NotRequired
 
-from airflow.exceptions import AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
 from airflow.utils.helpers import exactly_one
@@ -291,7 +292,7 @@ class SlackHook(BaseHook):
         """
         next_cursor = None
         while not (channel_id := self._channels_mapping.get(channel_name)):
-            res = self.client.conversations_list(cursor=next_cursor, types="public_channel,private_channel")
+            res = self._call_conversations_list(cursor=next_cursor)
             if TYPE_CHECKING:
                 # Slack SDK response type too broad, this should make mypy happy
                 assert isinstance(res.data, dict)
@@ -307,6 +308,26 @@ class SlackHook(BaseHook):
             msg = f"Unable to find slack channel with name: {channel_name!r}"
             raise LookupError(msg)
         return channel_id
+
+    def _call_conversations_list(self, cursor=None):
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                return self.client.conversations_list(cursor=cursor, types="public_channel,private_channel")
+            except SlackApiError as e:
+                if e.response.status_code == 429 and attempt < max_retries - 1:
+                    retry_after = int(e.response.headers.get("Retry-After", 30))
+                    self.log.warning("header: %s", e.response.headers)
+                    self.log.warning(
+                        "Rate limit hit. Retrying in %s seconds. Attempt %s/%s",
+                        retry_after,
+                        attempt + 1,
+                        max_retries,
+                    )
+                    time.sleep(retry_after)
+                else:
+                    raise
+        raise AirflowException("Max retries reached for conversations.list")
 
     def test_connection(self):
         """
