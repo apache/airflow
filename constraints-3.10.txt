@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-29T19:31:51.808996
+# This constraints file was automatically generated on 2025-05-30T10:51:35.837333
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -340,7 +340,7 @@ google-api-python-client==2.170.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.2
-google-cloud-aiplatform==1.95.0
+google-cloud-aiplatform==1.95.1
 google-cloud-alloydb==0.4.6
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
@@ -360,7 +360,7 @@ google-cloud-dataform==0.6.2
 google-cloud-dataplex==2.10.2
 google-cloud-dataproc-metastore==1.18.2
 google-cloud-dataproc==5.18.1
-google-cloud-dlp==3.29.0
+google-cloud-dlp==3.30.0
 google-cloud-kms==3.5.1
 google-cloud-language==2.17.1
 google-cloud-logging==3.12.1
@@ -413,7 +413,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.32.2
+huggingface-hub==0.32.3
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -507,7 +507,7 @@ multidict==6.4.4
 mypy-boto3-appflow==1.38.0
 mypy-boto3-rds==1.38.20
 mypy-boto3-redshift-data==1.38.0
-mypy-boto3-s3==1.38.0
+mypy-boto3-s3==1.38.26
 mypy==1.9.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.3.0
@@ -671,7 +671,7 @@ rich==13.9.4
 rpds-py==0.25.1
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
-ruamel.yaml==0.18.11
+ruamel.yaml==0.18.12
 ruff==0.11.2
 s3fs==2025.5.1
 s3transfer==0.11.3
