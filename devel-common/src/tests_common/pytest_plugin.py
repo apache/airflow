@@ -146,6 +146,7 @@ os.environ["_IN_UNIT_TESTS"] = "true"
 
 _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_ROOT_PATH = (Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[3]).resolve()
+AIRFLOW_PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src"
 AIRFLOW_CORE_TESTS_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "tests"
 AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
@@ -156,17 +157,37 @@ AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
 )
-ALL_PROVIDER_YAML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
-ALL_PROVIDER_PYPROJECT_TOML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
-
 
 # Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
 # Breeze here as we want to do it quickly
+ALL_PYPROJECT_TOML_FILES = []
+
+
+def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
+    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
+    in_workspace = False
+    for line in pyproject_toml_content:
+        trimmed_line = line.strip()
+        if not in_workspace and trimmed_line.startswith("[tool.uv.workspace]"):
+            in_workspace = True
+        elif in_workspace:
+            if trimmed_line.startswith("#"):
+                continue
+            if trimmed_line.startswith('"'):
+                path = trimmed_line.split('"')[1]
+                ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
+                if trimmed_line.startswith('"providers/'):
+                    yield AIRFLOW_ROOT_PATH / path / "pyproject.toml"
+                    yield AIRFLOW_ROOT_PATH / path / "provider.yaml"
+            elif trimmed_line.startswith("]"):
+                break
+
+
 def _calculate_provider_deps_hash():
     import hashlib
 
     hasher = hashlib.sha256()
-    for file in sorted(itertools.chain(ALL_PROVIDER_PYPROJECT_TOML_FILES, ALL_PROVIDER_YAML_FILES)):
+    for file in sorted(get_all_provider_pyproject_toml_provider_yaml_files()):
         hasher.update(file.read_bytes())
     return hasher.hexdigest()
 
@@ -415,8 +436,17 @@ def initialize_airflow_tests(request):
             sys.exit(1)
 
 
+# for performance reasons, we do not want to rglob deprecation ignore files
+# because in MacOS in docker it takes a lot of time to rglob them
+# so we opt to hardcode the paths here
+DEPRECATIONS_IGNORE_FILES = [
+    AIRFLOW_CORE_TESTS_PATH / "deprecations_ignore.yml",
+    AIRFLOW_ROOT_PATH / "providers" / "google" / "tests" / "deprecations_ignore.yml",
+]
+
+
 def _find_all_deprecation_ignore_files() -> list[str]:
-    all_deprecation_ignore_files = AIRFLOW_ROOT_PATH.rglob("deprecations_ignore.yml")
+    all_deprecation_ignore_files = DEPRECATIONS_IGNORE_FILES.copy()
     return list(path.as_posix() for path in all_deprecation_ignore_files)
 
 
