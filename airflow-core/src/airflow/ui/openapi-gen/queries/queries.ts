@@ -37,6 +37,7 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  BulkBody_BulkTaskInstanceBody_,
   BulkBody_ConnectionBody_,
   BulkBody_PoolBody_,
   BulkBody_VariableBody_,
@@ -457,7 +458,7 @@ export const useBackfillServiceGetBackfill = <
     ...options,
   });
 /**
- * List Backfills
+ * List Backfills Ui
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
@@ -467,8 +468,8 @@ export const useBackfillServiceGetBackfill = <
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useBackfillServiceListBackfills1 = <
-  TData = Common.BackfillServiceListBackfills1DefaultResponse,
+export const useBackfillServiceListBackfillsUi = <
+  TData = Common.BackfillServiceListBackfillsUiDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -489,11 +490,11 @@ export const useBackfillServiceListBackfills1 = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
+    queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn(
       { active, dagId, limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () => BackfillService.listBackfills1({ active, dagId, limit, offset, orderBy }) as TData,
+    queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -3936,7 +3937,6 @@ export const useDagRunServicePatchDagRun = <
  * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
- * @param data.lastDagRunState
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -3952,7 +3952,6 @@ export const useDagServicePatchDags = <
       {
         dagIdPattern?: string;
         excludeStale?: boolean;
-        lastDagRunState?: DagRunState;
         limit?: number;
         offset?: number;
         owners?: string[];
@@ -3973,7 +3972,6 @@ export const useDagServicePatchDags = <
     {
       dagIdPattern?: string;
       excludeStale?: boolean;
-      lastDagRunState?: DagRunState;
       limit?: number;
       offset?: number;
       owners?: string[];
@@ -3988,7 +3986,6 @@ export const useDagServicePatchDags = <
     mutationFn: ({
       dagIdPattern,
       excludeStale,
-      lastDagRunState,
       limit,
       offset,
       owners,
@@ -4001,7 +3998,6 @@ export const useDagServicePatchDags = <
       DagService.patchDags({
         dagIdPattern,
         excludeStale,
-        lastDagRunState,
         limit,
         offset,
         owners,
@@ -4172,6 +4168,49 @@ export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <
         taskId,
         updateMask,
       }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Bulk Task Instances
+ * Bulk update, and delete task instances.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.requestBody
+ * @returns BulkResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceBulkTaskInstances = <
+  TData = Common.TaskInstanceServiceBulkTaskInstancesMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        requestBody: BulkBody_BulkTaskInstanceBody_;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      requestBody: BulkBody_BulkTaskInstanceBody_;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, requestBody }) =>
+      TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

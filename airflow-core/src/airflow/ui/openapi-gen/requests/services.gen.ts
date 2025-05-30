@@ -45,8 +45,8 @@ import type {
   CancelBackfillResponse,
   CreateBackfillDryRunData,
   CreateBackfillDryRunResponse,
-  ListBackfills1Data,
-  ListBackfills1Response,
+  ListBackfillsUiData,
+  ListBackfillsUiResponse,
   DeleteConnectionData,
   DeleteConnectionResponse,
   GetConnectionData,
@@ -134,6 +134,8 @@ import type {
   PatchTaskInstanceByMapIndexResponse,
   GetTaskInstancesData,
   GetTaskInstancesResponse,
+  BulkTaskInstancesData,
+  BulkTaskInstancesResponse,
   GetTaskInstancesBatchData,
   GetTaskInstancesBatchResponse,
   GetTaskInstanceTryDetailsData,
@@ -807,7 +809,7 @@ export class BackfillService {
   }
 
   /**
-   * List Backfills
+   * List Backfills Ui
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset
@@ -817,7 +819,7 @@ export class BackfillService {
    * @returns BackfillCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static listBackfills1(data: ListBackfills1Data = {}): CancelablePromise<ListBackfills1Response> {
+  public static listBackfillsUi(data: ListBackfillsUiData = {}): CancelablePromise<ListBackfillsUiResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/backfills",
@@ -1575,7 +1577,6 @@ export class DagService {
    * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.excludeStale
    * @param data.paused
-   * @param data.lastDagRunState
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1593,7 +1594,6 @@ export class DagService {
         dag_id_pattern: data.dagIdPattern,
         exclude_stale: data.excludeStale,
         paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
       },
       body: data.requestBody,
       mediaType: "application/json",
@@ -2332,6 +2332,34 @@ export class TaskInstanceService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Bulk Task Instances
+   * Bulk update, and delete task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.requestBody
+   * @returns BulkResponse Successful Response
+   * @throws ApiError
+   */
+  public static bulkTaskInstances(data: BulkTaskInstancesData): CancelablePromise<BulkTaskInstancesResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
