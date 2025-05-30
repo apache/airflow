@@ -8313,82 +8313,12 @@
                 "readinessProbe": {
                     "description": "Readiness probe configuration for Redis.",
                     "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "command": {
-                            "description": "Command for readinessProbe",
-                            "type": [
-                                "array",
-                                "null"
-                            ],
-                            "items": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ]
-                            }
-                        },
-                        "initialDelaySeconds": {
-                            "description": "Redis Readiness probe initial delay.",
-                            "type": "integer",
-                            "default": 10
-                        },
-                        "timeoutSeconds": {
-                            "description": "Redis Readiness probe timeout seconds.",
-                            "type": "integer",
-                            "default": 20
-                        },
-                        "failureThreshold": {
-                            "description": "Redis Readiness probe failure threshold.",
-                            "type": "integer",
-                            "default": 5
-                        },
-                        "periodSeconds": {
-                            "description": "Redis Readiness probe period seconds.",
-                            "type": "integer",
-                            "default": 60
-                        }
-                    }
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for Redis.",
                     "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "command": {
-                            "description": "Command for livenessProbe",
-                            "type": [
-                                "array",
-                                "null"
-                            ],
-                            "items": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ]
-                            }
-                        },
-                        "initialDelaySeconds": {
-                            "description": "Redis Liveness probe initial delay.",
-                            "type": "integer",
-                            "default": 10
-                        },
-                        "timeoutSeconds": {
-                            "description": "Redis Liveness probe timeout seconds.",
-                            "type": "integer",
-                            "default": 20
-                        },
-                        "failureThreshold": {
-                            "description": "Redis Liveness probe failure threshold.",
-                            "type": "integer",
-                            "default": 5
-                        },
-                        "periodSeconds": {
-                            "description": "Redis Liveness probe period seconds.",
-                            "type": "integer",
-                            "default": 60
-                        }
-                    }
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                 }
             }
         },
