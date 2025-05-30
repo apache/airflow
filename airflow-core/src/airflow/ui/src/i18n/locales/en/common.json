@@ -24,6 +24,12 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
+  "expression": {
+    "all": "All",
+    "and": "AND",
+    "any": "Any",
+    "or": "OR"
+  },
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
   "modal": {

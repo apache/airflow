@@ -20,6 +20,7 @@ import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text, Skeleton } from 
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
 import { Button } from "src/components/ui";
@@ -29,7 +30,6 @@ import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
-import { pluralize } from "src/utils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -47,6 +47,7 @@ const today = new Date().toISOString().slice(0, 16);
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
 
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
+  const { t: translate } = useTranslation("components");
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [unpause, setUnpause] = useState(true);
   const [formError, setFormError] = useState(false);
@@ -67,7 +68,6 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const values = useWatch<BackfillFormProps>({
     control,
   });
-
   const { data, isPending: isPendingDryRun } = useCreateBackfillDryRun({
     requestBody: {
       requestBody: {
@@ -81,9 +81,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       },
     },
   });
-
   const { mutate: togglePause } = useTogglePause({ dagId: dag.dag_id });
-
   const { createBackfill, dateValidationError, error, isPending } = useCreateBackfill({
     onSuccessConfirm: onClose,
   });
@@ -141,13 +139,17 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
 
   const inlineMessage = isPendingDryRun ? (
     <Skeleton height="20px" width="100px" />
+  ) : affectedTasks.total_entries > 1 ? (
+    <Text color="fg.success" fontSize="sm">
+      {translate("backfill.affectedOne")}
+    </Text>
   ) : affectedTasks.total_entries > 0 ? (
     <Text color="fg.success" fontSize="sm">
-      {pluralize("run", affectedTasks.total_entries)} will be triggered
+      {translate("backfill.affectedMultiple", { count: affectedTasks.total_entries })}
     </Text>
   ) : (
     <Text color="fg.error" fontSize="sm" fontWeight="medium">
-      No runs matching selected criteria.
+      {translate("backfill.affectedNone")}
     </Text>
   );
 
@@ -157,7 +159,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       <VStack alignItems="stretch" gap={2} pt={4}>
         <Box>
           <Text fontSize="md" fontWeight="semibold" mb={3}>
-            Date Range
+            {translate("backfill.dateRange")}
           </Text>
           <HStack alignItems="flex-start" w="full">
             <Controller
@@ -165,9 +167,9 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               name="from_date"
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
-                  <Field.Label>From</Field.Label>
+                  <Field.Label>{translate("backfill.dateRangeFrom")}</Field.Label>
                   <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
-                  <Field.ErrorText>Start Date must be before the End Date</Field.ErrorText>
+                  <Field.ErrorText>{translate("backfill.errorStartDateBeforeEndDate")}</Field.ErrorText>
                 </Field.Root>
               )}
             />
@@ -176,7 +178,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               name="to_date"
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
-                  <Field.Label>To</Field.Label>
+                  <Field.Label>{translate("backfill.dateRangeTo")}</Field.Label>
                   <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
                 </Field.Root>
               )}
@@ -196,7 +198,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               }}
             >
               <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
-                Reprocess Behaviour
+                {translate("backfill.reprocessBehavior")}
               </RadioCardLabel>
               <HStack>
                 {reprocessBehaviors.map((item) => (
@@ -226,7 +228,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 type="number"
                 width={24}
               />
-              <Flex>Max Active Runs</Flex>
+              <Flex>{translate("backfill.maxRuns")}</Flex>
             </HStack>
           )}
         />
@@ -236,7 +238,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           name="run_backwards"
           render={({ field }) => (
             <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange}>
-              Run Backwards
+              {translate("backfill.backwards")}
             </Checkbox>
           )}
         />
@@ -249,7 +251,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               onChange={() => setUnpause(!unpause)}
               wordBreak="break-all"
             >
-              Unpause {dag.dag_display_name} on trigger
+              {translate("backfill.unpause", { dag_display_name: dag.dag_display_name })}
             </Checkbox>
             <Spacer />
           </>
@@ -266,7 +268,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           <Spacer />
-          <Button onClick={() => void handleSubmit(onCancel)()}>Cancel</Button>
+          <Button onClick={() => void handleSubmit(onCancel)()}>{translate("common:modal.cancel")}</Button>
           <Button
             colorPalette="blue"
             disabled={
@@ -275,7 +277,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             loading={isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            Run Backfill
+            {translate("backfill.run")}
           </Button>
         </HStack>
       </Box>
