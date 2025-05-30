@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text, Skeleton } from "@chakra-ui/react";
+import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
@@ -37,6 +37,7 @@ import { ErrorAlert } from "../ErrorAlert";
 import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
+import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
@@ -137,21 +138,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     total_entries: 0,
   };
 
-  const inlineMessage = isPendingDryRun ? (
-    <Skeleton height="20px" width="100px" />
-  ) : affectedTasks.total_entries > 1 ? (
-    <Text color="fg.success" fontSize="sm">
-      {translate("backfill.affectedOne")}
-    </Text>
-  ) : affectedTasks.total_entries > 0 ? (
-    <Text color="fg.success" fontSize="sm">
-      {translate("backfill.affectedMultiple", { count: affectedTasks.total_entries })}
-    </Text>
-  ) : (
-    <Text color="fg.error" fontSize="sm" fontWeight="medium">
-      {translate("backfill.affectedNone")}
-    </Text>
-  );
+  const inlineMessage = getInlineMessage(isPendingDryRun, affectedTasks.total_entries, translate);
 
   return (
     <>
