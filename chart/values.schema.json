@@ -9173,12 +9173,12 @@
                         "livenessProbe": {
                             "description": "Liveness probe configuration for git sync container.",
                             "type": "object",
-                            "$ref": "#/definitions/LivenessProbe"
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                         },
                         "readinessProbe": {
                             "description": "Readiness probe configuration for git sync container.",
                             "type": "object",
-                            "$ref": "#/definitions/ReadinessProbe"
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                         },
                         "emptyDirConfig": {
                             "description": "Configuration for dags empty dir volume.",
@@ -12774,90 +12774,6 @@
                     "description": "Whether to retain the PVC when the StatefulSet is scaled.",
                     "type": "string",
                     "default": "Retain"
-                }
-            }
-        },
-        "LivenessProbe": {
-    "description": "Liveness probe configuration (successThreshold not allowed)",
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-        "initialDelaySeconds": {
-            "type": "integer",
-            "default": 10
-        },
-        "timeoutSeconds": {
-            "type": "integer", 
-            "default": 20
-        },
-        "failureThreshold": {
-            "type": "integer",
-            "default": 5
-        },
-        "periodSeconds": {
-            "type": "integer",
-            "default": 60
-        },
-        "exec": {
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "httpGet": {
-            "$ref": "#/definitions/io.k8s.api.core.v1.HTTPGetAction"
-        },
-        "tcpSocket": {
-            "$ref": "#/definitions/io.k8s.api.core.v1.TCPSocketAction"
-        }
-    }
-    },
-    "ReadinessProbe": {
-        "description": "Readiness probe configuration (successThreshold allowed)",
-        "type": "object", 
-        "additionalProperties": false,
-        "properties": {
-            "initialDelaySeconds": {
-                "type": "integer",
-                "default": 10
-            },
-            "timeoutSeconds": {
-                "type": "integer",
-                "default": 20
-            },
-            "failureThreshold": {
-                "type": "integer", 
-                "default": 5
-            },
-            "periodSeconds": {
-                "type": "integer",
-                "default": 60
-            },
-            "successThreshold": {
-                "type": "integer",
-                "default": 1
-            },
-            "exec": {
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "httpGet": {
-                "$ref": "#/definitions/io.k8s.api.core.v1.HTTPGetAction"
-            },
-            "tcpSocket": {
-                "$ref": "#/definitions/io.k8s.api.core.v1.TCPSocketAction"
                 }
             }
         }
