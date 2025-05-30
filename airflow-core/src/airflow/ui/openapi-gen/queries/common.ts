@@ -585,13 +585,7 @@ export const UseDagServiceGetDagsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
-    dagRunEndDateGte,
-    dagRunEndDateLte,
-    dagRunStartDateGte,
-    dagRunStartDateLte,
-    dagRunState,
     excludeStale,
-    lastDagRunState,
     limit,
     offset,
     orderBy,
@@ -602,13 +596,7 @@ export const UseDagServiceGetDagsKeyFn = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
-    dagRunEndDateGte?: string;
-    dagRunEndDateLte?: string;
-    dagRunStartDateGte?: string;
-    dagRunStartDateLte?: string;
-    dagRunState?: string[];
     excludeStale?: boolean;
-    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -624,13 +612,7 @@ export const UseDagServiceGetDagsKeyFn = (
     {
       dagDisplayNamePattern,
       dagIdPattern,
-      dagRunEndDateGte,
-      dagRunEndDateLte,
-      dagRunStartDateGte,
-      dagRunStartDateLte,
-      dagRunState,
       excludeStale,
-      lastDagRunState,
       limit,
       offset,
       orderBy,
@@ -736,6 +718,72 @@ export const UseDagServiceRecentDagRunsKeyFn = (
       lastDagRunState,
       limit,
       offset,
+      owners,
+      paused,
+      tags,
+      tagsMatchMode,
+    },
+  ]),
+];
+export type DagServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagsUi>>;
+export type DagServiceGetDagsUiQueryResult<
+  TData = DagServiceGetDagsUiDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagsUiKey = "DagServiceGetDagsUi";
+export const UseDagServiceGetDagsUiKeyFn = (
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
+    dagRunState,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    orderBy,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
+    dagRunState?: string[];
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagsUiKey,
+  ...(queryKey ?? [
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunEndDateGte,
+      dagRunEndDateLte,
+      dagRunStartDateGte,
+      dagRunStartDateLte,
+      dagRunState,
+      excludeStale,
+      lastDagRunState,
+      limit,
+      offset,
+      orderBy,
       owners,
       paused,
       tags,
