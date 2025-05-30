@@ -42,7 +42,6 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import Log
@@ -966,8 +965,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _execute(self) -> int | None:
         self.log.info("Starting the scheduler")
-
-        executor_class, _ = ExecutorLoader.import_default_executor_cls()
 
         reset_signals = self.register_signals()
         try:
