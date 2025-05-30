@@ -140,7 +140,7 @@ class StdBinaryStreamHandler(logging.StreamHandler):
 
 
 @cache
-def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True, enable_colors: bool = True):
+def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True, colored_console_log: bool = True):
     if enable_pretty_log:
         timestamper = structlog.processors.MaybeTimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f")
     else:
@@ -176,7 +176,7 @@ def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True, enabl
     )
 
     if enable_pretty_log:
-        if enable_colors:
+        if colored_console_log:
             rich_exc_formatter = structlog.dev.RichTracebackFormatter(
                 # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
                 # we ever need to change these then they should be configurable.
@@ -195,8 +195,10 @@ def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True, enabl
             # Create a console renderer without colors - use the same RichTracebackFormatter
             # but rely on ConsoleRenderer(colors=False) to disable colors
             rich_exc_formatter = structlog.dev.RichTracebackFormatter(
+                extra_lines=0,
+                max_frames=30,
+                indent_guides=False,
                 suppress=suppress,
-                show_locals=False,
             )
             console = structlog.dev.ConsoleRenderer(
                 colors=False,
@@ -264,24 +266,20 @@ def configure_logging(
     output: BinaryIO | TextIO | None = None,
     cache_logger_on_first_use: bool = True,
     sending_to_supervisor: bool = False,
-    enable_colors: bool | None = None,
+    colored_console_log: bool | None = None,
 ):
     """Set up struct logging and stdlib logging config."""
     if log_level == "DEFAULT":
         log_level = "INFO"
-        if "airflow.configuration" in sys.modules:
-            from airflow.configuration import conf
+        from airflow.configuration import conf
 
-            log_level = conf.get("logging", "logging_level", fallback="INFO")
+        log_level = conf.get("logging", "logging_level", fallback="INFO")
 
-    # If enable_colors is not explicitly set, read from configuration
-    if enable_colors is None:
-        if "airflow.configuration" in sys.modules:
-            from airflow.configuration import conf
+    # If colored_console_log is not explicitly set, read from configuration
+    if colored_console_log is None:
+        from airflow.configuration import conf
 
-            enable_colors = conf.getboolean("logging", "colored_console_log", fallback=True)
-        else:
-            enable_colors = True
+        colored_console_log = conf.getboolean("logging", "colored_console_log", fallback=True)
 
     lvl = structlog.stdlib.NAME_TO_LEVEL[log_level.lower()]
 
@@ -290,7 +288,7 @@ def configure_logging(
     else:
         formatter = "plain"
     processors, named = logging_processors(
-        enable_pretty_log, mask_secrets=not sending_to_supervisor, enable_colors=enable_colors
+        enable_pretty_log, mask_secrets=not sending_to_supervisor, colored_console_log=colored_console_log
     )
     timestamper = named["timestamper"]
 
