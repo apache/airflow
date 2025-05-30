@@ -1,11 +1,15 @@
 {
-  "actions": {
-    "delete": "Delete Dag",
-    "deleteDagWarning": "This will remove all metadata related to the DAG, including DAG Runs and Tasks.",
-    "trigger": "Trigger",
-    "triggerDag": "Trigger Dag"
-  },
   "assetSchedule": "{{count}} of {{total}} assets updated",
+  "dagActions": {
+    "delete": {
+      "button": "Delete Dag",
+      "warning": "This will remove all metadata related to the Dag, including Runs and Tasks."
+    },
+    "trigger": {
+      "button": "Trigger",
+      "triggerDag": "Trigger Dag"
+    }
+  },
   "filters": {
     "paused": {
       "active": "Active",
@@ -24,14 +28,84 @@
       "tags": "Tags"
     },
     "ownerLink": "Owner link for {{owner}}",
-    "runs": {
+    "searchPlaceholder": "Search Dags"
+  },
+  "runAndTaskActions": {
+    "clear": {
+      "button": "Clear {{type}}",
+      "buttonTooltip": "Press shift+c to clear",
+      "dialog": {
+        "affectedTasks": {
+          "columns": {
+            "mapIndex": "Map Index",
+            "runId": "Run ID",
+            "state": "State",
+            "taskId": "Task ID"
+          },
+          "noItemsFound": "No tasks found.",
+          "title": "Affected Tasks: {{count}}"
+        },
+        "confirm": "Confirm",
+        "note": {
+          "placeholder": "Add a note...",
+          "title": "Note"
+        },
+        "options": {
+          "downstream": "Downstream",
+          "existingTasks": "Clear existing tasks",
+          "future": "Future",
+          "onlyFailed": "Clear only failed tasks",
+          "past": "Past",
+          "queueNew": "Queue up new tasks",
+          "upstream": "Upstream"
+        },
+        "title": "Clear {{type}}"
+      }
+    },
+    "delete": {
+      "button": "Delete {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Delete {{type}}",
+        "warning": "This will remove all metadata related to the {{type}}."
+      },
+      "error": "Error deleting {{type}}",
+      "success": {
+        "description": "The {{type}} deletion request was successful.",
+        "title": "{{type}} Deleted Successfully"
+      }
+    },
+    "markAs": {
+      "button": "Mark {{type}} as...",
+      "buttonTooltip": {
+        "failed": "Press shift+f to mark as failed",
+        "success": "Press shift+s to mark as success"
+      },
+      "dialog": {
+        "confirm": "Confirm",
+        "options": {
+          "downstream": "Downstream",
+          "future": "Future",
+          "past": "Past",
+          "upstream": "Upstream"
+        },
+        "title": "Mark {{type}} as {{state}}"
+      }
+    }
+  },
+  "runs": {
+    "allRunTypes": "All Run Types",
+    "allStates": "All States",
+    "columns": {
+      "dagId": "Dag ID",
+      "dagVersions": "Dag Versions",
       "duration": "Duration",
       "endDate": "End Date",
       "runAfter": "Run After",
+      "runType": "Run Type",
       "startDate": "Start Date",
       "state": "State"
-    },
-    "searchPlaceholder": "Search Dags"
+    }
   },
   "sort": {
     "displayName": {
@@ -51,5 +125,23 @@
       "desc": "Sort by Next Dag Run (Latest-Earliest)"
     },
     "placeholder": "Sort by"
+  },
+  "taskInstances": {
+    "allStates": "All States",
+    "columns": {
+      "dagId": "Dag ID",
+      "dagRun": "Dag Run",
+      "dagVersion": "Dag Version",
+      "duration": "Duration",
+      "endDate": "End Date",
+      "mapIndex": "Map Index",
+      "operator": "Operator",
+      "pool": "Pool",
+      "startDate": "Start Date",
+      "state": "State",
+      "taskId": "Task ID",
+      "tryNumber": "Try Number"
+    },
+    "searchPlaceholder": "Search Tasks"
   }
 }
