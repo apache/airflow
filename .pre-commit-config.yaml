@@ -353,7 +353,8 @@ repos:
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/de/
+          ^airflow-core/src/airflow/ui/src/i18n/locales/de/|
+          ^airflow-core/src/airflow/ui/src/i18n/locales/pl/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
@@ -1272,6 +1273,8 @@ repos:
         files: ^go-sdk/
         types: [go]
         language: golang
+        env:
+          - GOPROXY=direct
       - id: gci
         name: Consistent import ordering for Go files
         # Since this is invoked from the root folder, not go-sdk/, gci can't auto-detect the prefix
@@ -1280,6 +1283,8 @@ repos:
         files: ^go-sdk/
         types: [go]
         language: golang
+        env:
+          - GOPROXY=direct
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
