@@ -1123,7 +1123,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"version_number": [1, 2, 3]},
-                6,
+                7,  # apart from the TIs in the fixture, we also get one from
+                # the create_task_instances method
                 id="test multiple version numbers filter",
             ),
         ],
@@ -1137,7 +1138,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             update_extras=update_extras,
             task_instances=task_instances,
         )
-        response = test_client.get(url, params=params)
+        with mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.DagBundlesManager"):
+            # Mock DagBundlesManager to avoid checking if dags-folder bundle is configured
+            response = test_client.get(url, params=params)
         if params == {"task_id_pattern": "task_match_id"}:
             import pprint
 
