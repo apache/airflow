@@ -16,41 +16,43 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Button,
-  createListCollection,
-  Field,
-  HStack,
-  type SelectValueChangeDetails,
-} from "@chakra-ui/react";
-import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
+import { Box, HStack } from "@chakra-ui/react";
+import type { MultiValue } from "chakra-react-select";
 import { useCallback } from "react";
-import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import { QuickFilterButton } from "src/components/QuickFilterButton";
-import { StateBadge } from "src/components/StateBadge";
-import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
-import { pluralize } from "src/utils";
+
+import { PausedFilter } from "./PausedFilter";
+import { ResetButton } from "./ResetButton";
+import { StateFilters } from "./StateFilters";
+import { TagFilter } from "./TagFilter";
 
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
+  TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const enabledOptions = createListCollection({
-  items: [
-    { label: "All", value: "all" },
-    { label: "Enabled", value: "false" },
-    { label: "Disabled", value: "true" },
-  ],
-});
+const getFilterCount = (state: string | null, showPaused: string | null, selectedTags: Array<string>) => {
+  let count = 0;
+
+  if (state !== null) {
+    count += 1;
+  }
+  if (showPaused !== null) {
+    count += 1;
+  }
+  if (selectedTags.length > 0) {
+    count += 1;
+  }
+
+  return count;
+};
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -58,6 +60,7 @@ export const DagsFilters = () => {
   const showPaused = searchParams.get(PAUSED_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const selectedTags = searchParams.getAll(TAGS_PARAM);
+  const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
   const isAll = state === null;
   const isRunning = state === "running";
   const isFailed = state === "failed";
@@ -74,7 +77,7 @@ export const DagsFilters = () => {
   const { pagination, sorting } = tableURLState;
 
   const handlePausedChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
+    ({ value }: { value: Array<string> }) => {
       const [val] = value;
 
       if (val === undefined || val === "all") {
@@ -106,6 +109,7 @@ export const DagsFilters = () => {
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
+
   const handleSelectTagsChange = useCallback(
     (
       tags: MultiValue<{
@@ -117,6 +121,9 @@ export const DagsFilters = () => {
       tags.forEach(({ value }) => {
         searchParams.append(TAGS_PARAM, value);
       });
+      if (tags.length < 2) {
+        searchParams.delete(TAGS_MATCH_MODE_PARAM);
+      }
       setSearchParams(searchParams);
     },
     [searchParams, setSearchParams],
@@ -126,118 +133,48 @@ export const DagsFilters = () => {
     searchParams.delete(PAUSED_PARAM);
     searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     searchParams.delete(TAGS_PARAM);
+    searchParams.delete(TAGS_MATCH_MODE_PARAM);
 
     setSearchParams(searchParams);
   };
 
-  let filterCount = 0;
+  const handleTagModeChange = useCallback(
+    ({ checked }: { checked: boolean }) => {
+      const mode = checked ? "all" : "any";
 
-  if (state !== null) {
-    filterCount += 1;
-  }
-  if (showPaused !== null) {
-    filterCount += 1;
-  }
-  if (selectedTags.length > 0) {
-    filterCount += 1;
-  }
+      searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const filterCount = getFilterCount(state, showPaused, selectedTags);
 
   return (
     <HStack justifyContent="space-between">
       <HStack gap={4}>
-        <HStack>
-          <QuickFilterButton isActive={isAll} onClick={handleStateChange} value="all">
-            All
-          </QuickFilterButton>
-          <QuickFilterButton
-            data-testid="dags-failed-filter"
-            isActive={isFailed}
-            onClick={handleStateChange}
-            value="failed"
-          >
-            <StateBadge state="failed" />
-            Failed
-          </QuickFilterButton>
-          <QuickFilterButton
-            data-testid="dags-running-filter"
-            isActive={isRunning}
-            onClick={handleStateChange}
-            value="running"
-          >
-            <StateBadge state="running" />
-            Running
-          </QuickFilterButton>
-          <QuickFilterButton
-            data-testid="dags-success-filter"
-            isActive={isSuccess}
-            onClick={handleStateChange}
-            value="success"
-          >
-            <StateBadge state="success" />
-            Success
-          </QuickFilterButton>
-        </HStack>
-        <Select.Root
-          collection={enabledOptions}
-          onValueChange={handlePausedChange}
-          value={[showPaused ?? defaultShowPaused]}
-        >
-          <Select.Trigger colorPalette="blue" isActive={Boolean(showPaused)}>
-            <Select.ValueText width={20} />
-          </Select.Trigger>
-          <Select.Content>
-            {enabledOptions.items.map((option) => (
-              <Select.Item item={option} key={option.label}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-        <Field.Root>
-          <ReactSelect
-            aria-label="Filter Dags by tag"
-            chakraStyles={{
-              clearIndicator: (provided) => ({
-                ...provided,
-                color: "gray.fg",
-              }),
-              container: (provided) => ({
-                ...provided,
-                minWidth: 64,
-              }),
-              control: (provided) => ({
-                ...provided,
-                colorPalette: "blue",
-              }),
-              menu: (provided) => ({
-                ...provided,
-                zIndex: 2,
-              }),
-            }}
-            isClearable
-            isMulti
-            noOptionsMessage={() => "No tags found"}
-            onChange={handleSelectTagsChange}
-            options={
-              data?.tags.map((tag) => ({
-                label: tag,
-                value: tag,
-              })) ?? []
-            }
-            placeholder="Filter by tag"
-            value={selectedTags.map((tag) => ({
-              label: tag,
-              value: tag,
-            }))}
-          />
-        </Field.Root>
+        <StateFilters
+          isAll={isAll}
+          isFailed={isFailed}
+          isRunning={isRunning}
+          isSuccess={isSuccess}
+          onStateChange={handleStateChange}
+        />
+        <PausedFilter
+          defaultShowPaused={defaultShowPaused}
+          onPausedChange={handlePausedChange}
+          showPaused={showPaused}
+        />
+        <TagFilter
+          onSelectTagsChange={handleSelectTagsChange}
+          onTagModeChange={handleTagModeChange}
+          selectedTags={selectedTags}
+          tagFilterMode={tagFilterMode}
+          tags={data?.tags ?? []}
+        />
       </HStack>
       <Box>
-        {filterCount > 0 && (
-          <Button onClick={onClearFilters} size="sm" variant="outline">
-            <LuX /> Reset {pluralize("filter", filterCount)}
-          </Button>
-        )}
+        <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
       </Box>
     </HStack>
   );

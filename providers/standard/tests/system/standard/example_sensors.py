@@ -26,7 +26,7 @@ from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.providers.standard.sensors.time import TimeSensor
-from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import DAG
@@ -57,7 +57,9 @@ with DAG(
     # [END example_time_delta_sensor]
 
     # [START example_time_delta_sensor_async]
-    t0a = TimeDeltaSensorAsync(task_id="wait_some_seconds_async", delta=datetime.timedelta(seconds=2))
+    t0a = TimeDeltaSensor(
+        task_id="wait_some_seconds_async", delta=datetime.timedelta(seconds=2), deferrable=True
+    )
     # [END example_time_delta_sensor_async]
 
     # [START example_time_sensors]

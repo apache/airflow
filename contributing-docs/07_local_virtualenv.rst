@@ -203,7 +203,7 @@ the provider's folder and running ``uv sync`` there. For example, to install dep
     uv sync
 
 This will use the ``.venv`` environment in the root of your project and will install dependency of your
-provider and providers it depends on and it's development dependencies.
+provider and providers it depends on and its development dependencies.
 
 Then running tests for the provider is as simple as activating the venv in the main repo and running pytest
 command - or alternatively running ``uv run`` in the provider directory.:
@@ -213,7 +213,7 @@ command - or alternatively running ``uv run`` in the provider directory.:
     uv run pytest
 
 Note that the ``uv sync`` command will automatically synchronize all dependencies needed for your provider
-and it's development dependencies.
+and its development dependencies.
 
 Creating and installing Airflow with other build-frontends
 ----------------------------------------------------------
