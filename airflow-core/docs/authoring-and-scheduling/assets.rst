@@ -229,6 +229,15 @@ The other way around also applies:
     def process_example_asset(example_asset):
         """Process inlet example_asset..."""
 
+In addition, ``@asset`` can be used with ``@task`` to set initial arguments for the task or to use an operator other than ``PythonOperator``:
+
+.. code-block:: python
+
+    @asset(schedule=None)
+    @task.bash(retries=3)
+    def example_asset():
+        """Write to example_asset, from a Bash task with 3 retries..."""
+        return "echo 'run'"
 
 Output to multiple assets in one task
 -------------------------------------
