@@ -34,9 +34,6 @@ from requests.exceptions import RetryError
 from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
 
-from airflow.models import DagModel
-from airflow.models.serialized_dag import SerializedDagModel
-
 from tests_common.test_utils.api_client_helpers import generate_access_token
 
 CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
@@ -284,13 +281,6 @@ class BaseK8STest:
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        from airflow.settings import Session
-
-        s = Session()
-        dm = DagModel(dag_id=dag_id)
-        s.add(dm)
-        s.commit()
-        SerializedDagModel.write_dag(dm, bundle_name="testing")
         patch_string = f"http://{host}/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
         max_attempts = 10
