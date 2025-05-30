@@ -16,6 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Add the SDK src directory to sys.path so that importlib loads our airflow.sdk module
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 import importlib
 import shutil
 import subprocess
@@ -62,7 +67,11 @@ def test_docs_inventory_matches_public_api(tmp_path):
     assert inv_path.exists(), "objects.inv not found after docs build"
 
     inv = read_inventory(inv_path)
-    documented = {name.rsplit(".", 1)[-1] for name in inv.keys()}
+    documented = {
+        name.rsplit(".", 1)[-1]
+        for name in inv.keys()
+        if name.startswith("airflow.sdk.") and name.count(".") == 2
+    }
     sdk = importlib.import_module("airflow.sdk")
     public = set(getattr(sdk, "__all__", []))
 

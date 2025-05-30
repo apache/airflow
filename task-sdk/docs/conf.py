@@ -43,6 +43,7 @@ autoapi_ignore = [
 autoapi_options = [
     "undoc-members",
     "members",
+    "imported-members",
 ]
 autoapi_add_toctree_entry = False
 autoapi_generate_api_docs = False
@@ -78,6 +79,6 @@ def skip_util_classes(app, objtype, name, obj, skip, options):
     return skip
 
 
-def setup(sphinx):
-    # sphinx.connect("autoapi-skip-member", skip_util_classes)
-    ...
+def setup(app):
+    # Skip utility classes from definitions modules, but expose DAG under airflow.sdk.DAG
+    app.connect("autoapi-skip-member", skip_util_classes)
