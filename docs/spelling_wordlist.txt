@@ -1090,6 +1090,8 @@ masterType
 materializations
 Matomo
 matomo
+MaxCompute
+maxcompute
 Maxime
 MaxRuntimeInSeconds
 mb
@@ -1220,6 +1222,7 @@ objectstorage
 observability
 od
 odbc
+odps
 ok
 Okta
 okta
