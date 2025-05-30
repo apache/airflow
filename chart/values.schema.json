@@ -12678,6 +12678,11 @@
                     "default": {},
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                        "description": "Enable liveness probe for log groomer sidecar.",
+                        "type": "boolean",
+                        "default": false
+                    },
                         "exec": {
                             "description": "Exec specifies the action to take.",
                             "type": "object",
@@ -12719,6 +12724,11 @@
                     "default": {},
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                        "description": "Enable readiness probe for log groomer sidecar.",
+                        "type": "boolean",
+                        "default": false
+                        },
                         "exec": {
                             "description": "Exec specifies the action to take.",
                             "type": "object",

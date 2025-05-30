@@ -1041,6 +1041,30 @@ scheduler:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
     env: []
+    #  Liveness probe configuration for log groomer sidecar
+    livenessProbe:
+      enabled: false
+      # initialDelaySeconds: 10
+      # timeoutSeconds: 20
+      # failureThreshold: 5
+      # periodSeconds: 60
+      # exec:
+      #   command:
+      #     - sh
+      #     - -c
+      #     - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
+    
+    readinessProbe:
+      enabled: false
+      # initialDelaySeconds: 10
+      # timeoutSeconds: 20
+      # failureThreshold: 5
+      # periodSeconds: 60
+      # exec:
+      #   command:
+      #     - sh
+      #     - -c
+      #     - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
