@@ -385,6 +385,12 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
+                if AIRFLOW_V_3_0_PLUS:
+                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                    # return list of StructuredLogMessage for Airflow 3.0+
+                    return [StructuredLogMessage(event=missing_log_message)], metadata
+
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
