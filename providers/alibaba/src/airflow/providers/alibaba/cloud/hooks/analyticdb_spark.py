@@ -71,7 +71,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
 
     TERMINAL_STATES = {AppState.COMPLETED, AppState.FAILED, AppState.FATAL, AppState.KILLED}
 
-    conn_name_attr = "alibabacloud_conn_id"
+    conn_name_attr = "adb_spark_conn_id"
     default_conn_name = "adb_spark_default"
     conn_type = "adb_spark"
     hook_name = "AnalyticDB Spark"
