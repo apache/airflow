@@ -8701,7 +8701,7 @@
                         "integer",
                         "null"
                     ],
-                    "default": 180,
+                    "default": 300,
                     "x-docsSection": null
                 }
             }
