@@ -204,12 +204,12 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.triggerer.env) | nindent 10 }}
-          {{- if and (hasKey .Values.triggerer.logGroomerSidecar "livenessProbe") .Values.triggerer.logGroomerSidecar.livenessProbe.enabled }}
+          {{- if .Values.triggerer.logGroomerSidecar.livenessProbe.enabled }}
           livenessProbe:
           {{- omit .Values.triggerer.logGroomerSidecar.livenessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
 
-          {{- if and (hasKey .Values.triggerer.logGroomerSidecar "readinessProbe") .Values.triggerer.logGroomerSidecar.readinessProbe.enabled }}
+          {{- if .Values.triggerer.logGroomerSidecar.readinessProbe.enabled }}
           readinessProbe:
           {{- omit .Values.triggerer.logGroomerSidecar.readinessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
