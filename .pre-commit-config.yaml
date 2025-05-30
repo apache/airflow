@@ -354,7 +354,8 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/src/i18n/locales/de/|
-          ^airflow-core/src/airflow/ui/src/i18n/locales/pl/
+          ^airflow-core/src/airflow/ui/src/i18n/locales/pl/|
+          ^airflow-core/src/airflow/ui/src/i18n/locales/nl/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
