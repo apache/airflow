@@ -678,6 +678,7 @@ DEFAULT_EXTRAS = [
     "cncf-kubernetes",
     "common-io",
     "common-messaging",
+    "common-opendal",
     "docker",
     "elasticsearch",
     "fab",
