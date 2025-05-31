@@ -1273,8 +1273,6 @@ repos:
         files: ^go-sdk/
         types: [go]
         language: golang
-        env:
-          - GOPROXY=direct
       - id: gci
         name: Consistent import ordering for Go files
         # Since this is invoked from the root folder, not go-sdk/, gci can't auto-detect the prefix
@@ -1283,8 +1281,6 @@ repos:
         files: ^go-sdk/
         types: [go]
         language: golang
-        env:
-          - GOPROXY=direct
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
