@@ -45,26 +45,26 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 REGION = "us-central1"
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
-DATA_FILE_NAME = "import_en-es_short.tsv"
+DATA_FILE_NAME = "import_en-es.tsv"
 RESOURCE_PATH = f"V3_translate/create_ds/import_data/{DATA_FILE_NAME}"
 COPY_DATA_PATH = f"gs://{RESOURCE_DATA_BUCKET}/V3_translate/create_ds/import_data/{DATA_FILE_NAME}"
 DST_PATH = f"translate/import/{DATA_FILE_NAME}"
 DATASET_DATA_PATH = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DST_PATH}"
 DATASET = {
-    "display_name": f"op_ds_native{DAG_ID}_{ENV_ID}",
-    "source_language_code": "es",
-    "target_language_code": "en",
+    "display_name": f"ds_native_{DAG_ID}_{ENV_ID}",
+    "source_language_code": "en",
+    "target_language_code": "es",
 }
 
 
 with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
-    start_date=datetime(2024, 11, 1),
+    start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=[
         "example",
-        "translate_model",
+        "translate_native_model",
     ],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
@@ -120,11 +120,12 @@ with DAG(
 
     translate_text_with_model = TranslateTextOperator(
         task_id="translate_v3_op",
-        contents=["Hola!", "Puedes traerme una taza de café, por favor?"],
+        contents=["Hello!", "Can I have a cup of coffee, please?"],
         # AutoML model format
         model=f"projects/{PROJECT_ID}/locations/{REGION}/models/{model_id}",
-        source_language_code="es",
-        target_language_code="en",
+        source_language_code="en",
+        target_language_code="es",
+        location=REGION,
     )
 
     # [START howto_operator_translate_automl_delete_model]
