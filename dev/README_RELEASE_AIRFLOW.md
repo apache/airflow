@@ -23,6 +23,7 @@
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Making the cherry picking](#making-the-cherry-picking)
+  - [Collapse Cadwyn Migrations](#collapse-cadwyn-migrations)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
@@ -139,6 +140,15 @@ to keep a reference to the original commit we cherry picked from. ("cherry picke
 ```shell
 git cherry-pick <hash-commit> -x
 ```
+
+## Collapse Cadwyn Migrations
+
+Before cutting an RC, bump the HEAD date of Cadwyn versioned API (execution api for now: `airflow-core/src/airflow/api_fastapi/execution_api`)
+to reflect the tentative release date of Airflow. All the Cadwyn migrations in between the tentative release date and last release date
+should be collapsed.
+
+Refer https://github.com/apache/airflow/pull/49116 as a good example.
+
 
 ## Reviewing cherry-picked PRs and assigning labels
 
