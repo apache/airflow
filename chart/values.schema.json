@@ -3182,7 +3182,7 @@
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable readiness probe",
+                            "description": "Enable Liveness probe",
                             "type": "boolean",
                             "default": true
                         },
