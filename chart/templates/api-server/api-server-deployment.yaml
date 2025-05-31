@@ -141,6 +141,9 @@ spec:
             {{- if .Values.apiServer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -182,6 +185,9 @@ spec:
             {{- end }}
             {{- if .Values.apiServer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
           ports:
             - name: api-server
@@ -245,5 +251,10 @@ spec:
         {{- end }}
         {{- if .Values.apiServer.extraVolumes }}
           {{- tpl (toYaml .Values.apiServer.extraVolumes) . | nindent 8 }}
+        {{- end }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        - name: webserver-config
+          configMap:
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
         {{- end }}
 {{- end }}
