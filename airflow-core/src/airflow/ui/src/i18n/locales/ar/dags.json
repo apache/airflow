@@ -1,0 +1,147 @@
+{
+  "assetSchedule": "تم تحديث {{count}} من أصل {{total}} عنصر",
+  "dagActions": {
+    "delete": {
+      "button": "حذف الـDag",
+      "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بـالـDag، بما في ذلك التشغيلات والمهام."
+    },
+    "trigger": {
+      "button": "تشغيل",
+      "triggerDag": "تشغيل الـDag"
+    }
+  },
+  "filters": {
+    "paused": {
+      "active": "مفعّل",
+      "all": "الكل",
+      "paused": "متوقف"
+    }
+  },
+  "list": {
+    "advancedSearch": "بحث متقدم",
+    "clearSearch": "مسح البحث",
+    "columns": {
+      "dagId": "معرّف الـDag",
+      "lastDagRun": "آخر تشغيل لـDag",
+      "nextDagRun": "التشغيل التالي لـDag",
+      "schedule": "الجدولة",
+      "tags": "العلامات"
+    },
+    "ownerLink": "رابط المالك لـ{{owner}}",
+    "searchPlaceholder": "البحث في الـDags"
+  },
+  "runAndTaskActions": {
+    "clear": {
+      "button": "إعادة تعيين {{type}}",
+      "buttonTooltip": "اضغط shift+c لإعادة التعيين",
+      "dialog": {
+        "affectedTasks": {
+          "columns": {
+            "mapIndex": "فهرس الخريطة",
+            "runId": "معرِّف التشغيل",
+            "state": "الحالة",
+            "taskId": "معرِّف المهمة"
+          },
+          "noItemsFound": "لم يتم العثور على مهام.",
+          "title": "المهام المتأثرة: {{count}}"
+        },
+        "confirm": "تأكيد",
+        "note": {
+          "placeholder": "أضف ملاحظة...",
+          "title": "ملاحظة"
+        },
+        "options": {
+          "downstream": "المهام التابعة",
+          "existingTasks": "إعادة تعيين المهام الموجودة",
+          "future": "المستقبل",
+          "onlyFailed": "إعادة تعيين المهام الفاشلة فقط",
+          "past": "الماضي",
+          "queueNew": "إضافة مهام جديدة للانتظار",
+          "upstream": "المهام السابقة"
+        },
+        "title": "إعادة تعيين {{type}}"
+      }
+    },
+    "delete": {
+      "button": "حذف {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "حذف {{type}}",
+        "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بـ{{type}}."
+      },
+      "error": "حدث خطأ أثناء حذف {{type}}",
+      "success": {
+        "description": "تم تنفيذ طلب حذف {{type}} بنجاح.",
+        "title": "{{type}} حُذف بنجاح"
+      }
+    },
+    "markAs": {
+      "button": "تمييز {{type}} كـ...",
+      "buttonTooltip": {
+        "failed": "اضغط shift+f لتمييزه كفاشل",
+        "success": "اضغط shift+s لتمييزه كناجح"
+      },
+      "dialog": {
+        "confirm": "تأكيد",
+        "options": {
+          "downstream": "المهام التابعة",
+          "future": "المهام المستقبلية",
+          "past": "المهام السابقة",
+          "upstream": "المهام السابقة"
+        },
+        "title": "تمييز {{type}} كـ {{state}}"
+      }
+    }
+  },
+  "runs": {
+   "allRunTypes": "جميع أنواع التشغيل",
+   "allStates": "جميع الحالات",
+   "columns": {
+     "dagId": "معرّف الـ Dag",
+     "dagVersions": "إصدارات الـ Dag",
+     "duration": "المدة",
+     "endDate": "تاريخ الانتهاء",
+     "runAfter": "التشغيل بعد",
+     "runType": "نوع التشغيل",
+     "startDate": "تاريخ البدء",
+     "state": "الحالة"
+   }
+  },
+  "sort": {
+    "displayName": {
+      "asc": "الترتيب حسب اسم العرض (أ-ي)",
+      "desc": "الترتيب حسب اسم العرض (ي-أ)"
+    },
+    "lastRunStartDate": {
+      "asc": "الترتيب حسب تاريخ بداية آخر تشغيل (الأقدم-الأحدث)",
+      "desc": "الترتيب حسب تاريخ بداية آخر تشغيل (الأحدث-الأقدم)"
+    },
+    "lastRunState": {
+      "asc": "الترتيب حسب حالة آخر تشغيل (أ-ي)",
+      "desc": "الترتيب حسب حالة آخر تشغيل (ي-أ)"
+    },
+    "nextDagRun": {
+      "asc": "الترتيب حسب التشغيل التالي (الأقدم-الأحدث)",
+      "desc": "الترتيب حسب التشغيل التالي (الأحدث-الأقدم)"
+    },
+    "placeholder": "الترتيب حسب"
+  },
+  "taskInstances": {
+    "allStates": "جميع الحالات",
+    "columns": {
+      "dagId": "معرّف الـDag",
+      "dagRun": "تشغيل الـDag",
+      "dagVersion": "نسخة الـDag",
+      "duration": "المدة",
+      "endDate": "تاريخ الانتهاء",
+      "mapIndex": "فهرس الخريطة",
+      "operator": "المشغل",
+      "pool": "المجمع",
+      "startDate": "تاريخ البدء",
+      "state": "الحالة",
+      "taskId": "معرف المهمة",
+      "tryNumber": "رقم المحاولة"
+    },
+    "searchPlaceholder": "البحث في المهام"
+  }
+}
