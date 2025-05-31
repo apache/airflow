@@ -253,7 +253,7 @@ CELERY_COMMANDS = (
     ),
     ActionCommand(
         name="add-queue",
-        help="Subscribe a Celery worker to specified queues",
+        help="Subscribe Celery worker to specified queues",
         func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.add_queue"),
         args=(
             ARG_REQUIRED_QUEUES,
@@ -262,7 +262,7 @@ CELERY_COMMANDS = (
     ),
     ActionCommand(
         name="remove-queue",
-        help="Unsubscribe a Celery worker from specified queues",
+        help="Unsubscribe Celery worker from specified queues",
         func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.remove_queue"),
         args=(
             ARG_REQUIRED_QUEUES,
