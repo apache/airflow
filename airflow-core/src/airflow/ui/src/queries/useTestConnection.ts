@@ -17,34 +17,27 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import type { Dispatch, SetStateAction } from "react";
 
-import {
-  UseDagRunServiceGetDagRunsKeyFn,
-  UseDagServiceGetDagDetailsKeyFn,
-  UseDagServiceGetDagKeyFn,
-  useDagServiceGetDagsKey,
-  useDagServicePatchDag,
-  useDagServiceRecentDagRunsKey,
-  UseTaskInstanceServiceGetTaskInstancesKeyFn,
-} from "openapi/queries";
+import { useConnectionServiceTestConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
+import type { ConnectionTestResponse } from "openapi/requests/types.gen";
 
-export const useTogglePause = ({ dagId }: { dagId: string }) => {
+export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
   const queryClient = useQueryClient();
 
-  const onSuccess = async () => {
-    const queryKeys = [
-      [useDagServiceGetDagsKey],
-      [useDagServiceRecentDagRunsKey],
-      UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
-      UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
-      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
-      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-    ];
-
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+  const onSuccess = async (res: ConnectionTestResponse) => {
+    await queryClient.invalidateQueries({
+      queryKey: [useConnectionServiceGetConnectionsKey],
+    });
+    setConnected(res.status);
   };
 
-  return useDagServicePatchDag({
+  const onError = () => {
+    setConnected(false);
+  };
+
+  return useConnectionServiceTestConnection({
+    onError,
     onSuccess,
   });
 };

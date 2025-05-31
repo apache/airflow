@@ -44,6 +44,7 @@
     "plugins": "Plugins",
     "security": "Security"
   },
+  "noItemsFound": "No {{modelName}} found",
   "pools": {
     "deferred": "Deferred",
     "open": "Open",
@@ -51,6 +52,12 @@
     "pools_other": "pools",
     "queued": "Queued",
     "running": "Running",
+    "scheduled": "Scheduled"
+  },
+  "runTypes": {
+    "asset_triggered": "Asset Triggered",
+    "backfill": "Backfill",
+    "manual": "Manual",
     "scheduled": "Scheduled"
   },
   "security": {
@@ -65,6 +72,7 @@
     "deferred": "Deferred",
     "failed": "Failed",
     "no_status": "No Status",
+    "none": "No Status",
     "queued": "Queued",
     "removed": "Removed",
     "restarting": "Restarting",

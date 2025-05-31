@@ -103,7 +103,7 @@ def create_avp_policy_store(env_id):
 def env_id():
     global env_id_cache
     if not env_id_cache:
-        env_id_cache = set_env_id()
+        env_id_cache = set_env_id("test_aws_auth_manager")
     return env_id_cache
 
 
