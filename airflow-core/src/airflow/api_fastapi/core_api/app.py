@@ -159,10 +159,14 @@ def init_config(app: FastAPI) -> None:
 
 
 def init_error_handlers(app: FastAPI) -> None:
-    from airflow.api_fastapi.common.exceptions import DatabaseErrorHandlers
+    from airflow.api_fastapi.common.exceptions import DAGErrorHandlers, DatabaseErrorHandlers
 
     # register database error handlers
     for handler in DatabaseErrorHandlers:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)
+
+    # register DAG error handlers
+    for handler in DAGErrorHandlers:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
 
 

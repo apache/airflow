@@ -24,6 +24,8 @@ from typing import Generic, TypeVar
 from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 
+from airflow.exceptions import DeserializationError
+
 T = TypeVar("T", bound=Exception)
 
 
@@ -80,6 +82,24 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         return False
 
 
+class DAGErrorHandler(BaseErrorHandler[DeserializationError]):
+    """Handler for DAG-related errors."""
+
+    def __init__(self):
+        super().__init__(DeserializationError)
+
+    def exception_handler(self, request: Request, exc: DeserializationError):
+        """Handle DAG deserialization exceptions."""
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"An error occurred while trying to deserialize DAG: {exc}",
+        )
+
+
 DatabaseErrorHandlers = [
     _UniqueConstraintErrorHandler(),
+]
+
+DAGErrorHandlers = [
+    DAGErrorHandler(),
 ]
