@@ -14,13 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Simple DAG with deferrable operator.
+
+It checks:
+    - that at least two task START events (before and after deferral) are emitted and
+     the try_num remains at 1
+"""
+
 from __future__ import annotations
 
-import os
+import warnings
 from datetime import datetime, timedelta
-from pathlib import Path
-
-import pytest
 
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -28,42 +33,42 @@ from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensorAsync
 
+from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 
-def my_task(task_number):
-    print(os.getcwd())
-    print(f"Executing task number: {task_number}")
-
-
-def check_start_amount_func():
-    events = Variable.get(key="openlineage_basic_defer_dag.wait.event.start", deserialize_json=True)
+def check_events_number_func():
+    events = Variable.get(key="openlineage_defer_simple_dag.wait.event.start", deserialize_json=True)
     if len(events) < 2:
-        raise ValueError(f"Expected at least 2 events, got {len(events)}")
+        raise ValueError(f"Expected at least 2 START events for task `wait`, got {len(events)}")
 
+
+DAG_ID = "openlineage_defer_simple_dag"
 
 with DAG(
-    dag_id="openlineage_basic_defer_dag",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
+    default_args={"retries": 0},
 ) as dag:
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
-        # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
+    # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
+    # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
+    with warnings.catch_warnings():  # TODO Switch to TimeDeltaSensor when deferrable is released
+        warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         wait = TimeDeltaSensorAsync(task_id="wait", delta=timedelta(seconds=180))
 
-        check_start_events_amount = PythonOperator(
-            task_id="check_start_events_amount", python_callable=check_start_amount_func
-        )
+    check_events_number = PythonOperator(
+        task_id="check_events_number", python_callable=check_events_number_func
+    )
 
-        check_events = OpenLineageTestOperator(
-            task_id="check_events",
-            file_path=str(Path(__file__).parent / "example_openlineage_defer.json"),
-            allow_duplicate_events=True,
-        )
+    check_events = OpenLineageTestOperator(
+        task_id="check_events",
+        file_path=get_expected_event_file_path(DAG_ID),
+        allow_duplicate_events=True,
+    )
 
-        wait >> check_start_events_amount >> check_events
+    wait >> check_events_number >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
