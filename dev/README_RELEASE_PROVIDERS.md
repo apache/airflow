@@ -1255,7 +1255,7 @@ The command does the following:
   breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto>
 ```
 
-The `--ref` parameter should be the tag of the release candidate you are publishing.
+The `--ref` parameter should be the tag of the final candidate you are publishing.
 
 The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
 if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
