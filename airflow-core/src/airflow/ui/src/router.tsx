@@ -21,6 +21,7 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
+import { PluginHost } from "src/components/PluginHost";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
@@ -129,6 +130,10 @@ export const routerConfig = [
       {
         element: <Plugins />,
         path: "plugins",
+      },
+      {
+        element: <PluginHost />,
+        path: "plugins/:slug/*",
       },
       {
         element: <Security />,

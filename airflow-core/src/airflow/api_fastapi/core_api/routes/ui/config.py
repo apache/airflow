@@ -48,11 +48,46 @@ API_CONFIG_KEYS = [
 )
 def get_configs() -> ConfigResponse:
     """Get configs for UI."""
-    config = {key: conf.get("api", key) for key in API_CONFIG_KEYS}
+    conf_dict = conf.as_dict()
+
+    config: dict[str, Any] = {}
+
+    # Handle API config keys
+    for key in API_CONFIG_KEYS:
+        value = conf_dict.get("api", {}).get(key)
+        if value is None:
+            # Use conf.get with fallback to ensure we get proper typed values
+            if key == "enable_swagger_ui":
+                config[key] = conf.getboolean("api", key, fallback=True)
+            elif key == "hide_paused_dags_by_default":
+                config[key] = conf.getboolean("api", key, fallback=False)
+            elif key == "page_size":
+                config[key] = conf.getint("api", key, fallback=25)
+            elif key == "auto_refresh_interval":
+                config[key] = conf.getint("api", key, fallback=3)
+            elif key in ["default_wrap", "require_confirmation_dag_change"]:
+                config[key] = conf.getboolean("api", key, fallback=False)
+            else:
+                config[key] = conf.get("api", key, fallback=None)
+        else:
+            # Convert string values to appropriate types
+            if key in [
+                "enable_swagger_ui",
+                "hide_paused_dags_by_default",
+                "default_wrap",
+                "require_confirmation_dag_change",
+            ]:
+                config[key] = str(value).lower() in ("true", "1", "yes", "on")
+            elif key in ["page_size", "auto_refresh_interval"]:
+                config[key] = int(value) if isinstance(value, str) and value.isdigit() else value
+            else:
+                config[key] = value
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
-        "instance_name": conf.get("api", "instance_name", fallback="Airflow"),
+        "instance_name": conf.get("webserver", "instance_name", fallback="Airflow"),
+        "audit_view_included_events": conf.get("webserver", "audit_view_included_events", fallback=""),
+        "audit_view_excluded_events": conf.get("webserver", "audit_view_excluded_events", fallback=""),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         "dashboard_alert": DASHBOARD_UIALERTS,
         "show_external_log_redirect": task_log_reader.supports_external_link,
