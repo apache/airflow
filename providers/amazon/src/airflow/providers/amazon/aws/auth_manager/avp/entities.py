@@ -41,6 +41,7 @@ class AvpEntities(Enum):
     CUSTOM = "Custom"
     DAG = "Dag"
     MENU = "Menu"
+    METADATA_DB = "MetadataDB"
     POOL = "Pool"
     VARIABLE = "Variable"
     VIEW = "View"

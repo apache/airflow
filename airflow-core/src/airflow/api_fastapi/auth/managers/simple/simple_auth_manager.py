@@ -267,6 +267,19 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
+    def is_authorized_db(
+        self,
+        *,
+        method: ResourceMethod,
+        user: SimpleAuthManagerUser,
+    ) -> bool:
+        return self._is_authorized(
+            method=method,
+            allow_get_role=SimpleAuthManagerRole.ADMIN,
+            allow_role=SimpleAuthManagerRole.ADMIN,
+            user=user,
+        )
+
     def filter_authorized_menu_items(
         self, menu_items: list[MenuItem], *, user: SimpleAuthManagerUser
     ) -> list[MenuItem]:
