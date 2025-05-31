@@ -1,0 +1,38 @@
+{
+  "group": "Grup",
+  "health": {
+    "dagProcessor": "Dag İşleyici",
+    "health": "Sağlık Durumu",
+    "healthy": "Sağlıklı",
+    "lastHeartbeat": "Son Kalp Atışı",
+    "metaDatabase": "MetaVeritabanı",
+    "scheduler": "Zamanlayıcı",
+    "status": "Durum",
+    "triggerer": "Tetikleyici",
+    "unhealthy": "Sağlıksız"
+  },
+  "history": "Geçmiş",
+  "importErrors": {
+    "dagImportError_one": "Dag İçe Aktarma Hatası",
+    "dagImportError_other": "Dag İçe Aktarma Hataları",
+    "searchByFile": "Dosyaya göre ara",
+    "timestamp": "Zaman Damgası"
+  },
+  "managePools": "İşlem Havuzları Yönet",
+  "noAssetEvents": "Varlık olayları bulunamadı.",
+  "poolSlots": "İşlem Havuz Slotları",
+  "sortBy": {
+    "newestFirst": "Önce En Yeni",
+    "oldestFirst": "Önce En Eski"
+  },
+  "source": "Kaynak",
+  "stats": {
+    "activeDags": "Aktif Dag'ler",
+    "failedDags": "Başarısız Dag'ler",
+    "queuedDags": "Kuyrukta Bekleyen Dag'ler",
+    "runningDags": "Çalışan Dag'ler",
+    "stats": "İstatistikler"
+  },
+  "uri": "URI",
+  "welcome": "Hoş Geldiniz"
+}

@@ -1,0 +1,122 @@
+{
+  "admin": {
+    "Config": "Konfigürasyon",
+    "Connections": "Bağlantılar",
+    "Plugins": "Eklentiler",
+    "Pools": "Havuzlar",
+    "Providers": "Sağlayıcılar",
+    "Variables": "Değişkenler"
+  },
+  "assetEvent_one": "Varlık Olayı",
+  "assetEvent_other": "Varlık Olayları",
+  "browse": {
+    "auditLog": "Denetim Günlüğü",
+    "xcoms": "XComs"
+  },
+  "dag_one": "dag",
+  "dag_other": "dag'ler",
+  "dagRun_one": "dag Çalıştırması",
+  "dagRun_other": "dag Çalıştırmaları",
+  "defaultToGraphView": "Varsayılan olarak grafik görünümünü kullan",
+  "defaultToGridView": "Varsayılan olarak ızgara görünümünü kullan",
+  "docs": {
+    "documentation": "Dokümantasyon",
+    "githubRepo": "GitHub Deposu",
+    "restApiReference": "REST API Referansı"
+  },
+  "logout": "Çıkış Yap",
+  "logoutConfirmation": "Uygulamadan çıkış yapmak üzeresiniz.",
+  "modal": {
+    "cancel": "İptal",
+    "confirm": "Onayla",
+    "delete": {
+      "button": "Sil",
+      "confirmation": "{{resourceName}} öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+    }
+  },
+  "nav": {
+    "admin": "Yönetim",
+    "assets": "Varlıklar",
+    "browse": "Gözat",
+    "dags": "dag'ler",
+    "docs": "Dokümanlar",
+    "home": "Ana Sayfa",
+    "plugins": "Eklentiler",
+    "security": "Güvenlik"
+  },
+  "noItemsFound": "Hiç {{modelName}} bulunamadı",
+  "pools": {
+    "deferred": "Ertelendi",
+    "open": "Açık",
+    "pools_one": "havuz",
+    "pools_other": "havuzlar",
+    "queued": "Kuyrukta",
+    "running": "Çalışıyor",
+    "scheduled": "Zamanlanmış"
+  },
+  "runTypes": {
+    "asset_triggered": "Varlık Tetikli",
+    "backfill": "Geriye Dönük Doldurma",
+    "manual": "Manuel",
+    "scheduled": "Zamanlanmış"
+  },
+  "security": {
+    "actions": "Eylemler",
+    "permissions": "İzinler",
+    "resources": "Kaynaklar",
+    "roles": "Roller",
+    "users": "Kullanıcılar"
+  },
+  "selectLanguage": "Dil Seçin",
+  "states": {
+    "deferred": "Ertelendi",
+    "failed": "Başarısız",
+    "no_status": "Durum Yok",
+    "none": "Durum Yok",
+    "queued": "Kuyrukta",
+    "removed": "Kaldırıldı",
+    "restarting": "Yeniden Başlatılıyor",
+    "running": "Çalışıyor",
+    "scheduled": "Zamanlanmış",
+    "skipped": "Atlandı",
+    "success": "Başarılı",
+    "up_for_reschedule": "Yeniden Zamanlanacak",
+    "up_for_retry": "Yeniden Denenecek",
+    "upstream_failed": "Üst Akış Başarısız"
+  },
+  "switchToDarkMode": "Karanlık Mod'a Geç",
+  "switchToLightMode": "Aydınlık Mod'a Geç",
+  "table": {
+    "filterByTag": "dag'leri etikete göre filtrele",
+    "filterColumns": "Tablo sütunlarını filtrele",
+    "filters": {
+      "filter_one": "filtre",
+      "filter_other": "filtreler",
+      "reset": "Sıfırla"
+    },
+    "noTagsFound": "Etiket bulunamadı",
+    "tagMode": {
+      "all": "Tümü",
+      "any": "Herhangi"
+    },
+    "tagPlaceholder": "Etikete göre filtrele"
+  },
+  "taskInstance_one": "Görev Örneği",
+  "taskInstance_other": "Görev Örnekleri",
+  "timeRange": {
+    "duration": "Süre",
+    "last12Hours": "Son 12 Saat",
+    "last24Hours": "Son 24 Saat",
+    "lastHour": "Son Saat",
+    "pastWeek": "Geçen Hafta"
+  },
+  "timezone": "zaman dilimi",
+  "timezoneModal": {
+    "current-timezone": "Geçerli zaman",
+    "placeholder": "Bir zaman dilimi seçin",
+    "title": "Zaman Dilimi Seçin",
+    "utc": "UTC (Eşgüdümlü Evrensel Zaman)"
+  },
+  "triggered": "Tetiklendi",
+  "user": "Kullanıcı"
+}
