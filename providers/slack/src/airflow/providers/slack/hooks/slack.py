@@ -309,15 +309,26 @@ class SlackHook(BaseHook):
             raise LookupError(msg)
         return channel_id
 
-    def _call_conversations_list(self, cursor=None):
-        max_retries = 3
+    def _call_conversations_list(self, cursor: str | None = None):
+        """
+        Call ``conversations.list`` with automatic 429-retry.
+
+        .. versionchanged:: 3.0.0
+            Automatically retries on 429 responses (up to 5 times, honouring *Retry-After* header).
+
+        :param cursor: Pagination cursor returned by the previous ``conversations.list`` call.
+            Pass ``None`` (default) to start from the first page.
+        :raises AirflowException: If the method hits the rate-limit 5 times in a row.
+        :raises SlackApiError: Propagated when errors other than 429 occur.
+        :return: Slack SDK response for the page requested.
+        """
+        max_retries = 5
         for attempt in range(max_retries):
             try:
                 return self.client.conversations_list(cursor=cursor, types="public_channel,private_channel")
             except SlackApiError as e:
-                if e.response.status_code == 429 and attempt < max_retries - 1:
+                if e.response.status_code == 429 and attempt < max_retries:
                     retry_after = int(e.response.headers.get("Retry-After", 30))
-                    self.log.warning("header: %s", e.response.headers)
                     self.log.warning(
                         "Rate limit hit. Retrying in %s seconds. Attempt %s/%s",
                         retry_after,
