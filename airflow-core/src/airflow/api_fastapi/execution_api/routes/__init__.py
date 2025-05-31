@@ -25,6 +25,7 @@ from airflow.api_fastapi.execution_api.routes import (
     assets,
     connections,
     dag_runs,
+    dags,
     health,
     task_instances,
     task_reschedules,
@@ -34,6 +35,7 @@ from airflow.api_fastapi.execution_api.routes import (
 
 execution_api_router = APIRouter()
 execution_api_router.include_router(health.router, prefix="/health", tags=["Health"])
+execution_api_router.include_router(dags.router, prefix="/dags", tags=["Dags"])
 
 # _Every_ single endpoint under here must be authenticated. Some do further checks on top of these
 authenticated_router = VersionedAPIRouter(dependencies=[JWTBearerDep, JWTRefresherDep])  # type: ignore[list-item]
@@ -42,6 +44,7 @@ authenticated_router.include_router(assets.router, prefix="/assets", tags=["Asse
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])
 authenticated_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
 authenticated_router.include_router(dag_runs.router, prefix="/dag-runs", tags=["Dag Runs"])
+#authenticated_router.include_router(dags.router, prefix="/dags", tags=["Dags"])
 authenticated_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
 authenticated_router.include_router(
     task_reschedules.router, prefix="/task-reschedules", tags=["Task Reschedules"]
