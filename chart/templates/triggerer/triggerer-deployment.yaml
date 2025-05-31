@@ -204,14 +204,33 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.triggerer.env) | nindent 10 }}
-          {{- if and .Values.triggerer.livenessProbe .Values.triggerer.livenessProbe.enabled }}
-          livenessProbe:
-          {{- omit .Values.triggerer.livenessProbe "enabled" | toYaml | nindent 12 }}
-          {{- end }}
 
-          {{- if and .Values.triggerer.readinessProbe .Values.triggerer.readinessProbe.enabled }}
+          livenessProbe:
+              initialDelaySeconds: {{ .Values.triggerer.livenessProbe.initialDelaySeconds }}
+              timeoutSeconds: {{ .Values.triggerer.livenessProbe.timeoutSeconds }}
+              failureThreshold: {{ .Values.triggerer.livenessProbe.failureThreshold }}
+              periodSeconds: {{ .Values.triggerer.livenessProbe.periodSeconds }}
+              exec:
+                command:
+                  {{- if .Values.triggerer.livenessProbe.command }}
+                    {{- toYaml .Values.triggerer.livenessProbe.command | nindent 16 }}
+                  {{- else }}
+                    {{- include "triggerer_liveness_check_command" . | indent 14 }}
+                  {{- end }}
+
+          {{- if .Values.triggerer.readinessProbe }}
           readinessProbe:
-          {{- omit .Values.triggerer.readinessProbe "enabled" | toYaml | nindent 12 }}
+              initialDelaySeconds: {{ .Values.triggerer.readinessProbe.initialDelaySeconds }}
+              timeoutSeconds: {{ .Values.triggerer.readinessProbe.timeoutSeconds }}
+              failureThreshold: {{ .Values.triggerer.readinessProbe.failureThreshold }}
+              periodSeconds: {{ .Values.triggerer.readinessProbe.periodSeconds }}
+              exec:
+                command:
+                  {{- if .Values.triggerer.readinessProbe.command }}
+                    {{- toYaml .Values.triggerer.readinessProbe.command | nindent 16 }}
+                  {{- else }}
+                    {{- include "triggerer_readiness_check_command" . | indent 14 }}
+                  {{- end }}
           {{- end }}
         {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
           {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}

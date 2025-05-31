@@ -1644,20 +1644,12 @@ triggerer:
   # If the triggerer stops heartbeating for 5 minutes (5*60s) kill the
   # triggerer and let Kubernetes restart it
   livenessProbe:
-    enabled: false
     initialDelaySeconds: 10
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
     command: ~
 
-  readinessProbe:
-    enabled: false
-    initialDelaySeconds: 10
-    timeoutSeconds: 20
-    failureThreshold: 5
-    periodSeconds: 60
-    command: ~
   # Create ServiceAccount
   serviceAccount:
     # default value is true
