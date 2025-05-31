@@ -92,10 +92,12 @@ class MenuItem(Enum):
     CONFIG = "Config"
     CONNECTIONS = "Connections"
     DAGS = "Dags"
+    DAG_RUNS = "Dag Runs"
     DOCS = "Docs"
     PLUGINS = "Plugins"
     POOLS = "Pools"
     PROVIDERS = "Providers"
+    TASK_INSTANCES = "Task Instances"
     VARIABLES = "Variables"
     XCOMS = "XComs"
 

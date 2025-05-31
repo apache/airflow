@@ -1763,10 +1763,12 @@ export type MenuItem =
   | "Config"
   | "Connections"
   | "Dags"
+  | "Dag Runs"
   | "Docs"
   | "Plugins"
   | "Pools"
   | "Providers"
+  | "Task Instances"
   | "Variables"
   | "XComs";
 
