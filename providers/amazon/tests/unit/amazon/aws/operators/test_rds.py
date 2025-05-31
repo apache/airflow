@@ -181,9 +181,9 @@ class TestBaseRdsOperator:
         )
         assert op.hook.aws_conn_id == OVERWRITTEN_CONN
 
-    def test_no_conn_passed_to_hook(self):
+    def test_default_conn_passed_to_hook(self):
         DEFAULT_CONN = "aws_default"
-        op = RdsBaseOperator(task_id="test_no_conn_passed_to_hook_task", dag=self.dag)
+        op = RdsBaseOperator(task_id="test_default_conn_passed_to_hook_task", dag=self.dag)
         assert op.hook.aws_conn_id == DEFAULT_CONN
 
 
