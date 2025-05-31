@@ -131,7 +131,11 @@ class WorkflowTrigger(BaseTrigger):
 
     async def _get_count_af_3(self, states):
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+        from airflow.sdk.execution_time.triggerer_task_functions import (
+            get_dr_count,
+            get_task_states,
+            get_ti_count,
+        )
 
         params = {
             "dag_id": self.external_dag_id,
@@ -139,13 +143,13 @@ class WorkflowTrigger(BaseTrigger):
             "run_ids": self.run_ids,
         }
         if self.external_task_ids:
-            count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
+            count = await get_ti_count(
                 task_ids=self.external_task_ids,  # type: ignore[arg-type]
                 states=states,
                 **params,
             )
         elif self.external_task_group_id:
-            run_id_task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            run_id_task_state_map = await get_task_states(
                 task_group_id=self.external_task_group_id,
                 **params,
             )
@@ -154,7 +158,7 @@ class WorkflowTrigger(BaseTrigger):
                 states=states,
             )
         else:
-            count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+            count = await get_dr_count(
                 dag_id=self.external_dag_id,
                 logical_dates=self.logical_dates,
                 run_ids=self.run_ids,
@@ -240,12 +244,12 @@ class DagStateTrigger(BaseTrigger):
                 await asyncio.sleep(self.poll_interval)
 
     async def validate_count_dags_af_3(self, runs_ids_or_dates_len: int = 0) -> tuple[str, dict[str, Any]]:
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+        from airflow.sdk.execution_time.triggerer_task_functions import get_dagrun_state, get_dr_count
 
         cls_path, data = self.serialize()
 
         while True:
-            num_dags = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+            num_dags = await get_dr_count(
                 dag_id=self.dag_id,
                 run_ids=self.run_ids,
                 states=self.states,  # type: ignore[arg-type]
@@ -254,7 +258,7 @@ class DagStateTrigger(BaseTrigger):
             if num_dags == runs_ids_or_dates_len:
                 if isinstance(self.run_ids, list):
                     for run_id in self.run_ids:
-                        state = await sync_to_async(RuntimeTaskInstance.get_dagrun_state)(
+                        state = await get_dagrun_state(
                             dag_id=self.dag_id,
                             run_id=run_id,
                         )
