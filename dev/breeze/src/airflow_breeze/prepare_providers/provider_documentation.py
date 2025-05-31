@@ -715,6 +715,34 @@ def _update_commits_rst(
     )
 
 
+def _is_test_only_changes(commit_hash: str) -> bool:
+    """
+    Check if a commit contains only test-related changes by using git diff command.
+    Only considers files in airflow/providers/{provider_name}/tests as test files.
+
+    :param commit_hash: The full commit hash to check
+    :return: True if changes are only in test files, False otherwise
+    """
+    try:
+        result = run_command(
+            ["git", "diff", "--name-only", f"{commit_hash}^", commit_hash],
+            cwd=AIRFLOW_ROOT_PATH,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        changed_files = result.stdout.strip().splitlines()
+
+        # Consider changes test-only if all changed files are in the provider's test directory
+        for file_path in changed_files:
+            if not re.match(r"airflow/providers/[^/]+/tests/", file_path):
+                return False
+        return True
+    except subprocess.CalledProcessError:
+        # if we can't check the diff, assume it's not test-only
+        return False
+
+
 def update_release_notes(
     provider_id: str,
     reapply_templates_only: bool,
@@ -732,6 +760,7 @@ def update_release_notes(
     :param base_branch: base branch to check changes in apache remote for changes
     :param regenerate_missing_docs: whether to regenerate missing docs
     :param non_interactive: run in non-interactive mode (useful for CI)
+    :param only_min_version_update: whether to only update min version
     :return: tuple of three bools: (with_breaking_change, maybe_with_new_features, with_min_airflow_version_bump)
     """
     proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
@@ -781,12 +810,21 @@ def update_release_notes(
                 formatted_message = format_message_for_classification(
                     list_of_list_of_changes[0][table_iter].message_without_backticks
                 )
-                get_console().print(
-                    f"[green]Define the type of change for "
-                    f"`{formatted_message}`"
-                    f" by referring to the above table[/]"
-                )
-                type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+                change = list_of_list_of_changes[0][table_iter]
+
+                if change.pr and _is_test_only_changes(change.full_hash):
+                    get_console().print(
+                        f"[green]Automatically classifying change as SKIPPED since it only contains test changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.SKIP
+                else:
+                    get_console().print(
+                        f"[green]Define the type of change for "
+                        f"`{formatted_message}`"
+                        f" by referring to the above table[/]"
+                    )
+                    type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
 
                 if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
                     with_min_airflow_version_bump = True
