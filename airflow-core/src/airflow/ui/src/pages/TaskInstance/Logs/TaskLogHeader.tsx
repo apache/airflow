@@ -24,7 +24,7 @@ import {
   IconButton,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineOpenInFull } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
@@ -37,26 +37,26 @@ import { system } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 type Props = {
+  readonly expanded?: boolean;
   readonly isFullscreen?: boolean;
-  readonly nested?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
+  readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
-  readonly toggleNested?: () => void;
   readonly toggleWrap: () => void;
   readonly tryNumber?: number;
   readonly wrap: boolean;
 };
 
 export const TaskLogHeader = ({
+  expanded,
   isFullscreen = false,
-  nested,
   onSelectTryNumber,
   sourceOptions,
   taskInstance,
+  toggleExpanded,
   toggleFullscreen,
-  toggleNested,
   toggleWrap,
   tryNumber,
   wrap,
@@ -116,6 +116,24 @@ export const TaskLogHeader = ({
     },
     [searchParams, setSearchParams],
   );
+
+  useEffect(() => {
+    if (!toggleExpanded) {
+      return undefined;
+    }
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "e" || event.key === "E") {
+        event.preventDefault();
+        toggleExpanded();
+      }
+    };
+
+    globalThis.addEventListener("keydown", handler);
+
+    return () => {
+      globalThis.removeEventListener("keydown", handler);
+    };
+  }, [toggleExpanded]);
 
   return (
     <Box>
@@ -191,24 +209,34 @@ export const TaskLogHeader = ({
               bg="bg.panel"
               m={0}
               onClick={toggleWrap}
-              p={2}
+              px={4}
+              py={2}
               variant="outline"
             >
               {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
             </Button>
           </Tooltip>
-          {toggleNested ? (
-            <Button
-              aria-label={nested ? "Deactivate groups" : "Activate groups"}
-              bg="bg.panel"
-              m={0}
-              onClick={toggleNested}
-              p={2}
-              size="md"
-              variant="outline"
+          {toggleExpanded ? (
+            <Tooltip
+              closeDelay={100}
+              content={expanded ? "Press e to collapse" : "Press e to expand"}
+              openDelay={100}
             >
-              {nested ? "Deactivate groups" : "Activate groups"}
-            </Button>
+              <Button
+                _hover={{ bg: "gray.800" }}
+                aria-label={expanded ? "Collapse All" : "Expand"}
+                bg="black"
+                color="white"
+                m={0}
+                onClick={toggleExpanded}
+                px={4}
+                py={2}
+                size="md"
+                variant="outline"
+              >
+                {expanded ? "Collapse All" : "Expand "}
+              </Button>
+            </Tooltip>
           ) : undefined}
           {!isFullscreen && (
             <Tooltip
@@ -220,8 +248,9 @@ export const TaskLogHeader = ({
                 aria-label={translate("dag:taskLogs.fullscreen.button")}
                 m={0}
                 bg="bg.panel"
-                p={2}
                 onClick={toggleFullscreen}
+                px={4}
+                py={2}
                 variant="outline"
               >
                 <MdOutlineOpenInFull />
