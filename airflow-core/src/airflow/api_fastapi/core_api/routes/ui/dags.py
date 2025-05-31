@@ -20,11 +20,12 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, null, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
+    apply_filters_to_select,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -39,11 +40,15 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
+    RangeFilter,
+    SortParam,
+    _transform_dag_run_states,
+    datetime_range_filter_factory,
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAGCollectionResponse, DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
@@ -162,4 +167,112 @@ def recent_dag_runs(
     return DAGWithLatestDagRunsCollectionResponse(
         total_entries=len(dag_runs_by_dag_id),
         dags=list(dag_runs_by_dag_id.values()),
+    )
+
+
+@dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
+def get_dags_ui(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    tags: QueryTagsFilter,
+    owners: QueryOwnersFilter,
+    dag_id_pattern: QueryDagIdPatternSearch,
+    dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
+    exclude_stale: QueryExcludeStaleFilter,
+    paused: QueryPausedFilter,
+    last_dag_run_state: QueryLastDagRunStateFilter,
+    dag_run_start_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("dag_run_start_date", DagRun, "start_date"))
+    ],
+    dag_run_end_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("dag_run_end_date", DagRun, "end_date"))
+    ],
+    dag_run_state: Annotated[
+        FilterParam[list[str]],
+        Depends(
+            filter_param_factory(
+                DagRun.state,
+                list[str],
+                FilterOptionEnum.ANY_EQUAL,
+                "dag_run_state",
+                default_factory=list,
+                transform_callable=_transform_dag_run_states,
+            )
+        ),
+    ],
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
+                DagModel,
+                {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
+            ).dynamic_depends()
+        ),
+    ],
+    readable_dags_filter: ReadableDagsFilterDep,
+    session: SessionDep,
+) -> DAGCollectionResponse:
+    """Get all DAGs."""
+    query = select(DagModel)
+
+    max_run_id_query = (  # ordering by id will not always be "latest run", but it's a simplifying assumption
+        select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
+        .where(DagRun.start_date.is_not(null()))
+        .group_by(DagRun.dag_id)
+        .subquery(name="mrq")
+    )
+
+    has_max_run_filter = (
+        dag_run_state.value
+        or last_dag_run_state.value
+        or dag_run_start_date_range.is_active()
+        or dag_run_end_date_range.is_active()
+    )
+
+    if has_max_run_filter or order_by.value in (
+        "last_run_state",
+        "last_run_start_date",
+        "-last_run_state",
+        "-last_run_start_date",
+    ):
+        query = query.join(
+            max_run_id_query,
+            DagModel.dag_id == max_run_id_query.c.dag_id,
+            isouter=True,
+        ).join(DagRun, DagRun.id == max_run_id_query.c.max_dag_run_id, isouter=True)
+
+    if has_max_run_filter:
+        query = apply_filters_to_select(
+            statement=query,
+            filters=[
+                dag_run_start_date_range,
+                dag_run_end_date_range,
+                dag_run_state,
+                last_dag_run_state,
+            ],
+        )
+
+    dags_select, total_entries = paginated_select(
+        statement=query,
+        filters=[
+            exclude_stale,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            readable_dags_filter,
+        ],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    dags = session.scalars(dags_select)
+
+    return DAGCollectionResponse(
+        dags=dags,
+        total_entries=total_entries,
     )

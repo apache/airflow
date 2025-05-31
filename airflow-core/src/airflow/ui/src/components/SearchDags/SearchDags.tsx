@@ -24,7 +24,7 @@ import debounce from "debounce-promise";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
+import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGCollectionResponse, DAGResponse } from "openapi/requests/types.gen";
 import type { Option } from "src/utils/option";
@@ -66,7 +66,7 @@ export const SearchDags = ({
 
           return options;
         }),
-      queryKey: UseDagServiceGetDagsKeyFn({
+      queryKey: UseDagServiceGetDagsUiKeyFn({
         dagDisplayNamePattern: inputValue,
       }),
       staleTime: 0,
