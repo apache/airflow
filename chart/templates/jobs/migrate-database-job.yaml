@@ -39,7 +39,7 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     {{- with .Values.labels }}
-      {{- toYaml . | nindent 4 }}
+      {{- tpl (toYaml .) $ | nindent 4 }}
     {{- end }}
   {{- $annotations := dict }}
   {{- if .Values.migrateDatabaseJob.useHelmHooks }}
@@ -61,7 +61,7 @@ spec:
         component: run-airflow-migrations
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.migrateDatabaseJob.labels) }}
-          {{- mustMerge .Values.migrateDatabaseJob.labels .Values.labels | toYaml | nindent 8 }}
+          {{- tpl (mustMerge .Values.migrateDatabaseJob.labels .Values.labels | toYaml) $ | nindent 8 }}
         {{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.migrateDatabaseJob.annotations }}
       annotations:
