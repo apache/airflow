@@ -20,9 +20,11 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
+import os
+from airflow.configuration import conf
 
 import apprise
-from apprise import AppriseConfig, NotifyFormat, NotifyType
+from apprise import AppriseConfig, NotifyFormat, NotifyType, AppriseAsset, PersistentStoreMode
 
 from airflow.hooks.base import BaseHook
 
@@ -97,7 +99,14 @@ class AppriseHook(BaseHook):
         """
         title = title or ""
 
-        apprise_obj = apprise.Apprise()
+        # Enable Apprise persistent storage
+        airflow_home = conf.get("core", "AIRFLOW_HOME")
+        storage_path = os.path.join(airflow_home, "apprise_cache")
+        asset = AppriseAsset(
+            storage_path=storage_path,
+            storage_mode=PersistentStoreMode.AUTO,
+        )
+        apprise_obj = apprise.Apprise(asset=asset)
         if config:
             apprise_obj.add(config)
         else:
