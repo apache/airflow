@@ -572,7 +572,22 @@ class KubernetesPodOperator(BaseOperator):
         if self.reattach_on_restart:
             pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
             if pod:
-                return pod
+                # If pod is terminated then delete the pod an create a new as not possible to get xcom
+                pod_phase = (
+                    pod.status.phase if hasattr(pod, "status") and hasattr(pod.status, "phase") else None
+                )
+                if pod_phase and pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED):
+                    return pod
+
+                self.log.info(
+                    "Found terminated old matching pod %s with labels %s",
+                    pod.metadata.name,
+                    pod.metadata.labels,
+                )
+                self.log.info("Delete pod to handle rerun and create new pod!")
+                self.process_pod_deletion(pod)
+
+                # return pod
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
         self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
