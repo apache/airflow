@@ -71,7 +71,7 @@ export const LimitedItemsList = ({
           ) : (
             <Tooltip content={remainingItemsList} interactive={interactive}>
               <Text as="span" cursor="help">
-                {translate("limitedList.more", { count: remainingItems.length })}
+                {translate("limitedList", { count: remainingItems.length })}
               </Text>
             </Tooltip>
           )
