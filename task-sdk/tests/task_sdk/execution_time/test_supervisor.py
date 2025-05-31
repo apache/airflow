@@ -92,7 +92,6 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
 )
-from airflow.sdk.execution_time.secrets_masker import SecretsMasker
 from airflow.sdk.execution_time.supervisor import (
     BUFFER_SIZE,
     ActivitySubprocess,
@@ -769,6 +768,44 @@ class TestWatchedSubprocess:
         } in cap_structlog
         assert rc == -signal_to_raise
 
+    @pytest.mark.execution_timeout(3)
+    def test_cleanup_sockets_after_delay(self, monkeypatch, mocker, time_machine):
+        """Supervisor should close sockets if EOF events are missed."""
+
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.SOCKET_CLEANUP_TIMEOUT", 1.0)
+
+        mock_process = mocker.Mock(pid=12345)
+
+        time_machine.move_to(time.monotonic(), tick=False)
+
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=mock_process.pid,
+            stdin=mocker.MagicMock(),
+            client=mocker.MagicMock(),
+            process=mock_process,
+            requests_fd=-1,
+        )
+
+        proc.selector = mocker.MagicMock()
+        proc.selector.select.return_value = []
+
+        proc._exit_code = 0
+        proc._num_open_sockets = 1
+        proc._process_exit_monotonic = time.monotonic()
+
+        mocker.patch.object(
+            ActivitySubprocess,
+            "_cleanup_open_sockets",
+            side_effect=lambda: setattr(proc, "_num_open_sockets", 0),
+        )
+
+        time_machine.shift(2)
+
+        proc._monitor_subprocess()
+        assert proc._num_open_sockets == 0
+
 
 class TestWatchedSubprocessKill:
     @pytest.fixture
@@ -959,6 +996,73 @@ class TestWatchedSubprocessKill:
         # Validate that `_check_subprocess_exit` is called
         mock_process.wait.assert_called_once_with(timeout=0)
 
+    def test_max_wait_time_prevents_cpu_spike(self, watched_subprocess, mock_process, monkeypatch):
+        """Test that max_wait_time calculation prevents CPU spike when heartbeat timeout is reached."""
+        # Mock the configuration to reproduce the CPU spike scenario
+        # Set heartbeat timeout to be very small relative to MIN_HEARTBEAT_INTERVAL
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.HEARTBEAT_TIMEOUT", 1)
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 10)
+
+        # Set up a scenario where the last successful heartbeat was a long time ago
+        # This will cause the heartbeat calculation to result in a negative value
+        mock_process._last_successful_heartbeat = time.monotonic() - 100  # 100 seconds ago
+
+        # Mock process to still be alive (not exited)
+        mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
+
+        # Call _service_subprocess which is used in _monitor_subprocess
+        # This tests the max_wait_time calculation directly
+        watched_subprocess._service_subprocess(max_wait_time=0.005)  # Very small timeout to verify our fix
+
+        # Verify that selector.select was called with a minimum timeout of 0.01
+        # This proves our fix prevents the timeout=0 scenario that causes CPU spike
+        watched_subprocess.selector.select.assert_called_once()
+        call_args = watched_subprocess.selector.select.call_args
+        timeout_arg = call_args[1]["timeout"] if "timeout" in call_args[1] else call_args[0][0]
+
+        # The timeout should be at least 0.01 (our minimum), never 0
+        assert timeout_arg >= 0.01, f"Expected timeout >= 0.01, got {timeout_arg}"
+
+    @pytest.mark.parametrize(
+        ["heartbeat_timeout", "min_interval", "heartbeat_ago", "expected_min_timeout"],
+        [
+            # Normal case: heartbeat is recent, should use calculated value
+            pytest.param(30, 5, 5, 0.01, id="normal_heartbeat"),
+            # Edge case: heartbeat timeout exceeded, should use minimum
+            pytest.param(10, 20, 50, 0.01, id="heartbeat_timeout_exceeded"),
+            # Bug reproduction case: timeout < interval, heartbeat very old
+            pytest.param(5, 10, 100, 0.01, id="cpu_spike_scenario"),
+        ],
+    )
+    def test_max_wait_time_calculation_edge_cases(
+        self,
+        watched_subprocess,
+        mock_process,
+        monkeypatch,
+        heartbeat_timeout,
+        min_interval,
+        heartbeat_ago,
+        expected_min_timeout,
+    ):
+        """Test max_wait_time calculation in various edge case scenarios."""
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.HEARTBEAT_TIMEOUT", heartbeat_timeout)
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", min_interval)
+
+        watched_subprocess._last_successful_heartbeat = time.monotonic() - heartbeat_ago
+        mock_process.wait.side_effect = psutil.TimeoutExpired(pid=12345, seconds=0)
+
+        # Call the method and verify timeout is never less than our minimum
+        watched_subprocess._service_subprocess(
+            max_wait_time=999
+        )  # Large value, should be overridden by calculation
+
+        # Extract the timeout that was actually used
+        watched_subprocess.selector.select.assert_called_once()
+        call_args = watched_subprocess.selector.select.call_args
+        actual_timeout = call_args[1]["timeout"] if "timeout" in call_args[1] else call_args[0][0]
+
+        assert actual_timeout >= expected_min_timeout
+
 
 class TestHandleRequest:
     @pytest.fixture
@@ -977,9 +1081,17 @@ class TestHandleRequest:
 
         return subprocess, read_end
 
-    @patch("airflow.sdk.execution_time.secrets_masker._secrets_masker")
+    @patch("airflow.sdk.execution_time.supervisor.mask_secret")
     @pytest.mark.parametrize(
-        ["message", "expected_buffer", "client_attr_path", "method_arg", "method_kwarg", "mock_response"],
+        [
+            "message",
+            "expected_buffer",
+            "client_attr_path",
+            "method_arg",
+            "method_kwarg",
+            "mock_response",
+            "mask_secret_args",
+        ],
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),
@@ -988,7 +1100,18 @@ class TestHandleRequest:
                 ("test_conn",),
                 {},
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
+                None,
                 id="get_connection",
+            ),
+            pytest.param(
+                GetConnection(conn_id="test_conn"),
+                b'{"conn_id":"test_conn","conn_type":"mysql","password":"password","type":"ConnectionResult"}\n',
+                "connections.get",
+                ("test_conn",),
+                {},
+                ConnectionResult(conn_id="test_conn", conn_type="mysql", password="password"),
+                ["password"],
+                id="get_connection_with_password",
             ),
             pytest.param(
                 GetConnection(conn_id="test_conn"),
@@ -997,6 +1120,7 @@ class TestHandleRequest:
                 ("test_conn",),
                 {},
                 ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+                None,
                 id="get_connection_with_alias",
             ),
             pytest.param(
@@ -1006,6 +1130,7 @@ class TestHandleRequest:
                 ("test_key",),
                 {},
                 VariableResult(key="test_key", value="test_value"),
+                ["test_value", "test_key"],
                 id="get_variable",
             ),
             pytest.param(
@@ -1015,6 +1140,7 @@ class TestHandleRequest:
                 ("test_key", "test_value", "test_description"),
                 {},
                 OKResponse(ok=True),
+                None,
                 id="set_variable",
             ),
             pytest.param(
@@ -1024,6 +1150,7 @@ class TestHandleRequest:
                 ("test_key",),
                 {},
                 OKResponse(ok=True),
+                None,
                 id="delete_variable",
             ),
             pytest.param(
@@ -1033,6 +1160,7 @@ class TestHandleRequest:
                 (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
                 {},
                 "",
+                None,
                 id="patch_task_instance_to_deferred",
             ),
             pytest.param(
@@ -1051,6 +1179,7 @@ class TestHandleRequest:
                 ),
                 {},
                 "",
+                None,
                 id="patch_task_instance_to_up_for_reschedule",
             ),
             pytest.param(
@@ -1060,6 +1189,7 @@ class TestHandleRequest:
                 ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
                 XComResult(key="test_key", value="test_value"),
+                None,
                 id="get_xcom",
             ),
             pytest.param(
@@ -1071,6 +1201,7 @@ class TestHandleRequest:
                 ("test_dag", "test_run", "test_task", "test_key", 2, False),
                 {},
                 XComResult(key="test_key", value="test_value"),
+                None,
                 id="get_xcom_map_index",
             ),
             pytest.param(
@@ -1080,6 +1211,7 @@ class TestHandleRequest:
                 ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
                 XComResult(key="test_key", value=None, type="XComResult"),
+                None,
                 id="get_xcom_not_found",
             ),
             pytest.param(
@@ -1095,6 +1227,7 @@ class TestHandleRequest:
                 ("test_dag", "test_run", "test_task", "test_key", None, True),
                 {},
                 XComResult(key="test_key", value=None, type="XComResult"),
+                None,
                 id="get_xcom_include_prior_dates",
             ),
             pytest.param(
@@ -1118,6 +1251,7 @@ class TestHandleRequest:
                 ),
                 {},
                 OKResponse(ok=True),
+                None,
                 id="set_xcom",
             ),
             pytest.param(
@@ -1142,6 +1276,7 @@ class TestHandleRequest:
                 ),
                 {},
                 OKResponse(ok=True),
+                None,
                 id="set_xcom_with_map_index",
             ),
             pytest.param(
@@ -1167,6 +1302,7 @@ class TestHandleRequest:
                 ),
                 {},
                 OKResponse(ok=True),
+                None,
                 id="set_xcom_with_map_index_and_mapped_length",
             ),
             pytest.param(
@@ -1188,6 +1324,7 @@ class TestHandleRequest:
                 ),
                 {},
                 OKResponse(ok=True),
+                None,
                 id="delete_xcom",
             ),
             # we aren't adding all states under TaskInstanceState here, because this test's scope is only to check
@@ -1199,6 +1336,7 @@ class TestHandleRequest:
                 (),
                 {},
                 "",
+                None,
                 id="patch_task_instance_to_skipped",
             ),
             pytest.param(
@@ -1214,6 +1352,7 @@ class TestHandleRequest:
                     "rendered_map_index": "test retry task",
                 },
                 "",
+                None,
                 id="up_for_retry",
             ),
             pytest.param(
@@ -1223,6 +1362,7 @@ class TestHandleRequest:
                 (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
                 {},
                 OKResponse(ok=True),
+                None,
                 id="set_rtif",
             ),
             pytest.param(
@@ -1232,6 +1372,7 @@ class TestHandleRequest:
                 [],
                 {"name": "asset"},
                 AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
+                None,
                 id="get_asset_by_name",
             ),
             pytest.param(
@@ -1241,6 +1382,7 @@ class TestHandleRequest:
                 [],
                 {"uri": "s3://bucket/obj"},
                 AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
+                None,
                 id="get_asset_by_uri",
             ),
             pytest.param(
@@ -1263,6 +1405,7 @@ class TestHandleRequest:
                         )
                     ]
                 ),
+                None,
                 id="get_asset_events_by_uri_and_name",
             ),
             pytest.param(
@@ -1285,6 +1428,7 @@ class TestHandleRequest:
                         )
                     ]
                 ),
+                None,
                 id="get_asset_events_by_uri",
             ),
             pytest.param(
@@ -1307,6 +1451,7 @@ class TestHandleRequest:
                         )
                     ]
                 ),
+                None,
                 id="get_asset_events_by_name",
             ),
             pytest.param(
@@ -1329,6 +1474,7 @@ class TestHandleRequest:
                         )
                     ]
                 ),
+                None,
                 id="get_asset_events_by_asset_alias",
             ),
             pytest.param(
@@ -1346,6 +1492,7 @@ class TestHandleRequest:
                     "rendered_map_index": "test success task",
                 },
                 "",
+                None,
                 id="succeed_task",
             ),
             pytest.param(
@@ -1364,6 +1511,7 @@ class TestHandleRequest:
                     data_interval_start=timezone.parse("2025-01-10T12:00:00Z"),
                     data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
                 ),
+                None,
                 id="get_prev_successful_dagrun",
             ),
             pytest.param(
@@ -1379,6 +1527,7 @@ class TestHandleRequest:
                 ("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
                 {},
                 OKResponse(ok=True),
+                None,
                 id="dag_run_trigger",
             ),
             pytest.param(
@@ -1388,6 +1537,7 @@ class TestHandleRequest:
                 ("test_dag", "test_run", None, None, False),
                 {},
                 ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
+                None,
                 id="dag_run_trigger_already_exists",
             ),
             pytest.param(
@@ -1397,6 +1547,7 @@ class TestHandleRequest:
                 ("test_dag", "test_run"),
                 {},
                 DagRunStateResult(state=DagRunState.RUNNING),
+                None,
                 id="get_dag_run_state",
             ),
             pytest.param(
@@ -1406,6 +1557,7 @@ class TestHandleRequest:
                 (TI_ID, 1),
                 {},
                 TaskRescheduleStartDate(start_date=timezone.parse("2024-10-31T12:00:00Z")),
+                None,
                 id="get_task_reschedule_start_date",
             ),
             pytest.param(
@@ -1423,6 +1575,7 @@ class TestHandleRequest:
                     "task_ids": ["task1", "task2"],
                 },
                 TICount(count=2),
+                None,
                 id="get_ti_count",
             ),
             pytest.param(
@@ -1437,6 +1590,7 @@ class TestHandleRequest:
                     "states": ["success", "failed"],
                 },
                 DRCount(count=2),
+                None,
                 id="get_dr_count",
             ),
             pytest.param(
@@ -1453,6 +1607,7 @@ class TestHandleRequest:
                     "task_group_id": "test_group",
                 },
                 TaskStatesResult(task_states={"run_id": {"task1": "success", "task2": "failed"}}),
+                None,
                 id="get_task_states",
             ),
             pytest.param(
@@ -1468,6 +1623,7 @@ class TestHandleRequest:
                 ("test_dag", "test_run", "test_task", "test_key", 0),
                 {},
                 XComResult(key="test_key", value="test_value"),
+                None,
                 id="get_xcom_seq_item",
             ),
             pytest.param(
@@ -1483,13 +1639,14 @@ class TestHandleRequest:
                 ("test_dag", "test_run", "test_task", "test_key", 2),
                 {},
                 ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
+                None,
                 id="get_xcom_seq_item_not_found",
             ),
         ],
     )
     def test_handle_requests(
         self,
-        mock_secrets_masker,
+        mock_mask_secret,
         watched_subprocess,
         mocker,
         time_machine,
@@ -1499,6 +1656,7 @@ class TestHandleRequest:
         method_arg,
         method_kwarg,
         mock_response,
+        mask_secret_args,
     ):
         """
         Test handling of different messages to the subprocess. For any new message type, add a
@@ -1511,7 +1669,6 @@ class TestHandleRequest:
             3. Checks that the buffer is updated with the expected response.
             4. Verifies that the response is correctly decoded.
         """
-        mock_secrets_masker.return_value = SecretsMasker()
         watched_subprocess, read_socket = watched_subprocess
 
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
@@ -1524,6 +1681,10 @@ class TestHandleRequest:
         next(generator)
         msg = message.model_dump_json().encode() + b"\n"
         generator.send(msg)
+
+        if mask_secret_args:
+            mock_mask_secret.assert_called_with(*mask_secret_args)
+
         time_machine.move_to(timezone.datetime(2024, 10, 31), tick=False)
 
         # Verify the correct client method was called

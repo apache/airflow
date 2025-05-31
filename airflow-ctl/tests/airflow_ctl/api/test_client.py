@@ -26,7 +26,7 @@ import httpx
 import pytest
 from platformdirs import user_config_path
 
-from airflowctl.api.client import Client, Credentials
+from airflowctl.api.client import Client, ClientKind, Credentials
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import AirflowCtlNotFoundException
 
@@ -85,13 +85,15 @@ class TestCredentials:
     def test_save(self, mock_keyring):
         mock_keyring.set_password.return_value = MagicMock()
         env = "TEST_SAVE"
-
-        credentials = Credentials(api_url="http://localhost:8080", api_token="NO_TOKEN", api_environment=env)
+        cli_client = ClientKind.CLI
+        credentials = Credentials(
+            api_url="http://localhost:8080", api_token="NO_TOKEN", api_environment=env, client_kind=cli_client
+        )
         credentials.save()
 
         assert os.path.exists(self.default_config_dir)
         with open(os.path.join(self.default_config_dir, f"{env}.json")) as f:
-            credentials = Credentials().load()
+            credentials = Credentials(client_kind=cli_client).load()
             assert json.load(f) == {
                 "api_url": credentials.api_url,
             }
@@ -99,26 +101,39 @@ class TestCredentials:
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch("airflowctl.api.client.keyring")
-    def test_load(self, mock_keyring):
+    def test_load_cli_kind(self, mock_keyring):
         mock_keyring.set_password.return_value = MagicMock()
         mock_keyring.get_password.return_value = "NO_TOKEN"
         env = "TEST_LOAD"
-
-        credentials = Credentials(api_url="http://localhost:8080", api_token="NO_TOKEN", api_environment=env)
+        cli_client = ClientKind.CLI
+        credentials = Credentials(
+            api_url="http://localhost:8080", api_token="NO_TOKEN", api_environment=env, client_kind=cli_client
+        )
         credentials.save()
         with open(os.path.join(self.default_config_dir, f"{env}.json")) as f:
-            credentials = Credentials().load()
+            credentials = Credentials(client_kind=cli_client).load()
             assert json.load(f) == {
                 "api_url": credentials.api_url,
             }
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_load_auth_kind(self, mock_keyring):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
+        auth_client = ClientKind.AUTH
+        credentials = Credentials(client_kind=auth_client)
+        assert credentials.api_url is None
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_CREDENTIALS"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch("airflowctl.api.client.keyring")
     def test_load_no_credentials(self, mock_keyring):
+        cli_client = ClientKind.CLI
         if os.path.exists(self.default_config_dir):
             shutil.rmtree(self.default_config_dir)
         with pytest.raises(AirflowCtlNotFoundException):
-            Credentials().load()
+            Credentials(client_kind=cli_client).load()
 
         assert not os.path.exists(self.default_config_dir)

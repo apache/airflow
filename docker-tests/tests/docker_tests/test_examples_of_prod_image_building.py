@@ -42,7 +42,9 @@ QUARANTINED_DOCKER_EXAMPLES: dict[str, str] = {
 
 @cache
 def get_latest_airflow_image():
-    response = requests.get("https://pypi.org/pypi/apache-airflow/json")
+    response = requests.get(
+        "https://pypi.org/pypi/apache-airflow/json", headers={"User-Agent": "Python requests"}
+    )
     response.raise_for_status()
     latest_released_version = response.json()["info"]["version"]
     return f"apache/airflow:{latest_released_version}"

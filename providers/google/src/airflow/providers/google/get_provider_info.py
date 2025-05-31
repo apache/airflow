@@ -1338,6 +1338,12 @@ def get_provider_info():
                 "python-module": "airflow.providers.google.cloud.transfers.azure_blob_to_gcs",
                 "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/azure_blob_to_gcs.rst",
             },
+            {
+                "source-integration-name": "Hypertext Transfer Protocol (HTTP)",
+                "target-integration-name": "Google Cloud Storage (GCS)",
+                "python-module": "airflow.providers.google.cloud.transfers.http_to_gcs",
+                "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/http_to_gcs.rst",
+            },
         ],
         "connection-types": [
             {
@@ -1367,6 +1373,14 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
                 "connection-type": "leveldb",
+            },
+            {
+                "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
+                "connection-type": "google_ads",
+            },
+            {
+                "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",
+                "connection-type": "gcp_looker",
             },
         ],
         "extra-links": [

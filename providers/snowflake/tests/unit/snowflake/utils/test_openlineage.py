@@ -93,6 +93,9 @@ def test_snowflake_sqlite_account_urls(source, target):
         ("xy12345", "xy12345.us-west-1.aws"),  # No '-' or '_' in name
         ("xy12345.us-west-1.aws", "xy12345.us-west-1.aws"),  # Already complete locator
         ("xy12345.us-west-2.gcp", "xy12345.us-west-2.gcp"),  # Already complete locator for GCP
+        ("xy12345.us-west-2.gcp.us-west-2.gcp", "xy12345.us-west-2.gcp"),  # Duplicated region
+        ("xy12345.us-west-2.gcp.us-west-2.gcp.us-west-2.gcp", "xy12345.us-west-2.gcp"),  # Triple region
+        ("xy12345.us-west-2.gcp.some_random_part", "xy12345.us-west-2.gcp"),  # Suffix to locator, ignored
         ("xy12345aws", "xy12345aws.us-west-1.aws"),  # AWS without '-' or '_'
         ("xy12345-aws", "xy12345-aws"),  # AWS with '-'
         ("xy12345_gcp-europe-west1", "xy12345.europe-west1.gcp"),  # GCP with '_'

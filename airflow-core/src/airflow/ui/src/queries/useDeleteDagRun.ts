@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   useDagRunServiceDeleteDagRun,
@@ -32,16 +33,17 @@ type DeleteDagRunParams = {
   onSuccessConfirm: () => void;
 };
 
-const onError = () => {
-  toaster.create({
-    description: "Delete DAG Run request failed.",
-    title: "Failed to delete DAG Run",
-    type: "error",
-  });
-};
-
 export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDagRunParams) => {
+  const { t: translate } = useTranslation();
   const queryClient = useQueryClient();
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("dags:runAndTaskActions.delete.error", { type: "Run" }),
+      type: "error",
+    });
+  };
 
   const onSuccess = async () => {
     const queryKeys = [
@@ -53,8 +55,8 @@ export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDag
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      description: "The DAG Run deletion request was successful.",
-      title: "DAG Run Deleted Successfully",
+      description: translate("dags:runAndTaskActions.delete.success.description", { type: "Run" }),
+      title: translate("dags:runAndTaskActions.delete.success.title", { type: "Run" }),
       type: "success",
     });
 

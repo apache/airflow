@@ -48,7 +48,6 @@ The client versioning is independent of the Airflow versioning.
 The Python client is generated using Airflow's [openapi spec](https://github.com/apache/airflow/blob/master/clients/gen/python.sh).
 To update the client for new APIs do the following steps:
 
-```bash
 - Checkout the v2-*-test branch of Airflow where you generate the client from
 
 ```bash
@@ -149,8 +148,8 @@ Then open a PR and merge it into main.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git tag -s python-client-${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
-git push apache python-client-${VERSION}${VERSION_SUFFIX}
+git tag -s python-client/${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
+git push apache python-client/${VERSION}${VERSION_SUFFIX}
 cd ${CLIENT_REPO_ROOT}
 git tag -s ${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
 git push apache tag ${VERSION}${VERSION_SUFFIX}
@@ -330,7 +329,7 @@ you are checking):
 
 ```shell script
 VERSION=X.Y.Zrc1
-git checkout python-client-${VERSION}
+git checkout python-client/${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
 breeze release-management prepare-python-client --distribution-format both
@@ -603,9 +602,9 @@ twine upload -r pypi *.tar.gz *.whl
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git checkout python-client-${VERSION}${VERSION_SUFFIX}
-git tag -s python-client-${VERSION} -m "Airflow Python Client ${VERSION}"
-git push apache tag python-client-${VERSION}
+git checkout python-client/${VERSION}${VERSION_SUFFIX}
+git tag -s python-client/${VERSION} -m "Airflow Python Client ${VERSION}"
+git push apache tag python-client/${VERSION}
 cd ${CLIENT_REPO_ROOT}
 git checkout ${VERSION}${VERSION_SUFFIX}
 git tag -s ${VERSION} -m ${VERSION}

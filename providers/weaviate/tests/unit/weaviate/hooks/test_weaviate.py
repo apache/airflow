@@ -465,6 +465,94 @@ def test_create_collection(weaviate_hook):
 @pytest.mark.parametrize(
     argnames=["data", "expected_length"],
     argvalues=[
+        (
+            [
+                {
+                    "from_uuid": "0fe86eae-45f7-456c-b19f-04fc59e9ce41",
+                    "to_uuid": "360b6f5b-ed23-413c-a6e8-cb864a52e712",
+                    "from_property": "hasCategory",
+                },
+                {
+                    "from_uuid": "34ccb2e1-1cfc-46e5-94d2-48c335e52c29",
+                    "to_uuid": "a775ef49-a8ab-480d-ac85-b70197654072",
+                    "from_property": "hasCategory",
+                },
+            ],
+            2,
+        ),
+        (
+            pd.DataFrame.from_dict(
+                {
+                    "from_uuid": [
+                        "0fe86eae-45f7-456c-b19f-04fc59e9ce41",
+                        "34ccb2e1-1cfc-46e5-94d2-48c335e52c29",
+                    ],
+                    "to_uuid": [
+                        "360b6f5b-ed23-413c-a6e8-cb864a52e712",
+                        "a775ef49-a8ab-480d-ac85-b70197654072",
+                    ],
+                    "from_property": ["hasCategory", "hasCategory"],
+                }
+            ),
+            2,
+        ),
+    ],
+    ids=("batch create link data as list of dicts", "batch create link data as dataframe"),
+)
+def test_batch_create_links(data, expected_length, weaviate_hook):
+    """
+    Test the batch_create_links method of WeaviateHook.
+    """
+    # Mock the Weaviate Collection
+    mock_collection = MagicMock()
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
+    # Define test data
+    test_collection_name = "TestCollection"
+
+    # Test the batch_data method
+    weaviate_hook.batch_create_links(test_collection_name, data, to_uuid_col="to_uuid")
+
+    mock_batch_context = mock_collection.batch.dynamic.return_value.__enter__.return_value
+    assert mock_batch_context.add_reference.call_count == expected_length
+
+
+def test_batch_create_links_retry(weaviate_hook):
+    """Test to ensure retrying working as expected"""
+    # Mock the Weaviate Collection
+    mock_collection = MagicMock()
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
+    data = [
+        {
+            "from_uuid": "0fe86eae-45f7-456c-b19f-04fc59e9ce41",
+            "to": "360b6f5b-ed23-413c-a6e8-cb864a52e712",
+            "from_property": "hasCategory",
+        },
+        {
+            "from_uuid": "34ccb2e1-1cfc-46e5-94d2-48c335e52c29",
+            "to": "a775ef49-a8ab-480d-ac85-b70197654072",
+            "from_property": "hasCategory",
+        },
+    ]
+    response = requests.Response()
+    response.status_code = 429
+    error = requests.exceptions.HTTPError()
+    error.response = response
+    side_effect = [None, error, error, None]
+
+    mock_collection.batch.dynamic.return_value.__enter__.return_value.add_reference.side_effect = side_effect
+
+    weaviate_hook.batch_create_links("TestCollection", data)
+
+    assert mock_collection.batch.dynamic.return_value.__enter__.return_value.add_reference.call_count == len(
+        side_effect
+    )
+
+
+@pytest.mark.parametrize(
+    argnames=["data", "expected_length"],
+    argvalues=[
         ([{"name": "John"}, {"name": "Jane"}], 2),
         (pd.DataFrame.from_dict({"name": ["John", "Jane"]}), 2),
     ],
@@ -508,6 +596,75 @@ def test_batch_data_retry(weaviate_hook):
     assert mock_collection.batch.dynamic.return_value.__enter__.return_value.add_object.call_count == len(
         side_effect
     )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
+def test_delete_by_property_retry(get_conn, weaviate_hook):
+    from weaviate.classes.query import Filter
+
+    mock_collection = MagicMock()
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
+    get_conn.return_value.collections.get.return_value = mock_collection
+
+    response = requests.Response()
+    response.status_code = 429
+    error = requests.exceptions.HTTPError()
+    error.response = response
+    side_effect = [error, error, None]
+
+    mock_collection.data.delete_many.side_effect = side_effect
+
+    weaviate_hook.delete_by_property(
+        collection_names="collection_a",
+        filter_criteria=Filter.by_property("name").equal("John"),
+        if_error="continue",
+    )
+
+    assert mock_collection.data.delete_many.call_count == len(side_effect)
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_collection")
+def test_delete_by_property_get_exception(mock_get_collection, weaviate_hook):
+    from weaviate.classes.query import Filter
+    from weaviate.exceptions import WeaviateDeleteManyError
+
+    collection_names = ["collection_a", "collection_b", "collection_c"]
+
+    mock_collection_b = MagicMock()
+    mock_collection_b.data.delete_many.return_value = None
+
+    mock_collection_c = MagicMock()
+    mock_collection_c.data.delete_many.return_value = None
+    mock_collection_c.data.delete_many.side_effect = WeaviateDeleteManyError(
+        "A delete many request to Weaviate fails in any way"
+    )
+
+    mock_get_collection.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        mock_collection_b,
+        mock_collection_c,
+    ]
+
+    # Test when if_error='continue' – expect failed collections list
+    error_list = weaviate_hook.delete_by_property(
+        collection_names=collection_names,
+        filter_criteria=Filter.by_property("name").equal("John"),
+        if_error="continue",
+    )
+    assert error_list == ["collection_a", "collection_c"]
+
+    mock_get_collection.reset_mock()
+    mock_get_collection.side_effect = weaviate.UnexpectedStatusCodeException(
+        "something failed", requests.Response()
+    )
+
+    with pytest.raises(weaviate.UnexpectedStatusCodeException):
+        weaviate_hook.delete_by_property(
+            collection_names="collection_a",
+            filter_criteria=Filter.by_property("name").equal("John"),
+            if_error="stop",
+        )
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")

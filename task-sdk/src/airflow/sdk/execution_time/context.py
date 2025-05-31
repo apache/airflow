@@ -39,6 +39,7 @@ from airflow.sdk.definitions.asset import (
     BaseAssetUniqueKey,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -176,6 +177,12 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
         try:
             var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
             if var_val is not None:
+                if deserialize_json:
+                    import json
+
+                    var_val = json.loads(var_val)
+                if isinstance(var_val, str):
+                    mask_secret(var_val, key)
                 return var_val
         except Exception:
             log.exception(
@@ -337,9 +344,9 @@ class MacrosAccessor:
     def __getattr__(self, item: str) -> Any:
         # Lazily load Macros module
         if not self._macros_module:
-            import airflow.sdk.definitions.macros
+            import airflow.sdk.execution_time.macros
 
-            self._macros_module = airflow.sdk.definitions.macros
+            self._macros_module = airflow.sdk.execution_time.macros
         return getattr(self._macros_module, item)
 
     def __repr__(self) -> str:
@@ -697,7 +704,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         (task, "owner", "AIRFLOW_CONTEXT_DAG_OWNER"),
         (task_instance, "dag_id", "AIRFLOW_CONTEXT_DAG_ID"),
         (task_instance, "task_id", "AIRFLOW_CONTEXT_TASK_ID"),
-        (task_instance, "logical_date", "AIRFLOW_CONTEXT_LOGICAL_DATE"),
+        (dag_run, "logical_date", "AIRFLOW_CONTEXT_LOGICAL_DATE"),
         (task_instance, "try_number", "AIRFLOW_CONTEXT_TRY_NUMBER"),
         (dag_run, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
     ]

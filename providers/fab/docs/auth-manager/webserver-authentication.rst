@@ -57,9 +57,10 @@ Other Methods
 '''''''''''''
 
 A ``webserver_config.py`` configuration file is automatically generated and can be used to configure FAB auth manager to support authentication
-methods like OAuth, OpenID, LDAP, REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
-and Authlib, only a selection of OAuth2 providers is supported. This list includes ``github``, ``githublocal``, ``twitter``,
-``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``keycloak`` and ``keycloak_before_17``.
+methods like OAuth, OpenID, LDAP and REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
+and Authlib, some OAuth2 providers may not be supported. Currently supported providers include ``github``, ``githublocal``, ``twitter``,
+``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``auth0``, ``keycloak``, ``keycloak_before_17`` and ``authentik``.
+If your provider is not on the list, you may need to adjust the ``remote_app`` configuration to match your provider's OAuth2 specification.
 
 By default, the following entry in the ``$AIRFLOW_HOME/webserver_config.py`` is used.
 

@@ -17,32 +17,38 @@
  * under the License.
  */
 import type { SelectValueChangeDetails } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { Select } from "src/components/ui";
-import { dagSortOptions } from "src/constants/sortParams";
+import { createDagSortOptions } from "src/constants/sortParams";
 
 type Props = {
   readonly handleSortChange: ({ value }: SelectValueChangeDetails<Array<string>>) => void;
   readonly orderBy?: string;
 };
 
-export const SortSelect = ({ handleSortChange, orderBy }: Props) => (
-  <Select.Root
-    collection={dagSortOptions}
-    data-testid="sort-by-select"
-    onValueChange={handleSortChange}
-    value={orderBy === undefined ? undefined : [orderBy]}
-    width="310px"
-  >
-    <Select.Trigger>
-      <Select.ValueText placeholder="Sort by" />
-    </Select.Trigger>
-    <Select.Content>
-      {dagSortOptions.items.map((option) => (
-        <Select.Item item={option} key={option.value}>
-          {option.label}
-        </Select.Item>
-      ))}
-    </Select.Content>
-  </Select.Root>
-);
+export const SortSelect = ({ handleSortChange, orderBy }: Props) => {
+  const { t: translate } = useTranslation("dags");
+  const dagSortOptions = createDagSortOptions(translate);
+
+  return (
+    <Select.Root
+      collection={dagSortOptions}
+      data-testid="sort-by-select"
+      onValueChange={handleSortChange}
+      value={orderBy === undefined ? undefined : [orderBy]}
+      width="310px"
+    >
+      <Select.Trigger>
+        <Select.ValueText placeholder={translate("sort.placeholder")} />
+      </Select.Trigger>
+      <Select.Content>
+        {dagSortOptions.items.map((option) => (
+          <Select.Item item={option} key={option.value}>
+            {option.label}
+          </Select.Item>
+        ))}
+      </Select.Content>
+    </Select.Root>
+  );
+};

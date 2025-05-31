@@ -31,6 +31,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
+from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
@@ -494,9 +495,21 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         return textwrap.dedent(inspect.getsource(self.python_callable))
 
     def _write_args(self, file: Path):
+        def resolve_proxies(obj):
+            """Recursively replaces lazy_object_proxy.Proxy instances with their resolved values."""
+            if isinstance(obj, lazy_object_proxy.Proxy):
+                return obj.__wrapped__  # force evaluation
+            if isinstance(obj, dict):
+                return {k: resolve_proxies(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [resolve_proxies(v) for v in obj]
+            return obj
+
         if self.op_args or self.op_kwargs:
             self.log.info("Use %r as serializer.", self.serializer)
-            file.write_bytes(self.pickling_library.dumps({"args": self.op_args, "kwargs": self.op_kwargs}))
+            file.write_bytes(
+                self.pickling_library.dumps({"args": self.op_args, "kwargs": resolve_proxies(self.op_kwargs)})
+            )
 
     def _write_string_args(self, file: Path):
         file.write_text("\n".join(map(str, self.string_args)))
@@ -859,14 +872,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             # If we're using system packages, assume both are present
             found_airflow = found_pendulum = True
         else:
-            requirements_iterable = []
-            if isinstance(self.requirements, str):
-                requirements_iterable = self.requirements.splitlines()
-            else:
-                for item in self.requirements:
-                    requirements_iterable.extend(item.splitlines())
-
-            for raw_str in requirements_iterable:
+            for raw_str in chain.from_iterable(req.splitlines() for req in self.requirements):
                 line = raw_str.strip()
                 # Skip blank lines and full‐line comments
                 if not line or line.startswith("#"):
