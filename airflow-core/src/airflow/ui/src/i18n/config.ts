@@ -23,11 +23,16 @@ import { initReactI18next } from "react-i18next";
 import deCommon from "./locales/de/common.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
+import enConnections from "./locales/en/connections.json";
+import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
 import nlDashboard from "./locales/nl/dashboard.json";
+import plCommon from "./locales/pl/common.json";
+import plDags from "./locales/pl/dags.json";
+import plDashboard from "./locales/pl/dashboard.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
 import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 
@@ -39,11 +44,12 @@ export const supportedLanguages = [
   { code: "en", name: "English" },
   { code: "ko", name: "한국어" },
   { code: "nl", name: "Nederlands" },
+  { code: "pl", name: "Polski" },
   { code: "zh-TW", name: "繁體中文" },
 ] as const;
 
 export const defaultLanguage = "en";
-export const namespaces = ["common", "dashboard"] as const;
+export const namespaces = ["common", "dashboard", "dags", "connections"] as const;
 
 const resources = {
   de: {
@@ -52,6 +58,8 @@ const resources = {
   },
   en: {
     common: enCommon,
+    connections: enConnections,
+    dags: enDags,
     dashboard: enDashboard,
   },
   ko: {
@@ -61,6 +69,11 @@ const resources = {
   nl: {
     common: nlCommon,
     dashboard: nlDashboard,
+  },
+  pl: {
+    common: plCommon,
+    dags: plDags,
+    dashboard: plDashboard,
   },
   "zh-TW": {
     common: zhTWCommon,

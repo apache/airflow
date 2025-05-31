@@ -14,10 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# To remove later, we need at least one test, otherwise CI fails
 from __future__ import annotations
 
 
-def test_empty():
-    assert True
+class MaxComputeConfigurationException(Exception):
+    """Raised when MaxCompute project or endpoint is not configured properly."""

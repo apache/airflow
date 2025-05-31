@@ -914,7 +914,6 @@ class TestJobsOperations:
         response = client.jobs.list(
             job_type="job_type",
             hostname="hostname",
-            limit=1,
             is_alive=True,
         )
         assert response == self.job_collection_response

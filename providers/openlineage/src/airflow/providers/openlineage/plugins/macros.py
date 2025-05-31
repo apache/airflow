@@ -127,7 +127,7 @@ def _get_logical_date(task_instance):
         context = task_instance.get_template_context()
         if hasattr(task_instance, "dag_run"):
             dag_run = task_instance.dag_run
-        elif hasattr(context, "dag_run"):
+        else:
             dag_run = context["dag_run"]
         if hasattr(dag_run, "logical_date") and dag_run.logical_date:
             date = dag_run.logical_date
