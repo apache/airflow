@@ -1,0 +1,55 @@
+{
+  "actions": {
+    "delete": "Verwijder Dag",
+    "deleteDagWarning": "Dit zal alle metadata gerelateerd aan de DAG verwijderen, inclusief DAG Runs en Tasks.",
+    "trigger": "Trigger",
+    "triggerDag": "Trigger Dag"
+  },
+  "assetSchedule": "{{count}} van {{total}} assets geupdatet",
+  "filters": {
+    "paused": {
+      "active": "Actief",
+      "all": "Alles",
+      "paused": "Gepauzeerd"
+    }
+  },
+  "list": {
+    "advancedSearch": "Geavanceerd zoeken",
+    "clearSearch": "Zoekopdracht wissen",
+    "columns": {
+      "dagId": "Dag ID",
+      "lastDagRun": "Laatste Dag Run",
+      "nextDagRun": "Volgende Dag Run",
+      "schedule": "Schedule",
+      "tags": "Labels"
+    },
+    "ownerLink": "Eigenaarslink voor {{owner}}",
+    "runs": {
+      "duration": "Duur",
+      "endDate": "Einddatum",
+      "runAfter": "Run After",
+      "startDate": "Startdatum",
+      "state": "Status"
+    },
+    "searchPlaceholder": "Zoek Dags"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Sorteer op weergavenaam (A-Z)",
+      "desc": "Sorteer op weergavenaam (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Sorteer op laatste Run startdatum (Eerste-Laatste)",
+      "desc": "Sorteer op laatste Run startdatum (Laatste-Eerste)"
+    },
+    "lastRunState": {
+      "asc": "Sorteer op laatste Run status (A-Z)",
+      "desc": "Sorteer op laatste Run status (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Sorteer op volgende Dag Run (Eerste-Laatste)",
+      "desc": "Sorteer op volgende Dag Run (Laatste-Eerste)"
+    },
+    "placeholder": "Sorteer op"
+  }
+}
