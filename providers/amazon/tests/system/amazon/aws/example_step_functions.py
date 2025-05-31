@@ -19,15 +19,13 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionGetExecutionOutputOperator,
     StepFunctionStartExecutionOperator,
 )
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
+from airflow.sdk import DAG, chain, task
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
