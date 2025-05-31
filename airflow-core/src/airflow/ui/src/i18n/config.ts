@@ -20,6 +20,10 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
+import arCommon from "./locales/ar/common.json";
+import arConnections from "./locales/ar/connections.json";
+import arDags from "./locales/ar/dags.json";
+import arDashboard from "./locales/ar/dashboard.json";
 import deCommon from "./locales/de/common.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
@@ -40,6 +44,7 @@ import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 // import Backend from 'i18next-http-backend';
 
 export const supportedLanguages = [
+  { code: "ar", name: "العربية" },
   { code: "de", name: "Deutsch" },
   { code: "en", name: "English" },
   { code: "ko", name: "한국어" },
@@ -52,6 +57,12 @@ export const defaultLanguage = "en";
 export const namespaces = ["common", "dashboard", "dags", "connections"] as const;
 
 const resources = {
+  ar: {
+    common: arCommon,
+    connections: arConnections,
+    dags: arDags,
+    dashboard: arDashboard,
+  },
   de: {
     common: deCommon,
     dashboard: deDashboard,
