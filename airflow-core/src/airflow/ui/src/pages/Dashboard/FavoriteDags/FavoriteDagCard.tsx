@@ -19,7 +19,7 @@
 import { Box, Button, Text, VStack } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
-import { useDagsServiceRecentDagRuns } from "openapi/queries";
+import { useDagServiceRecentDagRuns } from "openapi/queries";
 import { RecentRuns } from "src/pages/DagsList/RecentRuns";
 
 type FavoriteDagProps = {
@@ -27,7 +27,7 @@ type FavoriteDagProps = {
 };
 
 export const FavoriteDagCard = ({ dagId }: FavoriteDagProps) => {
-  const { data } = useDagsServiceRecentDagRuns({
+  const { data } = useDagServiceRecentDagRuns({
     dagIds: [dagId],
     dagRunsLimit: 5,
   });
@@ -35,26 +35,33 @@ export const FavoriteDagCard = ({ dagId }: FavoriteDagProps) => {
   const latestRuns = data?.dags[0]?.latest_dag_runs ?? [];
 
   return (
-    <RouterLink to={`/dags/${dagId}`}>
-      <Button
-        borderRadius="md"
-        display="flex"
-        flexDirection="column"
-        gap={2}
-        height="auto"
-        px={4}
-        py={3}
-        variant="outline"
-      >
-        <Box mt={1}>
-          <VStack>
-            <RecentRuns latestRuns={latestRuns} />
-            <Text _hover={{ textDecoration: "underline" }} fontSize="sm" textAlign="left">
-              {dagId}
-            </Text>
-          </VStack>
-        </Box>
-      </Button>
-    </RouterLink>
+    <Box width="100%">
+      <RouterLink to={`/dags/${dagId}`}>
+        <Button
+          width="100%"
+          height="auto"
+          borderRadius="md"
+          display="flex"
+          flexDirection="column"
+          gap={2}
+          px={4}
+          py={3}
+          variant="outline"
+        >
+          <Box mt={1}>
+            <VStack>
+              <RecentRuns latestRuns={latestRuns} />
+              <Text
+                _hover={{ textDecoration: "underline" }}
+                fontSize="sm"
+                textAlign="left"
+              >
+                {dagId}
+              </Text>
+            </VStack>
+          </Box>
+        </Button>
+      </RouterLink>
+    </Box>
   );
 };
