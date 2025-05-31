@@ -59,6 +59,7 @@ class TestLocalExecutor:
         success_tis = [
             workloads.TaskInstance(
                 id=uuid7(),
+                dag_version_id=uuid7(),
                 task_id=f"success_{i}",
                 dag_id="mydag",
                 run_id="run1",

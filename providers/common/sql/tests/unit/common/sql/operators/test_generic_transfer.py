@@ -29,12 +29,15 @@ from more_itertools import flatten
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
 from tests_common.test_utils.compat import GenericTransfer
+from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.operators.run_deferrable import execute_operator, mock_context
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
@@ -59,6 +62,9 @@ class TestMySql:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
+        if AIRFLOW_V_3_0_PLUS:
+            self.dag.sync_to_db()
+            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
 
     def teardown_method(self):
         from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -69,6 +75,8 @@ class TestMySql:
                 # Previous version tried to run execute directly on dbapi call, which was accidentally working
                 with closing(conn.cursor()) as cur:
                     cur.execute(f"DROP TABLE IF EXISTS {table}")
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_runs()
 
     @pytest.mark.parametrize(
         "client",

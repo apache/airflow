@@ -55,7 +55,10 @@ def test_default_link():
         link = YQLink()
 
         op = MockOperator(task_id="test_task_id")
-        ti = TaskInstance(task=op, run_id="run_id1")
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=op, run_id="run_id1", dag_version_id=mock.MagicMock())
+        else:
+            ti = TaskInstance(task=op, run_id="run_id1")
         assert link.get_link(op, ti_key=ti.key) == "https://yq.cloud.yandex.ru"
 
 
@@ -65,5 +68,8 @@ def test_link():
         link = YQLink()
 
         op = MockOperator(task_id="test_task_id")
-        ti = TaskInstance(task=op, run_id="run_id1")
+        if AIRFLOW_V_3_0_PLUS:
+            ti = TaskInstance(task=op, run_id="run_id1", dag_version_id=mock.MagicMock())
+        else:
+            ti = TaskInstance(task=op, run_id="run_id1")
         assert link.get_link(op, ti_key=ti.key) == "https://g.com"

@@ -25,6 +25,8 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateQueryOperator,
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
@@ -181,6 +183,9 @@ class TestGoogleDisplayVideo360DownloadReportV2Operator:
 
             taskflow_op = f()
             taskflow_op.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         op = GoogleDisplayVideo360DownloadReportV2Operator(
             query_id=QUERY_ID,

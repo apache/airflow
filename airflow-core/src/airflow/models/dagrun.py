@@ -1432,7 +1432,11 @@ class DagRun(Base, LoggingMixin):
                 # It's enough to revise map index once per task id,
                 # checking the map index for each mapped task significantly slows down scheduling
                 if schedulable.task.task_id not in revised_map_index_task_ids:
-                    ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
+                    ready_tis.extend(
+                        self._revise_map_indexes_if_mapped(
+                            schedulable.task, dag_version_id=schedulable.dag_version_id, session=session
+                        )
+                    )
                     revised_map_index_task_ids.add(schedulable.task.task_id)
                 ready_tis.append(schedulable)
 
@@ -1535,9 +1539,7 @@ class DagRun(Base, LoggingMixin):
         Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
-    def verify_integrity(
-        self, *, session: Session = NEW_SESSION, dag_version_id: UUIDType | None = None
-    ) -> None:
+    def verify_integrity(self, *, session: Session = NEW_SESSION, dag_version_id: UUIDType) -> None:
         """
         Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
@@ -1667,7 +1669,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
-        dag_version_id: UUIDType | None,
+        dag_version_id: UUIDType,
     ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
 
     @overload
@@ -1676,7 +1678,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
-        dag_version_id: UUIDType | None,
+        dag_version_id: UUIDType,
     ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
 
     def _get_task_creator(
@@ -1684,7 +1686,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True, False],
-        dag_version_id: UUIDType | None,
+        dag_version_id: UUIDType,
     ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]:
         """
         Get the task creator function.
@@ -1795,7 +1797,9 @@ class DagRun(Base, LoggingMixin):
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
-    def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
+    def _revise_map_indexes_if_mapped(
+        self, task: Operator, *, dag_version_id: UUIDType, session: Session
+    ) -> Iterator[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
 
@@ -1841,7 +1845,7 @@ class DagRun(Base, LoggingMixin):
         for index in range(total_length):
             if index in existing_indexes:
                 continue
-            ti = TI(task, run_id=self.run_id, map_index=index, state=None)
+            ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)
