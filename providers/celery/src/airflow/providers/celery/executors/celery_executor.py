@@ -162,7 +162,7 @@ ARG_OUTPUT = Arg(
         "-o",
         "--output",
     ),
-    help="Output format. Allowed values: json, yaml, plain, table (defau    lt: table)",
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
     metavar="(table, json, yaml, plain)",
     choices=("table", "json", "yaml", "plain"),
     default="table",
