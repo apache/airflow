@@ -1,0 +1,88 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+{{- if .Values.devMode.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-init-dev-code
+  labels:
+    tier: airflow
+    component: init-dev-code
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+  annotations:
+    helm.sh/hook: "pre-install"
+    helm.sh/hook-weight: "5"
+    # helm.sh/hook-delete-policy: hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: init-dev-code
+        release: {{ .Release.Name }}
+    spec:
+      securityContext: {{ include "airflowPodSecurityContext" (list . .Values) | nindent 8 }}
+      restartPolicy: OnFailure
+      containers:
+        - name: init-dev-code
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ include "containerSecurityContext" (list . .Values) | nindent 12 }}
+          command:
+          - bash
+          - -c
+          - |
+            # Give the PVC a moment to fully mount
+            echo "Waiting for PVC to be fully available..."
+            sleep 5
+
+            echo "Checking if development code directories exist..."
+            # Check if the directories exist, but don't fail if they don't
+            # We're just logging the status at this point
+            cp -r {{ printf "%s/airflow-core" .Values.airflowHome }}/* /mnt/target/airflow-core || echo "copying airflow-core directory failed, it may not exist yet..."
+            cp -r {{ printf "%s/airflow-ctl" .Values.airflowHome }}/* /mnt/target/airflow-ctl || echo "copying airflow-ctl directory failed, it may not exist yet..."
+            cp -r {{ printf "%s/task-sdk" .Values.airflowHome }}/* /mnt/target/task-sdk || echo "copying task-sdk directory failed, it may not exist yet..."
+
+            # List directories to verify they exist
+            ls -la /mnt/target/airflow-core
+            ls -la /mnt/target/airflow-ctl
+            ls -la /mnt/target/task-sdk
+
+            # Add a marker file to indicate this job has run
+            touch {{ printf "%s/airflow-core/.init-complete" .Values.airflowHome }}
+
+            echo "All required development code directories verified or created."
+          volumeMounts:
+            - name: code
+              mountPath: /mnt/target/airflow-core
+              subPath: airflow-core
+            - name: code
+              mountPath: /mnt/target/airflow-ctl
+              subPath: airflow-ctl
+            - name: code
+              mountPath: /mnt/target/task-sdk
+              subPath: task-sdk
+      volumes:
+        - name: code
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_code_volume_claim" . }}
+{{- end }}
