@@ -231,38 +231,18 @@ spec:
           {{- if $containerLifecycleHooksLogGroomerSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
           {{- end }}
-          {{- if hasKey .Values.triggerer.logGroomerSidecar "livenessProbe" }}
+          # Add livenessProbe
+          {{- if and .Values.triggerer.logGroomerSidecar.livenessProbe .Values.triggerer.logGroomerSidecar.livenessProbe.enabled }}
           livenessProbe:
-            initialDelaySeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.initialDelaySeconds }}
-            timeoutSeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.failureThreshold }}
-            periodSeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.periodSeconds }}
-            exec:
-              command:
-              {{- if hasKey .Values.triggerer.logGroomerSidecar.livenessProbe "command" }}
-                {{- toYaml .Values.triggerer.logGroomerSidecar.livenessProbe.command | nindent 16 }}
-              {{- else }}
-                - sh
-                - -c
-                - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
-              {{- end }}
+          {{- omit .Values.triggerer.logGroomerSidecar.livenessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
-          {{- if hasKey .Values.triggerer.logGroomerSidecar "readinessProbe" }}
+
+          # Add readinessProbe
+          {{- if and .Values.triggerer.logGroomerSidecar.readinessProbe .Values.triggerer.logGroomerSidecar.readinessProbe.enabled }}
           readinessProbe:
-            initialDelaySeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.initialDelaySeconds }}
-            timeoutSeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.failureThreshold }}
-            periodSeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.periodSeconds }}
-            exec:
-              command:
-              {{- if hasKey .Values.triggerer.logGroomerSidecar.readinessProbe "command" }}
-                {{- toYaml .Values.triggerer.logGroomerSidecar.readinessProbe.command | nindent 16 }}
-              {{- else }}
-                - sh
-                - -c
-                - "test -e /clean-logs"
-              {{- end }}
+          {{- omit .Values.triggerer.logGroomerSidecar.readinessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
+
           {{- if .Values.triggerer.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.triggerer.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}

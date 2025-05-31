@@ -1790,6 +1790,28 @@ triggerer:
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+    livenessProbe:
+      enabled: false
+      # initialDelaySeconds: 10
+      # timeoutSeconds: 20
+      # failureThreshold: 5
+      # periodSeconds: 60
+      # exec:
+      #   command:
+      #     - sh
+      #     - -c
+      #     - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
+    readinessProbe: 
+      enabled: false
+      # initialDelaySeconds: 10
+      # timeoutSeconds: 20
+      # failureThreshold: 5
+      # periodSeconds: 60
+      # exec:
+      #   command:
+      #     - sh
+      #     - -c
+      #     - "test -f /clean-logs && grep -q 'AIRFLOW__LOG_RETENTION_DAYS' /clean-logs"
 
     # container level lifecycle hooks
     containerLifecycleHooks: {}
