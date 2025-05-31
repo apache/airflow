@@ -38,7 +38,7 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "airflow-go-worker",
-	Short: "A brief description of your application",
+	Short: "Airflow worker for running Go tasks.",
 	Long: `Airflow worker for running Go tasks.
 
 All options (other than ` + "`--config`" + `) can be specified in the config file using
