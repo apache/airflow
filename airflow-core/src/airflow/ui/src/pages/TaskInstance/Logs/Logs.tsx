@@ -19,6 +19,7 @@
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -32,6 +33,7 @@ import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
 
 export const Logs = () => {
+  const { t: translate } = useTranslation();
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -65,11 +67,11 @@ export const Logs = () => {
 
   const [wrap, setWrap] = useState(defaultWrap);
   const [fullscreen, setFullscreen] = useState(false);
-  const [nested, setNested] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
-  const toggleNested = () => setNested((act) => !act);
+  const toggleExpanded = () => setExpanded((act) => !act);
 
   useHotkeys("w", toggleWrap);
   useHotkeys("f", toggleFullscreen);
@@ -84,8 +86,8 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
+    expanded,
     logLevelFilters,
-    nested,
     sourceFilters,
     taskInstance,
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
@@ -97,19 +99,19 @@ export const Logs = () => {
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
-        nested={nested}
+        expanded={expanded}
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
         taskInstance={taskInstance}
+        toggleExpanded={toggleExpanded}
         toggleFullscreen={toggleFullscreen}
-        toggleNested={toggleNested}
         toggleWrap={toggleWrap}
         tryNumber={tryNumber}
         wrap={wrap}
       />
       {showExternalLogRedirect && externalLogName && taskInstance ? (
         tryNumber === undefined ? (
-          <p>No try number</p>
+          <p>{translate("No try number")}</p>
         ) : (
           <ExternalLogLink
             externalLogName={externalLogName}
@@ -131,12 +133,12 @@ export const Logs = () => {
             <VStack gap={2}>
               <Heading size="xl">{taskId}</Heading>
               <TaskLogHeader
+                expanded={expanded}
                 isFullscreen
-                nested={nested}
                 onSelectTryNumber={onSelectTryNumber}
                 taskInstance={taskInstance}
+                toggleExpanded={toggleExpanded}
                 toggleFullscreen={toggleFullscreen}
-                toggleNested={toggleNested}
                 toggleWrap={toggleWrap}
                 tryNumber={tryNumber}
                 wrap={wrap}

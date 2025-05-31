@@ -30,8 +30,8 @@ import { getTaskInstanceLink } from "src/utils/links";
 type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
+  expanded?: boolean;
   logLevelFilters?: Array<string>;
-  nested?: boolean; // Adicionado parâmetro nested
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
@@ -39,8 +39,8 @@ type Props = {
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
+  expanded?: boolean;
   logLevelFilters?: Array<string>;
-  nested?: boolean; // Adicionado parâmetro nested
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber: number;
@@ -48,8 +48,8 @@ type ParseLogsProps = {
 
 const parseLogs = ({
   data,
+  expanded,
   logLevelFilters,
-  nested = true,
   sourceFilters,
   taskInstance,
   tryNumber,
@@ -58,8 +58,7 @@ const parseLogs = ({
   let parsedLines;
   const sources: Array<string> = [];
 
-  // open the summary when hash is present since the link might have a hash linking to a line
-  const open = Boolean(location.hash);
+  const open = expanded ?? Boolean(globalThis.location.hash);
   const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
 
   try {
@@ -83,16 +82,6 @@ const parseLogs = ({
 
     return { data, warning };
   }
-
-  if (!nested) {
-    return {
-      parsedLogs: parsedLines,
-      sources,
-      warning,
-    };
-  }
-
-  // TODO: Add support for nested groups
 
   parsedLines = (() => {
     type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
@@ -169,7 +158,15 @@ const parseLogs = ({
 };
 
 export const useLogs = (
-  {accept = "application/json", dagId, logLevelFilters, nested = true, sourceFilters, taskInstance, tryNumber = 1 }: Props,
+  {
+    accept = "application/json",
+    dagId,
+    expanded,
+    logLevelFilters,
+    sourceFilters,
+    taskInstance,
+    tryNumber = 1,
+  }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
   const refetchInterval = useAutoRefresh({ dagId });
@@ -197,8 +194,8 @@ export const useLogs = (
 
   const parsedData = parseLogs({
     data: data?.content ?? [],
+    expanded,
     logLevelFilters,
-    nested,
     sourceFilters,
     taskInstance,
     tryNumber,
