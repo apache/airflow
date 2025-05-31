@@ -16,32 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-import { AiOutlineFileSync } from "react-icons/ai";
+import { Text, Skeleton } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 
-import { Button } from "src/components/ui";
-import { useDagParsing } from "src/queries/useDagParsing.ts";
-
-type Props = {
-  readonly dagId: string;
-  readonly fileToken: string;
-};
-
-const ParseDag = ({ dagId, fileToken }: Props) => {
-  const { t: translate } = useTranslation("components");
-  const { isPending, mutate } = useDagParsing({ dagId });
-
-  return (
-    <Button
-      aria-label={translate("reparseDag")}
-      loading={isPending}
-      onClick={() => mutate({ fileToken })}
-      variant="outline"
-    >
-      <AiOutlineFileSync height={5} width={5} />
-      {translate("reparseDag")}
-    </Button>
+export const getInlineMessage = (isPendingDryRun: boolean, totalEntries: number, translate: TFunction) =>
+  isPendingDryRun ? (
+    <Skeleton height="20px" width="100px" />
+  ) : totalEntries > 1 ? (
+    <Text color="fg.success" fontSize="sm">
+      {translate("backfill.affectedOne")}
+    </Text>
+  ) : totalEntries > 0 ? (
+    <Text color="fg.success" fontSize="sm">
+      {translate("backfill.affectedMultiple", { count: totalEntries })}
+    </Text>
+  ) : (
+    <Text color="fg.error" fontSize="sm" fontWeight="medium">
+      {translate("backfill.affectedNone")}
+    </Text>
   );
-};
-
-export default ParseDag;
