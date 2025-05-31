@@ -25,6 +25,7 @@ from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_vali
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.datamodels.deadline import DeadlineResponse
 from airflow.models import DagRun
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
@@ -68,6 +69,7 @@ class DAGRunResponse(BaseModel):
     end_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
+    deadlines: list[DeadlineResponse] | None
     run_after: datetime
     last_scheduling_decision: datetime | None
     run_type: DagRunType
