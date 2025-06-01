@@ -21,6 +21,8 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
 import deCommon from "./locales/de/common.json";
+import deConnections from "./locales/de/connections.json";
+import deDags from "./locales/de/dags.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
 import enConnections from "./locales/en/connections.json";
@@ -55,6 +57,8 @@ export const namespaces = ["common", "dashboard", "dags", "connections"] as cons
 const resources = {
   de: {
     common: deCommon,
+    connections: deConnections,
+    dags: deDags,
     dashboard: deDashboard,
   },
   en: {
