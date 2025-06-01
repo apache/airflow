@@ -54,6 +54,7 @@ PRE_COMMIT_LIST = [
     "check-for-inclusive-language",
     "check-get-lineage-collector-providers",
     "check-hooks-apply",
+    "check-i18n-json",
     "check-imports-in-providers",
     "check-incorrect-use-of-LoggingMixin",
     "check-init-decorator-arguments",
