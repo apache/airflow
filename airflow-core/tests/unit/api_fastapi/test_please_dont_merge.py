@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 
-def test_please_dont_merge(caplog):
+def test_please_dont_merge(caplog, test_client):
     """
     This test is a placeholder to ensure that the file is not merged.
     It should always fail to prevent merging this file into the main branch.
