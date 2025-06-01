@@ -167,10 +167,24 @@ class TestSerializers:
         }
 
     def test_numpy(self):
+        from airflow.serialization.serializers.numpy import deserialize, serialize
+
         i = np.int16(10)
         e = serialize(i)
         d = deserialize(e)
         assert i == d
+
+        assert serialize(np.bool_(False)) == (True, "numpy.bool_", 1, True)
+        assert serialize(np.float32(3.14)) == (float(np.float32(3.14)), "numpy.float32", 1, True)
+        assert serialize(np.array([1, 2, 3])) == ("", "", 0, False)
+
+        with pytest.raises(TypeError) as ctx:
+            deserialize("numpy.int32", 999, 123)
+        assert "serialized version is newer" in str(ctx.value)
+
+        with pytest.raises(TypeError) as ctx:
+            deserialize("numpy.float32", 1, 123)
+        assert "unsupported numpy.float32" in str(ctx.value)
 
     def test_params(self):
         i = ParamsDict({"x": Param(default="value", description="there is a value", key="test")})
