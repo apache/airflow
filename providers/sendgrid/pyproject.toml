@@ -58,7 +58,10 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
-    "sendgrid>=6.12.3",
+    # workaround conflicts with fab for Python 3.12 https://github.com/apache/airflow/pull/50221#issuecomment-2926765112
+    # can be set to sendgrid>=6.12.3 when we upgrade to fab 5
+    "sendgrid>=6.12.3; python_version < '3.12'",
+    "sendgrid<6.12.3; python_version >= '3.12'"
 ]
 
 [dependency-groups]
