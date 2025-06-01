@@ -13,7 +13,7 @@
     "auditLog": "Denetim Günlüğü",
     "xcoms": "XComs"
   },
-  "dag_one": "dag",
+  "dag_one": "Dag",
   "dag_other": "dag'ler",
   "dagRun_one": "dag Çalıştırması",
   "dagRun_other": "dag Çalıştırmaları",
@@ -87,7 +87,7 @@
   "switchToDarkMode": "Karanlık Mod'a Geç",
   "switchToLightMode": "Aydınlık Mod'a Geç",
   "table": {
-    "filterByTag": "dag'leri etikete göre filtrele",
+    "filterByTag": "Dag'leri etikete göre filtrele",
     "filterColumns": "Tablo sütunlarını filtrele",
     "filters": {
       "filter_one": "filtre",
