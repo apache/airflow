@@ -63,13 +63,13 @@
     "running": "Laufende",
     "scheduled": "Geplant"
   },
+  "runId": "Lauf Id",
   "runTypes": {
     "asset_triggered": "Durch Datenset (Asset) angestoßen",
     "backfill": "Nachträglich Aufgefüllt",
     "manual": "Manuell",
     "scheduled": "Geplant"
   },
-  "runId": "Lauf Id",
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",
