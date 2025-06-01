@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import functools
 import logging
 import os
@@ -729,6 +730,8 @@ class TriggerRunner:
     requests_sock: asyncio.StreamWriter
     response_sock: asyncio.StreamReader
 
+    _stdin_threadpool_executor: concurrent.futures.ThreadPoolExecutor
+
     decoder: TypeAdapter[ToTriggerRunner]
 
     def __init__(self):
@@ -741,6 +744,7 @@ class TriggerRunner:
         self.failed_triggers = deque()
         self.job_id = None
         self.decoder = TypeAdapter(ToTriggerRunner)
+        self._stdin_threadpool_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     def run(self):
         """Sync entrypoint - just run a run in an async loop."""
@@ -805,17 +809,17 @@ class TriggerRunner:
 
         task_runner.SUPERVISOR_COMMS = comms_decoder
 
-        async def connect_stdin() -> asyncio.StreamReader:
-            reader = asyncio.StreamReader()
-            protocol = asyncio.StreamReaderProtocol(reader)
-            await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-            return reader
+        # async def connect_stdin() -> asyncio.StreamReader:
+        #     reader = asyncio.StreamReader()
+        #     protocol = asyncio.StreamReaderProtocol(reader)
+        #     await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+        #     return reader
+        #
+        # self.response_sock = await connect_stdin()
+        #
+        # line = await self.response_sock.readline()
+        msg = comms_decoder.get_message()
 
-        self.response_sock = await connect_stdin()
-
-        line = await self.response_sock.readline()
-
-        msg = self.decoder.validate_json(line)
         if not isinstance(msg, messages.StartTriggerer):
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
@@ -962,10 +966,19 @@ class TriggerRunner:
             msg.finished = None
 
         # Block triggers from making any requests for the duration of this
-        async with SUPERVISOR_COMMS.lock:
-            # Tell the monitor that we've finished triggers so it can update things
-            self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
-            line = await self.response_sock.readline()
+        # async with SUPERVISOR_COMMS.lock:
+        #     # Tell the monitor that we've finished triggers so it can update things
+        #     self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
+        #     line = await self.response_sock.readline()
+
+        self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
+
+        TRIGGERER_SUPERVISOR_COMMS_FUTURE = self._stdin_threadpool_executor.submit(
+            SUPERVISOR_COMMS._read_stdin_line
+        )
+
+        line = await asyncio.wrap_future(TRIGGERER_SUPERVISOR_COMMS_FUTURE)
+        TRIGGERER_SUPERVISOR_COMMS_FUTURE = None  # type: ignore[assignment]
 
         if line == b"":  # EoF received!
             if task := asyncio.current_task():
