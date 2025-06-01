@@ -1465,7 +1465,7 @@ class SelectiveChecks:
         :return: True if caplog is used in added lines else False
         """
         lines = run_command(
-            ["git", "diff"],
+            ["git", "diff", f"{self._commit_ref}^"],
             capture_output=True,
             text=True,
             cwd=AIRFLOW_ROOT_PATH,
