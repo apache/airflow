@@ -648,6 +648,10 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         assert date == ti.end_date + max_delay
 
+        ti.try_number = 50000
+        date = ti.next_retry_datetime()
+        assert date == ti.end_date + max_delay
+
     @pytest.mark.parametrize("seconds", [0, 0.5, 1])
     def test_next_retry_datetime_short_or_zero_intervals(self, dag_maker, seconds):
         delay = datetime.timedelta(seconds=seconds)
