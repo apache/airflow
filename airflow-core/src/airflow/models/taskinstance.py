@@ -1077,38 +1077,35 @@ class TaskInstance(Base, LoggingMixin):
                 # this probably gives unexpected results if a task instance has previously been cleared,
                 # because try_number can increase without bound
                 min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
-
-                # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
-                # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
-                # the ceiling function unnecessary, but the ceiling function was retained to avoid
-                # introducing a breaking change.
-                if min_backoff < 1:
-                    min_backoff = 1
-
-                # deterministic per task instance
-                ti_hash = int(
-                    hashlib.sha1(
-                        f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode(),
-                        usedforsecurity=False,
-                    ).hexdigest(),
-                    16,
-                )
-                # between 1 and 1.0 * delay * (2^retry_number)
-                modded_hash = min_backoff + ti_hash % min_backoff
-                # timedelta has a maximum representable value. The exponentiation
-                # here means this value can be exceeded after a certain number
-                # of tries (around 50 if the initial delay is 1s, even fewer if
-                # the delay is larger). Cap the value here before creating a
-                # timedelta object so the operation doesn't fail with "OverflowError".
-                delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
-                delay = timedelta(seconds=delay_backoff_in_seconds)
-                if self.task.max_retry_delay:
-                    delay = min(self.task.max_retry_delay, delay)
             except OverflowError:
-                if self.task.max_retry_delay:
-                    delay = self.task.max_retry_delay
-                else:
-                    delay = MAX_RETRY_DELAY
+                min_backoff = MAX_RETRY_DELAY
+
+            # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
+            # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
+            # the ceiling function unnecessary, but the ceiling function was retained to avoid
+            # introducing a breaking change.
+            if min_backoff < 1:
+                min_backoff = 1
+
+            # deterministic per task instance
+            ti_hash = int(
+                hashlib.sha1(
+                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode(),
+                    usedforsecurity=False,
+                ).hexdigest(),
+                16,
+            )
+            # between 1 and 1.0 * delay * (2^retry_number)
+            modded_hash = min_backoff + ti_hash % min_backoff
+            # timedelta has a maximum representable value. The exponentiation
+            # here means this value can be exceeded after a certain number
+            # of tries (around 50 if the initial delay is 1s, even fewer if
+            # the delay is larger). Cap the value here before creating a
+            # timedelta object so the operation doesn't fail with "OverflowError".
+            delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
+            delay = timedelta(seconds=delay_backoff_in_seconds)
+            if self.task.max_retry_delay:
+                delay = min(self.task.max_retry_delay, delay)
         return self.end_date + delay
 
     def ready_for_retry(self) -> bool:
