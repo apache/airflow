@@ -62,9 +62,3 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
-
-from tests_common.test_utils.system_tests import get_test_run
-
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
-test_run = get_test_run(dag)
