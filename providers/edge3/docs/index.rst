@@ -47,6 +47,13 @@
     Configuration <configurations-ref>
     CLI <cli-ref>
     Python API <_api/airflow/providers/edge3/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Resources
+
+    Example DAGs <_api/airflow/providers/edge3/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-edge3/>
     Installing from sources <installing-providers-from-sources>
 
