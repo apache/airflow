@@ -39,6 +39,15 @@ from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_ma
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
 
+class CustomTZ(datetime.tzinfo):
+    name = "My/Custom"
+
+
+class NoNameTZ(datetime.tzinfo):
+    def utcoffset(self, dt):
+        return datetime.timedelta(hours=2)
+
+
 @skip_if_force_lowest_dependencies_marker
 class TestSerializers:
     def test_datetime(self):
@@ -167,12 +176,13 @@ class TestSerializers:
         }
 
     def test_numpy(self):
-        from airflow.serialization.serializers.numpy import deserialize, serialize
-
         i = np.int16(10)
         e = serialize(i)
         d = deserialize(e)
         assert i == d
+
+    def test_numpy_serializers(self):
+        from airflow.serialization.serializers.numpy import deserialize, serialize
 
         assert serialize(np.bool_(False)) == (True, "numpy.bool_", 1, True)
         assert serialize(np.float32(3.14)) == (float(np.float32(3.14)), "numpy.float32", 1, True)
@@ -199,6 +209,19 @@ class TestSerializers:
         e = serialize(i)
         d = deserialize(e)
         assert i.equals(d)
+
+    def test_pandas_serializers(self):
+        from airflow.serialization.serializers.pandas import deserialize, serialize
+
+        assert serialize(123) == ("", "", 0, False)
+
+        with pytest.raises(TypeError) as ctx:
+            deserialize("pandas.core.frame.DataFrame", 999, "")
+        assert "serialized 999 of pandas.core.frame.DataFrame > 1" in str(ctx.value)
+
+        with pytest.raises(TypeError) as ctx:
+            deserialize("pandas.core.frame.DataFrame", 1, 123)
+        assert "serialized pandas.core.frame.DataFrame has wrong data type <class 'int'>" in str(ctx.value)
 
     def test_iceberg(self):
         pytest.importorskip("pyiceberg", minversion="2.0.0")
@@ -400,3 +423,27 @@ class TestSerializers:
     def test_pendulum_3_to_2(self, ser_value, expected):
         """Test deserialize objects in pendulum 2 which serialised in pendulum 3."""
         assert deserialize(ser_value) == expected
+
+    def test_timezone(self):
+        import pytz
+
+        from airflow.serialization.serializers.timezone import _get_tzinfo_name, deserialize, serialize
+
+        assert serialize(FixedTimezone(0)) == ("UTC", "pendulum.tz.timezone.FixedTimezone", 1, True)
+        assert serialize(NoNameTZ()) == ("", "", 0, False)
+
+        with pytest.raises(TypeError) as ctx:
+            deserialize("pendulum.tz.timezone.FixedTimezone", 1, 1.23)
+        assert "is not of type int or str" in str(ctx.value)
+
+        with pytest.raises(TypeError) as ctx:
+            deserialize("pendulum.tz.timezone.FixedTimezone", 999, "UTC")
+        assert "serialized 999 of pendulum.tz.timezone.FixedTimezone > 1" in str(ctx.value)
+
+        zi = deserialize("backports.zoneinfo.ZoneInfo", 1, "Asia/Taipei")
+        assert isinstance(zi, ZoneInfo)
+        assert zi.key == "Asia/Taipei"
+
+        assert _get_tzinfo_name(None) is None
+        assert _get_tzinfo_name(CustomTZ()) == "My/Custom"
+        assert _get_tzinfo_name(pytz.timezone("Asia/Taipei")) == "Asia/Taipei"
