@@ -27,6 +27,7 @@ import pendulum
 import pendulum.tz
 import pytest
 from dateutil.tz import tzutc
+from kubernetes.client import models as k8s
 from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -154,8 +155,6 @@ class TestSerializers:
         assert deserialize(serialize(decimal.Decimal(expr))) == decimal.Decimal(expected)
 
     def test_encode_k8s_v1pod(self):
-        from kubernetes.client import models as k8s
-
         pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 name="foo",
@@ -275,6 +274,15 @@ class TestSerializers:
             assert i.version() == d.version()
             assert i._storage_options == d._storage_options
             assert d._storage_options is None
+
+    def test_kubernetes(self, monkeypatch):
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from airflow.serialization.serializers.kubernetes import serialize
+
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))
+        monkeypatch.setattr(PodGenerator, "serialize_pod", lambda o: (_ for _ in ()).throw(Exception("fail")))
+        assert serialize(pod) == ("", "", 0, False)
+        assert serialize(123) == ("", "", 0, False)
 
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(
