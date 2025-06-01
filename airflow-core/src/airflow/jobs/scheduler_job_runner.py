@@ -32,7 +32,7 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable
 
-from sqlalchemy import and_, or_, delete, exists, func, select, text, tuple_, update
+from sqlalchemy import and_, delete, exists, func, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -54,7 +54,6 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
-    asset_alias_asset_event_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
@@ -1583,70 +1582,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .cte()
             )
 
-            start_time = func.coalesce(cte.c.previous_dag_run_run_after, date.min)
-
-            #####################################################################
-            # Profiling
-            #####################################################################
-            t0 = time.perf_counter()
-
-            asset_events_query = select(AssetEvent).where(
-                or_(
-                    AssetEvent.asset_id.in_(
-                        select(DagScheduleAssetReference.asset_id).where(
-                            DagScheduleAssetReference.dag_id == dag.dag_id
-                        )
+            asset_events = session.scalars(
+                select(AssetEvent).where(
+                    or_(
+                        AssetEvent.asset_id.in_(
+                            select(DagScheduleAssetReference.asset_id).where(
+                                DagScheduleAssetReference.dag_id == dag.dag_id
+                            )
+                        ),
+                        AssetEvent.source_aliases.any(
+                            AssetAliasModel.consuming_dags.any(
+                                DagScheduleAssetAliasReference.dag_id == dag.dag_id
+                            )
+                        ),
                     ),
-                    AssetEvent.source_aliases.any(
-                        AssetAliasModel.consuming_dags.any(
-                            DagScheduleAssetAliasReference.dag_id == dag.dag_id
-                        )
-                    ),
-                ),
-                AssetEvent.timestamp <= triggered_date,
-                AssetEvent.timestamp > start_time,
-            )
-            asset_events = session.scalars(asset_events_query).all()
-            # asset_events = session.scalars(
-            #     select(AssetEvent)
-            #     .join(
-            #         DagScheduleAssetReference,
-            #         AssetEvent.asset_id == DagScheduleAssetReference.asset_id,
-            #     )
-            #     .where(
-            #         DagScheduleAssetReference.dag_id == dag.dag_id,
-            #         AssetEvent.timestamp <= triggered_date,
-            #         AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
-            #     )
-            # ).all()
-            # alias_events = session.scalars(
-            #     select(AssetEvent)
-            #     .join(
-            #         asset_alias_asset_event_association_table,
-            #         asset_alias_asset_event_association_table.c.event_id == AssetEvent.id,
-            #     )
-            #     .join(
-            #         AssetAliasModel,
-            #         asset_alias_asset_event_association_table.c.alias_id == AssetAliasModel.id,
-            #     )
-            #     .join(
-            #         DagScheduleAssetAliasReference,
-            #         DagScheduleAssetAliasReference.alias_id == AssetAliasModel.id,
-            #     )
-            #     .where(
-            #         DagScheduleAssetAliasReference.dag_id == dag.dag_id,
-            #         AssetEvent.timestamp <= triggered_date,
-            #         AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
-            #     )
-            # ).all()
-
-            #####################################################################
-            # Profiling
-            #####################################################################
-            t1 = time.perf_counter()
-            self.log.info("[PROFILE] DAG: %s, Fetched %d asset_events (include alias) in %.4f seconds", dag.dag_id, len(asset_events), t1 - t0)
-            self.log.info("[PROFILE] DAG: %s, Number of asset events in set %s", dag.dag_id, len(set(asset_events)))
-            # self.log.info("[PROFILE] DAG: %s, Fetched %d alias_events in %.4f seconds", dag.dag_id, len(alias_events), t1 - t0)
+                    AssetEvent.timestamp <= triggered_date,
+                    AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                )
+            ).all()
 
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
@@ -1663,7 +1616,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
-            # dag_run.consumed_asset_events.extend(alias_events)
             session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
 
     def _should_update_dag_next_dagruns(
