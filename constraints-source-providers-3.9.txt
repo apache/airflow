@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-01T07:50:50.543723
+# This constraints file was automatically generated on 2025-06-01T19:47:57.976064
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -142,7 +142,7 @@ cachetools==5.5.2
 cadwyn==5.3.3
 cassandra-driver==3.29.2
 cattrs==25.1.0
-celery==5.5.2
+celery==5.5.3
 certifi==2025.4.26
 cffi==1.17.1
 cfgv==3.4.0
@@ -355,7 +355,7 @@ kerberos==1.3.1
 keyring==25.6.0
 keyrings.alt==5.0.2
 kgb==7.2
-kombu==5.5.3
+kombu==5.5.4
 krb5==0.7.1
 kubernetes==32.0.1
 kubernetes_asyncio==32.3.2
@@ -574,7 +574,7 @@ scipy==1.13.1
 scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.4
-sendgrid==6.11.0
+sendgrid==6.12.3
 sentinels==1.0.0
 sentry-sdk==2.29.1
 setproctitle==1.3.6
@@ -617,7 +617,6 @@ sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
-starkbank-ecdsa==2.2.0
 starlette==0.46.2
 statsd==4.0.1
 std-uritemplate==2.0.5
@@ -683,7 +682,7 @@ urllib3==1.26.20
 userpath==1.9.2
 uuid6==2024.7.10
 uv==0.7.8
-uvicorn==0.34.2
+uvicorn==0.34.3
 uvloop==0.21.0
 validators==0.34.0
 vertica-python==1.4.0
