@@ -31,7 +31,9 @@ metadata:
   annotations:
     helm.sh/hook: "pre-install"
     helm.sh/hook-weight: "5"
-    # helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-delete-policy: "hook-succeeded,before-hook-creation"
+    # Increase hook timeout to avoid timing out in CI environments
+    helm.sh/hook-timeout-seconds: "300"
 spec:
   template:
     metadata:
@@ -51,18 +53,44 @@ spec:
           - bash
           - -c
           - |
+            set -ex
             # Give the PVC a moment to fully mount
             echo "Waiting for PVC to be fully available..."
-            sleep 5
+            sleep 10
+
+            echo "Creating target directories if they don't exist..."
+            mkdir -p /mnt/target/airflow-core
+            mkdir -p /mnt/target/airflow-ctl
+            mkdir -p /mnt/target/task-sdk
 
             echo "Checking if development code directories exist..."
-            # Check if the directories exist, but don't fail if they don't
-            # We're just logging the status at this point
-            cp -r {{ printf "%s/airflow-core" .Values.airflowHome }}/* /mnt/target/airflow-core || echo "copying airflow-core directory failed, it may not exist yet..."
-            cp -r {{ printf "%s/airflow-ctl" .Values.airflowHome }}/* /mnt/target/airflow-ctl || echo "copying airflow-ctl directory failed, it may not exist yet..."
-            cp -r {{ printf "%s/task-sdk" .Values.airflowHome }}/* /mnt/target/task-sdk || echo "copying task-sdk directory failed, it may not exist yet..."
+            # Skip copying if source directories don't exist or are empty
+            if [ -d "{{ printf "%s/airflow-core" .Values.airflowHome }}" ] && [ "$(ls -A {{ printf "%s/airflow-core" .Values.airflowHome }})" ]; then
+              echo "Copying airflow-core files..."
+              cp -rv {{ printf "%s/airflow-core" .Values.airflowHome }}/* /mnt/target/airflow-core/ || echo "Warning: Some files in airflow-core couldn't be copied"
+            else
+              echo "airflow-core directory doesn't exist or is empty, skipping..."
+              touch /mnt/target/airflow-core/.placeholder
+            fi
+
+            if [ -d "{{ printf "%s/airflow-ctl" .Values.airflowHome }}" ] && [ "$(ls -A {{ printf "%s/airflow-ctl" .Values.airflowHome }})" ]; then
+              echo "Copying airflow-ctl files..."
+              cp -rv {{ printf "%s/airflow-ctl" .Values.airflowHome }}/* /mnt/target/airflow-ctl/ || echo "Warning: Some files in airflow-ctl couldn't be copied"
+            else
+              echo "airflow-ctl directory doesn't exist or is empty, skipping..."
+              touch /mnt/target/airflow-ctl/.placeholder
+            fi
+
+            if [ -d "{{ printf "%s/task-sdk" .Values.airflowHome }}" ] && [ "$(ls -A {{ printf "%s/task-sdk" .Values.airflowHome }})" ]; then
+              echo "Copying task-sdk files..."
+              cp -rv {{ printf "%s/task-sdk" .Values.airflowHome }}/* /mnt/target/task-sdk/ || echo "Warning: Some files in task-sdk couldn't be copied"
+            else
+              echo "task-sdk directory doesn't exist or is empty, skipping..."
+              touch /mnt/target/task-sdk/.placeholder
+            fi
 
             # List directories to verify they exist
+            echo "Listing target directories content:"
             ls -la /mnt/target/airflow-core
             ls -la /mnt/target/airflow-ctl
             ls -la /mnt/target/task-sdk
