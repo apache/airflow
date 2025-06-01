@@ -1315,6 +1315,7 @@ pluggable
 pluggy
 plyvel
 png
+PoC
 PodManager
 podName
 PodSpec

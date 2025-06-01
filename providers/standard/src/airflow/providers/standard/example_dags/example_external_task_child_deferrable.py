@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,32 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example of the LatestOnlyOperator"""
-
 from __future__ import annotations
 
-import datetime
+from datetime import datetime
 
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
-from airflow.sdk import DAG
+from airflow import DAG
+from airflow.providers.standard.operators.bash import BashOperator
 
 with DAG(
-    dag_id="latest_only",
-    schedule=datetime.timedelta(hours=4),
-    start_date=datetime.datetime(2021, 1, 1),
+    dag_id="child_dag",
+    start_date=datetime(2022, 1, 1),
+    schedule="@once",
     catchup=False,
-    tags=["example2", "example3"],
+    tags=["example", "async", "core"],
 ) as dag:
-    # [START howto_operator_latest_only]
-    latest_only = LatestOnlyOperator(task_id="latest_only")
-    # [END howto_operator_latest_only]
-    task1 = EmptyOperator(task_id="task1")
-
-    latest_only >> task1
-
-
-from tests_common.test_utils.system_tests import get_test_run
-
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
-test_run = get_test_run(dag)
+    BashOperator(
+        task_id="child_task",
+        bash_command="echo 1; sleep 1; echo 2; sleep 2; echo 3; sleep 3",
+    )
