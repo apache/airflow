@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,32 +15,40 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the usage of the `@task.short_circuit()` TaskFlow decorator."""
+"""Example DAG demonstrating the usage of the ShortCircuitOperator."""
 
 from __future__ import annotations
 
 import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import chain, dag, task
+from airflow.providers.standard.operators.python import ShortCircuitOperator
+from airflow.sdk import DAG, chain
 from airflow.utils.trigger_rule import TriggerRule
 
-
-@dag(schedule=None, start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"])
-def example_short_circuit_decorator():
+with DAG(
+    dag_id="example_short_circuit_operator",
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
+) as dag:
     # [START howto_operator_short_circuit]
-    @task.short_circuit()
-    def check_condition(condition):
-        return condition
+    cond_true = ShortCircuitOperator(
+        task_id="condition_is_True",
+        python_callable=lambda: True,
+    )
+
+    cond_false = ShortCircuitOperator(
+        task_id="condition_is_False",
+        python_callable=lambda: False,
+    )
 
     ds_true = [EmptyOperator(task_id=f"true_{i}") for i in [1, 2]]
     ds_false = [EmptyOperator(task_id=f"false_{i}") for i in [1, 2]]
 
-    condition_is_true = check_condition.override(task_id="condition_is_true")(condition=True)
-    condition_is_false = check_condition.override(task_id="condition_is_false")(condition=False)
-
-    chain(condition_is_true, *ds_true)
-    chain(condition_is_false, *ds_false)
+    chain(cond_true, *ds_true)
+    chain(cond_false, *ds_false)
     # [END howto_operator_short_circuit]
 
     # [START howto_operator_short_circuit_trigger_rules]
@@ -49,18 +58,9 @@ def example_short_circuit_decorator():
 
     task_7 = EmptyOperator(task_id="task_7", trigger_rule=TriggerRule.ALL_DONE)
 
-    short_circuit = check_condition.override(task_id="short_circuit", ignore_downstream_trigger_rules=False)(
-        condition=False
+    short_circuit = ShortCircuitOperator(
+        task_id="short_circuit", ignore_downstream_trigger_rules=False, python_callable=lambda: False
     )
 
     chain(task_1, [task_2, short_circuit], [task_3, task_4], [task_5, task_6], task_7)
     # [END howto_operator_short_circuit_trigger_rules]
-
-
-example_dag = example_short_circuit_decorator()
-
-
-from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
-
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
-test_run = get_test_run(example_dag)

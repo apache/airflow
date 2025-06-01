@@ -101,7 +101,16 @@ PERF_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "dev" / "airflow_perf" / "dags"
 ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
-EXAMPLE_STANDARD_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "providers" / "standard" / "tests" / "system" / "standard"
+EXAMPLE_STANDARD_DAGS_FOLDER = (
+    AIRFLOW_ROOT_PATH
+    / "providers"
+    / "standard"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "standard"
+    / "example_dags"
+)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
