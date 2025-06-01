@@ -1,11 +1,15 @@
 {
-  "actions": {
-    "delete": "Skasuj Daga",
-    "deleteDagWarning": "Ta operacja usunie wszystkie metadane, takie jak wykonania Daga i zadania.",
-    "trigger": "Uruchom",
-    "triggerDag": "Uruchom Daga"
-  },
   "assetSchedule": "Uaktualniono {{count}} z {{total}} zasobów",
+  "dagActions": {
+      "delete": {
+          "button": "Skasuj Daga",
+          "warning": "Ta operacja usunie wszystkie metadane, takie jak wykonania Daga i zadania."
+      },
+      "trigger": {
+          "button": "Uruchom Daga",
+          "triggerDag": "Uruchom Daga"
+      }
+  },
   "filters": {
     "paused": {
       "active": "Aktywne",
@@ -14,24 +18,26 @@
     }
   },
   "list": {
-    "advancedSearch": "Wyszukiwanie zaawansowane",
-    "clearSearch": "Wyczyść wyszukiwanie",
-    "columns": {
-      "dagId": "Identyfikator Daga",
-      "lastDagRun": "Ostatnie Wykonanie Daga",
-      "nextDagRun": "Następne Wykonanie Daga",
-      "schedule": "Harmonogram",
-      "tags": "Etykiety"
-    },
-    "ownerLink": "Link do właściciela {{owner}}",
-    "runs": {
-      "duration": "Czas trwania",
-      "endDate": "Data zakończenia",
-      "runAfter": "Uruchom po",
-      "startDate": "Data rozpoczęcia",
-      "state": "Stan"
-    },
-    "searchPlaceholder": "Szukaj Dagów"
+      "advancedSearch": "Wyszukiwanie zaawansowane",
+      "clearSearch": "Wyczyść wyszukiwanie",
+      "columns": {
+          "dagId": "Identyfikator Daga",
+          "lastDagRun": "Ostatnie Wykonanie Daga",
+          "nextDagRun": "Następne Wykonanie Daga",
+          "schedule": "Harmonogram",
+          "tags": "Etykiety"
+      },
+      "ownerLink": "Link do właściciela {{owner}}",
+      "searchPlaceholder": "Szukaj Dagów"
+  },
+  "runs": {
+      "columns": {
+          "duration": "Czas trwania",
+          "endDate": "Data zakończenia",
+          "runAfter": "Uruchom po",
+          "startDate": "Data rozpoczęcia",
+          "state": "Stan"
+      }
   },
   "sort": {
     "displayName": {
