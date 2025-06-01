@@ -538,15 +538,25 @@ class TestDBCleanup:
     @patch("airflow.utils.db_cleanup.csv")
     def test_dump_table_to_file_function_for_csv(self, mock_csv):
         mockopen = mock_open()
+        mock_cursor = MagicMock()
+        mock_session = MagicMock()
+        mock_session.execute.return_value = mock_cursor
+        mock_cursor.keys.return_value = ["test-col-1", "test-col-2"]
+        mock_cursor.fetchmany.side_effect = [
+            [("testval-1.1", "testval-1.2"), ("testval-2.1", "testval-2.2")],
+            [],
+        ]
         with patch("airflow.utils.db_cleanup.open", mockopen, create=True):
             _dump_table_to_file(
-                target_table="mytable", file_path="dags/myfile.csv", export_format="csv", session=MagicMock()
+                target_table="mytable", file_path="dags/myfile.csv", export_format="csv", session=mock_session
             )
             mockopen.assert_called_once_with("dags/myfile.csv", "w")
             writer = mock_csv.writer
             writer.assert_called_once()
-            writer.return_value.writerow.assert_called_once()
-            writer.return_value.writerows.assert_called_once()
+            writer.return_value.writerow.assert_called_once_with(["test-col-1", "test-col-2"])
+            writer.return_value.writerows.assert_called_once_with(
+                [("testval-1.1", "testval-1.2"), ("testval-2.1", "testval-2.2")]
+            )
 
     def test_dump_table_to_file_raises_if_format_not_supported(self):
         with pytest.raises(AirflowException) as exc_info:
