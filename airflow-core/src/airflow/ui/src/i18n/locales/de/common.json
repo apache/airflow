@@ -13,6 +13,8 @@
     "auditLog": "Prüf-Log",
     "xcoms": "Task Kommunikation (XComs)"
   },
+  "dag_one": "Dag",
+  "dag_other": "Dags",
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
   "defaultToGraphView": "Graph-Ansicht als Standard",
@@ -26,24 +28,36 @@
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
   "modal": {
     "cancel": "Abbrechen",
-    "confirm": "Bestätigen"
+    "confirm": "Bestätigen",
+    "delete": {
+      "button": "Löschen",
+      "confirmation": "Sind Sie sicher, dass Sie {{resourceName}} löschen wollen? Diese Aktion kann nicht rückgängig gemacht werden."
+    }
   },
   "nav": {
     "admin": "Verwaltung",
     "assets": "Datensets (Assets)",
     "browse": "Browsen",
+    "dags": "Dags",
     "docs": "Doku",
     "home": "Start",
     "plugins": "Plug-ins",
     "security": "Sicherheit"
   },
+  "noItemsFound": "Kein Element vom Typ {{modelName}} gefunden",
   "pools": {
     "deferred": "Delegiert",
     "open": "Frei",
     "pools_one": "Pool",
     "pools_other": "Pools",
     "queued": "Wartend",
-    "running": "Laufend",
+    "running": "Laufende",
+    "scheduled": "Geplant"
+  },
+  "runTypes": {
+    "asset_triggered": "Durch Datenset (Asset) angestoßen",
+    "backfill": "Nachträglich Aufgefüllt",
+    "manual": "Manuell",
     "scheduled": "Geplant"
   },
   "security": {
@@ -58,6 +72,7 @@
     "deferred": "Delegiert",
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
+    "none": "Kein Status",
     "queued": "Wartend",
     "removed": "Entfernt",
     "restarting": "Im Neustart",
@@ -71,6 +86,21 @@
   },
   "switchToDarkMode": "Zum Dunkelmodus wechseln",
   "switchToLightMode": "Zum Hellmodus wechseln",
+  "table": {
+    "filterByTag": "Dags nach Markierung filtern",
+    "filterColumns": "Tabellenspalten filtern",
+    "filters": {
+      "filter_one": "Filter",
+      "filter_other": "Filter",
+      "reset": "Zurücksetzen"
+    },
+    "noTagsFound": "Keine Markierungen gefunden",
+    "tagMode": {
+      "all": "Alle",
+      "any": "Einer"
+    },
+    "tagPlaceholder": "Dags nach Markierung filtern"
+  },
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
   "timeRange": {
