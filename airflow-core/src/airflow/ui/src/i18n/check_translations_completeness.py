@@ -326,6 +326,7 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
         lang_path.parent.mkdir(parents=True, exist_ok=True)
         with open(lang_path, "w", encoding="utf-8") as f:
             json.dump(lang_data, f, ensure_ascii=False, indent=2, sort_keys=True)
+            f.write("\n")  # Ensure newline at the end of the file
         console.print(f"[green]Added missing translations to {lang_path}[/green]")
 
 
