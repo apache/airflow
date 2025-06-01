@@ -79,6 +79,7 @@ services:
       - ../../../empty:/opt/airflow/providers/influxdb/src
       - ../../../empty:/opt/airflow/providers/jdbc/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
+      - ../../../empty:/opt/airflow/providers/keycloak/src
       - ../../../empty:/opt/airflow/providers/microsoft/azure/src
       - ../../../empty:/opt/airflow/providers/microsoft/mssql/src
       - ../../../empty:/opt/airflow/providers/microsoft/psrp/src

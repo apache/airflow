@@ -97,7 +97,7 @@ paths:
   /ui/dags/recent_dag_runs:
     get:
       tags:
-      - Dags
+      - DAG
       summary: Recent Dag Runs
       description: Get recent DAG runs.
       operationId: recent_dag_runs
@@ -396,8 +396,8 @@ paths:
     get:
       tags:
       - Backfill
-      summary: List Backfills
-      operationId: list_backfills
+      summary: List Backfills Ui
+      operationId: list_backfills_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:

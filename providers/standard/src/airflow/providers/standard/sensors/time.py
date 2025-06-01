@@ -88,8 +88,12 @@ class TimeSensor(BaseSensorOperator):
 
         # Create a "date-aware" timestamp that will be used as the "target_datetime". This is a requirement
         # of the DateTimeTrigger
+
+        # Get date considering dag.timezone
         aware_time = timezone.coerce_datetime(
-            datetime.datetime.combine(datetime.datetime.today(), target_time, self.dag.timezone)
+            datetime.datetime.combine(
+                datetime.datetime.now(self.dag.timezone), target_time, self.dag.timezone
+            )
         )
 
         # Now that the dag's timezone has made the datetime timezone aware, we need to convert to UTC

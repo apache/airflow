@@ -91,6 +91,7 @@ services:
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
       - ../../../providers/jdbc/tests:/opt/airflow/providers/jdbc/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
+      - ../../../providers/keycloak/tests:/opt/airflow/providers/keycloak/tests
       - ../../../providers/microsoft/azure/tests:/opt/airflow/providers/microsoft/azure/tests
       - ../../../providers/microsoft/mssql/tests:/opt/airflow/providers/microsoft/mssql/tests
       - ../../../providers/microsoft/psrp/tests:/opt/airflow/providers/microsoft/psrp/tests

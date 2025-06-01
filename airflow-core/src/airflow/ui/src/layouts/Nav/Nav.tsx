@@ -61,7 +61,7 @@ export const Nav = () => {
         <NavButton
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
           icon={<DagIcon height="1.75rem" width="1.75rem" />}
-          title="Dags"
+          title={translate("nav.dags")}
           to="dags"
         />
         <NavButton

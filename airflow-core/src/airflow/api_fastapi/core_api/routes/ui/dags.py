@@ -54,7 +54,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.models import DagModel, DagRun
 
-dags_router = AirflowRouter(prefix="/dags", tags=["Dags"])
+dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
 
 @dags_router.get(

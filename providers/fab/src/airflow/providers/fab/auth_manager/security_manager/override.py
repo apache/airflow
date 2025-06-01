@@ -2132,8 +2132,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "username": me["nickname"],
                 "role_keys": me.get("groups", []),
             }
-
-        return {}
+        # for other providers
+        data = self.oauth_remotes[provider].userinfo()
+        log.debug("User info from %s: %s", provider, data)
+        return {
+            "username": data.get("preferred_username", ""),
+            "first_name": data.get("given_name", ""),
+            "last_name": data.get("family_name", ""),
+            "email": data.get("email", ""),
+            "role_keys": data.get("groups", []),
+        }
 
     @staticmethod
     def oauth_token_getter():

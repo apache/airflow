@@ -26,6 +26,8 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
 
+from unit.amazon.aws.utils.test_template_fields import validate_template_fields
+
 MODULE = "airflow.providers.amazon.aws.sensors.redshift_cluster"
 
 
@@ -133,3 +135,13 @@ class TestRedshiftClusterSensor:
                 context=None, event={"status": "success", "cluster_state": "available"}
             )
         mock_log_info.assert_called_with("Cluster Identifier %s is in %s state", "test_cluster", "available")
+
+    def test_template_fields(self):
+        op = RedshiftClusterSensor(
+            task_id="test_cluster_sensor",
+            cluster_identifier="test_cluster",
+            target_status="available",
+            region_name="us-west-2",
+            aws_conn_id="test-conn",
+        )
+        validate_template_fields(op)

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDagServiceGetDags, useDagsServiceRecentDagRuns } from "openapi/queries";
+import { useDagServiceGetDags, useDagServiceRecentDagRuns } from "openapi/queries";
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -37,6 +37,7 @@ export const useDags = (
     owners?: Array<string>;
     paused?: boolean;
     tags?: Array<string>;
+    tagsMatchMode?: "all" | "any";
   } = {},
 ) => {
   const { data, error, isFetching, isLoading } = useDagServiceGetDags(searchParams);
@@ -49,7 +50,7 @@ export const useDags = (
     error: runsError,
     isFetching: isRunsFetching,
     isLoading: isRunsLoading,
-  } = useDagsServiceRecentDagRuns(
+  } = useDagServiceRecentDagRuns(
     {
       ...runsParams,
       dagRunsLimit,
