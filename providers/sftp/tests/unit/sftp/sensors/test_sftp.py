@@ -58,7 +58,7 @@ class TestSFTPSensor:
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_absent(self, sftp_hook_mock):
-        # This is the same logic as mentioned above, however, it's testing for a missing file
+        # This is the same implementation above, however, it's simulating instead the absence of a file
         sftp_hook_mock.return_value.isfile.return_value = False
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
         context = {"ds": "1970-01-01"}
