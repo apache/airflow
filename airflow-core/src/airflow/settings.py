@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.common.types import UIAlert
 
 log = logging.getLogger(__name__)
+logging.getLogger("sqlalchemy").setLevel(logging.INFO)
 
 try:
     if (tz := conf.get_mandatory_value("core", "default_timezone")) != "system":

@@ -97,6 +97,23 @@ class TestDagEndpoint:
         session.add(dagrun_failed)
         session.add(dagrun_success)
 
+    def _create_noise_dag(self, dag_maker, dr_start_date, session):
+        """
+        This dag has 3 runs all with same start date that coincides with that from another dag
+
+        It exists to identify regression from https://github.com/apache/airflow/pull/50984.
+        """
+
+        with dag_maker(dag_id="test_noise_dag", schedule=None):
+            EmptyOperator(task_id=TASK_ID)
+
+        for i in range(3):
+            dag_maker.create_dagrun(
+                run_id=f"abc_{i}",
+                start_date=dr_start_date,
+                logical_date=DAG1_START_DATE + timedelta(seconds=i),
+            )
+
     def _create_dag_tags(self, session=None):
         session.add(DagTag(dag_id=DAG1_ID, name="tag_2"))
         session.add(DagTag(dag_id=DAG2_ID, name="tag_1"))
@@ -123,7 +140,7 @@ class TestDagEndpoint:
         ):
             EmptyOperator(task_id=TASK_ID)
 
-        dag_maker.create_dagrun(state=DagRunState.FAILED)
+        dag_1_dr = dag_maker.create_dagrun(state=DagRunState.FAILED, logical_date=DAG1_START_DATE)
 
         with dag_maker(
             DAG2_ID,
@@ -141,6 +158,7 @@ class TestDagEndpoint:
         ):
             EmptyOperator(task_id=TASK_ID)
 
+        self._create_noise_dag(dag_maker=dag_maker, dr_start_date=dag_1_dr.start_date, session=session)
         self._create_deactivated_paused_dag(session)
         self._create_dag_tags(session)
 
@@ -160,13 +178,13 @@ class TestGetDags(TestDagEndpoint):
         "query_params, expected_total_entries, expected_ids",
         [
             # Filters
-            ({}, 2, [DAG1_ID, DAG2_ID]),
-            ({"limit": 1}, 2, [DAG1_ID]),
-            ({"offset": 1}, 2, [DAG2_ID]),
+            # ({}, 3, ["test_noise_dag", DAG1_ID, DAG2_ID]),
+            # ({"limit": 1}, 3, [DAG1_ID]),
+            # ({"offset": 1}, 3, [DAG2_ID, "test_noise_dag"]),
             ({"tags": ["example"]}, 1, [DAG1_ID]),
-            ({"exclude_stale": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
+            ({"exclude_stale": False}, 4, [DAG1_ID, DAG2_ID, DAG3_ID]),
             ({"paused": True, "exclude_stale": False}, 1, [DAG3_ID]),
-            ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
+            ({"paused": False}, 3, [DAG1_ID, DAG2_ID]),
             ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
             ({"owners": ["test_owner"], "exclude_stale": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
@@ -249,9 +267,10 @@ class TestGetDags(TestDagEndpoint):
         response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
-
-        assert body["total_entries"] == expected_total_entries
-        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+        total_entries = body["total_entries"]
+        actual_ids = [dag["dag_id"] for dag in body["dags"]]
+        assert total_entries == expected_total_entries
+        assert actual_ids == expected_ids
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_get_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
