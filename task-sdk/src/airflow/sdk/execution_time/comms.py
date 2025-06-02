@@ -74,6 +74,8 @@ from airflow.sdk.api.datamodels._generated import (
     TriggerDAGRunPayload,
     VariableResponse,
     XComResponse,
+    XComSequenceIndexResponse,
+    XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 
@@ -227,6 +229,24 @@ class XComCountResponse(BaseModel):
     type: Literal["XComLengthResponse"] = "XComLengthResponse"
 
 
+class XComSequenceIndexResult(BaseModel):
+    root: JsonValue
+    type: Literal["XComSequenceIndexResult"] = "XComSequenceIndexResult"
+
+    @classmethod
+    def from_response(cls, response: XComSequenceIndexResponse) -> XComSequenceIndexResult:
+        return cls(root=response.root, type="XComSequenceIndexResult")
+
+
+class XComSequenceSliceResult(BaseModel):
+    root: list[JsonValue]
+    type: Literal["XComSequenceSliceResult"] = "XComSequenceSliceResult"
+
+    @classmethod
+    def from_response(cls, response: XComSequenceSliceResponse) -> XComSequenceSliceResult:
+        return cls(root=response.root, type="XComSequenceSliceResult")
+
+
 class ConnectionResult(ConnectionResponse):
     type: Literal["ConnectionResult"] = "ConnectionResult"
 
@@ -352,8 +372,10 @@ ToTask = Annotated[
         TICount,
         TaskStatesResult,
         VariableResult,
-        XComResult,
         XComCountResponse,
+        XComResult,
+        XComSequenceIndexResult,
+        XComSequenceSliceResult,
         OKResponse,
     ],
     Field(discriminator="type"),
@@ -449,6 +471,17 @@ class GetXComSequenceItem(BaseModel):
     task_id: str
     offset: int
     type: Literal["GetXComSequenceItem"] = "GetXComSequenceItem"
+
+
+class GetXComSequenceSlice(BaseModel):
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    start: int | None
+    stop: int | None
+    step: int | None
+    type: Literal["GetXComSequenceSlice"] = "GetXComSequenceSlice"
 
 
 class SetXCom(BaseModel):
@@ -616,6 +649,7 @@ ToSupervisor = Annotated[
         GetXCom,
         GetXComCount,
         GetXComSequenceItem,
+        GetXComSequenceSlice,
         PutVariable,
         RescheduleTask,
         RetryTask,

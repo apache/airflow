@@ -28,8 +28,10 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetXComCount,
     GetXComSequenceItem,
+    GetXComSequenceSlice,
     XComCountResponse,
-    XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
@@ -75,7 +77,7 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
     it = iter(lazy_sequence)
 
     mock_supervisor_comms.get_message.side_effect = [
-        XComResult(key="return_value", value="f"),
+        XComSequenceIndexResult(root="f"),
         ErrorResponse(error=ErrorType.XCOM_NOT_FOUND, detail={"oops": "sorry!"}),
     ]
     assert list(it) == ["f"]
@@ -104,7 +106,7 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
 
 
 def test_getitem_index(mock_supervisor_comms, lazy_sequence):
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value="f")
+    mock_supervisor_comms.get_message.return_value = XComSequenceIndexResult(root="f")
     assert lazy_sequence[4] == "f"
     assert mock_supervisor_comms.send_request.mock_calls == [
         call(
@@ -121,12 +123,12 @@ def test_getitem_index(mock_supervisor_comms, lazy_sequence):
 
 
 @conf_vars({("core", "xcom_backend"): "task_sdk.execution_time.test_lazy_sequence.CustomXCom"})
-def test_getitem_calls_correct_deserialise(mock_supervisor_comms, lazy_sequence):
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value="some-value")
+def test_getitem_calls_correct_deserialise(monkeypatch, mock_supervisor_comms, lazy_sequence):
+    mock_supervisor_comms.get_message.return_value = XComSequenceIndexResult(root="some-value")
 
     xcom = resolve_xcom_backend()
     assert xcom.__name__ == "CustomXCom"
-    airflow.sdk.execution_time.xcom.XCom = xcom
+    monkeypatch.setattr(airflow.sdk.execution_time.xcom, "XCom", xcom)
 
     assert lazy_sequence[4] == "Made with CustomXCom: some-value"
     assert mock_supervisor_comms.send_request.mock_calls == [
@@ -160,6 +162,25 @@ def test_getitem_indexerror(mock_supervisor_comms, lazy_sequence):
                 task_id="task",
                 run_id="run",
                 offset=4,
+            ),
+        ),
+    ]
+
+
+def test_getitem_slice(mock_supervisor_comms, lazy_sequence):
+    mock_supervisor_comms.get_message.return_value = XComSequenceSliceResult(root=[6, 4, 1])
+    assert lazy_sequence[:5] == [6, 4, 1]
+    assert mock_supervisor_comms.send_request.mock_calls == [
+        call(
+            log=ANY,
+            msg=GetXComSequenceSlice(
+                key="return_value",
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=None,
+                stop=5,
+                step=None,
             ),
         ),
     ]
