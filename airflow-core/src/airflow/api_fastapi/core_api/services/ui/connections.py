@@ -185,7 +185,9 @@ class HookMetaService:
                 pass
 
             pm = ProvidersManager()
-            return pm.hooks, pm.connection_form_widgets, pm.field_behaviours
+            pm._cleanup()  # Remove any cached hooks with non mocked FAB
+            pm._init_airflow_core_hooks()  # Initialize core hooks
+            return pm.hooks, pm.connection_form_widgets, pm.field_behaviours  # Will init providers hooks
 
         return (
             {},
