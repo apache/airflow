@@ -34,7 +34,7 @@ name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = "~=3.9,<3.13"
+requires-python = "~=3.9,<3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -54,6 +54,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
     "Topic :: System :: Monitoring",
 ]
@@ -756,6 +757,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "airflow-core/src/airflow/security/kerberos.py" = [ "E402" ]
 "airflow-core/src/airflow/security/utils.py" = [ "E402" ]
 "airflow-core/tests/unit/always/test_connection.py" = [ "E402" ]
+"airflow-core/tests/unit/always/test_providers_manager.py"  = [ "E402" ]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
@@ -766,14 +768,24 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_ray.py" = [ "E402" ]
 "providers/google/tests/unit/google/cloud/links/test_translate.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/test_automl.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/sensors/test_vertex_ai.py" = [ "E402"]
 "providers/microsoft/azure/tests/conftest.py" = ["E402"]
 "providers/qdrant/tests/unit/qdrant/hooks/test_qdrant.py" = ["E402"]
 "providers/qdrant/tests/unit/qdrant/operators/test_qdrant.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/hooks/test_yandex.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/hooks/test_yq.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/operators/test_dataproc.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/operators/test_yq.py" = ["E402"]
+"providers/yandex/tests/unit/yandex/secrets/test_lockbox.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/hooks/test_ydb.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/operators/test_ydb.py" = ["E402"]
+"providers/ydb/tests/unit/ydb/utils/test_credentials.py" = ["E402"]
 
 # Remove some docstring rules from files that do not need docstrings
 "providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]

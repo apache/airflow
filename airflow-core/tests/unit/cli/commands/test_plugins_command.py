@@ -34,6 +34,8 @@ from unit.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
 
 pytestmark = pytest.mark.db_test
 
+pytest.importorskip("airflow.providers.fab")
+
 
 class AirflowNewLink(BaseOperatorLink):
     """Operator Link for Apache Airflow Website."""

@@ -343,7 +343,7 @@ class TestOracleHook:
             (
                 "'basestr_with_quote",
                 None,
-                np.NAN,
+                np.nan,
                 np.datetime64("2019-01-24T01:02:03"),
                 datetime(2019, 1, 24),
                 1,
@@ -374,7 +374,7 @@ class TestOracleHook:
             (
                 "'basestr_with_quote",
                 None,
-                np.NAN,
+                np.nan,
                 np.datetime64("2019-01-24T01:02:03"),
                 datetime(2019, 1, 24),
                 1,

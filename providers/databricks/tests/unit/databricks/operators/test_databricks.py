@@ -51,7 +51,7 @@ from airflow.providers.databricks.triggers.databricks import (
 )
 from airflow.providers.databricks.utils import databricks as utils
 
-pytestmark = pytest.mark.db_tes
+pytestmark = pytest.mark.db_test
 
 
 DATE = "2017-04-20"

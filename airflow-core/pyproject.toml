@@ -256,7 +256,6 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-fab",
     "apache-airflow-providers-git",
     "apache-airflow-providers-ftp",
 ]
