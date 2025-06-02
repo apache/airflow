@@ -41,9 +41,9 @@ var runCmd = &cobra.Command{
 }
 
 func init() {
-	runCmd.Flags().String("broker-address", "", "Celery Broker host:port to connect to")
+	runCmd.Flags().StringP("broker-address", "b", "", "Celery Broker host:port to connect to")
 	runCmd.Flags().
-		String("execution-api-url", "http://localhost:8080/execution/", "Execution API to connect to")
-	runCmd.Flags().StringSlice("queues", []string{"default"}, "Celery queues to listen on")
+		StringP("execution-api-url", "e", "http://localhost:8080/execution/", "Execution API to connect to")
+	runCmd.Flags().StringSliceP("queues", "q", []string{"default"}, "Celery queues to listen on")
 	runCmd.MarkFlagRequired("broker-address")
 }

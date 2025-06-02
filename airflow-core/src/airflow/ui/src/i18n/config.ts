@@ -21,6 +21,8 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
 import deCommon from "./locales/de/common.json";
+import deConnections from "./locales/de/connections.json";
+import deDags from "./locales/de/dags.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
 import enConnections from "./locales/en/connections.json";
@@ -31,6 +33,7 @@ import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
 import nlDashboard from "./locales/nl/dashboard.json";
 import plCommon from "./locales/pl/common.json";
+import plConnections from "./locales/pl/connections.json";
 import plDags from "./locales/pl/dags.json";
 import plDashboard from "./locales/pl/dashboard.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
@@ -54,6 +57,8 @@ export const namespaces = ["common", "dashboard", "dags", "connections"] as cons
 const resources = {
   de: {
     common: deCommon,
+    connections: deConnections,
+    dags: deDags,
     dashboard: deDashboard,
   },
   en: {
@@ -72,6 +77,7 @@ const resources = {
   },
   pl: {
     common: plCommon,
+    connections: plConnections,
     dags: plDags,
     dashboard: plDashboard,
   },
