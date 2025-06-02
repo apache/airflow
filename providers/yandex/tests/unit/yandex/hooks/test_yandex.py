@@ -21,11 +21,11 @@ from unittest import mock
 
 import pytest
 
+yandexcloud = pytest.importorskip("yandexcloud")
+
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 from tests_common.test_utils.config import conf_vars
-
-yandexcloud = pytest.importorskip("yandexcloud")
 
 
 class TestYandexHook:

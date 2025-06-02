@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-yandexlcloud = pytest.importorskip("yandexcloud")
+yandexcloud = pytest.importorskip("yandexcloud")
 
 from airflow.models import Connection  # noqa: E402
 from airflow.providers.yandex.hooks.dataproc import DataprocHook  # noqa: E402
