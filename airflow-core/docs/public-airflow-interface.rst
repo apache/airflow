@@ -103,6 +103,13 @@ The base classes :class:`~airflow.models.baseoperator.BaseOperator` and :class:`
 
 Subclasses of BaseOperator which are published in Apache Airflow are public in *behavior* but not in *structure*.  That is to say, the Operator's parameters and behavior is governed by semver but the methods are subject to change at any time.
 
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/baseoperator/index
+
 Task Instances
 --------------
 
