@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,32 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example of the LatestOnlyOperator"""
-
+#
+# NOTE! THIS FILE IS COPIED MANUALLY IN OTHER PROVIDERS DELIBERATELY TO AVOID ADDING UNNECESSARY
+# DEPENDENCIES BETWEEN PROVIDERS. IF YOU WANT TO ADD CONDITIONAL CODE IN YOUR PROVIDER THAT DEPENDS
+# ON AIRFLOW VERSION, PLEASE COPY THIS FILE TO THE ROOT PACKAGE OF YOUR PROVIDER AND IMPORT
+# THOSE CONSTANTS FROM IT RATHER THAN IMPORTING THEM FROM ANOTHER PROVIDER OR TEST CODE
+#
 from __future__ import annotations
 
-import datetime
 
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
-from airflow.sdk import DAG
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
-with DAG(
-    dag_id="latest_only",
-    schedule=datetime.timedelta(hours=4),
-    start_date=datetime.datetime(2021, 1, 1),
-    catchup=False,
-    tags=["example2", "example3"],
-) as dag:
-    # [START howto_operator_latest_only]
-    latest_only = LatestOnlyOperator(task_id="latest_only")
-    # [END howto_operator_latest_only]
-    task1 = EmptyOperator(task_id="task1")
+    from airflow import __version__
 
-    latest_only >> task1
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-from tests_common.test_utils.system_tests import get_test_run
-
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
-test_run = get_test_run(dag)
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)

@@ -15,7 +15,6 @@ import {
   DagStatsService,
   DagVersionService,
   DagWarningService,
-  DagsService,
   DashboardService,
   DependenciesService,
   EventLogService,
@@ -274,15 +273,15 @@ export const UseBackfillServiceGetBackfillKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useBackfillServiceGetBackfillKey, ...(queryKey ?? [{ backfillId }])];
-export type BackfillServiceListBackfills1DefaultResponse = Awaited<
-  ReturnType<typeof BackfillService.listBackfills1>
+export type BackfillServiceListBackfillsUiDefaultResponse = Awaited<
+  ReturnType<typeof BackfillService.listBackfillsUi>
 >;
-export type BackfillServiceListBackfills1QueryResult<
-  TData = BackfillServiceListBackfills1DefaultResponse,
+export type BackfillServiceListBackfillsUiQueryResult<
+  TData = BackfillServiceListBackfillsUiDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useBackfillServiceListBackfills1Key = "BackfillServiceListBackfills1";
-export const UseBackfillServiceListBackfills1KeyFn = (
+export const useBackfillServiceListBackfillsUiKey = "BackfillServiceListBackfillsUi";
+export const UseBackfillServiceListBackfillsUiKeyFn = (
   {
     active,
     dagId,
@@ -297,7 +296,7 @@ export const UseBackfillServiceListBackfills1KeyFn = (
     orderBy?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [useBackfillServiceListBackfills1Key, ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }])];
+) => [useBackfillServiceListBackfillsUiKey, ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }])];
 export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
   ReturnType<typeof ConnectionService.getConnection>
 >;
@@ -690,6 +689,63 @@ export const UseDagServiceGetDagTagsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagTagsKey, ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }])];
+export type DagServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagsUi>>;
+export type DagServiceGetDagsUiQueryResult<
+  TData = DagServiceGetDagsUiDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagsUiKey = "DagServiceGetDagsUi";
+export const UseDagServiceGetDagsUiKeyFn = (
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagIds,
+    dagRunsLimit,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    orderBy,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagIds?: string[];
+    dagRunsLimit?: number;
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagsUiKey,
+  ...(queryKey ?? [
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagIds,
+      dagRunsLimit,
+      excludeStale,
+      lastDagRunState,
+      limit,
+      offset,
+      orderBy,
+      owners,
+      paused,
+      tags,
+      tagsMatchMode,
+    },
+  ]),
+];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLog>
 >;
@@ -1659,60 +1715,6 @@ export const useAuthLinksServiceGetAuthMenusKey = "AuthLinksServiceGetAuthMenus"
 export const UseAuthLinksServiceGetAuthMenusKeyFn = (queryKey?: Array<unknown>) => [
   useAuthLinksServiceGetAuthMenusKey,
   ...(queryKey ?? []),
-];
-export type DagsServiceRecentDagRunsDefaultResponse = Awaited<ReturnType<typeof DagsService.recentDagRuns>>;
-export type DagsServiceRecentDagRunsQueryResult<
-  TData = DagsServiceRecentDagRunsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagsServiceRecentDagRunsKey = "DagsServiceRecentDagRuns";
-export const UseDagsServiceRecentDagRunsKeyFn = (
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagIds,
-    dagRunsLimit,
-    excludeStale,
-    lastDagRunState,
-    limit,
-    offset,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagIds?: string[];
-    dagRunsLimit?: number;
-    excludeStale?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useDagsServiceRecentDagRunsKey,
-  ...(queryKey ?? [
-    {
-      dagDisplayNamePattern,
-      dagIdPattern,
-      dagIds,
-      dagRunsLimit,
-      excludeStale,
-      lastDagRunState,
-      limit,
-      offset,
-      owners,
-      paused,
-      tags,
-      tagsMatchMode,
-    },
-  ]),
 ];
 export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<
   ReturnType<typeof DependenciesService.getDependencies>

@@ -211,6 +211,8 @@ class TrinoHook(DbApiHook):
             session_properties=extra.get("session_properties") or None,
             client_tags=extra.get("client_tags") or None,
             timezone=extra.get("timezone") or None,
+            extra_credential=extra.get("extra_credential") or None,
+            roles=extra.get("roles") or None,
         )
 
         return trino_conn

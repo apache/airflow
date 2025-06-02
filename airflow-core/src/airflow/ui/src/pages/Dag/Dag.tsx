@@ -24,7 +24,7 @@ import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
+import { useDagServiceGetDagDetails, useDagServiceGetDagsUi } from "openapi/queries";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -62,7 +62,7 @@ export const Dag = () => {
     data: runsData,
     error: runsError,
     isLoading: isLoadingRuns,
-  } = useDagsServiceRecentDagRuns({ dagIds: [dagId], dagRunsLimit: 1 }, undefined, {
+  } = useDagServiceGetDagsUi({ dagIds: [dagId], dagRunsLimit: 1 }, undefined, {
     enabled: Boolean(dagId),
     refetchInterval: (query) => {
       setHasPendingRuns(

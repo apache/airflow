@@ -22,13 +22,12 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import func, null, select, update
+from sqlalchemy import select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
-    apply_filters_to_select,
     paginated_select,
 )
 from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
@@ -116,44 +115,15 @@ def get_dags(
     session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
-    query = select(DagModel)
-
-    max_run_id_query = (  # ordering by id will not always be "latest run", but it's a simplifying assumption
-        select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
-        .where(DagRun.start_date.is_not(null()))
-        .group_by(DagRun.dag_id)
-        .subquery(name="mrq")
+    query = generate_dag_with_latest_run_query(
+        max_run_filters=[
+            dag_run_start_date_range,
+            dag_run_end_date_range,
+            dag_run_state,
+            last_dag_run_state,
+        ],
+        order_by=order_by,
     )
-
-    has_max_run_filter = (
-        dag_run_state.value
-        or last_dag_run_state.value
-        or dag_run_start_date_range.is_active()
-        or dag_run_end_date_range.is_active()
-    )
-
-    if has_max_run_filter or order_by.value in (
-        "last_run_state",
-        "last_run_start_date",
-        "-last_run_state",
-        "-last_run_start_date",
-    ):
-        query = query.join(
-            max_run_id_query,
-            DagModel.dag_id == max_run_id_query.c.dag_id,
-            isouter=True,
-        ).join(DagRun, DagRun.id == max_run_id_query.c.max_dag_run_id, isouter=True)
-
-    if has_max_run_filter:
-        query = apply_filters_to_select(
-            statement=query,
-            filters=[
-                dag_run_start_date_range,
-                dag_run_end_date_range,
-                dag_run_state,
-                last_dag_run_state,
-            ],
-        )
 
     dags_select, total_entries = paginated_select(
         statement=query,
@@ -301,7 +271,6 @@ def patch_dags(
     dag_id_pattern: QueryDagIdPatternSearchWithNone,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
-    last_dag_run_state: QueryLastDagRunStateFilter,
     editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
@@ -318,18 +287,14 @@ def patch_dags(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
-        # todo: this is not used?
-        update_mask = ["is_paused"]
-
     dags_select, total_entries = paginated_select(
-        statement=generate_dag_with_latest_run_query(),
+        statement=select(DagModel),
         filters=[
             exclude_stale,
             paused,
             dag_id_pattern,
             tags,
             owners,
-            last_dag_run_state,
             editable_dags_filter,
         ],
         order_by=None,

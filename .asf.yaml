@@ -162,6 +162,7 @@ github:
     - cmarteepants
     - karenbraganz
     - gyli
+    - jroachgolf84
 
 notifications:
   jobs: jobs@airflow.apache.org

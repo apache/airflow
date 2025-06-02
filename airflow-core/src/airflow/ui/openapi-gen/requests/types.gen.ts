@@ -2018,7 +2018,7 @@ export type CreateBackfillDryRunData = {
 
 export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
 
-export type ListBackfills1Data = {
+export type ListBackfillsUiData = {
   active?: boolean | null;
   dagId?: string | null;
   limit?: number;
@@ -2026,7 +2026,7 @@ export type ListBackfills1Data = {
   orderBy?: string;
 };
 
-export type ListBackfills1Response = BackfillCollectionResponse;
+export type ListBackfillsUiResponse = BackfillCollectionResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -2235,7 +2235,6 @@ export type PatchDagsData = {
    */
   dagIdPattern?: string | null;
   excludeStale?: boolean;
-  lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
   owners?: Array<string>;
@@ -2285,6 +2284,30 @@ export type GetDagTagsData = {
 };
 
 export type GetDagTagsResponse = DAGTagCollectionResponse;
+
+export type GetDagsUiData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
+  dagDisplayNamePattern?: string | null;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
+  dagIdPattern?: string | null;
+  dagIds?: Array<string> | null;
+  dagRunsLimit?: number;
+  excludeStale?: boolean;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
+};
+
+export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
 
 export type GetEventLogData = {
   eventLogId: number;
@@ -2786,29 +2809,6 @@ export type LogoutData = {
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
-
-export type RecentDagRunsData = {
-  /**
-   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   */
-  dagDisplayNamePattern?: string | null;
-  /**
-   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   */
-  dagIdPattern?: string | null;
-  dagIds?: Array<string> | null;
-  dagRunsLimit?: number;
-  excludeStale?: boolean;
-  lastDagRunState?: DagRunState | null;
-  limit?: number;
-  offset?: number;
-  owners?: Array<string>;
-  paused?: boolean | null;
-  tags?: Array<string>;
-  tagsMatchMode?: "any" | "all" | null;
-};
-
-export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
 
 export type GetDependenciesData = {
   nodeId?: string | null;
@@ -3432,7 +3432,7 @@ export type $OpenApiTs = {
   };
   "/ui/backfills": {
     get: {
-      req: ListBackfills1Data;
+      req: ListBackfillsUiData;
       res: {
         /**
          * Successful Response
@@ -4260,6 +4260,21 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dags": {
+    get: {
+      req: GetDagsUiData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGWithLatestDagRunsCollectionResponse;
         /**
          * Validation Error
          */
@@ -5677,21 +5692,6 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: MenuItemCollectionResponse;
-      };
-    };
-  };
-  "/ui/dags/recent_dag_runs": {
-    get: {
-      req: RecentDagRunsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGWithLatestDagRunsCollectionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
       };
     };
   };
