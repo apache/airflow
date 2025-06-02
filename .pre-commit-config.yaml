@@ -1014,7 +1014,12 @@ repos:
         name: Update Airflow's meta-package pyproject.toml
         language: python
         entry: ./scripts/ci/pre_commit/update_airflow_pyproject_toml.py
-        files: ^.*/pyproject\.toml$|^scripts/ci/pre_commit/update_airflow_pyproject_toml\.py$
+        files: >
+          (?x)
+          ^.*/pyproject\.toml$|
+          ^scripts/ci/pre_commit/update_airflow_pyproject_toml\.py$|
+          ^providers/.*/pyproject\.toml$|
+          ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1', 'packaging>=23.2' ]

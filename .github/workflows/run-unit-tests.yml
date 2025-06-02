@@ -179,7 +179,8 @@ jobs:
       - name: >
           Migration Tests: ${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
         uses: ./.github/actions/migration_tests
-        if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core'
+        # TODO(potiuk) - we should bring back migration tests when we move the migration to start from Airflow 3
+        if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core' && matrix.python-version != 3.13
       - name: >
           ${{ inputs.test-group }}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
           Py${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}

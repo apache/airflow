@@ -47,6 +47,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = "~=3.10"
@@ -58,7 +59,25 @@ requires-python = "~=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-sql>=1.23.0",
+<<<<<<< HEAD
     "pymssql>=2.3.5",
+||||||| parent of d7c0418248 (Pyproject.toml provider changes for Python 3.13)
+    # pymssql 2.3.3 release to PyPI has been broken on 1st of April 2025
+    # and it is not possible to install it on Linux. We need to exclude it
+    # and either it will be fixed in the next release or we will need to
+    # remove the exclusion if it is fixed and missing packages are uploaded
+    # to PyPI.
+    # Issue: https://github.com/pymssql/pymssql/issues/927
+    "pymssql>=2.3.0,!=2.3.3",
+    # The methodtools dependency can be removed with min airflow version >=2.9.1
+    # as it was added in https://github.com/apache/airflow/pull/37757
+    "methodtools>=0.4.7",
+=======
+    "pymssql>=2.3.4",
+    # The methodtools dependency can be removed with min airflow version >=2.9.1
+    # as it was added in https://github.com/apache/airflow/pull/37757
+    "methodtools>=0.4.7",
+>>>>>>> d7c0418248 (Pyproject.toml provider changes for Python 3.13)
 ]
 
 # The optional dependencies should be modified in place in the generated file
