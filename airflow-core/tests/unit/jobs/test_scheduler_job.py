@@ -5721,7 +5721,7 @@ class TestSchedulerJob:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_find_and_purge_task_instances_without_heartbeats(self, session, create_dagrun):
-        dagfile = os.path.join(EXAMPLE_STANDARD_DAGS_FOLDER, "example_branch_operator.py")
+        dagfile = EXAMPLE_STANDARD_DAGS_FOLDER / "example_branch_operator.py"
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
@@ -5787,7 +5787,7 @@ class TestSchedulerJob:
         """
         Check that the task instance heartbeat timeout message comes out as expected
         """
-        dagfile = os.path.join(EXAMPLE_STANDARD_DAGS_FOLDER, "example_branch_operator.py")
+        dagfile = EXAMPLE_STANDARD_DAGS_FOLDER / "example_branch_operator.py"
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
