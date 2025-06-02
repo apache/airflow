@@ -26,7 +26,13 @@ description = "Development tools for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
+<<<<<<< HEAD
 requires-python = "~=3.10,<3.13"
+||||||| parent of d7c0418248 (Pyproject.toml provider changes for Python 3.13)
+requires-python = "~=3.9,<3.13"
+=======
+requires-python = "~=3.9,<3.14"
+>>>>>>> d7c0418248 (Pyproject.toml provider changes for Python 3.13)
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -42,8 +48,7 @@ dependencies = [
     "PyGithub>=2.1.1",
     "jsonpath_ng>=1.5.3",
     "jsonschema>=4.19.1",
-    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    'pendulum>=3.1.0',
     "pyyaml>=6.0.2",
     "packaging>=23.2",
     "rich>=13.6.0",
