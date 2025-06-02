@@ -199,7 +199,6 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
-    "error::pytest.PytestReturnNotNoneWarning",
 ]
 python_files = [
     "test_*.py",
