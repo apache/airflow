@@ -18,9 +18,6 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from flask import Blueprint
-from flask_appbuilder import BaseView as AppBuilderBaseView, expose
-from starlette.middleware.base import BaseHTTPMiddleware
 
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
@@ -44,45 +41,54 @@ def plugin_macro():
     pass
 
 
-# Creating a flask appbuilder BaseView
-class PluginTestAppBuilderBaseView(AppBuilderBaseView):
-    default_view = "test"
+try:
+    from flask import Blueprint
+    from flask_appbuilder import BaseView as AppBuilderBaseView, expose
+    from starlette.middleware.base import BaseHTTPMiddleware
 
-    @expose("/")
-    def test(self):
-        return self.render_template("test_plugin/test.html", content="Hello galaxy!")
+    # Creating a flask appbuilder BaseView
+    class PluginTestAppBuilderBaseView(AppBuilderBaseView):
+        default_view = "test"
 
+        @expose("/")
+        def test(self):
+            return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
-v_appbuilder_view = PluginTestAppBuilderBaseView()
-v_appbuilder_package = {
-    "name": "Test View",
-    "category": "Test Plugin",
-    "view": v_appbuilder_view,
-    "label": "Test Label",
-}
+    v_appbuilder_view = PluginTestAppBuilderBaseView()
+    v_appbuilder_package = {
+        "name": "Test View",
+        "category": "Test Plugin",
+        "view": v_appbuilder_view,
+        "label": "Test Label",
+    }
 
-v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
+    v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
 
-# Creating flask appbuilder Menu Items
-appbuilder_mitem = {
-    "name": "Google",
-    "href": "https://www.google.com",
-    "category": "Search",
-}
-appbuilder_mitem_toplevel = {
-    "name": "apache",
-    "href": "https://www.apache.org/",
-    "label": "The Apache Software Foundation",
-}
+    # Creating flask appbuilder Menu Items
+    appbuilder_mitem = {
+        "name": "Google",
+        "href": "https://www.google.com",
+        "category": "Search",
+    }
+    appbuilder_mitem_toplevel = {
+        "name": "apache",
+        "href": "https://www.apache.org/",
+        "label": "The Apache Software Foundation",
+    }
 
-# Creating a flask blueprint to integrate the templates and static folder
-bp = Blueprint(
-    "test_plugin",
-    __name__,
-    template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
-    static_folder="static",
-    static_url_path="/static/test_plugin",
-)
+    # Creating a flask blueprint to integrate the templates and static folder
+    bp = Blueprint(
+        "test_plugin",
+        __name__,
+        template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
+        static_folder="static",
+        static_url_path="/static/test_plugin",
+    )
+
+except ImportError:
+    # This test plugin will be silently skipped if fab provider is not installed
+    pass
+
 
 app = FastAPI()
 

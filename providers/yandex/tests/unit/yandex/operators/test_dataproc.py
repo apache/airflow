@@ -21,6 +21,8 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+yandexcloud = pytest.importorskip("yandexcloud")
+
 from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -30,8 +32,6 @@ from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateSparkJobOperator,
     DataprocDeleteClusterOperator,
 )
-
-yandexcloud = pytest.importorskip("yandexcloud")
 
 # Airflow connection with type "yandexcloud"
 CONNECTION_ID = "yandexcloud_default"

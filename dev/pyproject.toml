@@ -26,13 +26,7 @@ description = "Development tools for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
-<<<<<<< HEAD
-requires-python = "~=3.10,<3.13"
-||||||| parent of d7c0418248 (Pyproject.toml provider changes for Python 3.13)
-requires-python = "~=3.9,<3.13"
-=======
 requires-python = "~=3.9,<3.14"
->>>>>>> d7c0418248 (Pyproject.toml provider changes for Python 3.13)
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]

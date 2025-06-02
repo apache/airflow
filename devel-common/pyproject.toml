@@ -149,7 +149,7 @@ dependencies = [
     "sqlalchemy-utils>=0.41.2",
 ]
 "basic" = [
-    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest]"
+    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest,sqlalchemy]"
 ]
 "no-doc" = [
     "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,mypy,pytest,sentry]"
