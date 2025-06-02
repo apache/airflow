@@ -22,7 +22,7 @@ from json.decoder import JSONDecodeError
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 
 import pendulum
 import pytest
@@ -162,7 +162,7 @@ class TestPodManager:
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
-    async def test_watch_pod_events(self, mock_time_sleep, caplog):
+    async def test_watch_pod_events(self, mock_time_sleep):
         events = mock.MagicMock()
         events.items = []
         for id in ["event 1", "event 2"]:
@@ -176,12 +176,22 @@ class TestPodManager:
             self.pod_manager.keep_watching_for_events = False
             return events
 
-        with mock.patch.object(self.pod_manager, "read_pod_events", side_effect=mock_read_pod_events):
+        with (
+            mock.patch.object(self.pod_manager, "read_pod_events", side_effect=mock_read_pod_events),
+            mock.patch(
+                "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.log",
+                new_callable=PropertyMock,
+            ) as log_mock,
+        ):
             await self.pod_manager.watch_pod_events(pod=None, check_interval=startup_check_interval)
 
-        assert caplog.text.count("The Pod has an Event: test event 1 from object event 1") == 1
-        assert caplog.text.count("The Pod has an Event: test event 2 from object event 2") == 1
-        mock_time_sleep.assert_called_once_with(startup_check_interval)
+            log_mock.return_value.info.assert_any_call(
+                "The Pod has an Event: %s from %s", "test event 1", "object event 1"
+            )
+            log_mock.return_value.info.assert_any_call(
+                "The Pod has an Event: %s from %s", "test event 2", "object event 2"
+            )
+            mock_time_sleep.assert_called_once_with(startup_check_interval)
 
     def test_read_pod_events_successfully_returns_events(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -449,7 +459,7 @@ class TestPodManager:
             )
 
     @pytest.mark.asyncio
-    def test_start_pod_raises_fast_error_on_image_error(self):
+    async def test_start_pod_raises_fast_error_on_image_error(self):
         pod_response = mock.MagicMock()
         pod_response.status.phase = "Pending"
         container_statuse = mock.MagicMock()
