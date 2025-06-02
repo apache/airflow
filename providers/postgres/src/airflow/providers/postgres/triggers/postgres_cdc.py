@@ -70,6 +70,10 @@ class PostgresCDCEventTrigger(BaseEventTrigger):
     def state_key(self) -> str:
         return self._state_key
 
+    def get_state(self) -> str | None:
+        """Get the last processed state value from Airflow Variables."""
+        return Variable.get(self.state_key, default=None)
+
     def serialize(self) -> tuple[str, dict]:
         return (
             "airflow.providers.postgres.triggers.postgres_cdc.PostgresCDCEventTrigger",
@@ -102,7 +106,7 @@ class PostgresCDCEventTrigger(BaseEventTrigger):
 
                         max_iso = max_value.isoformat()
 
-                        last_value = Variable.get(self.state_key, default=None)
+                        last_value = self.get_state()
                         if last_value:
                             last_dt = datetime.fromisoformat(last_value)
                             if last_dt.tzinfo is None:
