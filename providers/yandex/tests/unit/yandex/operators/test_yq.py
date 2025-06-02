@@ -21,6 +21,9 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+
+pytest.importorskip("yandexcloud")
+
 import responses
 from responses import matchers
 
@@ -29,8 +32,6 @@ from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-yandexcloud = pytest.importorskip("yandexcloud")
 
 try:
     import importlib.util

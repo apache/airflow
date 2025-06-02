@@ -386,6 +386,11 @@ def get_excluded_patterns() -> Generator[str, None, None]:
         if python_version in provider_info.get("excluded-python-versions"):
             provider_path = provider.replace(".", "/")
             yield f"providers/{provider_path}"
+    # CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
+    # if CURRENT_PYTHON_VERSION == "3.13":
+    # We should remove google when ray is fixed to work with Python 3.13
+    yield "providers/google/tests/system/google/"
+    yield "providers/yandex/tests/system/yandex/"
 
 
 def collect_dags(dag_folder=None):

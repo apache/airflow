@@ -122,10 +122,10 @@ PIP package                                  Version required
 ``looker-sdk``                               ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                               ``>=0.7.0``
 ``pandas``                                   ``>=2.1.2; python_version < "3.13"``
-``pandas``                                  ``>=2.2.0; python_version >= "3.13"``
+``pandas``                                   ``>=2.2.0; python_version >= "3.13"``
 ``proto-plus``                               ``>=1.19.6``
 ``pyarrow``                                  ``>=16.1.1; python_version < "3.13"``
-``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
+``pyarrow``                                  ``>=18.0.0; python_version >= "3.13"``
 ``python-slugify``                           ``>=7.0.0``
 ``PyOpenSSL``                                ``>=23.0.0``
 ``sqlalchemy-bigquery``                      ``>=1.2.1``
