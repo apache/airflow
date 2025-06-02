@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-qdrant``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -55,6 +55,7 @@ PIP package         Version required
 ==================  ==================
 ``qdrant_client``   ``>=1.10.1``
 ``portalocker``     ``>=2.8.1``
+``grpcio-tools``    ``>=1.66.0``
 ``apache-airflow``  ``>=2.10.0``
 ==================  ==================
 

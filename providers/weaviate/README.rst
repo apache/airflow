@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-weaviate``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -56,6 +56,7 @@ PIP package          Version required
 ``apache-airflow``   ``>=2.10.0``
 ``httpx``            ``>=0.25.0``
 ``weaviate-client``  ``>=4.4.0``
+``grpcio-tools``     ``>=1.66.0``
 ``pandas``           ``>=2.1.2; python_version < "3.13"``
 ``pandas``           ``>=2.2.3; python_version >= "3.13"``
 ===================  =====================================
