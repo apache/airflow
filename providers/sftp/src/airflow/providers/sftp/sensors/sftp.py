@@ -101,9 +101,6 @@ class SFTPSensor(BaseSensorOperator):
                 # since SFTPHook.isfile(...) returns False
                 actual_files_present = [self.path] if self.hook.isfile(self.path) else []
             except Exception as e:
-                # Previously, this statement the `except` block only handled an OSError. However, the
-                # SFTPHook.isfile handles all OSErrors itself, meaning this block could not be reached.
-                # Instead, a more general exception-handling block has been implemented
                 raise AirflowException from e
 
         if self.newer_than:
