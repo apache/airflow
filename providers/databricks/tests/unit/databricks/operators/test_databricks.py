@@ -25,6 +25,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.common.compat.openlineage.facet import (
@@ -48,7 +51,8 @@ from airflow.providers.databricks.triggers.databricks import (
 )
 from airflow.providers.databricks.utils import databricks as utils
 
-pytestmark = pytest.mark.db_test
+pytestmark = pytest.mark.db_tes
+
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-operator"

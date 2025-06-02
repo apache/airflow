@@ -44,6 +44,11 @@ versions:
   - 1.1.0
   - 1.0.0
 
+# Edge Executor uses Flask and Flask Application Builder and until FAB 3.13 compatibility is
+# solved - we need to exclude Python 3.13 from the supported versions.
+excluded-python-versions:
+  - "3.13"
+
 plugins:
   - name: edge_executor
     plugin-class: airflow.providers.edge3.plugins.edge_executor_plugin.EdgeExecutorPlugin

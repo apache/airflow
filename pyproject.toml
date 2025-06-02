@@ -69,7 +69,7 @@ dependencies = [
 packages = []
 
 [project.optional-dependencies]
-# Automatically generated airflow optional dependencies
+# Automatically generated airflow optional dependencies (update_airflow_pyproject_toml.py)
 "all-core" = [
     "apache-airflow-core[all]"
 ]
@@ -101,7 +101,7 @@ packages = []
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam>=5.8.1"
+    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\""
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0"
@@ -128,7 +128,7 @@ packages = []
     "apache-airflow-providers-apache-impala>=1.5.2"
 ]
 "apache.kafka" = [
-    "apache-airflow-providers-apache-kafka>=1.6.1"
+    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\""
 ]
 "apache.kylin" = [
     "apache-airflow-providers-apache-kylin>=3.8.0"
@@ -164,7 +164,7 @@ packages = []
     "apache-airflow-providers-celery>=3.8.3"
 ]
 "cloudant" = [
-    "apache-airflow-providers-cloudant>=4.0.1"
+    "apache-airflow-providers-cloudant>=4.0.1; python_version !=\"3.9\""
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=9.0.0"
@@ -203,7 +203,7 @@ packages = []
     "apache-airflow-providers-docker>=3.14.1"
 ]
 "edge3" = [
-    "apache-airflow-providers-edge3>=1.0.0"
+    "apache-airflow-providers-edge3>=1.0.0; python_version !=\"3.13\""
 ]
 "elasticsearch" = [
     "apache-airflow-providers-elasticsearch>=5.5.2"
@@ -212,7 +212,7 @@ packages = []
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.2.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -374,10 +374,10 @@ packages = []
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
 "yandex" = [
-    "apache-airflow-providers-yandex>=4.0.0"
+    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\""
 ]
 "ydb" = [
-    "apache-airflow-providers-ydb>=1.4.0"
+    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\""
 ]
 "zendesk" = [
     "apache-airflow-providers-zendesk>=4.9.0"
@@ -388,7 +388,7 @@ packages = []
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-beam>=5.8.1",
+    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\"",
     "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -397,7 +397,7 @@ packages = []
     "apache-airflow-providers-apache-hive>=8.2.1",
     "apache-airflow-providers-apache-iceberg>=1.2.0",
     "apache-airflow-providers-apache-impala>=1.5.2",
-    "apache-airflow-providers-apache-kafka>=1.6.1",
+    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.13\"",
     "apache-airflow-providers-apache-kylin>=3.8.0",
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
@@ -409,7 +409,7 @@ packages = []
     "apache-airflow-providers-asana>=2.7.0",
     "apache-airflow-providers-atlassian-jira>=2.7.1",
     "apache-airflow-providers-celery>=3.8.3",
-    "apache-airflow-providers-cloudant>=4.0.1",
+    "apache-airflow-providers-cloudant>=4.0.1; python_version !=\"3.9\"",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-compat>=1.2.1",
@@ -422,10 +422,10 @@ packages = []
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-edge3>=1.0.0",
+    "apache-airflow-providers-edge3>=1.0.0; python_version !=\"3.13\"",
     "apache-airflow-providers-elasticsearch>=5.5.2",
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=2.2.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=2.2.0; python_version !=\"3.13\"", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -479,8 +479,8 @@ packages = []
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
     "apache-airflow-providers-weaviate>=3.0.0",
-    "apache-airflow-providers-yandex>=4.0.0",
-    "apache-airflow-providers-ydb>=1.4.0",
+    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\"",
+    "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\"",
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
 # End of automatically generated airflow optional dependencies
@@ -984,7 +984,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
-    # Automatically generated mypy paths
+    # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/src",
@@ -1278,7 +1278,7 @@ apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
-# Automatically generated provider workspace items
+# Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
@@ -1392,7 +1392,7 @@ members = [
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
-    # Automatically generated provider workspace members
+    # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
     "providers/amazon",
