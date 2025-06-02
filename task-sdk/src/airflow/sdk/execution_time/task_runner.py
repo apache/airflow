@@ -68,7 +68,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
-    InvalidAssetsResult,
+    InactiveAssetsResult,
     RescheduleTask,
     RetryTask,
     SetRenderedFields,
@@ -806,13 +806,13 @@ def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -
         return
 
     SUPERVISOR_COMMS.send_request(msg=ValidateInletsAndOutlets(ti_id=ti.id), log=log)
-    invalid_assets_resp = SUPERVISOR_COMMS.get_message()
+    inactive_assets_resp = SUPERVISOR_COMMS.get_message()
     if TYPE_CHECKING:
-        assert isinstance(invalid_assets_resp, InvalidAssetsResult)
-    if invalid_assets := invalid_assets_resp.invalid_assets:
+        assert isinstance(inactive_assets_resp, InactiveAssetsResult)
+    if inactive_assets := inactive_assets_resp.inactive_assets:
         raise AirflowInactiveAssetInInletOrOutletException(
             inactive_asset_keys=[
-                AssetUniqueKey.from_profile(asset_profile) for asset_profile in invalid_assets
+                AssetUniqueKey.from_profile(asset_profile) for asset_profile in inactive_assets
             ]
         )
 

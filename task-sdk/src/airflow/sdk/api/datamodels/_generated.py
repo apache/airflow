@@ -154,6 +154,14 @@ class DagRunType(str, Enum):
     ASSET_TRIGGERED = "asset_triggered"
 
 
+class InactiveAssetsResponse(BaseModel):
+    """
+    Response for inactive assets.
+    """
+
+    inactive_assets: Annotated[list[AssetProfile] | None, Field(title="Inactive Assets")] = None
+
+
 class IntermediateTIState(str, Enum):
     """
     States that a Task Instance can be in that indicate it is not yet in a terminal or running state.
@@ -166,14 +174,6 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
-
-
-class InvalidAssetsResponse(BaseModel):
-    """
-    Response for invalid assets.
-    """
-
-    invalid_assets: Annotated[list[AssetProfile] | None, Field(title="Invalid Assets")] = None
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):

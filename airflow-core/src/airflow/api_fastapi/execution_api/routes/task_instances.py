@@ -40,7 +40,7 @@ from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-    InvalidAssetsResponse,
+    InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskStatesResponse,
     TIDeferredStatePayload,
@@ -862,7 +862,7 @@ def validate_inlets_and_outlets(
     task_instance_id: UUID,
     session: SessionDep,
     dag_bag: DagBagDep,
-) -> InvalidAssetsResponse:
+) -> InactiveAssetsResponse:
     """Validate whether there're inactive assets in inlets and outlets of a given task instance."""
     ti_id_str = str(task_instance_id)
     bind_contextvars(ti_id=ti_id_str)
@@ -887,7 +887,7 @@ def validate_inlets_and_outlets(
     inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
     outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
     if not (inlets or outlets):
-        return InvalidAssetsResponse(invalid_assets=[])
+        return InactiveAssetsResponse(inactive_assets=[])
 
     all_asset_unique_keys: set[AssetUniqueKey] = {
         AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
@@ -905,8 +905,8 @@ def validate_inlets_and_outlets(
     }
     different = all_asset_unique_keys - active_asset_unique_keys
 
-    return InvalidAssetsResponse(
-        invalid_assets=[
+    return InactiveAssetsResponse(
+        inactive_assets=[
             asset_unique_key.to_asset().asprofile()  # type: ignore
             for asset_unique_key in different
         ]

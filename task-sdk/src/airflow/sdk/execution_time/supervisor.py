@@ -88,7 +88,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
-    InvalidAssetsResult,
+    InactiveAssetsResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -1218,8 +1218,8 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, ValidateInletsAndOutlets):
-            invalid_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
-            resp = InvalidAssetsResult.from_invalid_assets_response(invalid_assets_resp)
+            inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
+            resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
             dump_opts = {"exclude_unset": True}
         else:
             log.error("Unhandled request", msg=msg)
