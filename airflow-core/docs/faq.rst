@@ -210,16 +210,16 @@ What to do if you see disappearing DAGs on UI?
 ----------------------------------------------
 There are several reasons why DAGs might disappear from the UI. Common causes include:
 
-* **Total parsing of all DAGs is too long** - If parsing takes longer than :ref:`config:core__dagbag_import_timeout`, 
-  files may not be processed completely. This often occurs when DAGs don't follow 
+* **Total parsing of all DAGs is too long** - If parsing takes longer than :ref:`config:core__dagbag_import_timeout`,
+  files may not be processed completely. This often occurs when DAGs don't follow
   :ref:`DAG writing best practices<best_practice:writing_a_dag>` like:
 
   * Excessive top-level code execution
   * External system calls during parsing
   * Complex dynamic DAG generation
 
-* **Inconsistent dynamic DAG generation** - DAGs created through 
-  :doc:`dynamic generation </howto/dynamic-dag-generation>` must produce stable DAG IDs across parses. 
+* **Inconsistent dynamic DAG generation** - DAGs created through
+  :doc:`dynamic generation </howto/dynamic-dag-generation>` must produce stable DAG IDs across parses.
   Verify consistency by running ``python your_dag_file.py`` repeatedly.
 
 * **File processing configuration issues** - A certain combination of parameters may lead to scenarios which certain DAGs are less likely to be processed at each loop. Check these parameters:
