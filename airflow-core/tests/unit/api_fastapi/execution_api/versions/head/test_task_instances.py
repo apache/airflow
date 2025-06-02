@@ -705,6 +705,41 @@ class TestTIUpdateState:
         assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
         assert event[0].extra == expected_extra
 
+    def test_ti_update_state_to_failed_with_inactive_asset(self, client, session, create_task_instance):
+        # inactive
+        asset = AssetModel(
+            id=1,
+            name="my-task-2",
+            uri="s3://bucket/my-task",
+            group="asset",
+            extra={},
+        )
+        session.add(asset)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_with_asset_events",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [{"name": "my-task-2", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                "outlet_events": [],
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+
     @pytest.mark.parametrize(
         "outlet_events, expected_extra",
         [
@@ -792,6 +827,25 @@ class TestTIUpdateState:
             "reason": "not_found",
             "message": "Task Instance not found",
         }
+
+    # @mock.patch(
+    #     "airflow.api_fastapi.execution_api.routes.task_instances._create_ti_state_update_query_and_update_state",
+    #     side_effect=[Exception()],
+    # )
+    # def test_ti_update_with_unexpected_error(self, client, session):
+    #     task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+    #
+    #     # Pre-condition: the Task Instance does not exist
+    #     assert session.get(TaskInstance, task_instance_id) is None
+    #
+    #     payload = {"state": "success", "end_date": "2024-10-31T12:30:00Z"}
+    #
+    #     response = client.patch(f"/execution/task-instances/{task_instance_id}/state", json=payload)
+    #     assert response.status_code == 404
+    #     assert response.json()["detail"] == {
+    #         "reason": "not_found",
+    #         "message": "Task Instance not found",
+    #     }
 
     def test_ti_update_state_running_errors(self, client, session, create_task_instance, time_machine):
         """
