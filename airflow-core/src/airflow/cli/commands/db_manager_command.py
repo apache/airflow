@@ -35,7 +35,6 @@ def _get_db_manager(classpath: str):
 @providers_configuration_loaded
 def resetdb(args):
     """Reset the metadata database."""
-    print(f"DB: {settings.engine.url!r}")
     db_manager = _get_db_manager(args.import_path)
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
@@ -58,5 +57,5 @@ def downgrade(args):
     """Downgrades the metadata database."""
     db_manager = _get_db_manager(args.import_path)
     session = settings.Session()
-    dwongrade_command = db_manager(session).downgrade
-    run_db_downgrade_command(args, dwongrade_command, revision_heads_map=db_manager.revision_heads_map)
+    downgrade_command = db_manager(session).downgrade
+    run_db_downgrade_command(args, downgrade_command, revision_heads_map=db_manager.revision_heads_map)
