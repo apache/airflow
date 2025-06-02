@@ -1456,6 +1456,7 @@ class SelectiveChecks:
                         return True
                     line_counter += 1
             line_counter += 1
+        return None
 
     def _caplog_exists_in_added_lines(self) -> bool:
         """
@@ -1464,7 +1465,7 @@ class SelectiveChecks:
         :return: True if caplog is used in added lines else False
         """
         lines = run_command(
-            ["git", "diff", f"{self._commit_ref}"],
+            ["git", "diff", f"{self._commit_ref}^"],
             capture_output=True,
             text=True,
             cwd=AIRFLOW_ROOT_PATH,
@@ -1475,7 +1476,7 @@ class SelectiveChecks:
             return False
 
         added_caplog_lines = [
-            line.lstrip().lstrip("+ ") for line in lines.stdout.split("\n") if line.lstrip().startswith("+ ")
+            line.lstrip().lstrip("+") for line in lines.stdout.split("\n") if line.lstrip().startswith("+")
         ]
         return self._find_caplog_in_def(added_lines=added_caplog_lines)
 
