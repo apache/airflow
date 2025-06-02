@@ -25,7 +25,7 @@ from enum import Enum
 from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
 API_VERSION: Final[str] = "2025-05-20"
 
@@ -354,6 +354,30 @@ class XComResponse(BaseModel):
 
     key: Annotated[str, Field(title="Key")]
     value: JsonValue
+
+
+class XComSequenceIndexResponse(RootModel[JsonValue]):
+    root: Annotated[
+        JsonValue,
+        Field(
+            description="XCom schema with minimal structure for index-based access.",
+            title="XComSequenceIndexResponse",
+        ),
+    ]
+
+
+class XComSequenceSliceResponse(RootModel[list[JsonValue]]):
+    """
+    XCom schema with minimal structure for slice-based access.
+    """
+
+    root: Annotated[
+        list[JsonValue],
+        Field(
+            description="XCom schema with minimal structure for slice-based access.",
+            title="XComSequenceSliceResponse",
+        ),
+    ]
 
 
 class TaskInstance(BaseModel):
