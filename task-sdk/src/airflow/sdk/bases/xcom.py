@@ -264,6 +264,14 @@ class BaseXCom:
 
         if msg.value is not None:
             return cls.deserialize_value(msg)
+        log.warning(
+            "No XCom value found; defaulting to None.",
+            key=key,
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            map_index=map_index,
+        )
         return None
 
     @staticmethod
