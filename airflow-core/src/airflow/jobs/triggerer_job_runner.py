@@ -809,15 +809,6 @@ class TriggerRunner:
 
         task_runner.SUPERVISOR_COMMS = comms_decoder
 
-        # async def connect_stdin() -> asyncio.StreamReader:
-        #     reader = asyncio.StreamReader()
-        #     protocol = asyncio.StreamReaderProtocol(reader)
-        #     await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-        #     return reader
-        #
-        # self.response_sock = await connect_stdin()
-        #
-        # line = await self.response_sock.readline()
         msg = comms_decoder.get_message()
 
         if not isinstance(msg, messages.StartTriggerer):
@@ -966,10 +957,6 @@ class TriggerRunner:
             msg.finished = None
 
         # Block triggers from making any requests for the duration of this
-        # async with SUPERVISOR_COMMS.lock:
-        #     # Tell the monitor that we've finished triggers so it can update things
-        #     self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
-        #     line = await self.response_sock.readline()
 
         self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
 
