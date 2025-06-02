@@ -23,6 +23,7 @@ import os
 import selectors
 import time
 from collections.abc import AsyncIterator
+from concurrent.futures import Future
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock, patch
 
@@ -325,6 +326,32 @@ class TestTriggerRunner:
         trigger_id, traceback = msg.failures[0]
         assert trigger_id == 1
         assert traceback[-1] == "ModuleNotFoundError: No module named 'fake'\n"
+
+    @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    async def test_sync_state_to_supervisor_calls_stdin_threadpool_executor(self, mock_supervisor_comms):
+        workload = workloads.RunTrigger.model_construct(
+            id=1, ti=None, classpath="fake.classpath", encrypted_kwargs={}
+        )
+
+        trigger_runner = TriggerRunner()
+        trigger_runner.requests_sock = MagicMock()
+        trigger_runner.to_create.append(workload)
+
+        await trigger_runner.create_triggers()
+        ids = await trigger_runner.cleanup_finished_triggers()
+
+        future = Future()
+        read_line_output = b'{"type": "TriggerStateSync", "to_create": [], "to_cancel": []}\n'
+        future.set_result(read_line_output)
+
+        with patch.object(trigger_runner, "_stdin_threadpool_executor", MagicMock()) as mock_executor:
+            mock_executor.submit.return_value = future
+
+            await trigger_runner.sync_state_to_supervisor(ids)
+
+            # Assert that _stdin_threadpool_executor.submit was called with the correct task
+            mock_executor.submit.assert_called_once_with(mock_supervisor_comms._read_stdin_line)
 
 
 @pytest.mark.asyncio
