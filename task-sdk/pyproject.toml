@@ -58,7 +58,7 @@ dependencies = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "python-dateutil>=2.7.0",
     "psutil>=6.1.0",
-    "structlog>=25.2.0",
+    "structlog>=25.4.0",
     "retryhttp>=1.2.0,!=1.3.0",
 ]
 
