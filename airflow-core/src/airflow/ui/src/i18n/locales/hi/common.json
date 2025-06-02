@@ -1,0 +1,122 @@
+{
+  "admin": {
+    "Config": "कॉन्फ़िग",
+    "Connections": "कनेक्शन",
+    "Plugins": "प्लग-इन",
+    "Pools": "पूल",
+    "Providers": "प्रदाता",
+    "Variables": "वेरिएबल्स"
+  },
+  "assetEvent_one": "एसेट इवेंट",
+  "assetEvent_other": "एसेट इवेंट्स",
+  "browse": {
+    "auditLog": "ऑडिट लॉग",
+    "xcoms": "एक्सकॉम्स"
+  },
+  "dag_one": "डैग",
+  "dag_other": "डैग्स",
+  "dagRun_one": "डैग रन",
+  "dagRun_other": "डैग रन",
+  "defaultToGraphView": "डिफ़ॉल्ट ग्राफ़ दृश्य",
+  "defaultToGridView": "डिफ़ॉल्ट ग्रिड दृश्य",
+  "docs": {
+    "documentation": "दस्तावेज़",
+    "githubRepo": "GitHub रिपोजिटरी",
+    "restApiReference": "REST API संदर्भ"
+  },
+  "logout": "लॉग आउट",
+  "logoutConfirmation": "आप एप्लिकेशन से लॉगआउट करने वाले हैं।",
+  "modal": {
+    "cancel": "रद्द करें",
+    "confirm": "पुष्टि करें",
+    "delete": {
+      "button": "हटाएं",
+      "confirmation": "क्या आप वाकई {{resourceName}} को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।"
+    }
+  },
+  "nav": {
+    "admin": "प्रशासन",
+    "assets": "संपत्तियाँ",
+    "browse": "ब्राउज़ करें",
+    "dags": "डैग्स",
+    "docs": "दस्तावेज़",
+    "home": "मुख्य पृष्ठ",
+    "plugins": "प्लग-इन",
+    "security": "सुरक्षा"
+  },
+  "noItemsFound": "कोई {{modelName}} नहीं मिला",
+  "pools": {
+    "deferred": "स्थगित",
+    "open": "खुला",
+    "pools_one": "पूल",
+    "pools_other": "पूल्स",
+    "queued": "कतारबद्ध",
+    "running": "चालू",
+    "scheduled": "निर्धारित"
+  },
+  "runTypes": {
+    "asset_triggered": "एसेट से प्रारंभ",
+    "backfill": "बैकफिल",
+    "manual": "मैनुअल",
+    "scheduled": "निर्धारित"
+  },
+  "security": {
+    "actions": "क्रियाएँ",
+    "permissions": "अनुमतियाँ",
+    "resources": "संसाधन",
+    "roles": "भूमिकाएँ",
+    "users": "उपयोगकर्ता"
+  },
+  "selectLanguage": "भाषा चुनें",
+  "states": {
+    "deferred": "स्थगित",
+    "failed": "विफल",
+    "no_status": "कोई स्थिति नहीं",
+    "none": "कोई स्थिति नहीं",
+    "queued": "कतारबद्ध",
+    "removed": "हटाया गया",
+    "restarting": "पुनः प्रारंभ हो रहा है",
+    "running": "चालू",
+    "scheduled": "निर्धारित",
+    "skipped": "छोड़ा गया",
+    "success": "सफल",
+    "up_for_reschedule": "पुनः अनुसूचित के लिए तैयार",
+    "up_for_retry": "पुनः प्रयास के लिए तैयार",
+    "upstream_failed": "अपस्ट्रीम विफल"
+  },
+  "switchToDarkMode": "डार्क मोड पर स्विच करें",
+  "switchToLightMode": "लाइट मोड पर स्विच करें",
+  "table": {
+    "filterByTag": "टैग द्वारा डैग्स फ़िल्टर करें",
+    "filterColumns": "टेबल कॉलम फ़िल्टर करें",
+    "filters": {
+      "filter_one": "फ़िल्टर",
+      "filter_other": "फ़िल्टर्स",
+      "reset": "रीसेट करें"
+    },
+    "noTagsFound": "कोई टैग नहीं मिला",
+    "tagMode": {
+      "all": "सभी",
+      "any": "कोई भी"
+    },
+    "tagPlaceholder": "टैग द्वारा फ़िल्टर करें"
+  },
+  "taskInstance_one": "टास्क इंस्टेंस",
+  "taskInstance_other": "टास्क इंस्टेंसेस",
+  "timeRange": {
+    "duration": "अवधि",
+    "last12Hours": "पिछले 12 घंटे",
+    "last24Hours": "पिछले 24 घंटे",
+    "lastHour": "पिछला घंटा",
+    "pastWeek": "पिछला सप्ताह"
+  },
+  "timezone": "समय क्षेत्र",
+  "timezoneModal": {
+    "current-timezone": "वर्तमान समय",
+    "placeholder": "एक समय क्षेत्र चुनें",
+    "title": "समय क्षेत्र चुनें",
+    "utc": "UTC (कोऑर्डिनेटेड यूनिवर्सल टाइम)"
+  },
+  "triggered": "प्रारंभ किया गया",
+  "user": "उपयोगकर्ता"
+}

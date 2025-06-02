@@ -28,6 +28,10 @@ import enCommon from "./locales/en/common.json";
 import enConnections from "./locales/en/connections.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
+import hiCommon from "./locales/hi/common.json";
+import hiConnections from "./locales/hi/connections.json";
+import hiDags from "./locales/hi/dags.json";
+import hiDashboard from "./locales/hi/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
@@ -49,6 +53,7 @@ export const supportedLanguages = [
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },
   { code: "zh-TW", name: "繁體中文" },
+  { code: "hi", name: "हिन्दी" },
 ] as const;
 
 export const defaultLanguage = "en";
@@ -66,6 +71,12 @@ const resources = {
     connections: enConnections,
     dags: enDags,
     dashboard: enDashboard,
+  },
+  hi: {
+    common: hiCommon,
+    connections: hiConnections,
+    dags: hiDags,
+    dashboard: hiDashboard,
   },
   ko: {
     common: koCommon,
