@@ -16,26 +16,151 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from unittest import mock
 
 import pendulum
 import pytest
 
-from airflow.models import DagRun
+from airflow.models.dagrun import DagRun
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from unit.api_fastapi.core_api.routes.public.test_dags import (
     DAG1_ID,
+    DAG1_START_DATE,
     DAG2_ID,
+    DAG2_START_DATE,
     DAG3_ID,
+    DAG3_START_DATE_1,
+    DAG3_START_DATE_2,
     DAG4_ID,
     DAG5_ID,
     TestDagEndpoint as TestPublicDagEndpoint,
 )
 
 pytestmark = pytest.mark.db_test
+
+
+class TestGetDags(TestPublicDagEndpoint):
+    """Unit tests for Get DAGs."""
+
+    @pytest.mark.parametrize(
+        "query_params, expected_total_entries, expected_ids",
+        [
+            # Filters
+            ({}, 2, [DAG1_ID, DAG2_ID]),
+            ({"limit": 1}, 2, [DAG1_ID]),
+            ({"offset": 1}, 2, [DAG2_ID]),
+            ({"tags": ["example"]}, 1, [DAG1_ID]),
+            ({"exclude_stale": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
+            ({"paused": True, "exclude_stale": False}, 1, [DAG3_ID]),
+            ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
+            ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
+            ({"owners": ["test_owner"], "exclude_stale": False}, 1, [DAG3_ID]),
+            ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
+            ({"last_dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
+            ({"dag_run_state": "failed"}, 1, [DAG1_ID]),
+            ({"dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
+            (
+                {"dag_run_start_date_gte": DAG3_START_DATE_2.isoformat(), "exclude_stale": False},
+                1,
+                [DAG3_ID],
+            ),
+            (
+                {
+                    "dag_run_start_date_gte": DAG1_START_DATE.isoformat(),
+                    "dag_run_start_date_lte": DAG2_START_DATE.isoformat(),
+                },
+                1,
+                [DAG1_ID],
+            ),
+            (
+                {
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "exclude_stale": False,
+                },
+                2,
+                [DAG1_ID, DAG3_ID],
+            ),
+            (
+                {
+                    "dag_run_end_date_gte": DAG3_START_DATE_2.isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "exclude_stale": False,
+                    "last_dag_run_state": "success",
+                },
+                1,
+                [DAG3_ID],
+            ),
+            (
+                {
+                    "dag_run_start_date_gte": DAG2_START_DATE.isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                0,
+                [],
+            ),
+            (
+                {
+                    "dag_run_start_date_gte": (DAG3_START_DATE_1 - timedelta(days=1)).isoformat(),
+                    "dag_run_start_date_lte": (DAG3_START_DATE_1 + timedelta(days=1)).isoformat(),
+                    "last_dag_run_state": "success",
+                    "dag_run_state": "failed",
+                    "exclude_stale": False,
+                },
+                0,
+                [],
+            ),
+            # Sort
+            ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
+            ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
+            ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
+            ({"order_by": "next_dagrun", "exclude_stale": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            ({"order_by": "last_run_state", "exclude_stale": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
+            ({"order_by": "-last_run_state", "exclude_stale": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            (
+                {"order_by": "last_run_start_date", "exclude_stale": False},
+                3,
+                [DAG1_ID, DAG3_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "-last_run_start_date", "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            # Search
+            ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
+            ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
+        ],
+    )
+    def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
+        response = test_client.get("/dags", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == expected_total_entries
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_get_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
+        mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+        response = test_client.get("/dags")
+        mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 2
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
+
+    def test_get_dags_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags")
+        assert response.status_code == 401
+
+    def test_get_dags_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags")
+        assert response.status_code == 403
 
 
 class TestRecentDagRuns(TestPublicDagEndpoint):

@@ -108,6 +108,8 @@ import type {
   GetDagTagsResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
+  GetDagsUiData,
+  GetDagsUiResponse,
   GetEventLogData,
   GetEventLogResponse,
   GetEventLogsData,
@@ -1523,12 +1525,6 @@ export class DagService {
    * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.excludeStale
    * @param data.paused
-   * @param data.lastDagRunState
-   * @param data.dagRunStartDateGte
-   * @param data.dagRunStartDateLte
-   * @param data.dagRunEndDateGte
-   * @param data.dagRunEndDateLte
-   * @param data.dagRunState
    * @param data.orderBy
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
@@ -1547,12 +1543,6 @@ export class DagService {
         dag_display_name_pattern: data.dagDisplayNamePattern,
         exclude_stale: data.excludeStale,
         paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
-        dag_run_start_date_gte: data.dagRunStartDateGte,
-        dag_run_start_date_lte: data.dagRunStartDateLte,
-        dag_run_end_date_gte: data.dagRunEndDateGte,
-        dag_run_end_date_lte: data.dagRunEndDateLte,
-        dag_run_state: data.dagRunState,
         order_by: data.orderBy,
       },
       errors: {
@@ -1779,6 +1769,57 @@ export class DagService {
         exclude_stale: data.excludeStale,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dags Ui
+   * Get all DAGs.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.tags
+   * @param data.tagsMatchMode
+   * @param data.owners
+   * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   * @param data.excludeStale
+   * @param data.paused
+   * @param data.lastDagRunState
+   * @param data.dagRunStartDateGte
+   * @param data.dagRunStartDateLte
+   * @param data.dagRunEndDateGte
+   * @param data.dagRunEndDateLte
+   * @param data.dagRunState
+   * @param data.orderBy
+   * @returns DAGCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagsUi(data: GetDagsUiData = {}): CancelablePromise<GetDagsUiResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dags",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
+        owners: data.owners,
+        dag_id_pattern: data.dagIdPattern,
+        dag_display_name_pattern: data.dagDisplayNamePattern,
+        exclude_stale: data.excludeStale,
+        paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
+        dag_run_start_date_gte: data.dagRunStartDateGte,
+        dag_run_start_date_lte: data.dagRunStartDateLte,
+        dag_run_end_date_gte: data.dagRunEndDateGte,
+        dag_run_end_date_lte: data.dagRunEndDateLte,
+        dag_run_state: data.dagRunState,
+        order_by: data.orderBy,
       },
       errors: {
         422: "Validation Error",
