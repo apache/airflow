@@ -50,13 +50,13 @@ The package supports the following python versions: 3.10,3.11,3.12
 Requirements
 ------------
 
-===================  =====================================
+===================  ==================
 PIP package          Version required
-===================  =====================================
+===================  ==================
 ``apache-airflow``   ``>=2.10.0``
 ``asgiref``          ``>=2.3.0``
-``confluent-kafka``  ``>=2.3.0; python_version <= "3.13"``
-===================  =====================================
+``confluent-kafka``  ``>=2.6.0``
+===================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -68,15 +68,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-kafka[common.messaging]
+    pip install apache-airflow-providers-apache-kafka[google]
 
 
-========================================================================================================================  ====================
-Dependent package                                                                                                         Extra
-========================================================================================================================  ====================
-`apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
-========================================================================================================================  ====================
+====================================================================================================  ==========
+Dependent package                                                                                     Extra
+====================================================================================================  ==========
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
+====================================================================================================  ==========
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.0/changelog.html>`_.

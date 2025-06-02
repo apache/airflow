@@ -61,6 +61,7 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.23.0",
     "pymssql>=2.3.5",
     "methodtools>=0.4.7",
+    "methodtools>=0.4.7",
 ]
 
 # The optional dependencies should be modified in place in the generated file

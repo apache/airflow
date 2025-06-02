@@ -107,7 +107,7 @@ PIP package                                  Version required
 ``google-cloud-secret-manager``              ``>=2.16.0``
 ``google-cloud-spanner``                     ``>=3.50.0``
 ``google-cloud-speech``                      ``>=2.18.0``
-``google-cloud-storage``                     ``>=2.7.0``
+``google-cloud-storage``                     ``>=2.9.0``
 ``google-cloud-storage-transfer``            ``>=1.4.1``
 ``google-cloud-tasks``                       ``>=2.13.0``
 ``google-cloud-texttospeech``                ``>=2.14.1``
@@ -122,10 +122,10 @@ PIP package                                  Version required
 ``looker-sdk``                               ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                               ``>=0.7.0``
 ``pandas``                                   ``>=2.1.2; python_version < "3.13"``
-``pandas``                                  ``>=2.2.0; python_version >= "3.13"``
-``proto-plus``                               ``>=1.19.6``
-``pyarrow``                                  ``>=16.1.1; python_version < "3.13"``
-``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
+``pandas``                                   ``>=2.2.3; python_version >= "3.13"``
+``proto-plus``                               ``>=1.26.0``
+``pyarrow``                                  ``>=16.1.0; python_version < "3.13"``
+``pyarrow``                                  ``>=18.0.0; python_version >= "3.13"``
 ``python-slugify``                           ``>=7.0.0``
 ``PyOpenSSL``                                ``>=23.0.0``
 ``sqlalchemy-bigquery``                      ``>=1.2.1``
@@ -158,7 +158,6 @@ Dependent package                                                               
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_              ``common.sql``
 `apache-airflow-providers-facebook <https://airflow.apache.org/docs/apache-airflow-providers-facebook>`_                  ``facebook``
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                          ``http``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_    ``microsoft.azure``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_    ``microsoft.mssql``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                        ``mysql``

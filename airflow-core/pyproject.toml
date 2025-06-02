@@ -80,7 +80,7 @@ dependencies = [
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.115.0,!=0.115.10",
-    "starlette>=0.40.0",
+    "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
@@ -145,20 +145,21 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.26.0",
     "apache-airflow-providers-smtp>=2.0.2",
     "apache-airflow-providers-standard>=0.4.0",
+    "sentry-sdk>=1.32.0"
 ]
 
 
 [project.optional-dependencies]
 "async" = [
     "eventlet>=0.37.0",
-    "gevent>=24.2.1",
+    "gevent>=25.4.1",
     "greenlet>=3.1.0",
 ]
 "graphviz" = [
     # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
     # be installed, and it's really only used for very obscure features of Airflow, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
-    "graphviz>=0.12; sys_platform != 'darwin'",
+    "graphviz>=0.20; sys_platform != 'darwin'",
 ]
 "kerberos"  = [
     "pykerberos>=1.1.13",
@@ -170,9 +171,7 @@ dependencies = [
 ]
 "sentry" = [
     "blinker>=1.1",
-    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
-    # See https://github.com/getsentry/sentry-python/issues/2473
-    "sentry-sdk>=1.32.0,!=1.33.0",
+    "sentry-sdk>=2.23.1",
 ]
 "statsd" = [
     "statsd>=3.3.0",

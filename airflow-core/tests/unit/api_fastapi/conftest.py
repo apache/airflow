@@ -126,6 +126,7 @@ def configure_git_connection_for_dag_bundle(session):
         login="",
     )
     session.add(connection)
+    session.commit()
     with conf_vars(
         {
             (

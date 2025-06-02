@@ -916,7 +916,7 @@ def regenerate_pyproject_toml(
     )
 
 
-AIRFLOW_PACKAGE_MATCHER = re.compile(r"(^.*\")(apache-airflow.*>=[\d.]*)(\".*)$")
+AIRFLOW_PACKAGE_MATCHER = re.compile(r"(^.*\")(apache-airflow.*>=[\d.]*)((\".*)$|;.*$)")
 
 
 def modify_dependency_with_suffix(dependency: str, version_suffix: str) -> str:

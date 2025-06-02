@@ -56,7 +56,6 @@ PIP package          Version required
 ``apache-airflow``   ``>=2.10.0``
 ``httpx``            ``>=0.25.0``
 ``weaviate-client``  ``>=4.4.0``
-``grpcio-tools``     ``>=1.66.0``
 ``pandas``           ``>=2.1.2; python_version < "3.13"``
 ``pandas``           ``>=2.2.3; python_version >= "3.13"``
 ===================  =====================================

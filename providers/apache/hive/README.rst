@@ -57,7 +57,7 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``hmsclient``                            ``>=0.1.0``
 ``pandas``                               ``>=2.1.2; python_version < "3.13"``
-``pandas``                               ``>=2.2.0; python_version >= "3.13"``
+``pandas``                               ``>=2.2.3; python_version >= "3.13"``
 ``pyhive[hive_pure_sasl]``               ``>=0.7.0``
 ``thrift``                               ``>=0.11.0``
 ``jmespath``                             ``>=0.7.0``
@@ -80,6 +80,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_  ``microsoft.mssql``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                      ``mysql``

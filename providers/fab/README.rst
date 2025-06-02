@@ -52,20 +52,20 @@ Requirements
 
 ==========================================  ==========================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ==========================================
 ``apache-airflow``                          ``>=3.0.2``
 ``apache-airflow-providers-common-compat``  ``>=1.2.1``
-``blinker``                                 ``>=1.6.2``
-``flask``                                   ``>=2.2.1,<2.3``
-``flask-appbuilder``                        ``==4.6.3``
-``flask-login``                             ``>=0.6.2``
-``flask-session``                           ``>=0.4.0,<0.6``
-``flask-wtf``                               ``>=1.1.0``
-``connexion[flask]``                        ``>=2.14.2,<3.0``
-``jmespath``                                ``>=0.7.0``
-``werkzeug``                                ``>=2.2,<4``
-``wtforms``                                 ``>=3.0,<4``
-==========================================  ==================
+``blinker``                                 ``>=1.6.2; python_version < "3.13"``
+``flask``                                   ``>=2.2.1,<2.3; python_version < "3.13"``
+``flask-appbuilder``                        ``==4.6.3; python_version < "3.13"``
+``flask-login``                             ``>=0.6.2; python_version < "3.13"``
+``flask-session``                           ``>=0.4.0,<0.6; python_version < "3.13"``
+``flask-wtf``                               ``>=1.1.0; python_version < "3.13"``
+``connexion[flask]``                        ``>=2.14.2,<3.0; python_version < "3.13"``
+``jmespath``                                ``>=0.7.0; python_version < "3.13"``
+``werkzeug``                                ``>=2.2,<4; python_version < "3.13"``
+``wtforms``                                 ``>=3.0,<4; python_version < "3.13"``
+==========================================  ==========================================
 
 Cross provider package dependencies
 -----------------------------------
