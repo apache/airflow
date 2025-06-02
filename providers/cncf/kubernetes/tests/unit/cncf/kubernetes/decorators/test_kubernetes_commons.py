@@ -82,12 +82,6 @@ HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 @pytest.mark.db_test
 class TestKubernetesDecoratorsBase:
     @pytest.fixture(autouse=True)
-    def event_loop(self):
-        loop = asyncio.new_event_loop()
-        yield loop
-        loop.close()
-
-    @pytest.fixture(autouse=True)
     def setup(self, dag_maker):
         self.dag_maker = dag_maker
 
@@ -125,6 +119,10 @@ class TestKubernetesDecoratorsBase:
         # {pod_manager.py:572} ERROR - Could not retrieve containers for the pod: ...
         self.mock_fetch_logs = mock.patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs").start()
         self.mock_fetch_logs.return_value = "logs"
+
+        yield
+
+        mock.patch.stopall()
 
     def teardown_method(self):
         clear_db_runs()
@@ -203,6 +201,7 @@ class TestKubernetesDecoratorsCommons(TestKubernetesDecoratorsBase):
         teardown_task = self.dag.task_group.children[TASK_FUNCTION_NAME_ID]
         assert teardown_task.is_teardown
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "name",
         ["no_name_in_args", None, "test_task_name"],
