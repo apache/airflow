@@ -22,7 +22,7 @@ from unittest import mock
 from unittest.mock import Mock, patch
 
 import pytest
-from paramiko.sftp import SFTP_FAILURE, SFTP_NO_SUCH_FILE
+from paramiko.sftp import SFTP_FAILURE
 from pendulum import datetime as pendulum_datetime, timezone
 
 from airflow.exceptions import AirflowException
@@ -46,6 +46,8 @@ class TestSFTPSensor:
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_irregular(self, sftp_hook_mock):
+        # This mocks the behavior of SFTPHook.isfile when an OSError is raised in that method, resulting in
+        # False being returned
         sftp_hook_mock.return_value.isfile.return_value = False
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
         context = {"ds": "1970-01-01"}
@@ -56,7 +58,8 @@ class TestSFTPSensor:
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_absent(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.isfile.side_effect = OSError(SFTP_NO_SUCH_FILE, "File missing")
+        # This is the same logic as mentioned above, however, it's testing for a missing file
+        sftp_hook_mock.return_value.isfile.return_value = False
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
         context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)

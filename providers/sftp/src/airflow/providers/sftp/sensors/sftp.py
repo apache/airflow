@@ -96,13 +96,15 @@ class SFTPSensor(BaseSensorOperator):
                 return False
         else:
             try:
-                # File that did not exist was still being added to the list, which was causing the Sensor
-                # to return True, even if the file was not present
+                # If a file is present, it is the single element added to the actual_files_present list to be
+                # processed. If the file is a directory, actual_file_present will be assigned an empty list,
+                # since SFTPHook.isfile(...) returns False
                 actual_files_present = [self.path] if self.hook.isfile(self.path) else []
-            except OSError as e:
-                if e.errno != SFTP_NO_SUCH_FILE:
-                    raise AirflowException from e
-                actual_files_present = []
+            except Exception as e:
+                # Previously, this statement the `except` block only handled an OSError. However, the
+                # SFTPHook.isfile handles all OSErrors itself, meaning this block could not be reached.
+                # Instead, a more general exception-handling block has been implemented
+                raise AirflowException from e
 
         if self.newer_than:
             for actual_file_present in actual_files_present:
