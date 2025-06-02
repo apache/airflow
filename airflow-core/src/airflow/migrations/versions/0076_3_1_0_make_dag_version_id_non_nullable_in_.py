@@ -27,6 +27,7 @@ Create Date: 2025-05-20 10:38:25.635779
 
 from __future__ import annotations
 
+import sqlalchemy as sa
 from alembic import op
 from sqlalchemy_utils import UUIDType
 
@@ -40,6 +41,36 @@ airflow_version = "3.1.0"
 
 def upgrade():
     """Apply make dag_version_id non-nullable in TaskInstance."""
+    conn = op.get_bind()
+    if conn.dialect.name == "postgresql":
+        update_query = sa.text("""
+            UPDATE task_instance
+            SET dag_version_id = latest_versions.id
+            FROM (
+                SELECT DISTINCT ON (dag_id) dag_id, id
+                FROM dag_version
+                ORDER BY dag_id, created_at DESC
+            ) latest_versions
+            WHERE task_instance.dag_id = latest_versions.dag_id
+            AND task_instance.dag_version_id IS NULL
+        """)
+    else:
+        update_query = sa.text("""
+            UPDATE task_instance
+            SET dag_version_id = (
+                SELECT id FROM (
+                    SELECT id, dag_id,
+                    ROW_NUMBER() OVER (PARTITION BY dag_id ORDER BY created_at DESC) as rn
+                    FROM dag_version
+                ) ranked_versions
+                WHERE ranked_versions.dag_id = task_instance.dag_id
+                AND ranked_versions.rn = 1
+            )
+            WHERE task_instance.dag_version_id IS NULL
+        """)
+
+    op.execute(update_query)
+
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column("dag_version_id", existing_type=UUIDType(binary=False), nullable=False)
 
