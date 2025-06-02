@@ -2,9 +2,9 @@
   "admin": {
     "Config": "कॉन्फ़िग",
     "Connections": "कनेक्शन",
-    "Plugins": "प्लग-इन",
-    "Pools": "पूल",
-    "Providers": "प्रदाता",
+    "Plugins": "प्लगइन्स",
+    "Pools": "पूल्स",
+    "Providers": "प्रदाताओं",
     "Variables": "वेरिएबल्स"
   },
   "assetEvent_one": "एसेट इवेंट",
@@ -41,7 +41,7 @@
     "dags": "डैग्स",
     "docs": "दस्तावेज़",
     "home": "मुख्य पृष्ठ",
-    "plugins": "प्लग-इन",
+    "plugins": "प्लगइन्स",
     "security": "सुरक्षा"
   },
   "noItemsFound": "कोई {{modelName}} नहीं मिला",
