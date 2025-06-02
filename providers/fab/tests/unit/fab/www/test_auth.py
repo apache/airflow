@@ -188,7 +188,6 @@ class TestHasAccessWithDetails:
 @pytest.mark.parametrize(
     "dag_access_entity",
     [
-        DagAccessEntity.SLA_MISS,
         DagAccessEntity.XCOM,
         DagAccessEntity.RUN,
         DagAccessEntity.TASK_INSTANCE,
