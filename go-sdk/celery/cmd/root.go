@@ -108,7 +108,8 @@ func setupViper() error {
 
 	// Make the prefix be AIRFLOW__ -- viper adds an extra `_` automatically
 	viper.SetEnvPrefix("AIRFLOW_")
-	// Set the key replacer to replace "__" with "."
+	// Set the key replacer to replace "__" with ".". ie, viper.Get("config.value")
+	// looks for the environment variable AIRFLOW__CONFIG__VALUE
 	viper.SetEnvKeyReplacer(envKeyReplacer)
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -120,7 +121,6 @@ func initializeConfig(cmd *cobra.Command) error {
 	if err := setupViper(); err != nil {
 		return err
 	}
-
 	// Bind the current command's flags to viper
 	bindFlags(cmd, envKeyReplacer)
 
