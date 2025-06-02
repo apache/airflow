@@ -97,6 +97,7 @@
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
     "columns": {
+      "conf": "Dag Konfiguration",
       "dagId": "Dag Id",
       "dagVersions": "Dag Version",
       "duration": "Laufzeit",
