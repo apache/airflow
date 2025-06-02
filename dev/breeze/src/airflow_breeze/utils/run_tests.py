@@ -422,7 +422,7 @@ def generate_args_for_pytest(
     # full scope of PEP-669. That will be fully done when https://github.com/nedbat/coveragepy/issues/1746 is
     # resolve for now we are disabling coverage for Python 3.12, and it causes slower execution and occasional
     # timeouts
-    if enable_coverage and python_version != "3.12":
+    if enable_coverage and python_version != "3.12" and python_version != "3.13":
         args.extend(
             [
                 "--cov=airflow",
