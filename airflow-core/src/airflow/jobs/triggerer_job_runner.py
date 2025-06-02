@@ -957,15 +957,15 @@ class TriggerRunner:
             msg.finished = None
 
         # Block triggers from making any requests for the duration of this
+        async with SUPERVISOR_COMMS.lock:
+            self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
 
-        self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
+            TRIGGERER_SUPERVISOR_COMMS_FUTURE = self._stdin_threadpool_executor.submit(
+                SUPERVISOR_COMMS._read_stdin_line
+            )
 
-        TRIGGERER_SUPERVISOR_COMMS_FUTURE = self._stdin_threadpool_executor.submit(
-            SUPERVISOR_COMMS._read_stdin_line
-        )
-
-        line = await asyncio.wrap_future(TRIGGERER_SUPERVISOR_COMMS_FUTURE)
-        TRIGGERER_SUPERVISOR_COMMS_FUTURE = None  # type: ignore[assignment]
+            line = await asyncio.wrap_future(TRIGGERER_SUPERVISOR_COMMS_FUTURE)
+            TRIGGERER_SUPERVISOR_COMMS_FUTURE = None  # type: ignore[assignment]
 
         if line == b"":  # EoF received!
             if task := asyncio.current_task():

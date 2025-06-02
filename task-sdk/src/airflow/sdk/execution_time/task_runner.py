@@ -436,19 +436,20 @@ class RuntimeTaskInstance(TaskInstance):
         """Return the number of task instances matching the given criteria."""
         log = structlog.get_logger(logger_name="task")
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetTICount(
-                dag_id=dag_id,
-                map_index=map_index,
-                task_ids=task_ids,
-                task_group_id=task_group_id,
-                logical_dates=logical_dates,
-                run_ids=run_ids,
-                states=states,
-            ),
-        )
-        response = SUPERVISOR_COMMS.get_message()
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetTICount(
+                    dag_id=dag_id,
+                    map_index=map_index,
+                    task_ids=task_ids,
+                    task_group_id=task_group_id,
+                    logical_dates=logical_dates,
+                    run_ids=run_ids,
+                    states=states,
+                ),
+            )
+            response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, TICount)
