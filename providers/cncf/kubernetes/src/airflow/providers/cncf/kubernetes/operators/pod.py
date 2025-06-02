@@ -233,6 +233,10 @@ class KubernetesPodOperator(BaseOperator):
     :param logging_interval: max time in seconds that task should be in deferred state before
         resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
         is done, and no logs will be visible until that time.
+    :param show_return_value_in_logs: a bool value whether to show return_value logs. Defaults to True,
+        which allows return value log output. It can be set to False to prevent log output of return value
+        when you return huge data such as transmission a large amount of XCom to TaskAPI.
+    :type show_return_value_in_logs: bool
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -339,6 +343,7 @@ class KubernetesPodOperator(BaseOperator):
         ) = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
+        show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -433,6 +438,7 @@ class KubernetesPodOperator(BaseOperator):
         self._progress_callback = progress_callback
         self.callbacks = [] if not callbacks else callbacks if isinstance(callbacks, list) else [callbacks]
         self._killed: bool = False
+        self.show_return_value_in_logs = show_return_value_in_logs
 
     @cached_property
     def _incluster_namespace(self):
@@ -596,8 +602,10 @@ class KubernetesPodOperator(BaseOperator):
         if isinstance(result, str) and result.rstrip() == EMPTY_XCOM_RESULT:
             self.log.info("xcom result file is empty.")
             return None
-
-        self.log.info("xcom result: \n%s", result)
+        if self.show_return_value_in_logs:
+            self.log.info("xcom result: \n%s", result)
+        else:
+            self.log.info("xcom uploaded. Returned value not shown")
         return json.loads(result)
 
     def execute(self, context: Context):
