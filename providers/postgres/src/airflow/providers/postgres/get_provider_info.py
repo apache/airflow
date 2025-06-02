@@ -65,4 +65,13 @@ def get_provider_info():
                 "handler": "airflow.providers.postgres.assets.postgres.sanitize_uri",
             }
         ],
+        "triggers": [
+            {
+                "integration-name": "PostgreSQL",
+                "python-modules": [
+                    "airflow.providers.postgres.triggers.PostgresRowsChangeEventTrigger",
+                    "airflow.providers.postgres.triggers.PostgresReplicationEventTrigger",
+                ]
+            }
+        ],
     }

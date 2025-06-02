@@ -18,7 +18,7 @@
 from providers.postgres.src.airflow.providers.postgres.triggers.logical_replication import (
     PostgresReplicationEventTrigger,
 )
-from providers.postgres.src.airflow.providers.postgres.triggers.row_change import (
+from providers.postgres.src.airflow.providers.postgres.triggers.rows_change import (
     PostgresRowsChangeEventTrigger,
 )
 

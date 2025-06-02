@@ -42,7 +42,7 @@ STATE_VARIABLE_PREFIX = "_airflow__postgres_trigger"
 
 class PostgresRowsChangeEventTrigger(BaseEventTrigger):
     """
-    PostgresRowsChangeTrigger is fired as deferred class with params to run the task in trigger worker.
+    PostgresRowsChangeEventTrigger is fired as deferred class with params to run the task in trigger worker.
 
     :param hook_params: params for hook its optional
     """
@@ -65,9 +65,9 @@ class PostgresRowsChangeEventTrigger(BaseEventTrigger):
         self.__init_state()
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serialize PostgresRowsChangeTrigger arguments and classpath."""
+        """Serialize PostgresRowsChangeEventTrigger arguments and classpath."""
         return (
-            "airflow.providers.postgres.triggers.PostgresRowsChangeTrigger",
+            "airflow.providers.postgres.triggers.PostgresRowsChangeEventTrigger",
             {
                 "table_name": self.table_name,
                 "schema_name": self.schema_name,
@@ -80,24 +80,24 @@ class PostgresRowsChangeEventTrigger(BaseEventTrigger):
 
     @property
     def row_count(self):
-        state = self.__get_state()
+        state = self.get_state()
         return state.get("row_count")
 
     # Following methods require further discussion on AIP30 standards/workarounds
     def __init_state(self):
         try:
-            self.__get_state()
+            self.get_state()
         except AirflowRuntimeError as e:
             if "VARIABLE_NOT_FOUND" in str(e):
-                self.__update_state({"row_count": 0})
+                self.update_state({"row_count": 0})
             else:
                 raise e
 
-    def __update_state(self, state: dict) -> None:
+    def update_state(self, state:dict) -> None:
         """Calls external storage to update the latest value (Metadata Database? External Filestore?)"""
         return Variable.set(self._state_variable, state, serialize_json=True)
 
-    def __get_state(self) -> dict:
+    def get_state(self) -> dict:
         """Calls external storage to retrieve the latest value (Metadata Database? External Filestore?)"""
         return Variable.get(self._state_variable, deserialize_json=True)
 
@@ -121,14 +121,13 @@ class PostgresRowsChangeEventTrigger(BaseEventTrigger):
             while True:
                 n_rows = self._retrieve_row_count()
                 if n_rows != -1:
-                    if n_rows > self._latest_count:
+                    self.log.info(f"[{self.table_name}] Rows: {n_rows}")
+                    if n_rows > self.row_count:
                         yield TriggerEvent({"status": "running", "operation": "APPEND", "row_count": n_rows})
-                    elif n_rows < self._latest_count:
+                    elif n_rows < self.row_count:
                         yield TriggerEvent({"status": "running", "operation": "REMOVE", "row_count": n_rows})
-                    self.__update_state({"row_count": n_rows})
 
                 self.log.info("Sleeping for %s seconds", self.poke_interval)
                 await asyncio.sleep(self.poke_interval)
-
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
