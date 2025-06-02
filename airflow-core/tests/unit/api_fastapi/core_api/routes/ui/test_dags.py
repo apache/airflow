@@ -38,7 +38,7 @@ from unit.api_fastapi.core_api.routes.public.test_dags import (
 pytestmark = pytest.mark.db_test
 
 
-class TestRecentDagRuns(TestPublicDagEndpoint):
+class TestGetDagRuns(TestPublicDagEndpoint):
     @pytest.fixture(autouse=True)
     @provide_session
     def setup_dag_runs(self, session=None) -> None:

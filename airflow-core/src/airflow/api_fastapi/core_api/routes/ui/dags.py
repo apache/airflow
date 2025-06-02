@@ -75,7 +75,7 @@ def get_dags(
     owners: QueryOwnersFilter,
     dag_ids: Annotated[
         FilterParam[list[str] | None],
-        Depends(filter_param_factory(DagRun.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
+        Depends(filter_param_factory(DagModel.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
     ],
     dag_id_pattern: QueryDagIdPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
