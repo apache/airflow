@@ -924,8 +924,8 @@ export const prefetchUseDagServiceGetDagTags = (
     queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
   });
 /**
- * Recent Dag Runs
- * Get recent DAG runs.
+ * Get Dags
+ * Get DAGs with recent DagRun.
  * @param data The data for the request.
  * @param data.dagRunsLimit
  * @param data.limit
@@ -939,10 +939,11 @@ export const prefetchUseDagServiceGetDagTags = (
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.orderBy
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagServiceRecentDagRuns = (
+export const prefetchUseDagServiceGetDagsUi = (
   queryClient: QueryClient,
   {
     dagDisplayNamePattern,
@@ -953,6 +954,7 @@ export const prefetchUseDagServiceRecentDagRuns = (
     lastDagRunState,
     limit,
     offset,
+    orderBy,
     owners,
     paused,
     tags,
@@ -966,6 +968,7 @@ export const prefetchUseDagServiceRecentDagRuns = (
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -973,7 +976,7 @@ export const prefetchUseDagServiceRecentDagRuns = (
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagServiceRecentDagRunsKeyFn({
+    queryKey: Common.UseDagServiceGetDagsUiKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
       dagIds,
@@ -982,13 +985,14 @@ export const prefetchUseDagServiceRecentDagRuns = (
       lastDagRunState,
       limit,
       offset,
+      orderBy,
       owners,
       paused,
       tags,
       tagsMatchMode,
     }),
     queryFn: () =>
-      DagService.recentDagRuns({
+      DagService.getDagsUi({
         dagDisplayNamePattern,
         dagIdPattern,
         dagIds,
@@ -997,6 +1001,7 @@ export const prefetchUseDagServiceRecentDagRuns = (
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,

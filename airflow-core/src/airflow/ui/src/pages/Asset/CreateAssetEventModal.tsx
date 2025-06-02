@@ -27,7 +27,7 @@ import {
   useAssetServiceMaterializeAsset,
   UseDagRunServiceGetDagRunsKeyFn,
   useDagServiceGetDagDetails,
-  useDagServiceRecentDagRunsKey,
+  useDagServiceGetDagsUiKey,
   useDependenciesServiceGetDependencies,
   UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
@@ -100,7 +100,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
 
       queryKeys = [
         ...queryKeys,
-        [useDagServiceRecentDagRunsKey],
+        [useDagServiceGetDagsUiKey],
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
         UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
         UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),

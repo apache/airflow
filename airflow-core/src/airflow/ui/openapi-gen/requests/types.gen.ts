@@ -2285,7 +2285,7 @@ export type GetDagTagsData = {
 
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
-export type RecentDagRunsData = {
+export type GetDagsUiData = {
   /**
    * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    */
@@ -2300,13 +2300,14 @@ export type RecentDagRunsData = {
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
+  orderBy?: string;
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
   tagsMatchMode?: "any" | "all" | null;
 };
 
-export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
 
 export type GetEventLogData = {
   eventLogId: number;
@@ -4266,9 +4267,9 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/dags/recent_dag_runs": {
+  "/ui/dags": {
     get: {
-      req: RecentDagRunsData;
+      req: GetDagsUiData;
       res: {
         /**
          * Successful Response

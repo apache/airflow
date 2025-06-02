@@ -210,12 +210,12 @@ export const DagsList = () => {
     paused = false;
   }
 
-  const { data, error, isLoading } = useDags(dagRunsLimit, {
+  const { data, error, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
+    dagRunsLimit,
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    onlyActive: true,
     orderBy,
     paused,
     tags: selectedTags,
@@ -248,7 +248,7 @@ export const DagsList = () => {
         <HStack justifyContent="space-between">
           <HStack>
             <Heading py={3} size="md">
-              {`${data.total_entries} ${data.total_entries === 1 ? translate("common:dag_one") : translate("common:dag_other")}`}
+              {`${data?.total_entries ?? 0} ${(data?.total_entries ?? 0) === 1 ? translate("common:dag_one") : translate("common:dag_other")}`}
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>
@@ -262,15 +262,15 @@ export const DagsList = () => {
         <DataTable
           cardDef={cardDef}
           columns={columns}
-          data={data.dags}
+          data={data?.dags ?? []}
           displayMode={display}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("common:dag_one")}
+          modelName="Dag"
           onStateChange={setTableURLState}
           skeletonCount={display === "card" ? 5 : undefined}
-          total={data.total_entries}
+          total={data?.total_entries ?? 0}
         />
       </Box>
     </DagsLayout>
