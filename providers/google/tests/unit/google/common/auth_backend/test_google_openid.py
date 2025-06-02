@@ -20,6 +20,10 @@ import importlib
 from unittest import mock
 
 import pytest
+
+# Do not run the tests when FAB / Flask is not installed
+pytest.importorskip("flask_session")
+
 from google.auth.exceptions import GoogleAuthError
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -35,6 +39,9 @@ from tests_common.test_utils.config import conf_vars
 
 @pytest.fixture(scope="module")
 def google_openid_app():
+    if importlib.util.find_spec("flask_session") is None:
+        return None
+
     def factory():
         with conf_vars(
             {
@@ -64,6 +71,8 @@ def delete_user(app, username):
 
 @pytest.fixture(scope="module")
 def admin_user(google_openid_app):
+    if importlib.util.find_spec("airflow.providers.fab") is None:
+        return
     appbuilder = google_openid_app.appbuilder
     role_admin = appbuilder.sm.find_role("Admin")
     delete_user(google_openid_app, "test")

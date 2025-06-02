@@ -47,6 +47,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -58,7 +59,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     "asgiref>=2.3.0",
-    "confluent-kafka>=2.3.0",
+    "confluent-kafka>=2.6.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file

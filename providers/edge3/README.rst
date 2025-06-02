@@ -62,6 +62,7 @@ The package supports the following python versions: 3.10,3.11,3.12
 Requirements
 ------------
 
+<<<<<<< HEAD
 ==================  ===================
 PIP package         Version required
 ==================  ===================
@@ -70,5 +71,45 @@ PIP package         Version required
 ``retryhttp``       ``>=1.2.0,!=1.3.0``
 ==================  ===================
 
+||||||| parent of 0f122391fa (Pyproject.toml provider changes for Python 3.13)
+================================  ===================
+PIP package                       Version required
+================================  ===================
+``apache-airflow``                ``>=2.10.0``
+``apache-airflow-providers-fab``  ``>=1.5.3``
+``pydantic``                      ``>=2.11.0``
+``retryhttp``                     ``>=1.2.0,!=1.3.0``
+================================  ===================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-edge3[fab]
+
+
+==============================================================================================  =======
+Dependent package                                                                               Extra
+==============================================================================================  =======
+`apache-airflow-providers-fab <https://airflow.apache.org/docs/apache-airflow-providers-fab>`_  ``fab``
+==============================================================================================  =======
+
+=======
+================================  ===================
+PIP package                       Version required
+================================  ===================
+``apache-airflow``                ``>=2.10.0``
+``apache-airflow-providers-fab``  ``>=1.5.3``
+``pydantic``                      ``>=2.11.0``
+``retryhttp``                     ``>=1.2.0,!=1.3.0``
+================================  ===================
+
+>>>>>>> 0f122391fa (Pyproject.toml provider changes for Python 3.13)
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.2/changelog.html>`_.
