@@ -21,7 +21,7 @@
     "advancedSearch": "Erweiterte Suche",
     "clearSearch": "Suche zurücksetzen",
     "columns": {
-      "dagId": "Dag Id",
+      "dagId": "Dag ID",
       "lastDagRun": "Letzter Dag Lauf",
       "nextDagRun": "Nächster Dag Lauf",
       "schedule": "Planung",
@@ -38,9 +38,9 @@
         "affectedTasks": {
           "columns": {
             "mapIndex": "Planungs-Index",
-            "runId": "Lauf Id",
+            "runId": "Lauf ID",
             "state": "Status",
-            "taskId": "Task Id"
+            "taskId": "Task ID"
           },
           "noItemsFound": "Keine Tasks gefunden.",
           "title": "Betroffene Tasks: {{count}}"
@@ -97,7 +97,7 @@
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
     "columns": {
-      "dagId": "Dag Id",
+      "dagId": "Dag ID",
       "dagVersions": "Dag Version",
       "duration": "Laufzeit",
       "endDate": "Enddatum",
@@ -129,7 +129,7 @@
   "taskInstances": {
     "allStates": "Alle Stati",
     "columns": {
-      "dagId": "Dag Id",
+      "dagId": "Dag ID",
       "dagRun": "Dag Lauf",
       "dagVersion": "Dag Version",
       "duration": "Laufzeit",
@@ -139,7 +139,7 @@
       "pool": "Pool",
       "startDate": "Startdatum",
       "state": "Status",
-      "taskId": "Task Id",
+      "taskId": "Task ID",
       "tryNumber": "Versuch Nummer"
     },
     "searchPlaceholder": "Tasks suchen"
