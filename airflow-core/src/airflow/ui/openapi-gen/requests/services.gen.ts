@@ -92,6 +92,7 @@ import type {
   GetConfigsResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
+  GetFavoriteDagsResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -100,6 +101,8 @@ import type {
   GetDagResponse,
   PatchDagData,
   PatchDagResponse,
+  FavoriteDagData,
+  FavoriteDagResponse,
   DeleteDagData,
   DeleteDagResponse,
   GetDagDetailsData,
@@ -1511,6 +1514,23 @@ export class DagWarningService {
 
 export class DagService {
   /**
+   * Get Favorite Dags
+   * Get DAGs favorited by the user.
+   * @returns DAGCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getFavoriteDags(): CancelablePromise<GetFavoriteDagsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v2/dags/favorite",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+      },
+    });
+  }
+
+  /**
    * Get Dags
    * Get all DAGs.
    * @param data The data for the request.
@@ -1656,6 +1676,33 @@ export class DagService {
       mediaType: "application/json",
       errors: {
         400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Favorite Dag
+   * Favorite the specific DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns DAGResponse Successful Response
+   * @throws ApiError
+   */
+  public static favoriteDag(data: FavoriteDagData): CancelablePromise<FavoriteDagResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/api/v2/dags/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

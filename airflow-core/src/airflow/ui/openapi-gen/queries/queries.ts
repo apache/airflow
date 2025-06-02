@@ -43,6 +43,7 @@ import {
   ClearTaskInstancesBody,
   ConnectionBody,
   CreateAssetEventsBody,
+  DAGFavoriteBody,
   DAGPatchBody,
   DAGRunClearBody,
   DAGRunPatchBody,
@@ -948,6 +949,25 @@ export const useDagWarningServiceListDagWarnings = <
       queryKey,
     ),
     queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData,
+    ...options,
+  });
+/**
+ * Get Favorite Dags
+ * Get DAGs favorited by the user.
+ * @returns DAGCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetFavoriteDags = <
+  TData = Common.DagServiceGetFavoriteDagsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetFavoriteDagsKeyFn(queryKey),
+    queryFn: () => DagService.getFavoriteDags() as TData,
     ...options,
   });
 /**
@@ -3753,6 +3773,46 @@ export const useBackfillServiceCancelBackfill = <
   >({
     mutationFn: ({ backfillId }) =>
       BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Favorite Dag
+ * Favorite the specific DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceFavoriteDag = <
+  TData = Common.DagServiceFavoriteDagMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        requestBody: DAGFavoriteBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      requestBody: DAGFavoriteBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody }) =>
+      DagService.favoriteDag({ dagId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

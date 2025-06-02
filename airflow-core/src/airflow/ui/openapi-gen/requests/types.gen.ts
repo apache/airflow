@@ -549,6 +549,13 @@ export type DAGDetailsResponse = {
 /**
  * Dag Serializer for updatable bodies.
  */
+export type DAGFavoriteBody = {
+  is_favorite: boolean;
+};
+
+/**
+ * Dag Serializer for updatable bodies.
+ */
 export type DAGPatchBody = {
   is_paused: boolean;
 };
@@ -2202,6 +2209,8 @@ export type ListDagWarningsData = {
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
+export type GetFavoriteDagsResponse = DAGCollectionResponse;
+
 export type GetDagsData = {
   /**
    * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2260,6 +2269,13 @@ export type PatchDagData = {
 };
 
 export type PatchDagResponse = DAGResponse;
+
+export type FavoriteDagData = {
+  dagId: string;
+  requestBody: DAGFavoriteBody;
+};
+
+export type FavoriteDagResponse = DAGResponse;
 
 export type DeleteDagData = {
   dagId: string;
@@ -4071,6 +4087,24 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/api/v2/dags/favorite": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+      };
+    };
+  };
   "/api/v2/dags": {
     get: {
       req: GetDagsData;
@@ -4164,6 +4198,31 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    put: {
+      req: FavoriteDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
         /**
          * Unauthorized
          */
