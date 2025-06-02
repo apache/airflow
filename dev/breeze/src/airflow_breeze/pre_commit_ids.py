@@ -119,6 +119,7 @@ PRE_COMMIT_LIST = [
     "lint-json-schema",
     "lint-markdown",
     "mixed-line-ending",
+    "mockery",
     "mypy-airflow-core",
     "mypy-airflow-ctl",
     "mypy-dev",
