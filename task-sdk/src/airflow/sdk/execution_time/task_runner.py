@@ -582,6 +582,11 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     )
     bundle_instance.initialize()
 
+    # Put bundle root on sys.path if needed. This allows the dag bundle to add
+    # code in util modules to be shared between files within the same bundle.
+    if (bundle_root := os.fspath(bundle_instance.path)) not in sys.path:
+        sys.path.append(bundle_root)
+
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     bag = DagBag(
         dag_folder=dag_absolute_path,
