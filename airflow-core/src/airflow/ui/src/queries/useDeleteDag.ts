@@ -19,7 +19,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useDagServiceDeleteDag } from "openapi/queries";
-import { useDagServiceGetDagKey, useDagServiceGetDagsKey } from "openapi/queries";
+import { useDagServiceGetDagKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
 const onError = () => {
@@ -40,7 +40,7 @@ export const useDeleteDag = ({
   const queryClient = useQueryClient();
 
   const onSuccess = async () => {
-    const queryKeys = [[useDagServiceGetDagsKey], [useDagServiceGetDagKey, { dagId }]];
+    const queryKeys = [[useDagServiceGetDagKey, { dagId }]];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
