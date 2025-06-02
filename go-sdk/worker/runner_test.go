@@ -109,8 +109,6 @@ func (s *WorkerSuite) ExpectTaskRun(taskId string) {
 	})
 }
 
-
-
 // ExpectTaskState sets up a matcher for the "/task-instances/{id}/state" with the given state end point
 func (s *WorkerSuite) ExpectTaskState(taskId string, state any) {
 	s.transport.RegisterMatcherResponder(
