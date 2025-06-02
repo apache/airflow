@@ -582,6 +582,9 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     )
     bundle_instance.initialize()
 
+    if (bundle_root := os.fspath(bundle_instance.path)) not in sys.path:
+        sys.path.append(bundle_root)
+
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     bag = DagBag(
         dag_folder=dag_absolute_path,
