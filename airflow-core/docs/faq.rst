@@ -233,7 +233,7 @@ There are several reasons why DAGs might disappear from the UI. Common causes in
 
   * Symbolic link swapping delays
   * Permission changes during sync
-  * `mtime` preservation issues
+  * ``mtime`` preservation issues
 
 * **Time synchronization issues** - Ensure all nodes (database, schedulers, workers) use NTP with <1s clock drift.
 
