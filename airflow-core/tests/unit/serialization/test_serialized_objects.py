@@ -49,6 +49,7 @@ from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
+from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
@@ -510,3 +511,56 @@ def test_get_task_assets():
         ("c", asset1),
         ("d", asset1),
     ]
+
+
+def test_get_run_data_interval():
+    lazy_serialized_dag1 = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
+    with pytest.raises(ValueError, match="different DAGs"):
+        lazy_serialized_dag1.get_run_data_interval(DAG_RUN)
+
+    lazy_serialized_dag2 = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
+    with pytest.raises(ValueError, match="Cannot calculate data interval"):
+        lazy_serialized_dag2.get_run_data_interval(DAG_RUN)
+
+    DAG_RUN.data_interval_start = datetime(2025, 1, 1, 0, 0)
+    DAG_RUN.data_interval_end = datetime(2025, 1, 2, 0, 0)
+    interval = lazy_serialized_dag2.get_run_data_interval(DAG_RUN)
+    assert isinstance(interval, DataInterval)
+
+
+def test_hash_property():
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    data = {"dag": {"dag_id": "dag1"}}
+    lazy_serialized_dag = LazyDeserializedDAG(data=data)
+    assert lazy_serialized_dag.hash == SerializedDagModel.hash(data)
+
+
+def test_decode_asset_condition():
+    from airflow.sdk.definitions.asset import AssetAlias, AssetAll, AssetAny, AssetRef
+    from airflow.serialization.serialized_objects import decode_asset_condition
+
+    asset_dict = {
+        "__type": DAT.ASSET,
+        "name": "test_asset",
+        "uri": "test://asset-uri",
+        "group": "test-group",
+        "extra": {},
+    }
+    assert isinstance(decode_asset_condition(asset_dict), Asset)
+
+    asset_all_dict = {"__type": DAT.ASSET_ALL, "objects": [asset_dict, asset_dict]}
+    assert isinstance(decode_asset_condition(asset_all_dict), AssetAll)
+
+    asset_any_dict = {"__type": DAT.ASSET_ANY, "objects": [asset_dict]}
+    assert isinstance(decode_asset_condition(asset_any_dict), AssetAny)
+
+    asset_alias_dict = {"__type": DAT.ASSET_ALIAS, "name": "test_alias", "group": "test-alias-group"}
+    assert isinstance(decode_asset_condition(asset_alias_dict), AssetAlias)
+
+    asset_ref_dict = {"__type": DAT.ASSET_REF, "name": "test_ref"}
+    assert isinstance(decode_asset_condition(asset_ref_dict), AssetRef)
+
+    bad = {"__type": "UNKNOWN_TYPE"}
+    with pytest.raises(ValueError, match="deserialization not implemented for DAT 'UNKNOWN_TYPE'"):
+        decode_asset_condition(bad)
