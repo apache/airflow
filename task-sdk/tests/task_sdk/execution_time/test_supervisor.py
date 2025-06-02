@@ -76,6 +76,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComSequenceItem,
+    GetXComSequenceSlice,
     OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
@@ -91,6 +92,8 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     VariableResult,
     XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import (
     BUFFER_SIZE,
@@ -767,6 +770,44 @@ class TestWatchedSubprocess:
             "event": log_pattern,
         } in cap_structlog
         assert rc == -signal_to_raise
+
+    @pytest.mark.execution_timeout(3)
+    def test_cleanup_sockets_after_delay(self, monkeypatch, mocker, time_machine):
+        """Supervisor should close sockets if EOF events are missed."""
+
+        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.SOCKET_CLEANUP_TIMEOUT", 1.0)
+
+        mock_process = mocker.Mock(pid=12345)
+
+        time_machine.move_to(time.monotonic(), tick=False)
+
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=mock_process.pid,
+            stdin=mocker.MagicMock(),
+            client=mocker.MagicMock(),
+            process=mock_process,
+            requests_fd=-1,
+        )
+
+        proc.selector = mocker.MagicMock()
+        proc.selector.select.return_value = []
+
+        proc._exit_code = 0
+        proc._num_open_sockets = 1
+        proc._process_exit_monotonic = time.monotonic()
+
+        mocker.patch.object(
+            ActivitySubprocess,
+            "_cleanup_open_sockets",
+            side_effect=lambda: setattr(proc, "_num_open_sockets", 0),
+        )
+
+        time_machine.shift(2)
+
+        proc._monitor_subprocess()
+        assert proc._num_open_sockets == 0
 
 
 class TestWatchedSubprocessKill:
@@ -1580,11 +1621,11 @@ class TestHandleRequest:
                     task_id="test_task",
                     offset=0,
                 ),
-                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
+                b'{"root":"test_value","type":"XComSequenceIndexResult"}\n',
                 "xcoms.get_sequence_item",
                 ("test_dag", "test_run", "test_task", "test_key", 0),
                 {},
-                XComResult(key="test_key", value="test_value"),
+                XComSequenceIndexResult(root="test_value"),
                 None,
                 id="get_xcom_seq_item",
             ),
@@ -1603,6 +1644,24 @@ class TestHandleRequest:
                 ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
                 None,
                 id="get_xcom_seq_item_not_found",
+            ),
+            pytest.param(
+                GetXComSequenceSlice(
+                    key="test_key",
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    start=None,
+                    stop=None,
+                    step=None,
+                ),
+                b'{"root":["foo","bar"],"type":"XComSequenceSliceResult"}\n',
+                "xcoms.get_sequence_slice",
+                ("test_dag", "test_run", "test_task", "test_key", None, None, None),
+                {},
+                XComSequenceSliceResult(root=["foo", "bar"]),
+                None,
+                id="get_xcom_seq_slice",
             ),
         ],
     )

@@ -39,6 +39,11 @@ if TYPE_CHECKING:
 class LookerHook(BaseHook):
     """Hook for Looker APIs."""
 
+    conn_name_attr = "looker_conn_id"
+    default_conn_name = "looker_default"
+    conn_type = "gcp_looker"
+    hook_name = "Google Looker"
+
     def __init__(
         self,
         looker_conn_id: str,

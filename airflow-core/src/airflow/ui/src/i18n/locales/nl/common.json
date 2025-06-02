@@ -1,80 +1,73 @@
 {
-  "defaultToGraphView": "Standaard grafiekweergave",
-  "defaultToGridView": "Standaard rasterweergave",
-  "logout": "Uitloggen",
-  "switchToDarkMode": "Schakel over naar donkere modus",
-  "switchToLightMode": "Schakel over naar lichte modus",
-  "timezone": "Tijdzone",
-  "user": "Gebruiker",
-  "language": {
-    "zh-TW": "Traditioneel Chinees",
-    "en": "Engels",
-    "de": "Duits",
-    "ko": "Koreaans",
-    "nl": "Nederlands",
-    "select": "Selecteer taal"
+  "admin": {
+    "Config": "Configuratie",
+    "Connections": "Connecties",
+    "Plugins": "Plugins",
+    "Pools": "Pools",
+    "Providers": "Providers",
+    "Variables": "Variabelen"
   },
-  "nav": {
-    "home": "Home",
-    "assets": "Assets",
-    "browse": "Verken",
-    "admin": "Beheer",
-    "docs": "Documentatie",
-    "plugins": "Plugins"
-  },
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
   "browse": {
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
-  "admin": {
-    "Variables": "Variabelen",
-    "Pools": "Pools",
-    "Providers": "Providers",
-    "Plugins": "Plugins",
-    "Connections": "Connecties",
-    "Config": "Configuratie"
-  },
-  "timeRange": {
-    "duration": "Duur",
-    "lastHour": "Laatste uur",
-    "last12Hours": "Laatste 12 uur",
-    "last24Hours": "Laatste 24 uur",
-    "pastWeek": "Laatste week"
-  },
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "defaultToGraphView": "Standaard grafiekweergave",
+  "defaultToGridView": "Standaard rasterweergave",
   "docs": {
     "documentation": "Documentatie",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API referentie"
   },
-  "states": {
+  "logout": "Uitloggen",
+  "nav": {
+    "admin": "Beheer",
+    "assets": "Assets",
+    "browse": "Verken",
+    "docs": "Documentatie",
+    "home": "Home",
+    "plugins": "Plugins"
+  },
+  "pools": {
+    "deferred": "Uitgesteld",
+    "open": "Open",
+    "pools_one": "pool",
+    "pools_other": "pools",
     "queued": "Wachtend",
     "running": "Lopend",
-    "success": "Succesvol",
-    "failed": "Mislukt",
-    "skipped": "Overgeslagen",
-    "removed": "Verwijderd",
-    "scheduled": "Gepland",
-    "restarting": "Herstartend",
-    "up_for_retry": "Wachtend op een nieuwe poging",
-    "up_for_reschedule": "Wachtend op herplanning",
-    "upstream_failed": "Upstream mislukt",
-    "deferred": "Uitgesteld",
-    "no_status": "Geen Status"
+    "scheduled": "Gepland"
   },
-  "dagRun_one": "Dag Run",
-  "dagRun_other": "Dag Runs",
+  "selectLanguage": "Selecteer taal",
+  "states": {
+    "deferred": "Uitgesteld",
+    "failed": "Mislukt",
+    "no_status": "Geen Status",
+    "queued": "Wachtend",
+    "removed": "Verwijderd",
+    "restarting": "Herstartend",
+    "running": "Lopend",
+    "scheduled": "Gepland",
+    "skipped": "Overgeslagen",
+    "success": "Succesvol",
+    "up_for_reschedule": "Wachtend op herplanning",
+    "up_for_retry": "Wachtend op een nieuwe poging",
+    "upstream_failed": "Upstream mislukt"
+  },
+  "switchToDarkMode": "Schakel over naar donkere modus",
+  "switchToLightMode": "Schakel over naar lichte modus",
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
-  "assetEvent_one": "Asset Event",
-  "assetEvent_other": "Asset Events",
+  "timeRange": {
+    "duration": "Duur",
+    "last12Hours": "Laatste 12 uur",
+    "last24Hours": "Laatste 24 uur",
+    "lastHour": "Laatste uur",
+    "pastWeek": "Laatste week"
+  },
+  "timezone": "Tijdzone",
   "triggered": "Triggered",
-  "pools": {
-    "open": "Open",
-    "running": "Lopend",
-    "queued": "Wachtend",
-    "scheduled": "Gepland",
-    "deferred": "Uitgesteld",
-    "pools_one": "pool",
-    "pools_other": "pools"
-  }
+  "user": "Gebruiker"
 }
