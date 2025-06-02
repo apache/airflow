@@ -53,10 +53,9 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
+``apache-airflow``  ``>=2.10.0``
 ``qdrant_client``   ``>=1.10.1``
 ``portalocker``     ``>=2.8.1``
-``grpcio-tools``    ``>=1.66.0``
-``apache-airflow``  ``>=2.10.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the

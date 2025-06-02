@@ -54,9 +54,9 @@ Requirements
 PIP package                              Version required
 =======================================  =====================================
 ``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.26.0``
+``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``pandas``                               ``>=2.1.2; python_version < "3.13"``
-``pandas``                               ``>=2.2.0; python_version >= "3.13"``
+``pandas``                               ``>=2.2.3; python_version >= "3.13"``
 ``trino``                                ``>=0.319.0``
 =======================================  =====================================
 

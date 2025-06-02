@@ -34,7 +34,12 @@ name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = ">=3.10"
+# We know that it will take a while before we can support Python 3.14 because of all our dependencies
+# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
+# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
+# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
+# also exclude resolving uv workspace dependencies for those providers.
+requires-python = ">=3.10, <3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -164,7 +169,7 @@ packages = []
     "apache-airflow-providers-celery>=3.8.3"
 ]
 "cloudant" = [
-    "apache-airflow-providers-cloudant>=4.0.1; python_version !=\"3.9\""
+    "apache-airflow-providers-cloudant>=4.0.1"
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=9.0.0"
@@ -409,7 +414,7 @@ packages = []
     "apache-airflow-providers-asana>=2.7.0",
     "apache-airflow-providers-atlassian-jira>=2.7.1",
     "apache-airflow-providers-celery>=3.8.3",
-    "apache-airflow-providers-cloudant>=4.0.1; python_version !=\"3.9\"",
+    "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-compat>=1.2.1",

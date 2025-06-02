@@ -35,7 +35,12 @@ name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
-requires-python = ">=3.10"
+# We know that it will take a while before we can support Python 3.14 because of all our dependencies
+# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
+# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
+# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
+# also exclude resolving uv workspace dependencies for those providers.
+requires-python = ">=3.10,<3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -80,7 +85,7 @@ dependencies = [
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.115.0,!=0.115.10",
-    "starlette>=0.40.0",
+    "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
@@ -151,14 +156,14 @@ dependencies = [
 [project.optional-dependencies]
 "async" = [
     "eventlet>=0.37.0",
-    "gevent>=24.2.1",
+    "gevent>=25.4.1",
     "greenlet>=3.1.0",
 ]
 "graphviz" = [
     # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
     # be installed, and it's really only used for very obscure features of Airflow, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
-    "graphviz>=0.12; sys_platform != 'darwin'",
+    "graphviz>=0.20; sys_platform != 'darwin'",
 ]
 "kerberos"  = [
     "pykerberos>=1.1.13",
@@ -170,9 +175,8 @@ dependencies = [
 ]
 "sentry" = [
     "blinker>=1.1",
-    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
-    # See https://github.com/getsentry/sentry-python/issues/2473
-    "sentry-sdk>=1.32.0,!=1.33.0",
+    # Apparently sentry needs flask to be installed to work properly
+    "sentry-sdk[flask]>=2.30.0",
 ]
 "statsd" = [
     "statsd>=3.3.0",
@@ -246,7 +250,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-fab>=2.2.0; python_version < \"3.13\"",
+    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'",
     "apache-airflow-providers-git",
     "apache-airflow-providers-ftp",
 ]

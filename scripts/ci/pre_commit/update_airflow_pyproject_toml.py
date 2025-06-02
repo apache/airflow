@@ -144,8 +144,12 @@ PROVIDER_MIN_VERSIONS: dict[str, str | None] = {}
 
 def get_python_exclusion(provider_dependencies: dict[str, Any]) -> str:
     """
-    Get the python exclusion for the provider based on its metadata.
-    If the provider is not in the metadata, return an empty string.
+    Return a Python version exclusion marker string based on provider metadata.
+
+    If there are excluded Python versions in the metadata, this function returns a
+    marker string like: '; python_version != "3.8" and python_version != "3.11"'
+
+    If none are found, it returns an empty str.
     """
     if not provider_dependencies:
         return ""
