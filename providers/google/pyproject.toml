@@ -48,6 +48,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = "~=3.9"
@@ -80,7 +81,7 @@ dependencies = [
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
     "google-cloud-aiplatform[evaluation,ray]>=1.73.0;python_version < '3.12'",
     "google-cloud-aiplatform[evaluation]>=1.73.0;python_version >= '3.12'",
-    "ray[default]>=2.42.0 ; python_version >= '3.12'",
+    "ray[default]>=2.42.0 ; python_version >= '3.12' and python_version < '3.13'",
     "google-cloud-bigquery-storage>=2.31.0; python_version >= '3.12'",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
@@ -129,11 +130,15 @@ dependencies = [
     # See https://github.com/looker-open-source/sdk-codegen/issues/1518
     "looker-sdk>=22.4.0,!=24.18.0",
     "pandas-gbq>=0.7.0",
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.0; python_version >="3.13"',
     # A transient dependency of google-cloud-bigquery-datatransfer, but we
     # further constrain it since older versions are buggy.
     "proto-plus>=1.19.6",
     # Used to write parquet files by BaseSqlToGCSOperator
-    "pyarrow>=14.0.1",
+    # TODO: remove it when apache-beam allows pyarrow 18+
+    "pyarrow>=14.0.1; python_version < '3.13'",
+    "pyarrow>=18.0.0; python_version >= '3.13'",
     "python-slugify>=7.0.0",
     "PyOpenSSL>=23.0.0",
     "sqlalchemy-bigquery>=1.2.1",
@@ -148,8 +153,8 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "apache.beam" = [
-    'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
-    'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
+#    'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
+#    'apache-beam[gcp]>=2.57.0; python_version >= "3.12" and python_version < "3.13"',
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
@@ -158,7 +163,7 @@ dependencies = [
     "apache-airflow-providers-fab>=2.0.0",
 ]
 "leveldb" = [
-    "plyvel>=1.5.1",
+    "plyvel>=1.5.1; python_version < '3.13'",
 ]
 "oracle" = [
     "apache-airflow-providers-oracle>=3.1.0",
