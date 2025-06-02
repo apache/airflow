@@ -34,6 +34,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
@@ -118,6 +119,18 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     ),
     enableSorting: false,
     header: translate("dags:runs.columns.dagVersions"),
+  },
+  {
+    accessorKey: "conf",
+    cell: ({ row: { original } }) => {
+      if (original.conf) {
+        return <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />;
+      }
+
+      return undefined;
+    },
+    enableSorting: false,
+    header: translate("dags:runs.columns.conf"),
   },
   {
     accessorKey: "actions",
