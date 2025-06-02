@@ -106,8 +106,8 @@ import type {
   GetDagDetailsResponse,
   GetDagTagsData,
   GetDagTagsResponse,
-  RecentDagRunsData,
-  RecentDagRunsResponse,
+  GetDagsUiData,
+  GetDagsUiResponse,
   GetEventLogData,
   GetEventLogResponse,
   GetEventLogsData,
@@ -1744,8 +1744,8 @@ export class DagService {
   }
 
   /**
-   * Recent Dag Runs
-   * Get recent DAG runs.
+   * Get Dags
+   * Get DAGs with recent DagRun.
    * @param data The data for the request.
    * @param data.dagRunsLimit
    * @param data.limit
@@ -1759,13 +1759,14 @@ export class DagService {
    * @param data.excludeStale
    * @param data.paused
    * @param data.lastDagRunState
+   * @param data.orderBy
    * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static recentDagRuns(data: RecentDagRunsData = {}): CancelablePromise<RecentDagRunsResponse> {
+  public static getDagsUi(data: GetDagsUiData = {}): CancelablePromise<GetDagsUiResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/ui/dags/recent_dag_runs",
+      url: "/ui/dags",
       query: {
         dag_runs_limit: data.dagRunsLimit,
         limit: data.limit,
@@ -1779,6 +1780,7 @@ export class DagService {
         exclude_stale: data.excludeStale,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
+        order_by: data.orderBy,
       },
       errors: {
         422: "Validation Error",

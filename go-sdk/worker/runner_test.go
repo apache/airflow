@@ -83,12 +83,12 @@ func (s *WorkerSuite) SetupSuite() {
 func (s *WorkerSuite) TestWithServer() {
 	s.T().Parallel()
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
-	iface, err := s.worker.WithServer("http://abc.com")
+	iface, err := s.worker.WithServer("http://example.com")
 
 	s.Require().NoError(err)
 	w := iface.(*worker)
 	s.Equal(100*time.Millisecond, w.heartbeatInterval)
-	s.Equal(w.client.(*api.Client).BaseURL(), "http://abc.com")
+	s.Equal(w.client.(*api.Client).BaseURL(), "http://example.com")
 }
 
 // ExpectTaskRun sets up  a matcher for the "/task-instances/{id}/run" end point and adds a finalize check
@@ -109,7 +109,9 @@ func (s *WorkerSuite) ExpectTaskRun(taskId string) {
 	})
 }
 
-// ExpecteTaskSta sets up  a matcher for the "/task-instances/{id}/state" with the given state end point
+
+
+// ExpectTaskState sets up a matcher for the "/task-instances/{id}/state" with the given state end point
 func (s *WorkerSuite) ExpectTaskState(taskId string, state any) {
 	s.transport.RegisterMatcherResponder(
 		http.MethodPatch,
@@ -182,11 +184,10 @@ func (s *WorkerSuite) TestTaskReturnErrorReportsFailedState() {
 	s.T().Skip("TODO: Not implemented yet")
 }
 
-func (s *WorkerSuite) TestTaskHeartbeatsWhlieRunning() {
+func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	s.T().Parallel()
 	id := uuid.New()
 	testWorkload := newTestWorkLoad(id)
-	s.T().Logf("Test TestTaskHeartbeatsWhlieRunning %s", id.String())
 	s.worker.RegisterTaskWithName(testWorkload.TI.DagId, testWorkload.TI.TaskId, func() error {
 		time.Sleep(time.Second)
 		return nil
@@ -202,7 +203,6 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhlieRunning() {
 
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
-	s.T().Logf("Test TestTaskHeartbeatsWhlieRunning workloaded %s", id.String())
 	s.NoError(err, "ExecuteTaskWorkload should not report an error")
 
 	callCounts := s.transport.GetCallCountInfo()
