@@ -37,7 +37,7 @@ dependencies = [
     "rich>=13.6.0",
     "ruff==0.12.3",
     "semver>=3.0.2",
-    "time-machine>=2.13.0",
+    "time-machine>=2.15.0",
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
     "apache-airflow-devel-common[basic]"

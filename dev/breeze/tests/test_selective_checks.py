@@ -1236,7 +1236,15 @@ def test_excluded_providers():
         {
             "excluded-providers-as-string": json.dumps(
                 {
+<<<<<<< HEAD
                     "3.13": ["apache.beam", "apache.kafka", "fab", "ydb"],
+||||||| parent of d7c0418248 (Pyproject.toml provider changes for Python 3.13)
+                    "3.9": ["cloudant"],
+                    "3.13": ["apache.beam", "apache.kafka", "fab", "ydb"],
+=======
+                    "3.9": ["cloudant"],
+                    "3.13": ["apache.beam", "apache.kafka", "edge3", "fab", "yandex", "ydb"],
+>>>>>>> d7c0418248 (Pyproject.toml provider changes for Python 3.13)
                 }
             ),
         },
