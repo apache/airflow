@@ -47,18 +47,17 @@ Define a basic DAG and task in just a few lines of Python:
    :end-before: [END simplest_dag]
    :caption: Simplest DAG with :func:`@dag <airflow.sdk.dag>`  and :func:`@task <airflow.sdk.task>`
 
+Examples
+--------
+
+For more example DAGs and patterns, see the :doc:`examples` page.
+
 Key Concepts
 ------------
 Defining DAGs
 ~~~~~~~~~~~~~
 Use ``@dag`` to convert a function into an Airflow DAG. All nested ``@task`` calls
 become part of the workflow.
-
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_dag_decorator.py
-   :language: python
-   :start-after: [START dag_decorator_usage]
-   :end-before: [END dag_decorator_usage]
-   :caption: Using the :func:`@dag <airflow.sdk.dag>` decorator with custom tasks and operators.
 
 Decorators
 ~~~~~~~~~~
@@ -68,15 +67,7 @@ Simplify DAG and task definitions using decorators:
 - :func:`@task_group <airflow.sdk.task_group>`: group related tasks into logical units.
 - :func:`@setup <airflow.sdk.setup>` and :func:`@teardown <airflow.sdk.teardown>`: define setup and teardown tasks for DAGs and TaskGroups.
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_task_group_decorator.py
-   :language: python
-   :start-after: [START howto_task_group_decorator]
-   :end-before: [END howto_task_group_decorator]
-   :caption: Group tasks using the :func:`@task_group <airflow.sdk.task_group>` decorator.
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_setup_teardown_taskflow.py
-   :language: python
-   :caption: Define setup and teardown tasks with :func:`@setup <airflow.sdk.setup>` and :func:`@teardown <airflow.sdk.teardown>`.
 
 Tasks and Operators
 ~~~~~~~~~~~~~~~~~~~
@@ -87,15 +78,7 @@ Wrap Python callables with :func:`@task <airflow.sdk.task>` to create tasks, lev
   - **BaseOperator**, **Sensor**, **OperatorLink**, **Notifier**, "XComArg", etc.
     (see the **api reference** section for details)
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py
-   :language: python
-   :start-after: [START example_dynamic_task_mapping]
-   :end-before: [END example_dynamic_task_mapping]
-   :caption: Dynamic task mapping with ``expand()``
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_xcomargs.py
-   :language: python
-   :caption: Using ``XComArg`` to chain tasks based on return values.
 
 Assets
 ~~~~~~
@@ -104,15 +87,7 @@ Model data as assets and emit them to downstream tasks with the SDK's asset libr
 
 - :func:`@asset <airflow.sdk.asset>`, :class:`AssetAlias <airflow.sdk.AssetAlias>`, etc. (see the **api reference** section below)
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_assets.py
-   :language: python
-   :start-after: [START asset_def]
-   :end-before: [END asset_def]
-   :caption: Defining an :func:`@asset <airflow.sdk.asset>`
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_asset_alias.py
-   :language: python
-   :caption: Defining asset aliases with :class:`AssetAlias <airflow.sdk.AssetAlias>`.
 
 Execution Time Components
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -144,4 +119,5 @@ Refer to :doc:`api` for the complete reference of all decorators and classes.
 .. toctree::
   :hidden:
 
+  examples
   api

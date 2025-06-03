@@ -1,0 +1,59 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* custom.css - override default theme spacing between sections, headings, and content blocks */
+/* Reset margins for each documentation section */
+.rst-content section {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Reduce paragraph spacing */
+.rst-content p {
+  margin-top: 0 !important;
+  margin-bottom: 0.5em !important;
+}
+
+/* Reduce margins around code and literal blocks */
+.rst-content div.literal-block-wrapper,
+.rst-content .highlight,
+.rst-content pre {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Tighter margins for section headings */
+.rst-content h1,
+.rst-content h2,
+.rst-content h3,
+.rst-content h4,
+.rst-content h5,
+.rst-content h6 {
+  margin-top: 0 !important;
+  margin-bottom: 0.25em !important;
+}
+/* Reduce spacing around horizontal rules */
+.rst-content hr {
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
+}
+/* Tighter caption spacing for code blocks */
+.rst-content .code-block-caption {
+  margin-bottom: 0.25em !important;
+}

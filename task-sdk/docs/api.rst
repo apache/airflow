@@ -80,8 +80,7 @@ Tasks & Operators
 .. autoapiclass:: airflow.sdk.Param
 
 Setting Dependencies
---------------------
-
+~~~~~~~~~~~~~~~~~~~~
 .. autoapifunction:: airflow.sdk.chain
 
 .. autoapifunction:: airflow.sdk.chain_linear
