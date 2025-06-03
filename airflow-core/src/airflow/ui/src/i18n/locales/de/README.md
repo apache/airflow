@@ -26,7 +26,7 @@ zukünftiger Übersetzungsiterationen ermöglichen.
 
 ## Neutrale und formelle Anrede
 
-Im Deutschen im Vergleich zu der Englischen Sprache wird die förmliche- von der
+Im Deutschen wird im Vergleich zu der Englischen Sprache die förmliche- von der
 normalen Anrede unterschieden
 ([Siehe: Wikipedia](https://de.wikipedia.org/wiki/Anrede)). Für die Deutsche
 Übersetzung und unter der Annahme des "Nicht-Wissens" des Benutzerkreises wurde
