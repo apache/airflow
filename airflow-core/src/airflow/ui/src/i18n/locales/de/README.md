@@ -77,7 +77,7 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   gewesen aber ohne Wort-Trennung wäre der übersetzte Begriff einige Pixel zu
   breit für die Navigationsleiste. Deswegen wurde der im Deutschen auch
   gängige Begriff gewählt.
-- `Map Index` --> `Planungs-Index`: Da es hir keine direkt passende Übersetzung
+- `Map Index` --> `Planungs-Index`: Da es hier keine direkt passende Übersetzung
   gibt und der Begriff "Mapping" eigentlich übersetzbar ist - aber in dem
   genutzen Kontext irreführend wäre, wurde hier auf die Task-Planung verwiesen
   in der ein Task aufgeplant wird.
