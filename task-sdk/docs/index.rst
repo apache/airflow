@@ -45,7 +45,7 @@ Define a basic DAG and task in just a few lines of Python:
    :language: python
    :start-after: [START simplest_dag]
    :end-before: [END simplest_dag]
-   :caption: Simplest DAG with ``@dag`` and ``@task``
+   :caption: Simplest DAG with :func:`@dag <airflow.sdk.dag>`  and :func:`@task <airflow.sdk.task>`
 
 Key Concepts
 ------------
@@ -58,29 +58,29 @@ become part of the workflow.
    :language: python
    :start-after: [START dag_decorator_usage]
    :end-before: [END dag_decorator_usage]
-   :caption: Using the ``@dag`` decorator with custom tasks and operators.
+   :caption: Using the :func:`@dag <airflow.sdk.dag>` decorator with custom tasks and operators.
 
 Decorators
 ~~~~~~~~~~
 Simplify DAG and task definitions using decorators:
 
-- ``@task``: define tasks.
-- ``@task_group``: group related tasks into logical units.
-- ``@setup`` and ``@teardown``: define setup and teardown tasks for DAGs and TaskGroups.
+- :func:`@task <airflow.sdk.task>` : define tasks.
+- :func:`@task_group <airflow.sdk.task_group>`: group related tasks into logical units.
+- :func:`@setup <airflow.sdk.setup>` and :func:`@teardown <airflow.sdk.teardown>`: define setup and teardown tasks for DAGs and TaskGroups.
 
 .. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_task_group_decorator.py
    :language: python
    :start-after: [START howto_task_group_decorator]
    :end-before: [END howto_task_group_decorator]
-   :caption: Group tasks using the ``@task_group`` decorator.
+   :caption: Group tasks using the :func:`@task_group <airflow.sdk.task_group>` decorator.
 
 .. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_setup_teardown_taskflow.py
    :language: python
-   :caption: Define setup and teardown tasks with ``@setup`` and ``@teardown``.
+   :caption: Define setup and teardown tasks with :func:`@setup <airflow.sdk.setup>` and :func:`@teardown <airflow.sdk.teardown>`.
 
 Tasks and Operators
 ~~~~~~~~~~~~~~~~~~~
-Wrap Python callables with ``@task`` to create tasks, leverage dynamic task mapping with
+Wrap Python callables with :func:`@task <airflow.sdk.task>` to create tasks, leverage dynamic task mapping with
 ``.expand()``, and pass data via ``XComArg``. You can also create traditional Operators
 (e.g., sensors) via classes imported from the SDK:
 
@@ -102,17 +102,17 @@ Assets
 Model data as assets and emit them to downstream tasks with the SDK's asset library under
 ``airflow.sdk.definitions.asset``. You can use:
 
-  - ``@asset``, ``AssetAlias``, etc. (see the **api reference** section below)
+- :func:`@asset <airflow.sdk.asset>`, :class:`AssetAlias <airflow.sdk.AssetAlias>`, etc. (see the **api reference** section below)
 
 .. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_assets.py
    :language: python
    :start-after: [START asset_def]
    :end-before: [END asset_def]
-   :caption: Defining an ``Asset``
+   :caption: Defining an :func:`@asset <airflow.sdk.asset>`
 
 .. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_asset_alias.py
    :language: python
-   :caption: Defining asset aliases with ``AssetAlias``.
+   :caption: Defining asset aliases with :class:`AssetAlias <airflow.sdk.AssetAlias>`.
 
 Execution Time Components
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -136,24 +136,10 @@ In addition to "DAG" and "task"-level decorators, the Task SDK provides:
     - ``XComArg``
 
   * **Decorators**:
-    - ``@task``, ``@task_group``, ``@setup``, ``@teardown`` (exported at top level).
-    - These live in ``airflow.sdk.decorator`` but are re-exported in ``airflow.sdk``.
-
-  * **Definitions** (under ``airflow.sdk.definitions``):
-    - Core data models (e.g., assets, types, IO utilities, exceptions).
-
-  * **Execution Time** (under ``airflow.sdk.execution_time``):
-    - ``supervisor``
-    - ``task_runner``
-
-  * **I/O** helpers for managing runtime I/O serialization.
-
-  * **API client** (under ``airflow.sdk.api.client``) for interacting with Airflow's REST endpoints.
+    - :func:`@task <airflow.sdk.task>`, :func:`@task_group <airflow.sdk.task_group>`, :func:`@setup <airflow.sdk.setup>`, :func:`@teardown <airflow.sdk.teardown>`
 
 
-Refer to `api.html`_ for the complete reference of all decorators and classes.
-
-.. _api.html: api.html
+Refer to :doc:`api` for the complete reference of all decorators and classes.
 
 .. toctree::
   :hidden:

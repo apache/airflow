@@ -46,18 +46,6 @@ Decorators
 .. autofunction:: airflow.sdk.teardown
 .. autofunction:: airflow.sdk.asset
 
-Utilities
----------
-.. autoapifunction:: airflow.sdk.chain
-
-.. autoapifunction:: airflow.sdk.chain_linear
-
-.. autoapifunction:: airflow.sdk.cross_downstream
-
-.. autoapifunction:: airflow.sdk.literal
-
-.. autoapifunction:: airflow.sdk.__version__
-.. autofunction:: airflow.sdk.__version__
 
 Bases
 -----
@@ -91,15 +79,22 @@ Tasks & Operators
 
 .. autoapiclass:: airflow.sdk.Param
 
+Setting Dependencies
+--------------------
+
+.. autoapifunction:: airflow.sdk.chain
+
+.. autoapifunction:: airflow.sdk.chain_linear
+
+.. autoapifunction:: airflow.sdk.cross_downstream
+
+.. autoapifunction:: airflow.sdk.literal
+
 Edges & Labels
 --------------
 .. autoapiclass:: airflow.sdk.EdgeModifier
 
 .. autoapiclass:: airflow.sdk.Label
-
-Metadata
---------
-.. autoapiclass:: airflow.sdk.Metadata
 
 Assets
 ------
@@ -113,24 +108,14 @@ Assets
 
 .. autoapiclass:: airflow.sdk.AssetWatcher
 
+.. autoapiclass:: airflow.sdk.Metadata
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
 
 Execution Time Components
 -------------------------
-.. rubric:: Supervisor
-
-.. autoapimodule:: airflow.sdk.execution_time.supervisor
-   :members:
-   :undoc-members:
-
-.. rubric:: TaskRunner
-
-.. autoapimodule:: airflow.sdk.execution_time.task_runner
-   :members:
-   :undoc-members:
-
 .. rubric:: Context
 .. autoapiclass:: airflow.sdk.Context
 .. autoapimodule:: airflow.sdk.execution_time.context
@@ -142,11 +127,6 @@ Execution Time Components
 .. autoapiclass:: airflow.sdk.SecretCache
 .. autoclass:: airflow.sdk.SecretCache
 
-API Client
-----------
-.. autoapimodule:: airflow.sdk.api.client
-   :members:
-   :undoc-members:
 
 Everything else
 ---------------
