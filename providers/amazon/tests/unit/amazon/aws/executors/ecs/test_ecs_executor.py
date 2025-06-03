@@ -1350,7 +1350,10 @@ class TestEcsExecutorConfig:
         assert raised.match("At least one subnet is required to run a task.")
 
     # TODO: When merged this needs updating to the actually supported version
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+")
+    @pytest.mark.skipif(
+        not hasattr(conf, "setup_team_configs"),
+        reason="Test requires a version of airflow which includes updates to conf to support multi team",
+    )
     def test_team_config(self):
         # Team name to be used throughout
         team_name = "team_a"

@@ -109,6 +109,8 @@ class AwsEcsExecutor(BaseExecutor):
         # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
         # configuration object. This allows the changes to be backwards compatible with older versions of
         # Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration.
         if not hasattr(self, "conf"):
             from airflow.configuration import conf
 
