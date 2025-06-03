@@ -56,7 +56,7 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
 
 - `Asset`/`Assets` --> `Datenset (Asset)`/`Datensets (Assets)`:
   Da der Begriff in Airflow 3 neu eingeführt wurde steht er derzeit nicht fest.
-  Daher eigenet er sich zu der inhaltich passenden Übersetzung. Um neue
+  Daher eignet er sich zu der inhaltlich passenden Übersetzung. Um neue
   Benutzer nicht zu verwirren wird der durch Airflow definierte Originalterm in
   Klammern wenn möglich mit geführt.
 - `Asset Event` --> `Ereignis zu Datenset (Asset)`: Logische Konsequenz der
