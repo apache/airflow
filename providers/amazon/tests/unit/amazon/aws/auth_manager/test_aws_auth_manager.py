@@ -368,6 +368,36 @@ class TestAwsAuthManager:
         )
         assert result
 
+    @pytest.mark.parametrize(
+        "details, user, expected_user, expected_entity_id",
+        [
+            (mock, ANY, None),
+            (mock, mock, "1"),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    def test_is_authorized_db(
+        self,
+        mock_avp_facade,
+        user,
+        expected_user,
+        expected_entity_id,
+        auth_manager,
+    ):
+        is_authorized = Mock(return_value=True)
+        mock_avp_facade.is_authorized = is_authorized
+
+        method: ResourceMethod = "GET"
+        result = auth_manager.is_authorized_db(method=method, user=user)
+
+        is_authorized.assert_called_once_with(
+            method=method,
+            entity_type=AvpEntities.METADATA_DB,
+            user=expected_user,
+            entity_id=expected_entity_id,
+        )
+        assert result
+
     @patch.object(AwsAuthManager, "avp_facade")
     def test_batch_is_authorized_connection(
         self,

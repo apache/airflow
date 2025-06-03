@@ -986,6 +986,13 @@ export type LastAssetEventResponse = {
 };
 
 /**
+ * Metadata DB stats serializer for responses.
+ */
+export type MetadataDBStatsResponse = {
+  tables: Array<TableStats>;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type PatchTaskInstanceBody = {
@@ -1141,6 +1148,16 @@ export type StructuredLogMessage = {
   timestamp?: string;
   event: string;
   [key: string]: unknown | string;
+};
+
+/**
+ * Table stats serializer for responses.
+ */
+export type TableStats = {
+  table_name: string;
+  record_count: number | null;
+  oldest_record: string | null;
+  size_mb?: number | null;
 };
 
 /**
@@ -2791,6 +2808,23 @@ export type GetDagVersionsData = {
 };
 
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
+
+export type GetDbStatsData = {
+  /**
+   * Skip record count
+   */
+  skipRecordCount?: boolean;
+  /**
+   * Skip calculating table size
+   */
+  skipSize?: boolean;
+  /**
+   * List of tables to include
+   */
+  tables?: Array<string>;
+};
+
+export type GetDbStatsResponse = MetadataDBStatsResponse;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -5620,6 +5654,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/maintenance/db/stats": {
+    get: {
+      req: GetDbStatsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: MetadataDBStatsResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

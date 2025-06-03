@@ -65,6 +65,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_RUN,
     RESOURCE_DOCS,
     RESOURCE_JOB,
+    RESOURCE_METADATA_DB,
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
     RESOURCE_TASK_INSTANCE,
@@ -84,6 +85,7 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_asset_alias": RESOURCE_ASSET_ALIAS,
     "is_authorized_backfill": RESOURCE_BACKFILL,
     "is_authorized_variable": RESOURCE_VARIABLE,
+    "is_authorized_db": RESOURCE_METADATA_DB,
 }
 
 

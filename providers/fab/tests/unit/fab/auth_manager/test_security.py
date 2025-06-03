@@ -165,6 +165,14 @@ def _has_all_dags_access(user) -> bool:
     ) or get_auth_manager().is_authorized_dag(method="PUT", user=user)
 
 
+def _can_read_db(user) -> bool:
+    return get_auth_manager().is_authorized_db(method="GET", user=user)
+
+
+def _can_edit_db(user) -> bool:
+    return get_auth_manager().is_authorized_db(method="POST", user=user)
+
+
 @contextlib.contextmanager
 def _create_dag_model_context(dag_id, session, security_manager):
     dag = _create_dag_model(dag_id, session, security_manager)

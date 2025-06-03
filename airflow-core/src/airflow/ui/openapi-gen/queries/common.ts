@@ -23,6 +23,7 @@ import {
   ImportErrorService,
   JobService,
   LoginService,
+  MaintenanceService,
   MonitorService,
   PluginService,
   PoolService,
@@ -1656,6 +1657,26 @@ export const UseDagVersionServiceGetDagVersionsKeyFn = (
   useDagVersionServiceGetDagVersionsKey,
   ...(queryKey ?? [{ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }]),
 ];
+export type MaintenanceServiceGetDbStatsDefaultResponse = Awaited<
+  ReturnType<typeof MaintenanceService.getDbStats>
+>;
+export type MaintenanceServiceGetDbStatsQueryResult<
+  TData = MaintenanceServiceGetDbStatsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useMaintenanceServiceGetDbStatsKey = "MaintenanceServiceGetDbStats";
+export const UseMaintenanceServiceGetDbStatsKeyFn = (
+  {
+    skipRecordCount,
+    skipSize,
+    tables,
+  }: {
+    skipRecordCount?: boolean;
+    skipSize?: boolean;
+    tables?: string[];
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useMaintenanceServiceGetDbStatsKey, ...(queryKey ?? [{ skipRecordCount, skipSize, tables }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<
   TData = MonitorServiceGetHealthDefaultResponse,
