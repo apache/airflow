@@ -28,6 +28,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 type Props = {
+  accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
@@ -120,13 +121,14 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumb
 };
 
 export const useLogs = (
-  { dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
+  { accept = "application/json", dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
     {
+      accept,
       dagId,
       dagRunId: taskInstance?.dag_run_id ?? "",
       mapIndex: taskInstance?.map_index ?? -1,
