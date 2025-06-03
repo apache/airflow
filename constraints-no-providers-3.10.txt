@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-01T17:08:35.259362
+# This constraints file was automatically generated on 2025-06-03T13:56:17.557640
 # via `uv sync --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -48,7 +48,7 @@ fastapi==0.115.12
 fsspec==2025.5.1
 googleapis-common-protos==1.70.0
 greenlet==3.2.2
-grpcio==1.71.0
+grpcio==1.72.1
 gunicorn==23.0.0
 h11==0.16.0
 httpcore==1.0.9
@@ -76,7 +76,7 @@ opentelemetry-exporter-otlp==1.27.0
 opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
-packaging==25.0
+packaging==24.2
 pathspec==0.12.1
 pendulum==3.1.0
 pluggy==1.6.0
@@ -104,7 +104,7 @@ six==1.17.0
 sniffio==1.3.1
 sqlparse==0.5.3
 starlette==0.46.2
-structlog==25.3.0
+structlog==25.4.0
 svcs==25.1.0
 tabulate==0.9.0
 tenacity==9.1.2
@@ -112,7 +112,7 @@ termcolor==3.1.0
 text-unidecode==1.3
 tomli==2.2.1
 typer==0.16.0
-types-requests==2.32.0.20250515
+types-requests==2.32.0.20250602
 typing-inspection==0.4.1
 typing_extensions==4.13.2
 tzdata==2025.2

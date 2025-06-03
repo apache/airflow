@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-01T17:08:25.623283
+# This constraints file was automatically generated on 2025-06-03T13:56:07.678370
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiobotocore==2.22.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.12.6
+aiohttp==3.12.7
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -96,6 +96,7 @@ atlassian-python-api==4.0.4
 attrs==25.3.0
 aws-sam-translator==1.97.0
 aws-xray-sdk==2.14.0
+awswrangler==3.11.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.34.0
@@ -143,7 +144,7 @@ celery==5.5.3
 certifi==2025.4.26
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.35.3
+cfn-lint==1.35.4
 chardet==5.2.0
 charset-normalizer==3.4.2
 checksumdir==1.2.0
@@ -174,7 +175,7 @@ db-dtypes==1.4.3
 debugpy==1.8.14
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==1.0.1
+deltalake==1.0.2
 diagrams==0.24.4
 dill==0.3.1.1
 distlib==0.3.9
@@ -218,7 +219,7 @@ gevent==25.5.1
 gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
-google-api-core==2.24.2
+google-api-core==2.25.0
 google-api-python-client==2.170.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
@@ -257,7 +258,7 @@ google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.18
 google-cloud-secret-manager==2.23.3
-google-cloud-spanner==3.54.0
+google-cloud-spanner==3.55.0
 google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
@@ -280,7 +281,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.71.0
+grpcio==1.72.1
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.16.0
@@ -296,7 +297,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.32.3
+huggingface-hub==0.32.4
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -381,7 +382,7 @@ mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.32.3
 msgpack==1.1.0
-msgraph-core==1.3.3
+msgraph-core==1.3.4
 msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
@@ -406,7 +407,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.82.1
+openai==1.83.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 opencensus-context==0.1.3
@@ -430,7 +431,7 @@ oracledb==3.1.1
 ordered-set==4.1.0
 orjson==3.10.18
 oss2==2.19.1
-packaging==25.0
+packaging==24.2
 pandas-gbq==0.29.0
 pandas-stubs==2.2.3.250527
 pandas==2.1.4
@@ -446,8 +447,9 @@ pdpyras==5.4.0
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
+pinecone-plugin-assistant==1.6.1
 pinecone-plugin-interface==0.0.7
-pinecone==7.0.1
+pinecone==7.0.2
 pinotdb==5.6.0
 pipdeptree==2.26.1
 platformdirs==4.3.8
@@ -461,7 +463,7 @@ pre-commit-uv==4.1.4
 pre_commit==4.2.0
 presto-python-client==0.8.4
 prison==0.2.1
-prometheus_client==0.22.0
+prometheus_client==0.22.1
 prompt_toolkit==3.0.51
 propcache==0.3.1
 proto-plus==1.26.1
@@ -508,9 +510,9 @@ pytest-instafail==0.5.0
 pytest-mock==3.14.1
 pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
-pytest-unordered==0.6.1
+pytest-unordered==0.7.0
 pytest-xdist==3.7.0
-pytest==8.3.5
+pytest==8.4.0
 python-arango==8.1.7
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
@@ -611,13 +613,13 @@ starlette==0.46.2
 statsd==4.0.1
 std-uritemplate==2.0.5
 strictyaml==1.7.3
-structlog==25.3.0
+structlog==25.4.0
 svcs==25.1.0
 sympy==1.14.0
 tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.30
+teradatasql==20.0.0.31
 teradatasqlalchemy==20.0.0.5
 termcolor==3.1.0
 text-unidecode==1.3
@@ -654,7 +656,7 @@ types-python-dateutil==2.9.0.20250516
 types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250516
 types-redis==4.6.0.20241004
-types-requests==2.32.0.20250515
+types-requests==2.32.0.20250602
 types-setuptools==80.9.0.20250529
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
@@ -665,7 +667,7 @@ tzdata==2025.2
 tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
-uritemplate==4.1.1
+uritemplate==4.2.0
 urllib3==2.4.0
 userpath==1.9.2
 uuid6==2024.7.10
