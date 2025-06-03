@@ -26,8 +26,10 @@ from typing import Any
 import aiohttp
 import requests
 import tenacity
+from aiohttp import ClientConnectionError, ClientResponseError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -87,7 +89,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             "retry": tenacity.retry_if_exception(self._should_retry_on_error),
             "wait": tenacity.wait_exponential(multiplier=1, min=1, max=60),
             "stop": tenacity.stop_after_attempt(5),
-            "before_sleep": tenacity.before_sleep_log(self.log, logger_level=20),  # INFO level
+            "before_sleep": tenacity.before_sleep_log(self.log, log_level=20),  # INFO level
             "reraise": True,
         }
         if api_retry_args:
@@ -180,12 +182,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 "query_tag": query_tag,
             },
         }
-        try:
-            response = self._make_api_call_with_retries("POST", url, headers, params, data)
-        except requests.exceptions.HTTPError as e:  # pragma: no cover
-            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
-        json_response = response.json()
+
+        _, json_response = self._make_api_call_with_retries("POST", url, headers, params, data)
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
             self.query_ids = json_response["statementHandles"]
@@ -332,11 +330,21 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param exception: The exception to check
         :return: True if the request should be retried, False otherwise
         """
-        if isinstance(exception, (requests.exceptions.HTTPError, aiohttp.ClientResponseError)):
+        if isinstance(
+            exception,
+            (
+                HTTPError,
+                ClientResponseError,
+            ),
+        ):
             return exception.response.status_code in [429, 503, 504]
         if isinstance(
             exception,
-            (requests.exceptions.ConnectionError, requests.exceptions.Timeout, aiohttp.ClientConnectionError),
+            (
+                ConnectionError,
+                Timeout,
+                ClientConnectionError,
+            ),
         ):
             return True
         return False
