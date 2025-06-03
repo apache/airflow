@@ -1267,7 +1267,7 @@ repos:
         files:
           ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/cli/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
-      - id: mockery
+      - id: go-mockery
         name: Generate mocks for go
         entry: --entrypoint ./scripts/in_container/run_mockery.sh vektra/mockery:3
         files: ^go-sdk/

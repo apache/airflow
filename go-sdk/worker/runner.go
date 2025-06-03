@@ -342,7 +342,6 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 			EndDate: endTime,
 			State:   api.TISuccessStatePayloadState(finalState),
 		})
-
 	}
 
 	err = workloadClient.TaskInstances().UpdateState(
