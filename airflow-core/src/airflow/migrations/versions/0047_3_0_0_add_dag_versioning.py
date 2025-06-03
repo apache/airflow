@@ -32,7 +32,7 @@ from alembic import op
 from sqlalchemy_utils import UUIDType
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
-from airflow.migrations.utils import _sqlite_guarded_drop_constraint
+from airflow.migrations.utils import ignore_sqlite_value_error
 from airflow.models.base import naming_convention
 from airflow.utils import timezone
 
@@ -71,8 +71,8 @@ def upgrade():
         sa.PrimaryKeyConstraint("id", name=op.f("dag_version_pkey")),
         sa.UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),
     )
-    with op.batch_alter_table("dag_code") as batch_op:
-        _sqlite_guarded_drop_constraint(table="dag_code", key="dag_code_pkey", type_="primary", op=op)
+    with ignore_sqlite_value_error(), op.batch_alter_table("dag_code") as batch_op:
+        batch_op.drop_constraint("dag_code_pkey", type_="primary")
         batch_op.drop_column("fileloc_hash")
         batch_op.add_column(sa.Column("id", UUIDType(binary=False), nullable=False))
         batch_op.create_primary_key("dag_code_pkey", ["id"])
@@ -89,8 +89,8 @@ def upgrade():
         )
         batch_op.create_unique_constraint("dag_code_dag_version_id_uq", ["dag_version_id"])
 
-    with op.batch_alter_table("serialized_dag") as batch_op:
-        _sqlite_guarded_drop_constraint(table="serialized_dag", key="task_instance", type_="primary", op=op)
+    with ignore_sqlite_value_error(), op.batch_alter_table("serialized_dag") as batch_op:
+        batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.drop_column("fileloc_hash")
         batch_op.drop_column("fileloc")
