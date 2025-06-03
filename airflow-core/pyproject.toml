@@ -131,6 +131,8 @@ dependencies = [
     "tabulate>=0.9.0",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=3.0.0",
+    # temporarily exclude 4.14.0 due to its broken compat with cadwyn
+    "typing-extensions!=4.14.0",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
