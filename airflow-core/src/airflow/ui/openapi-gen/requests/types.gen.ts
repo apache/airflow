@@ -2098,7 +2098,6 @@ export type GetDagsResponse = DAGCollectionResponse;
 export type PatchDagsData = {
   dagIdPattern?: string | null;
   excludeStale?: boolean;
-  lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
   owners?: Array<string>;
