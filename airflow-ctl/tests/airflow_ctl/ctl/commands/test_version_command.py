@@ -16,19 +16,30 @@
 # under the License.
 from __future__ import annotations
 
-import rich
+from contextlib import redirect_stdout
+from io import StringIO
+from unittest import mock
 
-from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
+import pytest
+
+from airflowctl.api.client import Client
+from airflowctl.ctl import cli_parser
+from airflowctl.ctl.commands.version_command import version_info
 
 
-@provide_api_client(kind=ClientKind.CLI)
-def version_info(arg, api_client=NEW_API_CLIENT):
-    """Get version information."""
-    version_response = api_client.version.get()
-    version_dict = version_response.model_dump()
-    version_info = {
-        "airflow_version": version_dict["version"],
-        "git_version": version_dict["git_version"],
-        "airflowctl_version": version_dict["version"],
-    }
-    rich.print(version_info)
+@pytest.fixture
+def mock_client():
+    """create a mock client"""
+    with mock.patch("airflowctl.api.client.get_client") as mock_get_client:
+        client = mock.MagicMock(spec=Client)
+        mock_get_client.return_value.__enter__.return_value = client
+        yield client
+
+
+parser = cli_parser.get_parser()
+
+
+def test_ctl_version(mock_client):
+    with redirect_stdout(StringIO()) as stdout:
+        version_dict = version_info(parser, api_client=mock_client)
+        assert str(version_dict) in stdout.getvalue()
