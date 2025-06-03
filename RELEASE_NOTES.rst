@@ -741,7 +741,6 @@ Airflow 3.0 completes the migration of several core operators, sensors, and hook
 - ``PythonOperator``
 - ``BashOperator``
 - ``EmailOperator``
-- ``SimpleHttpOperator``
 - ``ShortCircuitOperator``
 
 These operators were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
