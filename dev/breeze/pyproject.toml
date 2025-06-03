@@ -65,9 +65,7 @@ dependencies = [
     "psutil>=5.9.6",
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
-    # 8.4.0 introduces changes related to fixture that cause CI failure.
-    # TODO: we'll need to check how to get around with it.
-    "pytest>=8.2,<8.4.0",
+    "pytest>=8.3.3",
     "pyyaml>=6.0.2",
     "requests>=2.31.0",
     "restructuredtext-lint>=1.4.0",
