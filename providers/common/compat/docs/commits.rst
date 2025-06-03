@@ -30,6 +30,6 @@ Common Compatibility Provider - providing compatibility code for previous Airflo
 
 
 This is detailed commit list of changes for versions provider package: ``common.compat``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

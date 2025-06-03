@@ -74,7 +74,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from system import standard
+from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
@@ -97,14 +97,20 @@ from unit.utils.test_timezone import UTC
 
 pytestmark = pytest.mark.db_test
 
-ROOT_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
-PERF_DAGS_FOLDER = os.path.join(ROOT_FOLDER, "tests", "test_utils", "perf", "dags")
+PERF_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "dev" / "airflow_perf" / "dags"
 ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
-EXAMPLE_STANDARD_DAGS_FOLDER = standard.__path__[0]
+EXAMPLE_STANDARD_DAGS_FOLDER = (
+    AIRFLOW_ROOT_PATH
+    / "providers"
+    / "standard"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "standard"
+    / "example_dags"
+)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
@@ -197,12 +203,17 @@ class TestSchedulerJob:
 
     @pytest.fixture
     def mock_executors(self):
+        mock_jwt_generator = MagicMock()
+        mock_jwt_generator.generate.return_value = "mock-token"
+
         default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
+        default_executor.jwt_generator = mock_jwt_generator
         second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
+        second_executor.jwt_generator = mock_jwt_generator
 
-        # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_command
+        # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_workload
         # interface from executors
         default_executor.queue_workload.__func__ = BaseExecutor.queue_workload
         second_executor.queue_workload.__func__ = BaseExecutor.queue_workload
@@ -1544,12 +1555,12 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun()
         ti1 = dr1.get_task_instance(task1.task_id, session)
 
-        with patch.object(BaseExecutor, "queue_command") as mock_queue_command:
+        with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
             self.job_runner._enqueue_task_instances_with_queued_state(
                 [ti1], executor=scheduler_job.executor, session=session
             )
 
-        assert mock_queue_command.called
+        assert mock_queue_workload.called
         session.rollback()
 
     @pytest.mark.parametrize("state", [State.FAILED, State.SUCCESS])
@@ -1570,14 +1581,14 @@ class TestSchedulerJob:
         session.merge(ti)
         session.commit()
 
-        with patch.object(BaseExecutor, "queue_command") as mock_queue_command:
+        with patch.object(BaseExecutor, "queue_workload") as mock_queue_workload:
             self.job_runner._enqueue_task_instances_with_queued_state(
                 [ti], executor=scheduler_job.executor, session=session
             )
         session.flush()
         ti.refresh_from_db(session=session)
         assert ti.state == State.NONE
-        mock_queue_command.assert_not_called()
+        mock_queue_workload.assert_not_called()
 
     @pytest.mark.parametrize(
         "task1_exec, task2_exec",
@@ -4115,7 +4126,7 @@ class TestSchedulerJob:
         # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
         assert not custom_task.operator_extra_links
 
-    def test_scheduler_create_dag_runs_does_not_raise_error(self, caplog, dag_maker):
+    def test_scheduler_create_dag_runs_does_not_raise_error_when_no_serdag(self, caplog, dag_maker):
         """
         Test that scheduler._create_dag_runs does not raise an error when the DAG does not exist
         in serialized_dag table
@@ -4137,10 +4148,18 @@ class TestSchedulerJob:
                 logger="airflow.jobs.scheduler_job_runner",
             ),
         ):
+            self._clear_serdags(dag_id=dag_maker.dag.dag_id, session=session)
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
             assert caplog.messages == [
                 "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
             ]
+
+    def _clear_serdags(self, dag_id, session):
+        SDM = SerializedDagModel
+        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag_id))
+        for sdm in sdms:
+            session.delete(sdm)
+        session.commit()
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
@@ -5707,7 +5726,7 @@ class TestSchedulerJob:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_find_and_purge_task_instances_without_heartbeats(self, session, create_dagrun):
-        dagfile = os.path.join(EXAMPLE_STANDARD_DAGS_FOLDER, "example_branch_operator.py")
+        dagfile = EXAMPLE_STANDARD_DAGS_FOLDER / "example_branch_operator.py"
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
@@ -5773,7 +5792,7 @@ class TestSchedulerJob:
         """
         Check that the task instance heartbeat timeout message comes out as expected
         """
-        dagfile = os.path.join(EXAMPLE_STANDARD_DAGS_FOLDER, "example_branch_operator.py")
+        dagfile = EXAMPLE_STANDARD_DAGS_FOLDER / "example_branch_operator.py"
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
@@ -6479,7 +6498,7 @@ class TestSchedulerJobQueriesCount:
         [
             (21, 1, 1),  # One DAG with one task per DAG file.
             (21, 1, 5),  # One DAG with five tasks per DAG file.
-            (93, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
+            (148, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
         ],
     )
     def test_execute_queries_count_with_harvested_dags(
@@ -6520,7 +6539,9 @@ class TestSchedulerJobQueriesCount:
                 dr = dag.create_dagrun(
                     state=State.RUNNING,
                     run_id=f"{DagRunType.MANUAL.value}__{i}",
-                    dag_hash=dagbag.dags_hash[dag.dag_id],
+                    run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
+                    run_type=DagRunType.MANUAL,
+                    triggered_by=DagRunTriggeredByType.TEST,
                 )
                 dagruns.append(dr)
                 for ti in dr.get_task_instances():
@@ -6566,13 +6587,13 @@ class TestSchedulerJobQueriesCount:
             # 10 DAGs with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
-            ([105, 38, 38, 38], 10, 10, "1d", "@once", "no_structure"),
-            ([115, 51, 51, 51], 10, 10, "1d", "@once", "linear"),
-            ([105, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
-            ([115, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
-            ([115, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
-            ([115, 139, 139, 139], 10, 10, "1d", "30m", "star"),
-            ([115, 139, 139, 139], 10, 10, "1d", "30m", "grid"),
+            ([218, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),
+            ([228, 84, 84, 84], 10, 10, "1d", "@once", "linear"),
+            ([217, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
+            ([2227, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
+            ([227, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
+            ([227, 139, 139, 139], 10, 10, "1d", "30m", "star"),
+            ([227, 259, 259, 259], 10, 10, "1d", "30m", "grid"),
         ],
     )
     def test_process_dags_queries_count(

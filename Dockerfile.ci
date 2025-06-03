@@ -171,6 +171,24 @@ readonly MARIADB_LTS_VERSION="10.11"
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
 
+retry() {
+    local retries=3
+    local count=0
+    # adding delay of 10 seconds
+    local delay=10
+    until "$@"; do
+        exit_code=$?
+        count=$((count + 1))
+        if [[ $count -lt $retries ]]; then
+            echo "Command failed. Attempt $count/$retries. Retrying in ${delay}s..."
+            sleep $delay
+        else
+            echo "Command failed after $retries attempts."
+            return $exit_code
+        fi
+    done
+}
+
 install_mysql_client() {
     if [[ "${1}" == "dev" ]]; then
         packages=("libmysqlclient-dev" "mysql-client")
@@ -196,8 +214,8 @@ install_mysql_client() {
 
     echo "deb http://repo.mysql.com/apt/debian/ $(lsb_release -cs) mysql-${MYSQL_LTS_VERSION}" > \
         /etc/apt/sources.list.d/mysql.list
-    apt-get update
-    apt-get install --no-install-recommends -y "${packages[@]}"
+    retry apt-get update
+    retry apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -241,8 +259,8 @@ install_mariadb_client() {
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
     printf "Package: *\nPin: release o=MariaDB\nPin-Priority: 999\n" > /etc/apt/preferences.d/mariadb
-    apt-get update
-    apt-get install --no-install-recommends -y "${packages[@]}"
+    retry apt-get update
+    retry apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
@@ -394,7 +412,12 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS="--group=dev"
+        if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
+            # for uv only install dev group when we install from sources
+            export EXTRA_INSTALL_FLAGS="--group=dev"
+        else
+            export EXTRA_INSTALL_FLAGS=""
+        fi
         export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"
@@ -430,7 +453,7 @@ function common::get_airflow_version_specification() {
 function common::get_constraints_location() {
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
-        if  [[ ${AIRFLOW_VERSION} =~ v?2.* && ! ${AIRFLOW_VERSION} =~ .*dev.* ]]; then
+        if  [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
             AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}
         else
             AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}
@@ -990,7 +1013,7 @@ function determine_airflow_to_use() {
             echo "${COLOR_BLUE}Uninstalling all packages first${COLOR_RESET}"
             echo
             # shellcheck disable=SC2086
-            ${PACKAGING_TOOL_CMD} freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | \
+            ${PACKAGING_TOOL_CMD} freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | grep -v "@" | \
                 xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
             # Now install rich ad click first to use the installation script
             # shellcheck disable=SC2086
@@ -1002,7 +1025,9 @@ function determine_airflow_to_use() {
         echo
         # Use uv run to install necessary dependencies automatically
         # in the future we will be able to use uv sync when `uv.lock` is supported
-        uv run /opt/airflow/scripts/in_container/install_development_dependencies.py \
+        # for the use in parallel runs in docker containers--no-cache is needed - otherwise there is
+        # possibility of overriding temporary environments by multiple parallel processes
+        uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
@@ -1069,13 +1094,6 @@ function check_downgrade_pendulum() {
 function check_run_tests() {
     if [[ ${RUN_TESTS=} != "true" ]]; then
         return
-    fi
-
-    if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
-        # Test what happens if we do not have ARM packages installed.
-        # This is useful to see if pytest collection works without ARM packages which is important
-        # for the MacOS M1 users running tests in their ARM machines with `breeze testing *-tests` command
-        python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
     fi
 
     if [[ ${TEST_GROUP:=""} == "system" ]]; then
@@ -1145,7 +1163,7 @@ function start_api_server_with_examples(){
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
-    export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+    export AIRFLOW__API__EXPOSE_CONFIG=True
     airflow dags reserialize
     echo "Example dags parsing finished"
     if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
@@ -1368,10 +1386,10 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=25.1
+ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=79.0.1
-ARG AIRFLOW_UV_VERSION=0.6.17
+ARG AIRFLOW_SETUPTOOLS_VERSION=80.8.0
+ARG AIRFLOW_UV_VERSION=0.7.8
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"

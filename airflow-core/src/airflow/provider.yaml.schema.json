@@ -467,6 +467,18 @@
                 }
             }
         },
+        "queues": {
+            "type": "array",
+            "description": "Message Queues exposed by the provider",
+            "items": {
+                "name": {
+                    "type": "string"
+                },
+                "message-queue-class": {
+                    "type": "string"
+                }
+            }
+        },
         "source-date-epoch": {
             "type": "integer",
             "description": "Source date epoch - seconds since epoch (gmtime) when the release documentation was prepared. Used to generate reproducible package builds with flint.",

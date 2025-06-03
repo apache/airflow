@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, Skeleton, Link, Text } from "@chakra-ui/react";
+import { Box, Heading, Flex, Skeleton, Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiExternalLink } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
@@ -28,6 +28,7 @@ import { useAutoRefresh } from "src/utils";
 import { type Slots, slotKeys } from "src/utils/slots";
 
 export const PoolSummary = () => {
+  const { t: translate } = useTranslation("dashboard");
   const refetchInterval = useAutoRefresh({});
   const { data, isLoading } = usePoolServiceGetPools(undefined, undefined, {
     refetchInterval,
@@ -39,7 +40,6 @@ export const PoolSummary = () => {
   const totalSlots = pools?.reduce((sum, pool) => sum + pool.slots, 0) ?? 0;
   const aggregatePool: Slots = {
     deferred_slots: 0,
-    occupied_slots: 0,
     open_slots: 0,
     queued_slots: 0,
     running_slots: 0,
@@ -48,7 +48,6 @@ export const PoolSummary = () => {
 
   const poolsWithSlotType: Slots = {
     deferred_slots: 0,
-    occupied_slots: 0,
     open_slots: 0,
     queued_slots: 0,
     running_slots: 0,
@@ -72,15 +71,12 @@ export const PoolSummary = () => {
         <Flex alignItems="center">
           <BiTargetLock />
           <Heading ml={1} size="xs">
-            Pool Slots
+            {translate("poolSlots")}
           </Heading>
         </Flex>
         {hasPoolsAccess ? (
-          <Link asChild color="fg.info" display="flex" gap={1}>
-            <RouterLink to="/pools">
-              <Text fontSize="xs">Manage Pools</Text>
-              <FiExternalLink size={12} />
-            </RouterLink>
+          <Link asChild color="fg.info" fontSize="xs" h={4}>
+            <RouterLink to="/pools">{translate("managePools")}</RouterLink>
           </Link>
         ) : undefined}
       </Flex>

@@ -49,7 +49,7 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
         Depends(requires_access_dag(method="GET")),
     ],
 )
-def list_backfills(
+def list_backfills_ui(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[

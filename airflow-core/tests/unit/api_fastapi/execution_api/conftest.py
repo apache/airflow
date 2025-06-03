@@ -32,8 +32,35 @@ def client(request: pytest.FixtureRequest):
 
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
         auth = AsyncMock(spec=JWTValidator)
-        auth.avalidated_claims.return_value = {"sub": "edb09971-4e0e-4221-ad3f-800852d38085"}
 
-        # Inject our fake JWTValidator object. Can be over-ridden by tests if they want
+        # Create a side_effect function that dynamically extracts the task instance ID from validators
+        def smart_validated_claims(cred, validators=None):
+            # Extract task instance ID from validators if present
+            # This handles the JWTBearerTIPathDep case where the validator contains the task ID from the path
+            if (
+                validators
+                and "sub" in validators
+                and isinstance(validators["sub"], dict)
+                and "value" in validators["sub"]
+            ):
+                return {
+                    "sub": validators["sub"]["value"],
+                    "exp": 9999999999,  # Far future expiration
+                    "iat": 1000000000,  # Past issuance time
+                    "aud": "test-audience",
+                }
+
+            # For other cases (like JWTBearerDep) where no specific validators are provided
+            # Return a default UUID with all required claims
+            return {
+                "sub": "00000000-0000-0000-0000-000000000000",
+                "exp": 9999999999,  # Far future expiration
+                "iat": 1000000000,  # Past issuance time
+                "aud": "test-audience",
+            }
+
+        # Set the side_effect for avalidated_claims
+        auth.avalidated_claims.side_effect = smart_validated_claims
         lifespan.registry.register_value(JWTValidator, auth)
+
         yield client

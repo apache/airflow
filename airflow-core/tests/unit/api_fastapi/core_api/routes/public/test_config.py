@@ -77,9 +77,9 @@ MOCK_CONFIG_OVERRIDE = {
     (SECTION_SMTP, OPTION_KEY_SMTP_MAIL_FROM): OPTION_VALUE_SMTP_MAIL_FROM,
 }
 
-AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG = {("webserver", "expose_config"): "True"}
-AIRFLOW_CONFIG_DISABLE_EXPOSE_CONFIG = {("webserver", "expose_config"): "False"}
-AIRFLOW_CONFIG_NON_SENSITIVE_ONLY_CONFIG = {("webserver", "expose_config"): "non-sensitive-only"}
+AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG = {("api", "expose_config"): "True"}
+AIRFLOW_CONFIG_DISABLE_EXPOSE_CONFIG = {("api", "expose_config"): "False"}
+AIRFLOW_CONFIG_NON_SENSITIVE_ONLY_CONFIG = {("api", "expose_config"): "non-sensitive-only"}
 FORBIDDEN_RESPONSE = {
     "detail": "Your Airflow administrator chose not to expose the configuration, most likely for security reasons."
 }

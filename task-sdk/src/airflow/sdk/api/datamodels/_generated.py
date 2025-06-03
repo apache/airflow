@@ -25,9 +25,9 @@ from enum import Enum
 from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-04-11"
+API_VERSION: Final[str] = "2025-05-20"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -193,6 +193,7 @@ class TIDeferredStatePayload(BaseModel):
     trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
     next_method: Annotated[str, Field(title="Next Method")]
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -245,6 +246,7 @@ class TIRetryStatePayload(BaseModel):
     )
     state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -270,6 +272,7 @@ class TISuccessStatePayload(BaseModel):
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
     outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TITargetStatePayload(BaseModel):
@@ -353,6 +356,30 @@ class XComResponse(BaseModel):
     value: JsonValue
 
 
+class XComSequenceIndexResponse(RootModel[JsonValue]):
+    root: Annotated[
+        JsonValue,
+        Field(
+            description="XCom schema with minimal structure for index-based access.",
+            title="XComSequenceIndexResponse",
+        ),
+    ]
+
+
+class XComSequenceSliceResponse(RootModel[list[JsonValue]]):
+    """
+    XCom schema with minimal structure for slice-based access.
+    """
+
+    root: Annotated[
+        list[JsonValue],
+        Field(
+            description="XCom schema with minimal structure for slice-based access.",
+            title="XComSequenceSliceResponse",
+        ),
+    ]
+
+
 class TaskInstance(BaseModel):
     """
     Schema for TaskInstance model with minimal required fields needed for Runtime.
@@ -382,6 +409,21 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+
+
+class TaskInstanceState(str, Enum):
+    REMOVED = "removed"
+    SCHEDULED = "scheduled"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+    UP_FOR_RETRY = "up_for_retry"
+    UP_FOR_RESCHEDULE = "up_for_reschedule"
+    UPSTREAM_FAILED = "upstream_failed"
+    SKIPPED = "skipped"
+    DEFERRED = "deferred"
 
 
 class AssetEventDagRunReference(BaseModel):
@@ -462,7 +504,9 @@ class TIRunContext(BaseModel):
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
-    upstream_map_indexes: Annotated[dict[str, int] | None, Field(title="Upstream Map Indexes")] = None
+    upstream_map_indexes: Annotated[
+        dict[str, int | list[int] | None] | None, Field(title="Upstream Map Indexes")
+    ] = None
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
@@ -479,3 +523,4 @@ class TITerminalStatePayload(BaseModel):
     )
     state: TerminalStateNonSuccess
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None

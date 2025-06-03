@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 
 TEST_SQS_QUEUE = "test-sqs-queue"
 TEST_AWS_CONN_ID = "test-aws-conn-id"
@@ -39,7 +39,9 @@ TEST_BOTOCORE_CONFIG = {"region_name": "us-east-1"}
 
 class TestSqsTriggers:
     @pytest.fixture(autouse=True)
-    def _setup_test_cases(self):
+    def _setup_test_cases(self, cleanup_providers_manager):
+        from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+
         self.sqs_trigger = SqsSensorTrigger(
             sqs_queue=TEST_SQS_QUEUE,
             aws_conn_id=TEST_AWS_CONN_ID,
@@ -92,3 +94,16 @@ class TestSqsTriggers:
         mock_client.receive_message.return_value = mock_response
         messages = await self.sqs_trigger.poke(client=mock_client)
         assert len(messages) == 0
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")
+class TestMessageQueueTrigger:
+    def test_provider_integrations(self, cleanup_providers_manager):
+        if get_base_airflow_version_tuple() < (3, 0, 1):
+            pytest.skip("This test is only for Airflow 3.0.1+")
+        queue = "https://sqs.us-east-1.amazonaws.com/0123456789/Test"
+        from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+
+        trigger = MessageQueueTrigger(queue=queue)
+        assert isinstance(trigger.trigger, SqsSensorTrigger)
