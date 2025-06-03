@@ -611,7 +611,7 @@ def merge_commands(
     merge_command_map = {}
     new_commands: list[CLICommand] = []
     for command in commands_will_be_merged:
-        if isinstance(command,ActionCommand):
+        if isinstance(command, ActionCommand):
             new_commands.append(command)
         if isinstance(command, GroupCommand):
             merge_command_map[command.name] = command
