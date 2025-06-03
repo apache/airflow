@@ -38,7 +38,7 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "airflow-go-worker",
-	Short: "A brief description of your application",
+	Short: "Airflow worker for running Go tasks.",
 	Long: `Airflow worker for running Go tasks.
 
 All options (other than ` + "`--config`" + `) can be specified in the config file using
@@ -108,7 +108,8 @@ func setupViper() error {
 
 	// Make the prefix be AIRFLOW__ -- viper adds an extra `_` automatically
 	viper.SetEnvPrefix("AIRFLOW_")
-	// Set the key replacer to replace "__" with "."
+	// Set the key replacer to replace "__" with ".". ie, viper.Get("config.value")
+	// looks for the environment variable AIRFLOW__CONFIG__VALUE
 	viper.SetEnvKeyReplacer(envKeyReplacer)
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -120,7 +121,6 @@ func initializeConfig(cmd *cobra.Command) error {
 	if err := setupViper(); err != nil {
 		return err
 	}
-
 	// Bind the current command's flags to viper
 	bindFlags(cmd, envKeyReplacer)
 

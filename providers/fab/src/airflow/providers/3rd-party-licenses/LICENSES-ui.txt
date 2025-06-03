@@ -34,7 +34,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 https://github.com/moment/moment.git
 
 
-moment-timezone|0.5.48:
+moment-timezone|0.6.0:
 -----
 MIT
 The MIT License (MIT)

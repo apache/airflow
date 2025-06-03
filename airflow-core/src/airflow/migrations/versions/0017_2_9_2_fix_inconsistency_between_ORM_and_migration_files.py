@@ -243,8 +243,12 @@ def upgrade():
             )
         """)
         )
-
-        conn.execute(sa.text("INSERT INTO dag_run_new SELECT * FROM dag_run"))
+        headers = (
+            "id, dag_id, queued_at, execution_date, start_date, end_date, state, run_id, creating_job_id, "
+            "external_trigger, run_type, conf, data_interval_start, data_interval_end, "
+            "last_scheduling_decision, dag_hash, log_template_id, updated_at, clear_number"
+        )
+        conn.execute(sa.text(f"INSERT INTO dag_run_new ({headers}) SELECT {headers} FROM dag_run"))
         conn.execute(sa.text("DROP TABLE dag_run"))
         conn.execute(sa.text("ALTER TABLE dag_run_new RENAME TO dag_run"))
         conn.execute(sa.text("PRAGMA foreign_keys=on"))

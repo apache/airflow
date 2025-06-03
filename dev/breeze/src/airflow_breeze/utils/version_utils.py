@@ -31,7 +31,9 @@ def get_latest_helm_chart_version():
 def get_latest_airflow_version():
     import requests
 
-    response = requests.get("https://pypi.org/pypi/apache-airflow/json")
+    response = requests.get(
+        "https://pypi.org/pypi/apache-airflow/json", headers={"User-Agent": "Python requests"}
+    )
     response.raise_for_status()
     latest_released_version = response.json()["info"]["version"]
     return latest_released_version

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Callable
 from unittest import mock
@@ -24,6 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -382,6 +384,39 @@ def test_normalize_uri_invalid_uri():
 def test_normalize_uri_valid_uri(mock_get_normalized_scheme):
     asset = Asset(uri="valid_aip60_uri")
     assert asset.normalized_uri == "valid_aip60_uri"
+
+
+class TestAssetUniqueKey:
+    def test_from_asset(self):
+        asset = Asset(name="test", uri="test://test/")
+
+        assert AssetUniqueKey.from_asset(asset) == AssetUniqueKey(name="test", uri="test://test/")
+
+    def test_to_asset(self):
+        assert AssetUniqueKey(name="test", uri="test://test/").to_asset() == Asset(
+            name="test", uri="test://test/"
+        )
+
+    def test_from_str(self):
+        json_str = json.dumps({"name": "test", "uri": "test://test/"})
+        assert AssetUniqueKey.from_str(json_str) == AssetUniqueKey(name="test", uri="test://test/")
+
+    def test_to_str(self):
+        assert AssetUniqueKey(name="test", uri="test://test/").to_str() == json.dumps(
+            {"name": "test", "uri": "test://test/"}
+        )
+
+    @pytest.mark.parametrize(
+        "name, uri, expected_asset_unique_key",
+        [
+            ("test", None, AssetUniqueKey(name="test", uri="test")),
+            (None, "test://test/", AssetUniqueKey(name="test://test/", uri="test://test/")),
+            ("test", "test://test/", AssetUniqueKey(name="test", uri="test://test/")),
+        ],
+    )
+    def test_from_profile(self, name, uri, expected_asset_unique_key):
+        profile = AssetProfile(name=name, uri=uri, type="Asset")
+        assert AssetUniqueKey.from_profile(profile) == expected_asset_unique_key
 
 
 class TestAssetAlias:

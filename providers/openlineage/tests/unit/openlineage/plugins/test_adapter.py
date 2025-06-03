@@ -314,10 +314,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     run_id = str(uuid.uuid4())
     event_time = datetime.datetime.now().isoformat()
     adapter.complete_task(
-        run_id=run_id,
-        end_time=event_time,
-        job_name="job",
-        task=OperatorLineage(),
+        run_id=run_id, end_time=event_time, job_name="job", task=OperatorLineage(), owners=[]
     )
 
     assert (
@@ -367,6 +364,7 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
         run_id=run_id,
         end_time=event_time,
         job_name="job",
+        owners=["owner1", "owner2"],
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
@@ -423,6 +421,12 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                     namespace="default",
                     name="job",
                     facets={
+                        "ownership": ownership_job.OwnershipJobFacet(
+                            owners=[
+                                ownership_job.Owner(name="owner1", type=None),
+                                ownership_job.Owner(name="owner2", type=None),
+                            ]
+                        ),
                         "sql": sql_job.SQLJobFacet(query="SELECT 1;"),
                         "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
@@ -457,6 +461,7 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
         end_time=event_time,
         job_name="job",
         task=OperatorLineage(),
+        owners=[],
     )
 
     assert (
@@ -506,6 +511,7 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
         run_id=run_id,
         end_time=event_time,
         job_name="job",
+        owners=["owner1", "owner2"],
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
@@ -565,6 +571,12 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                 namespace="default",
                 name="job",
                 facets={
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
+                        ]
+                    ),
                     "sql": sql_job.SQLJobFacet(query="SELECT 1;"),
                     "jobType": job_type_job.JobTypeJobFacet(
                         processingType="BATCH", integration="AIRFLOW", jobType="TASK"
@@ -663,7 +675,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         clear_number=0,
         nominal_start_time=event_time.isoformat(),
         nominal_end_time=event_time.isoformat(),
-        owners=["airflow"],
+        owners=["owner1", "owner2"],
         description=dag.description,
         run_facets={
             "parent": parent_run.ParentRunFacet(
@@ -725,7 +737,8 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                     "documentation": documentation_job.DocumentationJobFacet(description="dag desc"),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
-                            ownership_job.Owner(name="airflow", type=None),
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
                         ]
                     ),
                     **job_facets,
@@ -796,6 +809,7 @@ def test_emit_dag_complete_event(
         clear_number=0,
         dag_run_state=DagRunState.SUCCESS,
         task_ids=["task_0", "task_1", "task_2.test"],
+        owners=["owner1", "owner2"],
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -843,9 +857,15 @@ def test_emit_dag_complete_event(
                 namespace=namespace(),
                 name=dag_id,
                 facets={
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
+                        ]
+                    ),
                     "jobType": job_type_job.JobTypeJobFacet(
                         processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                    )
+                    ),
                 },
             ),
             producer=_PRODUCER,
@@ -910,6 +930,7 @@ def test_emit_dag_failed_event(
         dag_run_state=DagRunState.FAILED,
         task_ids=["task_0", "task_1", "task_2.test"],
         msg="error msg",
+        owners=["owner1", "owner2"],
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -960,9 +981,15 @@ def test_emit_dag_failed_event(
                 namespace=namespace(),
                 name=dag_id,
                 facets={
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
+                        ]
+                    ),
                     "jobType": job_type_job.JobTypeJobFacet(
                         processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                    )
+                    ),
                 },
             ),
             producer=_PRODUCER,

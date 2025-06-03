@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+import { Flex, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 
+import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
 import { type Slots, slotConfigs } from "src/utils/slots";
 
@@ -27,7 +29,7 @@ export const PoolBar = ({
   poolsWithSlotType,
   totalSlots,
 }: {
-  readonly pool: Slots;
+  readonly pool: PoolResponse | Slots;
   readonly poolsWithSlotType?: Slots;
   readonly totalSlots: number;
 }) => {
@@ -46,8 +48,7 @@ export const PoolBar = ({
         const slotType = key.replace("_slots", "");
         const poolCount = poolsWithSlotType ? poolsWithSlotType[key] : 0;
         const tooltipContent = `${translate(`pools.${slotType}`)}: ${slotValue} (${poolCount} ${translate("pools.pools", { count: poolCount })})`;
-
-        return (
+        const poolContent = (
           <Tooltip content={tooltipContent} key={key}>
             <Flex
               alignItems="center"
@@ -65,6 +66,14 @@ export const PoolBar = ({
               {slotValue}
             </Flex>
           </Tooltip>
+        );
+
+        return color !== "success" && "name" in pool ? (
+          <Link asChild key={key}>
+            <RouterLink to={`/task_instances?state=${color}&pool=${pool.name}`}>{poolContent}</RouterLink>
+          </Link>
+        ) : (
+          poolContent
         );
       })}
     </>

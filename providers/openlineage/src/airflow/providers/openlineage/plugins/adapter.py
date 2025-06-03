@@ -190,7 +190,7 @@ class OpenLineageAdapter(LoggingMixin):
         code_location: str | None,
         nominal_start_time: str | None,
         nominal_end_time: str | None,
-        owners: list[str],
+        owners: list[str] | None,
         task: OperatorLineage | None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
@@ -204,7 +204,7 @@ class OpenLineageAdapter(LoggingMixin):
         :param code_location: file path or URL of DAG file
         :param nominal_start_time: scheduled time of dag run
         :param nominal_end_time: following schedule of dag run
-        :param owners: list of owners of DAG
+        :param owners: list of owners
         :param task: metadata container with information extracted from operator
         :param run_facets: custom run facets
         """
@@ -241,6 +241,7 @@ class OpenLineageAdapter(LoggingMixin):
         job_name: str,
         end_time: str,
         task: OperatorLineage,
+        owners: list[str] | None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
         """
@@ -250,6 +251,7 @@ class OpenLineageAdapter(LoggingMixin):
         :param job_name: globally unique identifier of task between dags
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
+        :param owners: list of owners
         :param run_facets: additional run facets
         """
         run_facets = run_facets or {}
@@ -263,7 +265,7 @@ class OpenLineageAdapter(LoggingMixin):
                 run_id=run_id,
                 run_facets=run_facets,
             ),
-            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
+            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets, owners=owners),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
@@ -276,6 +278,7 @@ class OpenLineageAdapter(LoggingMixin):
         job_name: str,
         end_time: str,
         task: OperatorLineage,
+        owners: list[str] | None,
         error: str | BaseException | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
@@ -287,6 +290,7 @@ class OpenLineageAdapter(LoggingMixin):
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
         :param run_facets: custom run facets
+        :param owners: list of owners
         :param error: error
         :param run_facets: additional run facets
         """
@@ -312,7 +316,7 @@ class OpenLineageAdapter(LoggingMixin):
                 run_id=run_id,
                 run_facets=run_facets,
             ),
-            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
+            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets, owners=owners),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
@@ -326,7 +330,7 @@ class OpenLineageAdapter(LoggingMixin):
         start_date: datetime,
         nominal_start_time: str,
         nominal_end_time: str,
-        owners: list[str],
+        owners: list[str] | None,
         run_facets: dict[str, RunFacet],
         clear_number: int,
         description: str | None = None,
@@ -371,13 +375,14 @@ class OpenLineageAdapter(LoggingMixin):
         clear_number: int,
         dag_run_state: DagRunState,
         task_ids: list[str],
+        owners: list[str] | None,
         run_facets: dict[str, RunFacet],
     ):
         try:
             event = RunEvent(
                 eventType=RunState.COMPLETE,
                 eventTime=end_date.isoformat(),
-                job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG),
+                job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG, owners=owners),
                 run=Run(
                     runId=self.build_dag_run_id(
                         dag_id=dag_id, logical_date=logical_date, clear_number=clear_number
@@ -409,6 +414,7 @@ class OpenLineageAdapter(LoggingMixin):
         clear_number: int,
         dag_run_state: DagRunState,
         task_ids: list[str],
+        owners: list[str] | None,
         msg: str,
         run_facets: dict[str, RunFacet],
     ):
@@ -416,7 +422,7 @@ class OpenLineageAdapter(LoggingMixin):
             event = RunEvent(
                 eventType=RunState.FAIL,
                 eventTime=end_date.isoformat(),
-                job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG),
+                job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG, owners=owners),
                 run=Run(
                     runId=self.build_dag_run_id(
                         dag_id=dag_id,
@@ -488,7 +494,7 @@ class OpenLineageAdapter(LoggingMixin):
             facets.update(
                 {
                     "ownership": ownership_job.OwnershipJobFacet(
-                        owners=[ownership_job.Owner(name=owner) for owner in owners]
+                        owners=[ownership_job.Owner(name=owner) for owner in sorted(owners)]
                     )
                 }
             )

@@ -412,7 +412,12 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS="--group=dev"
+        if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -f "./pyproject.toml" ]]; then
+            # for uv only install dev group when we install from sources
+            export EXTRA_INSTALL_FLAGS="--group=dev"
+        else
+            export EXTRA_INSTALL_FLAGS=""
+        fi
         export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"
@@ -1384,7 +1389,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 ARG AIRFLOW_PIP_VERSION=25.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.8.0
-ARG AIRFLOW_UV_VERSION=0.7.7
+ARG AIRFLOW_UV_VERSION=0.7.8
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"

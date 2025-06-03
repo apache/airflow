@@ -84,10 +84,8 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_PLUGIN,
     RESOURCE_POOL,
     RESOURCE_PROVIDER,
-    RESOURCE_SLA_MISS,
     RESOURCE_TASK_INSTANCE,
     RESOURCE_TASK_LOG,
-    RESOURCE_TASK_RESCHEDULE,
     RESOURCE_TRIGGER,
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
@@ -127,7 +125,6 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
-    DagAccessEntity.SLA_MISS: (RESOURCE_SLA_MISS,),
     # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
     # AND task instances without making the difference
     # To be backward compatible, we translate DagAccessEntity.TASK_INSTANCE to RESOURCE_TASK_INSTANCE AND
@@ -136,7 +133,6 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.TASK: (RESOURCE_TASK_INSTANCE,),
     DagAccessEntity.TASK_INSTANCE: (RESOURCE_DAG_RUN, RESOURCE_TASK_INSTANCE),
     DagAccessEntity.TASK_LOGS: (RESOURCE_TASK_LOG,),
-    DagAccessEntity.TASK_RESCHEDULE: (RESOURCE_TASK_RESCHEDULE,),
     DagAccessEntity.VERSION: (RESOURCE_DAG_VERSION,),
     DagAccessEntity.WARNING: (RESOURCE_DAG_WARNING,),
     DagAccessEntity.XCOM: (RESOURCE_XCOM,),

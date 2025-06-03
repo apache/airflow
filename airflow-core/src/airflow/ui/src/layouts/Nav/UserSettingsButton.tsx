@@ -57,7 +57,7 @@ export const UserSettingsButton = () => {
         <Menu.Root>
           <Menu.TriggerItem>
             <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
-            {translate("language.select")}
+            {translate("selectLanguage")}
             <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
           </Menu.TriggerItem>
           <Menu.Content>

@@ -21,6 +21,7 @@ import contextlib
 import functools
 import json
 import os
+import textwrap
 import uuid
 from collections.abc import Iterable
 from datetime import datetime, timedelta
@@ -273,6 +274,54 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
 
     expected_error.kwargs["bundle"] = what.bundle_info
     log.error.assert_has_calls([expected_error])
+
+
+def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
+    """Check that the bundle path is added to sys.path, so Dags can import shared modules."""
+    tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
+
+    dag1_path = tmp_path.joinpath("path_test.py")
+    dag1_code = """
+    from util import NAME
+    from airflow.sdk import DAG
+    from airflow.sdk.bases.operator import BaseOperator
+    with DAG(NAME):
+        BaseOperator(task_id="a")
+    """
+    dag1_path.write_text(textwrap.dedent(dag1_code))
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="dag_name",
+            run_id="c",
+            try_number=1,
+        ),
+        dag_rel_path="path_test.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        requests_fd=0,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(tmp_path), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        ti = parse(what, mock.Mock())
+
+    assert ti.task.dag.dag_id == "dag_name"
 
 
 def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
@@ -897,7 +946,12 @@ def test_run_with_asset_outlets(
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner._validate_task_inlets_and_outlets"
+    ) as validate_mock:
+        run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    validate_mock.assert_called_once()
 
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
 

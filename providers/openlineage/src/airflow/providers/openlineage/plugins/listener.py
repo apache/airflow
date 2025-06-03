@@ -205,7 +205,8 @@ class OpenLineageListener:
                 code_location=None,
                 nominal_start_time=data_interval_start,
                 nominal_end_time=data_interval_end,
-                owners=dag.owner.split(", "),
+                # If task owner is default ("airflow"), use DAG owner instead that may have more details
+                owners=[x.strip() for x in (task if task.owner != "airflow" else dag).owner.split(",")],
                 task=task_metadata,
                 run_facets={
                     **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
@@ -316,6 +317,8 @@ class OpenLineageListener:
                 job_name=get_job_name(task),
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+                # If task owner is default ("airflow"), use DAG owner instead that may have more details
+                owners=[x.strip() for x in (task if task.owner != "airflow" else dag).owner.split(",")],
                 run_facets={
                     **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
@@ -436,6 +439,8 @@ class OpenLineageListener:
                 end_time=end_date.isoformat(),
                 task=task_metadata,
                 error=error,
+                # If task owner is default ("airflow"), use DAG owner instead that may have more details
+                owners=[x.strip() for x in (task if task.owner != "airflow" else dag).owner.split(",")],
                 run_facets={
                     **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
@@ -641,6 +646,7 @@ class OpenLineageListener:
                 end_date=dag_run.end_date,
                 logical_date=date,
                 clear_number=dag_run.clear_number,
+                owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
                 task_ids=task_ids,
                 dag_run_state=dag_run.get_state(),
                 run_facets={**get_airflow_dag_run_facet(dag_run)},
@@ -677,6 +683,7 @@ class OpenLineageListener:
                 end_date=dag_run.end_date,
                 logical_date=date,
                 clear_number=dag_run.clear_number,
+                owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
                 dag_run_state=dag_run.get_state(),
                 task_ids=task_ids,
                 msg=msg,

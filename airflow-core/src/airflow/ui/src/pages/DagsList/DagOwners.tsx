@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Link, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 
@@ -30,13 +31,16 @@ export const DagOwners = ({
   readonly ownerLinks?: Record<string, string> | null;
   readonly owners?: Array<string>;
 }) => {
+  const { t: translate } = useTranslation("dags");
   const items = owners.map((owner) => {
     const link = ownerLinks?.[owner];
     const hasOwnerLink = link !== undefined;
 
     return hasOwnerLink ? (
       <Link
-        aria-label={`Owner link for ${owner}`}
+        aria-label={translate("list.ownerLink", { owner })}
+        asChild
+        color="fg.info"
         href={link}
         key={owner}
         rel="noopener noreferrer"
