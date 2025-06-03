@@ -246,6 +246,24 @@ class HttpHook(BaseHook):
         """
         extra_options = extra_options or {}
 
+        self.log.debug(
+            "Making HTTP request:\n"
+            "Method: %s\n"
+            "Endpoint: %s\n"
+            "Base URL: %s\n"
+            "Headers: %s\n"
+            "Data: %s\n"
+            "Extra Options: %s\n"
+            "Request Kwargs: %s",
+            self.method,
+            endpoint,
+            self.base_url,
+            headers,
+            data,
+            extra_options,
+            request_kwargs,
+        )
+
         session = self.get_conn(headers, extra_options)
 
         url = self.url_from_endpoint(endpoint)
@@ -294,6 +312,24 @@ class HttpHook(BaseHook):
             i.e. ``{'check_response': False}`` to avoid checking raising exceptions on non 2XX
             or 3XX status codes
         """
+        self.log.debug(
+            "Executing prepared request:\n"
+            "URL: %s\n"
+            "Method: %s\n"
+            "Headers: %s\n"
+            "Body Length: %d bytes\n"
+            "Extra Options: %s\n"
+            "Timeout: %s\n"
+            "Allow Redirects: %s",
+            prepped_request.url,
+            prepped_request.method,
+            prepped_request.headers,
+            len(prepped_request.body) if prepped_request.body else 0,
+            extra_options,
+            extra_options.get("timeout"),
+            extra_options.get("allow_redirects", True),
+        )
+
         extra_options = extra_options or {}
 
         settings = session.merge_environment_settings(
@@ -313,6 +349,18 @@ class HttpHook(BaseHook):
 
         try:
             response = session.send(prepped_request, **send_kwargs)
+
+            self.log.debug(
+                "Response received:\n"
+                "Status Code: %d\n"
+                "Headers: %s\n"
+                "Content Length: %d bytes\n"
+                "Elapsed Time: %s",
+                response.status_code,
+                response.headers,
+                len(response.content),
+                response.elapsed,
+            )
 
             if extra_options.get("check_response", True):
                 self.check_response(response)
@@ -344,6 +392,13 @@ class HttpHook(BaseHook):
             hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
 
         """
+        self.log.debug(
+            "Initializing retry mechanism:\nRetry Arguments: %s\nArgs: %s\nKwargs: %s",
+            _retry_args,
+            args,
+            kwargs,
+        )
+
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
         # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
