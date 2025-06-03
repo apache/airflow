@@ -174,10 +174,6 @@ class TaskInstanceOperations:
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def heartbeat(self, id: uuid.UUID, pid: int):
-        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
-        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
-
     def defer(self, id: uuid.UUID, msg):
         """Tell the API server that this TI has been deferred."""
         body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
@@ -191,6 +187,10 @@ class TaskInstanceOperations:
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def heartbeat(self, id: uuid.UUID, pid: int):
+        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
+        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
 
     def skip_downstream_tasks(self, id: uuid.UUID, msg: SkipDownstreamTasks):
         """Tell the API server to skip the downstream tasks of this TI."""
