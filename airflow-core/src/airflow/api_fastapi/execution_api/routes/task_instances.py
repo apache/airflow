@@ -390,18 +390,13 @@ def ti_update_state(
         query, updated_state = _create_ti_state_update_query_and_update_state(
             ti_patch_payload=ti_patch_payload,
             ti_id_str=ti_id_str,
-            dag_bag=dag_bag,
             session=session,
             query=query,
             updated_state=updated_state,
             dag_id=dag_id,
+            dag_bag=dag_bag,
         )
-    except Exception as err:
-        if isinstance(err, HTTPException) and err.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
-            # We need to rebuild the query and remove  "reschedule_date"which causes DB error
-            data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
-            query = update(TI).where(TI.id == ti_id_str).values(data)
-
+    except Exception:
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception("Error updating Task Instance state to %s. Set the task to failed", updated_state)
         ti = session.get(TI, ti_id_str)
@@ -507,14 +502,17 @@ def _create_ti_state_update_query_and_update_state(
             # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
             _MYSQL_TIMESTAMP_MAX = timezone.datetime(2038, 1, 19, 3, 14, 7)
             if ti_patch_payload.reschedule_date > _MYSQL_TIMESTAMP_MAX:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail={
-                        "reason": "invalid_reschedule_date",
-                        "message": f"Cannot reschedule to {ti_patch_payload.reschedule_date.isoformat()} "
-                        f"since it is over MySQL's TIMESTAMP storage limit.",
-                    },
+                # Set a task to failed in case any unexpected exception happened during task state update
+                log.exception(
+                    "Error updating Task Instance state to %s. Set the task to failed", updated_state
                 )
+                data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
+                query = update(TI).where(TI.id == ti_id_str).values(data)
+                query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
+                query = query.values(state=TaskInstanceState.FAILED)
+                ti = session.get(TI, ti_id_str)
+                _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                return query, updated_state
 
         task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
