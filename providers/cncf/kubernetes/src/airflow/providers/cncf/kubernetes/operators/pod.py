@@ -620,7 +620,7 @@ class KubernetesPodOperator(BaseOperator):
         except PodLaunchFailedException:
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
-        raise
+            raise
 
     def extract_xcom(self, pod: k8s.V1Pod) -> dict[Any, Any] | None:
         """Retrieve xcom value and kill xcom sidecar container."""
