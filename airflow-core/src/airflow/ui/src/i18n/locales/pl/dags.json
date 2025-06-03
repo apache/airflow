@@ -18,17 +18,17 @@
     }
   },
   "list": {
-      "advancedSearch": "Wyszukiwanie zaawansowane",
-      "clearSearch": "Wyczyść wyszukiwanie",
-      "columns": {
-          "dagId": "Identyfikator Daga",
-          "lastDagRun": "Ostatnie Wykonanie Daga",
-          "nextDagRun": "Następne Wykonanie Daga",
-          "schedule": "Harmonogram",
-          "tags": "Etykiety"
-      },
-      "ownerLink": "Link do właściciela {{owner}}",
-      "searchPlaceholder": "Szukaj Dagów"
+    "advancedSearch": "Wyszukiwanie zaawansowane",
+    "clearSearch": "Wyczyść wyszukiwanie",
+    "columns": {
+      "dagId": "Identyfikator Daga",
+      "lastDagRun": "Ostatnie Wykonanie Daga",
+      "nextDagRun": "Następne Wykonanie Daga",
+      "schedule": "Harmonogram",
+      "tags": "Etykiety"
+    },
+    "ownerLink": "Link do właściciela {{owner}}",
+    "searchPlaceholder": "Szukaj Dagów"
   },
   "runAndTaskActions": {
     "clear": {
@@ -94,18 +94,10 @@
     }
   },
   "runs": {
-      "columns": {
-          "duration": "Czas trwania",
-          "endDate": "Data zakończenia",
-          "runAfter": "Uruchom po",
-          "startDate": "Data rozpoczęcia",
-          "state": "Stan"
-      }
-  },
-  "runs": {
     "allRunTypes": "Wszystkie Typy Wykonań",
     "allStates": "Wszystkie Stany",
     "columns": {
+      "conf": "Konfiguracja",
       "dagId": "Identyfikator Daga",
       "dagVersions": "Wersje Daga",
       "duration": "Czas trwania",
