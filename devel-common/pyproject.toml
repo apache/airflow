@@ -137,6 +137,8 @@ dependencies = [
     "pytest-timeouts>=1.2.1",
     "pytest-unordered>=0.6.1",
     "pytest-xdist>=3.5.0",
+    # 8.4.0 introduces changes related to fixture that cause CI failure.
+    # TODO: we'll need to check how to get around with it.
     "pytest>=8.3.3,<8.4.0",
 ]
 "sentry" = [
