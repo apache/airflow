@@ -31,7 +31,6 @@ from airflow.api_fastapi.common.db.common import (
     apply_filters_to_select,
     paginated_select,
 )
-from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -301,7 +300,6 @@ def patch_dags(
     dag_id_pattern: QueryDagIdPatternSearchWithNone,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
-    last_dag_run_state: QueryLastDagRunStateFilter,
     editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
@@ -318,18 +316,14 @@ def patch_dags(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
-        # todo: this is not used?
-        update_mask = ["is_paused"]
-
     dags_select, total_entries = paginated_select(
-        statement=generate_dag_with_latest_run_query(),
+        statement=select(DagModel),
         filters=[
             exclude_stale,
             paused,
             dag_id_pattern,
             tags,
             owners,
-            last_dag_run_state,
             editable_dags_filter,
         ],
         order_by=None,
