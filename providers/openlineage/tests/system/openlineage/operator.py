@@ -222,9 +222,11 @@ class OpenLineageTestOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         if self.file_path is not None:
             self.event_templates = {}
+            self.log.info("Reading OpenLineage event templates from file `%s`", self.file_path)
             with open(self.file_path) as f:  # type: ignore[arg-type]
                 events = json.load(f)
             for event in events:
+                # Just a single event per job and event type is loaded as this is the most common scenario
                 key = event["job"]["name"] + ".event." + event["eventType"].lower()
                 self.event_templates[key] = event
         try:
@@ -241,7 +243,8 @@ class OpenLineageTestOperator(BaseOperator):
                     raise ValueError(f"No event for key {key}")
                 if len(actual_events) != 1 and not self.multiple_events:
                     raise ValueError(f"Expected one event for key {key}, got {len(actual_events)}")
-                if not match(template, json.loads(actual_events[0]), self.env):
+                # Last event is checked against the template, this will allow to f.e. check change in try_num
+                if not match(template, json.loads(actual_events[-1]), self.env):
                     raise ValueError("Event received does not match one specified in test")
         finally:
             if self.delete:
