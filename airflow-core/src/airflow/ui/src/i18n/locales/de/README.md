@@ -84,7 +84,7 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
 - `Plugins` --> `Plug-ins`: Nach Duden empfohlen.
 - `Pools` (Unübersetzt): Der Englische Term ist so im Deutschen direkt
   verständlich. Ein präzise Übersetzung als "Ressourcen-Pool" wäre zu sperrig
-  und andere Übersetzungsoptionen wie "Schwimmbad" irreführend. In sofern ist
+  und andere Übersetzungsoptionen wie "Schwimmbad" irreführend. Insofern ist
   "Pool" als Kurzform von "Ressource-Pool" anzusehen.
 - `Provider` (Unübersetzt): Eine direkte Übersetzung in andere Begriffe
   verbessert nicht das Verständnis. Der Term ist im Deutschen so gut
