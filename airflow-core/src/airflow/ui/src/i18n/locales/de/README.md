@@ -71,7 +71,7 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   zu finden ist, ist eine Eindeutschung für das Gesamtbild im UI vorteilhaft -
   abgesehen von dem feststehenden Begriff -->"Dag".
 - `Deferred` (Status) --> `Delegiert`: Im Deutschen ist die Übersetzung nur
-  teilweise passend und der Begriff "Delegiert" ist an nächsten an der
+  teilweise passend und der Begriff "Delegiert" ist am nächsten an der
   Original-Bedeutung da ein Task zu der Triggerer-Komponente weitergegeben wird.
 - `Docs` --> `Doku`: Die direkte Übersetzung wäre eigentlich "Dokumentation"
   gewesen aber ohne Wort-Trennung wäre der übersetzte Begriff einige Pixel zu
