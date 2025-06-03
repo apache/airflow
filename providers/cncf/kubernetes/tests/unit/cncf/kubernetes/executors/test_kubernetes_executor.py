@@ -1334,6 +1334,12 @@ class TestKubernetesExecutor:
     def test_cli_commands_vended(self):
         assert KubernetesExecutor.get_cli_commands()
 
+
+class TestKubernetesExecutorTaskPodLogs:
+    """
+    Tests for KubernetesExecutor task pod logs related functionality.
+    """
+
     def test_annotations_for_logging_task_metadata(self):
         annotations_test = {
             "dag_id": "dag",
@@ -1370,12 +1376,6 @@ class TestKubernetesExecutor:
                 assert annotations_actual == expected_annotations
         finally:
             get_logs_task_metadata.cache_clear()
-
-
-class TestKubernetesExecutorTaskPodLogs:
-    """
-    Tests for KubernetesExecutor task pod logs related functionality.
-    """
 
     def attr_pytest_warns(self):
         return pytest.warns(
