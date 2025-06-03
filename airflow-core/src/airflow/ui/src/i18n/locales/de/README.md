@@ -30,7 +30,7 @@ Im Deutschen im Vergleich zu der Englischen Sprache wird die förmliche- von der
 normalen Anrede unterschieden
 ([Siehe: Wikipedia](https://de.wikipedia.org/wiki/Anrede)). Für die Deutsche
 Übersetzung und unter der Annahme des "Nicht-Wissens" des Benutzerkreises wurde
-die förmliche Anrede definiert.
+die förmliche Anrede verwendet.
 
 ## Feststehende Terme
 
