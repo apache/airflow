@@ -52,6 +52,8 @@ BUCKET_NAME_DST = f"bucket_dst_{DAG_ID}_{ENV_ID}"
 FILE_NAME = "example_upload.txt"
 UPLOAD_FILE_PATH = f"gcs/{FILE_NAME}"
 
+PREFIX = "prefix/"
+UPLOAD_FILE_PREFIX = "gcs/${PREFIX}"
 
 with DAG(
     DAG_ID,
@@ -81,6 +83,14 @@ with DAG(
         exact_match=True,
     )
 
+    upload_prefix = GCSToGCSOperator(
+        task_id="create_prefix_files",
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=f"{UPLOAD_FILE_PREFIX}/*",
+        destination_bucket=BUCKET_NAME_SRC,
+        destination_object=f"{PREFIX}",
+    )
+
     # [START howto_operator_gcs_list_bucket]
     list_buckets = GCSListObjectsOperator(task_id="list_buckets", bucket=BUCKET_NAME_SRC)
     # [END howto_operator_gcs_list_bucket]
@@ -104,6 +114,16 @@ with DAG(
     )
     # [END howto_operator_gcs_delete_object]
 
+    # [START howto_operator_gcs_delete_object_parallel]
+    delete_files_parallel = GCSDeleteObjectsOperator(
+        task_id="delete_files_parallel",
+        bucket_name=BUCKET_NAME_SRC,
+        prefix=PREFIX,
+        parallel_deletion=True,
+        parallel_workers=2,
+    )
+    # [END howto_operator_gcs_delete_object_parallel]
+
     delete_bucket_src = GCSDeleteBucketOperator(
         task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
     )
@@ -120,11 +140,13 @@ with DAG(
         # TEST SETUP
         [create_bucket_src, create_bucket_dst],
         upload_file,
+        upload_prefix,
         # TEST BODY
         list_buckets,
         list_buckets_result,
         copy_file,
         delete_files,
+        delete_files_parallel,
         # TEST TEARDOWN
         [delete_bucket_src, delete_bucket_dst, check_openlineage_events],
     )
