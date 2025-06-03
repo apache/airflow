@@ -396,7 +396,12 @@ def ti_update_state(
             updated_state=updated_state,
             dag_id=dag_id,
         )
-    except Exception:
+    except Exception as err:
+        if isinstance(err, HTTPException) and err.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
+            # We need to rebuild the query and remove  "reschedule_date"which causes DB error
+            data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
+            query = update(TI).where(TI.id == ti_id_str).values(data)
+
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception("Error updating Task Instance state to %s. Set the task to failed", updated_state)
         ti = session.get(TI, ti_id_str)
