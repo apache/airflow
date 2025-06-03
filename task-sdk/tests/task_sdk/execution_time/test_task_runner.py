@@ -945,7 +945,12 @@ def test_run_with_asset_outlets(
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner._validate_task_inlets_and_outlets"
+    ) as validate_mock:
+        run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    validate_mock.assert_called_once()
 
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
 

@@ -45,6 +45,7 @@ from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
+    AssetProfile,
     AssetResponse,
     DagRunState,
     TaskInstance,
@@ -77,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    InactiveAssetsResult,
     OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
@@ -90,6 +92,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     TICount,
     TriggerDagRun,
+    ValidateInletsAndOutlets,
     VariableResult,
     XComResult,
     XComSequenceIndexResult,
@@ -1441,6 +1444,18 @@ class TestHandleRequest:
                 ),
                 None,
                 id="get_asset_events_by_asset_alias",
+            ),
+            pytest.param(
+                ValidateInletsAndOutlets(ti_id=TI_ID),
+                b'{"inactive_assets":[{"name":"asset_name","uri":"asset_uri","type":"asset"}],"type":"InactiveAssetsResult"}\n',
+                "task_instances.validate_inlets_and_outlets",
+                (TI_ID,),
+                {},
+                InactiveAssetsResult(
+                    inactive_assets=[AssetProfile(name="asset_name", uri="asset_uri", type="asset")]
+                ),
+                None,
+                id="validate_inlets_and_outlets",
             ),
             pytest.param(
                 SucceedTask(

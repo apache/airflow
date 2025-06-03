@@ -1887,6 +1887,7 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
+                and not ti.task.inlets
             ):
                 empty_ti_ids.append(ti.id)
             # check "start_trigger_args" to see whether the operator supports start execution from triggerer
