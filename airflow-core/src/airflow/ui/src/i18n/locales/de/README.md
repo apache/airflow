@@ -42,7 +42,7 @@ Die folgenden Begriffe wurden bewusst nicht aus dem Englischen übersetzt:
   feststehenden Begriff in
   ([[LAZY CONSENSUS] rename DAGs to dags / Dags in docs](https://lists.apache.org/thread/24hs06s39l73gj2h4o8l5dr2czgg2gw0))
   ist es sinnvoll diesen Begriff als markenähnlichen Begriff in Airflow
-  konsistent zu viel Dokumentation zu behalten. Die deutsche Übersetzung als
+  konsistent mit der weit verbreiteten Verwendung des Begriffs in der Dokumentation zu behalten. Die deutsche Übersetzung als
   "Workflow" wäre vermutlich eher irreführend und es ist anzunehmen dass die
   Nutzer von Airflow den Begriff zuordnen können.
   Der Begriff `Dag` wird in der deutschen Übersetzung im Neutrum verwendet.
