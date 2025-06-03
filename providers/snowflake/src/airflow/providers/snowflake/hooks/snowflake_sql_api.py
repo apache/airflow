@@ -25,6 +25,7 @@ from typing import Any
 
 import aiohttp
 import requests
+import tenacity
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
@@ -75,12 +76,23 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         snowflake_conn_id: str,
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
+        api_retry_args: dict[Any, Any] | None = None,  # Optional retry arguments passed to tenacity.retry
         *args: Any,
         **kwargs: Any,
     ):
         self.snowflake_conn_id = snowflake_conn_id
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
+        self.retry_config = {
+            "retry": tenacity.retry_if_exception(self._should_retry_on_error),
+            "wait": tenacity.wait_exponential(multiplier=1, min=1, max=60),
+            "stop": tenacity.stop_after_attempt(5),
+            "before_sleep": tenacity.before_sleep_log(self.log, logger_level=20),  # INFO level
+            "reraise": True,
+        }
+        if api_retry_args:
+            self.retry_config.update(api_retry_args)
+
         super().__init__(snowflake_conn_id, *args, **kwargs)
         self.private_key: Any = None
 
@@ -168,9 +180,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 "query_tag": query_tag,
             },
         }
-        response = requests.post(url, json=data, headers=headers, params=params)
         try:
-            response.raise_for_status()
+            response = self._make_api_call_with_retries("POST", url, headers, params, data)
         except requests.exceptions.HTTPError as e:  # pragma: no cover
             msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -295,9 +306,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         self.log.info("Retrieving status for query id %s", query_id)
         header, params, url = self.get_request_url_header_params(query_id)
-        response = requests.get(url, params=params, headers=header)
-        status_code = response.status_code
-        resp = response.json()
+        status_code, resp = self._make_api_call_with_retries("GET", url, header, params)
         return self._process_response(status_code, resp)
 
     async def get_sql_api_query_status_async(self, query_id: str) -> dict[str, str | list[str]]:
@@ -308,10 +317,83 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         self.log.info("Retrieving status for query id %s", query_id)
         header, params, url = self.get_request_url_header_params(query_id)
-        async with (
-            aiohttp.ClientSession(headers=header) as session,
-            session.get(url, params=params) as response,
+        status_code, resp = await self._make_api_call_with_retries_async("GET", url, header, params)
+        return self._process_response(status_code, resp)
+
+    @staticmethod
+    def _should_retry_on_error(exception) -> bool:
+        """
+        Determine if the exception should trigger a retry based on error type and status code.
+
+        Retries on HTTP errors 429 (Too Many Requests), 503 (Service Unavailable),
+        and 504 (Gateway Timeout) as recommended by Snowflake error handling docs.
+        Retries on connection errors and timeouts.
+
+        :param exception: The exception to check
+        :return: True if the request should be retried, False otherwise
+        """
+        if isinstance(exception, (requests.exceptions.HTTPError, aiohttp.ClientResponseError)):
+            return exception.response.status_code in [429, 503, 504]
+        if isinstance(
+            exception,
+            (requests.exceptions.ConnectionError, requests.exceptions.Timeout, aiohttp.ClientConnectionError),
         ):
-            status_code = response.status
-            resp = await response.json()
-            return self._process_response(status_code, resp)
+            return True
+        return False
+
+    def _make_api_call_with_retries(self, method, url, headers, params=None, data=None):
+        """
+        Make an API call to the Snowflake SQL API with retry logic for specific HTTP errors.
+
+        Error handling implemented based on Snowflake error handling docs:
+        https://docs.snowflake.com/en/developer-guide/sql-api/handling-errors
+
+        :param method: The HTTP method to use for the API call.
+        :param url: The URL for the API endpoint.
+        :param headers: The headers to include in the API call.
+        :param params: (Optional) The query parameters to include in the API call.
+        :param data: (Optional) The data to include in the API call.
+        :return: The response object from the API call.
+        """
+
+        @tenacity.retry(**self.retry_config)  # Use the retry args defined in constructor
+        def _make_request():
+            if method.upper() == "GET":
+                response = requests.get(url, headers=headers, params=params)
+            elif method.upper() == "POST":
+                response = requests.post(url, headers=headers, params=params, json=data)
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+            response.raise_for_status()
+            return response.status_code, response.json()
+
+        return _make_request()
+
+    async def _make_api_call_with_retries_async(self, method, url, headers, params=None):
+        """
+        Make an API call to the Snowflake SQL API asynchronously with retry logic for specific HTTP errors.
+
+        Error handling implemented based on Snowflake error handling docs:
+        https://docs.snowflake.com/en/developer-guide/sql-api/handling-errors
+
+        :param method: The HTTP method to use for the API call. Only GET is supported as  is synchronous.
+        :param url: The URL for the API endpoint.
+        :param headers: The headers to include in the API call.
+        :param params: (Optional) The query parameters to include in the API call.
+        :param data: (Optional) The data to include in the API call.
+        :return: The response object from the API call.
+        """
+
+        @tenacity.retry(**self.retry_config)
+        async def _make_request():
+            async with aiohttp.ClientSession(headers=headers) as session:
+                if method.upper() == "GET":
+                    async with session.get(url, params=params) as response:
+                        response.raise_for_status()
+                        # Return status and json content for async processing
+                        content = await response.json()
+                        return response.status, content
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+
+        return await _make_request()
