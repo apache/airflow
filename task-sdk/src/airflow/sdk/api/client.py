@@ -40,6 +40,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunStateResponse,
     DagRunType,
+    InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstanceState,
     TaskStatesResponse,
@@ -273,6 +274,11 @@ class TaskInstanceOperations:
 
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
+
+    def validate_inlets_and_outlets(self, id: uuid.UUID) -> InactiveAssetsResponse:
+        """Validate whether there're inactive assets in inlets and outlets of a given task instance."""
+        resp = self.client.get(f"task-instances/{id}/validate-inlets-and-outlets")
+        return InactiveAssetsResponse.model_validate_json(resp.read())
 
 
 class ConnectionOperations:
