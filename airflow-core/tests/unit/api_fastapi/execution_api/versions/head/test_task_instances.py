@@ -828,25 +828,6 @@ class TestTIUpdateState:
             "message": "Task Instance not found",
         }
 
-    # @mock.patch(
-    #     "airflow.api_fastapi.execution_api.routes.task_instances._create_ti_state_update_query_and_update_state",
-    #     side_effect=[Exception()],
-    # )
-    # def test_ti_update_with_unexpected_error(self, client, session):
-    #     task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
-    #
-    #     # Pre-condition: the Task Instance does not exist
-    #     assert session.get(TaskInstance, task_instance_id) is None
-    #
-    #     payload = {"state": "success", "end_date": "2024-10-31T12:30:00Z"}
-    #
-    #     response = client.patch(f"/execution/task-instances/{task_instance_id}/state", json=payload)
-    #     assert response.status_code == 404
-    #     assert response.json()["detail"] == {
-    #         "reason": "not_found",
-    #         "message": "Task Instance not found",
-    #     }
-
     def test_ti_update_state_running_errors(self, client, session, create_task_instance, time_machine):
         """
         Test that a 422 error is returned when the Task Instance state is RUNNING in the payload.
@@ -1030,8 +1011,13 @@ class TestTIUpdateState:
             },
         )
 
-        assert response.status_code == 422
-        assert response.json()["detail"]["reason"] == "invalid_reschedule_date"
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
 
     def test_ti_update_state_handle_retry(self, client, session, create_task_instance):
         ti = create_task_instance(

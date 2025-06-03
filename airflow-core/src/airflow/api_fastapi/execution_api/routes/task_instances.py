@@ -396,11 +396,7 @@ def ti_update_state(
             updated_state=updated_state,
             dag_id=dag_id,
         )
-    except Exception as err:
-        # This is an expected exception for MySQL
-        if isinstance(err, HTTPException) and err.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
-            raise
-
+    except Exception:
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception("Error updating Task Instance state to %s. Set the task to failed", updated_state)
         ti = session.get(TI, ti_id_str)
