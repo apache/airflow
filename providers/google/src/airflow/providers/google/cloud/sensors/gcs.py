@@ -63,6 +63,8 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param retry: (Optional) How to retry the RPC
+    :param user_project: The identifier of the Google Cloud project to bill for the request.
+        Required for Requester Pays buckets.
     """
 
     template_fields: Sequence[str] = (
@@ -82,6 +84,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         retry: Retry = DEFAULT_RETRY,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        user_project: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -94,6 +97,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.retry = retry
 
         self.deferrable = deferrable
+        self.user_project = user_project
 
     def poke(self, context: Context) -> bool:
         self.log.info("Sensor checks existence of : %s, %s", self.bucket, self.object)
@@ -102,9 +106,9 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self._matches = (
-            bool(hook.list(self.bucket, match_glob=self.object))
+            bool(hook.list(self.bucket, match_glob=self.object, user_project=self.user_project))
             if self.use_glob
-            else hook.exists(self.bucket, self.object, self.retry)
+            else hook.exists(self.bucket, self.object, self.retry, user_project=self.user_project)
         )
         return self._matches
 
