@@ -42,8 +42,6 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
-from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import Log
@@ -88,6 +86,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Query, Session
 
+    from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.sqlalchemy import (
@@ -698,29 +697,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.set_state(None, session=session)
                 continue
 
-            # TODO: Task-SDK: This check is transitionary. Remove once all executors are ported over.
-            # Has a real queue_activity implemented
-            if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
-                workload = workloads.ExecuteTask.make(ti, generator=executor.jwt_generator)
-                executor.queue_workload(workload, session=session)
-                continue
-
-            command = ti.command_as_list(
-                local=True,
-            )
-
-            priority = ti.priority_weight
-            queue = ti.queue
-            self.log.info(
-                "Sending %s to %s with priority %s and queue %s", ti.key, executor.name, priority, queue
-            )
-
-            executor.queue_command(
-                ti,
-                command,
-                priority=priority,
-                queue=queue,
-            )
+            workload = workloads.ExecuteTask.make(ti, generator=executor.jwt_generator)
+            executor.queue_workload(workload, session=session)
 
     def _critical_section_enqueue_task_instances(self, session: Session) -> int:
         """
@@ -987,8 +965,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _execute(self) -> int | None:
         self.log.info("Starting the scheduler")
-
-        executor_class, _ = ExecutorLoader.import_default_executor_cls()
 
         reset_signals = self.register_signals()
         try:

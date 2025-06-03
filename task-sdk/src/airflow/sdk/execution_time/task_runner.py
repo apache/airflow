@@ -26,6 +26,7 @@ import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
+from contextlib import suppress
 from datetime import datetime, timezone
 from io import FileIO
 from itertools import product
@@ -580,6 +581,11 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         version=bundle_info.version,
     )
     bundle_instance.initialize()
+
+    # Put bundle root on sys.path if needed. This allows the dag bundle to add
+    # code in util modules to be shared between files within the same bundle.
+    if (bundle_root := os.fspath(bundle_instance.path)) not in sys.path:
+        sys.path.append(bundle_root)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     bag = DagBag(
@@ -1297,6 +1303,12 @@ def main():
         log = structlog.get_logger(logger_name="task")
         log.exception("Top level error")
         exit(1)
+    finally:
+        # Ensure the request socket is closed on the child side in all circumstances
+        # before the process fully terminates.
+        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.request_socket:
+            with suppress(Exception):
+                SUPERVISOR_COMMS.request_socket.close()
 
 
 if __name__ == "__main__":

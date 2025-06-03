@@ -31,6 +31,7 @@ import pytest
 import time_machine
 import uuid6
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
 from airflow.exceptions import (
@@ -3149,5 +3150,24 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     assert ti.try_number == 1  # starts out as 1
     ti.refresh_from_db()
     assert ti.try_number == 1  # stays 1
-    ti.refresh_from_db()
-    assert ti.try_number == 1  # stays 1
+
+
+def test_delete_dagversion_restricted_when_taskinstance_exists(dag_maker, session):
+    """
+    Ensure that deleting a DagVersion with existing TaskInstance references is restricted (ON DELETE RESTRICT).
+    """
+    from airflow.models.dag_version import DagVersion
+
+    with dag_maker(dag_id="test_dag_restrict", session=session) as dag:
+        EmptyOperator(task_id="task1")
+    dag_maker.create_dagrun(session=session)
+
+    version = session.scalar(select(DagVersion).where(DagVersion.dag_id == dag.dag_id))
+    assert version is not None
+
+    ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_version_id == version.id)).first()
+    assert ti is not None
+
+    session.delete(version)
+    with pytest.raises(IntegrityError):
+        session.commit()

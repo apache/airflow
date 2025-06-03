@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 
 class NotepadOperator(BaseOperator):
-    """Example Operator Implementation which starts a Notepod.exe on WIndows."""
+    """Example Operator Implementation which starts a ``Notepad.exe`` on Windows."""
 
     template_fields: Sequence[str] = "text"
 
