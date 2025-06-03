@@ -36,10 +36,15 @@ import (
 
 const ExecutionAPIServer = "http://localhost:9999/execution"
 
-func newTestWorkLoad(id uuid.UUID) api.ExecuteTaskWorkload {
-	dagId := id.String()[:8]
+func newTestWorkLoad(id string, dagId string) api.ExecuteTaskWorkload {
+	if dagId == "" {
+		dagId = "tutorial_dag"
+	}
 	idx := -1
-	log := "dag_id=tutorial_dag/run_id=manual__2025-05-07T15:48:39.420678+00:00/task_id=extract/attempt=5.log"
+	log := fmt.Sprintf(
+		"dag_id=%s/run_id=manual__2025-05-07T15:48:39.420678+00:00/task_id=extract/attempt=5.log",
+		dagId,
+	)
 	return api.ExecuteTaskWorkload{
 		Token: "",
 		// {"context_carrier":{},"dag_id":"tutorial_dag","hostname":null,"id":"0196ab8a-5c97-7d4f-b431-e3f49ce20b7f","map_index":-1,"run_id":"manual__2025-05-07T15:48:39.420678+00:00","task_id":"extract","try_number":5}
@@ -48,7 +53,7 @@ func newTestWorkLoad(id uuid.UUID) api.ExecuteTaskWorkload {
 			DagId:          dagId,
 			RunId:          "manual__2025-05-07T15:48:39.420678+00:00",
 			TaskId:         "extract",
-			Id:             id,
+			Id:             uuid.MustParse(id),
 			MapIndex:       &idx,
 			TryNumber:      1,
 		},
@@ -147,12 +152,12 @@ func (s *WorkerSuite) BodyJSONMatches(expected []byte) httpmock.Matcher {
 // report the task as failed to the Execution API server
 func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 	s.T().Parallel()
-	id := uuid.New()
-	testWorkload := newTestWorkLoad(id)
-	s.ExpectTaskState(id.String(), api.TerminalTIStateFailed)
+	id := uuid.New().String()
+	testWorkload := newTestWorkLoad(id, id[:8])
+	s.ExpectTaskState(id, api.TerminalTIStateFailed)
 	s.transport.RegisterMatcherResponder(
 		http.MethodPatch,
-		fmt.Sprintf("=~^%s/task-instances/%s/state", ExecutionAPIServer, id.String()),
+		fmt.Sprintf("=~^%s/task-instances/%s/state", ExecutionAPIServer, id),
 		s.BodyJSONMatches([]byte(`{"state": "failed"}`)),
 		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
 	)
@@ -163,7 +168,7 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 		"ExecuteTaskWorkload should not report an error %#v",
 		s.transport.GetCallCountInfo(),
 	)
-	s.ValidateTaskState(id.String(), api.TerminalTIStateFailed)
+	s.ValidateTaskState(id, api.TerminalTIStateFailed)
 }
 
 // TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't
@@ -184,18 +189,18 @@ func (s *WorkerSuite) TestTaskReturnErrorReportsFailedState() {
 
 func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	s.T().Parallel()
-	id := uuid.New()
-	testWorkload := newTestWorkLoad(id)
+	id := uuid.New().String()
+	testWorkload := newTestWorkLoad(id, id[:8])
 	s.worker.RegisterTaskWithName(testWorkload.TI.DagId, testWorkload.TI.TaskId, func() error {
 		time.Sleep(time.Second)
 		return nil
 	})
 
-	s.ExpectTaskRun(id.String())
-	s.ExpectTaskState(id.String(), api.TerminalTIStateSuccess)
+	s.ExpectTaskRun(id)
+	s.ExpectTaskState(id, api.TerminalTIStateSuccess)
 	s.transport.RegisterResponder(
 		http.MethodPut,
-		fmt.Sprintf("=~^%s/task-instances/%s/heartbeat", ExecutionAPIServer, id.String()),
+		fmt.Sprintf("=~^%s/task-instances/%s/heartbeat", ExecutionAPIServer, id),
 		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
 	)
 
@@ -209,12 +214,12 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	// 1 due to timing imprecision
 	s.InDelta(
 		10,
-		callCounts[fmt.Sprintf("PUT =~^%s/task-instances/%s/heartbeat", ExecutionAPIServer, id.String())],
+		callCounts[fmt.Sprintf("PUT =~^%s/task-instances/%s/heartbeat", ExecutionAPIServer, id)],
 		1,
 		"Actual call counts: %#v",
 		callCounts,
 	)
-	s.ValidateTaskState(id.String(), api.TerminalTIStateSuccess)
+	s.ValidateTaskState(id, api.TerminalTIStateSuccess)
 }
 
 func (s *WorkerSuite) TestTaskHeatbeatErrorStopsTaskAndLogs() {
