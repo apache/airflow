@@ -414,8 +414,8 @@ def ti_update_state(
                 ti_patch_payload.outlet_events,
                 session,
             )
-        except AirflowInactiveAssetInInletOrOutletException:
-            log.exception()
+        except AirflowInactiveAssetInInletOrOutletException as err:
+            log.error("Asset registration failed due to conflicting asset: %s", err)
 
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
