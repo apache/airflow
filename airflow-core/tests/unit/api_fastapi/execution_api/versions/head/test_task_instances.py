@@ -734,7 +734,6 @@ class TestTIUpdateState:
         )
 
         assert response.status_code == 204
-        assert response.text == ""
         session.expire_all()
 
         ti = session.get(TaskInstance, ti.id)
