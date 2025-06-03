@@ -14,7 +14,6 @@ import {
   DagStatsService,
   DagVersionService,
   DagWarningService,
-  DagsService,
   DashboardService,
   DependenciesService,
   EventLogService,
@@ -923,6 +922,91 @@ export const prefetchUseDagServiceGetDagTags = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }),
     queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
+  });
+/**
+ * Get Dags
+ * Get DAGs with recent DagRun.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.tagsMatchMode
+ * @param data.owners
+ * @param data.dagIds
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.excludeStale
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @param data.orderBy
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetDagsUi = (
+  queryClient: QueryClient,
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagIds,
+    dagRunsLimit,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    orderBy,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagIds?: string[];
+    dagRunsLimit?: number;
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetDagsUiKeyFn({
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagIds,
+      dagRunsLimit,
+      excludeStale,
+      lastDagRunState,
+      limit,
+      offset,
+      orderBy,
+      owners,
+      paused,
+      tags,
+      tagsMatchMode,
+    }),
+    queryFn: () =>
+      DagService.getDagsUi({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }),
   });
 /**
  * Get Event Log
@@ -2306,86 +2390,6 @@ export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient
   queryClient.prefetchQuery({
     queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(),
     queryFn: () => AuthLinksService.getAuthMenus(),
-  });
-/**
- * Recent Dag Runs
- * Get recent DAG runs.
- * @param data The data for the request.
- * @param data.dagRunsLimit
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.tagsMatchMode
- * @param data.owners
- * @param data.dagIds
- * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
- * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
- * @param data.excludeStale
- * @param data.paused
- * @param data.lastDagRunState
- * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagsServiceRecentDagRuns = (
-  queryClient: QueryClient,
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagIds,
-    dagRunsLimit,
-    excludeStale,
-    lastDagRunState,
-    limit,
-    offset,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagIds?: string[];
-    dagRunsLimit?: number;
-    excludeStale?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
-      dagDisplayNamePattern,
-      dagIdPattern,
-      dagIds,
-      dagRunsLimit,
-      excludeStale,
-      lastDagRunState,
-      limit,
-      offset,
-      owners,
-      paused,
-      tags,
-      tagsMatchMode,
-    }),
-    queryFn: () =>
-      DagsService.recentDagRuns({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }),
   });
 /**
  * Get Dependencies

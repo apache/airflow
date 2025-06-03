@@ -46,11 +46,11 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
   return (
     <>
       <ActionButton
-        actionName={translate("actions.delete")}
+        actionName={translate("dagActions.delete.button")}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text={translate("actions.delete")}
+        text={translate("dagActions.delete.button")}
         variant="solid"
         withText={withText}
       />
@@ -61,8 +61,8 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
         onDelete={() => deleteDag({ dagId })}
         open={open}
         resourceName={dagDisplayName}
-        title={translate("actions.delete")}
-        warningText={translate("actions.deleteDagWarning")}
+        title={translate("dagActions.delete.button")}
+        warningText={translate("dagActions.delete.warning")}
       />
     </>
   );

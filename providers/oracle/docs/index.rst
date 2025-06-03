@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-oracle/|version|/airflow/providers/oracle/example_dags>
+    Example DAGs <_api/airflow/providers/oracle/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-oracle/>
     Installing from sources <installing-providers-from-sources>
 
