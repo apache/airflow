@@ -19,7 +19,7 @@
 
 # Deutsche UI Übersetzung für Apache Airflow
 
-Dieses Dokument beschreibt die Grundsätze der Übersetzung die für die Deutsche
+Dieses Dokument beschreibt die Grundsätze der Übersetzung, die für die Deutsche
 Sprache gewählt wurde. Es soll dokumentieren warum die Übersetzungen so gewählt
 wurden und damit neben einer Begründung eine möglichst einheitliche Konsistenz
 ermöglichen.
