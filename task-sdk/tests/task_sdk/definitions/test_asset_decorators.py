@@ -171,6 +171,16 @@ class TestAssetDecorator:
         assert asset_definition._source.dag_id == "dag"
         assert asset_definition._function == _example_task_func
 
+    def test_with_task_decorator_and_outlets(self, func_fixer):
+        @task(retries=3, outlets=Asset(name="a"))
+        @func_fixer
+        def _example_task_func():
+            return "This is example_task"
+
+        with pytest.raises(TypeError) as err:
+            asset(schedule=None)(_example_task_func)
+        assert err.value.args[0] == "@task decorator with 'outlets' argument is not supported in @asset"
+
     @pytest.mark.parametrize(
         "provided_uri, expected_uri",
         [
