@@ -90,7 +90,7 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   verbessert nicht das Verständnis. Der Term ist im Deutschen so gut
   verständlich.
 - `Scheduled` --> `Geplant`: Vor allem genutzt für zyklisch laufende Dags.
-- `Tag` --> `Markierung`: Knnzeichnen von Dags zur besseren Ordnung.
+- `Tag` --> `Markierung`: Kennzeichnen von Dags zur besseren Ordnung.
 - `Task ID`: Unübersetzt. "ID" sollte nach Duden fovorisiert groß geschrieben
   werden.
 - `Task Instance` --> `Task Instanz`: Der Begriff Task wird im Deutschen
