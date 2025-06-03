@@ -115,9 +115,9 @@ class TaskInstanceHistory(Base):
 
     dag_run = relationship(
         "DagRun",
-        primaryjoin="TaskInstanceHistory.run_id == DagRun.run_id",
+        primaryjoin="and_(TaskInstanceHistory.run_id == DagRun.run_id, DagRun.dag_id == TaskInstanceHistory.dag_id)",
         viewonly=True,
-        foreign_keys=[run_id],
+        foreign_keys=[run_id, dag_id],
     )
 
     def __init__(

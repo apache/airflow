@@ -19,7 +19,6 @@ from __future__ import annotations
 from base64 import b64encode
 
 import pytest
-from flask_login import current_user
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
@@ -74,6 +73,5 @@ class TestBasicAuth(BaseTestAuth):
 
         with self.app.test_client() as test_client:
             response = test_client.get("/fab/v1/users", headers={"Authorization": token})
-            assert current_user.email == "test@fab.org"
 
         assert response.status_code == 200

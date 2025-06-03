@@ -47,6 +47,7 @@ class S3DocsPublish:
         dry_run: bool = False,
         overwrite: bool = False,
         parallelism: int = 1,
+        skip_write_to_stable_folder: bool = False,
     ):
         self.source_dir_path = source_dir_path
         self.destination_location = destination_location
@@ -55,6 +56,7 @@ class S3DocsPublish:
         self.overwrite = overwrite
         self.parallelism = parallelism
         self.source_dest_mapping: list[tuple[str, str]] = []
+        self.skip_write_to_stable_folder = skip_write_to_stable_folder
 
     @cached_property
     def get_all_docs(self):
@@ -72,9 +74,9 @@ class S3DocsPublish:
             return []
         excluded_docs = self.exclude_docs.split(",")
 
-        # We remove NO_DOCS string, this will be send from github workflows input as default value.
-        if "NO_DOCS" in excluded_docs:
-            excluded_docs.remove("NO_DOCS")
+        # We remove `no-docs-excluded` string, this will be send from github workflows input as default value.
+        if "no-docs-excluded" in excluded_docs:
+            excluded_docs.remove("no-docs-excluded")
         return excluded_docs
 
     @cached_property
@@ -128,33 +130,43 @@ class S3DocsPublish:
         """
 
         for doc in self.get_all_eligible_docs:
-            stable_file_path = f"{self.source_dir_path}/{doc}/stable.txt"
-            if os.path.exists(stable_file_path):
-                with open(stable_file_path) as stable_file:
-                    stable_version = stable_file.read()
-                    get_console().print(f"[info]Stable version: {stable_version} for {doc}\n")
-            else:
-                get_console().print(
-                    f"[info]Skipping, stable version file not found for {doc} in {stable_file_path}\n"
-                )
-                continue
-
-            dest_doc_versioned_folder = f"{self.destination_location}/{doc}/{stable_version}/"
-            dest_doc_stable_folder = f"{self.destination_location}/{doc}/stable/"
-
-            if self.doc_exists(dest_doc_versioned_folder):
-                if self.overwrite:
-                    get_console().print(f"[info]Overwriting existing version {stable_version} for {doc}\n")
+            # PACKAGES_METADATA_EXCLUDE_NAMES has no stable versions so we copy them directly
+            if doc not in PACKAGES_METADATA_EXCLUDE_NAMES:
+                stable_file_path = f"{self.source_dir_path}/{doc}/stable.txt"
+                if os.path.exists(stable_file_path):
+                    with open(stable_file_path) as stable_file:
+                        stable_version = stable_file.read()
+                        get_console().print(f"[info]Stable version: {stable_version} for {doc}\n")
                 else:
                     get_console().print(
-                        f"[info]Skipping doc publish for {doc} as version {stable_version} already exists\n"
+                        f"[info]Skipping, stable version file not found for {doc} in {stable_file_path}\n"
                     )
                     continue
 
-            source_dir_doc_path = f"{self.source_dir_path}/{doc}/{stable_version}/"
+                dest_doc_versioned_folder = f"{self.destination_location}/{doc}/{stable_version}/"
+                dest_doc_stable_folder = f"{self.destination_location}/{doc}/stable/"
 
-            self.source_dest_mapping.append((source_dir_doc_path, dest_doc_versioned_folder))
-            self.source_dest_mapping.append((source_dir_doc_path, dest_doc_stable_folder))
+                if self.doc_exists(dest_doc_versioned_folder):
+                    if self.overwrite:
+                        get_console().print(
+                            f"[info]Overwriting existing version {stable_version} for {doc}\n"
+                        )
+                    else:
+                        get_console().print(
+                            f"[info]Skipping doc publish for {doc} as version {stable_version} already exists\n"
+                        )
+                        continue
+
+                source_dir_doc_path = f"{self.source_dir_path}/{doc}/{stable_version}/"
+
+                self.source_dest_mapping.append((source_dir_doc_path, dest_doc_versioned_folder))
+
+                if not self.skip_write_to_stable_folder:
+                    self.source_dest_mapping.append((source_dir_doc_path, dest_doc_stable_folder))
+            else:
+                source_dir_doc_path = f"{self.source_dir_path}/{doc}/"
+                dest_doc_versioned_folder = f"{self.destination_location}/{doc}/"
+                self.source_dest_mapping.append((source_dir_doc_path, dest_doc_versioned_folder))
 
         if self.source_dest_mapping:
             self.run_publish()
@@ -206,6 +218,13 @@ class S3DocsPublish:
 
         # Now generate the packages-metadata.json
         self.generate_packages_metadata()
+
+        # Add redirects to package folders
+        [
+            self.add_redirect(destination)
+            for _, destination in self.source_dest_mapping
+            if destination.endswith("stable/")
+        ]
 
     def generate_packages_metadata(self):
         get_console().print("[info]Generating packages-metadata.json file\n")
@@ -274,3 +293,28 @@ class S3DocsPublish:
         bucket = parts[0]
         key = parts[1]
         return bucket, key
+
+    def add_redirect(self, path: str):
+        """
+        Add redirects for the docs to the S3 bucket
+        ex: The redirect will be placed in the docs/{package}/index.html
+        """
+        bucket, key = self.get_bucket_key(path)
+
+        redirect_path = f"/{key}index.html"
+        s3_key = key.replace("stable/", "") + "index.html"
+
+        get_console().print(f"[info]Adding redirect {redirect_path} in {s3_key}\n")
+
+        html_body = f"""<!DOCTYPE html>
+<html>
+   <head><meta http-equiv="refresh" content="1; url={redirect_path}" /></head>
+   <body></body>
+</html>"""
+
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=s3_key,
+            Body=html_body,
+            ContentType="text/html",
+        )

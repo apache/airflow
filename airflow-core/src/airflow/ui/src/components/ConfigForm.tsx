@@ -39,6 +39,7 @@ type ConfigFormProps<T extends FieldValues = FieldValues> = {
       date?: unknown;
     }>
   >;
+  readonly setFormError: (error: boolean) => void;
 };
 
 const ConfigForm = <T extends FieldValues = FieldValues>({
@@ -47,6 +48,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   errors,
   initialParamsDict,
   setErrors,
+  setFormError,
 }: ConfigFormProps<T>) => {
   const { conf, setConf } = useParamStore();
 
@@ -86,6 +88,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
       <FlexibleForm
         flexibleFormDefaultSection={flexibleFormDefaultSection}
         initialParamsDict={initialParamsDict}
+        setError={setFormError}
       />
       <Accordion.Item key="advancedOptions" value="advancedOptions">
         <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>

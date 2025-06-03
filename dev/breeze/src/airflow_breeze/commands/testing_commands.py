@@ -102,8 +102,8 @@ from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
 
-LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
-DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
+LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
+DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
 
 logs_already_dumped = False
 
@@ -327,6 +327,7 @@ def _run_tests_in_pool(
         "CLI",
         "Serialization",
         "Always",
+        "Providers[celery]",
     ]
     sort_key = {item: i for i, item in enumerate(sorting_order)}
     # Put the test types in the order we want them to run
@@ -545,12 +546,6 @@ option_use_xdist = click.option(
     is_flag=True,
     envvar="USE_XDIST",
 )
-option_remove_arm_packages = click.option(
-    "--remove-arm-packages",
-    help="Removes arm packages from the image to test if ARM collection works",
-    is_flag=True,
-    envvar="REMOVE_ARM_PACKAGES",
-)
 option_force_sa_warnings = click.option(
     "--force-sa-warnings/--no-force-sa-warnings",
     help="Enable `sqlalchemy.exc.MovedIn20Warning` during the tests runs.",
@@ -604,7 +599,6 @@ option_total_test_timeout = click.option(
 @option_parallelism
 @option_postgres_version
 @option_python
-@option_remove_arm_packages
 @option_run_db_tests_only
 @option_run_in_parallel
 @option_skip_cleanup
@@ -668,7 +662,6 @@ def core_tests(**kwargs):
 @option_providers_constraints_location
 @option_providers_skip_constraints
 @option_python
-@option_remove_arm_packages
 @option_run_db_tests_only
 @option_run_in_parallel
 @option_skip_cleanup
@@ -735,7 +728,6 @@ def task_sdk_tests(**kwargs):
         distribution_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
-        remove_arm_packages=False,
         skip_cleanup=False,
         skip_providers="",
         test_type=ALL_TEST_TYPE,
@@ -794,7 +786,6 @@ def airflow_ctl_tests(**kwargs):
         distribution_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
-        remove_arm_packages=False,
         skip_cleanup=False,
         skip_providers="",
         test_type=ALL_TEST_TYPE,
@@ -1295,7 +1286,6 @@ def _run_test_command(
     providers_constraints_location: str,
     providers_skip_constraints: bool,
     python: str,
-    remove_arm_packages: bool,
     run_db_tests_only: bool,
     run_in_parallel: bool,
     skip_cleanup: bool,
@@ -1346,7 +1336,6 @@ def _run_test_command(
         providers_constraints_location=providers_constraints_location,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
-        remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         test_type=test_type,

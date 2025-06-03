@@ -106,8 +106,8 @@ def _fix_invalid_deferrable_default_value(module_filename: str) -> None:
 
 def main() -> int:
     modules = itertools.chain(
-        glob.glob(f"{ROOT_DIR}/airflow/**/sensors/**.py", recursive=True),
-        glob.glob(f"{ROOT_DIR}/airflow/**/operators/**.py", recursive=True),
+        glob.glob(f"{ROOT_DIR}/**/sensors/**.py", recursive=True),
+        glob.glob(f"{ROOT_DIR}/**/operators/**.py", recursive=True),
     )
 
     errors = [error for module in modules for error in iter_check_deferrable_default_errors(module)]

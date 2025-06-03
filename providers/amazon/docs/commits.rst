@@ -30,6 +30,6 @@ Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com
 
 
 This is detailed commit list of changes for versions provider package: ``amazon``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

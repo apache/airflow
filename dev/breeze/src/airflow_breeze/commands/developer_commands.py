@@ -679,7 +679,9 @@ def start_airflow(
     "if they are already downloaded. With `--clean-build` - everything is cleaned..",
 )
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
-@click.option("--include-commits", help="Include commits in the documentation.", is_flag=True)
+@click.option(
+    "--include-commits", help="Include commits in the documentation.", is_flag=True, envvar="INCLUDE_COMMITS"
+)
 @option_dry_run
 @option_github_repository
 @option_include_not_ready_providers

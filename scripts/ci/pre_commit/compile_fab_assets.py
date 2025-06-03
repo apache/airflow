@@ -32,7 +32,9 @@ from common_precommit_utils import AIRFLOW_ROOT_PATH
 # here that are not available in stdlib! You should not import common_precommit_utils.py here because
 # They are importing rich library which is not available in the node environment.
 
-WWW_HASH_FILE = AIRFLOW_ROOT_PATH / ".build" / "www" / "hash.txt"
+FAB_PROVIDER_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers" / "fab"
+FAB_PROVIDER_WWW_PATH = FAB_PROVIDER_ROOT_PATH / "src" / "airflow" / "providers" / "fab" / "www"
+FAB_PROVIDER_WWW_HASH_FILE = FAB_PROVIDER_ROOT_PATH / "www-hash.txt"
 
 
 def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
@@ -59,10 +61,9 @@ INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 def compile_assets(www_directory: Path, www_hash_file_name: str):
     node_modules_directory = www_directory / "node_modules"
     dist_directory = www_directory / "static" / "dist"
-    www_hash_file = AIRFLOW_ROOT_PATH / ".build" / "www" / www_hash_file_name
-    www_hash_file.parent.mkdir(exist_ok=True, parents=True)
+    FAB_PROVIDER_WWW_HASH_FILE.parent.mkdir(exist_ok=True, parents=True)
     if node_modules_directory.exists() and dist_directory.exists():
-        old_hash = www_hash_file.read_text() if www_hash_file.exists() else ""
+        old_hash = FAB_PROVIDER_WWW_HASH_FILE.read_text() if FAB_PROVIDER_WWW_HASH_FILE.exists() else ""
         new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
         if new_hash == old_hash:
             print(f"The '{www_directory}' directory has not changed! Skip regeneration.")
@@ -88,12 +89,9 @@ def compile_assets(www_directory: Path, www_hash_file_name: str):
             sys.exit(result.returncode)
     subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
     new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
-    www_hash_file.write_text(new_hash)
+    FAB_PROVIDER_WWW_HASH_FILE.write_text(new_hash + "\n")
 
 
 if __name__ == "__main__":
     # Compile assets for fab provider
-    fab_provider_www_directory = (
-        AIRFLOW_ROOT_PATH / "providers" / "fab" / "src" / "airflow" / "providers" / "fab" / "www"
-    )
-    compile_assets(fab_provider_www_directory, "hash_fab.txt")
+    compile_assets(FAB_PROVIDER_WWW_PATH, "hash_fab.txt")

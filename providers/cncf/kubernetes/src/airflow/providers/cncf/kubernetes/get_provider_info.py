@@ -169,7 +169,7 @@ def get_provider_info():
                         "version_added": "8.1.0",
                         "type": "string",
                         "example": None,
-                        "default": "CreateContainerConfigError,ErrImagePull,CreateContainerError,ImageInspectError, InvalidImageName",
+                        "default": "CreateContainerConfigError,ErrImagePull,CreateContainerError,ImageInspectError,InvalidImageName",
                     },
                     "worker_pods_creation_batch_size": {
                         "description": 'Number of Kubernetes Worker Pod creation calls per scheduler loop.\nNote that the current default of "1" will only launch a single pod\nper-heartbeat. It is HIGHLY recommended that users increase this\nnumber to match the tolerance of their kubernetes cluster for\nbetter performance.\n',
@@ -279,5 +279,5 @@ def get_provider_info():
                 },
             },
         },
-        "executors": ["airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor"],
+        "executors": ["airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor"],
     }

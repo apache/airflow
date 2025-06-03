@@ -42,7 +42,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   });
 
   const nodes = graphData?.nodes.map((node) =>
-    node.data.label === asset?.name ? { ...node, data: { ...node.data, isSelected: true } } : node,
+    node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
   );
 
   const [selectedDarkColor, selectedLightColor] = useToken("colors", ["gray.200", "gray.800"]);
@@ -68,7 +68,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
-      maxZoom={1}
+      maxZoom={1.5}
       minZoom={0.25}
       nodes={nodes}
       nodesDraggable={false}
