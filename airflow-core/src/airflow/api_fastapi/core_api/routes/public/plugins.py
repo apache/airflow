@@ -29,6 +29,8 @@ from airflow.api_fastapi.core_api.datamodels.plugins import (
     PluginCollectionResponse,
     PluginImportErrorCollectionResponse,
     PluginResponse,
+    UiPluginCollectionResponse,
+    UiPluginResponse,
 )
 from airflow.api_fastapi.core_api.security import requires_access_view
 
@@ -64,4 +66,28 @@ def import_errors() -> PluginImportErrorCollectionResponse:
             ],
             "total_entries": len(plugins_manager.import_errors),
         }
+    )
+
+
+@plugins_router.get(
+    "/ui-plugins",
+    dependencies=[Depends(requires_access_view(AccessView.PLUGINS))],
+)
+def get_ui_plugins() -> UiPluginCollectionResponse:
+    """Get all UI plugins."""
+    plugins_manager.ensure_plugins_loaded()
+
+    ui_plugins = []
+    for plugin in plugins_manager.plugins or []:
+        if not hasattr(plugin, "ui") or not plugin.ui:
+            continue
+
+        for ui_item in plugin.ui:
+            # Add plugin name to each UI item for traceability
+            ui_plugin = {**ui_item, "plugin_name": plugin.name}
+            ui_plugins.append(ui_plugin)
+
+    return UiPluginCollectionResponse(
+        plugins=cast("list[UiPluginResponse]", ui_plugins),
+        total_entries=len(ui_plugins),
     )
