@@ -98,7 +98,7 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   "Aufgabe" eine mögliche Übersetzung gewesen. Da aber der Begriff Task auch in
   Logs und Code zu finden ist, lag der Begriff etwas näher als "Aufgabe".
 - `Trigger`(to) --> `Anstoßen`: Genutzt für die Aktionen ein Lauf eines Dag zu
-  starten. Von allen Optionen der am ehesten passende Begriff auf wenn es eine
+  starten. Von allen Optionen der am ehesten passende Begriff auch wenn es eine
   direkte Nutzung des Begriffs "Triggern" im Deutschen gibt. In der Nutzung im
   UI ist der Begriff "Anstoßen" inhaltlich passender.
 - `Try Number` --> `Versuch Nummer`: Direkt Übersetzung ist passend.
