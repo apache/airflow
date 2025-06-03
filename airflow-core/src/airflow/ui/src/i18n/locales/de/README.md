@@ -68,7 +68,7 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
 - `Dag ID`: Unübersetzt. "ID" sollte nach Duden fovorisiert groß geschrieben
   werden.
 - `Dag Run` --> `Dag Lauf`: Auch wenn der Begriff Run im Code und in Logs oft
-  zu finden ist, ist eine Eindeutschung für das Gesamtbild im UI Vorteilhaft -
+  zu finden ist, ist eine Eindeutschung für das Gesamtbild im UI vorteilhaft -
   abgesehen von dem feststehenden Begriff -->"Dag".
 - `Deferred` (Status) --> `Delegiert`: Im Deutschen ist die Übersetzung nur
   teilweise passend und der Begriff "Delegiert" ist an nächsten an der
