@@ -24,7 +24,7 @@ import {
   useDagServiceGetDagDetailsKey,
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
-  useDagsServiceRecentDagRunsKey,
+  useDagServiceGetDagsUi,
   UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
@@ -50,7 +50,7 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
       previousDagRunIdRef.current = latestDagRunId;
 
       const queryKeys = [
-        [useDagsServiceRecentDagRunsKey],
+        [useDagServiceGetDagsUi],
         [useDagServiceGetDagDetailsKey],
         UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),

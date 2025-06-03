@@ -2,7 +2,7 @@
   "admin": {
     "Config": "設定",
     "Connections": "連結",
-    "Plugins": "插件",
+    "Plugins": "外掛",
     "Pools": "資源池",
     "Providers": "Providers",
     "Variables": "變數"

@@ -97,6 +97,7 @@
     "allRunTypes": "All Run Types",
     "allStates": "All States",
     "columns": {
+      "conf": "Conf",
       "dagId": "Dag ID",
       "dagVersions": "Dag Versions",
       "duration": "Duration",

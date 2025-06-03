@@ -16,25 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 
-from airflow import DAG
-from airflow.providers.standard.operators.bash import BashOperator
-
-with DAG(
-    dag_id="child_dag",
-    start_date=datetime(2022, 1, 1),
-    schedule="@once",
-    catchup=False,
-    tags=["example", "async", "core"],
-) as dag:
-    BashOperator(
-        task_id="child_task",
-        bash_command="echo 1; sleep 1; echo 2; sleep 2; echo 3; sleep 3",
-    )
-
-
-from tests_common.test_utils.system_tests import get_test_run
-
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
-test_run = get_test_run(dag)
+class MaxComputeConfigurationException(Exception):
+    """Raised when MaxCompute project or endpoint is not configured properly."""

@@ -63,16 +63,6 @@ def workflow_run():
     type=BetterChoice(["auto", "live", "staging"]),
 )
 @click.option(
-    "--refresh-site",
-    help="Refresh the site after publishing the documentation.",
-    is_flag=True,
-)
-@click.option(
-    "--sync-s3-to-github",
-    help="Sync S3 docs to GitHub repository on apache/airflow-site-archive repo.",
-    is_flag=True,
-)
-@click.option(
     "--skip-write-to-stable-folder",
     help="Skip writing to stable folder.",
     is_flag=True,
@@ -82,9 +72,7 @@ def workflow_run_publish(
     ref: str,
     exclude_docs: str,
     site_env: str,
-    refresh_site: bool,
     doc_packages: tuple[str, ...],
-    sync_s3_to_github: bool = False,
     skip_write_to_stable_folder: bool = False,
 ):
     get_console().print(
@@ -134,32 +122,34 @@ def workflow_run_publish(
 
     branch = "main" if site_env == "live" else "staging"
 
-    if refresh_site:
-        get_console().print(
-            f"[blue]Refreshing site at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
-        )
-        wf_name = WORKFLOW_NAME_MAPS["airflow-refresh-site"]
+    get_console().print(
+        f"[blue]Refreshing site at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
+    )
+    wf_name = WORKFLOW_NAME_MAPS["airflow-refresh-site"]
 
-        get_console().print(
-            f"[blue]Triggering workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
-        )
+    get_console().print(
+        f"[blue]Triggering workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
+    )
 
-        trigger_workflow_and_monitor(
-            workflow_name=wf_name,
-            repo=APACHE_AIRFLOW_SITE_REPO,
-            branch=branch,
-        )
+    trigger_workflow_and_monitor(
+        workflow_name=wf_name,
+        repo=APACHE_AIRFLOW_SITE_REPO,
+        branch=branch,
+    )
 
-    if sync_s3_to_github:
-        workflow_fields = {"source": site_env}
+    get_console().print(
+        f"[blue]Refreshing completed workflow {wf_name}: at {APACHE_AIRFLOW_SITE_REPO}[/blue]",
+    )
 
-        get_console().print(
-            f"[blue]Syncing S3 docs to GitHub repository at {APACHE_AIRFLOW_SITE_ARCHIVE_REPO}[/blue]",
-        )
-        trigger_workflow_and_monitor(
-            workflow_name=WORKFLOW_NAME_MAPS["sync-s3-to-github"],
-            repo=APACHE_AIRFLOW_SITE_ARCHIVE_REPO,
-            branch=branch,
-            **workflow_fields,
-            monitor=False,
-        )
+    workflow_fields = {"source": site_env}
+
+    get_console().print(
+        f"[blue]Syncing S3 docs to GitHub repository at {APACHE_AIRFLOW_SITE_ARCHIVE_REPO}[/blue]",
+    )
+    trigger_workflow_and_monitor(
+        workflow_name=WORKFLOW_NAME_MAPS["sync-s3-to-github"],
+        repo=APACHE_AIRFLOW_SITE_ARCHIVE_REPO,
+        branch=branch,
+        **workflow_fields,
+        monitor=False,
+    )
