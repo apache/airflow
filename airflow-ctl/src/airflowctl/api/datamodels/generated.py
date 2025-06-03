@@ -1039,7 +1039,7 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
-    consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
+    scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
     last_asset_event: LastAssetEventResponse | None = None

@@ -608,7 +608,7 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
             select(AssetModel.name, AssetModel.uri).where(
                 tuple_(AssetModel.name, AssetModel.uri).in_(name_uri_assets),
                 AssetModel.active.has(),
-                AssetModel.consuming_dags.any(
+                AssetModel.scheduled_dags.any(
                     DagScheduleAssetReference.dag.has(~DagModel.is_stale & ~DagModel.is_paused)
                 ),
             )
@@ -949,7 +949,7 @@ class AssetModelOperation(NamedTuple):
 
         # Remove references from assets no longer used
         orphan_assets = session.scalars(
-            select(AssetModel).filter(~AssetModel.consuming_dags.any()).filter(AssetModel.triggers.any())
+            select(AssetModel).filter(~AssetModel.scheduled_dags.any()).filter(AssetModel.triggers.any())
         )
         for asset_model in orphan_assets:
             if (asset_model.name, asset_model.uri) not in self.assets:
