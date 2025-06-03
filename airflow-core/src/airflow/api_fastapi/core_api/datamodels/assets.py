@@ -59,7 +59,7 @@ class AssetResponse(BaseModel):
     extra: dict | None = None
     created_at: datetime
     updated_at: datetime
-    consuming_dags: list[DagScheduleAssetReference]
+    scheduled_dags: list[DagScheduleAssetReference]
     producing_tasks: list[TaskOutletAssetReference]
     aliases: list[AssetAliasResponse]
     last_asset_event: LastAssetEventResponse | None = None

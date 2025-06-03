@@ -915,7 +915,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             assets = self.session.scalars(
                 select(AssetModel).where(
-                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
+                    AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
                     | AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id)
                 )
             ).all()

@@ -431,7 +431,7 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
     """Search on dag_id."""
 
     def __init__(self, skip_none: bool = True) -> None:
-        super().__init__(AssetModel.consuming_dags, skip_none)
+        super().__init__(AssetModel.scheduled_dags, skip_none)
 
     @classmethod
     def depends(cls, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
@@ -444,7 +444,7 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
         if self.value is None and self.skip_none:
             return select
         return select.where(
-            (AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(self.value)))
+            (AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id.in_(self.value)))
             | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(self.value)))
         )
 

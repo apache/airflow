@@ -87,7 +87,7 @@ export type AssetResponse = {
   } | null;
   created_at: string;
   updated_at: string;
-  consuming_dags: Array<DagScheduleAssetReference>;
+  scheduled_dags: Array<DagScheduleAssetReference>;
   producing_tasks: Array<TaskOutletAssetReference>;
   aliases: Array<AssetAliasResponse>;
   last_asset_event?: LastAssetEventResponse | null;

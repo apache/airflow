@@ -194,7 +194,7 @@ class AssetAliasModel(Base):
         secondary=asset_alias_asset_event_association_table,
         back_populates="source_aliases",
     )
-    consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
+    scheduled_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
 
     @classmethod
     def from_public(cls, obj: AssetAlias) -> AssetAliasModel:
@@ -272,7 +272,7 @@ class AssetModel(Base):
 
     active = relationship("AssetActive", uselist=False, viewonly=True, back_populates="asset")
 
-    consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
+    scheduled_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
     triggers = relationship("Trigger", secondary=asset_trigger_association_table, back_populates="assets")
 
@@ -478,7 +478,7 @@ class DagScheduleAssetAliasReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    asset_alias = relationship("AssetAliasModel", back_populates="consuming_dags")
+    asset_alias = relationship("AssetAliasModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_alias_references")
 
     __tablename__ = "dag_schedule_asset_alias_reference"
@@ -520,7 +520,7 @@ class DagScheduleAssetReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    asset = relationship("AssetModel", back_populates="consuming_dags")
+    asset = relationship("AssetModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_references")
 
     queue_records = relationship(

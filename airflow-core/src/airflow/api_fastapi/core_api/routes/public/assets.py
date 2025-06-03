@@ -179,7 +179,7 @@ def get_assets(
 
     assets_rows = session.execute(
         assets_select.options(
-            subqueryload(AssetModel.consuming_dags),
+            subqueryload(AssetModel.scheduled_dags),
             subqueryload(AssetModel.producing_tasks),
         )
     )
@@ -456,7 +456,7 @@ def get_asset(
     asset = session.scalar(
         select(AssetModel)
         .where(AssetModel.id == asset_id)
-        .options(joinedload(AssetModel.consuming_dags), joinedload(AssetModel.producing_tasks))
+        .options(joinedload(AssetModel.scheduled_dags), joinedload(AssetModel.producing_tasks))
     )
 
     last_asset_event_id = asset_event_rows[1] if asset_event_rows else None

@@ -321,12 +321,12 @@ export const $AssetResponse = {
       format: "date-time",
       title: "Updated At",
     },
-    consuming_dags: {
+    scheduled_dags: {
       items: {
         $ref: "#/components/schemas/DagScheduleAssetReference",
       },
       type: "array",
-      title: "Consuming Dags",
+      title: "Scheduled Dags",
     },
     producing_tasks: {
       items: {
@@ -361,7 +361,7 @@ export const $AssetResponse = {
     "group",
     "created_at",
     "updated_at",
-    "consuming_dags",
+    "scheduled_dags",
     "producing_tasks",
     "aliases",
   ],

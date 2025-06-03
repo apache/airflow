@@ -67,13 +67,13 @@ const columns: Array<ColumnDef<AssetResponse>> = [
     header: () => "Group",
   },
   {
-    accessorKey: "consuming_dags",
+    accessorKey: "scheduled_dags",
     cell: ({ row: { original } }: AssetRow) =>
-      original.consuming_dags.length ? (
-        <DependencyPopover dependencies={original.consuming_dags} type="Dag" />
+      original.scheduled_dags.length ? (
+        <DependencyPopover dependencies={original.scheduled_dags} type="Dag" />
       ) : undefined,
     enableSorting: false,
-    header: () => "Consuming Dags",
+    header: () => "Scheduled Dags",
   },
   {
     accessorKey: "producing_tasks",
