@@ -255,6 +255,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
             dag_id="dag_name",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="path_test.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),

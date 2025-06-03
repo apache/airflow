@@ -202,8 +202,11 @@ def _get_ti(
             )
         # TODO: Validate map_index is in range?
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-        if TYPE_CHECKING:
-            assert dag_version
+        if not dag_version:
+            # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise
+            raise ValueError(
+                f"Cannot create TaskInstance for {dag.dag_id} because the Dag is not serialized."
+            )
         ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index, dag_version_id=dag_version.id)
         if dag_run in session:
             session.add(ti)
