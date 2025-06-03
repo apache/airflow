@@ -41,6 +41,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, Typ
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -67,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
+    InactiveAssetsResult,
     RescheduleTask,
     RetryTask,
     SetRenderedFields,
@@ -80,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     ToTask,
     TriggerDagRun,
+    ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -784,6 +787,8 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
         # so that we do not call the API unnecessarily
         SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
 
+    _validate_task_inlets_and_outlets(ti=ti, log=log)
+
     try:
         # TODO: Call pre execute etc.
         get_listener_manager().hook.on_task_instance_running(
@@ -794,6 +799,22 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
     # No error, carry on and execute the task
     return None
+
+
+def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -> None:
+    if not ti.task.inlets and not ti.task.outlets:
+        return
+
+    SUPERVISOR_COMMS.send_request(msg=ValidateInletsAndOutlets(ti_id=ti.id), log=log)
+    inactive_assets_resp = SUPERVISOR_COMMS.get_message()
+    if TYPE_CHECKING:
+        assert isinstance(inactive_assets_resp, InactiveAssetsResult)
+    if inactive_assets := inactive_assets_resp.inactive_assets:
+        raise AirflowInactiveAssetInInletOrOutletException(
+            inactive_asset_keys=[
+                AssetUniqueKey.from_profile(asset_profile) for asset_profile in inactive_assets
+            ]
+        )
 
 
 def _defer_task(
