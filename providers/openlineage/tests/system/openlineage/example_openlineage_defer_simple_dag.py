@@ -19,7 +19,7 @@ Simple DAG with deferrable operator.
 
 It checks:
     - that at least two task START events (before and after deferral) are emitted and
-     the try_num remains at 1
+      the try_num remains at 1
 """
 
 from __future__ import annotations
