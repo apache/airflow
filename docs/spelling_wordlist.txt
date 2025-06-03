@@ -1090,6 +1090,8 @@ masterType
 materializations
 Matomo
 matomo
+MaxCompute
+maxcompute
 Maxime
 MaxRuntimeInSeconds
 mb
@@ -1220,6 +1222,7 @@ objectstorage
 observability
 od
 odbc
+odps
 ok
 Okta
 okta
@@ -1312,6 +1315,7 @@ pluggable
 pluggy
 plyvel
 png
+PoC
 PodManager
 podName
 PodSpec
@@ -1770,6 +1774,7 @@ taskgroup
 TaskGroups
 taskGroups
 TaskInstance
+taskInstance
 taskinstance
 TaskInstanceKey
 taskinstancekey

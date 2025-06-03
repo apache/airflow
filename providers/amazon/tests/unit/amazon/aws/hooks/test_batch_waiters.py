@@ -45,7 +45,6 @@ def aws_region():
     return AWS_REGION
 
 
-@mock_aws
 @pytest.fixture
 def patch_hook(monkeypatch, aws_region):
     """Patch hook object by dummy boto3 Batch client."""
@@ -59,6 +58,7 @@ def test_batch_waiters(aws_region):
     assert isinstance(batch_waiters, BatchWaitersHook)
 
 
+@mock_aws
 class TestBatchWaiters:
     @pytest.fixture(autouse=True)
     def setup_tests(self, patch_hook):
@@ -215,6 +215,7 @@ class TestBatchWaiters:
             assert mock_waiter.wait.call_count == 1
 
 
+@mock_aws
 class TestBatchJobWaiters:
     """Test default waiters."""
 
