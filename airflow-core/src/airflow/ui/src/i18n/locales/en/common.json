@@ -89,11 +89,8 @@
   "table": {
     "filterByTag": "Filter Dags by tag",
     "filterColumns": "Filter table columns",
-    "filters": {
-      "filter_one": "filter",
-      "filter_other": "filters",
-      "reset": "Reset"
-    },
+    "filterReset_one": "Reset filter",
+    "filterReset_other": "Reset filters",
     "noTagsFound": "No tags found",
     "tagMode": {
       "all": "All",

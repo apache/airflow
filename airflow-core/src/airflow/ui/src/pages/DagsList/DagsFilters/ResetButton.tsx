@@ -34,8 +34,8 @@ export const ResetButton = ({ filterCount, onClearFilters }: Props) => {
 
   return (
     <Button onClick={onClearFilters} size="sm" variant="outline">
-      <LuX /> {translate("table.filters.reset")}{" "}
-      {filterCount === 1 ? translate("table.filters.filter_one") : translate("table.filters.filter_other")}
+      <LuX />
+      {translate("table.filterReset", { count: filterCount })}
     </Button>
   );
 };
