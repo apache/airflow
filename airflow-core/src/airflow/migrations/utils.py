@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from collections import defaultdict
 from contextlib import contextmanager
 
@@ -103,3 +104,11 @@ def mysql_drop_index_if_exists(index_name, table_name, op):
             SELECT 1;
         END IF;
     """)
+
+
+def ignore_sqlite_value_error():
+    from alembic import op
+
+    if op.get_bind().dialect.name == "sqlite":
+        return contextlib.suppress(ValueError)
+    return contextlib.nullcontext()
