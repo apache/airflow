@@ -62,7 +62,7 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
 - `Asset Event` --> `Ereignis zu Datenset (Asset)`: Logische Konsequenz der
   Übersetzung von -->"Asset" ohne einen sperrigen Begriff wie
   "Datenssatz-Ereignis" zu erzeugen.
-- `Connctions` --> `Verbindungen`: Ist zwar ein feststehender Begriff in
+- `Connections` --> `Verbindungen`: Ist zwar ein feststehender Begriff in
   Airflow und ein technisches Konstrukt das im Code zu finden ist, jedoch
   direkt übersetzbar und erschließt sich damit neuen Benutzern direkt.
 - `Dag ID`: Unübersetzt. "ID" sollte nach Duden fovorisiert groß geschrieben
