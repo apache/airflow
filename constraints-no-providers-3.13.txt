@@ -11,7 +11,7 @@
 Authlib==1.4.1
 ConfigUpdater==3.2
 Deprecated==1.2.18
-Flask-AppBuilder==4.5.3
+Flask-AppBuilder==4.6.3
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.0
