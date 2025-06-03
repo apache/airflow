@@ -229,7 +229,10 @@ The other way around also applies:
     def process_example_asset(example_asset):
         """Process inlet example_asset..."""
 
-In addition, ``@asset`` can be used with ``@task`` to set initial arguments for the task or to use an operator other than ``PythonOperator``:
+In addition, ``@asset`` can be used with ``@task`` to customize the task that generates the asset,
+utilizing the modern TaskFlow approach described in :doc:/tutorial/taskflow.
+
+This combination allows you to set initial arguments for the task and to use various operators, such as the ``BashOperator``:
 
 .. code-block:: python
 

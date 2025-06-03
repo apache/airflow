@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.bases.decorator import _TaskDecorator
 from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
 from airflow.sdk.exceptions import AirflowRuntimeError
 
@@ -31,6 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
     from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
+    from airflow.sdk.bases.decorator import XComArg, _TaskDecorator
     from airflow.sdk.definitions.asset import AssetUniqueKey
     from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
@@ -97,6 +97,18 @@ class _AssetMainOperator(PythonOperator):
         return dict(self._iter_kwargs(context))
 
 
+def _instanciate_task(definition: AssetDefinition | MultiAssetDefinition) -> _AssetMainOperator | XComArg:
+    decorated_operator = cast("_TaskDecorator", definition._function)
+    if getattr(decorated_operator, "_airflow_is_task_decorator", False):
+        if "outlets" in decorated_operator.kwargs:
+            raise TypeError("@task decorator with 'outlets' argument is not supported in @asset")
+
+        decorated_operator.kwargs["outlets"] = [v for _, v in definition.iter_assets()]
+        return decorated_operator()
+
+    return _AssetMainOperator.from_definition(definition)
+
+
 @attrs.define(kw_only=True)
 class AssetDefinition(Asset):
     """
@@ -110,12 +122,7 @@ class AssetDefinition(Asset):
 
     def __attrs_post_init__(self) -> None:
         with self._source.create_dag(default_dag_id=self.name):
-            if isinstance(self._function, _TaskDecorator):
-                if "outlets" not in self._function.kwargs:
-                    self._function.kwargs["outlets"] = [v for _, v in self.iter_assets()]
-                self._function()
-            else:
-                _AssetMainOperator.from_definition(self)
+            _instanciate_task(self)
 
 
 @attrs.define(kw_only=True)
@@ -135,12 +142,7 @@ class MultiAssetDefinition(BaseAsset):
 
     def __attrs_post_init__(self) -> None:
         with self._source.create_dag(default_dag_id=self._function.__name__):
-            if isinstance(self._function, _TaskDecorator):
-                if "outlets" not in self._function.kwargs:
-                    self._function.kwargs["outlets"] = [v for _, v in self.iter_assets()]
-                self._function()
-            else:
-                _AssetMainOperator.from_definition(self)
+            _instanciate_task(self)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         for o in self._source.outlets:
