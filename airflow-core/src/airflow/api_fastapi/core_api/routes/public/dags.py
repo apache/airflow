@@ -115,22 +115,18 @@ def get_dags(
     session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
-    dag_runs_select = None
-
-    if dag_run_state.value or dag_run_start_date_range.is_active() or dag_run_end_date_range.is_active():
-        dag_runs_select, _ = paginated_select(
-            statement=select(DagRun),
-            filters=[
-                dag_run_start_date_range,
-                dag_run_end_date_range,
-                dag_run_state,
-            ],
-            session=session,
-        )
-        dag_runs_select = dag_runs_select.cte()
+    query = generate_dag_with_latest_run_query(
+        max_run_filters=[
+            dag_run_start_date_range,
+            dag_run_end_date_range,
+            dag_run_state,
+            last_dag_run_state,
+        ],
+        order_by=order_by,
+    )
 
     dags_select, total_entries = paginated_select(
-        statement=generate_dag_with_latest_run_query(dag_runs_select),
+        statement=query,
         filters=[
             exclude_stale,
             paused,
@@ -138,7 +134,6 @@ def get_dags(
             dag_display_name_pattern,
             tags,
             owners,
-            last_dag_run_state,
             readable_dags_filter,
         ],
         order_by=order_by,
@@ -276,7 +271,6 @@ def patch_dags(
     dag_id_pattern: QueryDagIdPatternSearchWithNone,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
-    last_dag_run_state: QueryLastDagRunStateFilter,
     editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
@@ -293,18 +287,14 @@ def patch_dags(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
-        # todo: this is not used?
-        update_mask = ["is_paused"]
-
     dags_select, total_entries = paginated_select(
-        statement=generate_dag_with_latest_run_query(),
+        statement=select(DagModel),
         filters=[
             exclude_stale,
             paused,
             dag_id_pattern,
             tags,
             owners,
-            last_dag_run_state,
             editable_dags_filter,
         ],
         order_by=None,

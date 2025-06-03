@@ -26,4 +26,42 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-keycloak",
         "name": "Keycloak",
         "description": "``Keycloak Provider``\n",
+        "auth-managers": [
+            "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager"
+        ],
+        "config": {
+            "keycloak_auth_manager": {
+                "description": "This section contains settings for Keycloak auth manager integration.",
+                "options": {
+                    "client_id": {
+                        "description": "Client ID configured in Keycloak to integrate with Airflow.\nThis client must follow the standard OpenID Connect authentication flow.\n",
+                        "type": "string",
+                        "version_added": "1.0.0",
+                        "example": None,
+                        "default": None,
+                    },
+                    "client_secret": {
+                        "description": "Secret associated to the client configured in Keycloak to integrate with Airflow.\n",
+                        "type": "string",
+                        "version_added": "1.0.0",
+                        "example": None,
+                        "default": None,
+                    },
+                    "realm": {
+                        "description": "Realm configured in Keycloak associated to Airflow.\nThis realm define all users, roles and groups used in Airflow.\n",
+                        "type": "string",
+                        "version_added": "1.0.0",
+                        "example": None,
+                        "default": None,
+                    },
+                    "server_url": {
+                        "description": 'Keycloak server URL.\nThis server URL is used by the Airflow API server to communicate with Keycloak.\nIf the Airflow API server and Keycloak are running in Docker,\nset "http://host.docker.internal:<PORT>" (default value).\n',
+                        "type": "string",
+                        "version_added": "1.0.0",
+                        "example": None,
+                        "default": "http://host.docker.internal:48080",
+                    },
+                },
+            }
+        },
     }
