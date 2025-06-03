@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from collections import defaultdict
 from contextlib import contextmanager
 
@@ -105,18 +106,9 @@ def mysql_drop_index_if_exists(index_name, table_name, op):
     """)
 
 
-def _sqlite_guarded_drop_constraint(
-    *,
-    table: str,
-    key: str,
-    type_: str,
-    op,
-) -> None:
-    conn = op.get_bind()
-    dialect_name = conn.dialect.name
-    try:
-        with op.batch_alter_table(table, schema=None) as batch_op:
-            batch_op.drop_constraint(key, type_=type_)
-    except ValueError:
-        if dialect_name != "sqlite":
-            raise
+def ignore_sqlite_value_error():
+    from alembic import op
+
+    if op.get_bind().dialect.name == "sqlite":
+        return contextlib.suppress(ValueError)
+    return contextlib.nullcontext()
