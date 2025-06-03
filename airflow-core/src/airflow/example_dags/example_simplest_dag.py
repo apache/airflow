@@ -16,12 +16,12 @@
 # under the License.
 """Example DAG demonstrating the simplest use of the `@dag` decorator."""
 
+# [START simplest_dag]
 from __future__ import annotations
 
 from airflow.sdk import dag, task
 
 
-# [START simplest_dag]
 @dag
 def example_simplest_dag():
     @task

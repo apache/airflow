@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# [START dag_decorator_usage]
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -43,7 +44,6 @@ class GetRequestOperator(BaseOperator):
         return httpx.get(self.url).json()
 
 
-# [START dag_decorator_usage]
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),

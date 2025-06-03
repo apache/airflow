@@ -17,6 +17,7 @@
 # under the License.
 """Example DAG demonstrating the usage of setup and teardown tasks."""
 
+# [START example_setup_teardown_taskflow]
 from __future__ import annotations
 
 import pendulum
@@ -104,3 +105,4 @@ with DAG(
 
         # and let's put section 1 inside the outer setup and teardown tasks
         section_1()
+# [END example_setup_teardown_taskflow]

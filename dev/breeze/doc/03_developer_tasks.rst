@@ -224,6 +224,11 @@ short ``provider id`` (might be multiple of them).
 
      breeze build-docs <provider id> <provider id>
 
+.. code-block:: bash
+
+     # To build documentation for Task SDK package
+     breeze build-docs task-sdk
+
 or you can use package filter. The filters are glob pattern matching full
 package names and can be used to select more than one package with single filter.
 
@@ -241,23 +246,6 @@ These are all available flags of ``build-docs`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_build-docs.svg
   :width: 100%
   :alt: Breeze build documentation
-
-Building Task SDK documentation
--------------------------------
-To build documentation for the Apache Airflow Task SDK, use the ``build-task-sdk-docs`` command:
-
-.. code-block:: bash
-
-    breeze build-task-sdk-docs
-
-Results of the build can be found in the ``task-sdk/docs/_build`` folder.
-
-These are all available flags of the ``build-task-sdk-docs`` command:
-
-.. image:: ./images/output_build-task-sdk-docs.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_build-task-sdk-docs.svg
-  :width: 100%
-  :alt: Breeze build-task-sdk-docs
 
 While you can use full name of doc package starting with ``apache-airflow-providers-`` in package filter,
 You can use shorthand version - just take the remaining part and replace every ``dash("-")`` with

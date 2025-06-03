@@ -56,6 +56,7 @@ autoapi_file_patterns = ["*.pyi", "*.py"]
 
 html_theme = "sphinx_airflow_theme"
 
+
 global_substitutions = {
     "experimental": "This is an :ref:`experimental feature <experimental>`.",
 }
@@ -71,17 +72,3 @@ suppress_warnings = [
     "autoapi.python_import_resolution",
     "autodoc",
 ]
-
-
-def skip_util_classes(app, objtype, name, obj, skip, options):
-    if "definitions" in name:
-        if name == "DAG":
-            obj.id = "airflow.sdk.DAG"
-            return skip
-        skip = True
-    return skip
-
-
-def setup(app):
-    # Skip utility classes from definitions modules, but expose DAG under airflow.sdk.DAG
-    app.connect("autoapi-skip-member", skip_util_classes)

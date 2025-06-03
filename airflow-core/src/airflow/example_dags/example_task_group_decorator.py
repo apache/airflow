@@ -17,6 +17,7 @@
 # under the License.
 """Example DAG demonstrating the usage of the @taskgroup decorator."""
 
+# [START howto_task_group_decorator]
 from __future__ import annotations
 
 import pendulum
@@ -24,7 +25,6 @@ import pendulum
 from airflow.sdk import DAG, task, task_group
 
 
-# [START howto_task_group_decorator]
 # Creating Tasks
 @task
 def task_start():

@@ -23,8 +23,6 @@ This page documents the full public API exposed in Airflow 3.0+ via the Task SDK
 If something is not on this page it is best to assume that it is not part of the public API and use of it is entirely at your own risk
 -- we won't go out of our way break usage of them, but we make no promises either.
 
-.. :py:module: airflow.sdk
-
 Defining DAGs
 -------------
 .. autoapiclass:: airflow.sdk.DAG
@@ -46,18 +44,6 @@ Decorators
 .. autofunction:: airflow.sdk.teardown
 .. autofunction:: airflow.sdk.asset
 
-Utilities
----------
-.. autoapifunction:: airflow.sdk.chain
-
-.. autoapifunction:: airflow.sdk.chain_linear
-
-.. autoapifunction:: airflow.sdk.cross_downstream
-
-.. autoapifunction:: airflow.sdk.literal
-
-.. autoapifunction:: airflow.sdk.__version__
-.. autofunction:: airflow.sdk.__version__
 
 Bases
 -----
@@ -83,23 +69,27 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
-.. autoapiclass:: airflow.sdk.MappedOperator
-
 .. autoapifunction:: airflow.sdk.get_current_context
 
 .. autoapifunction:: airflow.sdk.get_parsing_context
 
 .. autoapiclass:: airflow.sdk.Param
 
+Setting Dependencies
+~~~~~~~~~~~~~~~~~~~~
+.. autoapifunction:: airflow.sdk.chain
+
+.. autoapifunction:: airflow.sdk.chain_linear
+
+.. autoapifunction:: airflow.sdk.cross_downstream
+
+.. autoapifunction:: airflow.sdk.literal
+
 Edges & Labels
---------------
+~~~~~~~~~~~~~~
 .. autoapiclass:: airflow.sdk.EdgeModifier
 
 .. autoapiclass:: airflow.sdk.Label
-
-Metadata
---------
-.. autoapiclass:: airflow.sdk.Metadata
 
 Assets
 ------
@@ -113,46 +103,27 @@ Assets
 
 .. autoapiclass:: airflow.sdk.AssetWatcher
 
+.. autoapiclass:: airflow.sdk.Metadata
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
 
 Execution Time Components
 -------------------------
-.. rubric:: Supervisor
-
-.. autoapimodule:: airflow.sdk.execution_time.supervisor
-   :members:
-   :undoc-members:
-
-.. rubric:: TaskRunner
-
-.. autoapimodule:: airflow.sdk.execution_time.task_runner
-   :members:
-   :undoc-members:
-
 .. rubric:: Context
 .. autoapiclass:: airflow.sdk.Context
 .. autoapimodule:: airflow.sdk.execution_time.context
    :members:
    :undoc-members:
 
-.. rubric:: Cache
-
-.. autoapiclass:: airflow.sdk.SecretCache
-.. autoclass:: airflow.sdk.SecretCache
-
-API Client
-----------
-.. autoapimodule:: airflow.sdk.api.client
-   :members:
-   :undoc-members:
 
 Everything else
 ---------------
 
 .. autoapimodule:: airflow.sdk
   :members:
+  :special-members: __version__
   :exclude-members: BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:

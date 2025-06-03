@@ -17,6 +17,7 @@
 # under the License.
 """Example DAG demonstrating the usage of the XComArgs."""
 
+# [START example_xcomargs]
 from __future__ import annotations
 
 import logging
@@ -63,3 +64,4 @@ with DAG(
     xcom_args_b = print_value("second!")
 
     bash_op1 >> xcom_args_a >> xcom_args_b >> bash_op2
+# [END example_xcomargs]

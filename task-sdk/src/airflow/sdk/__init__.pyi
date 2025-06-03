@@ -46,7 +46,6 @@ from airflow.sdk.definitions.dag import DAG as DAG, dag as dag
 from airflow.sdk.definitions.decorators import setup as setup, task as task, teardown as teardown
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
-from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
@@ -69,7 +68,6 @@ __all__ = [
     "Connection",
     "Context",
     "DAG",
-    "MappedOperator",
     "EdgeModifier",
     "Label",
     "Metadata",

@@ -50,6 +50,7 @@ The DAGs asset_consumes_1_never_scheduled and asset_consumes_unknown_never_sched
 automatically as they depend on assets that do not get updated or are not produced by any scheduled tasks.
 """
 
+# [START asset_def]
 from __future__ import annotations
 
 import pendulum
@@ -59,9 +60,7 @@ from airflow.sdk import DAG, Asset
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.trigger import CronTriggerTimetable
 
-# [START asset_def]
 dag1_asset = Asset("s3://dag1/output_1.txt", extra={"hi": "bye"})
-# [END asset_def]
 dag2_asset = Asset("s3://dag2/output_1.txt", extra={"hi": "bye"})
 dag3_asset = Asset("s3://dag3/output_3.txt", extra={"hi": "bye"})
 
@@ -189,3 +188,4 @@ with DAG(
         task_id="conditional_asset_and_time_based_timetable",
         bash_command="sleep 5",
     )
+# [END asset_def]

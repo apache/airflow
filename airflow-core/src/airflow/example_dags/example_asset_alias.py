@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import pendulum
 
+# [START example_asset_alias]
 from airflow.sdk import DAG, Asset, AssetAlias, task
 
 with DAG(
@@ -94,3 +95,4 @@ with DAG(
             print(event)
 
     consume_asset_event_from_asset_alias()
+# [END example_asset_alias]

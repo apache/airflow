@@ -17,13 +17,13 @@
 # under the License.
 """Example DAG demonstrating the usage of dynamic task mapping."""
 
+# [START example_dynamic_task_mapping]
 from __future__ import annotations
 
 from datetime import datetime
 
 from airflow.sdk import DAG, task
 
-# [START example_dynamic_task_mapping]
 with DAG(dag_id="example_dynamic_task_mapping", schedule=None, start_date=datetime(2022, 3, 4)) as dag:
 
     @task

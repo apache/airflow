@@ -1160,35 +1160,6 @@ def autogenerate(
     fix_ownership_using_docker()
 
 
-@main.command(name="build-task-sdk-docs", help="Build the Apache Airflow Task Execution SDK documentation.")
-@option_verbose
-def build_task_sdk_docs():
-    """
-    Build the Apache Airflow Task SDK documentation.
-    """
-    task_sdk_dir = AIRFLOW_ROOT_PATH / "task-sdk"
-    docs_dir = task_sdk_dir / "docs"
-    build_dir = docs_dir / "_build"
-    get_console().print(f"[info]Installing Task SDK docs prerequisites in {docs_dir}")
-    result = run_command(
-        ["pip", "install", "--disable-pip-version-check", "-r", str(docs_dir / "requirements.txt")],
-        check=False,
-    )
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-    get_console().print(f"[info]Building Task SDK docs in {docs_dir}")
-    result = run_command(
-        ["sphinx-build", "-b", "html", "-W", "-Tv", ".", str(build_dir)],
-        cwd=docs_dir,
-        check=False,
-    )
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-    get_console().print("[info]Serving Task SDK docs at http://localhost:8000")
-    serve_cmd = [sys.executable, "-m", "http.server", "8000", "--directory", str(build_dir)]
-    run_command(serve_cmd, check=True)
-
-
 @main.command(name="doctor", help="Auto-healing of breeze")
 @option_answer
 @option_verbose
