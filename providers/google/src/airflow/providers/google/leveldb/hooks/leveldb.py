@@ -50,7 +50,7 @@ class LevelDBHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Return connection widgets to add to Google Ads connection form."""
+        """Return connection widgets to add to LevelDB connection form."""
         from flask_babel import lazy_gettext
         from wtforms import BooleanField
 
@@ -65,7 +65,7 @@ class LevelDBHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Return custom UI field behaviour for Google Ads connection."""
+        """Return custom UI field behaviour for LevelDB connection."""
         return {
             "hidden_fields": ["login", "password", "schema", "port"],
             "relabeling": {},
