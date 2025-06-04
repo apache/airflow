@@ -14,36 +14,40 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Simple DAG with single asset direct schedule.
+
+It checks:
+    - schedule serialization
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
 
 from airflow import DAG
-from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.common.compat.assets import Asset
+from airflow.providers.standard.operators.bash import BashOperator
 
+from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
+DAG_ID = "openlineage_schedule_single_asset_dag"
 
-def do_nothing():
-    pass
-
-
-# Instantiate the DAG
 with DAG(
-    "openlineage_basic_dag",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule=None,
+    schedule=Asset(uri="s3://bucket/file.txt", extra={"some_extra": 123}),
     catchup=False,
+    default_args={"retries": 0},
 ) as dag:
-    nothing_task = PythonOperator(task_id="do_nothing_task", python_callable=do_nothing)
+    do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="sleep 10;")
 
     check_events = OpenLineageTestOperator(
-        task_id="check_events",
-        file_path=str(Path(__file__).parent / "example_openlineage.json"),
+        task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
 
-    nothing_task >> check_events
+    do_nothing_task >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

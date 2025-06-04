@@ -634,6 +634,7 @@ repos:
         exclude: >
           (?x)
           ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^airflow-core/src/airflow/ui/src/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
           ^airflow-core/src/airflow/models/baseoperator\.py$|

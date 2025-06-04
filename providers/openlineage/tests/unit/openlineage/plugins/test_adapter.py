@@ -35,6 +35,7 @@ from openlineage.client.facet_v2 import (
     parent_run,
     processing_engine_run,
     sql_job,
+    tags_job,
 )
 
 from airflow import DAG
@@ -154,10 +155,10 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
         job_name="job",
         job_description="description",
         event_time=event_time,
-        code_location=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         owners=[],
+        tags=[],
         task=None,
         run_facets=None,
     )
@@ -215,10 +216,10 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
         job_name="job",
         job_description="description",
         event_time=event_time,
-        code_location=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         owners=["owner1", "owner2"],
+        tags=["tag1", "tag2"],
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
@@ -288,6 +289,12 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                         "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
                         ),
+                        "tags": tags_job.TagsJobFacet(
+                            tags=[
+                                tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
+                                tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
+                            ]
+                        ),
                     },
                 ),
                 producer=_PRODUCER,
@@ -314,10 +321,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     run_id = str(uuid.uuid4())
     event_time = datetime.datetime.now().isoformat()
     adapter.complete_task(
-        run_id=run_id,
-        end_time=event_time,
-        job_name="job",
-        task=OperatorLineage(),
+        run_id=run_id, end_time=event_time, job_name="job", task=OperatorLineage(), owners=[], tags=[]
     )
 
     assert (
@@ -367,6 +371,8 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
         run_id=run_id,
         end_time=event_time,
         job_name="job",
+        owners=["owner1", "owner2"],
+        tags=["tag1", "tag2"],
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
@@ -423,9 +429,21 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                     namespace="default",
                     name="job",
                     facets={
+                        "ownership": ownership_job.OwnershipJobFacet(
+                            owners=[
+                                ownership_job.Owner(name="owner1", type=None),
+                                ownership_job.Owner(name="owner2", type=None),
+                            ]
+                        ),
                         "sql": sql_job.SQLJobFacet(query="SELECT 1;"),
                         "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                        ),
+                        "tags": tags_job.TagsJobFacet(
+                            tags=[
+                                tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
+                                tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
+                            ]
                         ),
                     },
                 ),
@@ -457,6 +475,8 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
         end_time=event_time,
         job_name="job",
         task=OperatorLineage(),
+        owners=[],
+        tags=[],
     )
 
     assert (
@@ -506,6 +526,8 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
         run_id=run_id,
         end_time=event_time,
         job_name="job",
+        owners=["owner1", "owner2"],
+        tags=["tag1", "tag2"],
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
@@ -565,9 +587,21 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                 namespace="default",
                 name="job",
                 facets={
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
+                        ]
+                    ),
                     "sql": sql_job.SQLJobFacet(query="SELECT 1;"),
                     "jobType": job_type_job.JobTypeJobFacet(
                         processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                    ),
+                    "tags": tags_job.TagsJobFacet(
+                        tags=[
+                            tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
+                            tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
+                        ]
                     ),
                 },
             ),
@@ -601,6 +635,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         schedule=datetime.timedelta(days=1),
         start_date=datetime.datetime(2024, 6, 1),
         description="dag desc",
+        tags=["mytag1"],
     ) as dag:
         tg = TaskGroup(group_id="tg1")
         tg2 = TaskGroup(group_id="tg2", parent_group=tg)
@@ -635,7 +670,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         "description": "dag desc",
         "owner": "airflow",
         "start_date": "2024-06-01T00:00:00+00:00",
-        "tags": "[]",
+        "tags": "['mytag1']",
         "fileloc": pathlib.Path(__file__).resolve().as_posix(),
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
@@ -663,8 +698,9 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         clear_number=0,
         nominal_start_time=event_time.isoformat(),
         nominal_end_time=event_time.isoformat(),
-        owners=["airflow"],
+        owners=["owner1", "owner2"],
         description=dag.description,
+        tags=["tag1", "tag2"],
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -725,7 +761,14 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                     "documentation": documentation_job.DocumentationJobFacet(description="dag desc"),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
-                            ownership_job.Owner(name="airflow", type=None),
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
+                        ]
+                    ),
+                    "tags": tags_job.TagsJobFacet(
+                        tags=[
+                            tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
+                            tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
                         ]
                     ),
                     **job_facets,
@@ -796,6 +839,8 @@ def test_emit_dag_complete_event(
         clear_number=0,
         dag_run_state=DagRunState.SUCCESS,
         task_ids=["task_0", "task_1", "task_2.test"],
+        owners=["owner1", "owner2"],
+        tags=["tag1", "tag2"],
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -843,9 +888,21 @@ def test_emit_dag_complete_event(
                 namespace=namespace(),
                 name=dag_id,
                 facets={
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
+                        ]
+                    ),
+                    "tags": tags_job.TagsJobFacet(
+                        tags=[
+                            tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
+                            tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
+                        ]
+                    ),
                     "jobType": job_type_job.JobTypeJobFacet(
                         processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                    )
+                    ),
                 },
             ),
             producer=_PRODUCER,
@@ -909,7 +966,9 @@ def test_emit_dag_failed_event(
         clear_number=0,
         dag_run_state=DagRunState.FAILED,
         task_ids=["task_0", "task_1", "task_2.test"],
+        tags=["tag1", "tag2"],
         msg="error msg",
+        owners=["owner1", "owner2"],
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -960,9 +1019,21 @@ def test_emit_dag_failed_event(
                 namespace=namespace(),
                 name=dag_id,
                 facets={
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="owner1", type=None),
+                            ownership_job.Owner(name="owner2", type=None),
+                        ]
+                    ),
+                    "tags": tags_job.TagsJobFacet(
+                        tags=[
+                            tags_job.TagsJobFacetFields(key="tag1", value="tag1", source="AIRFLOW"),
+                            tags_job.TagsJobFacetFields(key="tag2", value="tag2", source="AIRFLOW"),
+                        ]
+                    ),
                     "jobType": job_type_job.JobTypeJobFacet(
                         processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                    )
+                    ),
                 },
             ),
             producer=_PRODUCER,
