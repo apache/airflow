@@ -346,7 +346,15 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     providers are used by our users to install Airflow in reproducible way.
     :return:
     """
-    run_command(
+
+    # In case we have some problems with installing highest resolution of a dependency of one of our
+    # providers in PyPI - we can exclude the buggy version here. For example this happened with
+    # sqlalchemy-spanner==1.4.0 which did not have `whl` file in PyPI and was not installable
+    # Current exclusions:
+    # * sqlalchemy-spanner: https://github.com/googleapis/python-spanner-sqlalchemy/issues/682
+    additional_constraints_for_highest_resolution = ["sqlalchemy-spanner!=1.12.0"]
+
+    result = run_command(
         cmd=[
             "uv",
             "pip",
@@ -356,6 +364,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "apache-airflow-core[all]",
             "apache-airflow-task-sdk",
             "./airflow-ctl",
+            *additional_constraints_for_highest_resolution,
             "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
             "--resolution",
             "highest",
@@ -363,8 +372,16 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "file://" + str(AIRFLOW_DIST_PATH),
         ],
         github_actions=config_params.github_actions,
-        check=True,
+        check=False,
     )
+    if result.returncode != 0:
+        console.print(
+            "[red]Failed to install airflow with PyPI providers with highest resolution.[/]\n"
+            "[yellow]Please check the output above for details. One of they ways how to resolve it, in "
+            "case it is caused by a specific broken dependency version, is to exclude it above in the "
+            f"`additional_constraints_for_highest_resolution` list in [/] {__file__}"
+        )
+        sys.exit(result.returncode)
     console.print("[success]Installed airflow with PyPI providers with eager upgrade.")
     distributions_to_exclude_from_constraints = get_locally_build_distribution_specs()
     with config_params.current_constraints_file.open("w") as constraints_file:
