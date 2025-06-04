@@ -310,7 +310,11 @@
           "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
         },
         "ownership": {
-          "owners": "{{ result | map(attribute='name') | list | sort == ['airflow', 'owner1', 'owner2', 'owner3'] }}",
+          "owners": [
+              {
+                  "name": "owner2"
+              }
+          ],
           "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
           "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
         },
@@ -421,6 +425,15 @@
       "namespace": "{{ result is string }}",
       "name": "openlineage_base_complex_dag.task_1.id.with.dots",
       "facets": {
+        "ownership": {
+          "owners": [
+              {
+                  "name": "owner2"
+              }
+          ],
+          "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+          "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+        },
         "jobType": {
           "integration": "AIRFLOW",
           "jobType": "TASK",
@@ -659,6 +672,11 @@
       "namespace": "{{ result is string }}",
       "name": "openlineage_base_complex_dag.task_2",
       "facets": {
+        "ownership": {
+          "owners": "{{ result | map(attribute='name') | list | sort == ['airflow', 'owner1', 'owner2', 'owner3'] }}",
+          "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+          "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+        },
         "jobType": {
           "integration": "AIRFLOW",
           "jobType": "TASK",
@@ -889,6 +907,11 @@
       "namespace": "{{ result is string }}",
       "name": "openlineage_base_complex_dag.task_3",
       "facets": {
+        "ownership": {
+          "owners": "{{ result | map(attribute='name') | list | sort == ['airflow', 'owner1', 'owner2', 'owner3'] }}",
+          "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+          "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+        },
         "jobType": {
           "integration": "AIRFLOW",
           "jobType": "TASK",
@@ -1020,7 +1043,11 @@
           "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
         },
         "ownership": {
-          "owners": "{{ result | map(attribute='name') | list | sort == ['airflow', 'owner1', 'owner2', 'owner3'] }}",
+          "owners": [
+              {
+                  "name": "owner3"
+              }
+          ],
           "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
           "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
         }
@@ -1129,6 +1156,15 @@
       "namespace": "{{ result is string }}",
       "name": "openlineage_base_complex_dag.task_4",
       "facets": {
+        "ownership": {
+          "owners": [
+              {
+                  "name": "owner3"
+              }
+          ],
+          "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+          "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+        },
         "jobType": {
           "integration": "AIRFLOW",
           "jobType": "TASK",
@@ -1379,6 +1415,11 @@
       "namespace": "{{ result is string }}",
       "name": "openlineage_base_complex_dag.section_1.section_2.task_6",
       "facets": {
+        "ownership": {
+          "owners": "{{ result | map(attribute='name') | list | sort == ['airflow', 'owner1', 'owner2', 'owner3'] }}",
+          "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+          "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+        },
         "jobType": {
           "integration": "AIRFLOW",
           "jobType": "TASK",

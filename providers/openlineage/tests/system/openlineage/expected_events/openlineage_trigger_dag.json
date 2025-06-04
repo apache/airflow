@@ -145,6 +145,15 @@
             "namespace": "{{ result is string }}",
             "name": "openlineage_trigger_dag_child__notrigger",
             "facets": {
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "airflow"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
                 "jobType": {
                     "integration": "AIRFLOW",
                     "jobType": "DAG",
