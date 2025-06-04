@@ -391,13 +391,13 @@ class TestCli:
                 assert "airflow command error" not in stderr
 
     def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
-        """Test that the error message is correct when the directory does not exist."""
+        """Test that the error message is correct when the directory does not exist and exit code is non-zero."""
         with contextlib.redirect_stderr(StringIO()) as stderr:
             parser = cli_parser.get_parser()
-            with pytest.raises(SystemExit):
+            with pytest.raises(SystemExit) as e:
                 parser.parse_args(["db", "export-archived", "--output-path", "/non/existing/directory"])
             error_msg = stderr.getvalue()
-
+        assert e.value.code != 0
         assert error_msg == (
             "\nairflow db export-archived command error: The directory "
             "'/non/existing/directory' does not exist!, see help above.\n"
