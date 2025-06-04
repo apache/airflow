@@ -146,6 +146,7 @@ with DAG(
     )
     # [END howto_operator_bedrock_batch_inference]
     batch_infer.wait_for_completion = False
+    batch_infer.deferrable = False
 
     # [START howto_sensor_bedrock_batch_inference_scheduled]
     await_job_scheduled = BedrockBatchInferenceSensor(
