@@ -2028,7 +2028,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.try_number == ti.try_number,
                 Log.event == "running",
             )
-            .orderby(desc(Log.dttm))
+            .order_by(desc(Log.dttm))
             .limit(1)
         )
 
