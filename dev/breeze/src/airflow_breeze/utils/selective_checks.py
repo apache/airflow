@@ -109,6 +109,7 @@ class FileGroupForCi(Enum):
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     TASK_SDK_FILES = "task_sdk_files"
+    GO_SDK_FILES = "go_sdk_files"
     AIRFLOW_CTL_FILES = "airflow_ctl_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
@@ -195,6 +196,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-core/src/.*\.py$",
             r"^airflow-core/docs/",
             r"^providers/.*/src/",
+            r"^providers/.*/tests/",
             r"^providers/.*/docs/",
             r"^providers-summary-docs",
             r"^docker-stack-docs",
@@ -270,6 +272,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task-sdk/src/airflow/sdk/.*\.py$",
             r"^task-sdk/tests/.*\.py$",
+        ],
+        FileGroupForCi.GO_SDK_FILES: [
+            r"^go-sdk/.*\.go$",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -780,6 +785,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
+    def run_go_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
+
+    @cached_property
     def run_airflow_ctl_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
 
@@ -965,8 +974,12 @@ class SelectiveChecks:
         In case of Providers, we need to replace it with Providers[-<list_of_long_tests>], but
         in case of Providers[list_of_tests] we need to remove the long tests from the list.
 
+        In case of celery tests we want to isolate them from the rest, because they seem to be hanging
+        infrequently when running together with other tests
+
+        :param current_test_types: The set of test types to run
         """
-        long_tests = ["amazon", "google", "standard"]
+        long_tests = ["amazon", "celery", "google", "standard"]
         for original_test_type in tuple(current_test_types):
             if original_test_type == "Providers":
                 current_test_types.remove(original_test_type)
@@ -1211,6 +1224,8 @@ class SelectiveChecks:
             # Skip those tests on all "release" branches
             pre_commits_to_skip.update(
                 (
+                    "compile-fab-assets",
+                    "generate-openapi-spec-fab",
                     "check-airflow-provider-compatibility",
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
@@ -1442,6 +1457,7 @@ class SelectiveChecks:
                         return True
                     line_counter += 1
             line_counter += 1
+        return None
 
     def _caplog_exists_in_added_lines(self) -> bool:
         """
@@ -1450,7 +1466,7 @@ class SelectiveChecks:
         :return: True if caplog is used in added lines else False
         """
         lines = run_command(
-            ["git", "diff", f"{self._commit_ref}"],
+            ["git", "diff", f"{self._commit_ref}^"],
             capture_output=True,
             text=True,
             cwd=AIRFLOW_ROOT_PATH,
@@ -1461,7 +1477,7 @@ class SelectiveChecks:
             return False
 
         added_caplog_lines = [
-            line.lstrip().lstrip("+ ") for line in lines.stdout.split("\n") if line.lstrip().startswith("+ ")
+            line.lstrip().lstrip("+") for line in lines.stdout.split("\n") if line.lstrip().startswith("+")
         ]
         return self._find_caplog_in_def(added_lines=added_caplog_lines)
 

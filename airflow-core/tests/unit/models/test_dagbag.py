@@ -34,7 +34,6 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
-import airflow.example_dags
 from airflow import settings
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -43,8 +42,8 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
-from scripts.ci.pre_commit.common_precommit_utils import AIRFLOW_ROOT_PATH
 
+from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -53,13 +52,7 @@ from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
-example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
-try:
-    import system.standard
-
-    example_standard_dags_folder = pathlib.Path(system.standard.__path__[0])  # type: ignore[attr-defined]
-except ImportError:
-    example_standard_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
+example_dags_folder = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "standard"
 
 PY311 = sys.version_info >= (3, 11)
 
@@ -367,9 +360,9 @@ class TestDagBag:
         ("file_to_load", "expected"),
         (
             pytest.param(
-                pathlib.Path(example_standard_dags_folder) / "example_bash_operator.py",
+                pathlib.Path(example_dags_folder) / "example_bash_operator.py",
                 {
-                    "example_bash_operator": f"{example_standard_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
+                    "example_bash_operator": f"{example_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
                 },
                 id="example_bash_operator",
             ),
@@ -431,7 +424,7 @@ class TestDagBag:
         Test that we can refresh an ordinary .py DAG
         """
         dag_id = "example_bash_operator"
-        fileloc = str(example_standard_dags_folder / "example_bash_operator.py")
+        fileloc = str(example_dags_folder / "example_bash_operator.py")
 
         mock_dagmodel.return_value = DagModel()
         mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
@@ -966,3 +959,56 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder="", include_examples=False, collect_dags=False, known_pools=known_pools)
         dagbag.bag_dag(dag)
         assert dagbag.dag_warnings == expected
+
+    def test_sigsegv_handling(self, tmp_path, caplog):
+        """
+        Test that a SIGSEGV in a DAG file is handled gracefully and does not crash the process.
+        """
+        # Create a DAG file that will raise a SIGSEGV
+        dag_file = tmp_path / "bad_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                import signal
+                from airflow import DAG
+                import os
+                from airflow.decorators import task
+
+                os.kill(os.getpid(), signal.SIGSEGV)
+
+                with DAG('testbug'):
+                    @task
+                    def mytask():
+                        print(1)
+                    mytask()
+                """
+            )
+        )
+
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+        assert "Received SIGSEGV signal while processing" in caplog.text
+        assert dag_file.as_posix() in dagbag.import_errors
+
+    def test_failed_signal_registration_does_not_crash_the_process(self, tmp_path, caplog):
+        """Test that a ValueError raised by a signal setting on child process does not crash the main process.
+        This was raised in test_dag_report.py module in api_fastapi/core_api/routes/public tests
+        """
+        dag_file = tmp_path / "test_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                from airflow import DAG
+                from airflow.decorators import task
+
+                with DAG('testbug'):
+                    @task
+                    def mytask():
+                        print(1)
+                    mytask()
+                """
+            )
+        )
+        with mock.patch("airflow.models.dagbag.signal.signal") as mock_signal:
+            mock_signal.side_effect = ValueError("Invalid signal setting")
+            DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+            assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text

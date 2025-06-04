@@ -30,19 +30,14 @@ from airflow.utils.log.log_reader import TaskLogReader
 
 config_router = AirflowRouter(tags=["Config"])
 
-WEBSERVER_CONFIG_KEYS = [
-    "navbar_color",
-    "page_size",
-    "auto_refresh_interval",
-    "hide_paused_dags_by_default",
-    "warn_deployment_exposure",
-    "default_wrap",
-    "require_confirmation_dag_change",
+
+API_CONFIG_KEYS = [
     "enable_swagger_ui",
-    "instance_name_has_markup",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
+    "hide_paused_dags_by_default",
+    "page_size",
+    "default_wrap",
+    "auto_refresh_interval",
+    "require_confirmation_dag_change",
 ]
 
 
@@ -53,15 +48,11 @@ WEBSERVER_CONFIG_KEYS = [
 )
 def get_configs() -> ConfigResponse:
     """Get configs for UI."""
-    conf_dict = conf.as_dict()
-
-    config = {key: conf_dict["webserver"].get(key) for key in WEBSERVER_CONFIG_KEYS}
+    config = {key: conf.get("api", key) for key in API_CONFIG_KEYS}
 
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
-        "instance_name": conf.get("webserver", "instance_name", fallback="Airflow"),
-        "audit_view_included_events": conf.get("webserver", "audit_view_included_events", fallback=""),
-        "audit_view_excluded_events": conf.get("webserver", "audit_view_excluded_events", fallback=""),
+        "instance_name": conf.get("api", "instance_name", fallback="Airflow"),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         "dashboard_alert": DASHBOARD_UIALERTS,
         "show_external_log_redirect": task_log_reader.supports_external_link,

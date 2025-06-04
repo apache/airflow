@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, HStack, SimpleGrid, Link, Spinner } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -37,6 +38,7 @@ type Props = {
 };
 
 export const DagCard = ({ dag }: Props) => {
+  const { t: translate } = useTranslation(["dags", "common"]);
   const [latestRun] = dag.latest_dag_runs;
 
   const refetchInterval = useAutoRefresh({ isPaused: dag.is_paused });
@@ -64,10 +66,10 @@ export const DagCard = ({ dag }: Props) => {
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>
-        <Stat label="Schedule">
+        <Stat label={translate("list.columns.schedule")}>
           <Schedule dag={dag} />
         </Stat>
-        <Stat label="Latest Run">
+        <Stat label={translate("list.columns.lastDagRun")}>
           {latestRun ? (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
@@ -83,7 +85,7 @@ export const DagCard = ({ dag }: Props) => {
             </Link>
           ) : undefined}
         </Stat>
-        <Stat label="Next Run">
+        <Stat label={translate("list.columns.nextDagRun")}>
           {Boolean(dag.next_dagrun_run_after) ? (
             <DagRunInfo
               logicalDate={dag.next_dagrun_logical_date}

@@ -160,7 +160,11 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
             csv_writer = csv.writer(f)
             cursor = session.execute(text(f"SELECT * FROM {target_table}"))
             csv_writer.writerow(cursor.keys())
-            csv_writer.writerows(cursor.fetchall())
+            BATCH_SIZE = 500
+            rows = cursor.fetchmany(BATCH_SIZE)
+            while rows:
+                csv_writer.writerows(rows)
+                rows = cursor.fetchmany(BATCH_SIZE)
     else:
         raise AirflowException(f"Export format {export_format} is not supported.")
 

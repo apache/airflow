@@ -82,7 +82,8 @@ class TestTaskInstancesLog:
             ti.id = str(uuid7())
             ti.hostname = "localhost"
             session.merge(ti)
-            session.flush()
+        # Commit changes to avoid locks
+        session.commit()
 
         # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
         with dag_maker(
@@ -106,8 +107,9 @@ class TestTaskInstancesLog:
             ti.id = str(uuid7())
             ti.hostname = "localhost"
             session.merge(ti)
-            session.flush()
-        session.flush()
+
+        # Final commit to ensure all changes are persisted
+        session.commit()
 
         dagbag = create_dag_bag()
         dagbag.bag_dag(dag)

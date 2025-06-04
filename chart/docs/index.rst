@@ -81,6 +81,8 @@ Features
 * Kerberos secure configuration
 * One-command deployment for any type of executor. You don't need to provide other services e.g. Redis/Database to test the Airflow.
 
+.. _helm_chart_install:
+
 Installing the Chart
 --------------------
 
