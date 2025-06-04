@@ -18,23 +18,23 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable, Iterator, Sequence, Sized
+from collections.abc import Generator, Iterable, Iterator, Sequence, Sized
 from contextlib import contextmanager, suppress
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy.orm import Session
+from wrapt import synchronized
 
 from airflow.exceptions import AirflowException
-from airflow.serialization import serde
 from airflow.sdk.bases.operator import BaseOperator as Operator
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.xcom_arg import MapXComArg  # noqa: F401
-from airflow.models.xcom_arg import SchedulerXComArg
+from airflow.serialization import serde
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from sqlalchemy.orm import Session
-from wrapt import synchronized
 
 if TYPE_CHECKING:
     from asyncio import AbstractEventLoop
@@ -171,9 +171,7 @@ class DeferredIterable(Iterator, Sequence, Sized, ResolveMixin, LoggingMixin):
         }
 
     @classmethod
-    def get_operator_from_dag(
-        cls, dag_fileloc: str, dag_id: str, task_id: str
-    ) -> Operator:
+    def get_operator_from_dag(cls, dag_fileloc: str, dag_id: str, task_id: str) -> Operator:
         """Loads a DAG using DagBag and gets the operator by task_id."""
 
         from airflow.models import DagBag
@@ -189,9 +187,7 @@ class DeferredIterable(Iterator, Sequence, Sized, ResolveMixin, LoggingMixin):
         """Ensure the object is JSON deserializable."""
         trigger_class = import_string(data["trigger"][0])
         trigger = trigger_class(**data["trigger"][1])
-        operator = cls.get_operator_from_dag(
-            data["dag_fileloc"], data["dag_id"], data["task_id"]
-        )
+        operator = cls.get_operator_from_dag(data["dag_fileloc"], data["dag_id"], data["task_id"])
         cls.logger().info("deserialize: %s", operator)
         return DeferredIterable(
             results=data["results"],

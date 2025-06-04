@@ -357,9 +357,7 @@ def run_job(
         job.complete_execution(session=session)
 
 
-def run_job_async(
-    job: Job, execute_callable: Callable[[], int | None], session: Session
-) -> None:
+def run_job_async(job: Job, execute_callable: Callable[[], int | None], session: Session) -> None:
     """
     Run the job asynchronously.
 

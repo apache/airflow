@@ -39,7 +39,7 @@ from airflow.jobs.expand_task_job_runner import TaskExpansionJobRunner
 from airflow.jobs.job import Job, run_job_async
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import get_task_instance, get_current_max_mapping
+from airflow.models.taskinstance import get_current_max_mapping, get_task_instance
 from airflow.utils.db import exists_query
 from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
 from airflow.utils.state import TaskInstanceState

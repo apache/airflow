@@ -20,26 +20,21 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job
 from airflow.models import DagRun
 from airflow.models.dag_version import DagVersion
-from airflow.models.expandinput import SchedulerDictOfListsExpandInput
-from airflow.models.taskinstance import TaskInstance, get_current_max_mapping, get_task_instance
-from airflow.models.xcom_arg import SchedulerPlainXComArg
+from airflow.models.taskinstance import TaskInstance, get_current_max_mapping
 from airflow.policies import task_instance_mutation_hook
-from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions._internal.mixins import ResolveMixin
-from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.mappedoperator import MappedOperator
-from airflow.sdk.execution_time.comms import XComResult
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
-from sqlalchemy import select
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -52,8 +47,7 @@ def get_dag_run(dag_id: str, run_id: str, session: Session) -> DagRun | None:
     Returns the TaskInstance for the task that is being expanded.
     """
     return session.scalars(
-        select(DagRun)
-        .where(
+        select(DagRun).where(
             DagRun.dag_id == dag_id,
             DagRun.run_id == run_id,
         )
@@ -114,9 +108,13 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             if dag_run.state == DagRunState.FAILED:
                 self.log.info("DagRun %s for dag %s has failed, stopping expansion", self.run_id, self.dag_id)
 
-                raise AirflowException(f"Stopping expansion of tasks for DagRun {self.run_id} of DAG {self.dag_id} due to failure.")
+                raise AirflowException(
+                    f"Stopping expansion of tasks for DagRun {self.run_id} of DAG {self.dag_id} due to failure."
+                )
 
-    def _persist_task_instances(self, dag_run: DagRun, task_instances: list[TaskInstance], session: Session) -> None:
+    def _persist_task_instances(
+        self, dag_run: DagRun, task_instances: list[TaskInstance], session: Session
+    ) -> None:
         if dag_run and task_instances:
             self.log.info("Persisting %d new task instances", len(task_instances))
             dag_run.task_instances.extend(task_instances)
@@ -156,7 +154,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
                 task_instances_batch.append(self.expand_task(task_instance, mapped_kwargs))
                 counter += 1
 
-                if len(task_instances_batch) ==  task_expansion_batch_size:
+                if len(task_instances_batch) == task_expansion_batch_size:
                     dag_run = get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
                     self._check_dag_run_state(dag_run)
                     self._persist_task_instances(dag_run, task_instances_batch, session=session)

@@ -121,7 +121,6 @@ class SchedulerDictOfListsExpandInput(ExpandInput):
     def resolve(
         self, context: Mapping[str, Any], session: Session
     ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
-
         self.log.info("expand_dict: %s", self.value)
 
         value = (
@@ -167,7 +166,6 @@ class SchedulerListOfDictsExpandInput(ExpandInput):
     def resolve(
         self, context: Mapping[str, Any], session: Session
     ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
-
         self.log.info("expand_list: %s", self.value)
 
         value = (

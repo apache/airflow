@@ -2510,10 +2510,10 @@ def get_current_max_mapping(dag_id: str, task_id: str, run_id: str, session: Ses
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
                 TaskInstance.run_id == run_id,
-                )
-            ),
-            0,
-        )
+            )
+        ),
+        0,
+    )
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
