@@ -44,24 +44,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, get_task_instance, get_current_max_mapping
 
 
-def update_task_map_length(index, item, run_id, session):
-    try:
-        length = index + 1
-        logging.info("Persisting TaskMap length: %s", length)
-        session.execute(
-            update(TaskMap)
-            .where(
-                TaskMap.dag_id == item.operator.dag_id,
-                TaskMap.task_id == item.operator.task_id,
-                TaskMap.run_id == run_id,
-                TaskMap.map_index == -1,
-            )
-            .values(length=length)
-        )
-    except:
-        logging.exception("Persisting TaskMap length failed for task %s", item.operator.task_id)
-
-
 class TaskMapVariant(enum.Enum):
     """
     Task map variant.
@@ -306,3 +288,21 @@ class TaskMap(TaskInstanceDependencies):
                 ti.state = TaskInstanceState.REMOVED
         session.flush()
         return all_expanded_tis, total_expanded_ti_count - 1
+
+
+def update_task_map_length(index, item, run_id, session):
+    try:
+        length = index + 1
+        logging.info("Persisting TaskMap length: %s", length)
+        session.execute(
+            update(TaskMap)
+            .where(
+                TaskMap.dag_id == item.operator.dag_id,
+                TaskMap.task_id == item.operator.task_id,
+                TaskMap.run_id == run_id,
+                TaskMap.map_index == -1,
+            )
+            .values(length=length)
+        )
+    except:
+        logging.exception("Persisting TaskMap length failed for task %s", item.operator.task_id)
