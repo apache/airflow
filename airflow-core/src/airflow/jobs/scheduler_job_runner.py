@@ -2366,7 +2366,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _generate_warning_message(
             offending: AssetModel, attr: str, value: str
         ) -> Iterator[tuple[str, str]]:
-            for ref in itertools.chain(offending.scheduled_dags, offending.producing_tasks):
+            offending_references = itertools.chain(
+                offending.scheduled_dags,
+                offending.producing_tasks,
+                offending.consuming_tasks,
+            )
+            for ref in offending_references:
                 yield (
                     ref.dag_id,
                     (
