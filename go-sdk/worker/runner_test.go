@@ -86,7 +86,6 @@ func (s *WorkerSuite) SetupSuite() {
 }
 
 func (s *WorkerSuite) TestWithServer() {
-	s.T().Parallel()
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
 	iface, err := s.worker.WithServer("http://example.com")
 
@@ -151,7 +150,6 @@ func (s *WorkerSuite) BodyJSONMatches(expected []byte) httpmock.Matcher {
 // TestTaskNotRegisteredErrors checks that when a task cannot be found we report "success" on the Workload but
 // report the task as failed to the Execution API server
 func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
-	s.T().Parallel()
 	id := uuid.New().String()
 	testWorkload := newTestWorkLoad(id, id[:8])
 	s.ExpectTaskState(id, api.TerminalTIStateFailed)
@@ -188,7 +186,6 @@ func (s *WorkerSuite) TestTaskReturnErrorReportsFailedState() {
 }
 
 func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
-	s.T().Parallel()
 	id := uuid.New().String()
 	testWorkload := newTestWorkLoad(id, id[:8])
 	s.worker.RegisterTaskWithName(testWorkload.TI.DagId, testWorkload.TI.TaskId, func() error {
