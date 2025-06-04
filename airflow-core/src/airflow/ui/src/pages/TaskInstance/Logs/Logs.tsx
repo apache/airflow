@@ -19,7 +19,6 @@
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -33,7 +32,6 @@ import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
 
 export const Logs = () => {
-  const { t: translate } = useTranslation();
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -87,7 +85,6 @@ export const Logs = () => {
     logLevelFilters,
     sourceFilters,
     taskInstance,
-    translate,
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
 

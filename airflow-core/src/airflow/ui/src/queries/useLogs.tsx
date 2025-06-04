@@ -20,6 +20,7 @@ import { chakra } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
@@ -34,7 +35,6 @@ type Props = {
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
-  translate: TFunction;
   tryNumber?: number;
 };
 
@@ -138,17 +138,10 @@ const parseLogs = ({
 };
 
 export const useLogs = (
-  {
-    accept = "application/json",
-    dagId,
-    logLevelFilters,
-    sourceFilters,
-    taskInstance,
-    translate,
-    tryNumber = 1,
-  }: Props,
+  { accept = "application/json", dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
+  const { t: translate } = useTranslation("common");
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
