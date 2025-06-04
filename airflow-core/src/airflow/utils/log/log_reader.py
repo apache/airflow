@@ -109,11 +109,11 @@ class TaskLogReader:
                     if empty_iterations >= self.STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS:
                         # we have not received any logs for a while, so we stop the stream
                         yield "(Log stream stopped - End of log marker not found, so logs may be incomplete)\n"
-                        break
+                        return
             else:
                 metadata.clear()
                 metadata.update(out_metadata)
-                break
+                return
 
     @cached_property
     def log_handler(self):
