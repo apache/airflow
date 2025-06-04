@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property, lru_cache
+from multiprocessing import Process
 from time import sleep
 from typing import TYPE_CHECKING, Callable, NoReturn
 
@@ -352,6 +353,25 @@ def run_job(
     job.prepare_for_execution(session=session)
     try:
         return execute_job(job, execute_callable=execute_callable)
+    finally:
+        job.complete_execution(session=session)
+
+
+def run_job_async(
+    job: Job, execute_callable: Callable[[], int | None], session: Session
+) -> None:
+    """
+    Run the job asynchronously.
+
+    The Job is always an ORM object and setting the state is happening within the
+    same DB session and the session is kept open throughout the whole execution.
+
+    :meta private:
+    """
+    job.prepare_for_execution(session=session)
+    try:
+        process = Process(target=execute_job, args=(job, execute_callable))
+        process.start()
     finally:
         job.complete_execution(session=session)
 

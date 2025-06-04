@@ -17,25 +17,32 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
 import attrs
+from airflow.models.xcom import BaseXCom
+from airflow.utils.log.logging_mixin import LoggingMixin
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from airflow.models.taskinstance import get_task_instance
 from airflow.sdk.definitions._internal.types import ArgNotSet
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import (
     XComArg,
 )
+from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.execution_time.comms import XComResult
+from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
 from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 __all__ = ["XComArg", "get_task_map_length"]
+xcom_backend: BaseXCom = resolve_xcom_backend()
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG
@@ -44,7 +51,7 @@ if TYPE_CHECKING:
 
 
 @attrs.define
-class SchedulerXComArg:
+class SchedulerXComArg(LoggingMixin):
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
         """
@@ -59,6 +66,9 @@ class SchedulerXComArg:
         """
         raise NotImplementedError()
 
+    def resolve(self, context: Mapping[str, Any], session: Session):
+        raise NotImplementedError()
+
 
 @attrs.define
 class SchedulerPlainXComArg(SchedulerXComArg):
@@ -69,17 +79,78 @@ class SchedulerPlainXComArg(SchedulerXComArg):
     def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
         return cls(dag.get_task(data["task_id"]), data["key"])
 
+    def resolve(self, context: Mapping[str, Any], session: Session) -> Any:
+        task_instance = get_task_instance(
+            dag_id=self.operator.dag_id,
+            task_id=self.operator.task_id,
+            run_id=context["run_id"],
+            session=session,
+        )
+
+        context = {
+            **context, **{
+                "task_instance": task_instance,
+                "ti": task_instance,
+            }
+        }
+
+        self.log.info("XCom task_instance: %s", task_instance)
+
+        value = task_instance.xcom_pull(
+            task_ids=self.operator.task_id,
+            key=self.operator.output.key,
+            map_indexes=task_instance.map_index,
+            session=session,
+        )
+
+        self.log.info("value: %s", value)
+        self.log.debug("xcom_backend: %s", xcom_backend)
+
+        deserialized_value = xcom_backend.deserialize_value(
+            XComResult(key=self.operator.output.key, value=value))
+
+        self.log.info("deserialized_value: %s", deserialized_value)
+
+        if isinstance(deserialized_value, ResolveMixin):
+            self.log.info("context: %s", context)
+            deserialized_value = deserialized_value.resolve(context)
+            self.log.info("resolved_value: %s", deserialized_value)
+
+        return deserialized_value
+
 
 @attrs.define
 class SchedulerMapXComArg(SchedulerXComArg):
     arg: SchedulerXComArg
     callables: Sequence[str]
 
+    @property
+    def operator(self) -> Operator:
+        """Return the operator that this XComArg is associated with."""
+        return self.arg.operator if isinstance(self.arg, SchedulerPlainXComArg) else self.arg
+
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
         # We are deliberately NOT deserializing the callables. These are shown
         # in the UI, and displaying a function object is useless.
         return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
+
+    def resolve(self, context: Mapping[str, Any], session: Session) -> Any:
+        self.log.info("arg: %s", self.arg)
+        resolved_arg = self.arg.resolve(context, session)
+        self.log.info("resolved_arg: %s", resolved_arg)
+
+        def apply(arg: Any):
+            for index, _callable in enumerate(self.callables):
+                if isinstance(_callable, str):
+                    _callable = eval(_callable)
+                    self.callables[index] = _callable
+                self.log.debug("arg: %s", arg)
+                arg = _callable(arg)
+                self.log.debug("apply: %s", arg)
+            return arg
+
+        return map(apply, resolved_arg)
 
 
 @attrs.define

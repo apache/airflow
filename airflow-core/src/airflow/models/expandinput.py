@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Iterable, Sized
+from collections.abc import Iterable, Sized, Mapping, Generator
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
+from airflow.utils.log.logging_mixin import LoggingMixin
+
+from airflow.models.taskmap import update_task_map_length
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -57,8 +60,13 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, SchedulerXComArg))
 
 
+class ExpandInput(LoggingMixin):
+    def resolve(self, context: Mapping[str, Any], session: Session):
+        raise NotImplementedError()
+
+
 @attrs.define
-class SchedulerDictOfListsExpandInput:
+class SchedulerDictOfListsExpandInput(ExpandInput):
     value: dict
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "dict-of-lists"
@@ -110,9 +118,30 @@ class SchedulerDictOfListsExpandInput:
         lengths = self._get_map_lengths(run_id, session=session)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
+    def resolve(self, context: Mapping[str, Any], session: Session) -> Generator[
+        dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
+
+        self.log.info("expand_dict: %s", self.value)
+
+        value = self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
+
+        self.log.info("resolved value: %s", value)
+
+        for key, item in value.items():
+            result = item.resolve(context, session)
+
+            self.log.info("resolved value %s: %s", key, result)
+
+            for index, sub_item in enumerate(result):
+                yield {key: sub_item}
+
+                update_task_map_length(index, item, context["run_id"], session)
+
+        return []
+
 
 @attrs.define
-class SchedulerListOfDictsExpandInput:
+class SchedulerListOfDictsExpandInput(ExpandInput):
     value: list
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "list-of-dicts"
@@ -131,6 +160,30 @@ class SchedulerListOfDictsExpandInput:
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
+
+    def resolve(self, context: Mapping[str, Any], session: Session) -> Generator[
+        dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
+
+        self.log.info("expand_list: %s", self.value)
+
+        value = self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
+
+        self.log.info("resolved value: %s", value)
+
+        for index, entry in enumerate(value):
+            self.log.info("entry: %s", entry)
+
+            for key, item in entry.items():
+                if isinstance(item, SchedulerXComArg):
+                    entry[key] = item.resolve(context, session)
+
+                self.log.info("resolved entry: %s", entry)
+
+            yield entry
+
+            update_task_map_length(index, self.value, context["run_id"], session)
+
+        return []
 
 
 _EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {
