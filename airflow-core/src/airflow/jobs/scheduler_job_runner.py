@@ -32,7 +32,7 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable
 
-from sqlalchemy import and_, delete, exists, func, select, text, tuple_, update
+from sqlalchemy import and_, delete, desc, exists, func, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -2019,6 +2019,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         We can then use this information to determine whether to reschedule a task or fail it.
         """
+        last_running_time = session.scalar(
+            select(Log.dttm)
+            .where(
+                Log.dag_id == ti.dag_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == "running",
+            )
+            .orderby(desc(Log.dttm))
+            .limit(1)
+        )
+
         return (
             session.query(Log)
             .where(
@@ -2028,6 +2041,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.map_index == ti.map_index,
                 Log.try_number == ti.try_number,
                 Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+                Log.dttm > last_running_time,
             )
             .count()
         )
