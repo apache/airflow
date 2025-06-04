@@ -2032,6 +2032,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .limit(1)
         )
 
+        if last_running_time:
+            return (
+                session.query(Log)
+                .where(
+                    Log.task_id == ti.task_id,
+                    Log.dag_id == ti.dag_id,
+                    Log.run_id == ti.run_id,
+                    Log.map_index == ti.map_index,
+                    Log.try_number == ti.try_number,
+                    Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+                    Log.dttm > last_running_time,
+                )
+                .count()
+            )
         return (
             session.query(Log)
             .where(
@@ -2041,7 +2055,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.map_index == ti.map_index,
                 Log.try_number == ti.try_number,
                 Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
-                Log.dttm > last_running_time,
             )
             .count()
         )
