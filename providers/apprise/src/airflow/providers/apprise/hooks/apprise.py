@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
-import os
-from airflow.configuration import conf
 
 import apprise
-from apprise import AppriseConfig, NotifyFormat, NotifyType, AppriseAsset, PersistentStoreMode
+from apprise import AppriseAsset, AppriseConfig, NotifyFormat, NotifyType, PersistentStoreMode
 
 from airflow.hooks.base import BaseHook
 
@@ -38,6 +37,11 @@ class AppriseHook(BaseHook):
 
     The complete list of notification services supported by Apprise can be found at:
     https://github.com/caronc/apprise/wiki#notification-services.
+
+    This hook uses ephemeral, node-local storage for caching session cookies and rate-limit
+    metadata. The cache location can be configured via the APPRISE_STORAGE_PATH environment
+    variable (default: "/tmp/apprise_cache"). The cache is temporary and intended only for
+    short-lived session data within a single execution context.
 
     :param apprise_conn_id: :ref:`Apprise connection id <howto/connection:apprise>`
         that has services configured in the `config` field.
@@ -99,9 +103,11 @@ class AppriseHook(BaseHook):
         """
         title = title or ""
 
-        # Enable Apprise persistent storage
-        airflow_home = conf.get("core", "AIRFLOW_HOME")
-        storage_path = os.path.join(airflow_home, "apprise_cache")
+        # Enable Apprise persistent storage with configurable cache location
+        # Uses APPRISE_STORAGE_PATH env var or defaults to /tmp/apprise_cache for cloud compatibility
+        storage_path = os.getenv("APPRISE_STORAGE_PATH", "/tmp/apprise_cache")
+        os.makedirs(storage_path, exist_ok=True)
+
         asset = AppriseAsset(
             storage_path=storage_path,
             storage_mode=PersistentStoreMode.AUTO,

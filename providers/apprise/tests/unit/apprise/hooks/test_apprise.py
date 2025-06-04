@@ -125,16 +125,33 @@ class TestAppriseHook:
             interpret_escapes=None,
         )
 
+    @pytest.mark.parametrize(
+        "env_var_value,expected_path",
+        [
+            (None, "/tmp/apprise_cache"),  # Default behavior when env var is not set
+            ("/custom/cache", "/custom/cache"),  # Custom path via environment variable
+        ],
+    )
+    @mock.patch("airflow.providers.apprise.hooks.apprise.os.makedirs")
     @mock.patch("airflow.providers.apprise.hooks.apprise.AppriseAsset")
     @mock.patch("apprise.Apprise")
-    def test_notify_persistent_storage(self, mock_apprise_cls, mock_asset_cls):
+    def test_notify_persistent_storage(
+        self, mock_apprise_cls, mock_asset_cls, mock_makedirs, monkeypatch, env_var_value, expected_path
+    ):
         """
         Test that AppriseHook.notify instantiates Apprise with persistent storage enabled.
+        Tests both default path and custom APPRISE_STORAGE_PATH environment variable.
         """
         mock_asset = mock.Mock()
         mock_asset_cls.return_value = mock_asset
         mock_apprise_obj = mock.Mock()
         mock_apprise_cls.return_value = mock_apprise_obj
+
+        # Set or unset the environment variable
+        if env_var_value is not None:
+            monkeypatch.setenv("APPRISE_STORAGE_PATH", env_var_value)
+        else:
+            monkeypatch.delenv("APPRISE_STORAGE_PATH", raising=False)
 
         with mock.patch(
             "airflow.providers.apprise.hooks.apprise.AppriseHook.get_connection",
@@ -150,10 +167,15 @@ class TestAppriseHook:
             hook = AppriseHook()
             hook.notify(body="test")
 
+        # Ensure makedirs was called with the expected path
+        mock_makedirs.assert_called_once_with(expected_path, exist_ok=True)
+
         # Ensure AppriseAsset was created with correct arguments
         assert mock_asset_cls.call_count == 1
         asset_args, asset_kwargs = mock_asset_cls.call_args
         assert "storage_path" in asset_kwargs
+        assert asset_kwargs["storage_path"] == expected_path
         assert "storage_mode" in asset_kwargs
+
         # Ensure Apprise was instantiated with the asset
         mock_apprise_cls.assert_called_once_with(asset=mock_asset)
