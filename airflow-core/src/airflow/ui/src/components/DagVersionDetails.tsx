@@ -17,11 +17,14 @@
  * under the License.
  */
 import { Link, Table } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import type { DagVersionResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 
 export const DagVersionDetails = ({ dagVersion }: { readonly dagVersion?: DagVersionResponse | null }) => {
+  const { t: translate } = useTranslation("components");
+
   if (dagVersion === null || dagVersion === undefined) {
     return undefined;
   }
@@ -30,29 +33,29 @@ export const DagVersionDetails = ({ dagVersion }: { readonly dagVersion?: DagVer
     <Table.Root striped>
       <Table.Body>
         <Table.Row>
-          <Table.Cell>Version ID</Table.Cell>
+          <Table.Cell>{translate("versionDetails.versionId")}</Table.Cell>
           <Table.Cell>{dagVersion.id}</Table.Cell>
         </Table.Row>
         <Table.Row>
-          <Table.Cell>Bundle Name</Table.Cell>
+          <Table.Cell>{translate("versionDetails.bundleName")}</Table.Cell>
           <Table.Cell>{dagVersion.bundle_name}</Table.Cell>
         </Table.Row>
         {dagVersion.bundle_version === null ? undefined : (
           <Table.Row>
-            <Table.Cell>Bundle Version</Table.Cell>
+            <Table.Cell>{translate("versionDetails.bundleVersion")}</Table.Cell>
             <Table.Cell>{dagVersion.bundle_version}</Table.Cell>
           </Table.Row>
         )}
         {dagVersion.bundle_url === null ? undefined : (
           <Table.Row>
-            <Table.Cell>Bundle Link</Table.Cell>
+            <Table.Cell>{translate("versionDetails.bundleLink")}</Table.Cell>
             <Table.Cell>
               <Link href={dagVersion.bundle_url}>{dagVersion.bundle_url}</Link>
             </Table.Cell>
           </Table.Row>
         )}
         <Table.Row>
-          <Table.Cell>Created At</Table.Cell>
+          <Table.Cell>{translate("versionDetails.createdAt")}</Table.Cell>
           <Table.Cell>
             <Time datetime={dagVersion.created_at} />
           </Table.Cell>

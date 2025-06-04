@@ -17,11 +17,11 @@
  * under the License.
  */
 import { Heading, HStack, Spacer, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
 import type { DAGWarningResponse } from "openapi/requests/types.gen";
 import { Dialog } from "src/components/ui";
-import { pluralize } from "src/utils";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { WarningAlert } from "../WarningAlert";
@@ -33,38 +33,46 @@ type ImportDAGErrorModalProps = {
   warnings?: Array<DAGWarningResponse>;
 };
 
-export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, onClose, open, warnings }) => (
-  <Dialog.Root onOpenChange={onClose} open={open} scrollBehavior="inside" size="xl">
-    <Dialog.Content backdrop>
-      <Dialog.Header>
-        <HStack fontSize="xl">
-          <LuFileWarning />
-          <Heading>
-            {Boolean(error) ? "1 Error" : ""}
-            {Boolean(error) && warnings?.length !== undefined && warnings.length > 0 ? " and " : ""}
-            {warnings?.length !== undefined && warnings.length > 0
-              ? pluralize("Warning", warnings.length)
-              : ""}
-          </Heading>
-        </HStack>
-      </Dialog.Header>
+export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, onClose, open, warnings }) => {
+  const { t: translate } = useTranslation("components");
+  const heading = Boolean(error)
+    ? warnings?.length !== undefined && warnings.length > 0
+      ? translate("dagWarnings.errorAndWarning", {
+          warning:
+            warnings.length > 1
+              ? translate("dagWarnings.warning_other", { count: warnings.length })
+              : translate("dagWarnings.warning_one"),
+        })
+      : translate("dagWarnings.error_one")
+    : "";
 
-      <Dialog.CloseTrigger />
+  return (
+    <Dialog.Root onOpenChange={onClose} open={open} scrollBehavior="inside" size="xl">
+      <Dialog.Content backdrop>
+        <Dialog.Header>
+          <HStack fontSize="xl">
+            <LuFileWarning />
+            <Heading>{heading}</Heading>
+          </HStack>
+        </Dialog.Header>
 
-      <Dialog.Body>
-        {Boolean(error) && (
-          <VStack>
-            <ErrorAlert error={error} />
-            <Spacer />
-          </VStack>
-        )}
-        {warnings?.map((warning) => (
-          <VStack key={warning.message}>
-            <WarningAlert warning={warning} />
-            <Spacer />
-          </VStack>
-        ))}
-      </Dialog.Body>
-    </Dialog.Content>
-  </Dialog.Root>
-);
+        <Dialog.CloseTrigger />
+
+        <Dialog.Body>
+          {Boolean(error) && (
+            <VStack>
+              <ErrorAlert error={error} />
+              <Spacer />
+            </VStack>
+          )}
+          {warnings?.map((warning) => (
+            <VStack key={warning.message}>
+              <WarningAlert warning={warning} />
+              <Spacer />
+            </VStack>
+          ))}
+        </Dialog.Body>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+};

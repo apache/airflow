@@ -18,6 +18,7 @@
  */
 import { Box, Badge } from "@chakra-ui/react";
 import { Fragment } from "react";
+import { useTranslation } from "react-i18next";
 import { TbLogicOr } from "react-icons/tb";
 
 import { AndGateNode } from "./AndGateNode";
@@ -32,6 +33,8 @@ export const AssetExpression = ({
   readonly events?: Array<NextRunEvent>;
   readonly expression: ExpressionType | null;
 }) => {
+  const { t: translate } = useTranslation("common");
+
   if (expression === null) {
     return undefined;
   }
@@ -54,7 +57,7 @@ export const AssetExpression = ({
               {expression.any && index === expression.any.length - 1 ? undefined : (
                 <Badge alignItems="center" borderRadius="full" fontSize="sm" px={3} py={1}>
                   <TbLogicOr size={18} />
-                  OR
+                  {translate("expression.or")}
                 </Badge>
               )}
             </Fragment>

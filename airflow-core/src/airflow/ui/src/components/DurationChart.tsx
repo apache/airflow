@@ -31,11 +31,11 @@ import type { PartialEventContext } from "chartjs-plugin-annotation";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
 import { Bar } from "react-chartjs-2";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
-import { pluralize } from "src/utils";
 
 ChartJS.register(
   CategoryScale,
@@ -65,6 +65,7 @@ export const DurationChart = ({
   readonly entries: Array<RunResponse> | undefined;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
+  const { t: translate } = useTranslation("components");
   const navigate = useNavigate();
 
   if (!entries) {
@@ -98,7 +99,13 @@ export const DurationChart = ({
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
-        Last {pluralize(kind, entries.length)}
+        {entries.length > 1
+          ? kind === "Dag Run"
+            ? translate("durationChart.lastDagRun_other", { count: entries.length })
+            : translate("durationChart.lasttaskInstance_other", { count: entries.length })
+          : kind === "Dag Run"
+            ? translate("durationChart.lastDagRun_one")
+            : translate("durationChart.lasttaskInstance_one")}
       </Heading>
       <Bar
         data={{
@@ -127,7 +134,7 @@ export const DurationChart = ({
                     return 0;
                 }
               }),
-              label: "Queued duration",
+              label: translate("durationChart.queuedDuration"),
             },
             {
               backgroundColor: entries.map(
@@ -137,7 +144,7 @@ export const DurationChart = ({
               data: entries.map((entry: RunResponse) =>
                 entry.start_date === null ? 0 : Number(getDuration(entry.start_date, entry.end_date)),
               ),
-              label: "Run duration",
+              label: translate("durationChart.runDuration"),
             },
           ],
           labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD, hh:mm:ss")),
@@ -186,10 +193,10 @@ export const DurationChart = ({
               ticks: {
                 maxTicksLimit: 3,
               },
-              title: { align: "end", display: true, text: "Run After" },
+              title: { align: "end", display: true, text: translate("durationChart.runAfter") },
             },
             y: {
-              title: { align: "end", display: true, text: "Duration (seconds)" },
+              title: { align: "end", display: true, text: translate("durationChart.duration") },
             },
           },
         }}

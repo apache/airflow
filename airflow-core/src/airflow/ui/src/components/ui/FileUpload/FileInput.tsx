@@ -19,6 +19,7 @@
 import type { ButtonProps, RecipeProps } from "@chakra-ui/react";
 import { Button, FileUpload as ChakraFileUpload, Span, useRecipe } from "@chakra-ui/react";
 import { forwardRef } from "react";
+import { useTranslation } from "react-i18next";
 
 type Assign<T, U> = Omit<T, keyof U> & U;
 
@@ -27,6 +28,7 @@ type FileInputProps = {
 } & Assign<ButtonProps, RecipeProps<"input">>;
 
 export const FileInput = forwardRef<HTMLButtonElement, FileInputProps>((props, ref) => {
+  const { t: translate } = useTranslation("components");
   const inputRecipe = useRecipe({ key: "input" });
   const [recipeProps, restProps] = inputRecipe.splitVariantProps(props);
   const { placeholder = "Select file(s)", ...rest } = restProps;
@@ -40,7 +42,7 @@ export const FileInput = forwardRef<HTMLButtonElement, FileInputProps>((props, r
               return <span>{acceptedFiles[0]?.name}</span>;
             }
             if (acceptedFiles.length > 1) {
-              return <span>{acceptedFiles.length} files</span>;
+              return <span>{translate("fileUpload.files_other", { count: acceptedFiles.length })}</span>;
             }
 
             return <Span color="fg.subtle">{placeholder}</Span>;

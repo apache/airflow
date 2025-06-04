@@ -24,6 +24,7 @@ import { afterEach, describe, it, vi, expect } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
+import "../../i18n/config";
 import { DagCard } from "./DagCard";
 
 const mockDag = {

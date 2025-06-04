@@ -24,6 +24,15 @@
     "githubRepo": "GitHub Ablage",
     "restApiReference": "REST API Referenz"
   },
+  "duration": "Laufzeit",
+  "endDate": "Enddatum",
+  "expression": {
+    "all": "Alle",
+    "and": "UND",
+    "any": "Jeder",
+    "or": "ODER"
+  },
+  "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
   "modal": {
@@ -54,6 +63,7 @@
     "running": "Laufende",
     "scheduled": "Geplant"
   },
+  "runId": "Lauf Id",
   "runTypes": {
     "asset_triggered": "Durch Datenset (Asset) angestoßen",
     "backfill": "Nachträglich Aufgefüllt",
@@ -68,6 +78,8 @@
     "users": "Benutzer"
   },
   "selectLanguage": "Sprache wählen",
+  "startDate": "Startdatum",
+  "state": "Status",
   "states": {
     "deferred": "Delegiert",
     "failed": "Fehlgeschlagen",
@@ -118,5 +130,6 @@
     "utc": "UTC (Koordinierte Weltzeit)"
   },
   "triggered": "Angestoßen",
+  "tryNumber": "Versuch Nummer",
   "user": "Benutzer"
 }
