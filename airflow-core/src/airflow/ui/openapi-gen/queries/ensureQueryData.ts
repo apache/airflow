@@ -14,7 +14,6 @@ import {
   DagStatsService,
   DagVersionService,
   DagWarningService,
-  DagsService,
   DashboardService,
   DependenciesService,
   EventLogService,
@@ -362,7 +361,7 @@ export const ensureUseBackfillServiceGetBackfillData = (
     queryFn: () => BackfillService.getBackfill({ backfillId }),
   });
 /**
- * List Backfills
+ * List Backfills Ui
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
@@ -372,7 +371,7 @@ export const ensureUseBackfillServiceGetBackfillData = (
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseBackfillServiceListBackfills1Data = (
+export const ensureUseBackfillServiceListBackfillsUiData = (
   queryClient: QueryClient,
   {
     active,
@@ -389,8 +388,8 @@ export const ensureUseBackfillServiceListBackfills1Data = (
   } = {},
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({ active, dagId, limit, offset, orderBy }),
-    queryFn: () => BackfillService.listBackfills1({ active, dagId, limit, offset, orderBy }),
+    queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }),
+    queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }),
   });
 /**
  * Get Connection
@@ -923,6 +922,91 @@ export const ensureUseDagServiceGetDagTagsData = (
   queryClient.ensureQueryData({
     queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }),
     queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
+  });
+/**
+ * Get Dags
+ * Get DAGs with recent DagRun.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.tagsMatchMode
+ * @param data.owners
+ * @param data.dagIds
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.excludeStale
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @param data.orderBy
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const ensureUseDagServiceGetDagsUiData = (
+  queryClient: QueryClient,
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagIds,
+    dagRunsLimit,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    orderBy,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagIds?: string[];
+    dagRunsLimit?: number;
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseDagServiceGetDagsUiKeyFn({
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagIds,
+      dagRunsLimit,
+      excludeStale,
+      lastDagRunState,
+      limit,
+      offset,
+      orderBy,
+      owners,
+      paused,
+      tags,
+      tagsMatchMode,
+    }),
+    queryFn: () =>
+      DagService.getDagsUi({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }),
   });
 /**
  * Get Event Log
@@ -2306,86 +2390,6 @@ export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClie
   queryClient.ensureQueryData({
     queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(),
     queryFn: () => AuthLinksService.getAuthMenus(),
-  });
-/**
- * Recent Dag Runs
- * Get recent DAG runs.
- * @param data The data for the request.
- * @param data.dagRunsLimit
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.tagsMatchMode
- * @param data.owners
- * @param data.dagIds
- * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
- * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
- * @param data.excludeStale
- * @param data.paused
- * @param data.lastDagRunState
- * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseDagsServiceRecentDagRunsData = (
-  queryClient: QueryClient,
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagIds,
-    dagRunsLimit,
-    excludeStale,
-    lastDagRunState,
-    limit,
-    offset,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagIds?: string[];
-    dagRunsLimit?: number;
-    excludeStale?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
-      dagDisplayNamePattern,
-      dagIdPattern,
-      dagIds,
-      dagRunsLimit,
-      excludeStale,
-      lastDagRunState,
-      limit,
-      offset,
-      owners,
-      paused,
-      tags,
-      tagsMatchMode,
-    }),
-    queryFn: () =>
-      DagsService.recentDagRuns({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }),
   });
 /**
  * Get Dependencies
