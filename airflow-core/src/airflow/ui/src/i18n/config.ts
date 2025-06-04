@@ -21,10 +21,12 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
 import deCommon from "./locales/de/common.json";
+import deComponents from "./locales/de/components.json";
 import deConnections from "./locales/de/connections.json";
 import deDags from "./locales/de/dags.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
+import enComponents from "./locales/en/components.json";
 import enConnections from "./locales/en/connections.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
@@ -57,12 +59,14 @@ export const namespaces = ["common", "dashboard", "dags", "connections"] as cons
 const resources = {
   de: {
     common: deCommon,
+    components: deComponents,
     connections: deConnections,
     dags: deDags,
     dashboard: deDashboard,
   },
   en: {
     common: enCommon,
+    components: enComponents,
     connections: enConnections,
     dags: enDags,
     dashboard: enDashboard,
