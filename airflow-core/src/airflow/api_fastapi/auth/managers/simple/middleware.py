@@ -28,5 +28,7 @@ class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         token = SimpleAuthManagerLogin.create_token_all_admins()
-        request.scope["headers"].append((b"authorization", f"Bearer {token}".encode()))
+        request.scope["headers"].insert(
+            0, (b"authorization", f"Bearer {token}".encode())
+        )
         return await call_next(request)
