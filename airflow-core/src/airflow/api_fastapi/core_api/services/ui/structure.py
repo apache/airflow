@@ -116,18 +116,18 @@ def get_upstream_assets(
     return nodes, edges
 
 
-def bind_output_assets_to_task(edges: list[dict], serialized_dag: SerializedDagModel) -> None:
-    """Try to bind the downstream assets to the relevant task that produces them."""
+def bind_output_assets_to_tasks(edges: list[dict], serialized_dag: SerializedDagModel) -> None:
+    """
+    Try to bind the downstream assets to the relevant task that produces them.
+
+    This function will mutate the `edges` in place.
+    """
     outlet_asset_references = serialized_dag.dag_model.task_outlet_asset_references
 
-    downstream_asset_related_edges = [
-        edge
-        for edge in edges
-        if edge["target_id"].startswith("asset:") or edge["target_id"].startswith("asset-alias:")
-    ]
+    downstream_asset_related_edges = [edge for edge in edges if edge["target_id"].startswith("asset:")]
 
     for edge in downstream_asset_related_edges:
-        asset_id = int(edge["target_id"].strip("asset:").strip("asset-alias:"))
+        asset_id = int(edge["target_id"].strip("asset:"))
         try:
             # Try to attach the outlet asset to the relevant task
             outlet_asset_reference = next(

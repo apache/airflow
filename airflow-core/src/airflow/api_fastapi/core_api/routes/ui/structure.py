@@ -26,7 +26,10 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.api_fastapi.core_api.services.ui.structure import bind_output_assets_to_task, get_upstream_assets
+from airflow.api_fastapi.core_api.services.ui.structure import (
+    bind_output_assets_to_tasks,
+    get_upstream_assets,
+)
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dag_edges import dag_edges
@@ -139,6 +142,6 @@ def structure_data(
 
         data["edges"] += start_edges + edges + end_edges
 
-    bind_output_assets_to_task(data["edges"], serialized_dag)
+    bind_output_assets_to_tasks(data["edges"], serialized_dag)
 
     return StructureDataResponse(**data)
