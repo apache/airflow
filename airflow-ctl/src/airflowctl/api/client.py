@@ -139,16 +139,18 @@ class Credentials:
         """Load the credentials from keyring and URL from disk file."""
         default_config_dir = user_config_path("airflow", "Apache Software Foundation")
         credential_path = os.path.join(default_config_dir, self.input_cli_config_file)
+        if self.client_kind == ClientKind.AUTH:
+            # Saving the URL set from the Auth Commands if Kind is AUTH
+            credentials = Credentials()
+            return credentials
         if os.path.exists(credential_path):
             try:
                 with open(credential_path) as f:
                     credentials = json.load(f)
                     self.api_url = credentials["api_url"]
                     self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
-            except FileNotFoundError:
-                if self.client_kind == ClientKind.AUTH:
-                    # Saving the URL set from the Auth Commands if Kind is AUTH
-                    self.save()
+            except FileNotFoundError as e:
+                raise e
             return self
         raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
 
