@@ -47,3 +47,30 @@ def header_accept_json_or_text_depends(
 
 
 HeaderAcceptJsonOrText = Annotated[Mimetype, Depends(header_accept_json_or_text_depends)]
+
+
+def header_accept_json_or_ndjson_depends(
+    accept: Annotated[
+        str,
+        Header(
+            json_schema_extra={
+                "type": "string",
+                "enum": [Mimetype.JSON, Mimetype.NDJSON, Mimetype.ANY],
+            }
+        ),
+    ] = Mimetype.ANY,
+) -> Mimetype:
+    if accept.startswith(Mimetype.ANY):
+        return Mimetype.ANY
+    if accept.startswith(Mimetype.JSON):
+        return Mimetype.JSON
+    if accept.startswith(Mimetype.NDJSON) or accept.startswith(Mimetype.ANY):
+        return Mimetype.NDJSON
+
+    raise HTTPException(
+        status_code=status.HTTP_406_NOT_ACCEPTABLE,
+        detail="Only application/json or application/x-ndjson is supported",
+    )
+
+
+HeaderAcceptJsonOrNdjson = Annotated[Mimetype, Depends(header_accept_json_or_ndjson_depends)]

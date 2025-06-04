@@ -28,7 +28,7 @@ Create Date: 2024-11-18 18:41:50.849514
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 from sqlalchemy import text
 from sqlalchemy.dialects.mysql import LONGBLOB
 
@@ -77,9 +77,24 @@ def upgrade():
     condition = condition_templates.get(dialect)
     if not condition:
         raise RuntimeError(f"Unsupported dialect: {dialect}")
-
     # Key is a reserved keyword in MySQL, so we need to quote it
     quoted_key = conn.dialect.identifier_preparer.quote("key")
+    if dialect == "postgresql" and not context.is_offline_mode():
+        curr_timeout = (
+            int(
+                conn.execute(
+                    text("""
+                        SELECT setting
+                        FROM pg_settings
+                        WHERE name = 'statement_timeout'
+                    """)
+                ).scalar_one()
+            )
+            / 1000
+        )
+        if curr_timeout > 0 and curr_timeout < 1800:
+            print("setting local statement timeout to 1800s")
+            conn.execute(text("SET LOCAL statement_timeout='1800s'"))
 
     # Archive pickled data using the condition
     conn.execute(

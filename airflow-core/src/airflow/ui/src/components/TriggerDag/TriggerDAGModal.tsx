@@ -20,7 +20,7 @@ import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react
 import React, { useState } from "react";
 
 import { useDagServiceGetDag } from "openapi/queries";
-import { Dialog } from "src/components/ui";
+import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
@@ -93,7 +93,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             </Center>
           ) : (
             <>
-              {dag && hasSchedule ? (
+              {dag ? (
                 <RadioCardRoot
                   my={4}
                   onChange={(event) => {
@@ -107,11 +107,14 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                       label="Single Run"
                       value={RunMode.SINGLE}
                     />
-                    <RadioCardItem
-                      description="Run this DAG for a range of dates"
-                      label="Backfill"
-                      value={RunMode.BACKFILL}
-                    />
+                    <Tooltip content="Backfill requires a schedule" disabled={hasSchedule}>
+                      <RadioCardItem
+                        description="Run this DAG for a range of dates"
+                        disabled={!hasSchedule}
+                        label="Backfill"
+                        value={RunMode.BACKFILL}
+                      />
+                    </Tooltip>
                   </HStack>
                 </RadioCardRoot>
               ) : undefined}

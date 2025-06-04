@@ -34,6 +34,7 @@ import airflow.dag_processing.collection
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
+    DagModelOperation,
     _get_latest_runs_stmt,
     update_dag_parsing_results_in_db,
 )
@@ -45,7 +46,6 @@ from airflow.models.asset import (
     AssetModel,
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
-    asset_trigger_association_table,
 )
 from airflow.models.dag import DAG
 from airflow.models.errors import ParseImportError
@@ -55,7 +55,6 @@ from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.utils import timezone as tz
-from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -130,34 +129,37 @@ class TestAssetModelOperation:
             (False, False, 0),
         ],
     )
-    def test_add_asset_trigger_references(self, is_active, is_paused, expected_num_triggers, dag_maker):
-        trigger = TimeDeltaTrigger(timedelta(seconds=0))
-        classpath, kwargs = trigger.serialize()
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_trigger_references(self, session, is_active, is_paused, expected_num_triggers):
+        classpath, kwargs = TimeDeltaTrigger(timedelta(seconds=0)).serialize()
         asset = Asset(
             "test_add_asset_trigger_references_asset",
             watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
         )
 
-        with dag_maker(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:
+        with DAG(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:
             EmptyOperator(task_id="mytask")
 
-            asset_op = AssetModelOperation.collect({"test_add_asset_trigger_references_dag": dag})
+        dags = {dag.dag_id: dag}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
 
-        with create_session() as session:
-            # Update `is_active` and `is_paused` properties from DAG
-            dags = session.query(DagModel).all()
-            for dag in dags:
-                dag.is_stale = not is_active
-                dag.is_paused = is_paused
+        # Simulate dag unpause and deletion.
+        dag_model = orm_dags[dag.dag_id]
+        dag_model.is_stale = not is_active
+        dag_model.is_paused = is_paused
 
-            orm_assets = asset_op.sync_assets(session=session)
-            session.flush()
-            asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
-            asset_op.add_asset_trigger_references(orm_assets, session=session)
-            session.flush()
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
 
-            assert session.query(Trigger).count() == expected_num_triggers
-            assert session.query(asset_trigger_association_table).count() == expected_num_triggers
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        asset_model = session.scalars(select(AssetModel)).one()
+        assert len(asset_model.triggers) == expected_num_triggers
+        assert session.scalar(select(func.count()).select_from(Trigger)) == expected_num_triggers
 
     @pytest.mark.parametrize(
         "schedule, model, columns, expected",

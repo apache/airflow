@@ -137,7 +137,7 @@ dependencies = [
     "python-slugify>=7.0.0",
     "PyOpenSSL>=23.0.0",
     "sqlalchemy-bigquery>=1.2.1",
-    "sqlalchemy-spanner>=1.6.2",
+    "sqlalchemy-spanner>=1.6.2,!=1.12.0",
     "tenacity>=8.1.0",
     "immutabledict>=4.2.0",
     # types-protobuf 5.29.1.20250402 is a partial stub package, leading to mypy complaining
@@ -202,6 +202,9 @@ dependencies = [
 "trino" = [
     "apache-airflow-providers-trino"
 ]
+"http" = [
+    "apache-airflow-providers-http"
+]
 
 [dependency-groups]
 dev = [
@@ -215,6 +218,7 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-facebook",
+    "apache-airflow-providers-http",
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-microsoft-mssql",
     "apache-airflow-providers-mysql",

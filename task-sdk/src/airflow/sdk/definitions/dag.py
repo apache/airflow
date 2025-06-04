@@ -23,7 +23,6 @@ import itertools
 import logging
 import os
 import sys
-import warnings
 import weakref
 from collections import abc
 from collections.abc import Collection, Iterable, MutableSet
@@ -51,6 +50,7 @@ from airflow.exceptions import (
     ParamValidationError,
     TaskNotFound,
 )
+from airflow.models.deadline import DeadlineAlert
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.node import validate_key
@@ -74,8 +74,8 @@ if TYPE_CHECKING:
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.abstractoperator import Operator
+    from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
     from airflow.utils.types import EdgeInfoType
@@ -107,7 +107,7 @@ _DAG_HASH_ATTRS = frozenset(
         "template_searchpath",
         "last_loaded",
         "schedule",
-        # TODO: Task-SDK: we should be hashing on timetable now, not scheulde!
+        # TODO: Task-SDK: we should be hashing on timetable now, not schedule!
         # "timetable",
     }
 )
@@ -406,7 +406,11 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    sla_miss_callback: None = attrs.field(default=None)
+    deadline: DeadlineAlert | None = attrs.field(
+        default=None,
+        validator=attrs.validators.optional(attrs.validators.instance_of(DeadlineAlert)),
+    )
+
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
     )
@@ -546,15 +550,6 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
-
-    @sla_miss_callback.validator
-    def _validate_sla_miss_callback(self, _, value):
-        if value is not None:
-            warnings.warn(
-                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
-                stacklevel=2,
-            )
-        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1198,7 +1193,7 @@ class DAG:
                                 ti.set_state(State.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", ti.task, ti.logical_date)
                             else:
-                                _run_task(ti=ti)
+                                _run_task(ti=ti, run_triggerer=True)
                         except Exception:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
@@ -1213,7 +1208,7 @@ class DAG:
         return dr
 
 
-def _run_task(*, ti):
+def _run_task(*, ti, run_triggerer=False):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1249,8 +1244,12 @@ def _run_task(*, ti):
             )
 
             msg = taskrun_result.msg
+            ti.set_state(taskrun_result.ti.state)
+            ti.task = taskrun_result.ti.task
 
-            if taskrun_result.ti.state == State.DEFERRED and isinstance(msg, DeferTask):
+            if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
+                from airflow.utils.session import create_session
+
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(State.QUEUED)
@@ -1259,11 +1258,15 @@ def _run_task(*, ti):
                 trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
                 event = _run_inline_trigger(trigger)
                 ti.next_method = msg.next_method
-                ti.next_kwargs = {"event": event.payload} if event else msg.kwargs
+                ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
-                ti.set_state(State.SUCCESS)
-            break
+                # Set the state to SCHEDULED so that the task can be resumed.
+                with create_session() as session:
+                    ti.state = State.SCHEDULED
+                    session.add(ti)
+
+            return taskrun_result
         except Exception:
             log.exception("[DAG TEST] Error running task %s", ti)
             if ti.state not in State.finished:
@@ -1338,6 +1341,7 @@ if TYPE_CHECKING:
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        deadline: DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,

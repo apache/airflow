@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-hive``
 
-Release: ``9.0.6``
+Release: ``9.1.0``
 
 
 `Apache Hive <https://hive.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.hive`` provider. All classes for this pr
 are in ``airflow.providers.apache.hive`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.6/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.0/>`_.
 
 Installation
 ------------
@@ -88,4 +88,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.6/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.0/changelog.html>`_.

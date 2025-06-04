@@ -80,9 +80,9 @@ ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
     [
         {
-            "description": "-amazon,googl...standard",
-            "test_types": "Providers[-amazon,google,standard] "
-            "Providers[amazon] Providers[google] Providers[standard]",
+            "description": "-amazon,celer...standard",
+            "test_types": "Providers[-amazon,celery,google,standard] "
+            "Providers[amazon] Providers[celery] Providers[google] Providers[standard]",
         }
     ]
 )
@@ -162,7 +162,8 @@ ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
 
 All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
     "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,"
-    "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,"
+    "compile-fab-assets,generate-openapi-spec-fab,identity,"
+    "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,"
     "mypy-devel-common,mypy-providers,mypy-task-sdk,validate-operators-init"
 )
 
@@ -413,7 +414,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-helm-tests": "false",
                     "run-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "false",
+                    "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -457,7 +458,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-helm-tests": "false",
                     "run-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "false",
+                    "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -505,7 +506,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-helm-tests": "false",
                     "run-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "false",
+                    "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -553,7 +554,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-helm-tests": "false",
                     "run-tests": "true",
                     "run-amazon-tests": "false",
-                    "docs-build": "false",
+                    "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -689,7 +690,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord http",
+                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord google http",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -709,8 +710,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "amazon...apache.livy,d",
-                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
+                                "description": "amazon...google",
+                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http] Providers[google]",
                             }
                         ]
                     ),
@@ -720,9 +721,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "description": "amazon...apache.livy",
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
-                            {"description": "dbt.cloud", "test_types": "Providers[dbt.cloud]"},
-                            {"description": "dingding", "test_types": "Providers[dingding]"},
+                            {
+                                "description": "dbt.cloud...dingding",
+                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
+                            },
                             {"description": "discord", "test_types": "Providers[discord]"},
+                            {"description": "google", "test_types": "Providers[google]"},
                             {"description": "http", "test_types": "Providers[http]"},
                         ]
                     ),
@@ -981,7 +985,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "run-amazon-tests": "false",
-                "docs-build": "false",
+                "docs-build": "true",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -1051,7 +1055,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "run-amazon-tests": "false",
-                "docs-build": "false",
+                "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
@@ -1243,6 +1247,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "mypy-checks": "[]",
             },
             id="Run docs-build for SECURITY.md",
+        ),
+        pytest.param(
+            ("go-sdk/sdk/variable.go",),
+            {"run-go-sdk-tests": "true"},
+            id="Run go tests for go-sdk",
         ),
     ],
 )
@@ -1941,7 +1950,7 @@ def test_expected_output_push(
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql "
-                "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
+                "facebook google hashicorp http microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1952,7 +1961,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
+                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
@@ -1967,7 +1976,7 @@ def test_expected_output_push(
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
-                            "hashicorp,microsoft.azure,microsoft.mssql,mysql,"
+                            "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
                             "Providers[google]",
                         }
@@ -2001,7 +2010,7 @@ def test_expected_output_push(
             id="Tests for all airflow core types except providers should run if model file changed",
         ),
         pytest.param(
-            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml",),
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml",),
             {
                 "selected-providers-list-as-string": "",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -2229,7 +2238,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/google/docs/some_file.rst",),
             {
                 "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
-                "cncf.kubernetes common.compat common.sql facebook google hashicorp "
+                "cncf.kubernetes common.compat common.sql facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh trino",
             },

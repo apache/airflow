@@ -32,6 +32,6 @@ This package provides remote execution capabilities via the
 
 
 This is detailed commit list of changes for versions provider package: ``microsoft.psrp``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

@@ -71,7 +71,6 @@ class TestHttpSensor:
             endpoint="",
             request_params={},
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
         with pytest.raises(AirflowException, match="AirflowException raised here!"):
@@ -99,7 +98,6 @@ class TestHttpSensor:
             endpoint="",
             request_params={},
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
         assert task.execute(context={}) == "somedata"
@@ -129,7 +127,6 @@ class TestHttpSensor:
             method="HEAD",
             response_check=resp_check,
             extra_options={"check_response": False},
-            timeout=5,
             poke_interval=1,
         )
 
@@ -150,7 +147,6 @@ class TestHttpSensor:
             request_params={},
             method="HEAD",
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
 
@@ -182,7 +178,6 @@ class TestHttpSensor:
             endpoint="",
             request_params={},
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
 
@@ -208,7 +203,6 @@ class TestHttpSensor:
             request_params={},
             method="HEAD",
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
 
@@ -269,7 +263,6 @@ class TestHttpSensor:
             request_params={},
             method="GET",
             response_check=resp_check,
-            timeout=5,
             poke_interval=1,
         )
         with pytest.raises(AirflowException, match="500:Internal Server Error"):
