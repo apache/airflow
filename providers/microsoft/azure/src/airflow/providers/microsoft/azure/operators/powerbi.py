@@ -72,7 +72,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Number of seconds to wait before rechecking the
         refresh status.
-    :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset#datasetrefreshrequest.
+    :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
     """
 
     template_fields: Sequence[str] = (
