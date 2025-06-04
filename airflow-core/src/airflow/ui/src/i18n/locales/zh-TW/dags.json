@@ -101,7 +101,7 @@
       "dagVersions": "Dag 版本",
       "duration": "持續時間",
       "endDate": "結束日期",
-      "runAfter": "之後執行",
+      "runAfter": "最早可執行時間",
       "runType": "執行類型",
       "startDate": "開始日期",
       "state": "狀態"
