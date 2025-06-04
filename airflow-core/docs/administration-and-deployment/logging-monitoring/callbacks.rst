@@ -50,7 +50,7 @@ There are six types of events that can trigger a callback:
 =========================================== ================================================================
 Name                                        Description
 =========================================== ================================================================
-``on_success_callback``                     Invoked when the DAG or task :ref:`succeeds <concepts:task-instances>`.
+``on_success_callback``                     Invoked when the :ref:`DAG succeeds <dag-run:dag-run-status>` or :ref:`task succeeds <concepts:task-instances>`.
                                             Available at the DAG or task level.
 ``on_failure_callback``                     Invoked when the task :ref:`fails <concepts:task-instances>`.
                                             Available at the DAG or task level.
