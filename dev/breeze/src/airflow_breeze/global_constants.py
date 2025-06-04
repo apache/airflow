@@ -20,17 +20,18 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
-import itertools
 import json
 import platform
 import subprocess
+from collections.abc import Generator
 from enum import Enum
+from pathlib import Path
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
 )
 
@@ -192,7 +193,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.1.1"
-UV_VERSION = "0.7.7"
+UV_VERSION = "0.7.8"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -558,9 +559,6 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PYPROJECT_TOML_FILES = AIRFLOW_ROOT_PATH.rglob("pyproject.toml")
-ALL_PROVIDER_YAML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
-ALL_PROVIDER_PYPROJECT_TOML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
@@ -571,12 +569,34 @@ UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
 )
 
+ALL_PYPROJECT_TOML_FILES = []
+
+
+def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
+    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
+    in_workspace = False
+    for line in pyproject_toml_content:
+        trimmed_line = line.strip()
+        if not in_workspace and trimmed_line.startswith("[tool.uv.workspace]"):
+            in_workspace = True
+        elif in_workspace:
+            if trimmed_line.startswith("#"):
+                continue
+            if trimmed_line.startswith('"'):
+                path = trimmed_line.split('"')[1]
+                ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
+                if trimmed_line.startswith('"providers/'):
+                    yield AIRFLOW_ROOT_PATH / path / "pyproject.toml"
+                    yield AIRFLOW_ROOT_PATH / path / "provider.yaml"
+            elif trimmed_line.startswith("]"):
+                break
+
 
 def _calculate_provider_deps_hash():
     import hashlib
 
     hasher = hashlib.sha256()
-    for file in sorted(itertools.chain(ALL_PROVIDER_PYPROJECT_TOML_FILES, ALL_PROVIDER_YAML_FILES)):
+    for file in sorted(get_all_provider_pyproject_toml_provider_yaml_files()):
         hasher.update(file.read_bytes())
     return hasher.hexdigest()
 
@@ -691,13 +711,13 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.10.5",
-        "remove-providers": "cloudant common.messaging fab git",
+        "remove-providers": "cloudant common.messaging fab git keycloak",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
         "airflow-version": "2.11.0",
-        "remove-providers": "cloudant common.messaging fab git",
+        "remove-providers": "cloudant common.messaging fab git keycloak",
         "run-tests": "true",
     },
     {

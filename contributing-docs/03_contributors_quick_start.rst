@@ -173,7 +173,7 @@ Setting up virtual-env
 ----------------------
 
 1. While you can use any virtualenv manager, we recommend using `UV <https://github.com/astral-sh/uv>`__
-   as your build and integration frontend. You can read more about UV and it's use in
+   as your build and integration frontend. You can read more about UV and its use in
    Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
 
 2. After creating the environment, you need to install a few more required packages for Airflow. The below command adds

@@ -32,7 +32,6 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.links.batch import (
     BatchJobDefinitionLink,
@@ -145,7 +144,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     def operator_extra_links(self):
         op_extra_links = [BatchJobDetailsLink()]
 
-        if isinstance(self, MappedOperator):
+        if self.is_mapped:
             wait_for_completion = self.partial_kwargs.get(
                 "wait_for_completion"
             ) or self.expand_input.value.get("wait_for_completion")

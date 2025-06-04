@@ -24,7 +24,7 @@ from typing import Annotated
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from airflow import DAG
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -133,7 +133,7 @@ def grid_data(
     # Retrieve, sort and encode the Task Instances
     tis_of_dag_runs, _ = paginated_select(
         statement=select(TaskInstance)
-        .join(TaskInstance.task_instance_note, isouter=True)
+        .options(selectinload(TaskInstance.task_instance_note))
         .where(TaskInstance.dag_id == dag.dag_id)
         .where(TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs])),
         filters=[],
