@@ -91,15 +91,16 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         return task_instance
 
     def _check_dag_run_state(self, dag_run: DagRun) -> None:
-        self.log.info("dag_run_state: %s", dag_run.state)
+        if dag_run:
+            self.log.info("dag_run_state: %s", dag_run.state)
 
-        if dag_run.state == DagRunState.FAILED:
-            self.log.info("DagRun %s for dag %s has failed, stopping expansion", self.run_id, self.dag_id)
+            if dag_run.state == DagRunState.FAILED:
+                self.log.info("DagRun %s for dag %s has failed, stopping expansion", self.run_id, self.dag_id)
 
-            raise AirflowException(f"Stopping expansion of tasks for DagRun {self.run_id} of DAG {self.dag_id} due to failure.")
+                raise AirflowException(f"Stopping expansion of tasks for DagRun {self.run_id} of DAG {self.dag_id} due to failure.")
 
     def _persist_task_instances(self, dag_run: DagRun, task_instances: list[TaskInstance], session: Session) -> None:
-        if task_instances:
+        if dag_run and task_instances:
             self.log.info("Persisting %d new task instances", len(task_instances))
             dag_run.task_instances.extend(task_instances)
             session.merge(dag_run)
