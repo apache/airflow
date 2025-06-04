@@ -237,6 +237,8 @@ class OpenLineageAdapter(LoggingMixin):
         job_name: str,
         end_time: str,
         task: OperatorLineage,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
         owners: list[str] | None,
         tags: list[str] | None,
         run_facets: dict[str, RunFacet] | None = None,
@@ -248,6 +250,8 @@ class OpenLineageAdapter(LoggingMixin):
         :param job_name: globally unique identifier of task between dags
         :param end_time: time of task completion
         :param tags: list of tags
+        :param nominal_start_time: scheduled time of dag run
+        :param nominal_end_time: following schedule of dag run
         :param task: metadata container with information extracted from operator
         :param owners: list of owners
         :param run_facets: additional run facets
@@ -260,6 +264,8 @@ class OpenLineageAdapter(LoggingMixin):
             eventTime=end_time,
             run=self._build_run(
                 run_id=run_id,
+                nominal_start_time=nominal_start_time,
+                nominal_end_time=nominal_end_time,
                 run_facets=run_facets,
             ),
             job=self._build_job(
@@ -281,6 +287,8 @@ class OpenLineageAdapter(LoggingMixin):
         job_name: str,
         end_time: str,
         task: OperatorLineage,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
         owners: list[str] | None,
         tags: list[str] | None,
         error: str | BaseException | None = None,
@@ -295,6 +303,8 @@ class OpenLineageAdapter(LoggingMixin):
         :param task: metadata container with information extracted from operator
         :param run_facets: custom run facets
         :param tags: list of tags
+        :param nominal_start_time: scheduled time of dag run
+        :param nominal_end_time: following schedule of dag run
         :param owners: list of owners
         :param error: error
         :param run_facets: additional run facets
@@ -318,6 +328,8 @@ class OpenLineageAdapter(LoggingMixin):
             eventTime=end_time,
             run=self._build_run(
                 run_id=run_id,
+                nominal_start_time=nominal_start_time,
+                nominal_end_time=nominal_end_time,
                 run_facets=run_facets,
             ),
             job=self._build_job(
@@ -384,6 +396,8 @@ class OpenLineageAdapter(LoggingMixin):
         run_id: str,
         end_date: datetime,
         logical_date: datetime,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
         tags: list[str] | None,
         clear_number: int,
         dag_run_state: DagRunState,
@@ -405,6 +419,8 @@ class OpenLineageAdapter(LoggingMixin):
                     run_id=self.build_dag_run_id(
                         dag_id=dag_id, logical_date=logical_date, clear_number=clear_number
                     ),
+                    nominal_start_time=nominal_start_time,
+                    nominal_end_time=nominal_end_time,
                     run_facets={
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
                         **get_airflow_debug_facet(),
@@ -428,6 +444,8 @@ class OpenLineageAdapter(LoggingMixin):
         run_id: str,
         end_date: datetime,
         logical_date: datetime,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
         tags: list[str] | None,
         clear_number: int,
         dag_run_state: DagRunState,
@@ -450,6 +468,8 @@ class OpenLineageAdapter(LoggingMixin):
                     run_id=self.build_dag_run_id(
                         dag_id=dag_id, logical_date=logical_date, clear_number=clear_number
                     ),
+                    nominal_start_time=nominal_start_time,
+                    nominal_end_time=nominal_end_time,
                     run_facets={
                         "errorMessage": error_message_run.ErrorMessageRunFacet(
                             message=msg, programmingLanguage="python"
