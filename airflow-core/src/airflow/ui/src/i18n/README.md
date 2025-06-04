@@ -23,11 +23,17 @@
 
 This document outlines the policy for internationalization (i18n) in Apache Airflow, detailing the lifecycle of translations within the project.
 This policy aims to avoid inconsistencies, maintenance issues, unclear ownership, and to ensure translation quality.
-The scope of this policy is applied to:
 
-- Each supported language included in the `airflow-core/src/airflow/ui/src/i18n/locales` directory of the Apache Airflow project, or any suggested new translation.
-- Contributors responsible for maintaining these translations by any of the roles defined below.
-- Contributors who apply changes in the default language (English) that may affect translations.
+### Scope
+
+This policy applies to:
+
+- Each supported locale included in `airflow-core/src/airflow/ui/src/i18n/locales`.
+- Contributors making changes in the default locale (English).
+- Contributors suggesting new locales to be added to the codebase.
+- Maintainers of supported locales in any role defined below.
+- Committers and PMC.
+- Release managers.
 
 > [!NOTE]
 > This policy currently applies only to changes made in Apache Airflow core, as i18n is not yet implemented for providers (including auth managers). When such support is added, this policy should be updated to reflect the expanded scope.
@@ -36,39 +42,37 @@ The scope of this policy is applied to:
 
 **Internationalization (i18n)** - The process of designing a software application so that it can be adapted to various languages and regions without engineering changes (see also the [Wikipedia article](https://en.wikipedia.org/wiki/Internationalization_and_localization)).
 
-**Supported translation** - A translation that has been officially accepted into the project, located in `airflow-core/src/airflow/ui/src/i18n/locales`.
+**Supported locale** - An officially accepted locale in `airflow-core/src/airflow/ui/src/i18n/locales`.
 
-**Default language** - The language used by default, and as a fallback to all other languages (English).
+**Default locale** - English (`en`), the primary locale and fallback for all other locales.
 
-**Translation owner** - A designated contributor responsible for the maintenance and quality for a supported translation.
+**Translation owner** - Designated contributor responsible for maintaining a supported locale.
 
-**Code owner** - An Apache Airflow committer designated in the `.github/CODEOWNERS` file for a supported translation. Only Code owners have write permissions to the repository and can be listed in `.github/CODEOWNERS`.
+**Code owner** - Apache Airflow committer with write permissions, listed in  `.github/CODEOWNERS`.
 
-**Translation sponsor** - An Apache Airflow committer who supports a non-comitter translation owner (e.g., by merging Pull Requests on their behalf).
+**Translation sponsor** - Apache Airflow committer supporting a non-committer translation owner (e.g., by communicating in the dev list or merging Pull Requests on their behalf).
 
-**Engaged translator** - An Apache Airflow contributor who actively participates in the translation process, yet is not a translation owner.
+**Engaged translator** - Active contributor participating in translation without formal ownership.
 
-**Release manager** - according to the definition in the [Release Management Policy](../../../../../../dev/README_RELEASE_PROVIDERS.md#what-the-provider-distributions-are).
+**Inactive translation/code owner** — A translation/code owner is considered inactive if they meet either of the following criteria:
 
-**Dev. list** - The Apache Airflow development mailing list: dev@airflow.apache.org.
-
-**Inactive translation/code owner** — A translation owner/code owner is considered inactive if they meet either of the following criteria:
-
-- The translation under their responsibility has remained incomplete for at least two consecutive releases.
+- The locale under their responsibility has remained incomplete for at least 2 consecutive releases.
 - They have not participated in the Apache Airflow project for more than 12 months.
+
+**Dev list** - The Apache Airflow development mailing list: dev@airflow.apache.org.
 
 ## 3. Wording/Phrasing
 
-- Unless specified explicitly, references to directories and files in the document refer to files in the `main` branch.
-- Where emphasised by capital letters, The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
-"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in the RFC 2119.
+- Unless explicitly stated otherwise, all references to directories and files in this document pertain to those in the `main` branch.
+- Where emphasised by capital letters, the keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
 
 ## 4. Roles & responsibilities
 
 ### 4.1. Translation owner
 
-- Translation owners are responsible for the following, in their assigned supported translation, according to established quality standards and procedures stated below:
-  - Ensuring translation remains up-to-date with source code changes in the default language.
+- Translation owners are responsible for the following, in their assigned supported locale, according to the established quality standards and procedures stated below:
+  - Ensuring locale remains up-to-date with source code changes in the default locale.
   - Reviewing the language aspects of translation-related Pull Requests (PRs).
   - Resolving translation-related conflicts in PRs.
   - Ensuring translation reflects current language usage and terminology.
@@ -76,75 +80,76 @@ The scope of this policy is applied to:
 
 ### 4.2. Code owner
 
-- Code owners are responsible for the following, in their assigned supported translation, according to the procedures stated below:
+- Code owners are responsible for the following, in their assigned supported locale, according to the procedures stated below:
   - Reviewing the technical aspects of translation-related PRs (e.g., linting, formatting, etc.).
   - Merging translation-related PRs approved by the translation owner.
-  - Resolving translation-related conflicts in PRs, when needed.
-  - Managing translation-related GitHub issues and discussions, when needed (e.g., closing issues).
-- Translations sponsors who function as code owners, are also responsible for ensuring that the translation owner is active and able to maintain the translation. If not, they should act according to section 6.4.
+  - Resolving translation-related conflicts in PRs, when there's a conflict between translation owners.
+  - Managing translation-related GitHub issues and discussions, when needed (e.g., closing GitHub issues).
+- Code owners who act as translation sponsors are also responsible for:
+  - Ensuring that the translation owner is active and able to maintain the translation.
+  - Act according to section 6.4 when the translation owner relinquishes their role or become inactive.
 
 ### 4.3. Engaged translator
 
-- Engaged translators do not have any formal responsibilities, but they are encouraged to contribute to translations by:
-  - Suggesting improvements to existing translations.
+- Engaged translators do not have any formal responsibilities, but they are encouraged to contribute to supported locales by:
+  - Suggesting improvements.
+  - Reviewing PRs.
   - Reporting issues or inconsistencies in translations.
   - Participating in discussions related to translations.
-  - Assisting translation owners with their tasks, when needed.
-  - Being 3rd party reviewers for translation-related PRs and conflicts, when needed.
-- They may be mentioned in a comment in the `.github/CODEOWNERS` file.
+  - Assisting translation owners with their tasks.
+  - Being 3rd party reviewers for translation-related conflicts, when needed.
+- Engaged translators may be mentioned in a comment in the `.github/CODEOWNERS` file.
 - Suitable candidates for translation ownership may be suggested from engaged translators, upon their consent and approval by the procedure in section 6.1.
 
 ## 5. Requirements
 
 ### 5.1. Translation ownership and code ownership
 
-Each supported translation, except for the default language, MUST meet one of the following conditions:
-
-- Have at least one translation owner who is also a code owner.
-- Have at least one translation owner, with a translation sponsor assigned as a code owner.
+- Each supported locale, except for the default language, MUST have at least one translation owner and at least one code owner assigned at all times, with these considerations:
+  - Ownership for both roles MUST be approved according to the process discussed in section 6.1.
+  - A single Apache Airflow committer MAY serve as both code owner and translation owner for the same locale.
+  - If none of the translation owners are code owners - there MAY be a translation sponsor assigned as a code owner.
+- When the above is not met, steps mentioned in section 6.4 SHOULD be taken by the appropriate roles.
 
 > [!NOTE]
-> It is welcomed and desired to have more than one individual translation owner to enable peer reviews and provide coverage during individual absences.
+> It is welcomed and desired to have more than one translation owner to enable peer reviews and provide coverage during absences.
 
-### 5.2. Approval of translation owners candidates
+### 5.2. Adding new locales
 
-- Translation owners candidates MUST declare and demonstrate a sufficient level of proficiency in the target language for translation purposes (as detailed in section 6.5), including technical terminology.
+To accept a new supported locale to the codebase, it MUST be approved through the process discussed in section 6.2.
+
+### 5.3. Translation owners candidates
+
+- Translation owners candidates MUST declare and demonstrate a sufficient level of proficiency in the target language for translation purposes, including technical terminology (as detailed in section 6.5).
 - Translation owners candidates, who are non-committers, MUST also meet the following criteria:
      - They are active long-term contributors to the Apache Airflow project at the time of request.
      - They have basic skills of working with GIT and GitHub, as well as modifying JSON translation files within their target language.
      - They have the support of an Apache Airflow committer who will act as a translation sponsor.
-- Translation owners candidates MUST go through the approval process detailed in section 6.1.
-
-### 5.3. Approval of new translations
-
-To accept a new translation to the codebase, it MUST be approved through a review process discussed in section 6.2.
 
 ### 5.4. Resolution of translation conflicts
 
 Translation conflicts MUST be resolved according to the procedures outlined in section 6.3.
 
-### 5.5. Adding / rephrasing terms
+### 5.5. Adding or rephrasing terms
 
-- When new terms are added to the default language, all translation owners SHOULD create a follow-up PR to comply with the changes in their assigned language within a reasonable time.
-- When rephrasing terms in the default language, all translation owners SHOULD do the same as above, **if needed**.
-- In busy times with many parallel UI changes it is acceptable to batch changes together, latest prior a release the differences SHOULD be cleared.
+- When new terms are added to the default locale, all translation owners SHOULD create a follow-up PR to comply with the changes in their assigned locale.
+- When existing terms are rephrased in the default language (key is the same but value changed), all translation owners SHOULD do the same as above, if the change in the intent or meaning affects the translation.
+- In busy times with many parallel UI changes it is acceptable to batch changes together. Differences SHOULD be cleared prior to a release at the latest.
 
 > [!NOTE]
-> Tooling for detecting missing translations is available (see Tools & Resources section below).
+> Tooling for detecting missing terms is available (see Tools & Resources section below).
 
 ### 5.6. Deprecating / refactoring terms
 
-When existing terms are deprecated or refactored (key renamed/relocated but value unchanged), **the contributor initiating the change is responsible for updating all language files, and not the translation/code owner**. Automation through Breeze tooling should be used when available.
+- When existing terms are deprecated or refactored in the default locale (key renamed/relocated but value unchanged), **the contributor initiating the change holds responsible for updating all relevant locale files, and not any of the locale's owners**. When such available, automation through Breeze tooling SHOULD be used.
 
-### 5.7. Approval and merging of translation-related Pull Requests (PRs)
+### 5.7. Merging of translation-related Pull Requests (PRs)
 
-- If the code owner is also a translation owner of the respective translation:
-    - Others' PRs should be approved and merged normally by them.
-    - Their own PRs should be approved and merged normally by another committer, preferably another code owner in their locale (if such exists).
-- Otherwise, if the code owner is sponsored:
-    - They should merge the translation-related PRs only after they are approved by the translation owner.
-- Other committers may review and approve translation-related PRs in any aspects, but they SHOULD NOT merge them without the approval of the translation owner and the consent of the code owner.
-- Before merging a translation-related PR, the translation should be checked for completeness using the provided tools (see section 8).
+- Before merging any translation-related PR, it MUST be:
+   - Approved by a translation owner of the respective locale for language aspects, according to the standards and guidelines.
+     - When a translation owner initiates a PR and is the only one assigned to the locale, they SHOULD instead ask for approval from a third party (e.g., engaged translator), or if such is not available, declare their self-approval for the language aspects.
+   - Approved by a code owner, or another committer on their behalf, for technical aspects (e.g., linting, formatting, etc.).
+- Before merging a translation-related PR, the translation SHOULD be checked for completeness using the provided tools (see section 8).
 
 > [!WARNING]
 > In languages with different word order than English, or in Right-To-Left (RTL) languages, it is important to validate that the changes are properly reflected in the UI.
@@ -152,50 +157,54 @@ When existing terms are deprecated or refactored (key renamed/relocated but valu
 
 ### 5.8. Version release
 
-- Requirements for release managers are defined in the [Release Management Policy](../../../../../../dev/README_RELEASE_AIRFLOW.md).
-
+- Release managers MUST follow the requirements for releasing changes in supported locales defined in the [Release Management Policy](../../../../../../dev/README_RELEASE_AIRFLOW.md).
 
 ## 6. Procedures
 
-### 6.1. Approval process of a translation owner
+### 6.1. Approval of ownership candidates
 
-- The designated code owner should post a thread in the dev. list to request for approval of the translation owner(s) for a supported translation:
-    - Approvals of a translation owner who is also the code owner can be done by a lazy consensus.
-    - Approvals of translation owners who are non-committers require at least one binding vote of at least 1 PMC member, and no objections from committers/PMC.
-- Within the thread, the code owner should demonstrate that the translation owner is suitable for the role, according to the requirements in section 4.2.
+- The designated code owner, should post a thread to the dev list, requesting the approval of:
+  - Themselves as the code owner in the suggested locale. If they are a translation sponsor, they should indicate it as well.
+  - Other code owner(s) in the suggested locale, if applicable.
+  - The identity of the translation owner(s) in the suggested locale (which could be themselves as well)
+- When introducing a new locale, the thread should announce that (including a link to the PR)
+- Within the thread, the code owner should demonstrate that the translation owner is suitable for the role, according to the requirements in section 5.3.
+- Approval of a code owner who is also the translation owner can be done by a lazy consensus.
+- Approval of any translation owner who is not a committer requires at least one binding vote of 1 PMC member, and no objections from other committers/PMC.
 
-### 6.2. Approval process of a new translation
+### 6.2. Approval of a new locale
 
-The following steps outline the process for approving a new translation:
+The following steps outline the process for approving a new locale to be added to the supported locales:
 
-- Creating a PR to add a new translation to the codebase ([see example](https://github.com/apache/airflow/pull/51258/files)), according to the standard and guidelines, which includes:
-    - The translation files in the `airflow-core/src/airflow/ui/src/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional variants should be handled in separate directories, where the name is suffixed with `-<VARIANT>`, and `<VARIANT>` follows ISO 3166-1 or UN M.49 codes in lowercase for the variant (e.g., `zh-tw` for Taiwanese Chinese).
+- Creating a PR for adding the suggested locale to the codebase ([see example](https://github.com/apache/airflow/pull/51258/files)), which includes:
+    - The locale files (translated according to the guidelines) in the `airflow-core/src/airflow/ui/src/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional variants should be handled in separate directories, where the name is suffixed with `-<VARIANT>`, and `<VARIANT>` is the variant follows ISO 3166-1 or UN M.49 codes in lowercase (e.g., `zh-tw` for Taiwanese Chinese).
     - Making the required modifications in `airflow-core/src/airflow/ui/src/i18n/config.ts` ([see example](https://github.com/apache/airflow/pull/51258/files#diff-bfb4d5fafd26d206fb4a545a41ba303f33d15a479d21e0a726fd743bdf9717ff)).
-    - Updating the `.github/CODEOWNERS` file to include the code owner(s).
-      > When assigning a translation sponsor, there should be a comment in the `.github/CODEOWNERS` indicating who the translation owner(s) and the translation sponsor are.
-- Apply procedure 6.1. to approve the translation owner, while announcing the introduction of the new language (including a link to the PR).
-- Only after the steps above are completed, the PR for the new translation could be merged (by the requirements in section 5.7).
+    - Changes to the `.github/CODEOWNERS` file to include the designated code owner(s) and translation owner(s) for the new locale, considering the following:
+        - A code owner who is also a translation sponsor should be indicated in a comment as well.
+        - If the PR author is neither eligible nor willing to become both of these roles, they should suggest relevant candidates for the missing role(s), or call for volunteers.
+- Applying the procedure in section 6.1. to approve the identities of the code owner(s) and the translation owner(s).
+- Only after the steps above are completed, the PR for the new translation may be merged (by the requirements in section 5.7).
 
 ### 6.3. Translation conflict resolution
 
-When a conflict arises in a translation-related PR, the following steps will be taken in order:
+When a translation conflict arises in a locale-related PR, the following steps will be taken in order:
 
 - The involved parties should first try to reach a consensus through discussion in the PR.
 - If no consensus is reached, a translation owner may decide the outcome.
 - If multiple translation owners are involved and cannot reach consensus, the code owner will decide. If the code owner is sponsored,
-they should base their decision on a neutral source (e.g., a third-party opinion, translation tool, or LLM such as ChatGPT or Claude).
-- If the conflict is between code owners, a PMC member will be involved to resolve the conflict.
+they should base their decision on a neutral source (e.g., a third-party opinion, translation tool, or LLM).
+- If the conflict is between code owners, one of them should raise a vote in the dev list for resolving the conflict (votes from PMC and committers are binding).
 
 ### 6.4. Relinquishing translation/code ownership
 
- - When a code owner asks to relinquish their role, or they become inactive, any another committer might:
+ - When a code owner asks to relinquish their role, or they become inactive, any another committer should:
     - Raise a PR for removal of the previous code owner from the `.github/CODEOWNERS` file.
-    - Post a thread in the dev. list that they step in as the code owner (either as translation sponsor, or translation owner according to section 6.1).
+    - Post a thread in the dev list that they step in as the code owner (either as a translation sponsor, or a translation owner according to steps discussed in section 6.1).
  - When a translation owner asks to relinquish their role, or they become inactive, and there are no other active translation owners, the code owner should:
     - Raise a PR for removal of the translation owner from the `.github/CODEOWNERS` file.
-    - Post a thread in the dev. list that they are looking for assigning someone else as the translation owner within 30 days.
+    - Post a thread in the dev list that they are looking for assigning someone else as the translation owner within 30 days.
     - If a replacement is found within this time, they should be approved according to section 6.1.
-    - Otherwise, the code owner should raise a vote in the dev. list for the removal of the translation from the codebase (7 days vote, PMC and committers votes are counted as binding).
+    - Otherwise, the code owner should raise a vote in the dev list for the removal of the translation from the codebase (7 days vote, PMC and committers votes are counted as binding).
 
 ### 6.5 Demonstrating language proficiency
 
@@ -247,16 +256,17 @@ uv run ./check_translations_completeness.py --language <language_code> --add-mis
 ## 9. Compliance & enforcement
 
 > [!NOTE]
-> Currently, there is no automated enforcement, nor notifications, as part of the CI.
+> As of the time of writing, this policy is not enforced by any automated checks.
+> The following describe the desired future state of compliance and enforcement.
 
 - Automated checks SHOULD verify once in a while that all languages have corresponding entries for new terms in the default language. When translations are missing, relevant code owners should be notified.
 - Automated checks SHOULD allow a person doing translation to select the language and aid them in adding new translations so that they do not have to compare them manually. Possibly it can be done by adding `-–add-missing` to the verifying script that will add new entries with `TODO: translate: ENGLISH VERSION` and add pre-commit to not allow such `TODO:` entries to be committed.
 
-## 10. Exceptions and escalation
+## 10. Exceptions
 
-If any exceptions to this policy are needed, they MUST be discussed and approved by the Apache Airflow PMC (Project Management Committee) before implementation.
+If any exceptions to this policy are needed, they MUST be discussed and approved by voting in the dev list beforehand.
 
 ## 11. Review and updates
 
 This policy will be reviewed and updated as needed to ensure it remains relevant and effective.
-Suggested updates will be approved by voting in the dev. list (lazy consensus or binding voting, depending on the nature of the change).
+Depending on the nature of the change, suggested updates might need to be discussed and approved by voting in the dev list.

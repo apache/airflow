@@ -21,7 +21,7 @@
 **Table of contents**
 
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
-  - [Validating completeness of translation files](#validating-completeness-of-translation-files)
+  - [Validating completeness of i18n locale files](#validating-completeness-of-i18n-locale-files)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Making the cherry picking](#making-the-cherry-picking)
   - [Collapse Cadwyn Migrations](#collapse-cadwyn-migrations)
@@ -73,13 +73,13 @@ The first step of a release is to work out what is being included. This differs 
 - For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
 
 
-## Validating completeness of translation files
+## Validating completeness of i18n locale files
 
-At this point you should validate the completeness of the translation files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/src/i18n/README.md) for doing so.
-If there are any incomplete translations, copy the names of the incomplete locales and send out a reminder to the code owners to ensure completion by a due date of your choice
+At this point you should validate the completeness of the i18n locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/src/i18n/README.md) for doing so.
+If there are any incomplete locales, copy the names of the incomplete locales and send out a reminder to the code owners to ensure completion of the translation by a due date of your choice
 before cutting the release candidate (RC).
 The reminder should be sent via dev@airflow.apache.org mailing list, preferably with an accompanying GitHub issue for tracking purposes.
-Do not hold the release process beyond the due date if there are still incomplete translations.
+Do not hold the release process beyond the due date if there are still incomplete locales.
 
 Subject:
 
