@@ -2153,11 +2153,13 @@ class TestSchedulerJob:
         assert [x.state for x in tis] == ["scheduled", "scheduled"]
 
         _add_running_event(tis)  # This should "reset" the count of stuck queued
-        _queue_tasks(tis=tis)
 
-        for _ in range(3):  # should need to get stuck 3 more times before finally failing
+        for _ in range(3):  # Should be able to be stuck 3 more times before failing
+            _queue_tasks(tis=tis)
             with _loader_mock(mock_executors):
                 scheduler._handle_tasks_stuck_in_queued()
+            tis = dr.get_task_instances(session=session)
+
         log_events = [
             x.event for x in session.scalars(select(Log).where(Log.run_id == run_id).order_by(Log.id)).all()
         ]
