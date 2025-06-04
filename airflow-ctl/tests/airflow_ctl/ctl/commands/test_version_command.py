@@ -41,5 +41,8 @@ parser = cli_parser.get_parser()
 
 def test_ctl_version(mock_client):
     with redirect_stdout(StringIO()) as stdout:
-        version_dict = version_info(parser, api_client=mock_client)
-        assert str(version_dict) in stdout.getvalue()
+        version_info(parser.parse_args(["version"]), api_client=mock_client)
+        print(stdout.getvalue())
+        assert "version" in stdout.getvalue()
+        assert "git_version" in stdout.getvalue()
+        assert "airflowctl_version" in stdout.getvalue()
