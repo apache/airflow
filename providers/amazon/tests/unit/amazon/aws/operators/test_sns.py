@@ -72,6 +72,8 @@ class TestSnsPublishOperator:
         [
             ("abc", "a"),
             (None, None),
+            ("abc", None),
+            (None, "a"),
         ],
     )
     def test_execute(self, mocked_hook, message_deduplication_id_, message_group_id_):
