@@ -116,7 +116,7 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
             repo_url="https://github.com/apache/zzzairflow",
         )
-        assert bundle.repo_url == f"https://{ACCESS_TOKEN}@github.com/apache/zzzairflow"
+        assert bundle.repo_url == "https://github.com/apache/zzzairflow"
 
     def test_falls_back_to_connection_host_when_no_repo_url_provided(self):
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
@@ -564,9 +564,7 @@ class TestGitDagBundle:
             name="testa",
             tracking_ref="main",
             git_conn_id=conn_id,
-            repo_url="some_repo_url",
         )
-        assert bundle.repo_url == "some_repo_url"
         assert isinstance(bundle.hook, expected_hook_type)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")

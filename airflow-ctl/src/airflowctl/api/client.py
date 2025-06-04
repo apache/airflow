@@ -48,7 +48,7 @@ from airflowctl.api.operations import (
     VariablesOperations,
     VersionOperations,
 )
-from airflowctl.exceptions import AirflowCtlNotFoundException
+from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlNotFoundException
 from airflowctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
@@ -110,11 +110,13 @@ class Credentials:
         self,
         api_url: str | None = None,
         api_token: str | None = None,
+        client_kind: ClientKind | None = None,
         api_environment: str = "production",
     ):
         self.api_url = api_url
         self.api_token = api_token
         self.api_environment = os.getenv("AIRFLOW_CLI_ENVIRONMENT") or api_environment
+        self.client_kind = client_kind
 
     @property
     def input_cli_config_file(self) -> str:
@@ -136,13 +138,19 @@ class Credentials:
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
         default_config_dir = user_config_path("airflow", "Apache Software Foundation")
-        if os.path.exists(default_config_dir):
-            with open(os.path.join(default_config_dir, self.input_cli_config_file)) as f:
-                credentials = json.load(f)
-                self.api_url = credentials["api_url"]
-                self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
+        credential_path = os.path.join(default_config_dir, self.input_cli_config_file)
+        if os.path.exists(credential_path):
+            try:
+                with open(credential_path) as f:
+                    credentials = json.load(f)
+                    self.api_url = credentials["api_url"]
+                    self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
+            except FileNotFoundError:
+                if self.client_kind == ClientKind.AUTH:
+                    # Saving the URL set from the Auth Commands if Kind is AUTH
+                    self.save()
             return self
-        raise AirflowCtlNotFoundException(f"No credentials found in {default_config_dir}")
+        raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
 
 
 class BearerAuth(httpx.Auth):
@@ -254,7 +262,7 @@ class Client(httpx.Client):
 
 # API Client Decorator for CLI Actions
 @contextlib.contextmanager
-def get_client(kind: ClientKind = ClientKind.CLI):
+def get_client(kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI):
     """
     Get CLI API client.
 
@@ -262,9 +270,9 @@ def get_client(kind: ClientKind = ClientKind.CLI):
     """
     api_client = None
     try:
-        credentials = Credentials()
-        if kind == ClientKind.CLI:
-            credentials = credentials.load()
+        # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
+
+        credentials = Credentials(client_kind=kind).load()
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
@@ -280,7 +288,7 @@ def get_client(kind: ClientKind = ClientKind.CLI):
 
 
 def provide_api_client(
-    kind: ClientKind = ClientKind.CLI,
+    kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI,
 ) -> Callable[[Callable[PS, RT]], Callable[PS, RT]]:
     """
     Provide a CLI API Client to the decorated function.

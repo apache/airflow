@@ -561,7 +561,7 @@ OWNERSHIP_CLEANUP_DOCKER_TAG = (
 )
 
 
-def fix_ownership_using_docker(quiet: bool = False):
+def fix_ownership_using_docker(quiet: bool = True):
     if get_host_os() != "linux":
         # no need to even attempt fixing ownership on MacOS/Windows
         return
@@ -585,7 +585,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
-    run_command(cmd, text=True, check=False, capture_output=quiet)
+    run_command(cmd, text=True, check=False, quiet=quiet)
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
@@ -602,6 +602,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
             ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
             check=False,
             stderr=DEVNULL,
+            quiet=True,
         )
     else:
         for network in networks:
@@ -609,6 +610,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
                 ["docker", "network", "rm", network],
                 check=False,
                 stderr=DEVNULL,
+                quiet=True,
             )
 
 
@@ -893,6 +895,7 @@ def is_docker_rootless() -> bool:
             capture_output=True,
             check=False,
             text=True,
+            quiet=True,
         )
         if response.returncode == 0 and "rootless" in response.stdout.strip():
             get_console().print("[info]Docker is running in rootless mode.[/]\n")
@@ -901,3 +904,56 @@ def is_docker_rootless() -> bool:
         # we ignore if docker is missing
         pass
     return False
+
+
+def check_airflow_cache_builder_configured():
+    result_inspect_builder = run_command(["docker", "buildx", "inspect", "airflow_cache"], check=False)
+    if result_inspect_builder.returncode != 0:
+        get_console().print(
+            "[error]Airflow Cache builder must be configured to "
+            "build multi-platform images with multiple builders[/]"
+        )
+        get_console().print()
+        get_console().print(
+            "See https://github.com/apache/airflow/blob/main/dev/MANUALLY_BUILDING_IMAGES.md"
+            " for instructions on setting it up."
+        )
+        sys.exit(1)
+
+
+def check_regctl_installed():
+    result_regctl = run_command(["regctl", "version"], check=False)
+    if result_regctl.returncode != 0:
+        get_console().print("[error]Regctl must be installed and on PATH to release the images[/]")
+        get_console().print()
+        get_console().print(
+            "See https://github.com/regclient/regclient/blob/main/docs/regctl.md for installation info."
+        )
+        sys.exit(1)
+
+
+def check_docker_buildx_plugin():
+    result_docker_buildx = run_command(
+        ["docker", "buildx", "version"],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result_docker_buildx.returncode != 0:
+        get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
+        get_console().print()
+        get_console().print("See https://docs.docker.com/buildx/working-with-buildx/ for installation info.")
+        sys.exit(1)
+    from packaging.version import Version
+
+    version = result_docker_buildx.stdout.splitlines()[0].split(" ")[1].lstrip("v")
+    packaging_version = Version(version)
+    if packaging_version < Version("0.13.0"):
+        get_console().print("[error]Docker buildx plugin must be at least 0.13.0 to release the images[/]")
+        get_console().print()
+        get_console().print(
+            "See https://github.com/docker/buildx?tab=readme-ov-file#installing for installation info."
+        )
+        sys.exit(1)
+    else:
+        get_console().print(f"[success]Docker buildx plugin is installed and in good version: {version}[/]")

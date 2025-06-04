@@ -51,7 +51,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -159,11 +159,10 @@ def clear_db_assets():
         session.query(AssetDagRunQueue).delete()
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()
-        if AIRFLOW_V_2_10_PLUS:
-            from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
+        from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
 
-            session.query(AssetAliasModel).delete()
-            session.query(DagScheduleAssetAliasReference).delete()
+        session.query(AssetAliasModel).delete()
+        session.query(DagScheduleAssetAliasReference).delete()
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.asset import (
                 AssetActive,

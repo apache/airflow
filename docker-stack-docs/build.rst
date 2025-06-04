@@ -63,7 +63,7 @@ as ``root`` will fail with an appropriate error message.
    your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
    apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
    requirements, you will get an error message with conflict information, rather than a surprise
-   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   downgrade or upgrade of airflow. If you upgrade Airflow base image, you should also update the version
    to match the new version of airflow.
 
 .. note::
@@ -93,7 +93,7 @@ Note that similarly when adding individual packages, you need to use the ``airfl
    your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
    apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
    requirements, you will get an error message with conflict information, rather than a surprise
-   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   downgrade or upgrade of airflow. If you upgrade Airflow base image, you should also update the version
    to match the new version of airflow.
 
 
@@ -125,7 +125,7 @@ The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/d
 Add Airflow configuration with environment variables
 ....................................................
 
-The following example adds airflow configuration to the image. ``airflow.cfg`` file in
+The following example adds Airflow configuration to the image. ``airflow.cfg`` file in
 ``$AIRFLOW_HOME`` directory contains Airflow's configuration. You can set options with environment variables for those Airflow's configuration by using this format:
 :envvar:`AIRFLOW__{SECTION}__{KEY}` (note the double underscores).
 
@@ -155,7 +155,7 @@ Here is the comparison of the two approaches:
 +----------------------------------------------------+-----------+-------------+
 | Produces image heavily optimized for size          | No        | Yes         |
 +----------------------------------------------------+-----------+-------------+
-| Can build from custom airflow sources (forks)      | No        | Yes         |
+| Can build from custom Airflow sources (forks)      | No        | Yes         |
 +----------------------------------------------------+-----------+-------------+
 | Can build on air-gapped system                     | No        | Yes         |
 +----------------------------------------------------+-----------+-------------+
@@ -234,7 +234,7 @@ In the simplest case building your image consists of those steps:
 
 3) [Optional] Test the image. Airflow contains tool that allows you to test the image. This step, however,
    requires locally checked out or extracted Airflow sources. If you happen to have the sources you can
-   test the image by running this command (in airflow root folder). The output will tell you if the image
+   test the image by running this command (in Airflow root folder). The output will tell you if the image
    is "good-to-go".
 
 .. code-block:: shell
@@ -336,7 +336,7 @@ Important notes for the base images
 
 You should be aware, about a few things
 
-* The production image of airflow uses "airflow" user, so if you want to add some of the tools
+* The production image of Airflow uses "airflow" user, so if you want to add some of the tools
   as ``root`` user, you need to switch to it with ``USER`` directive of the Dockerfile and switch back to
   ``airflow`` user when you are done. Also you should remember about following the
   `best practices of Dockerfiles <https://docs.docker.com/develop/develop-images/dockerfile_best-practices/>`_
@@ -352,7 +352,7 @@ You should be aware, about a few things
 * The PyPI dependencies in Apache Airflow are installed in the ``~/.local`` virtualenv, of the "airflow" user,
   so PIP packages are installed to ``~/.local`` folder as if the ``--user`` flag was specified when running
   PIP. This has the effect that when you create a virtualenv with ``--system-site-packages`` flag, the
-  virtualenv created will automatically have all the same packages installed as local airflow installation.
+  virtualenv created will automatically have all the same packages installed as local Airflow installation.
   Note also that using ``--no-cache-dir`` in ``pip`` or ``--no-cache`` in ``uv`` is a good idea that can
   help to make your image smaller.
 
@@ -407,7 +407,7 @@ python package from PyPI.
 Example of adding ``apt`` package
 .................................
 
-The following example adds ``vim`` to the airflow image.
+The following example adds ``vim`` to the Airflow image.
 
 .. exampleinclude:: docker-examples/extending/add-apt-packages/Dockerfile
     :language: Dockerfile
@@ -465,7 +465,7 @@ Note that similarly when adding individual packages, you need to use the ``airfl
    your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
    apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
    requirements, you will get an error message with conflict information, rather than a surprise
-   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   downgrade or upgrade of airflow. If you upgrade Airflow base image, you should also update the version
    to match the new version of airflow.
 
 .. exampleinclude:: docker-examples/extending/add-requirement-packages/Dockerfile
@@ -518,10 +518,10 @@ The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/d
     :start-after: [START dag]
     :end-before: [END dag]
 
-Example of changing airflow configuration using environment variables
+Example of changing Airflow configuration using environment variables
 .....................................................................
 
-The following example adds airflow configuration changes to the airflow image.
+The following example adds Airflow configuration changes to the Airflow image.
 
 .. exampleinclude:: docker-examples/extending/add-airflow-configuration/Dockerfile
     :language: Dockerfile
@@ -595,7 +595,7 @@ When customizing the image you can choose a number of options how you install Ai
 * From locally stored binary packages for Airflow, Airflow Providers and other dependencies. This is
   particularly useful if you want to build Airflow in a highly-secure environment where all such packages
   must be vetted by your security team and stored in your private artifact registry. This also
-  allows to build airflow image in an air-gaped environment.
+  allows to build Airflow image in an air-gaped environment.
 * Side note. Building ``Airflow`` in an ``air-gaped`` environment sounds pretty funny, doesn't it?
 
 You can also add a range of customizations while building the image:
@@ -614,7 +614,7 @@ that it can be predictably installed, even if some new versions of Airflow depen
 released (or even dependencies of our dependencies!). The docker image and accompanying scripts
 usually determine automatically the right versions of constraints to be used based on the Airflow
 version installed and Python version. For example 2.0.2 version of Airflow installed from PyPI
-uses constraints from ``constraints-2.0.2`` tag). However, in some cases - when installing airflow from
+uses constraints from ``constraints-2.0.2`` tag). However, in some cases - when installing Airflow from
 GitHub for example - you have to manually specify the version of constraints used, otherwise
 it will default to the latest version of the constraints which might not be compatible with the
 version of Airflow you use.
@@ -655,7 +655,7 @@ You can use ``docker-context-files`` for the following purposes:
    your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
    apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
    requirements, you will get an error message with conflict information, rather than a surprise
-   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   downgrade or upgrade of airflow. If you upgrade Airflow base image, you should also update the version
    to match the new version of airflow.
 
 
@@ -730,7 +730,7 @@ package. The ``2.3.0`` constraints are used automatically.
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.9`` with additional airflow extras
+The following example builds the production image in version ``3.9`` with additional Airflow extras
 (``mssql,hdfs``) from ``2.3.0`` PyPI package, and additional dependency (``oauth2client``).
 
 .. exampleinclude:: docker-examples/customizing/pypi-extras-and-deps.sh
@@ -757,7 +757,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example builds the production image in version ``3.9`` with additional airflow extras from
+The following example builds the production image in version ``3.9`` with additional Airflow extras from
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling
@@ -871,7 +871,7 @@ Note, that those customizations are only available in the ``build`` segment of t
 are not present in the ``final`` image. If you wish to extend the final image and add custom ``.piprc`` and
 ``pip.conf``, you should add them in your own Dockerfile used to extend the Airflow image.
 
-Such customizations are independent of the way how airflow is installed.
+Such customizations are independent of the way how Airflow is installed.
 
 .. note::
   Similar results could be achieved by modifying the Dockerfile manually (see below) and injecting the
@@ -883,7 +883,7 @@ Such customizations are independent of the way how airflow is installed.
 
 The following - rather complex - example shows capabilities of:
 
-* Adding airflow extras (slack, odbc)
+* Adding Airflow extras (slack, odbc)
 * Adding PyPI dependencies (``azure-storage-blob, oauth2client, beautifulsoup4, dateparser, rocketchat_API,typeform``)
 * Adding custom environment variables while installing ``apt`` dependencies - both DEV and RUNTIME
   (``ACCEPT_EULA=Y'``)
@@ -914,7 +914,7 @@ installation as it is using external installation method.
 Note that as a prerequisite - you need to have downloaded wheel files. In the example below we
 first download such constraint file locally and then use ``pip download`` to get the ``.whl`` files needed
 but in most likely scenario, those wheel files should be copied from an internal repository of such .whl
-files. Note that ``AIRFLOW_VERSION_SPECIFICATION`` is only there for reference, the apache airflow ``.whl`` file
+files. Note that ``AIRFLOW_VERSION_SPECIFICATION`` is only there for reference, the Apache Airflow ``.whl`` file
 in the right version is part of the ``.whl`` files downloaded.
 
 Note that 'pip download' will only works on Linux host as some of the packages need to be compiled from

@@ -27,13 +27,70 @@
 Changelog
 ---------
 
+16.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * ``Remove operator TextGenerationModelPredictOperator use GenerativeModelGenerateContentOperator instead``
+
+* Hooks
+
+  * ``Remove GenerativeModelHook.get_text_generation_model use GenerativeModelHook.get_generative_model instead``
+  * ``Remove GenerativeModelHook.text_generation_model_predict use GenerativeModelHook.generative_model_generate_content instead``
+  * ``Remove split_tablename function from airflow.providers.google.cloud.hooks.bigquery``
+    ``use airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.split_tablename instead``
+
+* Links
+
+  * ``Remove AutoMLDatasetLink use TranslationLegacyDatasetLink instead``
+  * ``Remove AutoMLDatasetListLink use TranslationDatasetListLink instead``
+  * ``Remove AutoMLModelLink use TranslationLegacyModelLink instead``
+  * ``Remove AutoMLModelTrainLink use TranslationLegacyModelTrainLink instead``
+  * ``Remove AutoMLModelPredictLink use TranslationLegacyModelPredictLink``
+
+
+15.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add ORC support to GCSToBigQueryOperator and test for external tables (#49188)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix default value wait_for_operation_result in OperationHelper (#49121)``
+* ``Fix get_confluent_token callback for Managed Kafka service (#48926)``
+* ``Fix: BigQuery connection UI defaults 'Use Legacy SQL' to true on edit (#49038)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+* ``Deprecate start_sql_job in DataflowHook (#48663)``
+* ``type: annotate miss type in 'provider' (#49130)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+   * ``Fix xcom for system tests (#49337)``
+
 15.0.1
 ......
 
 Misc
 ~~~~
 
-* ``Deprecate Life Scrience service (#48862)``
+* ``Deprecate Life Science service (#48862)``
 
 Doc-only
 ~~~~~~~~

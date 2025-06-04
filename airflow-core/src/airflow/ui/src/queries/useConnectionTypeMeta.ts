@@ -99,9 +99,7 @@ export const useConnectionTypeMeta = () => {
     );
 
     if (populatedStandardFields.url_schema) {
-      if (!populatedStandardFields.schema) {
-        populatedStandardFields.schema = populatedStandardFields.url_schema;
-      }
+      populatedStandardFields.schema = populatedStandardFields.url_schema;
       delete populatedStandardFields.url_schema;
     }
 

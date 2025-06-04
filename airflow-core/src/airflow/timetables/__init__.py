@@ -17,14 +17,3 @@
 # under the License.
 # fmt: off
 """Timetables."""
-
-from __future__ import annotations
-
-from airflow.utils.deprecation_tools import add_deprecated_classes
-
-__deprecated_classes = {
-    "datasets": {
-        "DatasetOrTimeSchedule": "airflow.timetables.assets.AssetOrTimeSchedule",
-    },
-}
-add_deprecated_classes(__deprecated_classes, __name__)

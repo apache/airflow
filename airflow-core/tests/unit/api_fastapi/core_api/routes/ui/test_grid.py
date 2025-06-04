@@ -48,6 +48,7 @@ TASK_ID_3 = "task3"
 TASK_ID_4 = "task4"
 SUB_TASK_ID = "subtask"
 MAPPED_TASK_ID = "mapped_task"
+MAPPED_TASK_ID_2 = "mapped_task_2"
 TASK_GROUP_ID = "task_group"
 INNER_TASK_GROUP = "inner_task_group"
 INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
@@ -138,6 +139,31 @@ GRID_RUN_1 = {
             "state": "success",
             "task_count": 5,
             "task_id": "task_group",
+            "try_number": 0,
+        },
+        {
+            "child_states": {
+                "deferred": 0,
+                "failed": 0,
+                "no_status": 0,
+                "queued": 0,
+                "removed": 0,
+                "restarting": 0,
+                "running": 0,
+                "scheduled": 0,
+                "skipped": 0,
+                "success": 1,
+                "up_for_reschedule": 0,
+                "up_for_retry": 0,
+                "upstream_failed": 0,
+            },
+            "end_date": None,
+            "note": None,
+            "queued_dttm": None,
+            "start_date": None,
+            "state": "success",
+            "task_count": 1,
+            "task_id": "mapped_task_2",
             "try_number": 0,
         },
         {
@@ -339,6 +365,31 @@ GRID_RUN_2 = {
                 "queued": 0,
                 "removed": 0,
                 "restarting": 0,
+                "running": 0,
+                "scheduled": 0,
+                "skipped": 0,
+                "success": 0,
+                "up_for_reschedule": 0,
+                "up_for_retry": 0,
+                "upstream_failed": 0,
+            },
+            "end_date": None,
+            "note": None,
+            "queued_dttm": None,
+            "start_date": None,
+            "state": None,
+            "task_count": 1,
+            "task_id": "mapped_task_2",
+            "try_number": 0,
+        },
+        {
+            "child_states": {
+                "deferred": 0,
+                "failed": 0,
+                "no_status": 1,
+                "queued": 0,
+                "removed": 0,
+                "restarting": 0,
                 "running": 1,
                 "scheduled": 0,
                 "skipped": 0,
@@ -517,6 +568,17 @@ STRUCTURE = {
             "tooltip": "",
             "type": "task",
         },
+        {
+            "asset_condition_type": None,
+            "children": None,
+            "id": "mapped_task_2",
+            "is_mapped": True,
+            "label": "mapped_task_2",
+            "operator": "MockOperator",
+            "setup_teardown_type": None,
+            "tooltip": None,
+            "type": "task",
+        },
     ],
 }
 
@@ -536,7 +598,7 @@ def setup(dag_maker, session=None):
 
     # DAG 1
     with dag_maker(dag_id=DAG_ID, serialized=True, session=session) as dag:
-        EmptyOperator(task_id=TASK_ID)
+        task = EmptyOperator(task_id=TASK_ID)
 
         @task_group
         def mapped_task_group(arg1):
@@ -548,6 +610,9 @@ def setup(dag_maker, session=None):
             MockOperator.partial(task_id=MAPPED_TASK_ID).expand(arg1=["a", "b", "c", "d"])
             with TaskGroup(group_id=INNER_TASK_GROUP):
                 MockOperator.partial(task_id=INNER_TASK_GROUP_SUB_TASK).expand(arg1=["a", "b"])
+
+        # Mapped but never expanded. API should not crash, but count this as one no-status ti.
+        MockOperator.partial(task_id=MAPPED_TASK_ID_2).expand(arg1=task.output)
 
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
     logical_date = timezone.datetime(2024, 11, 30)

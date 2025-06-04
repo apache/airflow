@@ -20,7 +20,7 @@ import { Box, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useParams } from "react-router-dom";
 
-import { useBackfillServiceListBackfills } from "openapi/queries";
+import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -89,7 +89,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       <Text>
         {row.original.completed_at === null
           ? ""
-          : `${getDuration(row.original.created_at, row.original.completed_at)}s`}
+          : getDuration(row.original.created_at, row.original.completed_at)}
       </Text>
     ),
     enableSorting: false,
@@ -109,7 +109,7 @@ export const Backfills = () => {
 
   const { dagId = "" } = useParams();
 
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfills({
+  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,

@@ -33,7 +33,6 @@ from datetime import datetime
 from pendulum import duration
 
 from airflow.decorators import task
-from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
@@ -50,8 +49,9 @@ from airflow.providers.google.cloud.operators.compute import (
 from airflow.providers.google.cloud.transfers.bigquery_to_postgres import BigQueryToPostgresOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
@@ -106,6 +106,7 @@ GCE_INSTANCE_BODY = {
     "disks": [
         {
             "boot": True,
+            "auto_delete": True,
             "device_name": GCE_INSTANCE_NAME,
             "initialize_params": {
                 "disk_size_gb": "10",
@@ -151,13 +152,6 @@ fi; \
 if [ $(gcloud compute firewall-rules list --filter=name:{FIREWALL_RULE_NAME} --format="value(name)" --project={PROJECT_ID}) ]; then \
     gcloud compute firewall-rules delete {FIREWALL_RULE_NAME} --project={PROJECT_ID} --quiet; \
 fi;
-"""
-DELETE_PERSISTENT_DISK_COMMAND = f"""
-if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
- gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
-fi;
-
-gcloud compute disks delete {GCE_INSTANCE_NAME} --project={PROJECT_ID} --zone={ZONE} --quiet
 """
 
 
@@ -228,24 +222,18 @@ with DAG(
 
     @task
     def create_connection(connection_id: str, ip_address: str) -> None:
-        connection = Connection(
-            conn_id=connection_id,
-            description="Example connection",
-            conn_type=CONNECTION_TYPE,
-            host=ip_address,
-            schema=DB_NAME,
-            login=DB_USER_NAME,
-            password=DB_USER_PASSWORD,
-            port=DB_PORT,
+        create_airflow_connection(
+            connection_id=connection_id,
+            connection_conf={
+                "description": "Example connection",
+                "conn_type": CONNECTION_TYPE,
+                "host": ip_address,
+                "schema": DB_NAME,
+                "login": DB_USER_NAME,
+                "password": DB_USER_PASSWORD,
+                "port": DB_PORT,
+            },
         )
-        session = Session()
-        log.info("Removing connection %s if it exists", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-
-        session.add(connection)
-        session.commit()
-        log.info("Connection %s created", connection_id)
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
 
@@ -322,19 +310,9 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_persistent_disk = BashOperator(
-        task_id="delete_persistent_disk",
-        bash_command=DELETE_PERSISTENT_DISK_COMMAND,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        session = Session()
-        log.info("Removing connection %s", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-        session.commit()
+        delete_airflow_connection(connection_id=connection_id)
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
@@ -361,7 +339,6 @@ with DAG(
             delete_gce_instance,
             delete_connection_task,
         ]
-        >> delete_persistent_disk
     )
 
     from tests_common.test_utils.watcher import watcher

@@ -33,10 +33,10 @@ import type { SearchParamsKeysType } from "src/constants/searchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 import AddPoolButton from "./AddPoolButton";
-import PoolBar from "./PoolBar";
+import PoolBarCard from "./PoolBarCard";
 
 const cardDef = (): CardDef<PoolResponse> => ({
-  card: ({ row }) => <PoolBar key={row.name} pool={row} />,
+  card: ({ row }) => <PoolBarCard key={row.name} pool={row} />,
   meta: {
     customSkeleton: <Skeleton height="100px" width="100%" />,
   },

@@ -204,6 +204,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         "bucket",
         "prefix",
         "delimiter",
+        "match_glob",
         "impersonation_chain",
     )
 

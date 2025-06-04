@@ -24,7 +24,7 @@ exposed via Airflow core and community-managed providers.
 ..
   TODO: Change this from Dataset to Asset in Airflow 3.0
 
-See :doc:`documentation on Datasets <apache-airflow:authoring-and-scheduling/datasets>` for details on how dataset URIs work.
+See :doc:`documentation on Assets <apache-airflow:authoring-and-scheduling/assets>` for details on how asset URIs work.
 
 .. airflow-dataset-schemes::
    :tags: None

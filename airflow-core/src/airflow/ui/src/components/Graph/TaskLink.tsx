@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { forwardRef } from "react";
 import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
@@ -25,26 +25,22 @@ type Props = {
   readonly id: string;
 } & TaskNameProps;
 
-export const TaskLink = ({ id, isGroup, isMapped, ...rest }: Props) => {
-  const { dagId = "", runId, taskId } = useParams();
+export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isMapped, ...rest }, ref) => {
+  const { dagId = "", groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  // We don't have a task group details page to link to
-  if (isGroup) {
-    return <TaskName isGroup={true} isMapped={isMapped} {...rest} />;
-  }
+  const basePath = `/dags/${dagId}${runId === undefined ? "" : `/runs/${runId}`}`;
+  const taskPath = isGroup
+    ? groupId === id
+      ? ""
+      : `/tasks/group/${id}`
+    : taskId === id
+      ? ""
+      : `/tasks/${id}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`;
 
   return (
-    <Link asChild data-testid={id}>
-      <RouterLink
-        to={{
-          // Do not include runId if there is no selected run, clicking a second time will deselect a task id
-          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`,
-          search: searchParams.toString(),
-        }}
-      >
-        <TaskName isMapped={isMapped} {...rest} />
-      </RouterLink>
-    </Link>
+    <RouterLink ref={ref} to={{ pathname: basePath + taskPath, search: searchParams.toString() }}>
+      <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
+    </RouterLink>
   );
-};
+});

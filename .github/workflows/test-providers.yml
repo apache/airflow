@@ -20,8 +20,12 @@ name: Provider tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      runners:
+        description: "The array of labels (in json form) determining public AMD runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
       canary-run:
@@ -68,7 +72,7 @@ jobs:
   prepare-install-verify-provider-distributions:
     timeout-minutes: 80
     name: "Providers ${{ matrix.package-format }} tests"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -91,7 +95,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
@@ -104,14 +108,14 @@ jobs:
       - name: "Prepare provider distributions: ${{ matrix.package-format }}"
         run: >
           breeze release-management prepare-provider-distributions --include-not-ready-providers
-          --version-suffix-for-pypi dev0 --distribution-format ${{ matrix.package-format }}
+          --skip-tag-check --distribution-format ${{ matrix.package-format }}
       - name: "Prepare airflow package: ${{ matrix.package-format }}"
         run: >
-          breeze release-management prepare-airflow-distributions --version-suffix-for-pypi dev0
+          breeze release-management prepare-airflow-distributions
           --distribution-format ${{ matrix.package-format }}
       - name: "Prepare task-sdk package: ${{ matrix.package-format }}"
         run: >
-          breeze release-management prepare-task-sdk-distributions --version-suffix-for-pypi dev0
+          breeze release-management prepare-task-sdk-distributions
           --distribution-format ${{ matrix.package-format }}
       - name: "Verify ${{ matrix.package-format }} packages with twine"
         run: |
@@ -163,7 +167,7 @@ jobs:
     timeout-minutes: 80
     # yamllint disable rule:line-length
     name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.compat.test-types.description }}
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -175,7 +179,6 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.compat.python-version }}"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
       CLEAN_AIRFLOW_INSTALLATION: "true"
     if: inputs.skip-providers-tests != 'true'
@@ -190,7 +193,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ matrix.compat.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ matrix.compat.python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
@@ -198,7 +201,7 @@ jobs:
       - name: "Prepare provider distributions: wheel"
         run: >
           breeze release-management prepare-provider-distributions --include-not-ready-providers
-          --distribution-format wheel
+          --distribution-format wheel --skip-tag-check
       # yamllint disable rule:line-length
       - name: Remove incompatible Airflow ${{ matrix.compat.airflow-version }}:Python ${{ matrix.compat.python-version }} provider distributions
         env:

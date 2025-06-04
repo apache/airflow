@@ -15,7 +15,6 @@ import {
   DagStatsService,
   DagVersionService,
   DagWarningService,
-  DagsService,
   DashboardService,
   DependenciesService,
   EventLogService,
@@ -37,6 +36,7 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  BulkBody_BulkTaskInstanceBody_,
   BulkBody_ConnectionBody_,
   BulkBody_PoolBody_,
   BulkBody_VariableBody_,
@@ -66,8 +66,8 @@ import * as Common from "./common";
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
- * @param data.uriPattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.dagIds
  * @param data.onlyActive
  * @param data.orderBy
@@ -122,7 +122,7 @@ export const useAssetServiceGetAssets = <
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.orderBy
  * @returns AssetAliasCollectionResponse Successful Response
  * @throws ApiError
@@ -446,7 +446,7 @@ export const useBackfillServiceGetBackfill = <
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -457,7 +457,7 @@ export const useBackfillServiceGetBackfill = <
     ...options,
   });
 /**
- * List Backfills
+ * List Backfills Ui
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
@@ -467,8 +467,8 @@ export const useBackfillServiceGetBackfill = <
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useBackfillServiceListBackfills1 = <
-  TData = Common.BackfillServiceListBackfills1DefaultResponse,
+export const useBackfillServiceListBackfillsUi = <
+  TData = Common.BackfillServiceListBackfillsUiDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -489,11 +489,11 @@ export const useBackfillServiceListBackfills1 = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
+    queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn(
       { active, dagId, limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () => BackfillService.listBackfills1({ active, dagId, limit, offset, orderBy }) as TData,
+    queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -529,7 +529,7 @@ export const useConnectionServiceGetConnection = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.connectionIdPattern
+ * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -959,8 +959,8 @@ export const useDagWarningServiceListDagWarnings = <
  * @param data.tags
  * @param data.tagsMatchMode
  * @param data.owners
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
@@ -1118,7 +1118,7 @@ export const useDagServiceGetDagDetails = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.tagNamePattern
+ * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns DAGTagCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1144,6 +1144,100 @@ export const useDagServiceGetDagTags = <
   useQuery<TData, TError>({
     queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey),
     queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData,
+    ...options,
+  });
+/**
+ * Get Dags
+ * Get DAGs with recent DagRun.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.tagsMatchMode
+ * @param data.owners
+ * @param data.dagIds
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.excludeStale
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @param data.orderBy
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagsUi = <
+  TData = Common.DagServiceGetDagsUiDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagIds,
+    dagRunsLimit,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    orderBy,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagIds?: string[];
+    dagRunsLimit?: number;
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagsUiKeyFn(
+      {
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.getDagsUi({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }) as TData,
     ...options,
   });
 /**
@@ -1530,8 +1624,8 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useTaskInstanceServiceGetTaskInstanceDependencies = <
-  TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse,
+export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1550,12 +1644,17 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn(
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData,
+      TaskInstanceService.getTaskInstanceDependenciesByMapIndex({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
     ...options,
   });
 /**
@@ -1569,8 +1668,8 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies = <
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useTaskInstanceServiceGetTaskInstanceDependencies1 = <
-  TData = Common.TaskInstanceServiceGetTaskInstanceDependencies1DefaultResponse,
+export const useTaskInstanceServiceGetTaskInstanceDependencies = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1589,12 +1688,12 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1 = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn(
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }) as TData,
+      TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1733,7 +1832,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
  * @param data.updatedAtLte
  * @param data.durationGte
  * @param data.durationLte
- * @param data.taskDisplayNamePattern
+ * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.state
  * @param data.pool
  * @param data.queue
@@ -1988,7 +2087,7 @@ export const useTaskInstanceServiceGetLog = <
     token,
     tryNumber,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "application/json" | "*/*" | "application/x-ndjson";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -2016,6 +2115,48 @@ export const useTaskInstanceServiceGetLog = <
         token,
         tryNumber,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get External Log Url
+ * Get external log URL for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.mapIndex
+ * @returns ExternalLogUrlResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetExternalLogUrl = <
+  TData = Common.TaskInstanceServiceGetExternalLogUrlDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn(
+      { dagId, dagRunId, mapIndex, taskId, tryNumber },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData,
     ...options,
   });
 /**
@@ -2194,6 +2335,24 @@ export const usePluginServiceGetPlugins = <
     ...options,
   });
 /**
+ * Import Errors
+ * @returns PluginImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePluginServiceImportErrors = <
+  TData = Common.PluginServiceImportErrorsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UsePluginServiceImportErrorsKeyFn(queryKey),
+    queryFn: () => PluginService.importErrors() as TData,
+    ...options,
+  });
+/**
  * Get Pool
  * Get a pool.
  * @param data The data for the request.
@@ -2226,7 +2385,7 @@ export const usePoolServiceGetPool = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.poolNamePattern
+ * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2480,7 +2639,7 @@ export const useVariableServiceGetVariable = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.variableKeyPattern
+ * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2706,95 +2865,6 @@ export const useAuthLinksServiceGetAuthMenus = <
     ...options,
   });
 /**
- * Recent Dag Runs
- * Get recent DAG runs.
- * @param data The data for the request.
- * @param data.dagRunsLimit
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.tagsMatchMode
- * @param data.owners
- * @param data.dagIds
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
- * @param data.excludeStale
- * @param data.paused
- * @param data.lastDagRunState
- * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagsServiceRecentDagRuns = <
-  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagIds,
-    dagRunsLimit,
-    excludeStale,
-    lastDagRunState,
-    limit,
-    offset,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagIds?: string[];
-    dagRunsLimit?: number;
-    excludeStale?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
-      {
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagsService.recentDagRuns({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }) as TData,
-    ...options,
-  });
-/**
  * Get Dependencies
  * Dependencies graph.
  * @param data The data for the request.
@@ -2847,6 +2917,25 @@ export const useDashboardServiceHistoricalMetrics = <
   useQuery<TData, TError>({
     queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    ...options,
+  });
+/**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceDagStats = <
+  TData = Common.DashboardServiceDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(queryKey),
+    queryFn: () => DashboardService.dagStats() as TData,
     ...options,
   });
 /**
@@ -3580,7 +3669,7 @@ export const useBackfillServicePauseBackfill = <
       TData,
       TError,
       {
-        backfillId: unknown;
+        backfillId: number;
       },
       TContext
     >,
@@ -3591,7 +3680,7 @@ export const useBackfillServicePauseBackfill = <
     TData,
     TError,
     {
-      backfillId: unknown;
+      backfillId: number;
     },
     TContext
   >({
@@ -3616,7 +3705,7 @@ export const useBackfillServiceUnpauseBackfill = <
       TData,
       TError,
       {
-        backfillId: unknown;
+        backfillId: number;
       },
       TContext
     >,
@@ -3627,7 +3716,7 @@ export const useBackfillServiceUnpauseBackfill = <
     TData,
     TError,
     {
-      backfillId: unknown;
+      backfillId: number;
     },
     TContext
   >({
@@ -3652,7 +3741,7 @@ export const useBackfillServiceCancelBackfill = <
       TData,
       TError,
       {
-        backfillId: unknown;
+        backfillId: number;
       },
       TContext
     >,
@@ -3663,7 +3752,7 @@ export const useBackfillServiceCancelBackfill = <
     TData,
     TError,
     {
-      backfillId: unknown;
+      backfillId: number;
     },
     TContext
   >({
@@ -3849,10 +3938,9 @@ export const useDagRunServicePatchDagRun = <
  * @param data.tags
  * @param data.tagsMatchMode
  * @param data.owners
- * @param data.dagIdPattern
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
- * @param data.lastDagRunState
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -3868,7 +3956,6 @@ export const useDagServicePatchDags = <
       {
         dagIdPattern?: string;
         excludeStale?: boolean;
-        lastDagRunState?: DagRunState;
         limit?: number;
         offset?: number;
         owners?: string[];
@@ -3889,7 +3976,6 @@ export const useDagServicePatchDags = <
     {
       dagIdPattern?: string;
       excludeStale?: boolean;
-      lastDagRunState?: DagRunState;
       limit?: number;
       offset?: number;
       owners?: string[];
@@ -3904,7 +3990,6 @@ export const useDagServicePatchDags = <
     mutationFn: ({
       dagIdPattern,
       excludeStale,
-      lastDagRunState,
       limit,
       offset,
       owners,
@@ -3917,7 +4002,6 @@ export const useDagServicePatchDags = <
       DagService.patchDags({
         dagIdPattern,
         excludeStale,
-        lastDagRunState,
         limit,
         offset,
         owners,
@@ -3982,7 +4066,7 @@ export const useDagServicePatchDag = <
  * @param data.requestBody
  * @param data.mapIndex
  * @param data.updateMask
- * @returns TaskInstanceResponse Successful Response
+ * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServicePatchTaskInstance = <
@@ -4041,11 +4125,11 @@ export const useTaskInstanceServicePatchTaskInstance = <
  * @param data.mapIndex
  * @param data.requestBody
  * @param data.updateMask
- * @returns TaskInstanceResponse Successful Response
+ * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useTaskInstanceServicePatchTaskInstance1 = <
-  TData = Common.TaskInstanceServicePatchTaskInstance1MutationResult,
+export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <
+  TData = Common.TaskInstanceServicePatchTaskInstanceByMapIndexMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -4080,7 +4164,109 @@ export const useTaskInstanceServicePatchTaskInstance1 = <
     TContext
   >({
     mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
-      TaskInstanceService.patchTaskInstance1({
+      TaskInstanceService.patchTaskInstanceByMapIndex({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody,
+        taskId,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Bulk Task Instances
+ * Bulk update, and delete task instances.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.requestBody
+ * @returns BulkResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceBulkTaskInstances = <
+  TData = Common.TaskInstanceServiceBulkTaskInstancesMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        requestBody: BulkBody_BulkTaskInstanceBody_;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      requestBody: BulkBody_BulkTaskInstanceBody_;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, requestBody }) =>
+      TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Task Instance Dry Run
+ * Update a task instance dry_run mode.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns TaskInstanceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServicePatchTaskInstanceDryRunByMapIndex = <
+  TData = Common.TaskInstanceServicePatchTaskInstanceDryRunByMapIndexMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex: number;
+        requestBody: PatchTaskInstanceBody;
+        taskId: string;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex: number;
+      requestBody: PatchTaskInstanceBody;
+      taskId: string;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
+      TaskInstanceService.patchTaskInstanceDryRunByMapIndex({
         dagId,
         dagRunId,
         mapIndex,
@@ -4097,73 +4283,14 @@ export const useTaskInstanceServicePatchTaskInstance1 = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
- * @param data.mapIndex
  * @param data.requestBody
+ * @param data.mapIndex
  * @param data.updateMask
  * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServicePatchTaskInstanceDryRun = <
   TData = Common.TaskInstanceServicePatchTaskInstanceDryRunMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        dagId: string;
-        dagRunId: string;
-        mapIndex: number;
-        requestBody: PatchTaskInstanceBody;
-        taskId: string;
-        updateMask?: string[];
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      dagId: string;
-      dagRunId: string;
-      mapIndex: number;
-      requestBody: PatchTaskInstanceBody;
-      taskId: string;
-      updateMask?: string[];
-    },
-    TContext
-  >({
-    mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
-      TaskInstanceService.patchTaskInstanceDryRun({
-        dagId,
-        dagRunId,
-        mapIndex,
-        requestBody,
-        taskId,
-        updateMask,
-      }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Patch Task Instance Dry Run
- * Update a task instance dry_run mode.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @param data.taskId
- * @param data.requestBody
- * @param data.mapIndex
- * @param data.updateMask
- * @returns TaskInstanceCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useTaskInstanceServicePatchTaskInstanceDryRun1 = <
-  TData = Common.TaskInstanceServicePatchTaskInstanceDryRun1MutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -4198,7 +4325,7 @@ export const useTaskInstanceServicePatchTaskInstanceDryRun1 = <
     TContext
   >({
     mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
-      TaskInstanceService.patchTaskInstanceDryRun1({
+      TaskInstanceService.patchTaskInstanceDryRun({
         dagId,
         dagRunId,
         mapIndex,
@@ -4654,6 +4781,57 @@ export const useDagServiceDeleteDag = <
     },
     TContext
   >({ mutationFn: ({ dagId }) => DagService.deleteDag({ dagId }) as unknown as Promise<TData>, ...options });
+/**
+ * Delete Task Instance
+ * Delete a task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns null Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceDeleteTaskInstance = <
+  TData = Common.TaskInstanceServiceDeleteTaskInstanceMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex?: number;
+        taskId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex?: number;
+      taskId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, mapIndex, taskId }) =>
+      TaskInstanceService.deleteTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
 /**
  * Delete Pool
  * Delete a pool entry.

@@ -23,7 +23,7 @@
 
 # API
 /airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
-/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496 @bugraoz93
+/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496 @bugraoz93 @shubhamraj-git
 /airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
 # Airflow CTL
@@ -33,7 +33,13 @@
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
 
 # UI
-/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
+/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
+
+# Translations
+airflow-core/src/airflow/ui/src/i18n/locales/de/ @jscheffl
+airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/ @Lee-W
+airflow-core/src/airflow/ui/src/i18n/locales/nl/ @BasPH # not codeowner but engaged: @DjVinnii
+airflow-core/src/airflow/ui/src/i18n/locales/pl/ @potiuk
 
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
@@ -66,9 +72,10 @@
 /providers/common/messaging/ @vincbeck
 /providers/common/sql/ @eladkal
 /providers/dbt/cloud/ @josh-fell
-/providers/edgeexecutor/ @jscheffl
+/providers/edge3/ @jscheffl
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
+/providers/keycloak/ @vincbeck
 /providers/openlineage/ @mobuchowski
 /providers/slack/ @eladkal
 /providers/smtp/ @hussein-awala
@@ -77,7 +84,7 @@
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan
-/dev/ @potiuk @ashb @jedcunningham @gopidesupavan
+/dev/ @potiuk @ashb @jedcunningham @gopidesupavan @amoghrajesh
 /docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /helm-tests/ @dstandish @jedcunningham
@@ -109,4 +116,8 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 /providers/fab/src/airflow-core/src/airflow/providers/fab/migrations/ @ephraimbuddy
 
 # AIP-72 - Task SDK
+# Python SDK
 /task-sdk/ @ashb @kaxil @amoghrajesh
+
+# Golang SDK
+/go-sdk/ @ashb @kaxil @amoghrajesh

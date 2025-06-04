@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def _get_asset_compat_hook_lineage_collector():
@@ -85,9 +85,7 @@ def get_hook_lineage_collector():
 
         return get_hook_lineage_collector()
 
-    # HookLineageCollector added in 2.10
-    if AIRFLOW_V_2_10_PLUS:
-        return _get_asset_compat_hook_lineage_collector()
+    return _get_asset_compat_hook_lineage_collector()
 
     # For the case that airflow has not yet upgraded to 2.10 or higher,
     # but using the providers that already uses `get_hook_lineage_collector`

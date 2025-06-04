@@ -185,7 +185,7 @@ are: Airflow Core and Airflow Providers, which are referenced by ``area:core``
 and ``area:providers``. This is especially important since these are now
 being released and versioned independently.
 
-There are more detailed areas of the Core Airflow project such as Scheduler, Webserver,
+There are more detailed areas of the Core Airflow project such as Scheduler, API Server,
 API, UI, Logging, and Metrics, which are all conceptually under the
 "Airflow Core" area of the project.
 
@@ -196,7 +196,7 @@ associated with them such as ``provider:amazon-aws``, ``provider:microsoft-azure
 These make it easier for developers working on a single provider to
 track issues for that provider.
 
-Note: each provider has it's own unique label. It is possible for issue to be tagged with more than 1 provider label.
+Note: each provider has its own unique label. It is possible for issue to be tagged with more than 1 provider label.
 
 Most issues need a combination of "kind" and "area" labels to be actionable.
 For example:

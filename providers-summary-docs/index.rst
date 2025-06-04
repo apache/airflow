@@ -155,8 +155,8 @@ Details will vary per-provider and if there is a limitation for particular versi
 constraining the Airflow version used, it will be included as limitation of dependencies in the provider
 package.
 
-Each community provider has corresponding extra which can be used when installing airflow to install the
-provider together with ``Apache Airflow`` - for example you can install airflow with those extras:
+Each community provider has corresponding extra which can be used when installing Airflow to install the
+provider together with ``Apache Airflow`` - for example you can install Airflow with those extras:
 ``apache-airflow[google,amazon]`` (with correct constraints -see :doc:`apache-airflow:installation/index`) and you
 will install the appropriate versions of the ``apache-airflow-providers-amazon`` and
 ``apache-airflow-providers-google`` packages together with ``Apache Airflow``.

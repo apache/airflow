@@ -68,7 +68,7 @@ To run the whole test class:
 You can re-run the tests interactively, add extra parameters to pytest  and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
-in the `testing doc </contributing-docs/testing.rst>`_ where all the test types and information on how to run them are explained.
+in the `testing doc </contributing-docs/09_testing.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
@@ -241,13 +241,13 @@ Here is the detailed set of options for the ``breeze testing providers-integrati
 Running Python API client tests
 ...............................
 
-To run Python API client tests, you need to have airflow python client packaged in dist folder.
+To run Python API client tests, you need to have Airflow python client packaged in dist folder.
 To package the client, clone the airflow-python-client repository and run the following command:
 
 .. code-block:: bash
 
    breeze release-management prepare-python-client --distribution-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+          --python-client-repo ./airflow-client-python
 
 .. code-block:: bash
 
@@ -327,7 +327,7 @@ automatically to run the tests.
 You can:
 
 * Setup environment for k8s tests with ``breeze k8s setup-env``
-* Build airflow k8S images with ``breeze k8s build-k8s-image``
+* Build Airflow k8S images with ``breeze k8s build-k8s-image``
 * Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
   ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
@@ -398,7 +398,7 @@ Building Airflow K8s images
 ...........................
 
 Before deploying Airflow Helm Chart, you need to make sure the appropriate Airflow image is build (it has
-embedded test dags, pod templates and webserver is configured to refresh immediately. This can
+embedded test dags, pod templates and api-server is configured to refresh immediately. This can
 be done via ``breeze k8s build-k8s-image`` command. It can also be done in parallel for all images via
 ``--run-in-parallel`` flag.
 
@@ -412,7 +412,7 @@ All parameters of the command are here:
 Uploading Airflow K8s images
 ............................
 
-The K8S airflow images need to be uploaded to the KinD cluster. This can be done via
+The K8S Airflow images need to be uploaded to the KinD cluster. This can be done via
 ``breeze k8s upload-k8s-image`` command. It can also be done in parallel for all images via
 ``--run-in-parallel`` flag.
 
@@ -442,7 +442,7 @@ Deploying Airflow to the Cluster
 
 Airflow can be deployed to the Cluster with ``breeze k8s deploy-airflow``. This step will automatically
 (unless disabled by switches) will rebuild the image to be deployed. It also uses the latest version
-of the Airflow Helm Chart to deploy it. You can also choose to upgrade existing airflow deployment
+of the Airflow Helm Chart to deploy it. You can also choose to upgrade existing Airflow deployment
 and pass extra arguments to ``helm install`` or ``helm upgrade`` commands that are used to
 deploy airflow. By passing ``--run-in-parallel`` the deployment can be run
 for all clusters in parallel.
@@ -457,7 +457,7 @@ All parameters of the command are here:
 Checking status of the K8S cluster
 ..................................
 
-You can delete kubernetes cluster and airflow deployed in the current cluster
+You can delete kubernetes cluster and Airflow deployed in the current cluster
 via ``breeze k8s status`` command. It can be also checked for all clusters created so far by passing
 ``--all`` flag.
 
@@ -517,7 +517,7 @@ Running k8s complete tests
 ..........................
 
 You can run ``breeze k8s run-complete-tests`` command to combine all previous steps in one command. That
-command will create cluster, deploy airflow and run tests and finally delete cluster. It is used in CI
+command will create cluster, deploy Airflow and run tests and finally delete cluster. It is used in CI
 to run the whole chains in parallel.
 
 Run all tests:
@@ -575,7 +575,7 @@ as executor you use, similar to:
 
 The shell automatically activates the virtual environment that has all appropriate dependencies
 installed and you can interactively run all k8s tests with pytest command (of course the cluster need to
-be created and airflow deployed to it before running the tests):
+be created and Airflow deployed to it before running the tests):
 
 .. code-block:: bash
 

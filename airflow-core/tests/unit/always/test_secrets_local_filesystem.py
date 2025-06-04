@@ -284,7 +284,7 @@ class TestLoadConnection:
             connections_by_conn_id = local_filesystem.load_connections_dict("a.yaml")
             for conn_id, connection in connections_by_conn_id.items():
                 expected_attrs = expected_attrs_dict[conn_id]
-                actual_attrs = {k: getattr(connection, k) for k in expected_attrs}
+                actual_attrs = {k: getattr(connection, k) for k in expected_attrs.keys()}
                 assert actual_attrs == expected_attrs
 
     @pytest.mark.parametrize(

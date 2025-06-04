@@ -25,6 +25,46 @@
 Changelog
 ---------
 
+1.7.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Breeze unit test (#50395)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
+1.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add backwards compatibility provider tests for Airflow 3.0.0 (#49562)``
+   * ``Prepare docs for Apr 3rd wave of providers (#49338)``
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Fix common-io and common-compat provider description format (#48864)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Prepare documentation to release common.compat 1.6.1 (#49624)``
+
 1.6.0
 .....
 

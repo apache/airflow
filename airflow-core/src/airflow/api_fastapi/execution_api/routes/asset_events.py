@@ -19,11 +19,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.api_fastapi.execution_api.datamodels.asset_event import (
     AssetEventResponse,
@@ -32,7 +31,7 @@ from airflow.api_fastapi.execution_api.datamodels.asset_event import (
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 
 # TODO: Add dependency on JWT token
-router = AirflowRouter(
+router = APIRouter(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Asset not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},

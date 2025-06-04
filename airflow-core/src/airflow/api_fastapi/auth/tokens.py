@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import uuid
 from base64 import urlsafe_b64encode
 from collections.abc import Sequence
 from datetime import datetime
@@ -437,12 +438,14 @@ class JWTGenerator:
         """Generate a signed JWT for the subject."""
         now = int(datetime.now(tz=timezone.utc).timestamp())
         claims = {
+            "jti": uuid.uuid4().hex,
             "iss": self.issuer,
             "aud": self.audience,
             "nbf": now,
             "exp": int(now + self.valid_for),
             "iat": now,
         }
+
         if claims["iss"] is None:
             del claims["iss"]
         if claims["aud"] is None:

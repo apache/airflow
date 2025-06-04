@@ -19,20 +19,22 @@
 Messaging Triggers
 ==================
 
-Operators, sensors, and triggers in the Common Messaging provider serve as wrappers around those from other providers,
-specifically for message queues.
-They offer an abstraction layer to simplify usage and make it easier to switch between different queue providers.
-
-Supported queue providers
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-* Amazon SQS: :class:`~airflow.providers.common.messaging.providers.sqs.SqsMessageQueueProvider`
+Operators, sensors, and triggers in the Common Messaging provider serve as wrappers around those
+from other providers, specifically for message queues.
+They offer an abstraction layer to simplify usage and make it easier to switch between
+different queue providers.
 
 Add support for a provider
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To support a new provider please follow the steps below:
 
-1. Create a new class extending :class:`~airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider`.
+1. Create a new class in the provider extending
+:class:`~airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider`.
 Make sure it implements all abstract methods
-2. Add this class to the list ``MESSAGE_QUEUE_PROVIDERS`` in  ``airflow/providers/common/messaging/providers/__init__.py``
+
+2. Expose it via "queues" property in the ``provider.yaml`` file of the provider where you add the new class.
+The ``queues`` property should be a list of fully-qualified class names of the queues.
+
+
+The list of supported message queues is available in :doc:`apache-airflow-providers:core-extensions/message-queues`.

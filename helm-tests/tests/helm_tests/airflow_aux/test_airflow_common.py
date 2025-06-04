@@ -190,6 +190,7 @@ class TestAirflowCommon:
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
+                "templates/api-server/api-server-deployment.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
@@ -197,6 +198,7 @@ class TestAirflowCommon:
             ],
         )
 
+        # Objects in show_only are 8 but only one of Webserver or API server is created so we have 7 objects
         assert len(k8s_objects) == 7
 
         for k8s_object in k8s_objects:
@@ -254,10 +256,12 @@ class TestAirflowCommon:
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
+                "templates/api-server/api-server-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
             ],
         )
 
+        # Objects in show_only are 13 but only one of Webserver or API server is created so we have 12 objects
         assert len(k8s_objects) == 12
 
         for k8s_object in k8s_objects:
@@ -419,6 +423,7 @@ class TestAirflowCommon:
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
+                "templates/api-server/api-server-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],

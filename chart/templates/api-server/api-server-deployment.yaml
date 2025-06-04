@@ -152,6 +152,9 @@ spec:
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- include "airflow_dags_mount" (list . "apiServer") | nindent 12 }}
+            {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+              {{- include "airflow_api_server_config_mount" . | nindent 12 }}
+            {{- end }}
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -209,6 +212,11 @@ spec:
             name: {{ template "airflow_config" . }}
         {{- include "airflow_dags_volume" (list . "apiServer") | nindent 8 }}
         {{- include "git_sync_ssh_key_volume" (list . "apiServer") | nindent 8 }}
+        {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+        - name: api-server-config
+          configMap:
+            name: {{ template "airflow_api_server_config_configmap_name" . }}
+        {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

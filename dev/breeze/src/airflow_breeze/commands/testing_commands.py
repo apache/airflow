@@ -102,8 +102,8 @@ from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
 
-LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
-DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
+LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
+DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
 
 logs_already_dumped = False
 
@@ -129,6 +129,7 @@ def group_for_testing():
     is_flag=True,
 )
 @option_github_repository
+@option_include_success_outputs
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
@@ -137,6 +138,7 @@ def docker_compose_tests(
     image_name: str,
     skip_docker_compose_deletion: bool,
     github_repository: str,
+    include_success_outputs: bool,
     extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
@@ -147,6 +149,7 @@ def docker_compose_tests(
     get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
     )
@@ -254,6 +257,7 @@ def _run_test(
                 check=False,
                 env=env,
                 verbose_override=False,
+                quiet=True,
             )
             remove_docker_networks(networks=[f"{compose_project_name}_default"])
     return result.returncode, f"Test: {shell_params.test_type}"
@@ -323,6 +327,7 @@ def _run_tests_in_pool(
         "CLI",
         "Serialization",
         "Always",
+        "Providers[celery]",
     ]
     sort_key = {item: i for i, item in enumerate(sorting_order)}
     # Put the test types in the order we want them to run
@@ -541,12 +546,6 @@ option_use_xdist = click.option(
     is_flag=True,
     envvar="USE_XDIST",
 )
-option_remove_arm_packages = click.option(
-    "--remove-arm-packages",
-    help="Removes arm packages from the image to test if ARM collection works",
-    is_flag=True,
-    envvar="REMOVE_ARM_PACKAGES",
-)
 option_force_sa_warnings = click.option(
     "--force-sa-warnings/--no-force-sa-warnings",
     help="Enable `sqlalchemy.exc.MovedIn20Warning` during the tests runs.",
@@ -600,7 +599,6 @@ option_total_test_timeout = click.option(
 @option_parallelism
 @option_postgres_version
 @option_python
-@option_remove_arm_packages
 @option_run_db_tests_only
 @option_run_in_parallel
 @option_skip_cleanup
@@ -664,7 +662,6 @@ def core_tests(**kwargs):
 @option_providers_constraints_location
 @option_providers_skip_constraints
 @option_python
-@option_remove_arm_packages
 @option_run_db_tests_only
 @option_run_in_parallel
 @option_skip_cleanup
@@ -731,7 +728,6 @@ def task_sdk_tests(**kwargs):
         distribution_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
-        remove_arm_packages=False,
         skip_cleanup=False,
         skip_providers="",
         test_type=ALL_TEST_TYPE,
@@ -790,7 +786,6 @@ def airflow_ctl_tests(**kwargs):
         distribution_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
-        remove_arm_packages=False,
         skip_cleanup=False,
         skip_providers="",
         test_type=ALL_TEST_TYPE,
@@ -984,6 +979,13 @@ def integration_providers_tests(
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
+@option_use_airflow_version
+@option_airflow_constraints_reference
+@option_clean_airflow_installation
+@option_force_lowest_dependencies
+@option_install_airflow_with_constraints
+@option_distribution_format
+@option_use_distributions_from_dist
 @option_postgres_version
 @option_python
 @option_skip_docker_compose_down
@@ -1007,6 +1009,13 @@ def system_tests(
     python: str,
     skip_docker_compose_down: bool,
     test_timeout: int,
+    use_airflow_version: str,
+    airflow_constraints_reference: str,
+    clean_airflow_installation: bool,
+    force_lowest_dependencies: bool,
+    install_airflow_with_constraints: bool,
+    distribution_format: str,
+    use_distributions_from_dist: bool,
 ):
     shell_params = ShellParams(
         test_group=GroupOfTests.SYSTEM,
@@ -1027,6 +1036,13 @@ def system_tests(
         force_sa_warnings=force_sa_warnings,
         run_tests=True,
         db_reset=db_reset,
+        use_airflow_version=use_airflow_version,
+        airflow_constraints_reference=airflow_constraints_reference,
+        clean_airflow_installation=clean_airflow_installation,
+        force_lowest_dependencies=force_lowest_dependencies,
+        install_airflow_with_constraints=install_airflow_with_constraints,
+        distribution_format=distribution_format,
+        use_distributions_from_dist=use_distributions_from_dist,
     )
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -1270,7 +1286,6 @@ def _run_test_command(
     providers_constraints_location: str,
     providers_skip_constraints: bool,
     python: str,
-    remove_arm_packages: bool,
     run_db_tests_only: bool,
     run_in_parallel: bool,
     skip_cleanup: bool,
@@ -1321,7 +1336,6 @@ def _run_test_command(
         providers_constraints_location=providers_constraints_location,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
-        remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         test_type=test_type,

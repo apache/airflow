@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
+import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -26,6 +27,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
+import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
 
@@ -67,6 +69,9 @@ export const Logs = () => {
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
 
+  useHotkeys("w", toggleWrap);
+  useHotkeys("f", toggleFullscreen);
+
   const onOpenChange = () => {
     setFullscreen(false);
   };
@@ -83,8 +88,11 @@ export const Logs = () => {
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
 
+  const externalLogName = useConfig("external_log_name") as string;
+  const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
+
   return (
-    <Box p={2}>
+    <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
@@ -94,36 +102,49 @@ export const Logs = () => {
         tryNumber={tryNumber}
         wrap={wrap}
       />
+      {showExternalLogRedirect && externalLogName && taskInstance ? (
+        tryNumber === undefined ? (
+          <p>No try number</p>
+        ) : (
+          <ExternalLogLink
+            externalLogName={externalLogName}
+            taskInstance={taskInstance}
+            tryNumber={tryNumber}
+          />
+        )
+      ) : undefined}
       <TaskLogContent
         error={error}
         isLoading={isLoading || isLoadingLogs}
         logError={logError}
-        parsedLogs={data.parsedLogs}
+        parsedLogs={data.parsedLogs ?? []}
         wrap={wrap}
       />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">{taskId}</Heading>
-            <TaskLogHeader
-              isFullscreen
-              onSelectTryNumber={onSelectTryNumber}
-              taskInstance={taskInstance}
-              toggleFullscreen={toggleFullscreen}
-              toggleWrap={toggleWrap}
-              tryNumber={tryNumber}
-              wrap={wrap}
-            />
+            <VStack gap={2}>
+              <Heading size="xl">{taskId}</Heading>
+              <TaskLogHeader
+                isFullscreen
+                onSelectTryNumber={onSelectTryNumber}
+                taskInstance={taskInstance}
+                toggleFullscreen={toggleFullscreen}
+                toggleWrap={toggleWrap}
+                tryNumber={tryNumber}
+                wrap={wrap}
+              />
+            </VStack>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
 
-          <Dialog.Body>
+          <Dialog.Body display="flex" flexDirection="column">
             <TaskLogContent
               error={error}
               isLoading={isLoading || isLoadingLogs}
               logError={logError}
-              parsedLogs={data.parsedLogs}
+              parsedLogs={data.parsedLogs ?? []}
               wrap={wrap}
             />
           </Dialog.Body>

@@ -28,7 +28,7 @@ from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFact
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="call-arg"
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.edgemodifier import Label
+from airflow.sdk import Label
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_adf_run_pipeline"

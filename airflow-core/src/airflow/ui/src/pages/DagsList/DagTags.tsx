@@ -17,6 +17,7 @@
  * under the License.
  */
 import { FiTag } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { DagTagResponse } from "openapi/requests/types.gen";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -31,7 +32,12 @@ type Props = {
 export const DagTags = ({ hideIcon = false, tags }: Props) => (
   <LimitedItemsList
     icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
-    items={tags.map(({ name }) => name)}
+    interactive
+    items={tags.map(({ name }) => (
+      <RouterLink key={name} to={`/dags?tags=${name}`}>
+        {name}
+      </RouterLink>
+    ))}
     maxItems={MAX_TAGS}
   />
 );

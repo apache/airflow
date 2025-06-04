@@ -21,7 +21,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
+from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
@@ -73,9 +73,11 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     triggered_by: DagRunTriggeredByType | None
-    conf: dict
+    conf: dict | None
     note: str | None
     dag_versions: list[DagVersionResponse]
+    bundle_version: str | None
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
 
 class DAGRunCollectionResponse(BaseModel):

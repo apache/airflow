@@ -92,7 +92,7 @@ Advanced Topics
 Developing Providers
 .....................
 
-You can learn how Airflow repository is a monorepo split into airflow and providers,
+You can learn how Airflow repository is a monorepo split into Airflow and providers,
 and how to contribute to the providers:
 
 * `Provider distributions <12_provider_distributions.rst>`__ describes the providers and how they
@@ -118,3 +118,6 @@ You can also dive deeper into more specific areas that are important for contrib
 
 * `Architecture diagram <17_architecture_diagrams.rst>`__ describes how to create and
   update the architecture diagrams embedded in Airflow documentation.
+
+* `Execution API versioning <19_execution_api_versioning.rst>`__ describes how to
+  version the Task Execution API and how to add new versions of the API.

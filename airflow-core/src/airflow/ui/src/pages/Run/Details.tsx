@@ -90,7 +90,7 @@ export const Details = () => {
             </Table.Row>
             <Table.Row>
               <Table.Cell>Run Duration</Table.Cell>
-              <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}s</Table.Cell>
+              <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell>Last Scheduling Decision</Table.Cell>
@@ -132,6 +132,12 @@ export const Details = () => {
               <Table.Cell>Trigger Source</Table.Cell>
               <Table.Cell>{dagRun.triggered_by}</Table.Cell>
             </Table.Row>
+            {dagRun.bundle_version !== null && (
+              <Table.Row>
+                <Table.Cell>Bundle Version</Table.Cell>
+                <Table.Cell>{dagRun.bundle_version}</Table.Cell>
+              </Table.Row>
+            )}
             <Table.Row>
               <Table.Cell>Dag Version(s)</Table.Cell>
               <Table.Cell>
@@ -145,7 +151,7 @@ export const Details = () => {
             <Table.Row>
               <Table.Cell>Run Config</Table.Cell>
               <Table.Cell>
-                <RenderedJsonField content={dagRun.conf} />
+                <RenderedJsonField content={dagRun.conf ?? {}} />
               </Table.Cell>
             </Table.Row>
           </Table.Body>

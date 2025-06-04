@@ -48,7 +48,7 @@ def get_connection_parameter_names() -> set[str]:
     """Return :class:`airflow.models.connection.Connection` constructor parameters."""
     from airflow.models.connection import Connection
 
-    return {k for k in signature(Connection.__init__).parameters if k != "self"}
+    return {k for k in signature(Connection.__init__).parameters.keys() if k != "self"}
 
 
 def _parse_env_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSyntaxError]]:

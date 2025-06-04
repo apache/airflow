@@ -48,7 +48,7 @@ export const Header = ({
     { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
     { label: "End", value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
-      ? [{ label: "Duration", value: `${getDuration(taskInstance.start_date, taskInstance.end_date)}s` }]
+      ? [{ label: "Duration", value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
       : []),
     {
       label: "DAG Version",
@@ -98,8 +98,16 @@ export const Header = ({
               text={Boolean(taskInstance.note) ? "Note" : "Add a note"}
               withText={containerWidth > 700}
             />
-            <ClearTaskInstanceButton taskInstance={taskInstance} withText={containerWidth > 700} />
-            <MarkTaskInstanceAsButton taskInstance={taskInstance} withText={containerWidth > 700} />
+            <ClearTaskInstanceButton
+              isHotkeyEnabled
+              taskInstance={taskInstance}
+              withText={containerWidth > 700}
+            />
+            <MarkTaskInstanceAsButton
+              isHotkeyEnabled
+              taskInstance={taskInstance}
+              withText={containerWidth > 700}
+            />
           </>
         }
         icon={<MdOutlineTask />}

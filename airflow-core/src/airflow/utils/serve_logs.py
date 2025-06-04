@@ -72,7 +72,7 @@ def create_app():
             raise ImportError(f"Unable to load {log_config_class} due to error: {e}")
     signer = JWTValidator(
         issuer=None,
-        secret_key=get_signing_key("webserver", "secret_key"),
+        secret_key=get_signing_key("api", "secret_key"),
         algorithm="HS512",
         leeway=leeway,
         audience="task-instance-logs",
@@ -176,7 +176,7 @@ def serve_logs(port=None):
     else:
         from setproctitle import setproctitle
 
-    setproctitle("airflow serve-logs")
+        setproctitle("airflow serve-logs")
     wsgi_app = create_app()
 
     port = port or conf.getint("logging", "WORKER_LOG_SERVER_PORT")

@@ -105,7 +105,17 @@ class _DagDependenciesResolver:
                             dep_data[node_key] = f"asset:{asset_id}"
                             break
 
-                    dag_deps.append(DagDependency(**dep_data))
+                    dep_id = dep_data["dependency_id"]
+                    dag_deps.append(
+                        DagDependency(
+                            source=dep_data["source"],
+                            target=dep_data["target"],
+                            # handle the case that serialized_dag does not have label column (e.g., from 2.x)
+                            label=dep_data.get("label", dep_id),
+                            dependency_type=dep_data["dependency_type"],
+                            dependency_id=dep_id,
+                        )
+                    )
 
             dag_depdendencies_by_dag[dag_id] = dag_deps
         return dag_depdendencies_by_dag
@@ -171,8 +181,14 @@ class _DagDependenciesResolver:
     def resolve_asset_dag_dep(self, dep_data: dict) -> DagDependency:
         dep_id = dep_data["dependency_id"]
         unique_key = AssetUniqueKey.from_str(dep_id)
-        dep_data["dependency_id"] = str(self.asset_key_to_id[unique_key])
-        return DagDependency(**dep_data)
+        return DagDependency(
+            source=dep_data["source"],
+            target=dep_data["target"],
+            # handle the case that serialized_dag does not have label column (e.g., from 2.x)
+            label=dep_data.get("label", unique_key.name),
+            dependency_type=dep_data["dependency_type"],
+            dependency_id=str(self.asset_key_to_id[unique_key]),
+        )
 
     def resolve_asset_ref_dag_dep(
         self, dep_data: dict, ref_type: Literal["asset-name-ref", "asset-uri-ref"]

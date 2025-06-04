@@ -26,7 +26,9 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
    Successful installation requires a Python 3 environment. Starting with Airflow 2.7.0, Airflow supports Python 3.9, 3.10, 3.11, and 3.12.
 
-   Officially supported installation methods include ``pip`` and ``uv``. Both tools provide a streamlined workflow for installing Airflow and managing dependencies.
+   Officially supported installation methods is with``pip`.
+
+   Run ``pip install apache-airflow[EXTRAS]==AIRFLOW_VERSION --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-AIRFLOW_VERSION/constraints-PYTHON_VERSION.txt"``, for example ``pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"`` to install Airflow in a reproducible way.
 
 
 
@@ -34,11 +36,6 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
    ``pip`` or ``uv`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
-
-   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
-   Airflow. Please switch to ``pip`` or ``uv`` if you encounter such problems. ``Bazel`` community works on fixing
-   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
-   newer versions of ``bazel`` will handle it.
 
    If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
@@ -61,8 +58,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
         Install uv: `uv Installation Guide <https://docs.astral.sh/uv/getting-started/installation/>`_
 
 
-    For creating Virtualenv with uv, refer to the documentation here:
-    `Creating and Maintaining Local Virtualenv with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv>`_
+    For creating virtual environment with ``uv``, refer to the documentation here:
+    `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv-recommended>`_
 
 
 3. Install Airflow using the constraints file, which is determined based on the URL we pass:
@@ -71,14 +68,14 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
       :substitutions:
 
 
-      AIRFLOW_VERSION=2.10.5
+      AIRFLOW_VERSION=3.0.0
 
       # Extract the version of Python you have installed. If you're currently using a Python version that is not supported by Airflow, you may want to set this manually.
       # See above for supported versions.
       PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 
       CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-      # For example this would install 2.10.5 with python 3.9: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt
+      # For example this would install 3.0.0 with python 3.9: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt
 
       uv pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
@@ -99,7 +96,7 @@ and create the "airflow.cfg" file with defaults that will get you going fast.
 You can override defaults using environment variables, see :doc:`/configurations-ref`.
 You can inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
 the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
-in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
+in ``$AIRFLOW_HOME/airflow-api-server.pid`` or in ``/run/airflow/airflow-webserver.pid``
 if started by systemd.
 
 As you grow and deploy Airflow to production, you will also want to move away
@@ -116,8 +113,8 @@ run the commands below.
     airflow tasks test example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
     airflow backfill create --dag-id example_bash_operator \
-        --start-date 2015-01-01 \
-        --end-date 2015-01-02
+        --from-date 2015-01-01 \
+        --to-date 2015-01-02
 
 If you want to run the individual parts of Airflow manually rather than using
 the all-in-one ``standalone`` command, you can instead run:
@@ -133,7 +130,7 @@ the all-in-one ``standalone`` command, you can instead run:
         --role Admin \
         --email spiderman@superhero.org
 
-    airflow webserver --port 8080
+    airflow api-server --port 8080
 
     airflow scheduler
 

@@ -14,7 +14,6 @@ import {
   DagStatsService,
   DagVersionService,
   DagWarningService,
-  DagsService,
   DashboardService,
   DependenciesService,
   EventLogService,
@@ -43,8 +42,8 @@ import * as Common from "./common";
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
- * @param data.uriPattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.dagIds
  * @param data.onlyActive
  * @param data.orderBy
@@ -99,7 +98,7 @@ export const useAssetServiceGetAssetsSuspense = <
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @param data.namePattern
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.orderBy
  * @returns AssetAliasCollectionResponse Successful Response
  * @throws ApiError
@@ -423,7 +422,7 @@ export const useBackfillServiceGetBackfillSuspense = <
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -434,7 +433,7 @@ export const useBackfillServiceGetBackfillSuspense = <
     ...options,
   });
 /**
- * List Backfills
+ * List Backfills Ui
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
@@ -444,8 +443,8 @@ export const useBackfillServiceGetBackfillSuspense = <
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useBackfillServiceListBackfills1Suspense = <
-  TData = Common.BackfillServiceListBackfills1DefaultResponse,
+export const useBackfillServiceListBackfillsUiSuspense = <
+  TData = Common.BackfillServiceListBackfillsUiDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -466,11 +465,11 @@ export const useBackfillServiceListBackfills1Suspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
+    queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn(
       { active, dagId, limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () => BackfillService.listBackfills1({ active, dagId, limit, offset, orderBy }) as TData,
+    queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -506,7 +505,7 @@ export const useConnectionServiceGetConnectionSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.connectionIdPattern
+ * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -936,8 +935,8 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * @param data.tags
  * @param data.tagsMatchMode
  * @param data.owners
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
@@ -1095,7 +1094,7 @@ export const useDagServiceGetDagDetailsSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.tagNamePattern
+ * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns DAGTagCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1121,6 +1120,100 @@ export const useDagServiceGetDagTagsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey),
     queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData,
+    ...options,
+  });
+/**
+ * Get Dags
+ * Get DAGs with recent DagRun.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.tagsMatchMode
+ * @param data.owners
+ * @param data.dagIds
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.excludeStale
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @param data.orderBy
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagsUiSuspense = <
+  TData = Common.DagServiceGetDagsUiDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagIds,
+    dagRunsLimit,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    orderBy,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagIds?: string[];
+    dagRunsLimit?: number;
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagsUiKeyFn(
+      {
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.getDagsUi({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }) as TData,
     ...options,
   });
 /**
@@ -1507,8 +1600,8 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useTaskInstanceServiceGetTaskInstanceDependenciesSuspense = <
-  TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse,
+export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexSuspense = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1527,12 +1620,17 @@ export const useTaskInstanceServiceGetTaskInstanceDependenciesSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn(
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData,
+      TaskInstanceService.getTaskInstanceDependenciesByMapIndex({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
     ...options,
   });
 /**
@@ -1546,8 +1644,8 @@ export const useTaskInstanceServiceGetTaskInstanceDependenciesSuspense = <
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useTaskInstanceServiceGetTaskInstanceDependencies1Suspense = <
-  TData = Common.TaskInstanceServiceGetTaskInstanceDependencies1DefaultResponse,
+export const useTaskInstanceServiceGetTaskInstanceDependenciesSuspense = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1566,12 +1664,12 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1Suspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn(
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }) as TData,
+      TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1710,7 +1808,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
  * @param data.updatedAtLte
  * @param data.durationGte
  * @param data.durationLte
- * @param data.taskDisplayNamePattern
+ * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.state
  * @param data.pool
  * @param data.queue
@@ -1965,7 +2063,7 @@ export const useTaskInstanceServiceGetLogSuspense = <
     token,
     tryNumber,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "application/json" | "*/*" | "application/x-ndjson";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -1993,6 +2091,48 @@ export const useTaskInstanceServiceGetLogSuspense = <
         token,
         tryNumber,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get External Log Url
+ * Get external log URL for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.mapIndex
+ * @returns ExternalLogUrlResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetExternalLogUrlSuspense = <
+  TData = Common.TaskInstanceServiceGetExternalLogUrlDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn(
+      { dagId, dagRunId, mapIndex, taskId, tryNumber },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData,
     ...options,
   });
 /**
@@ -2171,6 +2311,24 @@ export const usePluginServiceGetPluginsSuspense = <
     ...options,
   });
 /**
+ * Import Errors
+ * @returns PluginImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePluginServiceImportErrorsSuspense = <
+  TData = Common.PluginServiceImportErrorsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UsePluginServiceImportErrorsKeyFn(queryKey),
+    queryFn: () => PluginService.importErrors() as TData,
+    ...options,
+  });
+/**
  * Get Pool
  * Get a pool.
  * @param data The data for the request.
@@ -2203,7 +2361,7 @@ export const usePoolServiceGetPoolSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.poolNamePattern
+ * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2457,7 +2615,7 @@ export const useVariableServiceGetVariableSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.variableKeyPattern
+ * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2683,95 +2841,6 @@ export const useAuthLinksServiceGetAuthMenusSuspense = <
     ...options,
   });
 /**
- * Recent Dag Runs
- * Get recent DAG runs.
- * @param data The data for the request.
- * @param data.dagRunsLimit
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.tagsMatchMode
- * @param data.owners
- * @param data.dagIds
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
- * @param data.excludeStale
- * @param data.paused
- * @param data.lastDagRunState
- * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagsServiceRecentDagRunsSuspense = <
-  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagIds,
-    dagRunsLimit,
-    excludeStale,
-    lastDagRunState,
-    limit,
-    offset,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagIds?: string[];
-    dagRunsLimit?: number;
-    excludeStale?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
-      {
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagsService.recentDagRuns({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }) as TData,
-    ...options,
-  });
-/**
  * Get Dependencies
  * Dependencies graph.
  * @param data The data for the request.
@@ -2824,6 +2893,25 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    ...options,
+  });
+/**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceDagStatsSuspense = <
+  TData = Common.DashboardServiceDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(queryKey),
+    queryFn: () => DashboardService.dagStats() as TData,
     ...options,
   });
 /**

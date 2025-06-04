@@ -21,6 +21,14 @@ on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
       # Static inputs defined to choose which distribution to test to run
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
       distribution-name:
         description: "The name of the distribution to test"
         required: true
@@ -31,11 +39,6 @@ on:  # yamllint disable-line rule:truthy
         type: string
       test-type:
         description: "distribution test type"  # eg task-sdk-tests
-        required: true
-        type: string
-      # Environment inputs
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
       default-python-version:
@@ -60,7 +63,7 @@ jobs:
   distributions-tests:
     timeout-minutes: 80
     name: ${{ inputs.distribution-name }}:P${{ matrix.python-version }} tests
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
       matrix:
@@ -83,7 +86,7 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: "linux/amd64"
+          platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"

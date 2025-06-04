@@ -100,6 +100,20 @@ def _rename_pk_constraint(
     batch_op.create_primary_key(constraint_name=new_name, columns=columns)
 
 
+def _drop_fkey_if_exists(table, constraint_name):
+    dialect = op.get_bind().dialect.name
+    if dialect == "sqlite":
+        try:
+            with op.batch_alter_table(table, schema=None) as batch_op:
+                batch_op.drop_constraint(op.f(constraint_name), type_="foreignkey")
+        except ValueError:
+            pass
+    elif dialect == "mysql":
+        mysql_drop_foreignkey_if_exists(constraint_name, table, op)
+    else:
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
+
+
 # original table name to new table name
 table_name_mappings = (
     ("dataset_alias_dataset", "asset_alias_asset"),
@@ -117,7 +131,35 @@ table_name_mappings = (
 
 def upgrade():
     """Rename dataset as asset."""
-    dialect = op.get_bind().dialect.name
+    _drop_fkey_if_exists("dataset_alias_dataset", "dataset_alias_dataset_dataset_id_fkey")
+    _drop_fkey_if_exists("dataset_alias_dataset", "dataset_alias_dataset_alias_id_fkey")
+    _drop_fkey_if_exists("dataset_alias_dataset", "ds_dsa_alias_id")
+    _drop_fkey_if_exists("dataset_alias_dataset", "ds_dsa_dataset_id")
+
+    _drop_fkey_if_exists("dataset_alias_dataset_event", "dataset_alias_dataset_dataset_id_fkey")
+    _drop_fkey_if_exists("dataset_alias_dataset_event", "dataset_alias_dataset_event_alias_id_fkey")
+    _drop_fkey_if_exists("dataset_alias_dataset_event", "dataset_alias_dataset_event_event_id_fkey")
+
+    _drop_fkey_if_exists("dataset_alias_dataset_event", "dss_de_alias_id")
+    _drop_fkey_if_exists("dataset_alias_dataset_event", "dss_de_event_id")
+
+    _drop_fkey_if_exists("dag_schedule_dataset_alias_reference", "dsdar_dag_id_fkey")
+    _drop_fkey_if_exists("dag_schedule_dataset_alias_reference", "dsdar_dataset_alias_fkey")
+
+    _drop_fkey_if_exists("dag_schedule_dataset_reference", "dsdr_dag_id_fkey")
+    _drop_fkey_if_exists("dag_schedule_dataset_reference", "dsdr_dataset_fkey")
+
+    _drop_fkey_if_exists("task_outlet_dataset_reference", "todr_dataset_fkey")
+
+    _drop_fkey_if_exists("dataset_dag_run_queue", "ddrq_dag_fkey")
+    _drop_fkey_if_exists("dataset_dag_run_queue", "ddrq_dataset_fkey")
+
+    _drop_fkey_if_exists("dagrun_dataset_event", "dagrun_dataset_events_event_id_fkey")
+    _drop_fkey_if_exists("dagrun_dataset_event", "dagrun_dataset_event_event_id_fkey")
+
+    _drop_fkey_if_exists("dagrun_dataset_event", "dagrun_dataset_events_dag_run_id_fkey")
+    _drop_fkey_if_exists("dagrun_dataset_event", "dagrun_dataset_event_dag_run_id_fkey")
+
     # Rename tables
     for original_name, new_name in table_name_mappings:
         op.rename_table(original_name, new_name)
@@ -155,7 +197,6 @@ def upgrade():
         )
 
     with op.batch_alter_table("asset_alias_asset", schema=None) as batch_op:
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_alias_id_fkey"), type_="foreignkey")
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dataset_alias_dataset_alias_id",
@@ -172,13 +213,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_dataset_id_fkey"), type_="foreignkey")
-        if dialect == "postgresql":
-            op.execute("ALTER TABLE asset_alias_asset DROP CONSTRAINT IF EXISTS ds_dsa_alias_id")
-            op.execute("ALTER TABLE asset_alias_asset DROP CONSTRAINT IF EXISTS ds_dsa_dataset_id")
-        elif dialect == "mysql":
-            mysql_drop_foreignkey_if_exists("ds_dsa_alias_id", "asset_alias_asset", op)
-            mysql_drop_foreignkey_if_exists("ds_dsa_dataset_id", "asset_alias_asset", op)
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dataset_alias_dataset_alias_dataset_id",
@@ -196,7 +230,6 @@ def upgrade():
         )
 
     with op.batch_alter_table("asset_alias_asset_event", schema=None) as batch_op:
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_event_alias_id_fkey"), type_="foreignkey")
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dataset_alias_dataset_event_alias_id",
@@ -211,14 +244,6 @@ def upgrade():
             remote_cols=["id"],
             ondelete="CASCADE",
         )
-
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_event_event_id_fkey"), type_="foreignkey")
-        if dialect == "postgresql":
-            op.execute("ALTER TABLE asset_alias_asset_event DROP CONSTRAINT IF EXISTS dss_de_alias_id")
-            op.execute("ALTER TABLE asset_alias_asset_event DROP CONSTRAINT IF EXISTS dss_de_event_id")
-        elif dialect == "mysql":
-            mysql_drop_foreignkey_if_exists("dss_de_alias_id", "asset_alias_asset_event", op)
-            mysql_drop_foreignkey_if_exists("dss_de_event_id", "asset_alias_asset_event", op)
 
         _rename_index(
             batch_op=batch_op,
@@ -236,10 +261,6 @@ def upgrade():
         )
 
     with op.batch_alter_table("dag_schedule_asset_alias_reference", schema=None) as batch_op:
-        batch_op.drop_constraint("dsdar_dataset_alias_fkey", type_="foreignkey")
-        if op.get_bind().dialect.name in ("postgresql", "mysql"):
-            batch_op.drop_constraint("dsdar_dag_id_fkey", type_="foreignkey")
-
         _rename_pk_constraint(
             batch_op=batch_op,
             original_name="dsdar_pkey",
@@ -272,10 +293,6 @@ def upgrade():
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
 
-    with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
-        batch_op.drop_constraint("dsdr_dag_id_fkey", type_="foreignkey")
-        if op.get_bind().dialect.name in ("postgresql", "mysql"):
-            batch_op.drop_constraint("dsdr_dataset_fkey", type_="foreignkey")
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
         _rename_pk_constraint_unkown(
             batch_op=batch_op,
@@ -312,8 +329,6 @@ def upgrade():
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
 
         batch_op.drop_constraint("todr_dag_id_fkey", type_="foreignkey")
-        if op.get_bind().dialect.name in ("postgresql", "mysql"):
-            batch_op.drop_constraint("todr_dataset_fkey", type_="foreignkey")
     with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
         _rename_pk_constraint_unkown(
             batch_op=batch_op,
@@ -344,10 +359,6 @@ def upgrade():
     with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
 
-        batch_op.drop_constraint("ddrq_dag_fkey", type_="foreignkey")
-        if op.get_bind().dialect.name in ("postgresql", "mysql"):
-            batch_op.drop_constraint("ddrq_dataset_fkey", type_="foreignkey")
-
     with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
         _rename_pk_constraint_unkown(
             batch_op=batch_op,
@@ -375,19 +386,6 @@ def upgrade():
         )
 
     with op.batch_alter_table("dagrun_asset_event", schema=None) as batch_op:
-        if dialect == "postgresql":
-            op.execute(
-                "ALTER TABLE dagrun_asset_event DROP CONSTRAINT IF EXISTS dagrun_dataset_events_event_id_fkey"
-            )
-            op.execute(
-                "ALTER TABLE dagrun_asset_event DROP CONSTRAINT IF EXISTS dagrun_dataset_event_event_id_fkey"
-            )
-        elif dialect == "mysql":
-            mysql_drop_foreignkey_if_exists("dagrun_dataset_events_event_id_fkey", "dagrun_asset_event", op)
-            mysql_drop_foreignkey_if_exists("dagrun_dataset_event_event_id_fkey", "dagrun_asset_event", op)
-        else:
-            # sqlite: Assuming no upgrade for sqlite from Airflow 2
-            batch_op.drop_constraint("dagrun_dataset_event_event_id_fkey", type_="foreignkey")
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dagrun_dataset_events_dag_run_id",
@@ -402,19 +400,6 @@ def upgrade():
             remote_cols=["id"],
             ondelete="CASCADE",
         )
-        if dialect == "postgresql":
-            op.execute(
-                "ALTER TABLE dagrun_asset_event DROP CONSTRAINT IF EXISTS dagrun_dataset_events_dag_run_id_fkey"
-            )
-            op.execute(
-                "ALTER TABLE dagrun_asset_event DROP CONSTRAINT IF EXISTS dagrun_dataset_event_dag_run_id_fkey"
-            )
-        elif dialect == "mysql":
-            mysql_drop_foreignkey_if_exists("dagrun_dataset_events_dag_run_id_fkey", "dagrun_asset_event", op)
-            mysql_drop_foreignkey_if_exists("dagrun_dataset_event_dag_run_id_fkey", "dagrun_asset_event", op)
-        else:
-            # sqlite: Assuming no upgrade for sqlite from Airflow 2
-            batch_op.drop_constraint("dagrun_dataset_event_dag_run_id_fkey", type_="foreignkey")
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dagrun_dataset_events_event_id",
@@ -530,6 +515,7 @@ def downgrade():
             ondelete="CASCADE",
         )
 
+    _drop_fkey_if_exists("dataset_alias_dataset_event", "dataset_alias_dataset_event_event_id_fkey")
     with op.batch_alter_table("dataset_alias_dataset_event", schema=None) as batch_op:
         batch_op.drop_constraint(op.f("asset_alias_asset_event_alias_id_fkey"), type_="foreignkey")
         _rename_index(

@@ -30,7 +30,7 @@ database schema that you have made. To generate a new migration file, run the fo
 
     # starting at the root of the project
     $ breeze --backend postgres
-    $ cd airflow
+    $ cd airflow-core/src/airflow
     $ alembic revision -m "add new field to db" --autogenerate
 
        Generating
@@ -109,7 +109,7 @@ Replace the content of your application's ``alembic.ini`` file with Airflow's ``
 
 If the above is not clear, you might want to look at the FAB implementation of this migration.
 
-After setting up those, and you want airflow to run the migration for you when running ``airflow db migrate`` then you need to
+After setting up those, and you want Airflow to run the migration for you when running ``airflow db migrate`` then you need to
 add your DBManager to the ``[core] external_db_managers`` configuration.
 
 --------

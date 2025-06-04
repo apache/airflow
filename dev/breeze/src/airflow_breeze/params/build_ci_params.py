@@ -57,42 +57,26 @@ class BuildCiParams(CommonBuildParams):
     def prepare_arguments_for_docker_build_command(self) -> list[str]:
         self.build_arg_values: list[str] = []
         # Required build args
-        self._req_arg("AIRFLOW_BRANCH", self.airflow_branch)
+        self._set_common_req_args()
         self._req_arg("AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
         self._req_arg("AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
         self._req_arg("AIRFLOW_EXTRAS", self.airflow_extras)
-        self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
-        self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
         self._req_arg("AIRFLOW_USE_UV", self.use_uv)
         if self.use_uv:
             from airflow_breeze.utils.uv_utils import get_uv_timeout
 
             self._opt_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
-        self._req_arg("BUILD_ID", self.build_id)
-        self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
         self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
         if self.upgrade_to_newer_dependencies:
             self._opt_arg("UPGRADE_RANDOM_INDICATOR_STRING", f"{random.randrange(2**32):x}")
         # optional build args
-        self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
-        self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)
-        self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
-        self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
-        self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
-        self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
-        self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
-        self._opt_arg("BUILD_PROGRESS", self.build_progress)
-        self._opt_arg("COMMIT_SHA", self.commit_sha)
-        self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
-        self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
-        self._opt_arg("DOCKER_HOST", self.docker_host)
+        self._set_common_opt_args()
         self._opt_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
-        self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         # Convert to build args
         build_args = self._to_build_args()
         # Add cache directive
         return build_args
 
     def __post_init__(self):
-        self.version_suffix_for_pypi = self.version_suffix_for_pypi or "dev0"
+        self.version_suffix = self.version_suffix or "dev0"

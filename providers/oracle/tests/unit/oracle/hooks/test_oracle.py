@@ -131,6 +131,15 @@ class TestOracleHookConn:
             assert kwargs["purity"] == purity.get(pur)
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_expire_time(self, mock_connect):
+        self.connection.extra = json.dumps({"expire_time": 10})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["expire_time"] == 10
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_set_current_schema(self, mock_connect):
         self.connection.schema = "schema_name"
         self.connection.extra = json.dumps({"service_name": "service_name"})
@@ -261,42 +270,33 @@ class TestOracleHookConn:
         [
             pytest.param(
                 {"extra": '{"service_name": "service"}', "schema": None, "port": 1521},
-                "oracle://login:password@host:1521/service",
+                "oracle+oracledb://login:password@host:1521?service_name=service",
                 id="service_name_in_extra",
             ),
             pytest.param(
                 {"extra": '{"sid": "sid"}', "schema": None, "port": 1521},
-                "oracle://login:password@host:1521/sid",
+                "oracle+oracledb://login:password@host:1521/sid",
                 id="sid_in_extra",
             ),
             pytest.param(
                 {"extra": "{}", "schema": "db_schema", "port": 1521},
-                "oracle://login:password@host:1521/db_schema",
+                "oracle+oracledb://login:password@host:1521/db_schema",
                 id="schema_only",
             ),
             pytest.param(
                 {"extra": "{}", "schema": None, "port": 1521},
-                "oracle://login:password@host:1521",
+                "oracle+oracledb://login:password@host:1521",
                 id="no_schema_no_extra",
             ),
             pytest.param(
                 {"extra": "{}", "schema": "db_schema", "port": None},
-                "oracle://login:password@host:1521/db_schema",
+                "oracle+oracledb://login:password@host:1521/db_schema",
                 id="schema_only_default_port",
             ),
             pytest.param(
                 {"extra": '{"service_name": "service"}', "schema": "db_schema", "port": 1521},
-                "oracle://login:password@host:1521/service",
+                "oracle+oracledb://login:password@host:1521?service_name=service",
                 id="service_name_with_schema",
-            ),
-            pytest.param(
-                {
-                    "extra": '{"service_name": "(DESCRIPTION=(ADDRESS=(host=oracle://somedb.example.com)(protocol=TCP)(port=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb)))"}',
-                    "schema": None,
-                    "port": 1521,
-                },
-                "oracle://login:password@host:1521/(DESCRIPTION=(ADDRESS=(host=oracle://somedb.example.com)(protocol=TCP)(port=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb)))",
-                id="complex_service_name",
             ),
         ],
     )

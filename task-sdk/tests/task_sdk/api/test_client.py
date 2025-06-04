@@ -295,13 +295,16 @@ class TestTaskInstanceOperations:
                 actual_body = json.loads(request.read())
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["state"] == state
+                assert actual_body["rendered_map_index"] == "test"
                 return httpx.Response(
                     status_code=204,
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        client.task_instances.finish(ti_id, state=state, when="2024-10-31T12:00:00Z")
+        client.task_instances.finish(
+            ti_id, state=state, when="2024-10-31T12:00:00Z", rendered_map_index="test"
+        )
 
     def test_task_instance_heartbeat(self):
         # Simulate a successful response from the server that sends a heartbeat for a ti
@@ -383,13 +386,16 @@ class TestTaskInstanceOperations:
                 actual_body = json.loads(request.read())
                 assert actual_body["state"] == "up_for_retry"
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
+                assert actual_body["rendered_map_index"] == "test"
                 return httpx.Response(
                     status_code=204,
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        client.task_instances.retry(ti_id, end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        client.task_instances.retry(
+            ti_id, end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test"
+        )
 
     @pytest.mark.parametrize(
         "rendered_fields",
@@ -452,11 +458,13 @@ class TestTaskInstanceOperations:
             assert params.get_list("logical_dates") == logical_dates_str
             assert params.get_list("run_ids") == []
             assert params.get_list("states") == states
+            assert params["map_index"] == "0"
             return httpx.Response(200, json=10)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_instances.get_count(
             dag_id="test_dag",
+            map_index=0,
             task_ids=task_ids,
             task_group_id="group1",
             logical_dates=logical_dates,
@@ -494,6 +502,7 @@ class TestTaskInstanceOperations:
             assert params.get_list("logical_dates") == logical_dates_str
             assert params.get_list("task_ids") == []
             assert params.get_list("run_ids") == []
+            assert params.get("map_index") == "0"
             return httpx.Response(
                 200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
             )
@@ -501,6 +510,7 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_instances.get_task_states(
             dag_id="test_dag",
+            map_index=0,
             task_group_id="group1",
             logical_dates=logical_dates,
         )

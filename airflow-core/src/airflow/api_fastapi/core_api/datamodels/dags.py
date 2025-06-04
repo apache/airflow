@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import inspect
 from collections import abc
 from collections.abc import Iterable
 from datetime import datetime, timedelta
@@ -62,6 +63,7 @@ class DAGResponse(BaseModel):
     last_parsed_time: datetime | None
     last_expired: datetime | None
     bundle_name: str | None
+    bundle_version: str | None
     relative_fileloc: str | None
     fileloc: str
     description: str | None
@@ -105,7 +107,7 @@ class DAGResponse(BaseModel):
     @property
     def file_token(self) -> str:
         """Return file token."""
-        serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
+        serializer = URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
         payload = {
             "bundle_name": self.bundle_name,
             "relative_fileloc": self.relative_fileloc,
@@ -153,6 +155,8 @@ class DAGDetailsResponse(DAGResponse):
     template_search_path: Iterable[str] | None
     timezone: str | None
     last_parsed: datetime | None
+    default_args: abc.Mapping | None
+    owner_links: dict[str, str] | None = None
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -161,6 +165,14 @@ class DAGDetailsResponse(DAGResponse):
         if tz is None:
             return None
         return str(tz)
+
+    @field_validator("doc_md", mode="before")
+    @classmethod
+    def get_doc_md(cls, doc_md: str | None) -> str | None:
+        """Clean indentation in doc md."""
+        if doc_md is None:
+            return None
+        return inspect.cleandoc(doc_md)
 
     @field_validator("params", mode="before")
     @classmethod
@@ -182,7 +194,7 @@ class DAGDetailsResponse(DAGResponse):
     @property
     def latest_dag_version(self) -> DagVersionResponse | None:
         """Return the latest DagVersion."""
-        latest_dag_version = DagVersion.get_latest_version(self.dag_id)
+        latest_dag_version = DagVersion.get_latest_version(self.dag_id, load_dag_model=True)
         if latest_dag_version is None:
             return latest_dag_version
         return DagVersionResponse.model_validate(latest_dag_version)

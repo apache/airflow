@@ -181,6 +181,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-i18n-json                                           | Check i18n files validity                              | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-imports-in-providers                                | Check imports in providers                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone               |         |
@@ -271,15 +273,26 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| gci                                                       | Consistent import ordering for Go files                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflow-diagrams                                 | Generate airflow diagrams                              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-airflowctl-datamodels                            | Generate Datamodels for AirflowCTL                     | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-airflowctl-help-images                           | * Generate SVG from Airflow CTL Commands               | *       |
+|                                                           | * Generate SVG from Airflow CTL Commands               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-openapi-spec-fab                                 | Generate the FastAPI API spec for FAB                  | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-tasksdk-datamodels                               | Generate Datamodels for TaskSDK client                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-volumes-for-sources                              | Generate volumes for docker compose                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| gofmt                                                     | Format go code                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | identity                                                  | Print checked files                                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -294,6 +307,7 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all YAML files except Helm templates |         |
 |                                                           | * Add license for all Markdown files                   |         |
 |                                                           | * Add license for all other files                      |         |
+|                                                           | * Add license for all Go files                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | kubeconform                                               | Kubeconform check on our helm chart                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -471,6 +485,36 @@ In case you do not have breeze image configured locally, you can also disable al
 the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
 when run locally (note that those checks will anyway run in CI).
 
+Disabling goproxy for firewall issues
+-------------------------------------
+
+Sometimes your environment might not allow to connect to the ``goproxy`` server, which is used to
+proxy/cache Go modules. When your firewall blocks go proxy it usually ends with message similar to:
+
+.. code-block:: text
+
+  lookup proxy.golang.org: i/o timeout
+
+In such case, you can disable the ``goproxy`` by setting the
+``GOPROXY`` environment variable to "direct". You can do it by running:
+
+.. code-block:: bash
+
+    export GOPROXY=direct
+
+Alternatively if your company has its own Go proxy, you can set the ``GOPROXY`` to
+your company Go proxy URL. For example:
+
+.. code-block:: bash
+
+    export GOPROXY=https://mycompanygoproxy.com
+
+See `Go Proxy lesson <https://www.practical-go-lessons.com/chap-18-go-module-proxies#configuration-of-the-go-module-proxy>`__)
+for more details on how to configure Go proxy - including setting multiple proxies.
+
+You can add the variable to your ``.bashrc`` or ``.zshrc`` if you do not want to set it manually every time you
+enter the terminal.
+
 Manual pre-commits
 ------------------
 
@@ -485,7 +529,7 @@ Mypy checks
 When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-airflow``,
 ``mypy-dev``, ``mypy-providers``, ``mypy-airflow-ctl``, depending on the files you are changing. The mypy checks
 are run by passing those changed files to mypy. This is way faster than running checks for all files (even
-if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
+if mypy cache is used - especially when you change a file in Airflow core that is imported and used by many
 files). However, in some cases, it produces different results than when running checks for the whole set
 of files, because ``mypy`` does not even know that some types are defined in other files and it might not
 be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole

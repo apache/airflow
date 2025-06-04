@@ -20,7 +20,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
@@ -35,15 +34,10 @@ class TestDagVersionEndpoint:
         clear_db_serialized_dags()
 
         with dag_maker(
-            "ANOTHER_DAG_ID",
-        ) as dag:
+            dag_id="ANOTHER_DAG_ID", bundle_version="some_commit_hash", bundle_name="another_bundle_name"
+        ):
             EmptyOperator(task_id="task_1")
             EmptyOperator(task_id="task_2")
-
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(
-            dag, bundle_name="another_bundle_name", bundle_version="some_commit_hash"
-        )
 
 
 class TestGetDagVersion(TestDagVersionEndpoint):
@@ -56,11 +50,12 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                 {
                     "bundle_name": "another_bundle_name",
                     "bundle_version": "some_commit_hash",
-                    "bundle_url": None,
+                    "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash/dags",
                     "created_at": mock.ANY,
                     "dag_id": "ANOTHER_DAG_ID",
                     "id": mock.ANY,
                     "version_number": 1,
+                    "dag_display_name": "ANOTHER_DAG_ID",
                 },
             ],
             [
@@ -69,11 +64,12 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                 {
                     "bundle_name": "dag_maker",
                     "bundle_version": "some_commit_hash1",
-                    "bundle_url": None,
+                    "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash1/dags",
                     "created_at": mock.ANY,
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 1,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
             [
@@ -82,11 +78,12 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                 {
                     "bundle_name": "dag_maker",
                     "bundle_version": "some_commit_hash2",
-                    "bundle_url": None,
+                    "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash2/dags",
                     "created_at": mock.ANY,
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 2,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
             [
@@ -95,11 +92,12 @@ class TestGetDagVersion(TestDagVersionEndpoint):
                 {
                     "bundle_name": "dag_maker",
                     "bundle_version": "some_commit_hash3",
-                    "bundle_url": None,
+                    "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash3/dags",
                     "created_at": mock.ANY,
                     "dag_id": "dag_with_multiple_versions",
                     "id": mock.ANY,
                     "version_number": 3,
+                    "dag_display_name": "dag_with_multiple_versions",
                 },
             ],
         ],
@@ -139,38 +137,42 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                         {
                             "bundle_name": "another_bundle_name",
                             "bundle_version": "some_commit_hash",
-                            "bundle_url": None,
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash/dags",
                             "created_at": mock.ANY,
                             "dag_id": "ANOTHER_DAG_ID",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "ANOTHER_DAG_ID",
                         },
                         {
                             "bundle_name": "dag_maker",
                             "bundle_version": "some_commit_hash1",
-                            "bundle_url": None,
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash1/dags",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
                             "bundle_version": "some_commit_hash2",
-                            "bundle_url": None,
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash2/dags",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 2,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
                             "bundle_version": "some_commit_hash3",
-                            "bundle_url": None,
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash3/dags",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 3,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                     ],
                     "total_entries": 4,
@@ -183,29 +185,32 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                         {
                             "bundle_name": "dag_maker",
                             "bundle_version": "some_commit_hash1",
-                            "bundle_url": None,
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash1/dags",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 1,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
                             "bundle_version": "some_commit_hash2",
-                            "bundle_url": None,
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash2/dags",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 2,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                         {
                             "bundle_name": "dag_maker",
                             "bundle_version": "some_commit_hash3",
-                            "bundle_url": None,
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash3/dags",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
                             "version_number": 3,
+                            "dag_display_name": "dag_with_multiple_versions",
                         },
                     ],
                     "total_entries": 3,

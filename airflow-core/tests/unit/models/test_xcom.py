@@ -333,6 +333,17 @@ class TestXComGet:
         )
         assert [x.logical_date for x in stored_xcoms] == [ti2.logical_date, ti1.logical_date]
 
+    def test_xcom_get_invalid_key(self, session, task_instance):
+        """Test that getting an XCom with an invalid key raises a ValueError."""
+        with pytest.raises(ValueError, match="XCom key must be a non-empty string. Received: ''"):
+            XComModel.get_many(
+                key="",  # Invalid key
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
+
 
 class TestXComSet:
     @pytest.mark.parametrize(
@@ -379,6 +390,28 @@ class TestXComSet:
             session=session,
         )
         assert session.query(XComModel).one().value == json.dumps({"key2": "value2"})
+
+    def test_xcom_set_invalid_key(self, session, task_instance):
+        """Test that setting an XCom with an invalid key raises a ValueError."""
+        with pytest.raises(ValueError, match="XCom key must be a non-empty string. Received: ''"):
+            XComModel.set(
+                key="",  # Invalid key
+                value={"key": "value"},
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
+
+        with pytest.raises(ValueError, match="XCom key must be a non-empty string. Received: None"):
+            XComModel.set(
+                key=None,  # Invalid key
+                value={"key": "value"},
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
 
 
 class TestXComClear:

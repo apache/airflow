@@ -17,17 +17,17 @@
  * under the License.
  */
 import { Box, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 
 import {
   useBackfillServiceCancelBackfill,
-  useBackfillServiceListBackfills,
-  useBackfillServiceListBackfillsKey,
+  useBackfillServiceListBackfillsUi,
+  useBackfillServiceListBackfillsUiKey,
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
-import { queryClient } from "src/queryClient";
 
 import Time from "../Time";
 import { Button, ProgressBar } from "../ui";
@@ -45,17 +45,18 @@ const buttonProps = {
   variant: "outline",
 } satisfies ButtonProps;
 
-const onSuccess = async () => {
-  await queryClient.invalidateQueries({
-    queryKey: [useBackfillServiceListBackfillsKey],
-  });
-};
-
 const BackfillBanner = ({ dagId }: Props) => {
-  const { data, isLoading } = useBackfillServiceListBackfills({
+  const { data, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
   });
   const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
+
+  const queryClient = useQueryClient();
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: [useBackfillServiceListBackfillsUiKey],
+    });
+  };
 
   const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({ onSuccess });
   const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({
@@ -65,15 +66,21 @@ const BackfillBanner = ({ dagId }: Props) => {
   const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({ onSuccess });
 
   const togglePause = () => {
-    if (backfill?.is_paused) {
+    if (backfill === undefined) {
+      return;
+    }
+    if (backfill.is_paused) {
       unpauseMutate({ backfillId: backfill.id });
     } else {
-      pauseMutate({ backfillId: backfill?.id });
+      pauseMutate({ backfillId: backfill.id });
     }
   };
 
   const cancel = () => {
-    stopPending({ backfillId: backfill?.id });
+    if (backfill === undefined) {
+      return;
+    }
+    stopPending({ backfillId: backfill.id });
   };
 
   if (isLoading || backfill === undefined) {

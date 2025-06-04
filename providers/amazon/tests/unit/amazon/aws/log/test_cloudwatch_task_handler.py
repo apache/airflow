@@ -44,7 +44,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def get_time_str(time_in_milliseconds):
@@ -139,6 +139,9 @@ class TestCloudRemoteLogIO:
             # We need to close in order to flush the logs etc.
             self.subject.close()
 
+            # close call should only flush the logs and not set shutting_down to True
+            assert self.subject.handler.shutting_down is False
+
             # Inside the Cloudwatch logger we swap colons for underscores since colons are not allowed in
             # stream names.
             stream_name = self.task_log_path.replace(":", "_")
@@ -181,43 +184,43 @@ class TestCloudRemoteLogIO:
 
 @pytest.mark.db_test
 class TestCloudwatchTaskHandler:
-    @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session):
-        self.remote_log_group = "log_group_name"
-        self.region_name = "us-west-2"
-        self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
-        if AIRFLOW_V_3_0_PLUS:
-            create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
-        else:
-            create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
-        self.cloudwatch_task_handler = CloudwatchTaskHandler(
-            self.local_log_location,
-            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
-        )
+    def setup(self, create_log_template, tmp_path_factory, session):
+        with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
+            self.remote_log_group = "log_group_name"
+            self.region_name = "us-west-2"
+            self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
+            if AIRFLOW_V_3_0_PLUS:
+                create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
+            else:
+                create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
+            self.cloudwatch_task_handler = CloudwatchTaskHandler(
+                self.local_log_location,
+                f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
+            )
 
-        date = datetime(2020, 1, 1)
-        dag_id = "dag_for_testing_cloudwatch_task_handler"
-        task_id = "task_for_testing_cloudwatch_log_handler"
-        self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
-        task = EmptyOperator(task_id=task_id, dag=self.dag)
-        if AIRFLOW_V_3_0_PLUS:
-            dag_run = DagRun(
-                dag_id=self.dag.dag_id,
-                logical_date=date,
-                run_id="test",
-                run_type="scheduled",
-            )
-        else:
-            dag_run = DagRun(
-                dag_id=self.dag.dag_id,
-                execution_date=date,
-                run_id="test",
-                run_type="scheduled",
-            )
-        session.add(dag_run)
-        session.commit()
-        session.refresh(dag_run)
+            date = datetime(2020, 1, 1)
+            dag_id = "dag_for_testing_cloudwatch_task_handler"
+            task_id = "task_for_testing_cloudwatch_log_handler"
+            self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
+            task = EmptyOperator(task_id=task_id, dag=self.dag)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_run = DagRun(
+                    dag_id=self.dag.dag_id,
+                    logical_date=date,
+                    run_id="test",
+                    run_type="scheduled",
+                )
+            else:
+                dag_run = DagRun(
+                    dag_id=self.dag.dag_id,
+                    execution_date=date,
+                    run_id="test",
+                    run_type="scheduled",
+                )
+            session.add(dag_run)
+            session.commit()
+            session.refresh(dag_run)
 
         self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
@@ -270,19 +273,13 @@ class TestCloudwatchTaskHandler:
                 {"timestamp": current_time, "message": "Third"},
             ],
         )
-        if AIRFLOW_V_2_10_PLUS:
-            monkeypatch.setattr(self.cloudwatch_task_handler, "_read_from_logs_server", lambda a, b: ([], []))
-            msg_template = textwrap.dedent("""
-                 INFO - ::group::Log message source details
-                *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
-                 INFO - ::endgroup::
-                {}
-            """)[1:][:-1]  # Strip off leading and trailing new lines, but not spaces
-        else:
-            msg_template = textwrap.dedent("""
-                *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
-                {}
-            """).strip()
+        monkeypatch.setattr(self.cloudwatch_task_handler, "_read_from_logs_server", lambda a, b: ([], []))
+        msg_template = textwrap.dedent("""
+             INFO - ::group::Log message source details
+            *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
+             INFO - ::endgroup::
+            {}
+        """)[1:][:-1]  # Strip off leading and trailing new lines, but not spaces
 
         logs, metadata = self.cloudwatch_task_handler.read(self.ti)
         if AIRFLOW_V_3_0_PLUS:

@@ -18,69 +18,80 @@
 Upgrading to Airflow 3
 =======================
 
-Apache Airflow 3 is a major release. This guide walks you through the steps required to upgrade from Airflow 2.x to Airflow 3.0.
+Apache Airflow 3 is a major release and contains :ref:`breaking changes<breaking-changes>`. This guide walks you through the steps required to upgrade from Airflow 2.x to Airflow 3.0.
 
 Step 1: Take care of prerequisites
 ----------------------------------
 
-- Make sure that you are on Airflow 2.7 or later.
+- Make sure that you are on Airflow 2.7 or later. It is recommended to upgrade to latest 2.x and then to Airflow 3.
 - Make sure that your Python version is in the supported list. Airflow 3.0.0 supports the following Python versions: Python 3.9, 3.10, 3.11 and 3.12.
-- Ensure that you are not using SubDAGs. These were deprecated in Airflow 2.0 and removed in Airflow 3.
-- For a complete list of breaking changes, which you should note before the upgrade, please check the breaking changes section below.
+- Ensure that you are not using any features or functionality that have been :ref:`removed in Airflow 3<breaking-changes>`.
+
 
 Step 2: Clean and back up your existing Airflow Instance
 ---------------------------------------------------------
 
-- It is highly recommended to make a backup of your Airflow instance specifically including your Airflow metadata DB before starting the migration process.
-- If you do not have a "hot backup" capability for your DB, you should do it after shutting down your Airflow instances, so that the backup of your database will be consistent.
-- If you did not make a backup and your migration fails, you might end-up in a half-migrated state and restoring DB from backup and repeating the migration
-  might be the only easy way out. This can for example be caused by a broken network connection between your CLI and the database while the migration happens, so taking a
-  backup is an important precaution to avoid problems like this.
-- A long running Airflow instance can accumulate a certain amount of silt, in the form of old database entries, which are no longer
-  required. This is typically in the form of old XCom data which is no longer required, and so on. As part of the Airflow 3 upgrade
-  process, there will be schema changes. Based on the size of the Airflow meta-database this can be somewhat time
-  consuming. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
-  You can use ``airflow db clean`` command for that.
+- It is highly recommended that you make a backup of your Airflow instance, specifically your Airflow metadata database before starting the migration process.
+
+    - If you do not have a "hot backup" capability for your database, you should do it after shutting down your Airflow instances, so that the backup of your database will be consistent. For example, if you don't turn off your Airflow instance, the backup of the database will not include all TaskInstances or DagRuns.
+
+    - If you did not make a backup and your migration fails, you might end up in a half-migrated state. This can be caused by, for example, a broken network connection between your Airflow CLI and the database during the migration. Having a backup is an important precaution to avoid problems like this.
+
+- A long running Airflow instance can accumulate a substantial amount of data that are no longer required (for example, old XCom data). Schema changes will be a part of the Airflow 3
+  upgrade process. These schema changes can take a long time if the database is large. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
+  You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
+
+- Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
+  be able to run ``airflow dags reserialize`` with no errors.  If you have to resolve errors from dag processing,
+  ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
+  (and all errors gone) before you proceed with upgrade.
 
 Step 3: DAG Authors - Check your Airflow DAGs for compatibility
 ----------------------------------------------------------------
 
-To minimize friction for users upgrading from prior versions of Airflow, we have created a DAG upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_.
+To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_.
 
-Use the latest available ``ruff`` version to get updates to the rules but at the very least use ``0.11.5``:
-
-.. code-block:: bash
-
-    ruff check dag/ --select AIR301
-
-This command above shows you all the errors which need to be fixed before these DAGs can be used on Airflow 3.
-
-Some of these changes are automatically fixable and you can also rerun the command above with the auto-fix option as shown below.
-
-To preview the changes:
+The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.6``. The below example demonstrates how to check
+for dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --show-fixes
+    ruff check dag/ --select AIR301 --preview
 
-To auto-fix:
+To preview the recommended fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --fix
+    ruff check dag/ --select AIR301 --show-fixes --preview
+
+Some changes can be automatically fixed. To do so, run the following command:
+
+.. code-block:: bash
+
+    ruff check dag/ --select AIR301 --fix --preview
+
+
+You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
 Step 4: Install the Standard Providers
 --------------------------------------
 
-- Some of the commonly used Operators which were bundled as part of the Core Airflow OSS package such as the
-  Bash and Python Operators have now been split out into a separate package: ``apache-airflow-providers-standard``.
-- For user convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the Standard Provider package instead of Airflow Core.
+- Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
+  have now been split out into a separate package: ``apache-airflow-providers-standard``.
+- For convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the standard provider
+  package instead of Airflow Core.
 
+Step 5: Review custom operators for direct db access
+----------------------------------------------------
 
-Step 5: Deployment Managers - Upgrade your Airflow Instance
+- In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
+  If you have custom operators, review the code to make sure there are no direct db access.
+  You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+
+Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
 
-For an easier and safer upgrade process, we have also created a utility to upgrade your Airflow instance configuration as a deployment manager.
+For an easier and safer upgrade process, we have also created a utility to upgrade your Airflow instance configuration.
 
 The first step is to run this configuration check utility as shown below:
 
@@ -97,32 +108,35 @@ This configuration utility can also update your configuration to automatically b
     airflow config update --fix
 
 
-The biggest part of an Airflow upgrade is the database upgrade. The database upgrade process for Airflow 3 is the same as for Airflow 2.7 or later.
-
+The biggest part of an Airflow upgrade is the database upgrade. The database upgrade process for Airflow 3 is the same as for Airflow 2.7 or later:
 
 .. code-block:: bash
 
     airflow db migrate
 
 
-You should now be able to start up your Airflow 3 instance.
+If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Flask-AppBuilder menu items ( ``appbuilder_menu_items`` ), or Flask blueprints ( ``flask_blueprints`` ), you will either need to convert
+them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
+Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
 
-
-Step 6: Changes to your startup scripts
+Step 7: Changes to your startup scripts
 ---------------------------------------
 
-- In Airflow 3, the Webserver has now become a generic API-server. The api-server can be started up using the following command:
+In Airflow 3, the Webserver has become a generic API server. The API server can be started up using the following command:
 
 .. code-block:: bash
 
     airflow api-server
 
-- The DAG processor must now be started independently, even for local or development setups.
+The dag processor must now be started independently, even for local or development setups:
 
 .. code-block:: bash
 
     airflow dag-processor
 
+You should now be able to start up your Airflow 3 instance.
+
+.. _breaking-changes:
 
 Breaking Changes
 ================
@@ -130,12 +144,13 @@ Breaking Changes
 Some capabilities which were deprecated in Airflow 2.x are not available in Airflow 3.
 These include:
 
-- **SubDAGs**: Replaced by TaskGroups, Datasets, and Data Aware Scheduling.
+- **SubDAGs**: Replaced by TaskGroups, Assets, and Data Aware Scheduling.
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
+- **CeleryKubernetesExecutor and LocalKubernetesExecutor**: Replaced by `Multiple Executor Configuration <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
-- **Subdir**: Used as an argument on many CLI commands (``--subdir`` or ``-S`` has been superseded by DAG bundles.
-- **Following keys are no longer available in task context. If not replaced, will cause DAG errors:**:
-
+- **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`DAG bundles </administration-and-deployment/dag-bundles>`.
+- **REST API** (``/api/v1``) replaced: Use the modern FastAPI-based stable ``/api/v2`` instead; see :doc:`Airflow API v2 </stable-rest-api-ref>` for details.
+- **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause dag errors:
   - ``tomorrow_ds``
   - ``tomorrow_ds_nodash``
   - ``yesterday_ds``
@@ -148,10 +163,9 @@ These include:
   - ``next_ds_nodash``
   - ``next_ds``
   - ``execution_date``
-
-- ``catchup_by_default`` is now ``False`` by default.
-- ``create_cron_data_intervals`` is now ``False``. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``
-- **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to
+- The ``catchup_by_default`` dag parameter is now ``False`` by default.
+- The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``
+- **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 
   .. code-block:: ini
 

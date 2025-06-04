@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import json
 import locale
+import warnings
 from base64 import b64encode
 from os.path import dirname
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 
@@ -32,16 +33,14 @@ from airflow.utils import timezone
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
-if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+try:
+    from airflow.sdk.definitions.context import Context
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context
 
 
 class TestMSGraphAsyncOperator(Base):
@@ -261,7 +260,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["response"] == base64_encoded_content
 
     @pytest.mark.db_test
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
     def test_execute_with_lambda_parameter_when_response_is_bytes(self):
         content = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
@@ -336,17 +334,21 @@ class TestMSGraphAsyncOperator(Base):
                 execute_callable(
                     lambda context, response: response,
                     "response",
-                    {"execution_date": timezone.utcnow()},
+                    Context({"execution_date": timezone.utcnow()}),
                     "result_processor signature has changed, result parameter should be defined before context!",
                 )
                 == "response"
             )
-        assert (
-            execute_callable(
-                lambda response, **context: response,
-                "response",
-                {"execution_date": timezone.utcnow()},
-                "result_processor signature has changed, result parameter should be defined before context!",
+
+        with warnings.catch_warnings(record=True) as recorded_warnings:
+            warnings.simplefilter("error")  # Treat warnings as errors
+            assert (
+                execute_callable(
+                    lambda response, **context: response,
+                    "response",
+                    Context({"execution_date": timezone.utcnow()}),
+                    "result_processor signature has changed, result parameter should be defined before context!",
+                )
+                == "response"
             )
-            == "response"
-        )
+            assert len(recorded_warnings) == 0

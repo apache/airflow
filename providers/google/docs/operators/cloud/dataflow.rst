@@ -146,6 +146,15 @@ Here is an example of creating and running a streaming pipeline in Java with jar
     :start-after: [START howto_operator_start_java_streaming]
     :end-before: [END howto_operator_start_java_streaming]
 
+Here is an Java dataflow streaming pipeline example in deferrable_mode :
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_java_streaming.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_java_streaming_deferrable]
+    :end-before: [END howto_operator_start_java_streaming_deferrable]
+
+
 .. _howto/operator:PythonSDKPipelines:
 
 Python SDK pipelines
@@ -231,6 +240,15 @@ source, such as Pub/Sub, in your pipeline (for Java).
     :dedent: 4
     :start-after: [START howto_operator_start_streaming_python_job]
     :end-before: [END howto_operator_start_streaming_python_job]
+
+Deferrable mode:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_streaming_python.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_streaming_python_job_deferrable]
+    :end-before: [END howto_operator_start_streaming_python_job_deferrable]
+
 
 Setting argument ``drain_pipeline`` to ``True`` allows to stop streaming job by draining it
 instead of canceling during killing task instance.

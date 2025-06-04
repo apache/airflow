@@ -39,10 +39,11 @@ Configuring the Connection
 --------------------------
 
 Login
-    Specify the snowflake username.
+    Specify the snowflake username. For OAuth, the OAuth Client ID.
 
 Password
     Specify the snowflake password. For public key authentication, the passphrase for the private key.
+    For OAuth, the OAuth Client Secret.
 
 Schema (optional)
     Specify the snowflake schema to be used.
@@ -59,7 +60,15 @@ Extra (optional)
     * ``authenticator``: To connect using OAuth set this parameter ``oauth``.
     * ``refresh_token``: Specify refresh_token for OAuth connection.
     * ``private_key_file``: Specify the path to the private key file.
-    * ``private_key_content``: Specify the content of the private key file.
+    * ``private_key_content``: Specify the content of the private key file in base64 encoded format. You can use the following Python code to encode the private key:
+
+      .. code-block:: python
+
+         import base64
+
+         with open("path/to/private_key.pem", "rb") as key_file:
+             private_key_content = base64.b64encode(key_file.read()).decode("utf-8")
+             print(private_key_content)
     * ``session_parameters``: Specify `session level parameters <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_.
     * ``insecure_mode``: Turn off OCSP certificate checks. For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`_.
     * ``host``: Target Snowflake hostname to connect to (e.g., for local testing with LocalStack).

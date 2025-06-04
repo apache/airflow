@@ -62,8 +62,6 @@ os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
 PACKAGE_VERSION: str = "stable"
 
-conf_py_path = f"/docs/{PACKAGE_NAME}/"
-
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
@@ -155,6 +153,7 @@ html_show_copyright = False
 
 html_theme_options: dict[str, Any] = get_html_theme_options()
 
+conf_py_path = "/docker-stack-docs/"
 # A dictionary of values to pass into the template engine's context for all pages.
 html_context = get_html_context(conf_py_path)
 
@@ -223,7 +222,7 @@ autoapi_options = AUTOAPI_OPTIONS
 suppress_warnings = SUPPRESS_WARNINGS
 
 # -- Options for ext.exampleinclude --------------------------------------------
-exampleinclude_sourceroot = os.path.abspath("..")
+exampleinclude_sourceroot = os.path.abspath(".")
 
 # -- Options for ext.redirects -------------------------------------------------
 redirects_file = "redirects.txt"

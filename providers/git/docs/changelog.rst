@@ -15,6 +15,26 @@
     specific language governing permissions and limitations
     under the License.
 
+0.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Don't log repo_url in git dag bundle (#48909)``
+* ``Make git connection optional for git dag bundle (#49270)``
+* ``Use 'git_default' if the user defines nothing (#49359)``
+
+Misc
+~~~~
+
+* ``Include subdir in Gitbundle view url (#49239)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 3rd wave of providers (#49338)``
+   * ``Update documentation for edge3 and git provider (#49365)``
+
 0.0.1
 .....
 

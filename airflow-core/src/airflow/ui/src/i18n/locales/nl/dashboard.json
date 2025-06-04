@@ -1,0 +1,38 @@
+{
+  "group": "Groep",
+  "health": {
+    "dagProcessor": "Dag Processor",
+    "health": "Status",
+    "healthy": "OK",
+    "lastHeartbeat": "Laatste hartslag",
+    "metaDatabase": "MetaDatabase",
+    "scheduler": "Scheduler",
+    "status": "Status",
+    "triggerer": "Triggerer",
+    "unhealthy": "Fout"
+  },
+  "history": "Geschiedenis",
+  "importErrors": {
+    "dagImportError_one": "Dag leesfout",
+    "dagImportError_other": "Dag leesfouten",
+    "searchByFile": "Zoek op bestand",
+    "timestamp": "Tijd"
+  },
+  "managePools": "Beheer Pools",
+  "noAssetEvents": "Geen Asset Events gevonden.",
+  "poolSlots": "Pool Slots",
+  "sortBy": {
+    "newestFirst": "Nieuwste eerst",
+    "oldestFirst": "Oudste eerst"
+  },
+  "source": "Bron",
+  "stats": {
+    "activeDags": "Actieve Dags",
+    "failedDags": "Mislukte Dags",
+    "queuedDags": "Dags in de wachtrij",
+    "runningDags": "Lopende Dags",
+    "stats": "Statistieken"
+  },
+  "uri": "Uri",
+  "welcome": "Welkom"
+}

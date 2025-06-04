@@ -19,10 +19,12 @@ from __future__ import annotations
 import copy
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -84,6 +86,7 @@ def get_xcom_entry(
     )
     query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
     query = query.where(DR.run_id == dag_run_id)
+    query = query.options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
 
     if deserialize:
         item = session.execute(query).one_or_none()
@@ -136,7 +139,9 @@ def get_xcom_entries(
     query = select(XComModel)
     if dag_id != "~":
         query = query.where(XComModel.dag_id == dag_id)
-    query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
+    query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id)).options(
+        joinedload(XComModel.dag_run).joinedload(DR.dag_model)
+    )
 
     if task_id != "~":
         query = query.where(XComModel.task_id == task_id)
@@ -181,11 +186,11 @@ def create_xcom_entry(
     dag_run_id: str,
     request_body: XComCreateBody,
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Create an XCom entry."""
     # Validate DAG ID
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
 
@@ -249,6 +254,7 @@ def create_xcom_entry(
             XComModel.map_index == request_body.map_index,
         )
         .limit(1)
+        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     return XComResponseNative.model_validate(xcom)
@@ -289,6 +295,7 @@ def update_xcom_entry(
             XComModel.map_index == patch_body.map_index,
         )
         .limit(1)
+        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     if not xcom_entry:

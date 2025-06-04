@@ -252,7 +252,9 @@ class Trigger(Base):
             return
         for asset in trigger.assets:
             AssetManager.register_asset_change(
-                asset=asset.to_public(), session=session, extra={"from_trigger": True}
+                asset=asset.to_public(),
+                extra={"from_trigger": True, "payload": event.payload},
+                session=session,
             )
 
     @classmethod
@@ -348,6 +350,7 @@ class Trigger(Base):
         """
         query = with_row_locks(
             select(cls.id)
+            .prefix_with("STRAIGHT_JOIN", dialect="mysql")
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
             .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date)

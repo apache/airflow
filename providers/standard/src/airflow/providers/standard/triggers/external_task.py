@@ -27,7 +27,6 @@ from airflow.models import DagRun
 from airflow.providers.standard.utils.sensor_helper import _get_count
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if typing.TYPE_CHECKING:
     from datetime import datetime
@@ -116,9 +115,7 @@ class WorkflowTrigger(BaseTrigger):
                 if failed_count > 0:
                     yield TriggerEvent({"status": "failed"})
                     return
-                else:
-                    yield TriggerEvent({"status": "success"})
-                    return
+
             if self.skipped_states:
                 skipped_count = await get_count_func(self.skipped_states)
                 if skipped_count > 0:
@@ -265,22 +262,25 @@ class DagStateTrigger(BaseTrigger):
                         return cls_path, data
             await asyncio.sleep(self.poll_interval)
 
-    @sync_to_async
-    @provide_session
-    def count_dags(self, *, session: Session = NEW_SESSION) -> int:
-        """Count how many dag runs in the database match our criteria."""
-        _dag_run_date_condition = (
-            DagRun.run_id.in_(self.run_ids)
-            if AIRFLOW_V_3_0_PLUS
-            else DagRun.execution_date.in_(self.execution_dates)
-        )
-        count = (
-            session.query(func.count("*"))  # .count() is inefficient
-            .filter(
-                DagRun.dag_id == self.dag_id,
-                DagRun.state.in_(self.states),
-                _dag_run_date_condition,
+    if not AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
+
+        @sync_to_async
+        @provide_session
+        def count_dags(self, *, session: Session = NEW_SESSION) -> int:
+            """Count how many dag runs in the database match our criteria."""
+            _dag_run_date_condition = (
+                DagRun.run_id.in_(self.run_ids)
+                if AIRFLOW_V_3_0_PLUS
+                else DagRun.execution_date.in_(self.execution_dates)
             )
-            .scalar()
-        )
-        return typing.cast("int", count)
+            count = (
+                session.query(func.count("*"))  # .count() is inefficient
+                .filter(
+                    DagRun.dag_id == self.dag_id,
+                    DagRun.state.in_(self.states),
+                    _dag_run_date_condition,
+                )
+                .scalar()
+            )
+            return typing.cast("int", count)

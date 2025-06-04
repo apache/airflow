@@ -199,7 +199,7 @@ In some cases, you may want to exclude a string from templating and use it direc
     )
 
 This will fail with ``TemplateNotFound: cat script.sh`` since Airflow would treat the string as a path to a file, not a command.
-We can prevent airflow from treating this value as a reference to a file by wrapping it in :func:`~airflow.util.template.literal`.
+We can prevent Airflow from treating this value as a reference to a file by wrapping it in :func:`~airflow.util.template.literal`.
 This approach disables the rendering of both macros and files and can be applied to selected nested fields while retaining the default templating rules for the remainder of the content.
 
 .. code-block:: python

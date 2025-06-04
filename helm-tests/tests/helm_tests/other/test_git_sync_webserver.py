@@ -49,6 +49,7 @@ class TestGitSyncWebserver:
     def test_should_have_service_account_defined(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.0",
                 "dags": {
                     "gitSync": {"enabled": True, "components": {"webserver": True}},
                     "persistence": {"enabled": True}
@@ -57,6 +58,7 @@ class TestGitSyncWebserver:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
+        assert jmespath.search("spec.template.spec.containers[1].name", docs[0]) == "git-sync"
         assert (
             jmespath.search("spec.template.spec.serviceAccountName", docs[0])
             == "release-name-airflow-webserver"
@@ -152,6 +154,7 @@ class TestGitSyncWebserver:
     # def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
     #     docs = render_chart(
     #         values={
+    #             "airflowVersion": "2.10.4",
     #             "dags": {
     #                 "gitSync": {
     #                     "enabled": True,

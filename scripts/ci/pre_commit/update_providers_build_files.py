@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -75,17 +74,9 @@ cmd = [
     "--reapply-templates-only",
     "--skip-git-fetch",
     "--only-min-version-update",
+    "--skip-changelog",
+    "--skip-readme",
 ]
-
-if os.environ.get("ONLY_PYPROJECT_TOML_CHANGED", "") == "true":
-    # in order to make dependabot happy we skip generating changelog/readme when only
-    # pyproject.toml files changed
-    cmd.extend(
-        [
-            "--skip-changelog",
-            "--skip-readme",
-        ]
-    )
 
 cmd.extend(providers)
 res = subprocess.run(

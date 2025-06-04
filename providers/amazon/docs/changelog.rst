@@ -26,6 +26,108 @@
 Changelog
 ---------
 
+9.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add in-memory buffer and gzip support in SqlToS3Operator (#50287)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add Key to default meta keys in S3KeySensor (#50122)``
+
+Misc
+~~~~
+
+* ``Update Sagemaker Operators and Sensors to inherit Base AWS classes (#50321)``
+* ``Use non-deprecated context in tests for Airflow 3 (#50391)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Handle exception when building amazon documentation (#50417)``
+   * ``AWS System Test Context: Don't set env_id at parse time (#50571)``
+
+9.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.10+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Move SQS messaging from common.messaging to Amazon provider (#50057)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo in emr sensor _hook_parameters (#49597)``
+* ``Update 'prune_logs' in Amazon provider package to support 'RuntimeTaskInstance' (#49363)``
+
+Misc
+~~~~
+
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``Update GlueJobOperator to inherit AWS base class (#49750)``
+* ``Amazon EMR Sensors/Operators inherit AWS Base Classes (#49486)``
+* ``Introduce lower bind to lxml as 5.4.0 (#49612)``
+* ``Remove Marshmallow from Core (#49388)``
+* ``Migrate 'HiveToDynamoDBOperator' and 'SqlToS3Operator' to use 'get_df' (#50126)``
+* ``add root parent information to OpenLineage events (#49237)``
+* ``Remove limits for aiobotocore limiting boto3 (#50285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Limit boto3 (#49939)" (#49948)``
+   * ``Refactor connection creation in system tests to use REST API instead (#49804)``
+   * ``Min provider version=2.10; use running_state freely (#49924)``
+   * ``Also limit botocore when upgrading to latest (#49962)``
+   * ``Add AWS auth manager to AWS provider.yaml (#49944)``
+   * ``Limit boto3 (#49939)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Replace chicken-egg providers with automated use of unreleased packages (#49799)``
+   * ``Fix AWS system test names (#49791)``
+   * ``Update 'secure' in AWS auth manager (#49751)``
+   * ``use NonNegativeInt for backfill_id (#49691)``
+   * ``Fix AWS auth manager (#49588)``
+   * ``Fix AWS auth manager system test (#49561)``
+   * ``Make AWS auth manager compatible with AF3 (#49419)``
+   * ``capitalize the term airflow (#49450)``
+   * ``Use Label class from task sdk in providers (#49398)``
+   * ``Add Stop AutoML Job to the Sagemaker system test to clean up. (#49325)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Prepare ad hoc release for providers May 2025 (#50166)``
+
+9.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'EksClusterStateSensor'. Save 'region' as attribute (#49138)``
+* ``Decrease default value of 'waiter_max_attempts' in 'MwaaTriggerDagRunOperator' (#49136)``
+* ``Increase default value of 'waiter_max_attempts' in 'BedrockBatchInferenceOperator' (#49090)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+* ``Add base_url fallback for aws auth_manager (#49305)``
+* ``remove superfluous else block (#49199)``
+* ``AWS Batch Operators/Sensors inherit AWS Base classes (#49172)``
+* ``Help pip to find appropriate boto for aiobotocore (#49166)``
+* ``Update EKS Operators and Sensors to inherit AWS base classes (#48192)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Unpause DAG in AWS MWAA system test (#49145)``
+   * ``Fix AWS auth manager system test (#49072)``
+
 9.6.0
 .....
 

@@ -100,7 +100,15 @@ def find_provider_distributions(extension: str, selected_providers: list[str]) -
         for candidate in sorted(candidates):
             console.print(f"  {candidate.as_posix()}")
         console.print()
-    return [candidate.as_posix() for candidate in candidates]
+    result = []
+    for candidate in candidates:
+        # https://github.com/apache/airflow/pull/49339
+        path_str = candidate.as_posix()
+        if "apache_airflow_providers_common_sql" in path_str:
+            console.print(f"[bright_blue]Adding [polars] extra to common.sql provider: {path_str}")
+            path_str += "[polars]"
+        result.append(path_str)
+    return result
 
 
 def calculate_constraints_location(
@@ -422,7 +430,7 @@ def find_installation_spec(
 
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
 ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
-ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
+ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests", "selected"]
 
 INIT_CONTENT = '__path__ = __import__("pkgutil").extend_path(__path__, __name__) # type: ignore'
 FUTURE_CONTENT = "from __future__ import annotations"
@@ -797,7 +805,7 @@ def install_airflow_and_providers(
                 "apache-airflow-providers-git",
             ]
             if version.minor < 10:
-                providers_to_uninstall_for_airflow_2.append("apache-airflow-providers-edgeexecutor")
+                providers_to_uninstall_for_airflow_2.append("apache-airflow-providers-edge3")
             run_command(
                 ["uv", "pip", "uninstall", *providers_to_uninstall_for_airflow_2],
                 github_actions=github_actions,

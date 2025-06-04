@@ -84,8 +84,7 @@ def auth_manager():
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
         }
     ):
-        with patch.object(AwsAuthManager, "_check_avp_schema_version"):
-            return AwsAuthManager()
+        return AwsAuthManager()
 
 
 @pytest.fixture
@@ -211,7 +210,7 @@ class TestAwsAuthManager:
         "details, user, expected_user, expected_entity_id",
         [
             (None, mock, ANY, None),
-            (BackfillDetails(id="1"), mock, mock, "1"),
+            (BackfillDetails(id=1), mock, mock, 1),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
@@ -487,7 +486,18 @@ class TestAwsAuthManager:
             ]
             + [
                 {"method": "GET", "details": DagDetails(id="dag_1"), "access_entity": dag_access_entity}
-                for dag_access_entity in DagAccessEntity
+                for dag_access_entity in (
+                    DagAccessEntity.AUDIT_LOG,
+                    DagAccessEntity.CODE,
+                    DagAccessEntity.DEPENDENCIES,
+                    DagAccessEntity.RUN,
+                    DagAccessEntity.TASK,
+                    DagAccessEntity.TASK_INSTANCE,
+                    DagAccessEntity.TASK_LOGS,
+                    DagAccessEntity.VERSION,
+                    DagAccessEntity.WARNING,
+                    DagAccessEntity.XCOM,
+                )
             ],
             user=mock,
         )
@@ -519,11 +529,9 @@ class TestAwsAuthManager:
                     DagAccessEntity.CODE.value,
                     DagAccessEntity.DEPENDENCIES.value,
                     DagAccessEntity.RUN.value,
-                    DagAccessEntity.SLA_MISS.value,
                     DagAccessEntity.TASK.value,
                     DagAccessEntity.TASK_INSTANCE.value,
                     DagAccessEntity.TASK_LOGS.value,
-                    DagAccessEntity.TASK_RESCHEDULE.value,
                     DagAccessEntity.VERSION.value,
                     DagAccessEntity.WARNING.value,
                     DagAccessEntity.XCOM.value,

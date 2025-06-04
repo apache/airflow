@@ -37,7 +37,7 @@ def init_jinja_globals(app, enable_plugins: bool):
     elif server_timezone == "utc":
         server_timezone = "UTC"
 
-    expose_hostname = conf.getboolean("webserver", "EXPOSE_HOSTNAME")
+    expose_hostname = conf.getboolean("fab", "EXPOSE_HOSTNAME")
     hostname = get_hostname() if expose_hostname else "redact"
 
     try:
@@ -52,11 +52,10 @@ def init_jinja_globals(app, enable_plugins: bool):
         extra_globals = {
             "server_timezone": server_timezone,
             "hostname": hostname,
-            "navbar_color": conf.get("webserver", "NAVBAR_COLOR"),
-            "navbar_text_color": conf.get("webserver", "NAVBAR_TEXT_COLOR"),
-            "navbar_hover_color": conf.get("webserver", "NAVBAR_HOVER_COLOR"),
-            "navbar_text_hover_color": conf.get("webserver", "NAVBAR_TEXT_HOVER_COLOR"),
-            "navbar_logo_text_color": conf.get("webserver", "NAVBAR_LOGO_TEXT_COLOR"),
+            "navbar_color": conf.get("fab", "NAVBAR_COLOR"),
+            "navbar_text_color": conf.get("fab", "NAVBAR_TEXT_COLOR"),
+            "navbar_hover_color": conf.get("fab", "NAVBAR_HOVER_COLOR"),
+            "navbar_text_hover_color": conf.get("fab", "NAVBAR_TEXT_HOVER_COLOR"),
             "airflow_version": airflow_version,
             "git_version": git_version,
             "show_plugin_message": enable_plugins,

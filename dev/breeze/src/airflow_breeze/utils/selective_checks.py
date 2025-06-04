@@ -32,7 +32,6 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
@@ -47,9 +46,8 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
-    RUNS_ON_PUBLIC_RUNNER,
-    RUNS_ON_SELF_HOSTED_ASF_RUNNER,
-    RUNS_ON_SELF_HOSTED_RUNNER,
+    PUBLIC_AMD_RUNNERS,
+    PUBLIC_ARM_RUNNERS,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
@@ -87,7 +85,6 @@ LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
@@ -103,6 +100,7 @@ class FileGroupForCi(Enum):
     ALWAYS_TESTS_FILES = "always_test_files"
     API_FILES = "api_files"
     GIT_PROVIDER_FILES = "git_provider_files"
+    STANDARD_PROVIDER_FILES = "standard_provider_files"
     API_CODEGEN_FILES = "api_codegen_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
@@ -111,12 +109,14 @@ class FileGroupForCi(Enum):
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     TASK_SDK_FILES = "task_sdk_files"
+    GO_SDK_FILES = "go_sdk_files"
     AIRFLOW_CTL_FILES = "airflow_ctl_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
     ALL_AIRFLOW_CTL_PYTHON_FILES = "all_airflow_ctl_python_files"
     ALL_PROVIDERS_PYTHON_FILES = "all_provider_python_files"
+    ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = "all_provider_distribution_config_files"
     ALL_DEV_PYTHON_FILES = "all_dev_python_files"
     ALL_DEVEL_COMMON_PYTHON_FILES = "all_devel_common_python_files"
     ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
@@ -173,6 +173,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.GIT_PROVIDER_FILES: [
             r"^providers/git/src/",
         ],
+        FileGroupForCi.STANDARD_PROVIDER_FILES: [
+            r"^providers/standard/src/",
+        ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*generated\.yaml",
             r"^clients/gen",
@@ -189,10 +192,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^devel-common/src/docs",
-            r"^\.github/SECURITY\.rst$",
+            r"^\.github/SECURITY\.md",
             r"^airflow-core/src/.*\.py$",
             r"^airflow-core/docs/",
             r"^providers/.*/src/",
+            r"^providers/.*/tests/",
             r"^providers/.*/docs/",
             r"^providers-summary-docs",
             r"^docker-stack-docs",
@@ -204,9 +208,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-ctl/docs",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
-            r"^chart/RELEASE_NOTES\.txt",
+            r"^chart/RELEASE_NOTES\.rst",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
+            r"^RELEASE_NOTES\.rst",
         ],
         FileGroupForCi.UI_FILES: [
             r"^airflow-core/src/airflow/ui/",
@@ -228,6 +233,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
             r"^providers/.*\.py$",
+        ],
+        FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES: [
+            r"^providers/.*/pyproject\.toml$",
+            r"^providers/.*/provider\.yaml$",
         ],
         FileGroupForCi.ALL_DEV_PYTHON_FILES: [
             r"^dev/.*\.py$",
@@ -263,6 +272,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task-sdk/src/airflow/sdk/.*\.py$",
             r"^task-sdk/tests/.*\.py$",
+        ],
+        FileGroupForCi.GO_SDK_FILES: [
+            r"^go-sdk/.*\.go$",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -546,6 +558,16 @@ class SelectiveChecks:
             )
             return True
         if self._matching_files(
+            FileGroupForCi.STANDARD_PROVIDER_FILES,
+            CI_FILE_GROUP_MATCHES,
+        ):
+            # TODO(potiuk): remove me when we get rid of the dependency
+            get_console().print(
+                "[warning]Running full set of tests because standard provider files changed "
+                "and for now we have core tests depending on them.[/]"
+            )
+            return True
+        if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
             CI_FILE_GROUP_MATCHES,
         ):
@@ -693,6 +715,9 @@ class SelectiveChecks:
             checks_to_run.append("mypy-airflow-core")
         if (
             self._matching_files(FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
+            or self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
+            )
             or self._are_all_providers_affected()
         ) and self._default_branch == "main":
             checks_to_run.append("mypy-providers")
@@ -748,7 +773,7 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        if self.providers_test_types_list_as_strings_in_json is None:
+        if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
         return (
             "amazon" in self.providers_test_types_list_as_strings_in_json
@@ -758,6 +783,10 @@ class SelectiveChecks:
     @cached_property
     def run_task_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
+
+    @cached_property
+    def run_go_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
 
     @cached_property
     def run_airflow_ctl_tests(self) -> bool:
@@ -777,6 +806,8 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        if self.full_tests_needed:
+            return True
         if self._is_canary_run():
             return True
         if self.only_new_ui_files:
@@ -848,12 +879,16 @@ class SelectiveChecks:
         all_providers_source_files = self._matching_files(
             FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
         )
+        all_providers_distribution_config_files = self._matching_files(
+            FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
+        )
         test_always_files = self._matching_files(FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES)
         test_ui_files = self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
 
         remaining_files = (
             set(all_source_files)
             - set(all_providers_source_files)
+            - set(all_providers_distribution_config_files)
             - set(matched_files)
             - set(kubernetes_files)
             - set(system_test_files)
@@ -896,10 +931,13 @@ class SelectiveChecks:
         all_providers_source_files = self._matching_files(
             FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
         )
+        all_providers_distribution_config_files = self._matching_files(
+            FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
+        )
         assets_source_files = self._matching_files(FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES)
-
         if (
             len(all_providers_source_files) == 0
+            and len(all_providers_distribution_config_files) == 0
             and len(assets_source_files) == 0
             and not self.needs_api_tests
         ):
@@ -936,8 +974,12 @@ class SelectiveChecks:
         In case of Providers, we need to replace it with Providers[-<list_of_long_tests>], but
         in case of Providers[list_of_tests] we need to remove the long tests from the list.
 
+        In case of celery tests we want to isolate them from the rest, because they seem to be hanging
+        infrequently when running together with other tests
+
+        :param current_test_types: The set of test types to run
         """
-        long_tests = ["amazon", "google", "standard"]
+        long_tests = ["amazon", "celery", "google", "standard"]
         for original_test_type in tuple(current_test_types):
             if original_test_type == "Providers":
                 current_test_types.remove(original_test_type)
@@ -964,9 +1006,9 @@ class SelectiveChecks:
         return json.dumps(_get_test_list_as_json([current_test_types]))
 
     @cached_property
-    def providers_test_types_list_as_strings_in_json(self) -> str | None:
+    def providers_test_types_list_as_strings_in_json(self) -> str:
         if not self.run_tests:
-            return None
+            return "[]"
         current_test_types = set(self._get_providers_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
@@ -1182,6 +1224,8 @@ class SelectiveChecks:
             # Skip those tests on all "release" branches
             pre_commits_to_skip.update(
                 (
+                    "compile-fab-assets",
+                    "generate-openapi-spec-fab",
                     "check-airflow-provider-compatibility",
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
@@ -1207,7 +1251,9 @@ class SelectiveChecks:
         ):
             pre_commits_to_skip.add("lint-helm-chart")
         if not (
-            self._matching_files(FileGroupForCi.ALL_PROVIDER_YAML_FILES, CI_FILE_GROUP_MATCHES)
+            self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
+            )
             or self._matching_files(FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
         ):
             # only skip provider validation if none of the provider.yaml and provider
@@ -1223,6 +1269,8 @@ class SelectiveChecks:
             return False
         if self._get_providers_test_types_to_run():
             return False
+        if not self.run_tests:
+            return True
         return True
 
     @cached_property
@@ -1257,144 +1305,16 @@ class SelectiveChecks:
         return " ".join(sorted(affected_providers))
 
     @cached_property
-    def runs_on_as_json_default(self) -> str:
-        if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
-            if self._is_canary_run():
-                return RUNS_ON_SELF_HOSTED_RUNNER
-            if self._pr_labels and USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
-                # Forced public runners
-                return RUNS_ON_PUBLIC_RUNNER
-            actor = self._github_actor
-            if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
-                try:
-                    actor = self._github_context_dict["event"]["pull_request"]["user"]["login"]
-                    get_console().print(
-                        f"[warning]The actor: {actor} retrieved from GITHUB_CONTEXT's"
-                        f" event.pull_request.user.login[/]"
-                    )
-                except Exception as e:
-                    get_console().print(f"[warning]Exception when reading user login: {e}[/]")
-                    get_console().print(
-                        f"[info]Could not find the actor from pull request, "
-                        f"falling back to the actor who triggered the PR: {actor}[/]"
-                    )
-            if (
-                actor not in COMMITTERS
-                and self._pr_labels
-                and USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels
-            ):
-                get_console().print(
-                    f"[error]The PR has `{USE_SELF_HOSTED_RUNNERS_LABEL}` label, but "
-                    f"{actor} is not a committer. This is not going to work.[/]"
-                )
-                sys.exit(1)
-            if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels:
-                # Forced self-hosted runners
-                return RUNS_ON_SELF_HOSTED_RUNNER
-            return RUNS_ON_PUBLIC_RUNNER
-        return RUNS_ON_PUBLIC_RUNNER
+    def amd_runners(self) -> str:
+        return PUBLIC_AMD_RUNNERS
 
     @cached_property
-    def runs_on_as_json_self_hosted(self) -> str:
-        return RUNS_ON_SELF_HOSTED_RUNNER
-
-    @cached_property
-    def runs_on_as_json_self_hosted_asf(self) -> str:
-        return RUNS_ON_SELF_HOSTED_ASF_RUNNER
-
-    @cached_property
-    def runs_on_as_json_docs_build(self) -> str:
-        # We used to run docs build on self-hosted runners because they had more space, but
-        # It turned out that public runners have a lot of space in /mnt folder that we can utilise
-        # but in the future we might want to switch back to self-hosted runners so we have this
-        # separate property to determine that and place to implement different logic if needed
-        return RUNS_ON_PUBLIC_RUNNER
-
-    @cached_property
-    def runs_on_as_json_public(self) -> str:
-        return RUNS_ON_PUBLIC_RUNNER
-
-    @cached_property
-    def is_self_hosted_runner(self) -> bool:
-        """
-        True if the job has runs_on labels indicating It should run on "self-hosted" runner.
-
-        All self-hosted runners have "self-hosted" label.
-        """
-        return "self-hosted" in json.loads(self.runs_on_as_json_default)
-
-    @cached_property
-    def is_airflow_runner(self) -> bool:
-        """
-        True if the job has runs_on labels indicating It should run on Airflow managed runner.
-
-        All Airflow team-managed runners will have "airflow-runner" label.
-        """
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "airflow-runner" presence in runs_on
-        runs_on_array = json.loads(self.runs_on_as_json_default)
-        return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
-
-    @cached_property
-    def is_amd_runner(self) -> bool:
-        """
-        True if the job has runs_on labels indicating AMD architecture.
-
-        Matching amd label, asf-runner, and any ubuntu that does not contain arm
-        The last case is just in case - currently there are no public runners that have ARM
-        instances, but they can add them in the future. It might be that for compatibility
-        they will just add arm in the runner name - because currently GitHub users use just
-        one label "ubuntu-*" for all their work and depend on them being AMD ones.
-        """
-        return any(
-            [
-                label.lower() == "amd"
-                or label.lower() == "amd64"
-                or label.lower() == "x64"
-                or label == "asf-runner"
-                or ("ubuntu" in label and "arm" not in label.lower())
-                for label in json.loads(self.runs_on_as_json_public)
-            ]
-        )
-
-    @cached_property
-    def is_arm_runner(self) -> bool:
-        """
-        True if the job has runs_on labels indicating ARM architecture.
-
-        Matches any label containing arm - including ASF-specific "asf-arm" label.
-
-        # See https://cwiki.apache.org/confluence/pages/viewpage.action?spaceKey=INFRA&title=ASF+Infra+provided+self-hosted+runners
-        """
-        return any(
-            [
-                label.lower() == "arm" or label.lower() == "arm64" or label == "asf-arm"
-                for label in json.loads(self.runs_on_as_json_public)
-            ]
-        )
-
-    @cached_property
-    def is_vm_runner(self) -> bool:
-        """Whether the runner is VM runner (managed by airflow)."""
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "airflow-runner" presence in runs_on
-        return self.is_airflow_runner
-
-    @cached_property
-    def is_k8s_runner(self) -> bool:
-        """Whether the runner is K8s runner (managed by airflow)."""
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "k8s-runner" presence in runs_on
-        return False
+    def arm_runners(self) -> str:
+        return PUBLIC_ARM_RUNNERS
 
     @cached_property
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
-
-    @cached_property
-    def chicken_egg_providers(self) -> str:
-        """Space separated list of providers with chicken-egg problem and should be built from sources."""
-        return CHICKEN_EGG_PROVIDERS
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:
@@ -1515,7 +1435,7 @@ class SelectiveChecks:
 
     def _is_canary_run(self):
         return (
-            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
+            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH, GithubEvents.WORKFLOW_DISPATCH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
 
@@ -1537,6 +1457,7 @@ class SelectiveChecks:
                         return True
                     line_counter += 1
             line_counter += 1
+        return None
 
     def _caplog_exists_in_added_lines(self) -> bool:
         """
@@ -1545,7 +1466,7 @@ class SelectiveChecks:
         :return: True if caplog is used in added lines else False
         """
         lines = run_command(
-            ["git", "diff", f"{self._commit_ref}"],
+            ["git", "diff", f"{self._commit_ref}^"],
             capture_output=True,
             text=True,
             cwd=AIRFLOW_ROOT_PATH,
@@ -1556,7 +1477,7 @@ class SelectiveChecks:
             return False
 
         added_caplog_lines = [
-            line.lstrip().lstrip("+ ") for line in lines.stdout.split("\n") if line.lstrip().startswith("+ ")
+            line.lstrip().lstrip("+") for line in lines.stdout.split("\n") if line.lstrip().startswith("+")
         ]
         return self._find_caplog_in_def(added_lines=added_caplog_lines)
 

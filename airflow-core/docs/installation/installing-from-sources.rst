@@ -26,18 +26,18 @@ Released packages
     This page describes downloading and verifying Airflow® version
     ``{{ airflow_version }}`` using officially released packages.
     You can also install ``Apache Airflow`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
-    You can choose different version of Airflow by selecting different version from the drop-down at
+    You can choose different version of Airflow by selecting a different version from the drop-down at
     the top-left of the page.
 
 The ``source``, ``sdist`` and ``whl`` packages released are the "official" sources of installation that you
 can use if you want to verify the origin of the packages and want to verify checksums and signatures of
 the packages. The packages are available via the
-`Official Apache Software Foundations Downloads <https://dlcdn.apache.org/>`_
+`Official Apache Software Foundation Downloads <https://dlcdn.apache.org/>`_
 
 As of version 2.8 Airflow follows PEP 517/518 and uses ``pyproject.toml`` file to define build dependencies
-and build process and it requires relatively modern versions of packaging tools to get airflow built from
+and build process and it requires relatively modern versions of packaging tools to get Airflow built from
 local sources or ``sdist`` packages, as PEP 517 compliant build hooks are used to determine dynamic build
-dependencies. In case of ``pip`` it means that at least version 22.1.0 is needed (released at the beginning of
+dependencies. In case of ``pip``, it means that at least version 22.1.0 is needed (released at the beginning of
 2022) to build or install Airflow from sources. This does not affect the ability of installing Airflow from
 released wheel packages.
 
@@ -116,7 +116,7 @@ Example:
 
 The "Good signature from ..." is indication that the signatures are correct.
 Do not worry about the "not certified with a trusted signature" warning. Most of the certificates used
-by release managers are self signed, that's why you get this warning. By importing the server in the
+by release managers are self-signed, that's why you get this warning. By importing the server in the
 previous step and importing it via ID from ``KEYS`` page, you know that this is a valid Key already.
 
 For SHA512 sum check, download the relevant ``sha512`` and run the following:
@@ -159,5 +159,5 @@ and SHA sum files with the script below:
         ls -la "${airflow_download_dir}"
         echo
 
-Once you verify the files following the instructions from previous chapter you can remove the temporary
+Once you verify the files following the instructions from previous section, you can remove the temporary
 folder created.

@@ -636,7 +636,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"on_finish_action", "deferrable"}
+        {"deferrable"}
         | (set(KubernetesPodOperator.template_fields) - {"is_delete_operator_pod", "regional"})
         | set(GKEOperatorMixin.template_fields)
     )

@@ -173,7 +173,7 @@ Setting up virtual-env
 ----------------------
 
 1. While you can use any virtualenv manager, we recommend using `UV <https://github.com/astral-sh/uv>`__
-   as your build and integration frontend. You can read more about UV and it's use in
+   as your build and integration frontend. You can read more about UV and its use in
    Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
 
 2. After creating the environment, you need to install a few more required packages for Airflow. The below command adds
@@ -184,7 +184,7 @@ Setting up virtual-env
 
   sudo apt install openssl sqlite3 default-libmysqlclient-dev libmysqlclient-dev postgresql
 
-If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
+If you want to install all Airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use
 ``all`` extras while installing airflow.
 
@@ -212,7 +212,7 @@ Forking and cloning Project
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow click on ``Code`` you will find the link to your repo
+2. Goto your github account's fork of Airflow click on ``Code`` you will find the link to your repo
 
    .. raw:: html
 
@@ -331,16 +331,16 @@ You can add ``uv`` support for ``pre-commit`` even if you've installed it with `
 
 .. code-block:: bash
 
-  pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
+  pre-commit run  --files airflow-core/src/airflow/utils/decorators.py  airflow-core/tests/unit/utils/test_task_group.py
 
 
 6. Running specific hook for selected files
 
 .. code-block:: bash
 
-  pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
+  pre-commit run black --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     black...............................................................Passed
-  pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
+  pre-commit run ruff --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     Run ruff............................................................Passed
 
 
@@ -441,7 +441,7 @@ see in CI in your local environment.
 
    .. code-block:: bash
 
-      sudo apt install golang-docker-credential-helper
+      sudo apt install golang-docker-credential-helpers
 
    Once the package is installed, execute the breeze command again to resume image building.
 
@@ -450,7 +450,7 @@ see in CI in your local environment.
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 
-6. Once you enter the Breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+6. Once you enter the Breeze environment, create Airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you
 
@@ -491,8 +491,8 @@ Using Breeze
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
    In this case Python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
-   It also automatically starts the webserver, triggerer, dag processor, FastAPI api and scheduler. It drops you in tmux with triggerer to the right, and
-   Scheduler, FastAPI API, DAG processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in tmux with triggerer to the right, and
+   Scheduler, API server (FastAPI api and UI), DAG processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -508,7 +508,7 @@ Using Breeze
 
    * Port forwarding:
 
-        Ports are forwarded to the running docker containers for webserver and database
+        Ports are forwarded to the running docker containers for components and database
           * 12322 -> forwarded to Airflow ssh server -> airflow:22
           * 28080 -> forwarded to Airflow api server API -> airflow:8080
           * 25555 -> forwarded to Flower dashboard -> airflow:5555
@@ -580,7 +580,7 @@ Using Breeze
     :select-layout tiled
 
 
-2. Now you can access airflow web interface on your local machine at |http://localhost:28080| with user name ``admin``
+2. Now you can access Airflow web interface on your local machine at |http://localhost:28080| with user name ``admin``
    and password ``admin``
 
    .. |http://localhost:28080| raw:: html
@@ -640,7 +640,7 @@ Following are some of important topics of `Breeze documentation <../dev/breeze/d
 * `Troubleshooting Breeze environment <../dev/breeze/doc/04_troubleshooting.rst>`__
 
 
-Installing airflow in the local venv
+Installing Airflow in the local venv
 ------------------------------------
 
 1. It may require some packages to be installed; watch the output of the command to see which ones are missing

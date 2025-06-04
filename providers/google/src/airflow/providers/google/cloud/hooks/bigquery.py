@@ -29,7 +29,7 @@ import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, NoReturn, Union, cast
+from typing import TYPE_CHECKING, Any, NoReturn, Union, cast, overload
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -57,8 +57,13 @@ from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
+from typing_extensions import Literal
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
@@ -77,6 +82,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
     from google.api_core.page_iterator import HTTPIterator
     from google.api_core.retry import Retry
     from requests import Session
@@ -275,15 +281,57 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         raise NotImplementedError()
 
-    def get_pandas_df(
+    def _get_pandas_df(
         self,
         sql: str,
         parameters: Iterable | Mapping[str, Any] | None = None,
         dialect: str | None = None,
         **kwargs,
     ) -> pd.DataFrame:
+        if dialect is None:
+            dialect = "legacy" if self.use_legacy_sql else "standard"
+
+        credentials, project_id = self.get_credentials_and_project_id()
+
+        return read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
+
+    def _get_polars_df(self, sql, parameters=None, dialect=None, **kwargs) -> pl.DataFrame:
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "Polars is not installed. Please install it with `pip install polars`."
+            )
+
+        if dialect is None:
+            dialect = "legacy" if self.use_legacy_sql else "standard"
+
+        credentials, project_id = self.get_credentials_and_project_id()
+
+        pandas_df = read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
+        return pl.from_pandas(pandas_df)
+
+    @overload
+    def get_df(
+        self, sql, parameters=None, dialect=None, *, df_type: Literal["pandas"] = "pandas", **kwargs
+    ) -> pd.DataFrame: ...
+
+    @overload
+    def get_df(
+        self, sql, parameters=None, dialect=None, *, df_type: Literal["polars"], **kwargs
+    ) -> pl.DataFrame: ...
+
+    def get_df(
+        self,
+        sql,
+        parameters=None,
+        dialect=None,
+        *,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> pd.DataFrame | pl.DataFrame:
         """
-        Get a Pandas DataFrame for the BigQuery results.
+        Get a DataFrame for the BigQuery results.
 
         The DbApiHook method must be overridden because Pandas doesn't support
         PEP 249 connections, except for SQLite.
@@ -299,12 +347,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             defaults to use `self.use_legacy_sql` if not specified
         :param kwargs: (optional) passed into pandas_gbq.read_gbq method
         """
-        if dialect is None:
-            dialect = "legacy" if self.use_legacy_sql else "standard"
+        if df_type == "polars":
+            return self._get_polars_df(sql, parameters, dialect, **kwargs)
 
-        credentials, project_id = self.get_credentials_and_project_id()
+        if df_type == "pandas":
+            return self._get_pandas_df(sql, parameters, dialect, **kwargs)
 
-        return read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
+    @deprecated(
+        planned_removal_date="November 30, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_df",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def get_pandas_df(self, sql, parameters=None, dialect=None, **kwargs):
+        return self._get_pandas_df(sql, parameters, dialect, **kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
@@ -1935,74 +1990,6 @@ def _escape(s: str) -> str:
     e = e.replace("'", "\\'")
     e = e.replace('"', '\\"')
     return e
-
-
-@deprecated(
-    planned_removal_date="April 01, 2025",
-    use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.split_tablename",
-    category=AirflowProviderDeprecationWarning,
-)
-def split_tablename(
-    table_input: str, default_project_id: str, var_name: str | None = None
-) -> tuple[str, str, str]:
-    if "." not in table_input:
-        raise ValueError(f"Expected table name in the format of <dataset>.<table>. Got: {table_input}")
-
-    if not default_project_id:
-        raise ValueError("INTERNAL: No default project is specified")
-
-    def var_print(var_name):
-        if var_name is None:
-            return ""
-        return f"Format exception for {var_name}: "
-
-    if table_input.count(".") + table_input.count(":") > 3:
-        raise ValueError(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
-    cmpt = table_input.rsplit(":", 1)
-    project_id = None
-    rest = table_input
-    if len(cmpt) == 1:
-        project_id = None
-        rest = cmpt[0]
-    elif len(cmpt) == 2 and cmpt[0].count(":") <= 1:
-        if cmpt[-1].count(".") != 2:
-            project_id = cmpt[0]
-            rest = cmpt[1]
-    else:
-        raise ValueError(
-            f"{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}"
-        )
-
-    cmpt = rest.split(".")
-    if len(cmpt) == 3:
-        if project_id:
-            raise ValueError(f"{var_print(var_name)}Use either : or . to specify project")
-        project_id = cmpt[0]
-        dataset_id = cmpt[1]
-        table_id = cmpt[2]
-
-    elif len(cmpt) == 2:
-        dataset_id = cmpt[0]
-        table_id = cmpt[1]
-    else:
-        raise ValueError(
-            f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}"
-        )
-
-    # Exclude partition from the table name
-    table_id = table_id.split("$")[0]
-
-    if project_id is None:
-        if var_name is not None:
-            log.info(
-                'Project is not included in %s: %s; using project "%s"',
-                var_name,
-                table_input,
-                default_project_id,
-            )
-        project_id = default_project_id
-
-    return project_id, dataset_id, table_id
 
 
 def _cleanse_time_partitioning(
