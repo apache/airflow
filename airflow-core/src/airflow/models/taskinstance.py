@@ -2486,29 +2486,34 @@ class TaskInstance(Base, LoggingMixin):
         )
 
 
-def get_task_instance(dag_id: str, task_id: str, run_id: str, map_index: int = -1, session: Session = NEW_SESSION) -> TaskInstance | None:
+def get_task_instance(
+    dag_id: str, task_id: str, run_id: str, map_index: int = -1, session: Session = NEW_SESSION
+) -> TaskInstance | None:
     @cache
     def find_task_instance(_dag_id: str, _task_id: str, _run_id: str, _map_index: int):
         return session.scalars(
-            select(TaskInstance)
-            .where(
+            select(TaskInstance).where(
                 TaskInstance.dag_id == _dag_id,
                 TaskInstance.task_id == _task_id,
                 TaskInstance.run_id == _run_id,
                 TaskInstance.map_index == _map_index,
             )
         ).one_or_none()
+
     return find_task_instance(dag_id, task_id, run_id, map_index)
 
 
 def get_current_max_mapping(dag_id: str, task_id: str, run_id: str, session: Session) -> int:
-    return max(session.scalar(
-        select(func.max(TaskInstance.map_index)).where(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.task_id == task_id,
-            TaskInstance.run_id == run_id,
+    return max(
+        session.scalar(
+            select(func.max(TaskInstance.map_index)).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.task_id == task_id,
+                TaskInstance.run_id == run_id,
+                )
+            ),
+            0,
         )
-    ), 0)
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:

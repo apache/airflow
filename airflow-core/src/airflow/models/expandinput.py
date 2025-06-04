@@ -19,13 +19,13 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Iterable, Sized, Mapping, Generator
+from collections.abc import Generator, Iterable, Mapping, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 from airflow.models.taskmap import update_task_map_length
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -118,12 +118,15 @@ class SchedulerDictOfListsExpandInput(ExpandInput):
         lengths = self._get_map_lengths(run_id, session=session)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
-    def resolve(self, context: Mapping[str, Any], session: Session) -> Generator[
-        dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session
+    ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
 
         self.log.info("expand_dict: %s", self.value)
 
-        value = self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
+        value = (
+            self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
+        )
 
         self.log.info("resolved value: %s", value)
 
@@ -161,12 +164,15 @@ class SchedulerListOfDictsExpandInput(ExpandInput):
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
 
-    def resolve(self, context: Mapping[str, Any], session: Session) -> Generator[
-        dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
+    def resolve(
+        self, context: Mapping[str, Any], session: Session
+    ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
 
         self.log.info("expand_list: %s", self.value)
 
-        value = self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
+        value = (
+            self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
+        )
 
         self.log.info("resolved value: %s", value)
 

@@ -22,12 +22,11 @@ from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
 import attrs
-from airflow.models.xcom import BaseXCom
-from airflow.utils.log.logging_mixin import LoggingMixin
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.models.taskinstance import get_task_instance
+from airflow.models.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import ArgNotSet
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import (
@@ -37,6 +36,7 @@ from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.execution_time.comms import XComResult
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.db import exists_query
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -88,10 +88,11 @@ class SchedulerPlainXComArg(SchedulerXComArg):
         )
 
         context = {
-            **context, **{
+            **context,
+            **{
                 "task_instance": task_instance,
                 "ti": task_instance,
-            }
+            },
         }
 
         self.log.info("XCom task_instance: %s", task_instance)
@@ -107,7 +108,8 @@ class SchedulerPlainXComArg(SchedulerXComArg):
         self.log.debug("xcom_backend: %s", xcom_backend)
 
         deserialized_value = xcom_backend.deserialize_value(
-            XComResult(key=self.operator.output.key, value=value))
+            XComResult(key=self.operator.output.key, value=value)
+        )
 
         self.log.info("deserialized_value: %s", deserialized_value)
 
