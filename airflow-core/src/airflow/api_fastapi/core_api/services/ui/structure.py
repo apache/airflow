@@ -23,6 +23,8 @@ Private service for dag structure.
 
 from __future__ import annotations
 
+from airflow.models.serialized_dag import SerializedDagModel
+
 
 def get_upstream_assets(
     asset_expression: dict, entry_node_ref: str, level: int = 0
@@ -112,3 +114,32 @@ def get_upstream_assets(
             edges = edges + e
 
     return nodes, edges
+
+
+def bind_output_assets_to_task(edges: list[dict], serialized_dag: SerializedDagModel) -> None:
+    """Try to bind the downstream assets to the relevant task that produces them."""
+    outlet_asset_references = serialized_dag.dag_model.task_outlet_asset_references
+
+    downstream_asset_related_edges = [
+        edge
+        for edge in edges
+        if edge["target_id"].startswith("asset:") or edge["target_id"].startswith("asset-alias:")
+    ]
+
+    for edge in downstream_asset_related_edges:
+        asset_id = int(edge["target_id"].strip("asset:").strip("asset-alias:"))
+        try:
+            # Try to attach the outlet asset to the relevant task
+            outlet_asset_reference = next(
+                outlet_asset_reference
+                for outlet_asset_reference in outlet_asset_references
+                if outlet_asset_reference.asset_id == asset_id
+            )
+            edge["source_id"] = outlet_asset_reference.task_id
+            continue
+        except StopIteration:
+            # If no asset reference found, fallback to using the exit node reference
+            # This can happen because asset aliases are not yet handled, they do no populate
+            # the `outlet_asset_references` when resolved. Extra lookup is needed. Same for asset-name-ref and
+            # asset-uri-ref.
+            pass
