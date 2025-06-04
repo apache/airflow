@@ -818,6 +818,13 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
+    # Detailed default security context for kerberosSidecar on container level
+    securityContexts:
+      container: {}
+
+    # Container level lifecycle hooks
+    containerLifecycleHooks: {}
+
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
   resources: {}
   #  limits:
