@@ -38,6 +38,10 @@ import plCommon from "./locales/pl/common.json";
 import plConnections from "./locales/pl/connections.json";
 import plDags from "./locales/pl/dags.json";
 import plDashboard from "./locales/pl/dashboard.json";
+import trCommon from "./locales/tr/common.json";
+import trConnections from "./locales/tr/connections.json";
+import trDags from "./locales/tr/dags.json";
+import trDashboard from "./locales/tr/dashboard.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
 import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 
@@ -50,6 +54,7 @@ export const supportedLanguages = [
   { code: "ko", name: "한국어" },
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },
+  { code: "tr", name: "Türkçe" },
   { code: "zh-TW", name: "繁體中文" },
 ] as const;
 
@@ -84,6 +89,12 @@ const resources = {
     connections: plConnections,
     dags: plDags,
     dashboard: plDashboard,
+  },
+  tr: {
+    common: trCommon,
+    connections: trConnections,
+    dags: trDags,
+    dashboard: trDashboard,
   },
   "zh-TW": {
     common: zhTWCommon,
