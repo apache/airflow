@@ -532,6 +532,18 @@ database:
       sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
+    sql_alchemy_conn_async:
+      description: |
+        The SQLAlchemy connection string to the metadata database used for async connections.
+        If this is not set, Airflow automatically derives a string by converting ``sql_alchemy_conn``.
+        Unfortunately, this conversion logic does not always work due to various incompatibilities
+        between sync and async db driver implementations. This sets the connection string directly
+        without any conversion instead.
+      version_added: 3.1.0
+      type: string
+      sensitive: true
+      example: "postgresql+asyncpg://postgres:airflow@postgres/airflow"
+      default: ~
     sql_alchemy_engine_args:
       description: |
         Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
@@ -629,9 +641,22 @@ database:
         <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database>`__
         e.g ``connect_args={"timeout":30}`` can be defined in ``airflow_local_settings.py`` and
         can be imported as shown below
+
+        *Changed in 3.1.0*: This configuration is only applied to synchronous engines, such as psycopg2.
+        See ``sql_alchemy_connect_args_async``.
       version_added: 2.3.0
       type: string
       example: 'airflow_local_settings.connect_args'
+      default: ~
+    sql_alchemy_connect_args_async:
+      description: |
+        Import path for connect args in SQLAlchemy. Defaults to an empty dict.
+        This is similar to ``sql_alchemy_connect_args``, but only for async connections.
+
+        This configuration is only applied to async engines, such as asyncpg.
+      version_added: 3.1.0
+      type: string
+      example: 'airflow_local_settings.connect_args_async'
       default: ~
     sql_alchemy_session_maker:
       description: |
