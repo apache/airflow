@@ -197,7 +197,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
 
         :param dataset_id: The dataset id.
         :param group_id: The workspace id.
-        :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset#datasetrefreshrequest.
+        :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
 
         :return: Request id of the dataset refresh request.
         """

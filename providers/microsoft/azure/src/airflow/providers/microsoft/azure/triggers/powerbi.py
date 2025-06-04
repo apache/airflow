@@ -53,7 +53,7 @@ class PowerBITrigger(BaseTrigger):
     :param group_id: The workspace Id where dataset is located.
     :param check_interval: Time in seconds to wait between each poll.
     :param wait_for_termination: Wait for the dataset refresh to complete or fail.
-    :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset#datasetrefreshrequest.
+    :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
     """
 
     def __init__(
