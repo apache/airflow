@@ -152,14 +152,20 @@ def get_import_errors(
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
     # Build a cte that fetches dag_ids for each file location
     visiable_files_cte = (
-        select(DagModel.fileloc, DagModel.dag_id).where(DagModel.dag_id.in_(readable_dag_ids)).cte()
+        select(DagModel.relative_fileloc, DagModel.dag_id, DagModel.bundle_name)
+        .where(DagModel.dag_id.in_(readable_dag_ids))
+        .cte()
     )
 
     # Prepare the import errors query by joining with the cte.
     # Each returned row will be a tuple: (ParseImportError, dag_id)
     import_errors_stmt = (
         select(ParseImportError, visiable_files_cte.c.dag_id)
-        .join(visiable_files_cte, ParseImportError.filename == visiable_files_cte.c.fileloc)
+        .join(
+            visiable_files_cte,
+            ParseImportError.filename == visiable_files_cte.c.relative_fileloc,
+            ParseImportError.bundle_name == visiable_files_cte.c.bundle_name,
+        )
         .order_by(ParseImportError.id)
     )
 
