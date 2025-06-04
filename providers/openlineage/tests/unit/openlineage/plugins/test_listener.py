@@ -411,6 +411,8 @@ class TestOpenLineageListenerAirflow2:
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             owners=["task_owner"],
             tags=["tag1", "tag2"],
+            nominal_start_time=None,
+            nominal_end_time=None,
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
                 "parent": 4,
@@ -510,6 +512,8 @@ class TestOpenLineageListenerAirflow2:
             task=listener.extractor_manager.extract_metadata(),
             owners=["task_owner"],
             tags=["tag1", "tag2"],
+            nominal_start_time=None,
+            nominal_end_time=None,
             run_facets={
                 "parent": 4,
                 "custom_user_facet": 2,
@@ -1192,6 +1196,8 @@ class TestOpenLineageListenerAirflow3:
             task=listener.extractor_manager.extract_metadata(),
             owners=["task_owner"],
             tags={"tag1", "tag2"},
+            nominal_start_time=None,
+            nominal_end_time=None,
             run_facets={
                 "parent": 4,
                 "custom_user_facet": 2,
@@ -1337,6 +1343,8 @@ class TestOpenLineageListenerAirflow3:
             task=listener.extractor_manager.extract_metadata(),
             owners=["task_owner"],
             tags={"tag1", "tag2"},
+            nominal_start_time=None,
+            nominal_end_time=None,
             run_facets={
                 "parent": 4,
                 "custom_user_facet": 2,

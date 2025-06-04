@@ -63,6 +63,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
+    tags=["first", "second@", "with'quote", 'z"e'],
     default_args={"retries": 0},
 ) as child_dag:
     do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="sleep 10;")

@@ -76,15 +76,15 @@ with DAG(
     catchup=False,
     description="OpenLineage complex DAG description",
     owner_links={"airflow": "https://airflow.apache.org/"},
-    tags=["first", "second@", "with'quote"],
+    tags=["first", "second@", "with'quote", 'z"e'],
     default_args={"retries": 0},
 ) as dag:
     # task_0 will not emit any events, but the owner will be picked up and added to DAG
-    task_0 = EmptyOperator(task_id="task_0", owner="owner1")
+    task_0 = EmptyOperator(task_id="task_0", owner='owner"1')
     task_1 = BashOperator(
         task_id="task_1.id.with.dots",
         bash_command="exit 0;",
-        owner="owner2",
+        owner="owner'2",
         execution_timeout=timedelta(seconds=456),
     )
     task_2 = PythonOperator(
