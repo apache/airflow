@@ -908,17 +908,28 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self.dagbag.bag_dag(dag)
 
         def _activate_assets(self):
-            from sqlalchemy import select
+            from sqlalchemy import or_, select
 
             from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
             from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 
-            assets = self.session.scalars(
-                select(AssetModel).where(
-                    AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
-                    | AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id)
+            from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.models.asset import TaskInletAssetReference
+
+                assets_select_condition = or_(
+                    AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id),
+                    AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id == self.dag.dag_id),
+                    AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id),
                 )
-            ).all()
+            else:
+                assets_select_condition = or_(
+                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id),
+                    AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id),
+                )
+
+            assets = self.session.scalars(select(AssetModel).where(assets_select_condition)).all()
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
         def __exit__(self, type, value, traceback):
@@ -940,7 +951,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
                 else:
-                    from airflow.www.security_appless import ApplessAirflowSecurityManager
+                    from airflow.www.security_appless import ApplessAirflowSecurityManager  # type: ignore
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)

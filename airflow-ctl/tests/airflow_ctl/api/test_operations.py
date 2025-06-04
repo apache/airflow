@@ -128,6 +128,7 @@ class TestAssetsOperations:
         updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
         scheduled_dags=[],
         producing_tasks=[],
+        consuming_tasks=[],
         aliases=[],
         group="group",
     )

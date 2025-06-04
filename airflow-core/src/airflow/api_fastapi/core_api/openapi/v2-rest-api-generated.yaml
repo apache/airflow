@@ -7239,6 +7239,11 @@ components:
             $ref: '#/components/schemas/TaskOutletAssetReference'
           type: array
           title: Producing Tasks
+        consuming_tasks:
+          items:
+            $ref: '#/components/schemas/TaskInletAssetReference'
+          type: array
+          title: Consuming Tasks
         aliases:
           items:
             $ref: '#/components/schemas/AssetAliasResponse'
@@ -7258,6 +7263,7 @@ components:
       - updated_at
       - scheduled_dags
       - producing_tasks
+      - consuming_tasks
       - aliases
       title: AssetResponse
       description: Asset serializer for responses.
@@ -9999,6 +10005,31 @@ components:
       - reason
       title: TaskDependencyResponse
       description: Task Dependency serializer for responses.
+    TaskInletAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        task_id:
+          type: string
+          title: Task Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      additionalProperties: false
+      type: object
+      required:
+      - dag_id
+      - task_id
+      - created_at
+      - updated_at
+      title: TaskInletAssetReference
+      description: Task inlet reference serializer for assets.
     TaskInstanceCollectionResponse:
       properties:
         task_instances:

@@ -335,6 +335,13 @@ export const $AssetResponse = {
       type: "array",
       title: "Producing Tasks",
     },
+    consuming_tasks: {
+      items: {
+        $ref: "#/components/schemas/TaskInletAssetReference",
+      },
+      type: "array",
+      title: "Consuming Tasks",
+    },
     aliases: {
       items: {
         $ref: "#/components/schemas/AssetAliasResponse",
@@ -363,6 +370,7 @@ export const $AssetResponse = {
     "updated_at",
     "scheduled_dags",
     "producing_tasks",
+    "consuming_tasks",
     "aliases",
   ],
   title: "AssetResponse",
@@ -4433,6 +4441,34 @@ export const $TaskDependencyResponse = {
   required: ["name", "reason"],
   title: "TaskDependencyResponse",
   description: "Task Dependency serializer for responses.",
+} as const;
+
+export const $TaskInletAssetReference = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["dag_id", "task_id", "created_at", "updated_at"],
+  title: "TaskInletAssetReference",
+  description: "Task inlet reference serializer for assets.",
 } as const;
 
 export const $TaskInstanceCollectionResponse = {

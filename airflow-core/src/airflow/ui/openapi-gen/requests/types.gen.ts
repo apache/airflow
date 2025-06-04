@@ -89,6 +89,7 @@ export type AssetResponse = {
   updated_at: string;
   scheduled_dags: Array<DagScheduleAssetReference>;
   producing_tasks: Array<TaskOutletAssetReference>;
+  consuming_tasks: Array<TaskInletAssetReference>;
   aliases: Array<AssetAliasResponse>;
   last_asset_event?: LastAssetEventResponse | null;
 };
@@ -1179,6 +1180,16 @@ export type TaskDependencyCollectionResponse = {
 export type TaskDependencyResponse = {
   name: string;
   reason: string;
+};
+
+/**
+ * Task inlet reference serializer for assets.
+ */
+export type TaskInletAssetReference = {
+  dag_id: string;
+  task_id: string;
+  created_at: string;
+  updated_at: string;
 };
 
 /**

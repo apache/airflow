@@ -46,6 +46,7 @@ from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetReference,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.connection import Connection
@@ -446,6 +447,7 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
         return select.where(
             (AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id.in_(self.value)))
             | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(self.value)))
+            | (AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id.in_(self.value)))
         )
 
 

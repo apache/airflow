@@ -44,6 +44,7 @@ from airflow.models.asset import (
     DagScheduleAssetNameReference,
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
@@ -623,6 +624,7 @@ class AssetModelOperation(NamedTuple):
     schedule_asset_alias_references: dict[str, list[AssetAlias]]
     schedule_asset_name_references: set[tuple[str, str]]  # dag_id, ref_name.
     schedule_asset_uri_references: set[tuple[str, str]]  # dag_id, ref_uri.
+    inlet_references: dict[str, list[tuple[str, Asset]]]
     outlet_references: dict[str, list[tuple[str, Asset]]]
     assets: dict[tuple[str, str], Asset]
     asset_aliases: dict[str, AssetAlias]
@@ -649,6 +651,9 @@ class AssetModelOperation(NamedTuple):
                 for dag_id, dag in dags.items()
                 for ref in dag.timetable.asset_condition.iter_asset_refs()
                 if isinstance(ref, AssetUriRef)
+            },
+            inlet_references={
+                dag_id: list(dag.get_task_assets(inlets=True, outlets=False)) for dag_id, dag in dags.items()
             },
             outlet_references={
                 dag_id: list(dag.get_task_assets(inlets=False, outlets=True)) for dag_id, dag in dags.items()
@@ -829,6 +834,24 @@ class AssetModelOperation(NamedTuple):
         # Optimization: No assets means there are no references to update.
         if not assets:
             return
+        for dag_id, references in self.inlet_references.items():
+            # Optimization: no references at all; this is faster than repeated delete().
+            if not references:
+                dags[dag_id].task_inlet_asset_references = []
+                continue
+            referenced_inlets = {
+                (task_id, asset.id)
+                for task_id, asset in ((task_id, assets[d.name, d.uri]) for task_id, d in references)
+            }
+            orm_refs = {(r.task_id, r.asset_id): r for r in dags[dag_id].task_inlet_asset_references}
+            for key, ref in orm_refs.items():
+                if key not in referenced_inlets:
+                    session.delete(ref)
+            session.bulk_save_objects(
+                TaskInletAssetReference(asset_id=asset_id, dag_id=dag_id, task_id=task_id)
+                for task_id, asset_id in referenced_inlets
+                if (task_id, asset_id) not in orm_refs
+            )
         for dag_id, references in self.outlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:

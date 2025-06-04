@@ -92,6 +92,7 @@ def test_cli_assets_details(parser: ArgumentParser) -> None:
         "updated_at": None,
         "scheduled_dags": None,
         "producing_tasks": None,
+        "consuming_tasks": None,
     }
 
     assert asset_detail_list[0] | undeterministic == undeterministic | {
