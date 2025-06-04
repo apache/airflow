@@ -2201,6 +2201,7 @@ class TestTaskRunnerCallsListeners:
         runtime_ti, context, log = startup()
         assert runtime_ti is not None
         assert runtime_ti.log_url == get_log_url_from_ti(runtime_ti)
+        assert runtime_ti.mark_success_url == runtime_ti.log_url
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
 
