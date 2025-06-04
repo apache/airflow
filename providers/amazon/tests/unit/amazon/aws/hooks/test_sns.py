@@ -98,14 +98,20 @@ class TestSnsHook:
         topic_name = "test-topic.fifo"
         deduplication_id = "abc"
         group_id = "a"
-        target = hook.get_conn().create_topic(
-            Name=topic_name,
-            Attributes={
-                'FifoTopic': 'true',
-                'ContentBasedDeduplication': 'false',
-            }
-        ).get("TopicArn")
+        target = (
+            hook.get_conn()
+            .create_topic(
+                Name=topic_name,
+                Attributes={
+                    "FifoTopic": "true",
+                    "ContentBasedDeduplication": "false",
+                },
+            )
+            .get("TopicArn")
+        )
 
-        response = hook.publish_to_target(target, message, message_deduplication_id=deduplication_id,message_group_id=group_id)
+        response = hook.publish_to_target(
+            target, message, message_deduplication_id=deduplication_id, message_group_id=group_id
+        )
 
         assert "MessageId" in response
