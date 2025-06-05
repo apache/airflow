@@ -121,11 +121,6 @@ Execution Time Components
    :members:
    :undoc-members:
 
-.. rubric:: Cache
-
-.. autoapiclass:: airflow.sdk.SecretCache
-.. autoclass:: airflow.sdk.SecretCache
-
 
 Everything else
 ---------------

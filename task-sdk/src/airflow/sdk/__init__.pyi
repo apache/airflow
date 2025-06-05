@@ -56,7 +56,6 @@ from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
 
 __all__ = [
-    "__version__",
     "Asset",
     "AssetAlias",
     "AssetAll",

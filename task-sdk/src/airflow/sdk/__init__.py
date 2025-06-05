@@ -132,8 +132,3 @@ def __getattr__(name: str):
         globals()[name] = val
         return val
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-def __dir__() -> list[str]:
-    """Override dir() to expose only the public API names and internal attributes."""
-    return sorted(__all__ + ["__getattr__", "__lazy_imports"])
