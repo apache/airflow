@@ -37,9 +37,9 @@ FAB_PROVIDER_WWW_PATH = FAB_PROVIDER_ROOT_PATH / "src" / "airflow" / "providers"
 FAB_PROVIDER_WWW_HASH_FILE = FAB_PROVIDER_ROOT_PATH / "www-hash.txt"
 
 
-def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
+def get_directory_hash(directory: Path, skip_path_regexps: list[str]) -> str:
     files = sorted(directory.rglob("*"))
-    if skip_path_regexp:
+    for skip_path_regexp in skip_path_regexps:
         matcher = re.compile(skip_path_regexp)
         files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
     sha = hashlib.sha256()
@@ -57,19 +57,24 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 
+SKIP_PATH_REGEXPS = [".*/node_modules.*"]
 
-def compile_assets(www_directory: Path, www_hash_file_name: str):
-    node_modules_directory = www_directory / "node_modules"
+
+def compile_assets(www_directory: Path):
     dist_directory = www_directory / "static" / "dist"
     FAB_PROVIDER_WWW_HASH_FILE.parent.mkdir(exist_ok=True, parents=True)
-    if node_modules_directory.exists() and dist_directory.exists():
-        old_hash = FAB_PROVIDER_WWW_HASH_FILE.read_text() if FAB_PROVIDER_WWW_HASH_FILE.exists() else ""
-        new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
+    if dist_directory.exists():
+        old_hash = (
+            FAB_PROVIDER_WWW_HASH_FILE.read_text().strip() if FAB_PROVIDER_WWW_HASH_FILE.exists() else ""
+        )
+        new_hash = get_directory_hash(www_directory, skip_path_regexps=SKIP_PATH_REGEXPS)
         if new_hash == old_hash:
             print(f"The '{www_directory}' directory has not changed! Skip regeneration.")
             return
+        print("The directory has changed, regenerating assets.")
+        print("Old hash: " + old_hash)
+        print("New hash: " + new_hash)
     else:
-        shutil.rmtree(node_modules_directory, ignore_errors=True)
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
@@ -88,10 +93,11 @@ def compile_assets(www_directory: Path, www_hash_file_name: str):
             print(result.stdout + "\n" + result.stderr)
             sys.exit(result.returncode)
     subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
-    new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
+    new_hash = get_directory_hash(www_directory, skip_path_regexps=SKIP_PATH_REGEXPS)
     FAB_PROVIDER_WWW_HASH_FILE.write_text(new_hash + "\n")
+    print(f"Assets compiled successfully. New hash: {new_hash}")
 
 
 if __name__ == "__main__":
     # Compile assets for fab provider
-    compile_assets(FAB_PROVIDER_WWW_PATH, "hash_fab.txt")
+    compile_assets(FAB_PROVIDER_WWW_PATH)
