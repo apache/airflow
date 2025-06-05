@@ -715,13 +715,17 @@ def _update_commits_rst(
     )
 
 
-def _is_test_only_changes(commit_hash: str) -> bool:
+def _is_test_or_example_dag_only_changes(commit_hash: str) -> bool:
     """
-    Check if a commit contains only test-related changes by using git diff command.
-    Only considers files in airflow/providers/{provider_name}/tests as test files.
+    Check if a commit contains only test-related or example DAG changes
+    by using the git diff command.
+
+    Considers files in airflow/providers/{provider}/tests/
+    and airflow/providers/{provider}/src/airflow/providers/{provider}/example_dags/
+    as test/example-only files.
 
     :param commit_hash: The full commit hash to check
-    :return: True if changes are only in test files, False otherwise
+    :return: True if changes are only in test/example files, False otherwise
     """
     try:
         result = run_command(
@@ -733,13 +737,14 @@ def _is_test_only_changes(commit_hash: str) -> bool:
         )
         changed_files = result.stdout.strip().splitlines()
 
-        # Consider changes test-only if all changed files are in the provider's test directory
         for file_path in changed_files:
-            if not re.match(r"airflow/providers/[^/]+/tests/", file_path):
+            if not (
+                re.match(r"airflow/providers/[^/]+/tests/", file_path)
+                or re.match(r"airflow/providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", file_path)
+            ):
                 return False
         return True
     except subprocess.CalledProcessError:
-        # if we can't check the diff, assume it's not test-only
         return False
 
 
@@ -812,7 +817,7 @@ def update_release_notes(
                 )
                 change = list_of_list_of_changes[0][table_iter]
 
-                if change.pr and _is_test_only_changes(change.full_hash):
+                if change.pr and _is_test_or_example_dag_only_changes(change.full_hash):
                     get_console().print(
                         f"[green]Automatically classifying change as SKIPPED since it only contains test changes:[/]\n"
                         f"[blue]{formatted_message}[/]"
