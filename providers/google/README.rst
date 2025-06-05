@@ -127,7 +127,7 @@ PIP package                                  Version required
 ``python-slugify``                           ``>=7.0.0``
 ``PyOpenSSL``                                ``>=23.0.0``
 ``sqlalchemy-bigquery``                      ``>=1.2.1``
-``sqlalchemy-spanner``                       ``>=1.6.2,!=1.12.0``
+``sqlalchemy-spanner``                       ``>=1.6.2``
 ``tenacity``                                 ``>=8.1.0``
 ``immutabledict``                            ``>=4.2.0``
 ``types-protobuf``                           ``!=5.29.1.20250402``

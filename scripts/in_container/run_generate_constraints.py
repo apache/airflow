@@ -349,10 +349,20 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
 
     # In case we have some problems with installing highest resolution of a dependency of one of our
     # providers in PyPI - we can exclude the buggy version here. For example this happened with
-    # sqlalchemy-spanner==1.4.0 which did not have `whl` file in PyPI and was not installable
+    # sqlalchemy-spanner==1.12.0 which did not have `whl` file in PyPI and was not installable
+    # and in this case we excluded it by adding ""sqlalchemy-spanner!=1.12.0" to the list below.
+    # In case we add exclusion here we should always link to the issue in the target dependency
+    # repository that tracks the problem with the dependency (we should create one if it does not exist).
+    #
+    # Example exclusion (not needed any more as sqlalchemy-spanner==1.12.0has been yanked in PyPI):
+    #
+    # additional_constraints_for_highest_resolution: list[str] = ["sqlalchemy-spanner!=1.12.0"]
+    #
     # Current exclusions:
-    # * sqlalchemy-spanner: https://github.com/googleapis/python-spanner-sqlalchemy/issues/682
-    additional_constraints_for_highest_resolution = ["sqlalchemy-spanner!=1.12.0"]
+    #
+    # * no exclusions
+    #
+    additional_constraints_for_highest_resolution: list[str] = []
 
     result = run_command(
         cmd=[
