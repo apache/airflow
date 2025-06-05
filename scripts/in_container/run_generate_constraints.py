@@ -205,14 +205,19 @@ def freeze_distributions_to_file(
 
 def download_latest_constraint_file(config_params: ConfigParams):
     constraints_url = (
-        "https://raw.githubusercontent.com/"
-        f"{config_params.constraints_github_repository}/{config_params.default_constraints_branch}/"
-        f"{config_params.airflow_constraints_mode}-{config_params.python}.txt"
+        "https://api.github.com/repos/"
+        f"{config_params.constraints_github_repository}/contents/"
+        f"{config_params.airflow_constraints_mode}-{config_params.python}.txt?ref={config_params.default_constraints_branch}"
     )
     # download the latest constraints file
     # download using requests
+    headers = {"Accept": "application/vnd.github.v3.raw"}
+    if os.environ.get("GITHUB_TOKEN"):
+        headers["Authorization"] = f"Bearer {os.environ.get('GITHUB_TOKEN')}"
+    else:
+        console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
     console.print(f"[bright_blue]Downloading constraints file from {constraints_url}")
-    r = requests.get(constraints_url, timeout=60)
+    r = requests.get(constraints_url, timeout=60, headers=headers)
     r.raise_for_status()
     with config_params.latest_constraints_file.open("w") as constraints_file:
         constraints_file.write(r.text)
@@ -344,10 +349,20 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
 
     # In case we have some problems with installing highest resolution of a dependency of one of our
     # providers in PyPI - we can exclude the buggy version here. For example this happened with
-    # sqlalchemy-spanner==1.4.0 which did not have `whl` file in PyPI and was not installable
+    # sqlalchemy-spanner==1.12.0 which did not have `whl` file in PyPI and was not installable
+    # and in this case we excluded it by adding ""sqlalchemy-spanner!=1.12.0" to the list below.
+    # In case we add exclusion here we should always link to the issue in the target dependency
+    # repository that tracks the problem with the dependency (we should create one if it does not exist).
+    #
+    # Example exclusion (not needed any more as sqlalchemy-spanner==1.12.0has been yanked in PyPI):
+    #
+    # additional_constraints_for_highest_resolution: list[str] = ["sqlalchemy-spanner!=1.12.0"]
+    #
     # Current exclusions:
-    # * sqlalchemy-spanner: https://github.com/googleapis/python-spanner-sqlalchemy/issues/682
-    additional_constraints_for_highest_resolution = ["sqlalchemy-spanner!=1.12.0"]
+    #
+    # * no exclusions
+    #
+    additional_constraints_for_highest_resolution: list[str] = []
 
     result = run_command(
         cmd=[
