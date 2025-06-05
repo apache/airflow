@@ -362,7 +362,7 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack task-sdk
 ```
 
 The `--ref` parameter should be the tag of the release candidate you are publishing.
@@ -387,7 +387,7 @@ The release manager publishes the documentation using GitHub Actions workflow
 the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
 manually to be `live` or `staging`.
 
-You should specify 'apache-airflow docker-stack' passed as packages to be
+You should specify 'apache-airflow docker-stack task-sdk' passed as packages to be
 built.
 
 After that step, the provider documentation should be available under https://airflow.stage.apache.org//

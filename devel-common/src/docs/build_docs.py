@@ -197,6 +197,16 @@ def perform_spell_check_for_single_package(build_specification: BuildSpecificati
     """Performs single package spell check."""
     builder = AirflowDocsBuilder(package_name=build_specification.package_name)
     builder.is_autobuild = build_specification.is_autobuild
+    if build_specification.package_name == "task-sdk":
+        console.print(
+            f"[bright_blue]{build_specification.package_name:60}:[/] Skipping spelling check (not supported)"
+        )
+        return SpellCheckResult(
+            package_name=build_specification.package_name,
+            spelling_errors=[],
+            build_errors=[],
+            log_file_name=builder.log_spelling_filename,
+        )
     console.print(f"[bright_blue]{build_specification.package_name:60}:[/] Checking spelling started")
     spelling_errors, build_errors = builder.check_spelling(
         verbose=build_specification.verbose,

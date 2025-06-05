@@ -213,3 +213,6 @@ pythonpath = "tests"
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
+
+[project.optional-dependencies]
+docs = ["apache-airflow-devel-common[docs]"]

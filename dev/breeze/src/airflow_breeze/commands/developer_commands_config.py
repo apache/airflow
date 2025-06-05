@@ -22,7 +22,6 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "start-airflow",
         "static-checks",
         "build-docs",
-        "build-task-sdk-docs",
         "down",
         "shell",
         "exec",
