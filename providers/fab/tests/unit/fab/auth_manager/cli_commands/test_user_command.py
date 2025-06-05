@@ -21,6 +21,7 @@ import os
 import re
 import tempfile
 from contextlib import redirect_stdout
+from functools import cached_property
 from importlib import reload
 from io import StringIO
 
@@ -51,7 +52,28 @@ def _does_user_belong_to_role(appbuilder, email, rolename):
     return False
 
 
+@pytest.fixture(scope="module", autouse=True)
+def get_fab_enabled_parser():
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        # Reload the module to use FAB auth manager
+        reload(cli_parser)
+        # Clearing the cache before calling it
+        cli_parser.get_parser.cache_clear()
+        yield
+
+
 class TestCliUsers:
+    @cached_property
+    def parser(self):
+        return cli_parser.get_parser()
+
     @pytest.fixture(autouse=True)
     def _set_attrs(self):
         with conf_vars(
@@ -62,19 +84,13 @@ class TestCliUsers:
                 ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
             }
         ):
-            # Reload the module to use FAB auth manager
-            reload(cli_parser)
-            # Clearing the cache before calling it
-            cli_parser.get_parser.cache_clear()
-            self.parser = cli_parser.get_parser()
             with get_application_builder() as appbuilder:
                 self.appbuilder = appbuilder
-                self.clear_users()
                 yield
                 self.clear_users()
 
     def clear_users(self):
-        session = self.appbuilder.get_session
+        session = self.appbuilder.session
         for user in self.appbuilder.sm.get_all_users():
             session.delete(user)
         session.commit()
@@ -269,51 +285,53 @@ class TestCliUsers:
             for role in roles:
                 assert not _does_user_belong_to_role(self.appbuilder, email, role)
 
-        assert_user_not_in_roles(TEST_USER1_EMAIL, ["Admin", "Op"])
-        assert_user_not_in_roles(TEST_USER2_EMAIL, ["Public"])
-        users = [
-            {
-                "username": "imported_user1",
-                "lastname": "doe1",
-                "firstname": "jon",
-                "email": TEST_USER1_EMAIL,
-                "roles": ["Admin", "Op"],
-            },
-            {
-                "username": "imported_user2",
-                "lastname": "doe2",
-                "firstname": "jon",
-                "email": TEST_USER2_EMAIL,
-                "roles": ["Public"],
-            },
-        ]
-        self._import_users_from_file(users)
+        with get_application_builder() as appbuilder:
+            self.appbuilder = appbuilder
+            assert_user_not_in_roles(TEST_USER1_EMAIL, ["Admin", "Op"])
+            assert_user_not_in_roles(TEST_USER2_EMAIL, ["Public"])
+            users = [
+                {
+                    "username": "imported_user1",
+                    "lastname": "doe1",
+                    "firstname": "jon",
+                    "email": TEST_USER1_EMAIL,
+                    "roles": ["Admin", "Op"],
+                },
+                {
+                    "username": "imported_user2",
+                    "lastname": "doe2",
+                    "firstname": "jon",
+                    "email": TEST_USER2_EMAIL,
+                    "roles": ["Public"],
+                },
+            ]
+            self._import_users_from_file(users)
 
-        assert_user_in_roles(TEST_USER1_EMAIL, ["Admin", "Op"])
-        assert_user_in_roles(TEST_USER2_EMAIL, ["Public"])
+            assert_user_in_roles(TEST_USER1_EMAIL, ["Admin", "Op"])
+            assert_user_in_roles(TEST_USER2_EMAIL, ["Public"])
 
-        users = [
-            {
-                "username": "imported_user1",
-                "lastname": "doe1",
-                "firstname": "jon",
-                "email": TEST_USER1_EMAIL,
-                "roles": ["Public"],
-            },
-            {
-                "username": "imported_user2",
-                "lastname": "doe2",
-                "firstname": "jon",
-                "email": TEST_USER2_EMAIL,
-                "roles": ["Admin"],
-            },
-        ]
-        self._import_users_from_file(users)
+            users = [
+                {
+                    "username": "imported_user1",
+                    "lastname": "doe1",
+                    "firstname": "jon",
+                    "email": TEST_USER1_EMAIL,
+                    "roles": ["Public"],
+                },
+                {
+                    "username": "imported_user2",
+                    "lastname": "doe2",
+                    "firstname": "jon",
+                    "email": TEST_USER2_EMAIL,
+                    "roles": ["Admin"],
+                },
+            ]
+            self._import_users_from_file(users)
 
-        assert_user_not_in_roles(TEST_USER1_EMAIL, ["Admin", "Op"])
-        assert_user_in_roles(TEST_USER1_EMAIL, ["Public"])
-        assert_user_not_in_roles(TEST_USER2_EMAIL, ["Public"])
-        assert_user_in_roles(TEST_USER2_EMAIL, ["Admin"])
+            assert_user_not_in_roles(TEST_USER1_EMAIL, ["Admin", "Op"])
+            assert_user_in_roles(TEST_USER1_EMAIL, ["Public"])
+            assert_user_not_in_roles(TEST_USER2_EMAIL, ["Public"])
+            assert_user_in_roles(TEST_USER2_EMAIL, ["Admin"])
 
     def test_cli_export_users(self):
         user1 = {
