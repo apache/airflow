@@ -62,6 +62,48 @@ class TestSCCActivation:
             assert jmespath.search("subjects[8].name", docs[0]) == "release-name-airflow-cleanup"
 
     @pytest.mark.parametrize(
+        "dag_processor_enabled,expected_names",
+        [
+            (True, [
+                "release-name-airflow-webserver",
+                "release-name-airflow-worker",
+                "release-name-airflow-scheduler",
+                "release-name-airflow-statsd",
+                "release-name-airflow-flower",
+                "release-name-airflow-triggerer",
+                "release-name-airflow-migrate-database-job",
+                "release-name-airflow-create-user-job",
+                "release-name-airflow-cleanup",
+                "release-name-airflow-dag-processor",
+            ]),
+            (False, [
+                "release-name-airflow-webserver",
+                "release-name-airflow-worker",
+                "release-name-airflow-scheduler",
+                "release-name-airflow-statsd",
+                "release-name-airflow-flower",
+                "release-name-airflow-triggerer",
+                "release-name-airflow-migrate-database-job",
+                "release-name-airflow-create-user-job",
+                "release-name-airflow-cleanup",
+            ]),
+        ],
+    )
+    def test_scc_subjects_include_dag_processor(dag_processor_enabled, expected_names):
+        docs = render_chart(
+            values={
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "dagProcessor": {"enabled": dag_processor_enabled},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert docs, "SCC RoleBinding not rendered when expected"
+
+        subject_names = jmespath.search("subjects[*].name", docs[0])
+        assert sorted(subject_names) == sorted(expected_names)
+
+    @pytest.mark.parametrize(
         "rbac_enabled,scc_enabled,created,namespace,expected_name",
         [
             (True, True, True, "default", "default-release-name-scc-rolebinding"),
