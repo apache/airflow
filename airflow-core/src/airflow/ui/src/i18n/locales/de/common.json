@@ -101,11 +101,8 @@
   "table": {
     "filterByTag": "Dags nach Markierung filtern",
     "filterColumns": "Tabellenspalten filtern",
-    "filters": {
-      "filter_one": "Filter",
-      "filter_other": "Filter",
-      "reset": "Zurücksetzen"
-    },
+    "filterReset_one": "Filter zurücksetzen",
+    "filterReset_other": "Filter zurücksetzen",
     "noTagsFound": "Keine Markierungen gefunden",
     "tagMode": {
       "all": "Alle",
