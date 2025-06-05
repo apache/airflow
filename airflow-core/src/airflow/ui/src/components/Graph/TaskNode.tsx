@@ -18,12 +18,12 @@
  */
 import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useOpenGroups } from "src/context/openGroups";
-import { pluralize } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
 import { TaskLink } from "./TaskLink";
@@ -46,6 +46,7 @@ export const TaskNode = ({
   },
   id,
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
+  const { t: translate } = useTranslation("components");
   const { toggleGroupId } = useOpenGroups();
   const onClick = () => {
     if (isGroup) {
@@ -98,7 +99,7 @@ export const TaskNode = ({
               textTransform="capitalize"
               whiteSpace="nowrap"
             >
-              {isGroup ? "Task Group" : operator}
+              {isGroup ? translate("graph.taskGroup") : operator}
             </Text>
             {taskInstance === undefined ? undefined : (
               <HStack>
@@ -121,7 +122,9 @@ export const TaskNode = ({
                 variant="plain"
               >
                 {isOpen ? "- " : "+ "}
-                {pluralize("task", childCount, undefined, false)}
+                {childCount !== undefined && childCount > 1
+                  ? translate("graph.taskCount_other", { count: childCount })
+                  : translate("graph.taskCount_one", { count: childCount ?? 0 })}
               </Button>
             ) : undefined}
           </Box>
