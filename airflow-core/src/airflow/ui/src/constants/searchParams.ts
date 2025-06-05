@@ -17,6 +17,7 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  ADVANCED_TAGS = "advanced_tags",
   AFTER = "after",
   BEFORE = "before",
   DAG_DISPLAY_NAME_PATTERN = "dag_display_name_pattern",

@@ -35,6 +35,16 @@ from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, and_, case, func, not_, or_, select as sql_select
+from pyparsing import (
+    CaselessKeyword,
+    ParseException,
+    ParserElement,
+    ParseResults,
+    Word,
+    alphanums,
+    infixNotation,
+    opAssoc,
+)
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -432,6 +442,76 @@ class _TagsFilter(BaseParam[_TagFilterModel]):
         return cls().set_value(_TagFilterModel(tags=tags, tags_match_mode=tags_match_mode))
 
 
+class _TagsAdvancedFilter(BaseParam[str]):
+    """Advanced filter on tags supporting AND/OR logic via query string with full precedence."""
+
+    def __init__(self, value: str | None = None, skip_none: bool = True):
+        super().__init__(value, skip_none)
+
+    def parse_advanced_query(self, query: str):
+        """Parse the boolean tag query using pyparsing and return an expression tree."""
+        if not query:
+            return None
+        # Grammar: tag (AND|OR) tag, with parentheses to set precedence
+        ParserElement.enablePackrat()
+        AND = CaselessKeyword("AND")
+        OR = CaselessKeyword("OR")
+        tag = Word(alphanums + "-_:.@/")
+        expr = infixNotation(
+            tag,
+            [
+                (AND, 2, opAssoc.LEFT),
+                (OR, 2, opAssoc.LEFT),
+            ],
+        )
+        try:
+            parsed = expr.parseString(query, parseAll=True)[0]
+            return parsed
+        except ParseException as e:
+            raise HTTPException(400, f"Invalid tag query: {e}")
+
+    def _expr_to_sqlalchemy(self, expr):
+        """Recursively convert the parsed pyparsing expression to SQLAlchemy conditions."""
+        if isinstance(expr, str):
+            return DagModel.tags.any(DagTag.name == expr)
+        if isinstance(expr, (list, tuple, ParseResults)):
+            if len(expr) == 1:
+                return self._expr_to_sqlalchemy(expr[0])
+            if len(expr) == 3 and isinstance(expr[1], str):
+                left, op, right = expr
+                left_cond = self._expr_to_sqlalchemy(left)
+                right_cond = self._expr_to_sqlalchemy(right)
+                if op.upper() == "AND":
+                    return and_(left_cond, right_cond)
+                if op.upper() == "OR":
+                    return or_(left_cond, right_cond)
+            # If the structure is not as expected, raise an error
+            raise HTTPException(400, "Invalid tag query structure")
+        raise HTTPException(400, "Invalid tag query structure")
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+        if not self.value:
+            return select
+        expr = self.parse_advanced_query(self.value)
+        if not expr:
+            return select
+        condition = self._expr_to_sqlalchemy(expr)
+        return select.where(condition)
+
+    @classmethod
+    def depends(
+        cls,
+        tags_advanced_query: str | None = Query(
+            default=None,
+            alias="tags_advanced_query",
+            description="Advanced tag query, e.g. (tag1 OR tag2) AND tag3",
+        ),
+    ) -> _TagsAdvancedFilter:
+        return cls().set_value(tags_advanced_query)
+
+
 class _OwnersFilter(BaseParam[list[str]]):
     """Filter on owners."""
 
@@ -790,6 +870,10 @@ QueryDagRunRunTypesFilter = Annotated[
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
 ]
+
+# Advanced DAGTags
+
+QueryTagsAdvancedFilter = Annotated[_TagsAdvancedFilter, Depends(_TagsAdvancedFilter.depends)]
 
 
 # TI

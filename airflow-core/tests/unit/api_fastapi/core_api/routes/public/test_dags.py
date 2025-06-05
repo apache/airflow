@@ -190,6 +190,19 @@ class TestDagEndpoint:
         session.add_all([asset_ref1, asset_ref2, asset_ref3])
         session.commit()
 
+    @staticmethod
+    def _init_dags_and_tags(dag_maker):
+        # DAG 1: tag 'example' and 'tag_2'
+        with dag_maker(DAG1_ID, tags=["example", "tag_2"]):
+            EmptyOperator(task_id="dummy1")
+        # DAG 2: tag 'tag_1'
+        with dag_maker(DAG2_ID, tags=["tag_1"]):
+            EmptyOperator(task_id="dummy2")
+        # DAG 3: tag 'tag_1'
+        with dag_maker(DAG3_ID, tags=["tag_1"]):
+            EmptyOperator(task_id="dummy3")
+        dag_maker.sync_dagbag_to_db()
+
     @pytest.fixture(autouse=True)
     def setup(self, dag_maker, session) -> None:
         self._clear_db()
@@ -1084,3 +1097,57 @@ class TestDeleteDAG(TestDagEndpoint):
     def test_delete_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")
         assert response.status_code == 403
+
+
+class TestTagsAdvancedFilter(TestDagEndpoint):
+    """Unit tests for advanced tag filtering in Get DAGs."""
+
+    @pytest.fixture(autouse=True)
+    def setup_advanced_tags(self, dag_maker):
+        # Only runs for this test class
+        self._clear_db()
+        self._init_dags_and_tags(dag_maker)
+
+    @pytest.mark.parametrize(
+        "query_params, expected_total_entries, expected_ids",
+        [
+            # Advanced tag queries
+            ({"tags_advanced_query": "example"}, 1, [DAG1_ID]),
+            ({"tags_advanced_query": "tag_1"}, 2, [DAG2_ID, DAG3_ID]),
+            ({"tags_advanced_query": "tag_1 AND tag_2"}, 0, []),
+            ({"tags_advanced_query": "example AND tag_2"}, 1, [DAG1_ID]),
+            ({"tags_advanced_query": "tag_1 OR tag_2"}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
+            ({"tags_advanced_query": "(tag_1 OR tag_2) AND example"}, 1, [DAG1_ID]),
+            ({"tags_advanced_query": "(tag_1 OR tag_2) AND (example OR tag_2)"}, 1, [DAG1_ID]),
+            ({"tags_advanced_query": "tag_1 and tag_2"}, 0, []),  # lower case and
+            ({"tags_advanced_query": "tag_1 Or tag_2"}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),  # mixed case or
+            ({"tags_advanced_query": "((tag_1 OR tag_2) AND example) OR tag_2"}, 1, [DAG1_ID]),
+            (
+                {"tags_advanced_query": "((tag_1 OR tag_2) AND example) OR tag_2 AND tag_1"},
+                1,
+                [DAG1_ID],
+            ),
+        ],
+    )
+    def test_get_dags_advanced_tag_filter(
+        self, test_client, query_params, expected_total_entries, expected_ids
+    ):
+        response = test_client.get("/dags", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == expected_total_entries
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+
+    @pytest.mark.parametrize(
+        "query_params",
+        [
+            {"tags_advanced_query": "tag_1 AND"},  # incomplete
+            {"tags_advanced_query": "(tag_1 OR)"},  # incomplete
+            {"tags_advanced_query": "tag_1 XOR tag_2"},  # unsupported operator
+            {"tags_advanced_query": "((tag_1 OR tag_2) AND"},  # unclosed parenthesis
+        ],
+    )
+    def test_get_dags_advanced_tag_filter_invalid(self, test_client, query_params):
+        response = test_client.get("/dags", params=query_params)
+        assert response.status_code == 400
+        assert "Invalid tag query" in response.text

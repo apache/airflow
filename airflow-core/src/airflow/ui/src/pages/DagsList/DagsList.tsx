@@ -55,6 +55,7 @@ import { DAGImportErrors } from "../Dashboard/Stats/DAGImportErrors";
 import { DagCard } from "./DagCard";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
+import { AdvancedSearch } from "./DagsFilters/AdvancedSearch";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
 
@@ -180,7 +181,7 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, NEEDS_REVIEW, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, NEEDS_REVIEW, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE, ADVANCED_TAGS } =
   SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
@@ -250,6 +251,23 @@ export const DagsList = () => {
   } else if (showFavorites === "false") {
     isFavorite = false;
   }
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const handleAdvancedSearchSubmit = (query: string) => {
+    if (query) {
+      searchParams.set(ADVANCED_TAGS, query);
+    } else {
+      searchParams.delete(ADVANCED_TAGS);
+    }
+    setSearchParams(searchParams);
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    setShowAdvanced(false);
+  };
+
+  const tagsAdvanced = searchParams.get(ADVANCED_TAGS) ?? "";
 
   if (pendingReviews === "true") {
     pendingHitl = true;
@@ -269,6 +287,7 @@ export const DagsList = () => {
     paused,
     pendingHitl,
     tags: selectedTags,
+    tagsAdvancedQuery: Boolean(tagsAdvanced) ? tagsAdvanced : undefined,
     tagsMatchMode: selectedMatchMode,
   });
 
@@ -289,10 +308,16 @@ export const DagsList = () => {
     <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
-          defaultValue={dagDisplayNamePattern}
+          buttonProps={{ disabled: false, onClick: () => setShowAdvanced(true) }}
+          defaultValue={dagDisplayNamePattern ?? ""}
           onChange={handleSearchChange}
           placeHolder={translate("dags:search.dags")}
+        />
+        <AdvancedSearch
+          initialValue={searchParams.get(ADVANCED_TAGS) ?? ""}
+          isOpen={showAdvanced}
+          onClose={() => setShowAdvanced(false)}
+          onSubmit={handleAdvancedSearchSubmit}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">
