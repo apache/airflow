@@ -1147,8 +1147,8 @@ export const useDagServiceGetDagTags = <
     ...options,
   });
 /**
- * Recent Dag Runs
- * Get recent DAG runs.
+ * Get Dags
+ * Get DAGs with recent DagRun.
  * @param data The data for the request.
  * @param data.dagRunsLimit
  * @param data.limit
@@ -1162,11 +1162,12 @@ export const useDagServiceGetDagTags = <
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.orderBy
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagServiceRecentDagRuns = <
-  TData = Common.DagServiceRecentDagRunsDefaultResponse,
+export const useDagServiceGetDagsUi = <
+  TData = Common.DagServiceGetDagsUiDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1179,6 +1180,7 @@ export const useDagServiceRecentDagRuns = <
     lastDagRunState,
     limit,
     offset,
+    orderBy,
     owners,
     paused,
     tags,
@@ -1192,6 +1194,7 @@ export const useDagServiceRecentDagRuns = <
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -1201,7 +1204,7 @@ export const useDagServiceRecentDagRuns = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceRecentDagRunsKeyFn(
+    queryKey: Common.UseDagServiceGetDagsUiKeyFn(
       {
         dagDisplayNamePattern,
         dagIdPattern,
@@ -1211,6 +1214,7 @@ export const useDagServiceRecentDagRuns = <
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,
@@ -1219,7 +1223,7 @@ export const useDagServiceRecentDagRuns = <
       queryKey,
     ),
     queryFn: () =>
-      DagService.recentDagRuns({
+      DagService.getDagsUi({
         dagDisplayNamePattern,
         dagIdPattern,
         dagIds,
@@ -1228,6 +1232,7 @@ export const useDagServiceRecentDagRuns = <
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,

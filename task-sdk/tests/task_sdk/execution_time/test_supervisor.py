@@ -45,6 +45,7 @@ from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
+    AssetProfile,
     AssetResponse,
     DagRunState,
     TaskInstance,
@@ -76,6 +77,8 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComSequenceItem,
+    GetXComSequenceSlice,
+    InactiveAssetsResult,
     OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
@@ -89,8 +92,11 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     TICount,
     TriggerDagRun,
+    ValidateInletsAndOutlets,
     VariableResult,
     XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import (
     BUFFER_SIZE,
@@ -1478,6 +1484,18 @@ class TestHandleRequest:
                 id="get_asset_events_by_asset_alias",
             ),
             pytest.param(
+                ValidateInletsAndOutlets(ti_id=TI_ID),
+                b'{"inactive_assets":[{"name":"asset_name","uri":"asset_uri","type":"asset"}],"type":"InactiveAssetsResult"}\n',
+                "task_instances.validate_inlets_and_outlets",
+                (TI_ID,),
+                {},
+                InactiveAssetsResult(
+                    inactive_assets=[AssetProfile(name="asset_name", uri="asset_uri", type="asset")]
+                ),
+                None,
+                id="validate_inlets_and_outlets",
+            ),
+            pytest.param(
                 SucceedTask(
                     end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
                 ),
@@ -1618,11 +1636,11 @@ class TestHandleRequest:
                     task_id="test_task",
                     offset=0,
                 ),
-                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
+                b'{"root":"test_value","type":"XComSequenceIndexResult"}\n',
                 "xcoms.get_sequence_item",
                 ("test_dag", "test_run", "test_task", "test_key", 0),
                 {},
-                XComResult(key="test_key", value="test_value"),
+                XComSequenceIndexResult(root="test_value"),
                 None,
                 id="get_xcom_seq_item",
             ),
@@ -1641,6 +1659,24 @@ class TestHandleRequest:
                 ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
                 None,
                 id="get_xcom_seq_item_not_found",
+            ),
+            pytest.param(
+                GetXComSequenceSlice(
+                    key="test_key",
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    start=None,
+                    stop=None,
+                    step=None,
+                ),
+                b'{"root":["foo","bar"],"type":"XComSequenceSliceResult"}\n',
+                "xcoms.get_sequence_slice",
+                ("test_dag", "test_run", "test_task", "test_key", None, None, None),
+                {},
+                XComSequenceSliceResult(root=["foo", "bar"]),
+                None,
+                id="get_xcom_seq_slice",
             ),
         ],
     )

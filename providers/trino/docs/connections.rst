@@ -55,5 +55,7 @@ Extra (optional, connection parameters)
     * ``session_properties`` - JSON dictionary which allows to set session_properties. Example: ``{'session_properties':{'scale_writers':true,'task_writer_count:1'}}``
     * ``client_tags`` - List of comma separated tags. Example ``{'client_tags':['sales','cluster1']}```
     * ``timezone`` - The time zone for the session can be explicitly set using the IANA time zone name. Example: ``{'timezone':'Asia/Jerusalem'}``.
+    * ``extra_credential`` - List of key-value string pairs which are passed to the Trino connector. For more information, refer to the Trino client protocol doc page here: https://trino.io/docs/current/develop/client-protocol.html
+    * ``roles`` - Mapping of catalog names to their corresponding Trino authorization role. For more information, refer to the Trino Python client docs here: https://github.com/trinodb/trino-python-client?tab=readme-ov-file#roles
 
     Note: If ``jwt__file`` and ``jwt__token`` are both given, ``jwt__file`` will take precedent.
