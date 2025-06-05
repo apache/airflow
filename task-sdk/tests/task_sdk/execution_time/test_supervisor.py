@@ -804,7 +804,7 @@ class TestWatchedSubprocess:
         mocker.patch.object(
             ActivitySubprocess,
             "_cleanup_open_sockets",
-            side_effect=lambda: setattr(proc, "_num_open_sockets", 0),
+            side_effect=lambda **kwargs: setattr(proc, "_num_open_sockets", 0),
         )
 
         time_machine.shift(2)
