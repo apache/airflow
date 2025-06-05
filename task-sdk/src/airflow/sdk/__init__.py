@@ -73,13 +73,11 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators import setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.io.path import ObjectStoragePath
 
 __lazy_imports: dict[str, str] = {
@@ -95,14 +93,12 @@ __lazy_imports: dict[str, str] = {
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "DAG": ".definitions.dag",
-    "MappedOperator": ".definitions.mappedoperator",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
-    "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
     "Variable": ".definitions.variable",
     "XComArg": ".definitions.xcom_arg",
@@ -113,7 +109,6 @@ __lazy_imports: dict[str, str] = {
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
-    "literal": ".definitions.template",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",
