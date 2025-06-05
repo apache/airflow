@@ -35,6 +35,7 @@ import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
 import nlDashboard from "./locales/nl/dashboard.json";
 import plCommon from "./locales/pl/common.json";
+import plComponents from "./locales/pl/components.json";
 import plConnections from "./locales/pl/connections.json";
 import plDags from "./locales/pl/dags.json";
 import plDashboard from "./locales/pl/dashboard.json";
@@ -83,6 +84,7 @@ const resources = {
   },
   pl: {
     common: plCommon,
+    components: plComponents,
     connections: plConnections,
     dags: plDags,
     dashboard: plDashboard,
