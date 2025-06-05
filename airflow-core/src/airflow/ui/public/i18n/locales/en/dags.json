@@ -15,7 +15,9 @@
       "paused": "Paused"
     }
   },
+  "favoriteDag": "Favorite Dag",
   "ownerLink": "Owner link for {{owner}}",
+  "unfavoriteDag": "Unfavorite Dag",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No tasks found.",

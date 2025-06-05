@@ -18,6 +18,7 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
 import { useDagServiceGetFavoriteDags } from "openapi/queries";
@@ -31,6 +32,7 @@ type FavoriteDagButtonProps = {
 };
 
 export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonProps) => {
+  const { t: translate } = useTranslation("dags");
   const { data: favorites, refetch } = useDagServiceGetFavoriteDags();
 
   const isFavorite = useMemo(
@@ -59,11 +61,11 @@ export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonP
   return (
     <Box>
       <ActionButton
-        actionName={isFavorite ? "Unfavorite Dag" : "Favorite Dag"}
+        actionName={isFavorite ? translate("list.unfavoriteDag") : translate("list.favoriteDag")}
         colorPalette="blue"
         icon={<FiStar style={{ fill: isFavorite ? "blue" : "none" }} />}
         onClick={onToggle}
-        text={isFavorite ? "Unfavorite Dag" : "Favorite Dag"}
+        text={isFavorite ? translate("list.unfavoriteDag") : translate("list.favoriteDag")}
         variant="solid"
         withText={withText}
       />
