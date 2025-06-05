@@ -44,6 +44,18 @@ WORKSPACE_IDS = "workspace_ids"
 TIMEOUT = 5
 MODULE = "airflow.providers.microsoft.azure"
 CHECK_INTERVAL = 1
+REQUEST_BODY = {
+    "type": "full",
+    "commitMode": "transactional",
+    "objects": [
+        {
+            "table": "Customer",
+            "partition": "Robert"
+        }
+    ],
+    "applyRefreshPolicy": "false",
+    "timeout": "05:00:00"
+}
 API_VERSION = "v1.0"
 
 
@@ -102,6 +114,7 @@ class TestPowerBITrigger:
             check_interval=CHECK_INTERVAL,
             wait_for_termination=True,
             timeout=TIMEOUT,
+            request_body=REQUEST_BODY,
         )
 
         classpath, kwargs = powerbi_trigger.serialize()
@@ -116,6 +129,7 @@ class TestPowerBITrigger:
             "api_version": API_VERSION,
             "check_interval": CHECK_INTERVAL,
             "wait_for_termination": True,
+            "request_body": REQUEST_BODY,
         }
 
     @pytest.mark.asyncio
