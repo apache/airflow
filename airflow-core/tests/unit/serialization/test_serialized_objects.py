@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from typing import cast
 
 import pendulum
 import pytest
@@ -38,7 +39,7 @@ from airflow.exceptions import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.deadline import DeadlineAlert, DeadlineReference
+from airflow.models.deadline import DeadlineAlert
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
@@ -46,6 +47,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey, AssetWatcher
+from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
@@ -325,7 +327,7 @@ class MockLazySelectSequence(LazySelectSequence):
         (Asset.ref(name="test"), DAT.ASSET_REF, lambda a, b: a.name == b.name),
         (
             DeadlineAlert(
-                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                reference=cast("DeadlineReference", DeadlineReference.DAGRUN_LOGICAL_DATE),
                 interval=timedelta(),
                 callback="fake_callable",
             ),
