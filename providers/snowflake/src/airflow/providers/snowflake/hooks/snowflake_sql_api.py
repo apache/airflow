@@ -184,9 +184,6 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
 
         _, json_response = self._make_api_call_with_retries("POST", url, headers, params, data)
-        # except requests.exceptions.HTTPError as e:  # pragma: no cover
-        #     msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
-        #     raise AirflowException(msg)
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
             self.query_ids = json_response["statementHandles"]
