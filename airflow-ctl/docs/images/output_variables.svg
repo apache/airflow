@@ -112,9 +112,9 @@
 </text><text class="terminal-2916680709-r1" x="976" y="337.2" textLength="12.2" clip-path="url(#terminal-2916680709-line-13)">
 </text><text class="terminal-2916680709-r1" x="0" y="361.6" textLength="231.8" clip-path="url(#terminal-2916680709-line-14)">Optional&#160;Arguments:</text><text class="terminal-2916680709-r1" x="976" y="361.6" textLength="12.2" clip-path="url(#terminal-2916680709-line-14)">
 </text><text class="terminal-2916680709-r1" x="0" y="386" textLength="549" clip-path="url(#terminal-2916680709-line-15)">&#160;&#160;-h,&#160;--help&#160;&#160;show&#160;this&#160;help&#160;message&#160;and&#160;exit</text><text class="terminal-2916680709-r1" x="976" y="386" textLength="12.2" clip-path="url(#terminal-2916680709-line-15)">
-        
+
     <g transform="translate(9, 41)" clip-path="url(#terminal-2383798101-clip-terminal)">
-    
+
     <g class="terminal-2383798101-matrix">
     <text class="terminal-2383798101-r1" x="0" y="20" textLength="536.8" clip-path="url(#terminal-2383798101-line-0)">Usage:&#160;airflowctl&#160;variables&#160;[-h]&#160;COMMAND&#160;...</text><text class="terminal-2383798101-r1" x="976" y="20" textLength="12.2" clip-path="url(#terminal-2383798101-line-0)">
 </text><text class="terminal-2383798101-r1" x="976" y="44.4" textLength="12.2" clip-path="url(#terminal-2383798101-line-1)">
