@@ -41,24 +41,24 @@ spec:
     name: {{ include "airflow.fullname" . }}-worker
     envSourceContainerName: worker
   {{- if ne (int .Values.workers.celery.keda.pollingInterval) 5 }}
-  pollingInterval:  {{ .Values.workers.celery.keda.pollingInterval }}
+  pollingInterval: {{ .Values.workers.celery.keda.pollingInterval }}
   {{- else }}
-  pollingInterval:  {{ .Values.workers.keda.pollingInterval }}
+  pollingInterval: {{ .Values.workers.keda.pollingInterval }}
   {{- end }}
   {{- if ne (int .Values.workers.celery.keda.cooldownPeriod) 30 }}
-  cooldownPeriod:  {{ .Values.workers.celery.keda.cooldownPeriod }}
+  cooldownPeriod: {{ .Values.workers.celery.keda.cooldownPeriod }}
   {{- else }}
-  cooldownPeriod:  {{ .Values.workers.keda.cooldownPeriod }}
+  cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}
   {{- end }}
   {{- if ne (int .Values.workers.celery.keda.minReplicaCount) 0 }}
-  minReplicaCount:  {{ .Values.workers.celery.keda.minReplicaCount }}
+  minReplicaCount: {{ .Values.workers.celery.keda.minReplicaCount }}
   {{- else }}
-  minReplicaCount:  {{ .Values.workers.keda.minReplicaCount }}
+  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}
   {{- end }}
   {{- if ne (int .Values.workers.celery.keda.maxReplicaCount) 10 }}
-  maxReplicaCount:  {{ .Values.workers.celery.keda.maxReplicaCount }}
+  maxReplicaCount: {{ .Values.workers.celery.keda.maxReplicaCount }}
   {{- else }}
-  maxReplicaCount:  {{ .Values.workers.keda.maxReplicaCount }}
+  maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}
   {{- end }}
   {{- if or .Values.workers.keda.advanced .Values.workers.celery.keda.advanced }}
   advanced: {{- toYaml (.Values.workers.celery.keda.advanced | default .Values.workers.keda.advanced) | nindent 4 }}
