@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
+import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
 import { MdError } from "react-icons/md";
 
@@ -39,7 +39,7 @@ export const FlexibleForm = ({
   initialParamsDict,
   setError,
 }: FlexibleFormProps) => {
-  const { paramsDict: params, setinitialParamDict, setParamsDict } = useParamStore();
+  const { paramsDict: params, setInitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
@@ -62,17 +62,17 @@ export const FlexibleForm = ({
       const paramsCopy = structuredClone(initialParamsDict.paramsDict);
 
       setParamsDict(paramsCopy);
-      setinitialParamDict(initialParamsDict.paramsDict);
+      setInitialParamDict(initialParamsDict.paramsDict);
     }
-  }, [initialParamsDict, params, setParamsDict, setinitialParamDict]);
+  }, [initialParamsDict, params, setParamsDict, setInitialParamDict]);
 
   useEffect(
     () => () => {
       // Clear paramsDict and initialParamDict when the component is unmounted or modal closes
       setParamsDict({});
-      setinitialParamDict({});
+      setInitialParamDict({});
     },
-    [setParamsDict, setinitialParamDict],
+    [setParamsDict, setInitialParamDict],
   );
 
   useEffect(() => {
@@ -103,17 +103,29 @@ export const FlexibleForm = ({
           processedSections.set(currentSection, true);
 
           return (
-            <Accordion.Item key={currentSection} value={currentSection}>
+            <Accordion.Item
+              // We need to make the item content overflow visible for dropdowns to work, but directly applying the style does not work
+              css={{
+                "& > :nth-child(2)": {
+                  overflow: "visible",
+                },
+              }}
+              key={currentSection}
+              value={currentSection}
+            >
               <Accordion.ItemTrigger cursor="button">
-                <Text color={sectionError.get(currentSection) ? "red" : undefined}>{currentSection}</Text>
+                <Text color={sectionError.get(currentSection) ? "fg.error" : undefined}>
+                  {currentSection}
+                </Text>
                 {sectionError.get(currentSection) ? (
-                  <Icon color="red" margin="-1">
+                  <Icon color="fg.error" margin="-1">
                     <MdError />
                   </Icon>
                 ) : undefined}
               </Accordion.ItemTrigger>
-              <Accordion.ItemContent paddingTop={0}>
-                <Box p={5}>
+
+              <Accordion.ItemContent pt={0}>
+                <Accordion.ItemBody>
                   <Stack separator={<StackSeparator />}>
                     {Object.entries(params)
                       .filter(
@@ -125,7 +137,7 @@ export const FlexibleForm = ({
                         <Row key={name} name={name} onUpdate={onUpdate} />
                       ))}
                   </Stack>
-                </Box>
+                </Accordion.ItemBody>
               </Accordion.ItemContent>
             </Accordion.Item>
           );

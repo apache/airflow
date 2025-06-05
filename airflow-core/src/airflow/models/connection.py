@@ -497,7 +497,7 @@ class Connection(Base, LoggingMixin):
                     SecretCache.save_connection_uri(conn_id, conn.get_uri())
                     return conn
             except Exception:
-                log.exception(
+                log.debug(
                     "Unable to retrieve connection from secrets backend (%s). "
                     "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,

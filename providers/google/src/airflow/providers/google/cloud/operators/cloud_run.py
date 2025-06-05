@@ -249,7 +249,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :param job_name: Required. The name of the job to update.
+    :param job_name: Required. The name of the job to execute.
     :param overrides: Optional map of override values.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param polling_period_seconds: Optional. Control the rate of the poll for the result of deferrable run.

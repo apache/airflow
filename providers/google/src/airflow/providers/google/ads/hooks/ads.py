@@ -101,6 +101,40 @@ class GoogleAdsHook(BaseHook):
     :param api_version: The Google Ads API version to use.
     """
 
+    conn_name_attr = "google_ads_conn_id"
+    default_conn_name = "google_ads_default"
+    conn_type = "google_ads"
+    hook_name = "Google Ads"
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to Google Ads connection form."""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "developer_token": StringField(lazy_gettext("Developer token"), widget=BS3TextFieldWidget()),
+            "client_id": StringField(lazy_gettext("OAuth2 Client ID"), widget=BS3TextFieldWidget()),
+            "client_secret": PasswordField(
+                lazy_gettext("OAuth2 Client Secret"), widget=BS3PasswordFieldWidget()
+            ),
+            "refresh_token": PasswordField(
+                lazy_gettext("OAuth2 Refresh Token"), widget=BS3PasswordFieldWidget()
+            ),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Google Ads connection."""
+        return {
+            "hidden_fields": ["host", "login", "schema", "port"],
+            "relabeling": {},
+            "placeholders": {
+                "password": "Leave blank (optional)",
+            },
+        }
+
     def __init__(
         self,
         api_version: str | None = None,

@@ -76,8 +76,8 @@ jobs:
           # Need to fetch all history for selective checks tests
           fetch-depth: 0
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -97,8 +97,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: Setup pnpm
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
         with:
@@ -194,8 +194,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -249,8 +249,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -322,8 +322,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:

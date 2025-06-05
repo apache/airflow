@@ -48,7 +48,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.providers import get_provider_min_airflow_version
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom
@@ -1224,7 +1224,7 @@ class TestSqlBranch:
 
         mock_get_records.return_value = 1
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
@@ -1272,7 +1272,7 @@ class TestSqlBranch:
         mock_get_records = mock_get_db_hook.return_value.get_first
         mock_get_records.return_value = true_value
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
@@ -1320,7 +1320,7 @@ class TestSqlBranch:
         mock_get_records = mock_get_db_hook.return_value.get_first
 
         mock_get_records.return_value = false_value
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
@@ -1377,7 +1377,7 @@ class TestSqlBranch:
         mock_get_records = mock_get_db_hook.return_value.get_first
         mock_get_records.return_value = [["1"]]
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
@@ -1495,7 +1495,7 @@ class TestSqlBranch:
         mock_get_records = mock_get_db_hook.return_value.get_first
         mock_get_records.return_value = [false_value]
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_1:
             from airflow.exceptions import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:

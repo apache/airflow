@@ -107,9 +107,9 @@ def _fetch_logs_from_service(url, log_relative_path):
 
     from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_key
 
-    timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
+    timeout = conf.getint("api", "log_fetch_timeout_sec", fallback=None)
     generator = JWTGenerator(
-        secret_key=get_signing_key("webserver", "secret_key"),
+        secret_key=get_signing_key("api", "secret_key"),
         # Since we are using a secret key, we need to be explicit about the algorithm here too
         algorithm="HS512",
         private_key=None,
@@ -605,9 +605,9 @@ class FileTaskHandler(logging.Handler):
                     sources.append(url)
                     logs.append(response.text)
         except Exception as e:
-            from requests.exceptions import InvalidSchema
+            from requests.exceptions import InvalidURL
 
-            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidURL) and ti.task.inherits_from_empty_operator is True:
                 sources.append(self.inherits_from_empty_operator_log_message)
             else:
                 sources.append(f"Could not read served logs: {e}")

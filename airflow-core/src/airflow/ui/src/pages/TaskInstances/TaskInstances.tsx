@@ -18,7 +18,9 @@
  */
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
@@ -44,22 +46,29 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 const {
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
+  POOL: POOL_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const taskInstanceColumns = (
-  dagId?: string,
-  runId?: string,
-  taskId?: string,
-): Array<ColumnDef<TaskInstanceResponse>> => [
+const taskInstanceColumns = ({
+  dagId,
+  runId,
+  taskId,
+  translate,
+}: {
+  dagId?: string;
+  runId?: string;
+  taskId?: string;
+  translate: TFunction;
+}): Array<ColumnDef<TaskInstanceResponse>> => [
   ...(Boolean(dagId)
     ? []
     : [
         {
           accessorKey: "dag_display_name",
           enableSorting: false,
-          header: "Dag ID",
+          header: translate("dags:taskInstances.columns.dagId"),
         },
       ]),
   ...(Boolean(runId)
@@ -78,7 +87,7 @@ const taskInstanceColumns = (
             ) : (
               <Time datetime={original.run_after} />
             ),
-          header: "Dag Run",
+          header: translate("dags:taskInstances.columns.dagRun"),
         },
       ]),
   ...(Boolean(taskId)
@@ -94,12 +103,12 @@ const taskInstanceColumns = (
             </Link>
           ),
           enableSorting: false,
-          header: "Task ID",
+          header: translate("dags:taskInstances.columns.taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
-    header: "Map Index",
+    header: translate("dags:taskInstances.columns.mapIndex"),
   },
   {
     accessorKey: "state",
@@ -107,8 +116,8 @@ const taskInstanceColumns = (
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{state}</StateBadge>,
-    header: () => "State",
+    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
+    header: () => translate("dags:taskInstances.columns.state"),
   },
   {
     accessorKey: "start_date",
@@ -122,33 +131,38 @@ const taskInstanceColumns = (
       ) : (
         <Time datetime={original.start_date} />
       ),
-    header: "Start Date",
+    header: translate("dags:taskInstances.columns.startDate"),
   },
   {
     accessorKey: "end_date",
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
-    header: "End Date",
+    header: translate("dags:taskInstances.columns.endDate"),
   },
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
+    header: translate("dags:taskInstances.columns.tryNumber"),
+  },
+  {
+    accessorKey: "pool",
+    enableSorting: false,
+    header: translate("dags:taskInstances.columns.pool"),
   },
   {
     accessorKey: "operator",
     enableSorting: false,
-    header: "Operator",
+    header: translate("dags:taskInstances.columns.operator"),
   },
   {
     cell: ({ row: { original } }) =>
       Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
-    header: "Duration",
+    header: translate("dags:taskInstances.columns.duration"),
   },
   {
     accessorKey: "dag_version",
     cell: ({ row: { original } }) => <DagVersion version={original.dag_version} />,
     enableSorting: false,
-    header: "Dag Version",
+    header: translate("dags:taskInstances.columns.dagVersion"),
   },
   {
     accessorKey: "actions",
@@ -168,6 +182,7 @@ const taskInstanceColumns = (
 ];
 
 export const TaskInstances = () => {
+  const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -178,7 +193,9 @@ export const TaskInstances = () => {
   const filteredState = searchParams.getAll(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
+  const pool = searchParams.getAll(POOL_PARAM);
   const hasFilteredState = filteredState.length > 0;
+  const hasFilteredPool = pool.length > 0;
 
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
@@ -194,6 +211,7 @@ export const TaskInstances = () => {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      pool: hasFilteredPool ? pool : undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
@@ -214,12 +232,17 @@ export const TaskInstances = () => {
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
       <DataTable
-        columns={taskInstanceColumns(dagId, runId, Boolean(groupId) ? undefined : taskId)}
+        columns={taskInstanceColumns({
+          dagId,
+          runId,
+          taskId: Boolean(groupId) ? undefined : taskId,
+          translate,
+        })}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName="Task Instance"
+        modelName={translate("common:taskInstance_other")}
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

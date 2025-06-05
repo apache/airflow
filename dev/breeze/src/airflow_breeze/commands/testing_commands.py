@@ -102,8 +102,8 @@ from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
 
-LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
-DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
+LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
+DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
 
 logs_already_dumped = False
 
@@ -327,6 +327,7 @@ def _run_tests_in_pool(
         "CLI",
         "Serialization",
         "Always",
+        "Providers[celery]",
     ]
     sort_key = {item: i for i, item in enumerate(sorting_order)}
     # Put the test types in the order we want them to run

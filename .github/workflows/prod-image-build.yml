@@ -127,8 +127,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
         if: inputs.upload-package-artifact == 'true'
       - name: "Cleanup dist and context file"
         shell: bash
@@ -214,8 +214,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -267,6 +267,7 @@ jobs:
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
+          USE_UV: ${{ inputs.use-uv }}
       - name: "Verify PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         run: breeze prod-image verify
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"

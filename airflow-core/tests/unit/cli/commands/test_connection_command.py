@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import io
 import json
 import os
 import re
@@ -332,6 +333,38 @@ class TestCliExportConnections:
             },
         }
         assert json.loads(output_filepath.read_text()) == expected_connections
+
+    def test_cli_connections_export_should_work_when_stdout_is_not_a_real_fd(self, tmp_path):
+        class FakeFileStringIO(io.StringIO):
+            """
+            Buffer the contents of a StringIO
+            to make them accessible after close
+            """
+
+            def __init__(self):
+                super().__init__()
+                self.content = ""
+
+            def write(self, s: str) -> int:
+                self.content += s
+                return len(s)
+
+        tmp_stdout = FakeFileStringIO()
+        with redirect_stdout(tmp_stdout):
+            args = self.parser.parse_args(
+                [
+                    "connections",
+                    "export",
+                    "--format",
+                    "env",
+                    "-",
+                ]
+            )
+            connection_command.connections_export(args)
+        assert tmp_stdout.content.splitlines() == [
+            "airflow_db=mysql://root:plainpassword@mysql/airflow",
+            "druid_broker_default=druid://druid-broker:8082/?endpoint=druid%2Fv2%2Fsql",
+        ]
 
 
 TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"

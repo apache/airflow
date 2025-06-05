@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   useTaskInstanceServiceDeleteTaskInstance,
@@ -36,14 +37,6 @@ type DeleteTaskInstanceParams = {
   taskId: string;
 };
 
-const onError = () => {
-  toaster.create({
-    description: "Delete Task Instance request failed.",
-    title: "Failed to delete Task Instance",
-    type: "error",
-  });
-};
-
 export const useDeleteTaskInstance = ({
   dagId,
   dagRunId,
@@ -52,6 +45,15 @@ export const useDeleteTaskInstance = ({
   taskId,
 }: DeleteTaskInstanceParams) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation();
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("dags:runAndTaskActions.delete.error", { type: "Task Instance" }),
+      type: "error",
+    });
+  };
 
   const onSuccess = async () => {
     const queryKeys = [
@@ -65,8 +67,8 @@ export const useDeleteTaskInstance = ({
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      description: "The Task Instance deletion request was successful.",
-      title: "Task Instance Deleted Successfully",
+      description: translate("dags:runAndTaskActions.delete.success.description", { type: "Task Instance" }),
+      title: translate("dags:runAndTaskActions.delete.success.title", { type: "Task Instance" }),
       type: "success",
     });
 

@@ -30,6 +30,48 @@ def get_provider_info():
             "fab": {
                 "description": "This section contains configs specific to FAB provider.",
                 "options": {
+                    "navbar_color": {
+                        "description": "Define the color of navigation bar\n",
+                        "version_added": "2.2.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "#fff",
+                    },
+                    "navbar_text_color": {
+                        "description": "Define the color of text in the navigation bar\n",
+                        "version_added": "2.2.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "#51504f",
+                    },
+                    "navbar_hover_color": {
+                        "description": "Define the color of navigation bar links when hovered\n",
+                        "version_added": "2.2.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "#eee",
+                    },
+                    "navbar_text_hover_color": {
+                        "description": "Define the color of text in the navigation bar when hovered\n",
+                        "version_added": "2.2.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "#51504f",
+                    },
+                    "access_denied_message": {
+                        "description": "The message displayed when a user attempts to execute actions beyond their authorised privileges.\n",
+                        "version_added": "2.1.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "Access is Denied",
+                    },
+                    "expose_hostname": {
+                        "description": "Expose hostname in the web server\n",
+                        "version_added": "2.1.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "False",
+                    },
                     "auth_rate_limited": {
                         "description": "Boolean for enabling rate limiting on authentication endpoints.\n",
                         "version_added": "1.0.2",

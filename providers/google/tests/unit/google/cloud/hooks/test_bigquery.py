@@ -49,7 +49,6 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     _format_schema_for_description,
     _validate_src_fmt_configs,
     _validate_value,
-    split_tablename,
 )
 
 pytestmark = pytest.mark.filterwarnings("error::airflow.exceptions.AirflowProviderDeprecationWarning")
@@ -323,7 +322,12 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
 
         mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
-        assert view_access in dataset.access_entries
+        assert any(
+            entry.role == view_access.role
+            and entry.entity_type == view_access.entity_type
+            and entry.entity_id == view_access.entity_id
+            for entry in dataset.access_entries
+        ), f"View access entry not found in {dataset.access_entries}"
         mock_update.assert_called_once_with(
             fields=["access"],
             dataset_resource=dataset.to_api_repr(),
@@ -765,62 +769,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         default_project_id = "project"
         with pytest.raises(ValueError, match=exception_message.format(table_input)):
             self.hook.split_tablename(table_input, default_project_id, var_name)
-
-
-class TestBigQueryTableSplitter:
-    def test_internal_need_default_project(self):
-        with pytest.raises(AirflowProviderDeprecationWarning):
-            split_tablename("dataset.table", None)
-
-    @pytest.mark.parametrize("partition", ["$partition", ""])
-    @pytest.mark.parametrize(
-        "project_expected, dataset_expected, table_expected, table_input",
-        [
-            ("project", "dataset", "table", "dataset.table"),
-            ("alternative", "dataset", "table", "alternative:dataset.table"),
-            ("alternative", "dataset", "table", "alternative.dataset.table"),
-            ("alt1:alt", "dataset", "table", "alt1:alt.dataset.table"),
-            ("alt1:alt", "dataset", "table", "alt1:alt:dataset.table"),
-        ],
-    )
-    def test_split_tablename(
-        self, project_expected, dataset_expected, table_expected, table_input, partition
-    ):
-        default_project_id = "project"
-        with pytest.raises(AirflowProviderDeprecationWarning):
-            split_tablename(table_input + partition, default_project_id)
-
-    @pytest.mark.parametrize(
-        "table_input, var_name, exception_message",
-        [
-            ("alt1:alt2:alt3:dataset.table", None, "Use either : or . to specify project got {}"),
-            (
-                "alt1.alt.dataset.table",
-                None,
-                r"Expect format of \(<project\.\|<project\:\)<dataset>\.<table>, got {}",
-            ),
-            (
-                "alt1:alt2:alt.dataset.table",
-                "var_x",
-                "Format exception for var_x: Use either : or . to specify project got {}",
-            ),
-            (
-                "alt1:alt2:alt:dataset.table",
-                "var_x",
-                "Format exception for var_x: Use either : or . to specify project got {}",
-            ),
-            (
-                "alt1.alt.dataset.table",
-                "var_x",
-                r"Format exception for var_x: Expect format of "
-                r"\(<project\.\|<project:\)<dataset>.<table>, got {}",
-            ),
-        ],
-    )
-    def test_invalid_syntax(self, table_input, var_name, exception_message):
-        default_project_id = "project"
-        with pytest.raises(AirflowProviderDeprecationWarning):
-            split_tablename(table_input, default_project_id, var_name)
 
 
 @pytest.mark.db_test

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.macros import (  # noqa: F401
+from airflow.sdk.execution_time.macros import (  # noqa: F401
     datetime,
     datetime_diff_for_humans,
     dateutil,

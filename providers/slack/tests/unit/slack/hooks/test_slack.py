@@ -26,7 +26,7 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.web.slack_response import SlackResponse
 
-from airflow.exceptions import AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack import SlackHook
 
@@ -87,6 +87,13 @@ class TestSlackHook:
                 kwargs[mandatory_param] = mock.MagicMock(name=f"fake-{mandatory_param}")
 
         return SlackResponse(status_code=status_code, data=data, **kwargs)
+
+    @staticmethod
+    def make_429():
+        resp = mock.MagicMock()
+        resp.status_code = 429
+        resp.headers = {"Retry-After": "1"}
+        return SlackApiError("ratelimited", response=resp)
 
     @pytest.mark.parametrize(
         "conn_id",
@@ -388,6 +395,28 @@ class TestSlackHook:
         mocked_client.conversations_list.side_effect = fake_responses
         with pytest.raises(LookupError, match="Unable to find slack channel"):
             hook.get_channel_id("troubleshooting")
+
+    def test_call_conversations_list_retries_then_succeeds(self, monkeypatch):
+        ok_resp = self.fake_slack_response(data={"channels": []})
+        monkeypatch.setattr(
+            "airflow.providers.slack.hooks.slack.WebClient",
+            lambda **_: mock.MagicMock(
+                conversations_list=mock.Mock(side_effect=[self.make_429(), self.make_429(), ok_resp])
+            ),
+        )
+        with mock.patch("time.sleep") as mocked_sleep:
+            hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+            res = hook._call_conversations_list()
+            assert res is ok_resp
+            assert mocked_sleep.call_count == 2
+
+    def test_call_conversations_list_exceeds_max(self, monkeypatch):
+        monkeypatch.setattr(
+            "airflow.providers.slack.hooks.slack.WebClient",
+            lambda **_: mock.MagicMock(conversations_list=mock.Mock(side_effect=[self.make_429()] * 5)),
+        )
+        with pytest.raises(AirflowException, match="Max retries"):
+            SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)._call_conversations_list()
 
     def test_send_file_v2(self, mocked_client):
         SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID).send_file_v2(

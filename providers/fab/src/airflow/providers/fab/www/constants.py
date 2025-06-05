@@ -24,5 +24,5 @@ WWW = Path(__file__).resolve().parent
 # There is a difference with configuring Swagger in Connexion 2.x and Connexion 3.x
 # Connexion 2: https://connexion.readthedocs.io/en/2.14.2/quickstart.html#the-swagger-ui-console
 # Connexion 3: https://connexion.readthedocs.io/en/stable/swagger_ui.html#configuring-the-swagger-ui
-SWAGGER_ENABLED = conf.getboolean("webserver", "enable_swagger_ui", fallback=True)
+SWAGGER_ENABLED = conf.getboolean("api", "enable_swagger_ui", fallback=True)
 SWAGGER_BUNDLE = WWW.joinpath("static", "dist", "swagger-ui")

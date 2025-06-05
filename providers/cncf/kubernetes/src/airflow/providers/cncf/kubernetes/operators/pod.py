@@ -233,6 +233,7 @@ class KubernetesPodOperator(BaseOperator):
     :param logging_interval: max time in seconds that task should be in deferred state before
         resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
         is done, and no logs will be visible until that time.
+    :param trigger_kwargs: additional keyword parameters passed to the trigger
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -266,6 +267,7 @@ class KubernetesPodOperator(BaseOperator):
         "node_selector",
         "kubernetes_conn_id",
         "base_container_name",
+        "trigger_kwargs",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -305,7 +307,7 @@ class KubernetesPodOperator(BaseOperator):
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
-        automount_service_account_token: bool = True,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -339,6 +341,7 @@ class KubernetesPodOperator(BaseOperator):
         ) = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -428,6 +431,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
         self.logging_interval = logging_interval
+        self.trigger_kwargs = trigger_kwargs
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
@@ -812,6 +816,7 @@ class KubernetesPodOperator(BaseOperator):
                 on_finish_action=self.on_finish_action.value,
                 last_log_time=last_log_time,
                 logging_interval=self.logging_interval,
+                trigger_kwargs=self.trigger_kwargs,
             ),
             method_name="trigger_reentry",
         )

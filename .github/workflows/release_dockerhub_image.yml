@@ -79,13 +79,15 @@ jobs:
           echo "Limit python versions: '${LIMIT_PYTHON_VERSIONS}'"
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: >
+          docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install uv"
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: "Check airflow version"

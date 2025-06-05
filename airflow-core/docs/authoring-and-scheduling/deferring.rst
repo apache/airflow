@@ -36,14 +36,14 @@ You can either use pre-written deferrable operators as a DAG author or write you
 Using Deferrable Operators
 --------------------------
 
-If you want to use pre-written deferrable operators that come with Airflow, such as ``TimeSensorAsync``, then you only need to complete two steps:
+If you want to use pre-written deferrable operators that come with Airflow, such as ``TimeSensor``, then you only need to complete two steps:
 
 * Ensure your Airflow installation runs at least one ``triggerer`` process, as well as the normal ``scheduler``
 * Use deferrable operators/sensors in your dags
 
 Airflow automatically handles and implements the deferral processes for you.
 
-If you're upgrading existing dags to use deferrable operators, Airflow contains API-compatible sensor variants, like ``TimeSensorAsync`` for ``TimeSensor``. Add these variants into your DAG to use deferrable operators with no other changes required.
+If you're upgrading existing dags to use deferrable operators, Airflow contains API-compatible sensor variants. Add these variants into your dag to use deferrable operators with no other changes required.
 
 Note that you can't use the deferral ability from inside custom PythonOperator or TaskFlow Python functions. Deferral is only available to traditional, class-based operators.
 

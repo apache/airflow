@@ -30,6 +30,6 @@ Package apache-airflow-providers-apache-impala
 
 
 This is detailed commit list of changes for versions provider package: ``apache.impala``.
-For high-level changelog, see :doc:`changelog <changelog>`.
+For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

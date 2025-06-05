@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Link } from "@chakra-ui/react";
 import { FiBookOpen } from "react-icons/fi";
-import { useParams } from "react-router-dom";
+import { useParams, Link as RouterLink } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
@@ -28,6 +29,7 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { TogglePause } from "src/components/TogglePause";
 
+import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
 import { Schedule } from "../DagsList/Schedule";
 
@@ -53,13 +55,17 @@ export const Header = ({
       label: "Latest Run",
       value:
         Boolean(latestRun) && latestRun !== undefined ? (
-          <DagRunInfo
-            endDate={latestRun.end_date}
-            logicalDate={latestRun.logical_date}
-            runAfter={latestRun.run_after}
-            startDate={latestRun.start_date}
-            state={latestRun.state}
-          />
+          <Link asChild color="fg.info">
+            <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
+              <DagRunInfo
+                endDate={latestRun.end_date}
+                logicalDate={latestRun.logical_date}
+                runAfter={latestRun.run_after}
+                startDate={latestRun.start_date}
+                state={latestRun.state}
+              />
+            </RouterLink>
+          </Link>
         ) : undefined,
     },
     {
@@ -73,7 +79,7 @@ export const Header = ({
     },
     {
       label: "Owner",
-      value: dag?.owners.join(", "),
+      value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
     },
     {
       label: "Tags",

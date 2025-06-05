@@ -212,7 +212,7 @@ packages = []
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.0.2" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=2.2.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -249,6 +249,9 @@ packages = []
 ]
 "jenkins" = [
     "apache-airflow-providers-jenkins>=3.7.2"
+]
+"keycloak" = [
+    "apache-airflow-providers-keycloak"
 ]
 "microsoft.azure" = [
     "apache-airflow-providers-microsoft-azure>=10.5.1"
@@ -380,7 +383,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -422,7 +425,7 @@ packages = []
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=5.5.2",
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=2.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=2.2.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -435,6 +438,7 @@ packages = []
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
+    "apache-airflow-providers-keycloak",
     "apache-airflow-providers-microsoft-azure>=10.5.1",
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
@@ -493,6 +497,9 @@ packages = []
 "apache-webhdfs" = [
     "apache-airflow-providers-apache-hdfs",
 ]
+"amazon-aws-auth" = [
+   "apache-airflow-providers-amazon[python3-saml]",
+]
 "cloudpickle" = [
     "cloudpickle>=2.2.1",
 ]
@@ -522,7 +529,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.7.2",
+    "uv>=0.7.8",
 ]
 
 
@@ -874,7 +881,6 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
-    "error::pytest.PytestReturnNotNoneWarning",
     # Avoid building cartesian product which might impact performance
     "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
@@ -1085,6 +1091,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/jdbc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/src",
     "$MYPY_CONFIG_FILE_DIR/providers/jenkins/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/keycloak/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/keycloak/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/azure/src",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/azure/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/mssql/src",
@@ -1324,6 +1332,7 @@ apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
+apache-airflow-providers-keycloak = { workspace = true }
 apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-microsoft-psrp = { workspace = true }
@@ -1437,6 +1446,7 @@ members = [
     "providers/influxdb",
     "providers/jdbc",
     "providers/jenkins",
+    "providers/keycloak",
     "providers/microsoft/azure",
     "providers/microsoft/mssql",
     "providers/microsoft/psrp",

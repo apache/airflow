@@ -609,8 +609,8 @@ key3 = value3
         cmd_file.write_text("#!/usr/bin/env bash\necho -n difficult_unpredictable_cat_password\n")
         cmd_file.chmod(0o0555)
 
-        monkeypatch.setenv("AIRFLOW__WEBSERVER__SECRET_KEY_CMD", str(cmd_file))
-        content = conf.getsection("webserver")
+        monkeypatch.setenv("AIRFLOW__API__SECRET_KEY_CMD", str(cmd_file))
+        content = conf.getsection("api")
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
 
     @pytest.mark.parametrize(
@@ -628,11 +628,13 @@ key3 = value3
         assert isinstance(section_dict[key], type)
 
     def test_command_from_env(self):
-        test_cmdenv_config = textwrap.dedent("""\
+        test_cmdenv_config = textwrap.dedent(
+            """\
             [testcmdenv]
             itsacommand=NOT OK
             notacommand=OK
-        """)
+        """
+        )
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
@@ -1712,7 +1714,7 @@ def test_sensitive_values():
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
         ("api_auth", "jwt_secret"),
-        ("webserver", "secret_key"),
+        ("api", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
@@ -1723,6 +1725,7 @@ def test_sensitive_values():
         ("celery", "result_backend"),
         ("opensearch", "username"),
         ("opensearch", "password"),
+        ("webserver", "secret_key"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
