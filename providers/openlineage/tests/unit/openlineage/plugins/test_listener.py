@@ -249,6 +249,7 @@ class TestOpenLineageListenerAirflow2:
         task_instance.task.dag.dag_id = "dag_id"
         task_instance.task.dag.description = "Test DAG Description"
         task_instance.task.dag.owner = "Test Owner"
+        task_instance.task.dag.tags = ["tag1", "tag2"]
         task_instance.task.owner = "task_owner"
         task_instance.task.inlets = []
         task_instance.task.outlets = []
@@ -312,10 +313,10 @@ class TestOpenLineageListenerAirflow2:
             job_name="job_name",
             job_description="Test DAG Description",
             event_time="2023-01-01T13:01:01+00:00",
-            code_location=None,
             nominal_start_time=None,
             nominal_end_time=None,
             owners=["task_owner"],
+            tags=["tag1", "tag2"],
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
                 "parent": 4,
@@ -409,6 +410,9 @@ class TestOpenLineageListenerAirflow2:
             job_name="job_name",
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             owners=["task_owner"],
+            tags=["tag1", "tag2"],
+            nominal_start_time=None,
+            nominal_end_time=None,
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
                 "parent": 4,
@@ -507,6 +511,9 @@ class TestOpenLineageListenerAirflow2:
             run_id=f"2020-01-01T01:01:01+00:00.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}.-1",
             task=listener.extractor_manager.extract_metadata(),
             owners=["task_owner"],
+            tags=["tag1", "tag2"],
+            nominal_start_time=None,
+            nominal_end_time=None,
             run_facets={
                 "parent": 4,
                 "custom_user_facet": 2,
@@ -985,6 +992,7 @@ class TestOpenLineageListenerAirflow3:
             dag = DAG(
                 dag_id="dag_id",
                 description="Test DAG Description",
+                tags=["tag1", "tag2"],
             )
             task = EmptyOperator(task_id="task_id", dag=dag, owner="task_owner")
             task2 = EmptyOperator(task_id="task_id2", dag=dag, owner="another_owner")  # noqa: F841
@@ -1090,10 +1098,10 @@ class TestOpenLineageListenerAirflow3:
             job_name="job_name",
             job_description="Test DAG Description",
             event_time="2023-01-01T13:01:01+00:00",
-            code_location=None,
             nominal_start_time=None,
             nominal_end_time=None,
             owners=["task_owner"],
+            tags={"tag1", "tag2"},
             task=listener.extractor_manager.extract_metadata(),
             run_facets={
                 "mapped_facet": 1,
@@ -1187,6 +1195,9 @@ class TestOpenLineageListenerAirflow3:
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=listener.extractor_manager.extract_metadata(),
             owners=["task_owner"],
+            tags={"tag1", "tag2"},
+            nominal_start_time=None,
+            nominal_end_time=None,
             run_facets={
                 "parent": 4,
                 "custom_user_facet": 2,
@@ -1331,6 +1342,9 @@ class TestOpenLineageListenerAirflow3:
             run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
             task=listener.extractor_manager.extract_metadata(),
             owners=["task_owner"],
+            tags={"tag1", "tag2"},
+            nominal_start_time=None,
+            nominal_end_time=None,
             run_facets={
                 "parent": 4,
                 "custom_user_facet": 2,

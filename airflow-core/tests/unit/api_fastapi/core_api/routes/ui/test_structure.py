@@ -369,7 +369,7 @@ class TestStructureDataEndpoint:
                 {
                     "is_setup_teardown": None,
                     "label": None,
-                    "source_id": "task_2",
+                    "source_id": "task_1",
                     "target_id": f"asset:{asset3_id}",
                     "is_source_asset": None,
                 },

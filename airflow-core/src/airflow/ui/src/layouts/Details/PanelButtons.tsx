@@ -27,6 +27,7 @@ import {
   Select,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -71,6 +72,7 @@ const deps = ["all", "immediate", "tasks"];
 type Dependency = (typeof deps)[number];
 
 export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLimit }: Props) => {
+  const { t: translate } = useTranslation("components");
   const { dagId = "" } = useParams();
   const { fitView } = useReactFlow();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
@@ -196,7 +198,7 @@ export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLim
                       </Select.Root>
                       <Select.Root
                         // @ts-expect-error The expected option type is incorrect
-                        collection={directionOptions}
+                        collection={directionOptions(translate)}
                         onValueChange={handleDirectionUpdate}
                         size="sm"
                         value={[direction]}
@@ -212,7 +214,7 @@ export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLim
                         </Select.Control>
                         <Select.Positioner>
                           <Select.Content>
-                            {directionOptions.items.map((option) => (
+                            {directionOptions(translate).items.map((option) => (
                               <Select.Item item={option} key={option.value}>
                                 {option.label}
                               </Select.Item>

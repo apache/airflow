@@ -16,26 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
-import { LuX } from "react-icons/lu";
+import { Text, Skeleton } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 
-type Props = {
-  readonly filterCount: number;
-  readonly onClearFilters: () => void;
-};
-
-export const ResetButton = ({ filterCount, onClearFilters }: Props) => {
-  const { t: translate } = useTranslation("common");
-
-  if (filterCount === 0) {
-    return undefined;
-  }
-
-  return (
-    <Button onClick={onClearFilters} size="sm" variant="outline">
-      <LuX />
-      {translate("table.filterReset", { count: filterCount })}
-    </Button>
+export const getInlineMessage = (isPendingDryRun: boolean, totalEntries: number, translate: TFunction) =>
+  isPendingDryRun ? (
+    <Skeleton height="20px" width="100px" />
+  ) : totalEntries > 1 ? (
+    <Text color="fg.success" fontSize="sm">
+      {translate("backfill.affectedOne")}
+    </Text>
+  ) : totalEntries > 0 ? (
+    <Text color="fg.success" fontSize="sm">
+      {translate("backfill.affectedMultiple", { count: totalEntries })}
+    </Text>
+  ) : (
+    <Text color="fg.error" fontSize="sm" fontWeight="medium">
+      {translate("backfill.affectedNone")}
+    </Text>
   );
-};

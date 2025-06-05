@@ -24,6 +24,15 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
+  "duration": "Duration",
+  "endDate": "End Date",
+  "expression": {
+    "all": "All",
+    "and": "AND",
+    "any": "Any",
+    "or": "OR"
+  },
+  "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
   "modal": {
@@ -54,6 +63,7 @@
     "running": "Running",
     "scheduled": "Scheduled"
   },
+  "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
@@ -68,6 +78,8 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "startDate": "Start Date",
+  "state": "State",
   "states": {
     "deferred": "Deferred",
     "failed": "Failed",
@@ -89,11 +101,8 @@
   "table": {
     "filterByTag": "Filter Dags by tag",
     "filterColumns": "Filter table columns",
-    "filters": {
-      "filter_one": "filter",
-      "filter_other": "filters",
-      "reset": "Reset"
-    },
+    "filterReset_one": "Reset filter",
+    "filterReset_other": "Reset filters",
     "noTagsFound": "No tags found",
     "tagMode": {
       "all": "All",
@@ -118,5 +127,6 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "triggered": "Triggered",
+  "tryNumber": "Try Number",
   "user": "User"
 }
