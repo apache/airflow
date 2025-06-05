@@ -64,7 +64,6 @@ class ConfigChange:
     breaking: bool = False
     remove_if_equals: str | bool | int | float | None = None
 
-    @property
     @provide_api_client(kind=ClientKind.CLI)
     def message(self, api_client=NEW_API_CLIENT) -> str | None:
         """Generate a message for this configuration change."""
@@ -796,8 +795,8 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
                     None,
                 )
                 if target_option:
-                    if configuration.message is not None:
-                        lint_issues.append(configuration.message)
+                    if configuration.message() is not None:
+                        lint_issues.append(configuration.message())
 
         if lint_issues:
             rich.print("[red]Found issues in your airflow.cfg:[/red]")
