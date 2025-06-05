@@ -86,6 +86,11 @@ func (s *WorkerSuite) SetupSuite() {
 	s.worker.(*worker).client = s.client
 }
 
+func (s *WorkerSuite) TearDownSuite() {
+	s.ti.AssertExpectations(s.T())
+	s.client.AssertExpectations(s.T())
+}
+
 func (s *WorkerSuite) TestWithServer() {
 	s.T().Parallel()
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
@@ -175,7 +180,9 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	s.ti.EXPECT().
 		Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).
 		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIHeartbeatInfo) error {
-			callCount += 1
+			if taskInstanceId.String() == id {
+				callCount += 1
+			}
 			return nil
 		})
 	s.client.EXPECT().TaskInstances().Return(s.ti)
@@ -186,7 +193,8 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 
 	// Since we heartbeat every 100ms and run for 1 second, we should expect 10 heartbeat calls. But allow +/-
 	// 1 due to timing imprecision
-	s.Assert().True(callCount < 11 && callCount > 9, "More than 10")
+	s.Assert().
+		True(callCount < 11 && callCount > 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", callCount))
 }
 
 func (s *WorkerSuite) TestTaskHeatbeatErrorStopsTaskAndLogs() {
