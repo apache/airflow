@@ -57,7 +57,7 @@ const LanguageSelector: React.FC = () => {
         <Text fontSize="lg" fontWeight="bold">
           {currentLang?.label} ({i18n.language})
         </Text>
-        <Text>{`Direction: ${langDir.toUpperCase()}`}</Text>
+        <Text>{`${translate("direction")}: ${langDir.toUpperCase()}`}</Text>
       </Box>
     </VStack>
   );
