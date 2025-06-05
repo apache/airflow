@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import sys
+from decimal import Decimal
 from importlib import metadata
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -34,6 +36,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
+from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -174,6 +177,19 @@ class TestSerializers:
             "spec": {"containers": [{"image": "bar", "name": "foo"}]},
         }
 
+    def test_bignum(self):
+        from airflow.serialization.serializers.bignum import deserialize, serialize
+
+        assert serialize(12345) == ("", "", 0, False)
+
+        with pytest.raises(TypeError) as ctx:
+            deserialize(qualname(Decimal), 999, "0")
+        assert f"serialized 999 of {qualname(Decimal)}" in str(ctx.value)
+
+        with pytest.raises(TypeError) as ctx:
+            deserialize("wrong.ClassName", 1, "0")
+        assert f"wrong.ClassName != {qualname(Decimal)}" in str(ctx.value)
+
     def test_numpy(self):
         i = np.int16(10)
         e = serialize(i)
@@ -248,7 +264,7 @@ class TestSerializers:
         mock_load_catalog.assert_called_with("catalog", uri=uri)
         mock_load_table.assert_called_with((identifier[1], identifier[2]))
 
-    def test_deltalake(selfa):
+    def test_deltalake(self):
         deltalake = pytest.importorskip("deltalake")
 
         with (
@@ -274,6 +290,19 @@ class TestSerializers:
             assert i.version() == d.version()
             assert i._storage_options == d._storage_options
             assert d._storage_options is None
+
+    def test_deltalake_serialize_deserialize(self):
+        from airflow.serialization.serializers.deltalake import deserialize, serialize
+
+        assert serialize(object()) == ("", "", 0, False)
+
+        with pytest.raises(TypeError) as e:
+            deserialize("deltalake.table.DeltaTable", 999, {})
+        assert "serialized version is newer than class version" in str(e.value)
+
+        with pytest.raises(TypeError) as e2:
+            deserialize("not_a_real_class", 1, {})
+        assert "do not know how to deserialize" in str(e2.value)
 
     def test_kubernetes(self, monkeypatch):
         from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
@@ -455,3 +484,53 @@ class TestSerializers:
         assert _get_tzinfo_name(None) is None
         assert _get_tzinfo_name(CustomTZ()) == "My/Custom"
         assert _get_tzinfo_name(pytz.timezone("Asia/Taipei")) == "Asia/Taipei"
+
+    def test_json_schema(self, monkeypatch):
+        from airflow.exceptions import AirflowException
+        from airflow.serialization.json_schema import load_dag_schema_dict
+
+        monkeypatch.setattr(
+            "airflow.serialization.json_schema.pkgutil.get_data", lambda __name__, fname: None
+        )
+
+        with pytest.raises(AirflowException) as ctx:
+            load_dag_schema_dict()
+        assert "Schema file schema.json does not exists" in str(ctx.value)
+
+    def test_builtin(self):
+        from airflow.serialization.serializers import builtin
+
+        result = builtin.deserialize(qualname(frozenset), 1, [13, 14])
+        assert isinstance(result, frozenset)
+        assert result == frozenset([13, 14])
+
+        with pytest.raises(TypeError) as ctx:
+            builtin.deserialize(qualname(tuple), 999, [1, 2])
+        assert "serialized version is newer than class version" in str(ctx.value)
+
+        with pytest.raises(TypeError) as ctx:
+            builtin.deserialize("builtins.list", 1, [1, 2])
+        assert "do not know how to deserialize" in str(ctx.value)
+
+        with pytest.raises(TypeError) as ctx:
+            builtin.stringify("builtins.list", 1, [1, 2])
+        assert "do not know how to stringify" in str(ctx.value)
+
+    def test_serde(self):
+        from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize
+
+        with pytest.raises(ValueError, match="cannot decode"):
+            decode({"__classname__": 123, "__version__": 1, "__data__": {}})
+
+        with pytest.raises(RecursionError, match="maximum recursion depth reached for serialization"):
+            serialize(object(), depth=sys.getrecursionlimit() - 1)
+
+        fake = {"a": 1, "b": 2, "__version__": 1}
+        result = deserialize(fake, type_hint=dict, full=False)
+        assert result == "builtins.dict@version=0(a=1,b=2,__version__=1)"
+
+        with pytest.raises(TypeError, match="classname cannot be empty"):
+            deserialize({CLASSNAME: "", VERSION: 1, DATA: {}})
+
+        assert _stringify("dummy", 1, 123) == "dummy@version=1(123)"
+        assert _stringify("dummy", 1, [1]) == "dummy@version=1([,1,])"

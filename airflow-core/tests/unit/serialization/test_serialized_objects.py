@@ -25,8 +25,9 @@ import pendulum
 import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
-from pendulum.tz.timezone import Timezone
+from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -37,6 +38,7 @@ from airflow.exceptions import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import DeadlineAlert, DeadlineReference
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
@@ -115,6 +117,26 @@ def test_strict_mode():
     BaseSerialization.serialize(obj)  # does not raise
     with pytest.raises(SerializationError, match="Encountered unexpected type"):
         BaseSerialization.serialize(obj, strict=True)  # now raises
+
+
+def test_validate_schema():
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    with pytest.raises(AirflowException, match="BaseSerialization is not set"):
+        BaseSerialization.validate_schema({"any": "thing"})
+
+    BaseSerialization._json_schema = object()
+    with pytest.raises(TypeError, match="Invalid type: Only dict and str are supported"):
+        BaseSerialization.validate_schema(123)
+
+    class Test:
+        def validate(self, obj):
+            self.obj = obj
+
+    t = Test()
+    BaseSerialization._json_schema = t
+    BaseSerialization.validate_schema('{"foo": "bar"}')
+    assert t.obj == {"foo": "bar"}
 
 
 TI = TaskInstance(
@@ -278,6 +300,37 @@ class MockLazySelectSequence(LazySelectSequence):
             Connection(conn_id="TEST_ID", uri="mysql://"),
             DAT.CONNECTION,
             lambda a, b: a.get_uri() == b.get_uri(),
+        ),
+        (
+            TaskCallbackRequest(
+                filepath="filepath",
+                ti=TI,
+                bundle_name="testing",
+                bundle_version=None,
+            ),
+            DAT.TASK_CALLBACK_REQUEST,
+            lambda a, b: a.ti == b.ti,
+        ),
+        (
+            DagCallbackRequest(
+                filepath="filepath",
+                dag_id="fake_dag",
+                run_id="fake_run",
+                bundle_name="testing",
+                bundle_version=None,
+            ),
+            DAT.DAG_CALLBACK_REQUEST,
+            lambda a, b: a.dag_id == b.dag_id,
+        ),
+        (Asset.ref(name="test"), DAT.ASSET_REF, lambda a, b: a.name == b.name),
+        (
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=timedelta(),
+                callback="fake_callable",
+            ),
+            None,
+            None,
         ),
         (
             create_outlet_event_accessors(
@@ -564,3 +617,11 @@ def test_decode_asset_condition():
     bad = {"__type": "UNKNOWN_TYPE"}
     with pytest.raises(ValueError, match="deserialization not implemented for DAT 'UNKNOWN_TYPE'"):
         decode_asset_condition(bad)
+
+
+def test_encode_timezone():
+    from airflow.serialization.serialized_objects import encode_timezone
+
+    assert encode_timezone(FixedTimezone(0)) == "UTC"
+    with pytest.raises(ValueError):
+        encode_timezone(object())
