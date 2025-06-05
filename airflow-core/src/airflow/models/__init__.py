@@ -60,6 +60,7 @@ def import_all_models():
 
     import airflow.models.asset
     import airflow.models.backfill
+    import airflow.models.dag_favorite
     import airflow.models.dag_version
     import airflow.models.dagbundle
     import airflow.models.dagwarning
@@ -99,7 +100,6 @@ __lazy_imports = {
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
     "DagWarning": "airflow.models.dagwarning",
-    "DagFavorite": "airflow.models.dag_favorite",
     "DbCallbackRequest": "airflow.models.db_callback_request",
     "Deadline": "airflow.models.deadline",
     "Log": "airflow.models.log",
@@ -124,7 +124,6 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.connection import Connection
     from airflow.models.dag import DAG, DagModel, DagTag
-    from airflow.models.dag_favorite import DagFavorite
     from airflow.models.dagbag import DagBag
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning

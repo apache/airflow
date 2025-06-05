@@ -27,7 +27,9 @@
       "schedule": "Schedule",
       "tags": "Tags"
     },
+    "favoriteDag": "Favorite Dag",
     "ownerLink": "Owner link for {{owner}}",
+    "unfavoriteDag": "Unfavorite Dag",
     "searchPlaceholder": "Search Dags"
   },
   "runAndTaskActions": {

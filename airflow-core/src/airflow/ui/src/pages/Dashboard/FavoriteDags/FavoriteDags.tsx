@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiStar } from "react-icons/fi";
 
 import { useDagServiceGetFavoriteDags } from "openapi/queries";
-
+import { useTranslation } from "react-i18next";
 import { FavoriteDagCard } from "./FavoriteDagCard";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
@@ -32,6 +32,7 @@ export const FavoriteDags = () => {
   const queryClient = useQueryClient();
   const location = useLocation();
 
+  const { t: translate } = useTranslation("dashboard");
   const { data: favorites } = useDagServiceGetFavoriteDags();
 
   useEffect(() => {
@@ -57,13 +58,13 @@ export const FavoriteDags = () => {
       <Flex color="fg.muted" my={2}>
         <FiStar />
         <Heading ml={1} size="xs">
-          Favorite Dags
+          {translate("favorite.favoriteDags")}
         </Heading>
       </Flex>
 
       {favorites.dags.length === 0 ? (
         <Text color="gray.500" fontSize="sm" ml={1}>
-          No favorites yet. Click the star icon next to a DAG in the list to add it to your favorites.
+          {translate("favorite.noFavoriteDags")}
         </Text>
       ) : (
         <>
@@ -78,12 +79,12 @@ export const FavoriteDags = () => {
               <Text
                 _hover={{ textDecoration: "underline" }}
                 as="span"
-                color="blue.500"
+                color="fg.info"
                 cursor="pointer"
                 fontSize="sm"
                 onClick={() => setShowAll(!showAll)}
               >
-                {showAll ? "Show Less" : "Show More"}
+                {showAll ? translate("favorite.showLess") : translate("favorite.showMore")}
               </Text>
             </Box>
           )}
