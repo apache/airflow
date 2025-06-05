@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import logging
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
@@ -44,6 +46,8 @@ if TYPE_CHECKING:
         VariableDetails,
     )
     from airflow.api_fastapi.common.types import MenuItem
+
+log = logging.getLogger(__name__)
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
@@ -246,6 +250,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return True
         if resp.status_code == 403:
             return False
+        if resp.status_code == 400:
+            error = json.loads(resp.text)
+            if error.get("error") == "invalid_resource":
+                log.debug(error["error_description"])
+                return False
+            raise AirflowException(
+                f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
+            )
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     @staticmethod
