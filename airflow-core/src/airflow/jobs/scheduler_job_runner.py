@@ -2023,6 +2023,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(Log.dttm)
             .where(
                 Log.dag_id == ti.dag_id,
+                Log.task_id == ti.task_id,
                 Log.run_id == ti.run_id,
                 Log.map_index == ti.map_index,
                 Log.try_number == ti.try_number,
