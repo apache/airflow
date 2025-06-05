@@ -616,7 +616,7 @@ class WatchedSubprocess:
                 sock._sock.close()
             sock.close()
 
-    def _cleanup_open_sockets(self):
+    def _cleanup_open_sockets(self, close_selector: bool = False):
         """Force-close any sockets that never reported EOF."""
         # In extremely busy environments the selector can fail to deliver a
         # final read event before the subprocess exits. Without closing these
@@ -634,7 +634,8 @@ class WatchedSubprocess:
         if stuck_sockets:
             log.warning("Force-closed stuck sockets", pid=self.pid, sockets=stuck_sockets)
 
-        self.selector.close()
+        if close_selector:
+            self.selector.close()
         self._close_unused_sockets(self.stdin)
         self._num_open_sockets = 0
 
@@ -654,6 +655,16 @@ class WatchedSubprocess:
         :param force: If True, ensure escalation through all signals without skipping.
         """
         if self._exit_code is not None:
+            return
+
+        # Special handling for SIGKILL - close sockets first
+        if signal_to_send == signal.SIGKILL:
+            self._cleanup_open_sockets()
+            try:
+                self._process.send_signal(signal.SIGKILL)
+            except psutil.NoSuchProcess:
+                log.debug("Process already terminated", pid=self.pid)
+                self._exit_code = -1
             return
 
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
@@ -955,7 +966,7 @@ class ActivitySubprocess(WatchedSubprocess):
                         open_sockets=self._num_open_sockets,
                         pid=self.pid,
                     )
-                    self._cleanup_open_sockets()
+                    self._cleanup_open_sockets(close_selector=True)
 
             if alive:
                 # We don't need to heartbeat if the process has shutdown, as we are just finishing of reading the
