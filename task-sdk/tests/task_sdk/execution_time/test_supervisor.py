@@ -951,7 +951,9 @@ class TestWatchedSubprocessKill:
                     }
                 )
             expected_logs.append({"chan": "stderr", "event": "Signal 15 received", "logger": "task"})
+        expected_logs.extend(({"chan": None, "event": "Process exited", "logger": "supervisor"},))
         if exit_after == signal.SIGKILL:
+            expected_logs.pop()
             if signal_to_send in {signal.SIGINT, signal.SIGTERM}:
                 expected_logs.append(
                     {
@@ -960,8 +962,18 @@ class TestWatchedSubprocessKill:
                         "logger": "supervisor",
                     }
                 )
+            expected_logs.extend(
+                (
+                    {"chan": None, "event": "Force-closed stuck sockets", "logger": "supervisor"},
+                    {
+                        "chan": None,
+                        "event": "Process terminated by signal. For more information, see "
+                        "https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#TaskRunner-killed",
+                        "logger": "task",
+                    },
+                )
+            )
 
-        expected_logs.extend(({"chan": None, "event": "Process exited", "logger": "supervisor"},))
         assert logs == expected_logs
 
     def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
