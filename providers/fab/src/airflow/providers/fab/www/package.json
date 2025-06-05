@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.27.4",
-    "@babel/eslint-parser": "^7.27.1",
+    "@babel/eslint-parser": "^7.27.5",
     "@babel/plugin-transform-runtime": "^7.27.4",
     "@babel/preset-env": "^7.27.2",
     "babel-loader": "^10.0.0",
