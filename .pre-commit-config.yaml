@@ -1270,7 +1270,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: go-mockery
         name: Generate mocks for go
-        entry: --entrypoint ./scripts/in_container/run_mockery.sh vektra/mockery:3
+        entry: -w /src/go-sdk vektra/mockery:3
         files: ^go-sdk/
         exclude: mocks/.*\.go$
         types: [go]

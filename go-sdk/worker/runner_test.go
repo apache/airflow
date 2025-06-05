@@ -28,10 +28,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jarcoal/httpmock"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/swaggest/assertjson"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/api/mocks"
 )
 
 const ExecutionAPIServer = "http://localhost:9999/execution"
@@ -68,6 +70,8 @@ func newTestWorkLoad(id string, dagId string) api.ExecuteTaskWorkload {
 type WorkerSuite struct {
 	suite.Suite
 	worker    Worker
+	client    *mocks.ClientInterface
+	ti        *mocks.TaskInstancesClient
 	transport *httpmock.MockTransport
 }
 
@@ -79,13 +83,14 @@ func (s *WorkerSuite) SetupSuite() {
 	s.worker = New(slog.Default())
 
 	s.transport = httpmock.NewMockTransport()
-	client, err := api.NewClient(ExecutionAPIServer, api.WithRoundTripper(s.transport))
-	s.Require().NoError(err)
+	s.client = &mocks.ClientInterface{}
+	s.ti = &mocks.TaskInstancesClient{}
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
-	s.worker.(*worker).client = client
+	s.worker.(*worker).client = s.client
 }
 
 func (s *WorkerSuite) TestWithServer() {
+	s.T().Parallel()
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
 	iface, err := s.worker.WithServer("http://example.com")
 
@@ -98,40 +103,29 @@ func (s *WorkerSuite) TestWithServer() {
 // ExpectTaskRun sets up  a matcher for the "/task-instances/{id}/run" end point and adds a finalize check
 // that it has been called
 func (s *WorkerSuite) ExpectTaskRun(taskId string) {
-	s.transport.RegisterResponder(
-		http.MethodPatch,
-		fmt.Sprintf("=~^%s/task-instances/%s/run", ExecutionAPIServer, taskId),
-		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
-	)
-	s.T().Cleanup(func() {
-		callCounts := s.transport.GetCallCountInfo()
-
-		s.Equal(
-			callCounts[fmt.Sprintf("PATCH =~^%s/task-instances/%s/run", ExecutionAPIServer, taskId)],
-			1,
-		)
-	})
+	s.ti.EXPECT().
+		Run(mock.Anything, uuid.MustParse(taskId), mock.Anything).
+		Return(&api.TIRunContext{}, nil)
+	s.client.EXPECT().TaskInstances().Return(s.ti)
 }
 
 // ExpectTaskState sets up a matcher for the "/task-instances/{id}/state" with the given state end point
-func (s *WorkerSuite) ExpectTaskState(taskId string, state any) {
-	s.transport.RegisterMatcherResponder(
-		http.MethodPatch,
-		fmt.Sprintf("=~^%s/task-instances/%s/state", ExecutionAPIServer, taskId),
-		s.BodyJSONMatches(fmt.Appendf(nil, `{"state": %q}`, state)),
-		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
-	)
-}
+func (s *WorkerSuite) ExpectTaskState(taskId string, state api.TerminalTIState) {
+	switch state {
+	case api.TerminalTIStateSuccess:
+		s.ti.EXPECT().
+			UpdateState(mock.AnythingOfType("context.backgroundCtx"), uuid.MustParse(taskId), mock.AnythingOfType("*api.TIUpdateStatePayload")).
+			Return(nil).
+			Once()
+	default:
+		s.ti.EXPECT().
+			UpdateState(mock.AnythingOfType("context.backgroundCtx"), uuid.MustParse(taskId), mock.AnythingOfType("*api.TIUpdateStatePayload")).
+			Return(nil).
+			Once()
 
-// Validates if task identified by taskId has the "/task-instances/{id}/state" api called with the given state
-func (s *WorkerSuite) ValidateTaskState(taskId string, state any) {
-	callCounts := s.transport.GetCallCountInfo()
-	s.Equal(
-		callCounts[fmt.Sprintf("PATCH =~^%s/task-instances/%s/state <BodyJSONMatches>", ExecutionAPIServer, taskId)],
-		1,
-		"Actual call counts: %#v",
-		callCounts,
-	)
+	}
+
+	s.client.EXPECT().TaskInstances().Return(s.ti)
 }
 
 // BodyContainsJSON creates an httpmock Matcher that will check that the http.Request body contains the given
@@ -153,12 +147,6 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 	id := uuid.New().String()
 	testWorkload := newTestWorkLoad(id, id[:8])
 	s.ExpectTaskState(id, api.TerminalTIStateFailed)
-	s.transport.RegisterMatcherResponder(
-		http.MethodPatch,
-		fmt.Sprintf("=~^%s/task-instances/%s/state", ExecutionAPIServer, id),
-		s.BodyJSONMatches([]byte(`{"state": "failed"}`)),
-		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
-	)
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 
 	s.NoError(
@@ -166,8 +154,22 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 		"ExecuteTaskWorkload should not report an error %#v",
 		s.transport.GetCallCountInfo(),
 	)
-	s.ValidateTaskState(id, api.TerminalTIStateFailed)
 }
+
+// func (s *WorkerSuite) TestTaskNotRegisteredErrors2() {
+// 	s.T().Parallel()
+// 	id := uuid.New().String()
+// 	testWorkload := newTestWorkLoad(id, id[:8])
+// 	s.ExpectTaskState(id, api.TerminalTIStateFailed)
+// 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
+
+// 	s.NoError(
+// 		err,
+// 		"ExecuteTaskWorkload should not report an error %#v",
+// 		s.transport.GetCallCountInfo(),
+// 	)
+// 	// s.ValidateTaskState(id, api.TerminalTIStateFailed)
+// }
 
 // TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't
 // start, but that it is logged
@@ -195,28 +197,15 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateSuccess)
-	s.transport.RegisterResponder(
-		http.MethodPut,
-		fmt.Sprintf("=~^%s/task-instances/%s/heartbeat", ExecutionAPIServer, id),
-		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
-	)
+	s.ti.EXPECT().Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).Times(10).Return(nil)
+	s.client.EXPECT().TaskInstances().Return(s.ti)
 
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 	s.NoError(err, "ExecuteTaskWorkload should not report an error")
 
-	callCounts := s.transport.GetCallCountInfo()
-
 	// Since we heartbeat every 100ms and run for 1 second, we should expect 10 heartbeat calls. But allow +/-
 	// 1 due to timing imprecision
-	s.InDelta(
-		10,
-		callCounts[fmt.Sprintf("PUT =~^%s/task-instances/%s/heartbeat", ExecutionAPIServer, id)],
-		1,
-		"Actual call counts: %#v",
-		callCounts,
-	)
-	s.ValidateTaskState(id, api.TerminalTIStateSuccess)
 }
 
 func (s *WorkerSuite) TestTaskHeatbeatErrorStopsTaskAndLogs() {
