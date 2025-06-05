@@ -33,7 +33,14 @@ def mock_client():
     with mock.patch("airflowctl.api.client.get_client") as mock_get_client:
         client = mock.MagicMock(spec=Client)
         mock_get_client.return_value.__enter__.return_value = client
-        yield client
+
+    client.version.get.return_value.model_dump.return_value = {
+        "version": "3.1.0",
+        "git_version": None,
+        "airflowctl_version": "1.0.0",
+    }
+
+    return client
 
 
 parser = cli_parser.get_parser()
@@ -42,7 +49,6 @@ parser = cli_parser.get_parser()
 def test_ctl_version(mock_client):
     with redirect_stdout(StringIO()) as stdout:
         version_info(parser.parse_args(["version"]), api_client=mock_client)
-        print(stdout.getvalue())
         assert "version" in stdout.getvalue()
         assert "git_version" in stdout.getvalue()
         assert "airflowctl_version" in stdout.getvalue()
