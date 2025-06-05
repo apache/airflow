@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import AsyncMock, PropertyMock
 
+import aiohttp
 import pytest
 import requests
 from cryptography.hazmat.backends import default_backend
@@ -164,6 +165,35 @@ def create_post_side_effect(status_code=429):
     response.status_code = status_code
     response.reason = "test"
     response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=response)
+    return response
+
+
+def create_async_request_client_response_error(request_info=None, history=None, status_code=429):
+    """Create mock response for async request side effect"""
+    response = mock.MagicMock()
+    request_info = mock.MagicMock() if request_info is None else request_info
+    history = mock.MagicMock() if history is None else history
+    response.status = status_code
+    response.reason = f"{status_code} Error"
+    response.raise_for_status.side_effect = aiohttp.ClientResponseError(
+        request_info=request_info, history=history, status=status_code, message=response.reason
+    )
+    return response
+
+
+def create_async_connection_error():
+    response = mock.MagicMock()
+    response.raise_for_status.side_effect = aiohttp.ClientConnectionError()
+    return response
+
+
+def create_async_request_client_response_success(json=GET_RESPONSE, status_code=200):
+    """Create mock response for async request side effect"""
+    response = mock.MagicMock()
+    response.status = status_code
+    response.reason = "test"
+    response.json = AsyncMock(return_value=json)
+    response.raise_for_status.side_effect = None
     return response
 
 
@@ -1001,3 +1031,122 @@ class TestSnowflakeSqlApiHook:
 
         # Should attempt only 2 times due to custom config
         assert mock_requests.get.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.aiohttp.ClientSession.get")
+    async def test_make_api_call_with_retries_async_success(self, mock_get):
+        """
+        Test that _make_api_call_with_retries_async returns response on success.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        mock_response = create_async_request_client_response_success()
+        mock_get.return_value.__aenter__.return_value = mock_response
+        status_code, resp_json = await hook._make_api_call_with_retries_async(
+            "GET", "https://test.snowflakecomputing.com/api/v2/statements/test", HEADERS
+        )
+        assert status_code == 200
+        assert resp_json == GET_RESPONSE
+        assert mock_get.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.aiohttp.ClientSession.get")
+    async def test_make_api_call_with_retries_async_retryable_http_error(self, mock_get):
+        """
+        Test that _make_api_call_with_retries_async retries on retryable HTTP errors (429, 503, 504).
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        # First response: 429, then 200
+        mock_response_429 = create_async_request_client_response_error()
+        mock_response_200 = create_async_request_client_response_success()
+        # Side effect for request context manager
+        mock_get.return_value.__aenter__.side_effect = [
+            mock_response_429,
+            mock_response_200,
+        ]
+
+        status_code, resp_json = await hook._make_api_call_with_retries_async(
+            "GET", "https://test.snowflakecomputing.com/api/v2/statements/test", HEADERS
+        )
+        assert status_code == 200
+        assert resp_json == GET_RESPONSE
+        assert mock_get.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.aiohttp.ClientSession.get")
+    async def test_make_api_call_with_retries_async_non_retryable_http_error(self, mock_get):
+        """
+        Test that _make_api_call_with_retries_async does not retry on non-retryable HTTP errors.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        mock_response_400 = create_async_request_client_response_error(status_code=400)
+
+        mock_get.return_value.__aenter__.return_value = mock_response_400
+
+        with pytest.raises(aiohttp.ClientResponseError):
+            await hook._make_api_call_with_retries_async(
+                "GET", "https://test.snowflakecomputing.com/api/v2/statements/test", HEADERS
+            )
+        assert mock_get.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.aiohttp.ClientSession.get")
+    async def test_make_api_call_with_retries_async_connection_error(self, mock_get):
+        """
+        Test that _make_api_call_with_retries_async retries on connection errors.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        # First: connection error, then: success
+        failed_conn = create_async_connection_error()
+
+        mock_request_200 = create_async_request_client_response_success()
+
+        # Side effect for request context manager
+        mock_get.return_value.__aenter__.side_effect = [
+            failed_conn,
+            mock_request_200,
+        ]
+
+        status_code, resp_json = await hook._make_api_call_with_retries_async(
+            "GET", "https://test.snowflakecomputing.com/api/v2/statements/test", HEADERS
+        )
+        assert status_code == 200
+        assert resp_json == GET_RESPONSE
+        assert mock_get.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.aiohttp.ClientSession.get")
+    async def test_make_api_call_with_retries_async_max_attempts(self, mock_get):
+        """
+        Test that _make_api_call_with_retries_async respects max retry attempts.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        mock_request_429 = create_async_request_client_response_error(status_code=429)
+
+        # Always returns 429
+        mock_get.return_value.__aenter__.side_effect = [mock_request_429] * 5
+
+        with pytest.raises(aiohttp.ClientResponseError):
+            await hook._make_api_call_with_retries_async(
+                "GET", "https://test.snowflakecomputing.com/api/v2/statements/test", HEADERS
+            )
+        # Should attempt 5 times (default max retries)
+        assert mock_get.call_count == 5
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.aiohttp.ClientSession.get")
+    async def test_make_api_call_with_retries_async_unsupported_method(self, mock_session):
+        """
+        Test that _make_api_call_with_retries_async raises ValueError for unsupported HTTP methods.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        with pytest.raises(ValueError, match="Unsupported HTTP method: PATCH"):
+            await hook._make_api_call_with_retries_async(
+                "PATCH", "https://test.snowflakecomputing.com/api/v2/statements/test", HEADERS
+            )
+        # No HTTP call should be made
+        assert mock_session.call_count == 0

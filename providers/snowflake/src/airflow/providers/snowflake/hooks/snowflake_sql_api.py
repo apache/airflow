@@ -184,6 +184,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
 
         _, json_response = self._make_api_call_with_retries("POST", url, headers, params, data)
+        # except requests.exceptions.HTTPError as e:  # pragma: no cover
+        #     msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
+        #     raise AirflowException(msg)
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
             self.query_ids = json_response["statementHandles"]
@@ -330,14 +333,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param exception: The exception to check
         :return: True if the request should be retried, False otherwise
         """
-        if isinstance(
-            exception,
-            (
-                HTTPError,
-                ClientResponseError,
-            ),
-        ):
+        if isinstance(exception, HTTPError):
             return exception.response.status_code in [429, 503, 504]
+        if isinstance(exception, ClientResponseError):
+            return exception.status in [429, 503, 504]
         if isinstance(
             exception,
             (
