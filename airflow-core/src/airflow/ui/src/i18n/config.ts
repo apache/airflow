@@ -39,6 +39,8 @@ import plConnections from "./locales/pl/connections.json";
 import plDags from "./locales/pl/dags.json";
 import plDashboard from "./locales/pl/dashboard.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
+import zhTWConnections from "./locales/zh-TW/connections.json";
+import zhTWDags from "./locales/zh-TW/dags.json";
 import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 
 // TODO: Dynamically load translation files
@@ -87,6 +89,8 @@ const resources = {
   },
   "zh-TW": {
     common: zhTWCommon,
+    connections: zhTWConnections,
+    dags: zhTWDags,
     dashboard: zhTWDashboard,
   },
 };

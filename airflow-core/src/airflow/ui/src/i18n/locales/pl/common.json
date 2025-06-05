@@ -89,11 +89,8 @@
   "table": {
     "filterByTag": "Filtruj Dagi według tagu",
     "filterColumns": "Filtruj kolumny tabeli",
-    "filters": {
-      "filter_one": "Filtr",
-      "filter_other": "Filtry",
-      "reset": "Resetuj"
-    },
+    "filterReset_one": "Resetuj filtr",
+    "filterReset_other": "Resetuj filtry",
     "noTagsFound": "Nie znaleziono etykiet",
     "tagMode": {
       "all": "Wszystkie",
