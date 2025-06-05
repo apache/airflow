@@ -85,9 +85,9 @@ spec:
       envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
         - name: KRB5_CONFIG
-          value:  {{ .Values.kerberos.configPath | quote }}
+          value: {{ .Values.kerberos.configPath | quote }}
         - name: KRB5CCNAME
-          value:  {{ include "kerberos_ccache_path" . | quote }}
+          value: {{ include "kerberos_ccache_path" . | quote }}
         {{- include "custom_airflow_environment" . | indent 6 }}
         {{- include "standard_airflow_environment" . | indent 6 }}
     {{- end }}
@@ -98,9 +98,9 @@ spec:
           value: {{ .Values.executor | quote }}
         {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.kerberosInitContainer.enabled}}
         - name: KRB5_CONFIG
-          value:  {{ .Values.kerberos.configPath | quote }}
+          value: {{ .Values.kerberos.configPath | quote }}
         - name: KRB5CCNAME
-          value:  {{ include "kerberos_ccache_path" . | quote }}
+          value: {{ include "kerberos_ccache_path" . | quote }}
         {{- end }}
         {{- include "standard_airflow_environment" . | indent 6}}
         {{- include "custom_airflow_environment" . | indent 6 }}
@@ -179,9 +179,9 @@ spec:
       envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
         - name: KRB5_CONFIG
-          value:  {{ .Values.kerberos.configPath | quote }}
+          value: {{ .Values.kerberos.configPath | quote }}
         - name: KRB5CCNAME
-          value:  {{ include "kerberos_ccache_path" . | quote }}
+          value: {{ include "kerberos_ccache_path" . | quote }}
         {{- include "custom_airflow_environment" . | indent 6 }}
         {{- include "standard_airflow_environment" . | indent 6 }}
     {{- end }}

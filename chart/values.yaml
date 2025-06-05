@@ -638,7 +638,6 @@ workers:
   revisionHistoryLimit: ~
 
   # Command to use when running Airflow Celery workers and using pod-template-file (templated)
-  # (deprecated, use `workers.celery.command` or `workers.kubernetes.command` instead)
   command: ~
 
   # Args to use when running Airflow Celery workers (templated)
@@ -714,10 +713,10 @@ workers:
     create: true
 
     # The name of the ServiceAccount to use.
-    # If not set and create is true, a name is generated using the release name.
+    # If not set and create is true, a name is generated using the release name
     name: ~
 
-    # Annotations to add to worker kubernetes service account
+    # Annotations to add to worker kubernetes service account.
     annotations: {}
 
   # Allow KEDA autoscaling for Airflow Celery workers (deprecated, use `workers.celery.keda` instead)
@@ -824,8 +823,8 @@ workers:
     storageClassName:
 
     # Execute init container to chown log directory.
-    # This is currently only needed in kind, due to usage of local-path provisioner.
     # (deprecated, use `workers.celery.persistence.fixPermissions` instead)
+    # This is currently only needed in kind, due to usage of local-path provisioner.
     fixPermissions: false
 
     # Annotations to add to Airflow Celery worker volumes
@@ -899,28 +898,26 @@ workers:
   # It is used by Airflow Celery workers and pod-template-file.
   safeToEvict: false
 
-  # Launch additional containers into
-  # Airflow Celery worker and pods created with pod-template-file (templated)
+  # Launch additional containers into Airflow Celery worker
+  # and pods created with pod-template-file (templated).
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
   # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
   # Add additional init containers into Airflow Celery workers
-  # and pods created with pod-template-file (templated)
+  # and pods created with pod-template-file (templated).
   extraInitContainers: []
 
-  # Additional volumes attached to the Airflow Celery workers and pods created with pod-template-file
+  # Additional volumes and volume mounts attached to the
+  # Airflow Celery workers and pods created with pod-template-file
   extraVolumes: []
-  # Mount additional volumes into workers pods. It can be templated like in the following example:
+  extraVolumeMounts: []
+  # It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
   #       secret:
   #          secretName: '{{ include "my_secret_template" . }}'
   #          defaultMode: 0640
   #          optional: true
-
-  # Additional volume mounts attached to the Airflow Celery workers and pods created with pod-template-file
-  extraVolumeMounts: []
-  # Mount additional volume mounts. It can be templated like in the following example:
   #   extraVolumeMounts:
   #     - name: my-templated-extra-volume
   #       mountPath: "{{ .Values.my_custom_path }}"
@@ -932,11 +929,8 @@ workers:
 
   # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
   nodeSelector: {}
-
   runtimeClassName: ~
-
   priorityClassName: ~
-
   affinity: {}
   # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
@@ -947,11 +941,8 @@ workers:
   #            component: worker
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
-
   tolerations: []
-
   topologySpreadConstraints: []
-
   # hostAliases to use in Airflow Celery worker pods and pods created with pod-template-file
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -966,7 +957,7 @@ workers:
   # Annotations for the Airflow Celery worker resource (deprecated, use `workers.celery.annotations` instead)
   annotations: {}
 
-  # Annotations for the Airflow Celery workers and pods created with pod-template-file
+  # Pod annotations for the Airflow Celery workers and pods created with pod-template-file
   podAnnotations: {}
 
   # Labels to add to Airflow Celery workers objects and pods created with pod-template-file

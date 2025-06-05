@@ -219,9 +219,9 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             - name: KRB5_CONFIG
-              value:  {{ .Values.kerberos.configPath | quote }}
+              value: {{ .Values.kerberos.configPath | quote }}
             - name: KRB5CCNAME
-              value:  {{ include "kerberos_ccache_path" . | quote }}
+              value: {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
@@ -361,9 +361,9 @@ spec:
             {{- include "container_extra_envs" (list . (.Values.workers.celery.env | default .Values.workers.env)) | indent 10 }}
             {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.celery.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
-              value:  {{ .Values.kerberos.configPath | quote }}
+              value: {{ .Values.kerberos.configPath | quote }}
             - name: KRB5CCNAME
-              value:  {{ include "kerberos_ccache_path" . | quote }}
+              value: {{ include "kerberos_ccache_path" . | quote }}
             {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
@@ -399,7 +399,7 @@ spec:
           {{- end }}
           {{- end }}
           {{ if and .Values.workers.celery.logGroomerSidecar.frequencyMinutes .Values.workers.logGroomerSidecar.frequencyMinutes }}
-         {{- if ne (int .Values.workers.celery.logGroomerSidecar.frequencyMinutes) 15 }}
+          {{- if ne (int .Values.workers.celery.logGroomerSidecar.frequencyMinutes) 15 }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.workers.celery.logGroomerSidecar.frequencyMinutes }}"
           {{- else if .Values.workers.logGroomerSidecar.frequencyMinutes }}
@@ -467,9 +467,9 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             - name: KRB5_CONFIG
-              value:  {{ .Values.kerberos.configPath | quote }}
+              value: {{ .Values.kerberos.configPath | quote }}
             - name: KRB5CCNAME
-              value:  {{ include "kerberos_ccache_path" . | quote }}
+              value: {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}

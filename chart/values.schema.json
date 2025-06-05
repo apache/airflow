@@ -1612,7 +1612,7 @@
             }
         },
         "workers": {
-            "description": "Airflow Workers configuration.",
+            "description": "Airflow Worker configuration.",
             "type": "object",
             "x-docsSection": "Workers",
             "properties": {
@@ -1631,7 +1631,7 @@
                     "x-docsSection": null
                 },
                 "command": {
-                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated) (deprecated, use `workers.celery.command` or `workers.kubernetes.command` instead).",
+                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated).",
                     "type": [
                         "array",
                         "null"

@@ -1818,7 +1818,7 @@ class TestWorker:
             ),
         ],
     )
-    def test_safetoevicsst_annotations(self, globalScope, localScope, precedence):
+    def test_safetoevict_annotations(self, globalScope, localScope, precedence):
         docs = render_chart(
             values={"airflowPodAnnotations": globalScope, "workers": localScope},
             show_only=["templates/workers/worker-deployment.yaml"],
