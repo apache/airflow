@@ -884,7 +884,6 @@ repos:
       - id: compile-fab-assets
         name: Compile FAB provider assets
         language: node
-        'types_or': [javascript, ts, tsx]
         files: ^providers/fab/.*/www/
         entry: ./scripts/ci/pre_commit/compile_fab_assets.py
         pass_filenames: false
