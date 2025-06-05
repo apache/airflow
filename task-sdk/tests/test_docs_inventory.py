@@ -73,7 +73,7 @@ def test_docs_inventory_matches_public_api(tmp_path):
         if name.startswith("airflow.sdk.") and name.count(".") == 2
     }
     sdk = importlib.import_module("airflow.sdk")
-    public = set(getattr(sdk, "__all__", []))
+    public = set(getattr(sdk, "__all__", [])) - {"__version__"}
 
     extras = {"AirflowParsingContext"}
     missing = public - documented

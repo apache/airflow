@@ -127,6 +127,7 @@ Everything else
 
 .. autoapimodule:: airflow.sdk
   :members:
+  :special-members: __version__
   :exclude-members: BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:

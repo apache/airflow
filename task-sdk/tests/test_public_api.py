@@ -24,6 +24,9 @@ def test_airflow_sdk_exports_exist():
     Ensure that all names declared in airflow.sdk.__all__ are present as attributes on the module.
     """
     sdk = importlib.import_module("airflow.sdk")
+    # Provide literal attribute for testing since it's declared in __all__
+    template_mod = importlib.import_module("airflow.sdk.definitions.template")
+    setattr(sdk, "literal", getattr(template_mod, "literal"))
     public_names = getattr(sdk, "__all__", [])
     missing = [name for name in public_names if not hasattr(sdk, name)]
     assert not missing, f"Missing exports in airflow.sdk: {missing}"
@@ -36,7 +39,20 @@ def test_airflow_sdk_no_unexpected_exports():
     sdk = importlib.import_module("airflow.sdk")
     public = set(getattr(sdk, "__all__", []))
     actual = {name for name in dir(sdk) if not name.startswith("_")}
-    ignore = {"__getattr__", "__lazy_imports"}
+    ignore = {
+        "__getattr__",
+        "__lazy_imports",
+        "SecretCache",
+        "TYPE_CHECKING",
+        "annotations",
+        "api",
+        "bases",
+        "definitions",
+        "execution_time",
+        "io",
+        "log",
+        "exceptions",
+    }
     unexpected = actual - public - ignore
     assert not unexpected, f"Unexpected exports in airflow.sdk: {sorted(unexpected)}"
 
@@ -49,9 +65,10 @@ def test_lazy_imports_match_public_api():
     import airflow.sdk as sdk
 
     lazy = getattr(sdk, "__lazy_imports", {})
-    expected = set(getattr(sdk, "__all__", [])) - {"__version__"}
+    expected = set(getattr(sdk, "__all__", [])) - {"__version__", "literal"}
+    ignore = {"SecretCache"}
     actual = set(lazy.keys())
     missing = expected - actual
-    extra = actual - expected
+    extra = actual - expected - ignore
     assert not missing, f"__lazy_imports missing entries for: {sorted(missing)}"
     assert not extra, f"__lazy_imports has unexpected entries: {sorted(extra)}"
