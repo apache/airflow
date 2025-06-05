@@ -20,6 +20,7 @@ export COLOR_RED=$'\e[31m'
 export COLOR_BLUE=$'\e[34m'
 export COLOR_YELLOW=$'\e[33m'
 export COLOR_RESET=$'\e[0m'
+export COLOR_GREEN=$'\e[32m'
 
 if [[ ! "$#" -eq 2 ]]; then
     echo "${COLOR_RED}You must provide 2 arguments: Group, Scope!.${COLOR_RESET}"
@@ -107,7 +108,7 @@ function providers_tests() {
         echo
         exit "${RESULT}"
     fi
-    echo "${COLOR_GREEB}Providers tests completed successfully${COLOR_RESET}"
+    echo "${COLOR_GREEN}Providers tests completed successfully${COLOR_RESET}"
 }
 
 
