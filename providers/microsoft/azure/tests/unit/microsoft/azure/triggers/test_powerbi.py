@@ -47,14 +47,9 @@ CHECK_INTERVAL = 1
 REQUEST_BODY = {
     "type": "full",
     "commitMode": "transactional",
-    "objects": [
-        {
-            "table": "Customer",
-            "partition": "Robert"
-        }
-    ],
+    "objects": [{"table": "Customer", "partition": "Robert"}],
     "applyRefreshPolicy": "false",
-    "timeout": "05:00:00"
+    "timeout": "05:00:00",
 }
 API_VERSION = "v1.0"
 
