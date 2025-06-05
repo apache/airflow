@@ -279,6 +279,62 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, "resource_test")],
                 False,
             ),
+             # With specific DAG permissions but no specific DAG requested
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                True,
+            ),
+            # With multiple specific DAG permissions, no specific DAG requested
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG:test_dag_id2")],
+                True,
+            ),
+            # With specific DAG permissions but wrong method
+            (
+                "POST",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                False,
+            ),
+            # With correct method permissions for specific DAG
+            (
+                "POST",
+                None,
+                None,
+                [(ACTION_CAN_CREATE, "DAG:test_dag_id")],
+                True,
+            ),
+            # With EDIT permission on specific DAG, no specific DAG requested
+            (
+                "PUT",
+                None,
+                None,
+                [(ACTION_CAN_EDIT, "DAG:test_dag_id")],
+                True,
+            ),
+            # With DELETE permission on specific DAG, no specific DAG requested
+            (
+                "DELETE",
+                None,
+                None,
+                [(ACTION_CAN_DELETE, "DAG:test_dag_id")],
+                True,
+            ),
+            # Mixed permissions - some DAG, some non-DAG
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "resource_test")],
+                True,
+            ),
             # Scenario 2 #
             # With global permissions on DAGs
             (
@@ -346,6 +402,46 @@ class TestFabAuthManager:
                 DagAccessEntity.TASK_LOGS,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
+                False,
+            ),
+            # DAG sub-entity with specific DAG permissions but no specific DAG requested
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                True,
+            ),
+            # DAG sub-entity access with no DAG permissions, no specific DAG requested
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                False,
+            ),
+            # DAG sub-entity with specific DAG permissions but missing sub-entity permission
+            (
+                "GET",
+                DagAccessEntity.TASK_INSTANCE,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                False,
+            ),
+            # Multiple DAG access entities with proper permissions
+            (
+                "DELETE",
+                DagAccessEntity.TASK,
+                None,
+                [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_DELETE, RESOURCE_TASK_INSTANCE)],
+                True,
+            ),
+            # User with specific DAG permissions but wrong method for sub-entity
+            (
+                "POST",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
                 False,
             ),
         ],
