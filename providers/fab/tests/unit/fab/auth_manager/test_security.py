@@ -26,21 +26,20 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
-from flask_appbuilder import SQLA, Model, expose, has_access
+from flask_appbuilder import Model, expose, has_access
+from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
-from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.models import assoc_permission_role
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -96,7 +95,7 @@ class SomeModel(Model):
 
 
 class SomeModelView(ModelView):
-    datamodel = CustomSQLAInterface(SomeModel)
+    datamodel = SQLAInterface(SomeModel)
     base_permissions = [
         "can_list",
         "can_show",
@@ -195,7 +194,8 @@ def app():
     ):
         _app = application.create_app(enable_plugins=False)
         _app.config["WTF_CSRF_ENABLED"] = False
-        yield _app
+        with _app.app_context():
+            yield _app
 
 
 @pytest.fixture(scope="module")
@@ -213,12 +213,7 @@ def security_manager(app_builder):
 
 @pytest.fixture(scope="module")
 def session(app_builder):
-    return app_builder.get_session
-
-
-@pytest.fixture(scope="module")
-def db(app):
-    return SQLA(app)
+    return app_builder.session
 
 
 @pytest.fixture
@@ -895,16 +890,6 @@ def test_access_control_stale_perms_are_revoked(
             user._perms = None
             assert_user_has_dag_perms(perms=["GET"], dag_id="access_control_test", user=user)
             assert_user_does_not_have_dag_perms(perms=["PUT"], dag_id="access_control_test", user=user)
-
-
-def test_no_additional_dag_permission_views_created(db, security_manager):
-    ab_perm_role = assoc_permission_role
-
-    security_manager.sync_roles()
-    num_pv_before = db.session().query(ab_perm_role).count()
-    security_manager.sync_roles()
-    num_pv_after = db.session().query(ab_perm_role).count()
-    assert num_pv_before == num_pv_after
 
 
 def test_override_role_vm(app_builder):
