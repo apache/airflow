@@ -302,8 +302,8 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
         try:
             lang_data = load_json(lang_path)
         except Exception as e:
-            console.print(f"[red]Failed to load {language} file {language}: {e}[/red]")
-            sys.exit(1)
+            console.print(f"[yellow]Failed to load {language} file {language}: {e}[/yellow]")
+            lang_data = {}  # Start with an empty dict if the file doesn't exist
 
         # Helper to recursively add missing keys
         def add_keys(src, dst, prefix=""):
