@@ -34,7 +34,7 @@ class FakeAppBuilder:
     """
 
     def __init__(self, session: Session | None = None) -> None:
-        self.get_session = session
+        self.session = session
 
 
 class ApplessAirflowSecurityManager(FabAirflowSecurityManagerOverride):
@@ -42,3 +42,8 @@ class ApplessAirflowSecurityManager(FabAirflowSecurityManagerOverride):
 
     def __init__(self, session: Session | None = None):
         self.appbuilder = FakeAppBuilder(session)
+        self._session = session
+
+    @property
+    def session(self):
+        return self._session

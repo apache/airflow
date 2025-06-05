@@ -26,7 +26,7 @@ from urllib.parse import urljoin
 import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
-from flask import Blueprint, g
+from flask import Blueprint, current_app, g
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
@@ -279,7 +279,7 @@ class FabAuthManager(BaseAuthManager[User]):
         user = self.get_user()
         return (
             self.appbuilder
-            and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
+            and self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
             or (not user.is_anonymous and user.is_active)
         )
 
@@ -464,7 +464,7 @@ class FabAuthManager(BaseAuthManager[User]):
         if not self.appbuilder:
             raise AirflowException("AppBuilder is not initialized.")
 
-        sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
+        sm_from_config = current_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
             if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
                 raise AirflowConfigException(
