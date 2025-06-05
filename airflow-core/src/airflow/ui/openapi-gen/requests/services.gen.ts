@@ -1358,6 +1358,7 @@ export class DagService {
      * @param data.offset
      * @param data.tags
      * @param data.tagsMatchMode
+     * @param data.tagsAdvancedQuery Advanced tag query, e.g. (tag1 OR tag2) AND tag3
      * @param data.owners
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -1383,6 +1384,7 @@ export class DagService {
                 offset: data.offset,
                 tags: data.tags,
                 tags_match_mode: data.tagsMatchMode,
+                tags_advanced_query: data.tagsAdvancedQuery,
                 owners: data.owners,
                 dag_id_pattern: data.dagIdPattern,
                 dag_display_name_pattern: data.dagDisplayNamePattern,
@@ -1643,6 +1645,7 @@ export class DagService {
      * @param data.offset
      * @param data.tags
      * @param data.tagsMatchMode
+     * @param data.tagsAdvancedQuery Advanced tag query, e.g. (tag1 OR tag2) AND tag3
      * @param data.owners
      * @param data.dagIds
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -1665,6 +1668,7 @@ export class DagService {
                 offset: data.offset,
                 tags: data.tags,
                 tags_match_mode: data.tagsMatchMode,
+                tags_advanced_query: data.tagsAdvancedQuery,
                 owners: data.owners,
                 dag_ids: data.dagIds,
                 dag_id_pattern: data.dagIdPattern,

@@ -41,6 +41,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOffset,
     QueryOwnersFilter,
     QueryPausedFilter,
+    QueryTagsAdvancedFilter,
     QueryTagsFilter,
     SortParam,
     filter_param_factory,
@@ -76,6 +77,7 @@ def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
     tags: QueryTagsFilter,
+    tags_advanced: QueryTagsAdvancedFilter,
     owners: QueryOwnersFilter,
     dag_ids: Annotated[
         FilterParam[list[str] | None],
@@ -119,6 +121,7 @@ def get_dags(
             dag_ids,
             dag_display_name_pattern,
             tags,
+            tags_advanced,
             owners,
             last_dag_run_state,
             is_favorite,
