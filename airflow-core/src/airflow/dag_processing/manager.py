@@ -1141,14 +1141,16 @@ def process_parse_results(
         stat.import_errors = 1
     else:
         # record DAGs and import errors to database
-        import_errors = {
-            (bundle_name, rel_path): error for rel_path, error in parsing_result.import_errors.items()
-        }
+        import_errors = {}
+        if parsing_result.import_errors:
+            import_errors = {
+                (bundle_name, rel_path): error for rel_path, error in parsing_result.import_errors.items()
+            }
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             dags=parsing_result.serialized_dags,
-            import_errors=import_errors or {},
+            import_errors=import_errors,
             warnings=set(parsing_result.warnings or []),
             session=session,
         )
