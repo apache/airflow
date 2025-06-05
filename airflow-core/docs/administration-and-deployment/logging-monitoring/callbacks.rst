@@ -63,8 +63,6 @@ Name                                        Description
                                             decision in the DAG or a trigger rule which causes execution to skip so that the task execution
                                             is never scheduled.
                                             Available only at the task level.
-``sla_miss_callback``                       Invoked when the DAG misses the defined SLA.
-                                            Available only at the DAG level.
 =========================================== ================================================================
 
 
