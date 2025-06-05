@@ -67,8 +67,7 @@ class PowerBITrigger(BaseTrigger):
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
         wait_for_termination: bool = True,
-        request_body: dict[str, Any]
-        | None = None,  # TODO: Maybe change to pydantic model / dataclass / typeddict in future?
+        request_body: dict[str, Any] | None = None,
     ):
         super().__init__()
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)

@@ -93,8 +93,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
         check_interval: int = 60,
-        request_body: dict[str, Any]
-        | None = None,  # TODO: Maybe change to pydantic model / dataclass / typeddict in future?
+        request_body: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
