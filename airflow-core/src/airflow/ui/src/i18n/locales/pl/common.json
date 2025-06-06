@@ -24,6 +24,15 @@
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
+  "duration": "Czas trwania",
+  "endDate": "Data zakończenia",
+  "expression": {
+    "all": "Wszystkie",
+    "and": "ORAZ",
+    "any": "Dowolne",
+    "or": "LUB"
+  },
+  "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
   "modal": {
@@ -54,6 +63,7 @@
     "running": "W trakcie",
     "scheduled": "Zaplanowane"
   },
+  "runId": "Identyfikator uruchomienia",
   "runTypes": {
     "asset_triggered": "Przez zasób",
     "backfill": "Uzupełnienie wsteczne",
@@ -68,6 +78,8 @@
     "users": "Użytkownicy"
   },
   "selectLanguage": "Wybierz język",
+  "startDate": "Data rozpoczęcia",
+  "state": "Stan",
   "states": {
     "deferred": "Odłożone",
     "failed": "Niepowodzenie",
@@ -89,11 +101,8 @@
   "table": {
     "filterByTag": "Filtruj Dagi według tagu",
     "filterColumns": "Filtruj kolumny tabeli",
-    "filters": {
-      "filter_one": "Filtr",
-      "filter_other": "Filtry",
-      "reset": "Resetuj"
-    },
+    "filterReset_one": "Resetuj filtr",
+    "filterReset_other": "Resetuj filtry",
     "noTagsFound": "Nie znaleziono etykiet",
     "tagMode": {
       "all": "Wszystkie",
@@ -118,5 +127,6 @@
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
   "triggered": "Wyzwolony",
+  "tryNumber": "Numer próby",
   "user": "Użytkownik"
 }
