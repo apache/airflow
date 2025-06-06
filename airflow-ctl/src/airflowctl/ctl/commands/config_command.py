@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
+
+if TYPE_CHECKING:
+    from airflowctl.api.datamodels.generated import Config
 
 
 class ConfigParameter(NamedTuple):
@@ -68,7 +71,8 @@ class ConfigChange:
     def message(self, api_client=NEW_API_CLIENT) -> str | None:
         """Generate a message for this configuration change."""
         if self.default_change:
-            value = api_client.configs.get(section=self.config.section, option=self.config.option)
+            config_resp = api_client.configs.get(section=self.config.section, option=self.config.option)
+            value = self._get_option_value(config_resp)
             if value != self.new_default:
                 return (
                     f"Changed default value of `{self.config.option}` in `{self.config.section}` "
@@ -91,12 +95,21 @@ class ConfigChange:
                 f"{self.suggestion}"
             )
         if self.is_invalid_if is not None:
-            value = api_client.configs.get(section=self.config.section, option=self.config.option)
+            config_resp = api_client.configs.get(section=self.config.section, option=self.config.option)
+            value = self._get_option_value(config_resp)
             if value == self.is_invalid_if:
                 return (
                     f"Invalid value `{self.is_invalid_if}` set for `{self.config.option}` configuration parameter "
                     f"in `{self.config.section}` section. {self.suggestion}"
                 )
+        return None
+
+    def _get_option_value(self, config_resp: Config) -> str | None:
+        for section in config_resp.sections:
+            if section.name == self.config.section:
+                for option in section.options:
+                    if option.key == self.config.option:
+                        return option.value if isinstance(option.value, str) else str(option.value)
         return None
 
 
