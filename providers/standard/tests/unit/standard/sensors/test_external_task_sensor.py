@@ -991,6 +991,31 @@ exit 0
         with pytest.raises(specific_exception, match=expected_message):
             op.execute(context={})
 
+    @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable(self, dag_maker):
+        context = {}
+        with dag_maker() as dag:
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                deferrable=True,
+                allowed_states=["success"],
+            )
+            dr = dag.create_dagrun(
+                run_id="abcrhroceuh",
+                run_type=DagRunType.MANUAL,
+                state=None,
+            )
+            context.update(dag_run=dr, logical_date=DEFAULT_DATE)
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=context)
+        assert isinstance(exc.value.trigger, WorkflowTrigger)
+        assert exc.value.trigger.external_dag_id == "test_dag_parent"
+        assert exc.value.trigger.external_task_ids == ["test_task"]
+        assert exc.value.trigger.execution_dates == [DEFAULT_DATE]
+
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 @pytest.mark.usefixtures("testing_dag_bundle")
@@ -1236,6 +1261,7 @@ class TestExternalTaskSensorV3:
         assert isinstance(exc.value.trigger, WorkflowTrigger)
         assert exc.value.trigger.external_dag_id == "test_dag_parent"
         assert exc.value.trigger.external_task_ids == ["test_task"]
+        assert exc.value.trigger.logical_dates == [DEFAULT_DATE]
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_only_dag_id(self, dag_maker):
