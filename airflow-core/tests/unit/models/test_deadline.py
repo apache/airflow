@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime
 from unittest import mock
 
@@ -27,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import DagRun
-from airflow.models.deadline import Deadline, DeadlineAlert, _fetch_from_db
+from airflow.models.deadline import Deadline, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.utils.state import DagRunState
@@ -40,12 +39,6 @@ RUN_ID = 1
 
 TEST_CALLBACK_KWARGS = {"to": "the_boss@work.com"}
 TEST_CALLBACK_PATH = f"{__name__}.test_callback"
-UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
-
-
-def test_callback():
-    """An empty Callable to use for the callback tests in this suite."""
-    pass
 
 
 def _clean_db():
@@ -144,50 +137,6 @@ class TestDeadline:
         )
 
 
-class TestDeadlineAlert:
-    @pytest.mark.parametrize(
-        "callback_value, expected_path",
-        [
-            pytest.param(test_callback, TEST_CALLBACK_PATH, id="valid_callable"),
-            pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
-            pytest.param(lambda x: x, None, id="lambda_function"),
-            pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
-            pytest.param(UNIMPORTABLE_DOT_PATH, UNIMPORTABLE_DOT_PATH, id="valid_format_not_importable"),
-        ],
-    )
-    def test_get_callback_path_happy_cases(self, callback_value, expected_path):
-        path = DeadlineAlert.get_callback_path(callback_value)
-        if expected_path is None:
-            assert path.endswith("<lambda>")
-        else:
-            assert path == expected_path
-
-    @pytest.mark.parametrize(
-        "callback_value, error_type",
-        [
-            pytest.param(42, ImportError, id="not_a_string"),
-            pytest.param("", ImportError, id="empty_string"),
-            pytest.param("os.path", AttributeError, id="non_callable_module"),
-        ],
-    )
-    def test_get_callback_path_error_cases(self, callback_value, error_type):
-        expected_message = ""
-        if error_type is ImportError:
-            expected_message = "doesn't look like a valid dot path."
-        elif error_type is AttributeError:
-            expected_message = "is not callable."
-
-        with pytest.raises(error_type, match=expected_message):
-            DeadlineAlert.get_callback_path(callback_value)
-
-    def test_log_unimportable_but_properly_formatted_callback(self, caplog):
-        with caplog.at_level(logging.DEBUG):
-            path = DeadlineAlert.get_callback_path(UNIMPORTABLE_DOT_PATH)
-
-            assert "could not be imported" in caplog.text
-            assert path == UNIMPORTABLE_DOT_PATH
-
-
 @pytest.mark.db_test
 class TestCalculatedDeadlineDatabaseCalls:
     @staticmethod
@@ -265,7 +214,7 @@ class TestCalculatedDeadlineDatabaseCalls:
     )
     @mock.patch("sqlalchemy.orm.Session")
     def test_fetch_from_db_error_cases(
-        self, mock_session, use_valid_conditions, scalar_side_effect, expected_error, expected_message, caplog
+        self, mock_session, use_valid_conditions, scalar_side_effect, expected_error, expected_message
     ):
         """Test database access error handling."""
         model_reference = DagRun.logical_date
@@ -274,11 +223,8 @@ class TestCalculatedDeadlineDatabaseCalls:
         # Configure mock session
         mock_session.scalar.side_effect = scalar_side_effect
 
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(expected_error, match=expected_message):
-                _fetch_from_db(model_reference, session=mock_session, **conditions)
-            if expected_message:
-                assert expected_message in caplog.text
+        with pytest.raises(expected_error, match=expected_message):
+            _fetch_from_db(model_reference, session=mock_session, **conditions)
 
     @pytest.mark.parametrize(
         "reference, expected_column",
