@@ -22,6 +22,10 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
 
+MESSAGE = "Hello world"
+TOPIC_NAME = "test-topic"
+SUBJECT = "test-subject"
+
 
 @mock_aws
 class TestSnsHook:
@@ -32,9 +36,9 @@ class TestSnsHook:
     def test_publish_to_target_with_subject(self):
         hook = SnsHook(aws_conn_id="aws_default")
 
-        message = "Hello world"
-        topic_name = "test-topic"
-        subject = "test-subject"
+        message = MESSAGE
+        topic_name = TOPIC_NAME
+        subject = SUBJECT
         target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
 
         response = hook.publish_to_target(target, message, subject)
@@ -44,8 +48,8 @@ class TestSnsHook:
     def test_publish_to_target_with_attributes(self):
         hook = SnsHook(aws_conn_id="aws_default")
 
-        message = "Hello world"
-        topic_name = "test-topic"
+        message = MESSAGE
+        topic_name = TOPIC_NAME
         target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
 
         response = hook.publish_to_target(
@@ -64,7 +68,7 @@ class TestSnsHook:
     def test_publish_to_target_plain(self):
         hook = SnsHook(aws_conn_id="aws_default")
 
-        message = "Hello world"
+        message = MESSAGE
         topic_name = "test-topic"
         target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
 
@@ -90,3 +94,28 @@ class TestSnsHook:
                     "test-non-iterable": object(),
                 },
             )
+
+    def test_publish_to_target_with_deduplication(self):
+        hook = SnsHook(aws_conn_id="aws_default")
+
+        message = MESSAGE
+        topic_name = TOPIC_NAME + ".fifo"
+        deduplication_id = "abc"
+        group_id = "a"
+        target = (
+            hook.get_conn()
+            .create_topic(
+                Name=topic_name,
+                Attributes={
+                    "FifoTopic": "true",
+                    "ContentBasedDeduplication": "false",
+                },
+            )
+            .get("TopicArn")
+        )
+
+        response = hook.publish_to_target(
+            target, message, message_deduplication_id=deduplication_id, message_group_id=group_id
+        )
+
+        assert "MessageId" in response
