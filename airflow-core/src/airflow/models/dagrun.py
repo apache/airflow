@@ -125,7 +125,7 @@ def _default_run_after(ctx):
 
 
 def _creator_note(val):
-    """Creator the ``note`` association proxy."""
+    """Creator for the ``note`` association proxy."""
     if isinstance(val, str):
         return DagRunNote(content=val)
     if isinstance(val, dict):
@@ -253,6 +253,13 @@ class DagRun(Base, LoggingMixin):
         "DagRunNote",
         back_populates="dag_run",
         uselist=False,
+        cascade="all, delete, delete-orphan",
+    )
+
+    deadlines = relationship(
+        "Deadline",
+        back_populates="dagrun",
+        uselist=True,
         cascade="all, delete, delete-orphan",
     )
 
@@ -1887,6 +1894,7 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
+                and not ti.task.inlets
             ):
                 empty_ti_ids.append(ti.id)
             # check "start_trigger_args" to see whether the operator supports start execution from triggerer

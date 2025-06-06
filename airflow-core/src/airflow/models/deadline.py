@@ -17,23 +17,29 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, Integer, String
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, is_valid_dotpath
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.sdk.definitions.deadline import DeadlineReference
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +61,8 @@ class Deadline(Base):
     callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
     callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
+
+    dagrun = relationship("DagRun", back_populates="deadlines")
 
     __table_args__ = (Index("deadline_idx", deadline, unique=False),)
 
@@ -97,33 +105,67 @@ class Deadline(Base):
         session.add(deadline)
 
 
-class DeadlineReference(Enum):
+class ReferenceModels:
     """
-    Store the calculation methods for the various Deadline Alert triggers.
+    Store the implementations for the different Deadline References.
 
-    TODO:  PLEASE NOTE This class is a placeholder and will be expanded in the next PR.
-
-    ------
-    Usage:
-    ------
-
-    Example use when defining a deadline in a DAG:
-
-    DAG(
-        dag_id='dag_with_deadline',
-        deadline=DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
-            interval=timedelta(hours=1),
-            callback=hello_callback,
-        )
-    )
-
-    To parse the deadline reference later we will use something like:
-
-    dag.deadline.reference.evaluate_with(dag_id=dag.dag_id)
+    After adding the implementations here, all DeadlineReferences should be added
+    to the user interface in airflow.sdk.definitions.deadline.DeadlineReference
     """
 
-    DAGRUN_LOGICAL_DATE = "dagrun_logical_date"
+    class BaseDeadlineReference(LoggingMixin, ABC):
+        """Base class for all Deadline implementations."""
+
+        # Set of required kwargs - subclasses should override this.
+        required_kwargs: set[str] = set()
+
+        def evaluate_with(self, **kwargs: Any) -> datetime:
+            """Validate the provided kwargs and evaluate this deadline with the given conditions."""
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
+
+            if missing_kwargs := self.required_kwargs - filtered_kwargs.keys():
+                raise ValueError(
+                    f"{self.__class__.__name__} is missing required parameters: {', '.join(missing_kwargs)}"
+                )
+
+            if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
+                self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
+
+            return self._evaluate_with(**filtered_kwargs)
+
+        @abstractmethod
+        def _evaluate_with(self, **kwargs: Any) -> datetime:
+            """Must be implemented by subclasses to perform the actual evaluation."""
+            raise NotImplementedError
+
+    @dataclass
+    class FixedDatetimeDeadline(BaseDeadlineReference):
+        """A deadline that always returns a fixed datetime."""
+
+        _datetime: datetime
+
+        def _evaluate_with(self, **kwargs: Any) -> datetime:
+            return self._datetime
+
+    class DagRunLogicalDateDeadline(BaseDeadlineReference):
+        """A deadline that returns a DagRun's logical date."""
+
+        required_kwargs = {"dag_id"}
+
+        def _evaluate_with(self, **kwargs: Any) -> datetime:
+            from airflow.models import DagRun
+
+            return _fetch_from_db(DagRun.logical_date, **kwargs)
+
+    class DagRunQueuedAtDeadline(BaseDeadlineReference):
+        """A deadline that returns when a DagRun was queued."""
+
+        required_kwargs = {"dag_id"}
+
+        def _evaluate_with(self, **kwargs: Any) -> datetime:
+            from airflow.models import DagRun
+
+            return _fetch_from_db(DagRun.queued_at, **kwargs)
 
 
 class DeadlineAlert:
@@ -183,3 +225,52 @@ class DeadlineAlert:
                 "callback_kwargs": self.callback_kwargs,
             }
         )
+
+
+@provide_session
+def _fetch_from_db(model_reference: Column, session=None, **conditions) -> datetime:
+    """
+    Fetch a datetime value from the database using the provided model reference and filtering conditions.
+
+    For example, to fetch a TaskInstance's start_date:
+        _fetch_from_db(
+            TaskInstance.start_date, dag_id='example_dag', task_id='example_task', run_id='example_run'
+        )
+
+    This generates SQL equivalent to:
+        SELECT start_date
+        FROM task_instance
+        WHERE dag_id = 'example_dag'
+            AND task_id = 'example_task'
+            AND run_id = 'example_run'
+
+    :param model_reference: SQLAlchemy Column to select (e.g., DagRun.logical_date, TaskInstance.start_date)
+    :param conditions: Filtering conditions applied as equality comparisons in the WHERE clause.
+                       Multiple conditions are combined with AND.
+    :param session: SQLAlchemy session (auto-provided by decorator)
+    """
+    query = select(model_reference)
+
+    for key, value in conditions.items():
+        query = query.where(getattr(model_reference.class_, key) == value)
+
+    compiled_query = query.compile(compile_kwargs={"literal_binds": True})
+    pretty_query = "\n    ".join(str(compiled_query).splitlines())
+    logger.debug(
+        "Executing query:\n    %r\nAs SQL:\n    %s",
+        query,
+        pretty_query,
+    )
+
+    try:
+        result = session.scalar(query)
+    except SQLAlchemyError:
+        logger.exception("Database query failed.")
+        raise
+
+    if result is None:
+        message = f"No matching record found in the database for query:\n    {pretty_query}"
+        logger.error(message)
+        raise ValueError(message)
+
+    return result

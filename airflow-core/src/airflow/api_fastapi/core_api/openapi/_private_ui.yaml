@@ -94,13 +94,13 @@ paths:
                 title: Response Hook Meta Data
       security:
       - OAuth2PasswordBearer: []
-  /ui/dags/recent_dag_runs:
+  /ui/dags:
     get:
       tags:
-      - Dags
-      summary: Recent Dag Runs
-      description: Get recent DAG runs.
-      operationId: recent_dag_runs
+      - DAG
+      summary: Get Dags
+      description: Get DAGs with recent DagRun.
+      operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -211,6 +211,13 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: dag_id
+          title: Order By
       responses:
         '200':
           description: Successful Response
@@ -396,8 +403,8 @@ paths:
     get:
       tags:
       - Backfill
-      summary: List Backfills
-      operationId: list_backfills
+      summary: List Backfills Ui
+      operationId: list_backfills_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -761,12 +768,6 @@ components:
         default_wrap:
           type: boolean
           title: Default Wrap
-        audit_view_excluded_events:
-          type: string
-          title: Audit View Excluded Events
-        audit_view_included_events:
-          type: string
-          title: Audit View Included Events
         test_connection:
           type: string
           title: Test Connection
@@ -792,8 +793,6 @@ components:
       - enable_swagger_ui
       - require_confirmation_dag_change
       - default_wrap
-      - audit_view_excluded_events
-      - audit_view_included_events
       - test_connection
       - dashboard_alert
       - show_external_log_redirect

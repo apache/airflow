@@ -648,6 +648,50 @@ class TestKubernetesPodOperator:
         )
         mock_find.assert_called_once_with("default", context=context)
 
+    @pytest.mark.parametrize(
+        "pod_phase",
+        [
+            PodPhase.SUCCEEDED,
+            PodPhase.FAILED,
+            PodPhase.RUNNING,
+        ],
+    )
+    @patch(f"{KPO_MODULE}.PodManager.create_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_get_or_create_pod_reattach_terminated(
+        self, mock_find, mock_process_pod_deletion, mock_create_pod, pod_phase
+    ):
+        """Check that get_or_create_pod reattaches to existing pod."""
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            task_id="task",
+            name="hello",
+            log_pod_spec_on_failure=False,
+        )
+        k.reattach_on_restart = True
+        context = create_context(k)
+        mock_pod_request_obj = MagicMock()
+        mock_pod_request_obj.to_dict.return_value = {"metadata": {"name": "test-pod"}}
+
+        mock_found_pod = MagicMock()
+        mock_found_pod.status.phase = pod_phase
+        mock_find.return_value = mock_found_pod
+        result = k.get_or_create_pod(
+            pod_request_obj=mock_pod_request_obj,
+            context=context,
+        )
+        if pod_phase == PodPhase.RUNNING:
+            mock_create_pod.assert_not_called()
+            mock_process_pod_deletion.assert_not_called()
+            assert result == mock_found_pod
+        else:
+            mock_process_pod_deletion.assert_called_once_with(mock_found_pod)
+            mock_create_pod.assert_called_once_with(pod=mock_pod_request_obj)
+            assert result == mock_pod_request_obj
+
     def test_xcom_sidecar_container_image_custom(self):
         image = "private.repo/alpine:3.13"
         with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):

@@ -174,3 +174,7 @@ auth_generated.py
 
 # hash files
 www-hash.txt
+
+# go setup files
+go.mod
+go.sum

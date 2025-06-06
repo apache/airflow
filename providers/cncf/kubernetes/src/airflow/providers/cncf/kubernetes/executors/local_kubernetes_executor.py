@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 
@@ -30,13 +30,11 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import Kube
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.executors.base_executor import (
-        CommandType,
-        EventBufferValueType,
-        QueuedTaskInstanceType,
-    )
+    from airflow.executors.base_executor import EventBufferValueType
     from airflow.executors.local_executor import LocalExecutor
     from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+
+    CommandType = Sequence[str]
 
 
 class LocalKubernetesExecutor(BaseExecutor):
@@ -81,7 +79,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         """Not implemented for hybrid executors."""
 
     @property
-    def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
+    def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from local and kubernetes executor."""
         queued_tasks = self.local_executor.queued_tasks.copy()
         # TODO: fix this, there is misalignment between the types of queued_tasks so it is likely wrong
@@ -145,7 +143,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         """Queues command via local or kubernetes executor."""
         executor = self._router(task_instance)
         self.log.debug("Using executor: %s for %s", executor.__class__.__name__, task_instance.key)
-        executor.queue_command(task_instance, command, priority, queue)
+        executor.queue_command(task_instance, command, priority, queue)  # type: ignore[union-attr]
 
     def queue_task_instance(
         self,
@@ -171,7 +169,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         if not hasattr(task_instance, "pickle_id"):
             del kwargs["pickle_id"]
 
-        executor.queue_task_instance(
+        executor.queue_task_instance(  # type: ignore[union-attr]
             task_instance=task_instance,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
