@@ -193,7 +193,7 @@ When a translation conflict arises in a locale-related PR, the following steps w
 - If no consensus is reached, a translation owner may decide the outcome.
 - If multiple translation owners are involved and cannot reach consensus, the code owner will decide. If the code owner is sponsored,
 they should base their decision on a neutral source (e.g., a third-party opinion, translation tool, or LLM).
-- If the conflict is between code owners, one of them should raise a vote in the dev list for resolving the conflict (votes from PMC and committers are binding).
+- If the conflict is between code owners, a PMC member will be involved to resolve the conflict.
 
 ### 6.4. Relinquishing translation/code ownership
 
