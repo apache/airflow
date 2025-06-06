@@ -581,6 +581,7 @@ class TaskDecoratorCollection:
         ) = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert a callable to a Kubernetes Pod task.
@@ -687,6 +688,7 @@ class TaskDecoratorCollection:
         :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
             in V1PodSpec.
         :param progress_callback: Callback function for receiving k8s container logs.
+        :param trigger_kwargs: additional keyword parameters passed to the trigger
         """
     @overload
     def kubernetes(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
