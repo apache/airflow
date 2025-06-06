@@ -268,3 +268,15 @@ class TestGetDependencies:
         assert response.json() == {
             "detail": "Unique connected component not found, got [] for connected components of node missing_node_id, expected only 1 connected component.",
         }
+
+    @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
+    def test_dependencies_multiple_assets_no_direct_edge(self, test_client, asset1_id, asset2_id):
+        # Consulta múltiplos assets
+        node_ids = f"asset:{asset1_id},asset:{asset2_id}"
+        response = test_client.get("/dependencies", params={"node_ids": node_ids})
+        assert response.status_code == 200
+
+        data = response.json()
+        node_ids_returned = {n["id"] for n in data["nodes"]}
+        assert f"asset:{asset1_id}" in node_ids_returned
+        assert f"asset:{asset2_id}" in node_ids_returned

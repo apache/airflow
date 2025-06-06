@@ -17,11 +17,10 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, status
+from fastapi import Depends, Query, status
 from fastapi.exceptions import HTTPException
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -41,12 +40,28 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
     ),
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES))],
 )
-def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGraphResponse:
-    """Dependencies graph."""
+def get_dependencies(
+    node_id: str | None = None,
+    node_ids: str | None = Query(None, description="Comma-separated list of node ids"),
+) -> BaseGraphResponse:
+    """Dependencies graph. Supports a single node_id or multiple node_ids separated by commas."""
+    # Parse node_ids (priority to node_ids, fallback to node_id)
+    ids_to_fetch: list[str] = []
+    # If node_id contains commas, treat as multiple IDs (extra protection)
+    if node_ids:
+        ids_to_fetch = [nid.strip() for nid in node_ids.split(",") if nid.strip()]
+    elif node_id:
+        if "," in node_id:
+            ids_to_fetch = [nid.strip() for nid in node_id.split(",") if nid.strip()]
+        else:
+            ids_to_fetch = [node_id]
+
     nodes_dict: dict[str, dict] = {}
     edge_tuples: set[tuple[str, str]] = set()
 
-    for dag, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
+    dag_deps = SerializedDagModel.get_dag_dependencies()
+
+    for dag, dependencies in sorted(dag_deps.items()):
         dag_node_id = f"dag:{dag}"
         if dag_node_id not in nodes_dict:
             for dep in dependencies:
@@ -80,9 +95,26 @@ def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGra
         "edges": edges,
     }
 
-    if node_id is not None:
+    # If ids_to_fetch is filled, filter for each connected component
+    if ids_to_fetch:
         try:
-            data = extract_single_connected_component(node_id, data["nodes"], data["edges"])
+            # Join all connected components of the requested ids
+            all_nodes = []
+            all_edges = []
+            seen_nodes = set()
+            seen_edges = set()
+            for nid in ids_to_fetch:
+                comp = extract_single_connected_component(nid, data["nodes"], data["edges"])
+                for n in comp["nodes"]:
+                    if n["id"] not in seen_nodes:
+                        all_nodes.append(n)
+                        seen_nodes.add(n["id"])
+                for e in comp["edges"]:
+                    edge_tuple = (e["source_id"], e["target_id"])
+                    if edge_tuple not in seen_edges:
+                        all_edges.append(e)
+                        seen_edges.add(edge_tuple)
+            data = {"nodes": all_nodes, "edges": all_edges}
         except ValueError as e:
             raise HTTPException(404, str(e))
 
