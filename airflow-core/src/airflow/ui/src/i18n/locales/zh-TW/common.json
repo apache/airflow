@@ -19,6 +19,7 @@
   "dagRun_other": "Dag 執行",
   "defaultToGraphView": "預設使用圖形視圖",
   "defaultToGridView": "預設使用網格視圖",
+  "direction": "書寫方向",
   "docs": {
     "documentation": "文件",
     "githubRepo": "GitHub 倉庫",
