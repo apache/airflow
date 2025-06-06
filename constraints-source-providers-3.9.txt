@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-05T08:01:56.006338
+# This constraints file was automatically generated on 2025-06-06T02:29:35.522417
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -241,7 +241,7 @@ google-cloud-bigquery-storage==2.32.0
 google-cloud-bigquery==3.34.0
 google-cloud-bigtable==2.31.0
 google-cloud-build==3.31.1
-google-cloud-compute==1.30.0
+google-cloud-compute==1.31.0
 google-cloud-container==2.57.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
@@ -249,7 +249,7 @@ google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.2
 google-cloud-dataplex==2.10.2
 google-cloud-dataproc-metastore==1.18.2
-google-cloud-dataproc==5.18.1
+google-cloud-dataproc==5.19.0
 google-cloud-dlp==3.30.0
 google-cloud-kms==3.5.1
 google-cloud-language==2.17.1
@@ -263,7 +263,7 @@ google-cloud-pubsub==2.29.1
 google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.18
-google-cloud-secret-manager==2.23.3
+google-cloud-secret-manager==2.24.0
 google-cloud-spanner==3.55.0
 google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.17.0
@@ -280,7 +280,7 @@ google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
 graphviz==0.20.3
-greenlet==3.2.2
+greenlet==3.2.3
 gremlinpython==3.7.3
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
@@ -612,7 +612,7 @@ sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.0
 spython==0.3.14
 sqlalchemy-bigquery==1.14.1
-sqlalchemy-spanner==1.11.0
+sqlalchemy-spanner==1.13.0
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
 sshtunnel==0.4.0

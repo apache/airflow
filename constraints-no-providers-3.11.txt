@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-05T08:02:05.796751
+# This constraints file was automatically generated on 2025-06-06T02:29:45.064213
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -45,7 +45,7 @@ fastapi-cli==0.0.7
 fastapi==0.115.12
 fsspec==2025.5.1
 googleapis-common-protos==1.70.0
-greenlet==3.2.2
+greenlet==3.2.3
 grpcio==1.72.1
 gunicorn==23.0.0
 h11==0.16.0
