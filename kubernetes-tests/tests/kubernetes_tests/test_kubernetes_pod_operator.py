@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -1219,6 +1220,11 @@ class TestKubernetesPodOperatorSystem:
 
         # recreate op just to ensure we're not relying on any statefulness
         k = get_op()
+
+        # Before next attempt we need to re-create event loop if it is closed.
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            asyncio.set_event_loop(asyncio.new_event_loop())
 
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
