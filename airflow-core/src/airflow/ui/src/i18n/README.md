@@ -123,7 +123,7 @@ To accept a new supported locale to the codebase, it MUST be approved through th
 - Translation owners candidates MUST declare and demonstrate a sufficient level of proficiency in the target language for translation purposes, including technical terminology (as detailed in section 6.5).
 - Translation owners candidates, who are non-committers, MUST also meet the following criteria:
      - They are active long-term contributors to the Apache Airflow project at the time of request.
-     - They have basic skills of working with GIT and GitHub, as well as modifying JSON translation files within their target language.
+     - They have basic skills of working with Git and GitHub, as well as modifying JSON translation files within their target language.
      - They have the support of an Apache Airflow committer who will act as a translation sponsor.
 
 ### 5.4. Resolution of translation conflicts
@@ -167,7 +167,7 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
   - Themselves as the code owner in the suggested locale. If they are a translation sponsor, they should indicate it as well.
   - Other code owner(s) in the suggested locale, if applicable.
   - The identity of the translation owner(s) in the suggested locale (which could be themselves as well)
-- When introducing a new locale, the thread should announce that (including a link to the PR)
+- When introducing a new locale, the thread should announce that on the same thread (including a link to the PR)
 - Within the thread, the code owner should demonstrate that the translation owner is suitable for the role, according to the requirements in section 5.3.
 - Approval of a code owner who is also the translation owner can be done by a lazy consensus.
 - Approval of any translation owner who is not a committer requires at least one binding vote of 1 PMC member, and no objections from other committers/PMC.
@@ -177,7 +177,7 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
 The following steps outline the process for approving a new locale to be added to the supported locales:
 
 - Creating a PR for adding the suggested locale to the codebase ([see example](https://github.com/apache/airflow/pull/51258/files)), which includes:
-    - The locale files (translated according to the guidelines) in the `airflow-core/src/airflow/ui/src/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional variants should be handled in separate directories, where the name is suffixed with `-<VARIANT>`, and `<VARIANT>` is the variant follows ISO 3166-1 or UN M.49 codes in lowercase (e.g., `zh-tw` for Taiwanese Chinese).
+    - The locale files (translated according to the guidelines) in the `airflow-core/src/airflow/ui/src/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional variants should be handled in separate directories, where the name is suffixed with `-<VARIANT>`, and `<VARIANT>` is the variant that follows ISO 3166-1 or UN M.49 codes in lowercase (e.g., `zh-tw` for Taiwanese Mandarin).
     - Making the required modifications in `airflow-core/src/airflow/ui/src/i18n/config.ts` ([see example](https://github.com/apache/airflow/pull/51258/files#diff-bfb4d5fafd26d206fb4a545a41ba303f33d15a479d21e0a726fd743bdf9717ff)).
     - Changes to the `.github/CODEOWNERS` file to include the designated code owner(s) and translation owner(s) for the new locale, considering the following:
         - A code owner who is also a translation sponsor should be indicated in a comment as well.
