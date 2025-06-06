@@ -316,4 +316,4 @@ class TestGetExtraLinks:
             params={"map_index": 4},
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "Task with ID = TEST_MAPPED_TASK not found"}
+        assert response.json() == {"detail": "TaskInstance not found"}
