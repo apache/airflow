@@ -1,26 +1,26 @@
 {
   "group": "المجموعة",
   "health": {
-    "dagProcessor": "معالج Dag",
+    "dagProcessor": "معالج الDag",
     "health": "الصحة",
     "healthy": "سليم",
     "lastHeartbeat": "آخر نبضة",
     "metaDatabase": "قاعدة البيانات الوصفية",
     "scheduler": "المجدول",
     "status": "الحالة",
-    "triggerer": "التريجرر",
+    "triggerer": "القادح",
     "unhealthy": "غير سليم"
   },
-  "history": "تاريخ",
+  "history": "التاريخ",
   "importErrors": {
     "dagImportError_one": "خطأ في استيراد Dag",
     "dagImportError_other": "أخطاء في استيراد Dag",
     "searchByFile": "البحث بالملف",
-    "timestamp": "ختم زمني"
+    "timestamp": "الختم الزمني"
   },
-  "managePools": "إدارة مجمعات الموارد",
-  "noAssetEvents": "لم يتم العثور على أحداث الأصول.",
-  "poolSlots": "خانات المجمع",
+  "managePools": "ادارة مجموعة الموارد",
+  "noAssetEvents": "لم يتم العثور على وقائع الأصول.",
+  "poolSlots": "حصص مجموعة الموارد",
   "sortBy": {
     "newestFirst": "الأحدث أولاً",
     "oldestFirst": "الأقدم أولاً"
