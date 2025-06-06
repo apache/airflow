@@ -657,16 +657,6 @@ class WatchedSubprocess:
         if self._exit_code is not None:
             return
 
-        # Special handling for SIGKILL - close sockets first
-        if signal_to_send == signal.SIGKILL:
-            self._cleanup_open_sockets()
-            try:
-                self._process.send_signal(signal.SIGKILL)
-            except psutil.NoSuchProcess:
-                log.debug("Process already terminated", pid=self.pid)
-                self._exit_code = -1
-            return
-
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
         escalation_path = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
 
@@ -678,6 +668,9 @@ class WatchedSubprocess:
 
         for sig in escalation_path:
             try:
+                if sig == signal.SIGKILL:
+                    log.debug("Performing cleanup before SIGKILL", pid=self.pid)
+                    self._cleanup_open_sockets()
                 self._process.send_signal(sig)
 
                 start = time.monotonic()
