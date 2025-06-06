@@ -228,7 +228,7 @@ For more details, please refer to the AWS Assume Role Authentication documentati
 
     [secrets]
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
-    backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "aws_iam", "assume_role_kwargs": {"arn:aws:iam::123456789000:role/hashicorp-aws-iam-role", "RoleSessionName": "Airflow"}}
+    backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "aws_iam", "assume_role_kwargs": {"RoleArn":"arn:aws:iam::123456789000:role/hashicorp-aws-iam-role", "RoleSessionName": "Airflow"}}
 
 Using multiple mount points
 """""""""""""""""""""""""""
