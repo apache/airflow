@@ -622,6 +622,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         """Test reattach on first running Task ARN."""
         mock_ti = mock.MagicMock(name="MockedTaskInstance")
         mock_ti.key.primary = ("mock_dag", "mock_ti", "mock_runid", 42)
+        mock_ti.dag_id = "mock_dag"
+        mock_ti.task_id = "mock_ti"
+        mock_ti.run_id = "mock_runid"
+        mock_ti.map_index = 42
         fake_uuid = "01-02-03-04"
         uuid_mock.return_value = fake_uuid
 

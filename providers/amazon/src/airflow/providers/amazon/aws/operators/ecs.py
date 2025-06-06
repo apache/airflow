@@ -517,7 +517,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self.reattach:
             # Generate deterministic UUID which refers to unique TaskInstanceKey
             ti: TaskInstance = context["ti"]
-            self._started_by = generate_uuid(*map(str, ti.key.primary))
+            self._started_by = generate_uuid(*map(str, [ti.dag_id, ti.task_id, ti.run_id, ti.map_index]))
             self.log.info("Try to find run with startedBy=%r", self._started_by)
             self._try_reattach_task(started_by=self._started_by)
 
