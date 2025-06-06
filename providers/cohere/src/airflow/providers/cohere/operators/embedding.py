@@ -26,7 +26,6 @@ from airflow.providers.cohere.hooks.cohere import CohereHook
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions
-    from cohere.types import EmbedByTypeResponseEmbeddings
 
     try:
         from airflow.sdk.definitions.context import Context
@@ -91,6 +90,9 @@ class CohereEmbeddingOperator(BaseOperator):
             request_options=self.request_options,
         )
 
-    def execute(self, context: Context) -> EmbedByTypeResponseEmbeddings:
+    def execute(self, context: Context) -> list[list[float]]:
         """Embed texts using Cohere embed services."""
-        return self.hook.create_embeddings(self.input_text)
+        embedding_response = self.hook.create_embeddings(self.input_text)
+
+        # Extract just the embeddings list, which is serializable
+        return embedding_response
