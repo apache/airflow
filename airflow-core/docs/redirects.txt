@@ -44,7 +44,7 @@ howto/use-alternative-secrets-backend.rst security/secrets/secrets-backend/index
 security.rst security/index.rst
 
 # Move the documentation from core to FAB provider
-security/access-control.rst ../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
+security/access-control.rst ../../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
 
 # Operators guides
 howto/operator/external.rst howto/operator/external_task_sensor.rst
@@ -54,7 +54,7 @@ howto/customize-dag-ui-page-instance-name.rst howto/customize-ui.rst#customizing
 howto/customize-state-colors-ui.rst howto/customize-ui.rst#customizing-state-colours
 
 # Web UI
-howto/add-new-role.rst ../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
+howto/add-new-role.rst ../../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
 
 # Set up a database
 howto/initialize-database.rst howto/set-up-database.rst
