@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import Mock, call, patch
 
 import pytest
@@ -204,8 +205,58 @@ class TestKeycloakAuthManager:
         resp.status_code = 500
         mock_requests.post.return_value = resp
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException) as e:
             getattr(auth_manager, function)(method="GET", user=user)
+
+        assert "Unexpected error" in str(e.value)
+
+    @pytest.mark.parametrize(
+        "function",
+        [
+            "is_authorized_configuration",
+            "is_authorized_connection",
+            "is_authorized_backfill",
+            "is_authorized_asset",
+            "is_authorized_asset_alias",
+            "is_authorized_variable",
+            "is_authorized_pool",
+        ],
+    )
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
+    def test_is_authorized_invalid_resource(self, mock_requests, function, auth_manager, user):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = json.dumps(
+            {"error": "invalid_resource", "error_description": "Resource with id [Pool] does not exist."}
+        )
+        mock_requests.post.return_value = resp
+
+        result = getattr(auth_manager, function)(method="GET", user=user)
+        assert result is False
+
+    @pytest.mark.parametrize(
+        "function",
+        [
+            "is_authorized_configuration",
+            "is_authorized_connection",
+            "is_authorized_backfill",
+            "is_authorized_asset",
+            "is_authorized_asset_alias",
+            "is_authorized_variable",
+            "is_authorized_pool",
+        ],
+    )
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
+    def test_is_authorized_invalid_request(self, mock_requests, function, auth_manager, user):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = json.dumps({"error": "invalid_scope", "error_description": "Invalid scopes: GET"})
+        mock_requests.post.return_value = resp
+
+        with pytest.raises(AirflowException) as e:
+            getattr(auth_manager, function)(method="GET", user=user)
+
+        assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
 
     @pytest.mark.parametrize(
         "status_code_type, status_code_resource, expected_one_call, expected_two_calls",
