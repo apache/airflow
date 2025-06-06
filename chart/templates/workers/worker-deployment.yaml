@@ -157,6 +157,7 @@ spec:
       serviceAccountName: {{ include "worker.celery.serviceAccountName" . }}
       {{- else }}
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
+      {{- end }}
       {{- if .Values.workers.celery.securityContexts.pod }}
       securityContext: {{ $securityContextCelery | nindent 8 }}
       {{- else }}

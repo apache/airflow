@@ -699,11 +699,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{/* Create the name of the worker service account to use */}}
 {{- define "worker.serviceAccountName" -}}
-  {{- if .Values.workers.celery.serviceAccount.name }}
-    {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" "worker") .) -}}
-  {{- else }}
-    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
-  {{- end }}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
+{{- end }}
+
+{{/* Create the name of the worker celery service account to use */}}
+{{- define "worker.celery.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" "worker-celery") .) -}}
+{{- end }}
+
+{{/* Create the name of the worker kubernetes service account to use */}}
+{{- define "worker.kubernetes.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "kubernetes" "nameSuffix" "worker-kubernetes") .) -}}
 {{- end }}
 
 {{/* Create the name of the worker celery service account to use */}}

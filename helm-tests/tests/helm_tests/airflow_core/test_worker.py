@@ -2564,18 +2564,28 @@ class TestWorkerServiceAccount:
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     @pytest.mark.parametrize(
-        "workers_values",
+        "workers_values, obj",
         [
-            {"serviceAccount": {"create": True}},
-            {"celery": {"serviceAccount": {"create": True}}},
+            ({"serviceAccount": {"create": True}}, "worker"),
+            (
+                {"useWorkerDedicatedServiceAccounts": True, "celery": {"serviceAccount": {"create": True}}},
+                "worker-celery",
+            ),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"create": True}},
+                },
+                "worker-kubernetes",
+            ),
         ],
     )
-    def test_default_automount_service_account_token(self, workers_values):
+    def test_default_automount_service_account_token(self, workers_values, obj):
         docs = render_chart(
             values={
                 "workers": workers_values,
             },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
+            show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
