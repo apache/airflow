@@ -1,13 +1,13 @@
 {
-  "assetSchedule": "تم تحديث {{count}} من أصل {{total}} عنصر",
+  "assetSchedule": "تم تحديث {{count}} من أصل {{total}}",
   "dagActions": {
     "delete": {
-      "button": "حذف الـDag",
-      "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بـالـDag، بما في ذلك التشغيلات والمهام."
+      "button": "حذف الDag",
+      "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بالDag، بما في ذلك التشغيلات والمهام."
     },
     "trigger": {
       "button": "تشغيل",
-      "triggerDag": "تشغيل الـDag"
+      "triggerDag": "تشغيل الDag"
     }
   },
   "filters": {
@@ -21,26 +21,26 @@
     "advancedSearch": "بحث متقدم",
     "clearSearch": "مسح البحث",
     "columns": {
-      "dagId": "معرّف الـDag",
+      "dagId": "معرّف الDag",
       "lastDagRun": "آخر تشغيل لـDag",
       "nextDagRun": "التشغيل التالي لـDag",
       "schedule": "الجدولة",
       "tags": "العلامات"
     },
     "ownerLink": "رابط المالك لـ{{owner}}",
-    "searchPlaceholder": "البحث في الـDags"
+    "searchPlaceholder": "البحث في الDags"
   },
   "runAndTaskActions": {
     "clear": {
-      "button": "إعادة تعيين {{type}}",
-      "buttonTooltip": "اضغط shift+c لإعادة التعيين",
+      "button": "مسح {{type}}",
+      "buttonTooltip": "اضغط shift+c للمسح",
       "dialog": {
         "affectedTasks": {
           "columns": {
             "mapIndex": "فهرس الخريطة",
-            "runId": "معرِّف التشغيل",
+            "runId": "معرف التشغيل",
             "state": "الحالة",
-            "taskId": "معرِّف المهمة"
+            "taskId": "معرف المهمة"
           },
           "noItemsFound": "لم يتم العثور على مهام.",
           "title": "المهام المتأثرة: {{count}}"
@@ -52,14 +52,14 @@
         },
         "options": {
           "downstream": "المهام التابعة",
-          "existingTasks": "إعادة تعيين المهام الموجودة",
+          "existingTasks": "مسح المهام الحالية",
           "future": "المستقبل",
-          "onlyFailed": "إعادة تعيين المهام الفاشلة فقط",
+          "onlyFailed": "مسح المهام الفاشلة فقط",
           "past": "الماضي",
           "queueNew": "إضافة مهام جديدة للانتظار",
           "upstream": "المهام السابقة"
         },
-        "title": "إعادة تعيين {{type}}"
+        "title": "مسح {{type}}"
       }
     },
     "delete": {
@@ -69,24 +69,24 @@
         "title": "حذف {{type}}",
         "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بـ{{type}}."
       },
-      "error": "حدث خطأ أثناء حذف {{type}}",
+      "error": "حدث خطأ اثناء الحذف {{type}}",
       "success": {
-        "description": "تم تنفيذ طلب حذف {{type}} بنجاح.",
+        "description": "تم تنفيذ طلب الحذف {{type}} بنجاح.",
         "title": "{{type}} حُذف بنجاح"
       }
     },
     "markAs": {
       "button": "تمييز {{type}} كـ...",
       "buttonTooltip": {
-        "failed": "اضغط shift+f لتمييزه كفاشل",
-        "success": "اضغط shift+s لتمييزه كناجح"
+        "failed": "اضغط shift+f لتمييز كفاشل",
+        "success": "اضغط shift+s لتمييز كناجح"
       },
       "dialog": {
         "confirm": "تأكيد",
         "options": {
           "downstream": "المهام التابعة",
           "future": "المهام المستقبلية",
-          "past": "المهام السابقة",
+          "past": "المهام الماضية",
           "upstream": "المهام السابقة"
         },
         "title": "تمييز {{type}} كـ {{state}}"
@@ -97,8 +97,8 @@
    "allRunTypes": "جميع أنواع التشغيل",
    "allStates": "جميع الحالات",
    "columns": {
-     "dagId": "معرّف الـ Dag",
-     "dagVersions": "إصدارات الـ Dag",
+     "dagId": "معرف الDag",
+     "dagVersions": "إصدارات الDag",
      "duration": "المدة",
      "endDate": "تاريخ الانتهاء",
      "runAfter": "التشغيل بعد",
@@ -109,8 +109,8 @@
   },
   "sort": {
     "displayName": {
-      "asc": "الترتيب حسب اسم العرض (أ-ي)",
-      "desc": "الترتيب حسب اسم العرض (ي-أ)"
+      "asc": "الترتيب حسب اسم العرض (A-Z)",
+      "desc": "الترتيب حسب اسم العرض (Z-A)"
     },
     "lastRunStartDate": {
       "asc": "الترتيب حسب تاريخ بداية آخر تشغيل (الأقدم-الأحدث)",
@@ -129,9 +129,9 @@
   "taskInstances": {
     "allStates": "جميع الحالات",
     "columns": {
-      "dagId": "معرّف الـDag",
-      "dagRun": "تشغيل الـDag",
-      "dagVersion": "نسخة الـDag",
+      "dagId": "معرّف الDag",
+      "dagRun": "تشغيل الDag",
+      "dagVersion": "اصدار الDag",
       "duration": "المدة",
       "endDate": "تاريخ الانتهاء",
       "mapIndex": "فهرس الخريطة",

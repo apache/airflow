@@ -1,14 +1,14 @@
 {
   "admin": {
     "Config": "تكوينات",
-    "Connections": "اتصالات",
+    "Connections": "وصلات",
     "Plugins": "إضافات",
-    "Pools": "مجمعات موارد",
-    "Providers": "حزم",
+    "Pools": "مجموعة موارد",
+    "Providers": "حُزم",
     "Variables": "متغيرات"
   },
-  "assetEvent_one": "حدث الأصل",
-  "assetEvent_other": "أحداث الأصل",
+  "assetEvent_one": "واقعة اصل",
+  "assetEvent_other": "واقعات اصل",
   "browse": {
     "auditLog": "سجل المراجعة",
     "xcoms": "(XComs) إكس كوم"
@@ -17,14 +17,14 @@
   "dag_other": "Dags",
   "dagRun_one": "تشغيل Dag",
   "dagRun_other": "تشغيلات Dag",
-  "defaultToGraphView": "افتراضي لعرض الرسم البياني",
-  "defaultToGridView": "افتراضي لعرض الشبكة",
+  "defaultToGraphView": "عرض الرسم البياني تلقائياً",
+  "defaultToGridView": "عرض الشبكة تلقائياً",
   "docs": {
     "documentation": "توثيق",
     "githubRepo": "مستودع GitHub",
     "restApiReference": "مرجع REST API"
   },
-  "logout": "خروج",
+  "logout": "تسجيل الخروج",
   "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
   "modal": {
     "cancel": "إلغاء",
@@ -40,9 +40,9 @@
     "browse": "تصفح",
     "dags": "Dags",
     "docs": "وثائق",
-    "home": "صفحة رئيسية",
+    "home": "الصفحة الرئيسية",
     "plugins": "إضافات",
-    "security": "أمان"
+    "security": "الأمان"
   },
   "noItemsFound": "لم يتم العثور على {{modelName}}",
   "pools": {
@@ -70,7 +70,7 @@
   "selectLanguage": "اختيار اللغة",
   "states": {
     "deferred": "مؤجل",
-    "failed": "فاشل",
+    "failed": "فشِل",
     "no_status": "بلا حالة",
     "none": "لا شيء",
     "queued": "في الانتظار",
@@ -82,24 +82,24 @@
     "success": "ناجح",
     "up_for_reschedule": "جاهز لإعادة الجدولة",
     "up_for_retry": "جاهز للمحاولة مرة أخرى",
-    "upstream_failed": "فشل في المهام السابقة"
+    "upstream_failed": "فشِل في المهام السابقة"
   },
-  "switchToDarkMode": "التبديل إلى الوضع الداكن",
-  "switchToLightMode": "التبديل إلى الوضع الفاتح",
+  "switchToDarkMode": "تبديل إلى الوضع الداكن",
+  "switchToLightMode": "تبديل إلى الوضع الفاتح",
   "table": {
-    "filterByTag": "تصفية Dags حسب العلامة",
+    "filterByTag": "تصفية الDags حسب الوسم",
     "filterColumns": "تصفية أعمدة الجدول",
     "filters": {
       "filter_one": "فلتر",
       "filter_other": "فلاتر",
       "reset": "مسح الفلاتر"
     },
-    "noTagsFound": "لم يتم العثور على علامات",
+    "noTagsFound": "لم يتم العثور على وسوم",
     "tagMode": {
-      "all": "كل",
-      "any": "أي"
+      "all": "الكل",
+      "any": "اي شيء"
     },
-    "tagPlaceholder": "تصفية حسب العلامة"
+    "tagPlaceholder": "تصفية حسب الوسم"
   },
   "taskInstance_one": "مثيل المهمة",
   "taskInstance_other": "مثيلات المهام",
@@ -113,7 +113,7 @@
   "timezone": "المنطقة الزمنية",
   "timezoneModal": {
     "current-timezone": "المنطقة الزمنية الحالية في",
-    "placeholder": "اختر منطقة زمنية",
+    "placeholder": "اختر المنطقة الزمنية",
     "title": "اختيار المنطقة الزمنية",
     "utc": "UTC (التوقيت العالمي المنسق)"
   },
