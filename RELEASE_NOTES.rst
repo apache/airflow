@@ -81,6 +81,8 @@ Bug Fixes
 - Fix CLI export to handle stdout without file descriptors (#50328)
 - Fix ``DagProcessor`` stats log to show the correct parse duration (#50316)
 - Fix OpenAPI schema for ``get_log`` API (#50547)
+- Remove ``logical_date`` check when validating inlets and outlets (#51464)
+- Guard ``ti`` update state and set task to fail if exception encountered (#51295)
 
 Miscellaneous
 """""""""""""
