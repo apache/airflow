@@ -4018,7 +4018,7 @@ class TestSchedulerJob:
 
         asam = AssetAliasModel(name=asset_alias.name, group=asset_alias.group)
 
-        # Simulate a Producer DAG attach an asset event at runtime to an AssetAlias
+        # Simulate a Producer dag attach an asset event at runtime to an AssetAlias
         # Don't use outlets here because the needs to associate an asset alias with an asset event in the association table
         with dag_maker(dag_id="asset-alias-producer", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="simulate-asset-alias-outlet", bash_command="echo 1")
