@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -1488,6 +1489,23 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj({})
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
+
+    @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    def test_xcom_push_failed_pod(self, remote_pod, mock_await, mock_extract_xcom):
+        """Tests that an xcom is pushed after a pod failed but xcom output exists."""
+        k = KubernetesPodOperator(task_id="task", on_finish_action="delete_pod", do_xcom_push=True)
+
+        remote_pod.return_value.status.phase = "Failed"
+        mock_extract_xcom.return_value = '{"Test key": "Test value"}'
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(AirflowException):
+            k.execute(context=context)
+
+        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, {"Test key": "Test value"})
 
     @pytest.mark.parametrize(
         "kwargs, actual_exit_code, expected_exc",
