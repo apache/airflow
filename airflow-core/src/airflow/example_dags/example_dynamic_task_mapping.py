@@ -23,6 +23,7 @@ from datetime import datetime
 
 from airflow.sdk import DAG, task
 
+# [START example_dynamic_task_mapping]
 with DAG(dag_id="example_dynamic_task_mapping", schedule=None, start_date=datetime(2022, 3, 4)) as dag:
 
     @task
@@ -56,3 +57,5 @@ with DAG(
     _get_nums = get_nums()
     _times_2 = times_2.expand(num=_get_nums)
     add_10.expand(num=_times_2)
+
+# [END example_dynamic_task_mapping]
