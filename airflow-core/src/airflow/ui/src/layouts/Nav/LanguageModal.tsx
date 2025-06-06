@@ -16,26 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { LuX } from "react-icons/lu";
 
-type Props = {
-  readonly filterCount: number;
-  readonly onClearFilters: () => void;
+import { Dialog } from "src/components/ui";
+
+import LanguageSelector from "./LanguageSelector";
+
+type LanguageModalProps = {
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
 };
 
-export const ResetButton = ({ filterCount, onClearFilters }: Props) => {
-  const { t: translate } = useTranslation("common");
-
-  if (filterCount === 0) {
-    return undefined;
-  }
+const LanguageModal: React.FC<LanguageModalProps> = ({ isOpen, onClose }) => {
+  const { t: translate } = useTranslation();
 
   return (
-    <Button onClick={onClearFilters} size="sm" variant="outline">
-      <LuX />
-      {translate("table.filterReset", { count: filterCount })}
-    </Button>
+    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="xl">
+      <Dialog.Content backdrop>
+        <Dialog.Header>{translate("selectLanguage")}</Dialog.Header>
+        <Dialog.CloseTrigger />
+        <Dialog.Body>
+          <LanguageSelector />
+        </Dialog.Body>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 };
+
+export default LanguageModal;
