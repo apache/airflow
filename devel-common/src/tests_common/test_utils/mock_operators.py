@@ -151,8 +151,15 @@ class CustomOperator(BaseOperator):
     @property
     def operator_extra_links(self):
         """Return operator extra links."""
+        # For mapped operators
+        if not hasattr(self, "bash_command"):
+            # For mapped operators, we return CustomOpLink since each mapped instance
+            # will get its own link during runtime
+            return (CustomOpLink(),)
+        # For non-mapped operators
         if isinstance(self.bash_command, str) or self.bash_command is None:
             return (CustomOpLink(),)
+        # For operators with multiple commands
         return (CustomBaseIndexOpLink(i) for i, _ in enumerate(self.bash_command))
 
     def __init__(self, bash_command=None, **kwargs):
