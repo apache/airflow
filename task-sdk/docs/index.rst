@@ -26,7 +26,7 @@ executing tasks in isolated subprocesses and interacting with Airflow resources
 It also includes core execution-time components to manage communication between the worker
 and the Airflow scheduler/backend.
 
-This approach minimises boilerplate and keeps your DAG definitions concise and readable.
+This approach reduces boilerplate and keeps your DAG definitions concise and readable.
 
 
 Installation
