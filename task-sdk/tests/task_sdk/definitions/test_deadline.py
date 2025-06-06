@@ -22,15 +22,60 @@ import pytest
 from task_sdk.definitions.test_dag import DEFAULT_DATE
 
 from airflow.models.deadline import ReferenceModels
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 
 DAG_ID = "dag_id_1"
+
+TEST_CALLBACK_PATH = f"{__name__}.test_callback"
+UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
 
 REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
     pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
     pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
 ]
+
+
+def test_callback():
+    """An empty Callable to use for the callback tests in this suite."""
+    pass
+
+
+class TestDeadlineAlert:
+    @pytest.mark.parametrize(
+        "callback_value, expected_path",
+        [
+            pytest.param(test_callback, TEST_CALLBACK_PATH, id="valid_callable"),
+            pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
+            pytest.param(lambda x: x, None, id="lambda_function"),
+            pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
+            pytest.param(UNIMPORTABLE_DOT_PATH, UNIMPORTABLE_DOT_PATH, id="valid_format_not_importable"),
+        ],
+    )
+    def test_get_callback_path_happy_cases(self, callback_value, expected_path):
+        path = DeadlineAlert.get_callback_path(callback_value)
+        if expected_path is None:
+            assert path.endswith("<lambda>")
+        else:
+            assert path == expected_path
+
+    @pytest.mark.parametrize(
+        "callback_value, error_type",
+        [
+            pytest.param(42, ImportError, id="not_a_string"),
+            pytest.param("", ImportError, id="empty_string"),
+            pytest.param("os.path", AttributeError, id="non_callable_module"),
+        ],
+    )
+    def test_get_callback_path_error_cases(self, callback_value, error_type):
+        expected_message = ""
+        if error_type is ImportError:
+            expected_message = "doesn't look like a valid dot path."
+        elif error_type is AttributeError:
+            expected_message = "is not callable."
+
+        with pytest.raises(error_type, match=expected_message):
+            DeadlineAlert.get_callback_path(callback_value)
 
 
 class TestDeadlineReference:
