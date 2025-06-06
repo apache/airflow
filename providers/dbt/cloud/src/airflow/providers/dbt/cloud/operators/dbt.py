@@ -31,8 +31,8 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudJobRunStatus,
     JobRunInfo,
 )
-from airflow.providers.dbt.cloud.utils.exceptions import DbtCloudJobRunDetailsException
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
+from airflow.providers.dbt.cloud.utils.exceptions import DbtCloudJobRunDetailsException
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
 
 if TYPE_CHECKING:
@@ -213,43 +213,42 @@ class DbtCloudRunJobOperator(BaseOperator):
                 ):
                     self.log.info("Job run %s has completed successfully.", self.run_id)
                 else:
-
                     raise DbtCloudJobRunDetailsException(
                         self.account_id,
                         self.run_id,
                         message=f"Job run {self.run_id} has failed or has been cancelled.",
+                        dbt_cloud_conn_id=self.dbt_cloud_conn_id,
                     )
 
                 return self.run_id
-            else:
-                end_time = time.time() + self.timeout
-                job_run_info = JobRunInfo(account_id=self.account_id, run_id=self.run_id)
-                job_run_status = self.hook.get_job_run_status(**job_run_info)
-                if not DbtCloudJobRunStatus.is_terminal(job_run_status):
-                    self.defer(
-                        timeout=self.execution_timeout,
-                        trigger=DbtCloudRunJobTrigger(
-                            conn_id=self.dbt_cloud_conn_id,
-                            run_id=self.run_id,
-                            end_time=end_time,
-                            account_id=self.account_id,
-                            poll_interval=self.check_interval,
-                        ),
-                        method_name="execute_complete",
-                    )
-                elif job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
-                    self.log.info("Job run %s has completed successfully.", self.run_id)
-                    return self.run_id
-                elif job_run_status in (
-                    DbtCloudJobRunStatus.CANCELLED.value,
-                    DbtCloudJobRunStatus.ERROR.value,
-                ):
-
-                    raise DbtCloudJobRunDetailsException(
-                        self.account_id,
-                        self.run_id,
-                        message=f"Job run {self.run_id}, {job_run_status}.",
-                    )
+            end_time = time.time() + self.timeout
+            job_run_info = JobRunInfo(account_id=self.account_id, run_id=self.run_id)
+            job_run_status = self.hook.get_job_run_status(**job_run_info)
+            if not DbtCloudJobRunStatus.is_terminal(job_run_status):
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=DbtCloudRunJobTrigger(
+                        conn_id=self.dbt_cloud_conn_id,
+                        run_id=self.run_id,
+                        end_time=end_time,
+                        account_id=self.account_id,
+                        poll_interval=self.check_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+            elif job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
+                self.log.info("Job run %s has completed successfully.", self.run_id)
+                return self.run_id
+            elif job_run_status in (
+                DbtCloudJobRunStatus.CANCELLED.value,
+                DbtCloudJobRunStatus.ERROR.value,
+            ):
+                raise DbtCloudJobRunDetailsException(
+                    self.account_id,
+                    self.run_id,
+                    message=f"Job run {self.run_id}, {job_run_status}.",
+                    dbt_cloud_conn_id=self.dbt_cloud_conn_id,
+                )
 
         else:
             if self.deferrable is True:
@@ -265,19 +264,19 @@ class DbtCloudRunJobOperator(BaseOperator):
         """Execute when the trigger fires - returns immediately."""
         self.run_id = event["run_id"]
         if event["status"] == "cancelled":
-
             raise DbtCloudJobRunDetailsException(
                 self.account_id,
                 self.run_id,
                 message=f"Job run {self.run_id} has been cancelled.",
+                dbt_cloud_conn_id=self.dbt_cloud_conn_id,
             )
 
-        elif event["status"] == "error":
-
+        if event["status"] == "error":
             raise DbtCloudJobRunDetailsException(
                 self.account_id,
                 self.run_id,
                 message=f"Job run {self.run_id} has failed.",
+                dbt_cloud_conn_id=self.dbt_cloud_conn_id,
             )
 
         self.log.info(event["message"])
