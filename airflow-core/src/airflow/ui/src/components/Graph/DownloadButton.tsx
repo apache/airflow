@@ -19,11 +19,13 @@
 import { IconButton } from "@chakra-ui/react";
 import { Panel, useReactFlow, getNodesBounds, getViewportForBounds } from "@xyflow/react";
 import { toPng } from "html-to-image";
+import { useTranslation } from "react-i18next";
 import { FiDownload } from "react-icons/fi";
 
 import { toaster } from "src/components/ui";
 
 export const DownloadButton = ({ name }: { readonly name: string }) => {
+  const { t: translate } = useTranslation("components");
   const { getNodes, getZoom } = useReactFlow();
 
   const onClick = () => {
@@ -55,8 +57,8 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
         })
         .catch(() => {
           toaster.create({
-            description: "Failed to download graph image.",
-            title: "Download Failed",
+            description: translate("graph.downloadImageError"),
+            title: translate("graph.downloadImageErrorTitle"),
             type: "error",
           });
         });
@@ -66,10 +68,10 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
   return (
     <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
       <IconButton
-        aria-label="Download graph image"
+        aria-label={translate("graph.downloadImage")}
         onClick={onClick}
         size="xs"
-        title="Download graph image"
+        title={translate("graph.downloadImage")}
         variant="ghost"
       >
         <FiDownload />
