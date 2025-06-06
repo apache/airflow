@@ -4004,7 +4004,7 @@ class TestSchedulerJob:
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
         """
-        Test DAG Run trigger on AssetAlias includes the corresponding AssetEvent in `consumed_asset_events`.
+        Test Dag Run trigger on AssetAlias includes the corresponding AssetEvent in `consumed_asset_events`.
         """
 
         # Simulate an Asset created at runtime, and it is not an active asset
