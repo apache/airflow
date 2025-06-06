@@ -9,6 +9,8 @@
   },
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "backfill_one": "Backfill",
+  "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
     "xcoms": "XComs"
@@ -25,7 +27,10 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
-  "duration": "Duration",
+  "duration": {
+    "label": "Duration",
+    "seconds": "{{count}}s"
+  },
   "endDate": "End Date",
   "expression": {
     "all": "All",
@@ -55,6 +60,7 @@
     "security": "Security"
   },
   "noItemsFound": "No {{modelName}} found",
+  "operator": "Operator",
   "pools": {
     "deferred": "Deferred",
     "open": "Open",
@@ -100,17 +106,26 @@
   "switchToDarkMode": "Switch to Dark Mode",
   "switchToLightMode": "Switch to Light Mode",
   "table": {
+    "completedAt": "Completed at",
+    "createdAt": "Created at",
+    "duration": "Duration",
     "filterByTag": "Filter Dags by tag",
     "filterColumns": "Filter table columns",
     "filterReset_one": "Reset filter",
     "filterReset_other": "Reset filters",
+    "from": "From",
+    "maxActiveRuns": "Max Active Runs",
     "noTagsFound": "No tags found",
+    "reprocessBehavior": "Reprocess Behavior",
     "tagMode": {
       "all": "All",
       "any": "Any"
     },
-    "tagPlaceholder": "Filter by tag"
+    "tagPlaceholder": "Filter by tag",
+    "to": "To"
   },
+  "task_one": "Task",
+  "task_other": "Tasks",
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
@@ -128,6 +143,12 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "triggered": "Triggered",
+  "triggerRule": "Trigger Rule",
   "tryNumber": "Try Number",
-  "user": "User"
+  "user": "User",
+  "wrap": {
+    "tooltip": "Press w to toggle wrap",
+    "unwrap": "Unwrap",
+    "wrap": "Wrap"
+  }
 }
