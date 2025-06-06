@@ -19,6 +19,7 @@
   "dag_other": "Dags",
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
+  "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
   "direction": "Direction",
@@ -41,6 +42,7 @@
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
+  "mapIndex": "Map Index",
   "modal": {
     "cancel": "Cancel",
     "confirm": "Confirm",
