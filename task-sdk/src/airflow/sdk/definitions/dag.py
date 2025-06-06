@@ -1014,7 +1014,7 @@ class DAG:
     def test(
         self,
         run_after: datetime | None = None,
-        logical_date: datetime | None = NOTSET,
+        logical_date: datetime | None | ArgNotSet = NOTSET,
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
