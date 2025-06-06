@@ -2464,22 +2464,59 @@ class TestWorkerServiceAccount:
         ],
     )
     @pytest.mark.parametrize(
-        "workers_values",
+        "workers_values, obj",
         [
-            {"serviceAccount": {"create": True}, "labels": {"test_label": "test_label_value"}},
-            {"celery": {"serviceAccount": {"create": True}, "labels": {"test_label": "test_label_value"}}},
-            {
-                "labels": {"test": "test"},
-                "celery": {"serviceAccount": {"create": True}, "labels": {"test_label": "test_label_value"}},
-            },
+            ({"serviceAccount": {"create": True}, "labels": {"test_label": "test_label_value"}}, "worker"),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {
+                        "serviceAccount": {"create": True},
+                        "labels": {"test_label": "test_label_value"},
+                    },
+                },
+                "worker-celery",
+            ),
+            (
+                {
+                    "labels": {"test": "test"},
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {
+                        "serviceAccount": {"create": True},
+                        "labels": {"test_label": "test_label_value"},
+                    },
+                },
+                "worker-celery",
+            ),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {
+                        "serviceAccount": {"create": True},
+                        "labels": {"test_label": "test_label_value"},
+                    },
+                },
+                "worker-kubernetes",
+            ),
+            (
+                {
+                    "labels": {"test": "test"},
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {
+                        "serviceAccount": {"create": True},
+                        "labels": {"test_label": "test_label_value"},
+                    },
+                },
+                "worker-kubernetes",
+            ),
         ],
     )
     def test_should_create_worker_service_account_for_specific_executors(
-        self, executor, creates_service_account, workers_values
+        self, executor, creates_service_account, workers_values, obj
     ):
         docs = render_chart(
             values={"executor": executor, "workers": workers_values},
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
+            show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
         )
         if creates_service_account:
             assert jmespath.search("kind", docs[0]) == "ServiceAccount"
@@ -2489,37 +2526,72 @@ class TestWorkerServiceAccount:
             assert docs == []
 
     @pytest.mark.parametrize(
-        "workers_values",
+        "workers_values, obj",
         [
-            {"serviceAccount": {"create": True}},
-            {"celery": {"serviceAccount": {"create": True}}},
+            ({"serviceAccount": {"create": True}}, "worker"),
+            (
+                {"useWorkerDedicatedServiceAccounts": True, "celery": {"serviceAccount": {"create": True}}},
+                "worker-celery",
+            ),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"create": True}},
+                },
+                "worker-kubernetes",
+            ),
         ],
     )
-    def test_default_automount_service_account_token(self, workers_values):
+    def test_default_automount_service_account_token(self, workers_values, obj):
         docs = render_chart(
             values={
                 "workers": workers_values,
             },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
+            show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
     @pytest.mark.parametrize(
-        "workers_values",
+        "workers_values, obj",
         [
-            {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
-            {"celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}}},
-            {
-                "serviceAccount": {"create": True, "automountServiceAccountToken": True},
-                "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
-            },
+            ({"serviceAccount": {"create": True, "automountServiceAccountToken": False}}, "worker"),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+                },
+                "worker-celery",
+            ),
+            (
+                {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": True},
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+                },
+                "worker-celery",
+            ),
+            (
+                {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+                },
+                "worker-kubernetes",
+            ),
+            (
+                {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": True},
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+                },
+                "worker-kubernetes",
+            ),
         ],
     )
-    def test_overridden_automount_service_account_token(self, workers_values):
+    def test_overridden_automount_service_account_token(self, workers_values, obj):
         docs = render_chart(
             values={
                 "workers": workers_values,
             },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
+            show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False

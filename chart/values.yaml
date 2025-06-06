@@ -1031,6 +1031,10 @@ workers:
   #         requests:
   #           storage: "20Gi"
 
+  # One common Service Account for all workers will be created if flag is set to false.
+  # If true, dedicated Service Accounts will be created.
+  useWorkerDedicatedServiceAccounts: false
+
   celery:
     # Number of Airflow Celery workers
     replicas: 1

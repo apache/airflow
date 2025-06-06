@@ -65,7 +65,6 @@ RBAC_ENABLED_KIND_NAME_TUPLES = [
 SERVICE_ACCOUNT_NAME_TUPLES = [
     ("ServiceAccount", "test-rbac-cleanup"),
     ("ServiceAccount", "test-rbac-scheduler"),
-    ("ServiceAccount", "test-rbac-worker"),
     ("ServiceAccount", "test-rbac-triggerer"),
     ("ServiceAccount", "test-rbac-pgbouncer"),
     ("ServiceAccount", "test-rbac-flower"),
@@ -91,6 +90,8 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_POSTGRESQL_NAME := "TestPostgresql"),
 )
 CUSTOM_WEBSERVER_NAME = "TestWebserver"
+CUSTOM_WORKER_CELERY_NAME = "TestWorkerCelery"
+CUSTOM_WORKER_KUBERNETES_NAME = "TestWorkerKubernetes"
 
 parametrize_version = pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
 
@@ -106,7 +107,7 @@ class TestRBAC:
     def _is_airflow_3_or_above(self, version):
         return version == "default" or (parse_version(version) >= parse_version("3.0.0"))
 
-    def _get_object_tuples(self, version, sa: bool = True):
+    def _get_object_tuples(self, version, sa: bool = True, dedicated_workers_sa: None | bool = None):
         tuples = copy(DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES)
         if version in {"default", "3.0.0"}:
             tuples.append(("Service", "test-rbac-triggerer"))
@@ -136,6 +137,13 @@ class TestRBAC:
             if sa:
                 tuples.append(("ServiceAccount", "test-rbac-webserver"))
 
+        if dedicated_workers_sa is not None:
+            if dedicated_workers_sa:
+                tuples.append(("ServiceAccount", "test-rbac-worker-celery"))
+                tuples.append(("ServiceAccount", "test-rbac-worker-kubernetes"))
+            else:
+                tuples.append(("ServiceAccount", "test-rbac-worker"))
+
         return tuples
 
     @parametrize_version
@@ -143,7 +151,11 @@ class TestRBAC:
         "workers_values",
         [
             {"serviceAccount": {"create": False}},
-            {"celery": {"serviceAccount": {"create": False}}},
+            {
+                "useWorkerDedicatedServiceAccounts": True,
+                "celery": {"serviceAccount": {"create": False}},
+                "kubernetes": {"serviceAccount": {"create": False}},
+            },
         ],
     )
     def test_deployments_no_rbac_no_sa(self, version, workers_values):
@@ -186,7 +198,8 @@ class TestRBAC:
         assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_tuples(version, sa=False))
 
     @parametrize_version
-    def test_deployments_no_rbac_with_sa(self, version):
+    @pytest.mark.parametrize("dedicated_workers_sa", [False, True])
+    def test_deployments_no_rbac_with_sa(self, version, dedicated_workers_sa):
         k8s_objects = render_chart(
             "test-rbac",
             values=self._get_values_with_version(
@@ -196,6 +209,7 @@ class TestRBAC:
                     "cleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
+                    "workers": {"useWorkerDedicatedServiceAccounts": dedicated_workers_sa},
                 },
                 version=version,
             ),
@@ -203,7 +217,10 @@ class TestRBAC:
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES
+        real_list_of_kind_names = (
+            self._get_object_tuples(version, dedicated_workers_sa=dedicated_workers_sa)
+            + SERVICE_ACCOUNT_NAME_TUPLES
+        )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
     @parametrize_version
@@ -211,7 +228,11 @@ class TestRBAC:
         "workers_values",
         [
             {"serviceAccount": {"create": False}},
-            {"celery": {"serviceAccount": {"create": False}}},
+            {
+                "useWorkerDedicatedServiceAccounts": True,
+                "celery": {"serviceAccount": {"create": False}},
+                "kubernetes": {"serviceAccount": {"create": False}},
+            },
         ],
     )
     def test_deployments_with_rbac_no_sa(self, version, workers_values):
@@ -254,7 +275,8 @@ class TestRBAC:
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
     @parametrize_version
-    def test_deployments_with_rbac_with_sa(self, version):
+    @pytest.mark.parametrize("dedicated_workers_sa", [False, True])
+    def test_deployments_with_rbac_with_sa(self, version, dedicated_workers_sa):
         k8s_objects = render_chart(
             "test-rbac",
             values=self._get_values_with_version(
@@ -263,6 +285,7 @@ class TestRBAC:
                     "cleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
+                    "workers": {"useWorkerDedicatedServiceAccounts": dedicated_workers_sa},
                 },
                 version=version,
             ),
@@ -271,19 +294,13 @@ class TestRBAC:
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = (
-            self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
+            self._get_object_tuples(version, dedicated_workers_sa=dedicated_workers_sa)
+            + SERVICE_ACCOUNT_NAME_TUPLES
+            + RBAC_ENABLED_KIND_NAME_TUPLES
         )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
-            {"celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
-            {"serviceAccount": {"name": "test"}, "celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
-        ],
-    )
-    def test_service_account_custom_names(self, workers_values):
+    def test_service_account_custom_names(self):
         k8s_objects = render_chart(
             "test-rbac",
             values={
@@ -298,7 +315,7 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
-                "workers": workers_values,
+                "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
@@ -321,6 +338,32 @@ class TestRBAC:
         ]
         assert sorted(list_of_sa_names) == sorted(CUSTOM_SERVICE_ACCOUNT_NAMES)
 
+    def test_workers_service_account_name(self):
+        k8s_objects = render_chart(
+            "test-rbac",
+            values={
+                "airflowVersion": "3.0.0",
+                "fullnameOverride": "test-rbac",
+                "workers": {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {"serviceAccount": {"name": CUSTOM_WORKER_CELERY_NAME}},
+                    "kubernetes": {"serviceAccount": {"name": CUSTOM_WORKER_KUBERNETES_NAME}},
+                },
+            },
+            show_only=[
+                "templates/workers/worker-celery-serviceaccount.yaml",
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
+            ],
+        )
+
+        list_of_sa_names = [
+            k8s_object["metadata"]["name"]
+            for k8s_object in k8s_objects
+            if k8s_object["kind"] == "ServiceAccount"
+        ]
+        assert len(k8s_objects) == 2
+        assert sorted(list_of_sa_names) == [CUSTOM_WORKER_CELERY_NAME, CUSTOM_WORKER_KUBERNETES_NAME]
+
     def test_webserver_service_account_name_airflow_2(self):
         k8s_objects = render_chart(
             "test-rbac",
@@ -334,15 +377,7 @@ class TestRBAC:
         sa_name = jmespath.search("metadata.name", k8s_objects[0])
         assert sa_name == CUSTOM_WEBSERVER_NAME
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
-            {"celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
-            {"serviceAccount": {"name": "test"}, "celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
-        ],
-    )
-    def test_service_account_custom_names_in_objects(self, workers_values):
+    def test_service_account_custom_names_in_objects(self):
         k8s_objects = render_chart(
             "test-rbac",
             values={
@@ -357,7 +392,7 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
-                "workers": workers_values,
+                "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
@@ -387,6 +422,27 @@ class TestRBAC:
                 list_of_sa_names_in_objects.append(name)
 
         assert sorted(list_of_sa_names_in_objects) == sorted(CUSTOM_SERVICE_ACCOUNT_NAMES)
+
+    def test_workers_celery_service_account_custom_names_in_objects(self):
+        k8s_objects = render_chart(
+            "test-rbac",
+            values={
+                "airflowVersion": "3.0.0",
+                "fullnameOverride": "test-rbac",
+                "workers": {
+                    "useWorkerDedicatedServiceAccounts": True,
+                    "celery": {"serviceAccount": {"name": CUSTOM_WORKER_CELERY_NAME}},
+                },
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert (
+            jmespath.search("spec.template.spec.serviceAccountName", k8s_objects[0])
+            == CUSTOM_WORKER_CELERY_NAME
+        )
 
     def test_service_account_without_resource(self):
         k8s_objects = render_chart(

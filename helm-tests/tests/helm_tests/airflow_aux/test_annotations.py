@@ -104,6 +104,7 @@ class TestServiceAccountAnnotations:
             (
                 {
                     "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
                         "celery": {
                             "serviceAccount": {
                                 "annotations": {
@@ -113,7 +114,7 @@ class TestServiceAccountAnnotations:
                         },
                     },
                 },
-                "templates/workers/worker-serviceaccount.yaml",
+                "templates/workers/worker-celery-serviceaccount.yaml",
                 {
                     "example": "worker",
                 },
@@ -121,6 +122,7 @@ class TestServiceAccountAnnotations:
             (
                 {
                     "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
                         "serviceAccount": {
                             "annotations": {
                                 "example": "missing",
@@ -135,7 +137,48 @@ class TestServiceAccountAnnotations:
                         },
                     },
                 },
-                "templates/workers/worker-serviceaccount.yaml",
+                "templates/workers/worker-celery-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "kubernetes": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "missing",
+                            },
+                        },
+                        "kubernetes": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
                 {
                     "example": "worker",
                 },

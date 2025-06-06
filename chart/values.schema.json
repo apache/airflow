@@ -2466,6 +2466,11 @@
                         }
                     ]
                 },
+                "useWorkerDedicatedServiceAccounts": {
+                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts will be created.",
+                    "type": "boolean",
+                    "default": false
+                },
                 "celery": {
                     "description": "Airflow Celery Workers configuration.",
                     "type": "object",
