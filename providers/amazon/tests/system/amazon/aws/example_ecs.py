@@ -150,6 +150,7 @@ with DAG(
     # [START howto_operator_ecs_run_task]
     run_task = EcsRunTaskOperator(
         task_id="run_task",
+        reattach=True,
         cluster=existing_cluster_name,
         task_definition=register_task.output,
         overrides={
