@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import dataclasses
-import enum
 import functools
 import logging
 import re
@@ -63,6 +62,8 @@ _serializers: dict[str, ModuleType] = {}
 _deserializers: dict[str, ModuleType] = {}
 _stringifiers: dict[str, ModuleType] = {}
 _extra_allowed: set[str] = set()
+
+_primitives_qn = ("builtins.int", "builtins.bool", "builtins.float", "builtins.str")
 
 _primitives = (int, bool, float, str)
 _builtin_collections = (frozenset, list, set, tuple)  # dict is treated specially.
@@ -118,12 +119,11 @@ def serialize(o: object, depth: int = 0) -> U | None:
     if o is None:
         return o
 
-    # primitive types are returned as is
-    if isinstance(o, _primitives):
-        if isinstance(o, enum.Enum):
-            return o.value
+    qn = qualname(o)
 
-        return o
+    # primitive types are returned as is; ignoring return type annotations as we know what we return
+    if qualname(o) in _primitives_qn:
+        return o  # type: ignore[return-value]
 
     if isinstance(o, list):
         return [serialize(d, depth + 1) for d in o]
@@ -135,7 +135,6 @@ def serialize(o: object, depth: int = 0) -> U | None:
         return {str(k): serialize(v, depth + 1) for k, v in o.items()}
 
     cls = type(o)
-    qn = qualname(o)
     classname = None
 
     # Serialize namedtuple like tuples
@@ -145,7 +144,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
         qn = "builtins.tuple"
         classname = qn
 
-    # if there is a builtin serializer available use that
+    # if there is a builtin serializer available, use that
     if qn in _serializers:
         data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
         if is_serialized:
