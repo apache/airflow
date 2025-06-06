@@ -71,7 +71,7 @@ with DAG(
             "retryCount": 3,
             "commitMode": "transactional",
             "notifyOption": "MailOnFailure",
-        }
+        },
     )
     # [END howto_operator_powerbi_refresh_async]
 
