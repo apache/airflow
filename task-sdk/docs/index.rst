@@ -20,7 +20,7 @@ Apache Airflow Task Execution SDK
 
 :any:`DAG` is where to start. :any:`dag`
 
-The Apache Airflow Task Execution SDK(Task SDK) provides Python-native interfaces for defining DAGs (via decorators),
+The Apache Airflow Task Execution SDK(Task SDK) provides Python-native interfaces for defining DAGs,
 executing tasks in isolated subprocesses and interacting with Airflow resources
 (e.g., Connections, Variables, XComs, Metrics, Logs, and OpenLineage events) at runtime.
 It also includes core execution-time components to manage communication between the worker
@@ -61,7 +61,7 @@ become part of the workflow.
 
 Decorators
 ~~~~~~~~~~
-Simplify DAG and task definitions using decorators:
+Simplify task definitions using decorators:
 
 - :func:`@task <airflow.sdk.task>` : define tasks.
 - :func:`@task_group <airflow.sdk.task_group>`: group related tasks into logical units.
@@ -85,7 +85,7 @@ Assets
 Model data as assets and emit them to downstream tasks with the SDK's asset library under
 ``airflow.sdk.definitions.asset``. You can use:
 
-- :func:`@asset <airflow.sdk.asset>`, :class:`AssetAlias <airflow.sdk.AssetAlias>`, etc. (see the **api reference** section below)
+- :func:`@asset <airflow.sdk.asset>`, :class:`~airflow.sdk.AssetAlias`, etc. (see the **api reference** section below)
 
 
 
@@ -109,10 +109,6 @@ In addition to "DAG" and "task"-level decorators, the Task SDK provides:
     - ``OperatorLink``
     - ``Notifier``
     - ``XComArg``
-
-  * **Decorators**:
-    - :func:`@task <airflow.sdk.task>`, :func:`@task_group <airflow.sdk.task_group>`, :func:`@setup <airflow.sdk.setup>`, :func:`@teardown <airflow.sdk.teardown>`
-
 
 Refer to :doc:`api` for the complete reference of all decorators and classes.
 

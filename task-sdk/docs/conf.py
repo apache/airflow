@@ -56,13 +56,6 @@ autoapi_file_patterns = ["*.pyi", "*.py"]
 
 html_theme = "sphinx_airflow_theme"
 
-# Add static path for custom CSS overrides
-html_static_path = [str(CONF_DIR / "_static")]
-
-# Custom CSS files to override default theme spacing
-html_css_files = [
-    "custom.css",
-]
 
 global_substitutions = {
     "experimental": "This is an :ref:`experimental feature <experimental>`.",

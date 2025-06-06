@@ -1194,7 +1194,7 @@ class SelectiveChecks:
             packages.append("helm-chart")
         if any(file.startswith("docker-stack-docs") for file in self._files):
             packages.append("docker-stack")
-        if any(file.startswith("task-sdk/src/") for file in self._files):
+        if any(file.startswith("^task-sdk/src/") for file in self._files):
             packages.append("task-sdk")
         if providers_affected:
             for provider in providers_affected:

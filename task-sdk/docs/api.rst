@@ -23,8 +23,6 @@ This page documents the full public API exposed in Airflow 3.0+ via the Task SDK
 If something is not on this page it is best to assume that it is not part of the public API and use of it is entirely at your own risk
 -- we won't go out of our way break usage of them, but we make no promises either.
 
-.. :py:module: airflow.sdk
-
 Defining DAGs
 -------------
 .. autoapiclass:: airflow.sdk.DAG
@@ -90,7 +88,7 @@ Setting Dependencies
 .. autoapifunction:: airflow.sdk.literal
 
 Edges & Labels
---------------
+~~~~~~~~~~~~~~
 .. autoapiclass:: airflow.sdk.EdgeModifier
 
 .. autoapiclass:: airflow.sdk.Label
