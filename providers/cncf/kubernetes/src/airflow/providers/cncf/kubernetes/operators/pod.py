@@ -576,7 +576,26 @@ class KubernetesPodOperator(BaseOperator):
         if self.reattach_on_restart:
             pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
             if pod:
-                return pod
+                # If pod is terminated then delete the pod an create a new as not possible to get xcom
+                pod_phase = (
+                    pod.status.phase if hasattr(pod, "status") and hasattr(pod.status, "phase") else None
+                )
+                if pod_phase and pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED):
+                    return pod
+
+                self.log.info(
+                    "Found terminated old matching pod %s with labels %s",
+                    pod.metadata.name,
+                    pod.metadata.labels,
+                )
+
+                # if not required to delete the pod then keep old logic and not automatically create new pod
+                deleted_pod = self.process_pod_deletion(pod)
+                if not deleted_pod:
+                    return pod
+
+                self.log.info("Deleted pod to handle rerun and create new pod!")
+
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
         self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
@@ -1067,7 +1086,7 @@ class KubernetesPodOperator(BaseOperator):
         if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
             raise AirflowException("Error while deleting istio-proxy sidecar: %s", output_str)
 
-    def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
+    def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True) -> bool:
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
                 should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
@@ -1080,8 +1099,10 @@ class KubernetesPodOperator(BaseOperator):
                 if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
-                else:
-                    self.log.info("Skipping deleting pod: %s", pod.metadata.name)
+                    return True
+                self.log.info("Skipping deleting pod: %s", pod.metadata.name)
+
+        return False
 
     def _build_find_pod_label_selector(self, context: Context | None = None, *, exclude_checked=True) -> str:
         labels = {
