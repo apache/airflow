@@ -250,7 +250,7 @@ if REMOTE_LOGGING:
             **(
                 {
                     "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
+                    "remote_base": urlsplit(remote_base_log_folder).path,
                     "delete_local_copy": delete_local_copy,
                 }
                 | remote_task_handler_kwargs
