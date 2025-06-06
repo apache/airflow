@@ -19,6 +19,7 @@
   "dagRun_other": "Dag Runs",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
     "githubRepo": "GitHub Repo",
