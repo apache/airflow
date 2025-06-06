@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+import traceback
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
+
+from airflow.configuration import conf
 
 T = TypeVar("T", bound=Exception)
 
@@ -61,12 +64,20 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
     def exception_handler(self, request: Request, exc: IntegrityError):
         """Handle IntegrityError exception."""
         if self._is_dialect_matched(exc):
+            if conf.get("api", "expose_stacktrace") == "True":
+                stacktrace = "\n"
+                for tb in traceback.format_tb(exc.__traceback__):
+                    stacktrace += tb
+            else:
+                stacktrace = "Database Integrity Error - Check logs for more details."
+
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
                     "reason": "Unique constraint violation",
                     "statement": str(exc.statement),
                     "orig_error": str(exc.orig),
+                    "stacktrace": stacktrace,
                 },
             )
 
