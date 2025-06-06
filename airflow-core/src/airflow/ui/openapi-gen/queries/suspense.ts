@@ -5,28 +5,65 @@ import { AssetService, AuthLinksService, BackfillService, ConfigService, Connect
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
-* Get Assets
-* Get assets.
-* @param data The data for the request.
-* @param data.limit
-* @param data.offset
-* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.dagIds
-* @param data.onlyActive
-* @param data.orderBy
-* @returns AssetCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const useAssetServiceGetAssetsSuspense = <TData = Common.AssetServiceGetAssetsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }: {
-  dagIds?: string[];
-  limit?: number;
-  namePattern?: string;
-  offset?: number;
-  onlyActive?: boolean;
-  orderBy?: string;
-  uriPattern?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }, queryKey), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }) as TData, ...options });
+ * Get Assets
+ * Get assets.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagIds
+ * @param data.groupPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.onlyActive
+ * @param data.orderBy
+ * @returns AssetCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetsSuspense = <
+  TData = Common.AssetServiceGetAssetsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagIds,
+    groupPattern,
+    limit,
+    namePattern,
+    offset,
+    onlyActive,
+    orderBy,
+    uriPattern,
+  }: {
+    dagIds?: string[];
+    groupPattern?: string;
+    limit?: number;
+    namePattern?: string;
+    offset?: number;
+    onlyActive?: boolean;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn(
+      { dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, uriPattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getAssets({
+        dagIds,
+        groupPattern,
+        limit,
+        namePattern,
+        offset,
+        onlyActive,
+        orderBy,
+        uriPattern,
+      }) as TData,
+    ...options,
+  });
 /**
 * Get Asset Aliases
 * Get asset aliases.
@@ -1173,16 +1210,34 @@ export const useLoginServiceLogoutSuspense = <TData = Common.LoginServiceLogoutD
 */
 export const useAuthLinksServiceGetAuthMenusSuspense = <TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey), queryFn: () => AuthLinksService.getAuthMenus() as TData, ...options });
 /**
-* Get Dependencies
-* Dependencies graph.
-* @param data The data for the request.
-* @param data.nodeId
-* @returns BaseGraphResponse Successful Response
-* @throws ApiError
-*/
-export const useDependenciesServiceGetDependenciesSuspense = <TData = Common.DependenciesServiceGetDependenciesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ nodeId }: {
-  nodeId?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey), queryFn: () => DependenciesService.getDependencies({ nodeId }) as TData, ...options });
+ * Get Dependencies
+ * Dependencies graph. Supports a single node_id or multiple node_ids separated by commas.
+ * @param data The data for the request.
+ * @param data.nodeId
+ * @param data.nodeIds Comma-separated list of node ids
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const useDependenciesServiceGetDependenciesSuspense = <
+  TData = Common.DependenciesServiceGetDependenciesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    nodeId,
+    nodeIds,
+  }: {
+    nodeId?: string;
+    nodeIds?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId, nodeIds }, queryKey),
+    queryFn: () => DependenciesService.getDependencies({ nodeId, nodeIds }) as TData,
+    ...options,
+  });
 /**
 * Historical Metrics
 * Return cluster activity historical metrics.

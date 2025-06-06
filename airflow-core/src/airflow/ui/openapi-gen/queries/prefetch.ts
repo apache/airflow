@@ -5,28 +5,65 @@ import { AssetService, AuthLinksService, BackfillService, ConfigService, Connect
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
-* Get Assets
-* Get assets.
-* @param data The data for the request.
-* @param data.limit
-* @param data.offset
-* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.dagIds
-* @param data.onlyActive
-* @param data.orderBy
-* @returns AssetCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const prefetchUseAssetServiceGetAssets = (queryClient: QueryClient, { dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }: {
-  dagIds?: string[];
-  limit?: number;
-  namePattern?: string;
-  offset?: number;
-  onlyActive?: boolean;
-  orderBy?: string;
-  uriPattern?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }) });
+ * Get Assets
+ * Get assets.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagIds
+ * @param data.groupPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.onlyActive
+ * @param data.orderBy
+ * @returns AssetCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssets = (
+  queryClient: QueryClient,
+  {
+    dagIds,
+    groupPattern,
+    limit,
+    namePattern,
+    offset,
+    onlyActive,
+    orderBy,
+    uriPattern,
+  }: {
+    dagIds?: string[];
+    groupPattern?: string;
+    limit?: number;
+    namePattern?: string;
+    offset?: number;
+    onlyActive?: boolean;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn({
+      dagIds,
+      groupPattern,
+      limit,
+      namePattern,
+      offset,
+      onlyActive,
+      orderBy,
+      uriPattern,
+    }),
+    queryFn: () =>
+      AssetService.getAssets({
+        dagIds,
+        groupPattern,
+        limit,
+        namePattern,
+        offset,
+        onlyActive,
+        orderBy,
+        uriPattern,
+      }),
+  });
 /**
 * Get Asset Aliases
 * Get asset aliases.
@@ -1173,16 +1210,28 @@ export const prefetchUseLoginServiceLogout = (queryClient: QueryClient, { next }
 */
 export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(), queryFn: () => AuthLinksService.getAuthMenus() });
 /**
-* Get Dependencies
-* Dependencies graph.
-* @param data The data for the request.
-* @param data.nodeId
-* @returns BaseGraphResponse Successful Response
-* @throws ApiError
-*/
-export const prefetchUseDependenciesServiceGetDependencies = (queryClient: QueryClient, { nodeId }: {
-  nodeId?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }), queryFn: () => DependenciesService.getDependencies({ nodeId }) });
+ * Get Dependencies
+ * Dependencies graph. Supports a single node_id or multiple node_ids separated by commas.
+ * @param data The data for the request.
+ * @param data.nodeId
+ * @param data.nodeIds Comma-separated list of node ids
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDependenciesServiceGetDependencies = (
+  queryClient: QueryClient,
+  {
+    nodeId,
+    nodeIds,
+  }: {
+    nodeId?: string;
+    nodeIds?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId, nodeIds }),
+    queryFn: () => DependenciesService.getDependencies({ nodeId, nodeIds }),
+  });
 /**
 * Historical Metrics
 * Return cluster activity historical metrics.

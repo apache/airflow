@@ -676,6 +676,9 @@ QueryAssetAliasNamePatternSearch = Annotated[
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
 ]
+QueryAssetGroupPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(AssetModel.group, "group_pattern"))
+]
 
 # Variables
 QueryVariableKeyPatternSearch = Annotated[

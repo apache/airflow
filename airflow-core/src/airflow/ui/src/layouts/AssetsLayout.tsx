@@ -16,26 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export enum SearchParamsKeys {
-  DEPENDENCIES = "dependencies",
-  END_DATE = "end_date",
-  GROUP_PATTERN = "groupPattern",
-  LAST_DAG_RUN_STATE = "last_dag_run_state",
-  LIMIT = "limit",
-  LOG_LEVEL = "log_level",
-  NAME_PATTERN = "name_pattern",
-  OFFSET = "offset",
-  PAUSED = "paused",
-  POOL = "pool",
-  RUN_TYPE = "run_type",
-  SORT = "sort",
-  SOURCE = "log_source",
-  START_DATE = "start_date",
-  STATE = "state",
-  TAGS = "tags",
-  TAGS_MATCH_MODE = "tags_match_mode",
-  TRY_NUMBER = "try_number",
-  VERSION_NUMBER = "version_number",
-}
+import { Box } from "@chakra-ui/react";
+import type { PropsWithChildren } from "react";
 
-export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
+import { NavTabs } from "./Details/NavTabs";
+
+export const AssetsLayout = ({ children }: PropsWithChildren) => {
+  const tabs = [
+    { label: "Asset List", value: "/assets" },
+    { label: "Grouped by Group", value: "/assets/grouped" },
+  ];
+
+  return (
+    <Box>
+      <NavTabs tabs={tabs} />
+      {children}
+    </Box>
+  );
+};

@@ -6,17 +6,38 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
-export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }: {
-  dagIds?: string[];
-  limit?: number;
-  namePattern?: string;
-  offset?: number;
-  onlyActive?: boolean;
-  orderBy?: string;
-  uriPattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }])];
-export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAliases>>;
-export type AssetServiceGetAssetAliasesQueryResult<TData = AssetServiceGetAssetAliasesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const UseAssetServiceGetAssetsKeyFn = (
+  {
+    dagIds,
+    groupPattern,
+    limit,
+    namePattern,
+    offset,
+    onlyActive,
+    orderBy,
+    uriPattern,
+  }: {
+    dagIds?: string[];
+    groupPattern?: string;
+    limit?: number;
+    namePattern?: string;
+    offset?: number;
+    onlyActive?: boolean;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetsKey,
+  ...(queryKey ?? [{ dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, uriPattern }]),
+];
+export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetAliases>
+>;
+export type AssetServiceGetAssetAliasesQueryResult<
+  TData = AssetServiceGetAssetAliasesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetAliasesKey = "AssetServiceGetAssetAliases";
 export const UseAssetServiceGetAssetAliasesKeyFn = ({ limit, namePattern, offset, orderBy }: {
   limit?: number;
@@ -626,11 +647,23 @@ export const UseAuthLinksServiceGetAuthMenusKeyFn = (queryKey?: Array<unknown>) 
 export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<ReturnType<typeof DependenciesService.getDependencies>>;
 export type DependenciesServiceGetDependenciesQueryResult<TData = DependenciesServiceGetDependenciesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";
-export const UseDependenciesServiceGetDependenciesKeyFn = ({ nodeId }: {
-  nodeId?: string;
-} = {}, queryKey?: Array<unknown>) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId }])];
-export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<ReturnType<typeof DashboardService.historicalMetrics>>;
-export type DashboardServiceHistoricalMetricsQueryResult<TData = DashboardServiceHistoricalMetricsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const UseDependenciesServiceGetDependenciesKeyFn = (
+  {
+    nodeId,
+    nodeIds,
+  }: {
+    nodeId?: string;
+    nodeIds?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId, nodeIds }])];
+export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
+  ReturnType<typeof DashboardService.historicalMetrics>
+>;
+export type DashboardServiceHistoricalMetricsQueryResult<
+  TData = DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
 export const useDashboardServiceHistoricalMetricsKey = "DashboardServiceHistoricalMetrics";
 export const UseDashboardServiceHistoricalMetricsKeyFn = ({ endDate, startDate }: {
   endDate?: string;

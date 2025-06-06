@@ -1337,3 +1337,28 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
             response.json()["detail"]
             == "Queued event with dag_id: `not_exists` and asset_id: `1` was not found"
         )
+
+
+class TestGetAssetsByGroup(TestAssets):
+    @pytest.mark.parametrize(
+        "params, expected_uris",
+        [
+            ({"group_pattern": "finance"}, {"s3://finance/key", "gcs://finance/key"}),
+            ({"group_pattern": "marketing"}, {"s3://marketing/key"}),
+            ({"group_pattern": ""}, {"s3://finance/key", "gcs://finance/key", "s3://marketing/key"}),
+            ({"group_pattern": "nonexistent"}, set()),
+        ],
+    )
+    @provide_session
+    def test_filter_assets_by_group_pattern_works(self, test_client, params, expected_uris, session):
+        asset1 = AssetModel(name="asset1", uri="s3://finance/key", group="finance")
+        asset2 = AssetModel(name="asset2", uri="gcs://finance/key", group="finance")
+        asset3 = AssetModel(name="asset3", uri="s3://marketing/key", group="marketing")
+        session.add_all([asset1, asset2, asset3])
+        session.add_all(AssetActive.for_asset(a) for a in [asset1, asset2, asset3])
+        session.commit()
+
+        response = test_client.get("/assets", params=params)
+        assert response.status_code == 200
+        asset_uris = {asset["uri"] for asset in response.json()["assets"]}
+        assert asset_uris == expected_uris

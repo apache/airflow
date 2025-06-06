@@ -1892,19 +1892,23 @@ export type UIAlert = {
 export type category = 'info' | 'warning' | 'error';
 
 export type GetAssetsData = {
-    dagIds?: Array<(string)>;
-    limit?: number;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    namePattern?: string | null;
-    offset?: number;
-    onlyActive?: boolean;
-    orderBy?: string;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    uriPattern?: string | null;
+  dagIds?: Array<string>;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
+  groupPattern?: string | null;
+  limit?: number;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
+  namePattern?: string | null;
+  offset?: number;
+  onlyActive?: boolean;
+  orderBy?: string;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
+  uriPattern?: string | null;
 };
 
 export type GetAssetsResponse = AssetCollectionResponse;
@@ -2850,7 +2854,11 @@ export type LogoutResponse = unknown;
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type GetDependenciesData = {
-    nodeId?: string | null;
+  nodeId?: string | null;
+  /**
+   * Comma-separated list of node ids
+   */
+  nodeIds?: string | null;
 };
 
 export type GetDependenciesResponse = BaseGraphResponse;

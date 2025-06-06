@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     OptionalDateTimeQuery,
     QueryAssetAliasNamePatternSearch,
     QueryAssetDagIdPatternSearch,
+    QueryAssetGroupPatternSearch,
     QueryAssetNamePatternSearch,
     QueryLimit,
     QueryOffset,
@@ -128,6 +129,7 @@ def get_assets(
     name_pattern: QueryAssetNamePatternSearch,
     uri_pattern: QueryUriPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
+    groupPattern: QueryAssetGroupPatternSearch,
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     order_by: Annotated[
         SortParam,
@@ -170,7 +172,7 @@ def get_assets(
 
     assets_select, total_entries = paginated_select(
         statement=assets_select_statement,
-        filters=[only_active, name_pattern, uri_pattern, dag_ids],
+        filters=[only_active, name_pattern, uri_pattern, dag_ids, groupPattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
