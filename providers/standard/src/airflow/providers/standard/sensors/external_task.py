@@ -428,7 +428,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             dttm_filter = self._get_dttm_filter(context)
             logical_or_execution_dates = (
-                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_date": dttm_filter}
+                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_dates": dttm_filter}
             )
             self.defer(
                 timeout=self.execution_timeout,
