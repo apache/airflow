@@ -143,7 +143,6 @@ class Credentials:
             # This happens when the token is None, which is not allowed by keyring
             if self.api_token is None and self.client_kind == ClientKind.CLI:
                 raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.") from e
-            pass
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
