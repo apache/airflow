@@ -62,6 +62,11 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
 - `Asset Event` --> `Ereignis zu Datenset (Asset)`: Logische Konsequenz der
   Übersetzung von -->"Asset" ohne einen sperrigen Begriff wie
   "Datenssatz-Ereignis" zu erzeugen.
+- `Backfill` --> `Auffüllen`: Der technisch geprägte Term im Programm passt zu
+  dr direkten Übersetzung, auch im Deutschen werden Lücken wieder "aufgefüllt".
+- `Bundle` --> `Bündel`: Die direkte Übersetzung passt zu dem Ziel der
+  Englischen Begriffsdefinition.
+- `Catchup` --> `Nacholung`: Direkte Übersetzung.
 - `Connections` --> `Verbindungen`: Ist zwar ein feststehender Begriff in
   Airflow und ein technisches Konstrukt das im Code zu finden ist, jedoch
   direkt übersetzbar und erschließt sich damit neuen Benutzern direkt.
@@ -81,6 +86,11 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   gibt und der Begriff "Mapping" eigentlich übersetzbar ist - aber in dem
   genutzen Kontext irreführend wäre, wurde hier auf die Task-Planung verwiesen
   in der ein Task aufgeplant wird.
+- `Operator` --> `Operator`: Da es sich hier um den vor allem Mathematisch-
+  Technischen Begriff der Implemtentierung geht, passt dieser Begriff am
+  ehesten. Alternativen wie "Betreiber-Implementierung" sind sehr sperrig.
+  Wir nutzen weiter den Begriff weil er im Programmcode sich auch so
+  wiederfindet.
 - `Plugins` --> `Plug-ins`: Nach Duden empfohlen.
 - `Pools` (Unübersetzt): Der Englische Term ist so im Deutschen direkt
   verständlich. Ein präzise Übersetzung als "Ressourcen-Pool" wäre zu sperrig
@@ -101,6 +111,9 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   starten. Von allen Optionen der am ehesten passende Begriff auch wenn es eine
   direkte Nutzung des Begriffs "Triggern" im Deutschen gibt. In der Nutzung im
   UI ist der Begriff "Anstoßen" inhaltlich passender.
+- `Trigger Rule` --> `Auslöse-Regel`: Im Ablauf eines Dag geht es für den
+  Begriff um den Punkt und die Regel zu dem ein abhängiger Task gestartet
+  werden kann.
 - `Try Number` --> `Versuch Nummer`: Direkt Übersetzung ist passend.
 
 (Andere klassische Begriffsübersetzungen nicht im Einzelnen aufgeführt)

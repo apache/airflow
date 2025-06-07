@@ -24,7 +24,7 @@
       "dagId": "Dag ID",
       "lastDagRun": "Letzter Dag Lauf",
       "nextDagRun": "Nächster Dag Lauf",
-      "schedule": "Planung",
+      "schedule": "Zeitplan",
       "tags": "Markierungen"
     },
     "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
@@ -101,7 +101,7 @@
       "dagVersions": "Dag Version",
       "duration": "Laufzeit",
       "endDate": "Enddatum",
-      "runAfter": "Gelaufen nach",
+      "runAfter": "Gelaufen ab",
       "runType": "Typ des Laufs",
       "startDate": "Startdatum",
       "state": "Status"
