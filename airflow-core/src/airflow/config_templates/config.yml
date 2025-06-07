@@ -1321,6 +1321,12 @@ api:
       type: string
       example: ~
       default: "False"
+    expose_stacktrace:
+      description: Expose stacktrace in the web server
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
