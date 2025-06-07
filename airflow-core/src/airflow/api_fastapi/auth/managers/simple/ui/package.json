@@ -15,8 +15,8 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.19.2",
-    "@tanstack/react-query": "^5.80.3",
+    "@chakra-ui/react": "^3.20.0",
+    "@tanstack/react-query": "^5.80.6",
     "axios": "^1.9.0",
     "next-themes": "^0.4.6",
     "react": "^19.1.0",
@@ -51,6 +51,6 @@
     "typescript-eslint": "^8.33.1",
     "vite": "^6.3.5",
     "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vitest": "^3.2.1"
+    "vitest": "^3.2.2"
   }
 }
