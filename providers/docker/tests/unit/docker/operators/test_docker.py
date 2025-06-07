@@ -259,7 +259,6 @@ class TestDockerOperator:
         assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
         stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
-
         stringio_patcher.stop()
 
     def test_execute_no_temp_dir(self):
@@ -466,7 +465,7 @@ class TestDockerOperator:
         self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with("some_id")
         assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
-        stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
+        stringio_mock.assert_called_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
 

@@ -519,6 +519,7 @@ class DockerOperator(BaseOperator):
     def unpack_environment_variables(env_str: str) -> dict:
         r"""
         Parse environment variables from the string.
+
         :param env_str: environment variables in the ``{key}={value}`` format,
             separated by a ``\n`` (newline)
         :return: dictionary containing parsed environment variables
