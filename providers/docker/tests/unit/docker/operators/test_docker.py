@@ -178,7 +178,7 @@ class TestDockerOperator:
         self.tempdir_patcher.stop()
         self.dotenv_patcher.stop()
 
-    def test_execute(self):
+    def test_execute(self, env_file):
         stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
         stringio_mock = stringio_patcher.start()
         stringio_mock.side_effect = lambda *args: args[0]
@@ -188,7 +188,7 @@ class TestDockerOperator:
             command="env",
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
-            env_file="ENV=FILE\nVAR=VALUE",
+            env_file=env_file,
             image=TEST_IMAGE,
             network_mode="bridge",
             owner="unittest",
@@ -261,7 +261,7 @@ class TestDockerOperator:
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
 
-    def test_execute_no_temp_dir(self):
+    def test_execute_no_temp_dir(self, env_file):
         stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
         stringio_mock = stringio_patcher.start()
         stringio_mock.side_effect = lambda *args: args[0]
@@ -271,7 +271,7 @@ class TestDockerOperator:
             command="env",
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
-            env_file="ENV=FILE\nVAR=VALUE",
+            env_file=env_file,
             image=TEST_IMAGE,
             network_mode="bridge",
             owner="unittest",
@@ -334,7 +334,7 @@ class TestDockerOperator:
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
 
-    def test_execute_fallback_temp_dir(self, caplog):
+    def test_execute_fallback_temp_dir(self, caplog, env_file):
         self.client_mock.create_container.side_effect = [
             APIError(message=f"wrong path: {TEMPDIR_MOCK_RETURN_VALUE}"),
             {"Id": "some_id"},
@@ -349,7 +349,7 @@ class TestDockerOperator:
             command="env",
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
-            env_file="ENV=FILE\nVAR=VALUE",
+            env_file=env_file,
             image=TEST_IMAGE,
             network_mode="bridge",
             owner="unittest",
@@ -478,13 +478,13 @@ class TestDockerOperator:
         )
 
     @mock.patch("airflow.providers.docker.operators.docker.StringIO")
-    def test_environment_overrides_env_file(self, stringio_mock):
+    def test_environment_overrides_env_file(self, stringio_mock, env_file):
         stringio_mock.side_effect = lambda *args: args[0]
         operator = DockerOperator(
             command="env",
-            environment={"UNIT": "TEST"},
-            private_environment={"PRIVATE": "MESSAGE"},
-            env_file="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE",
+            environment={"ENV": "TEST"},
+            private_environment={"VAR": "MESSAGE"},
+            env_file=env_file,
             image=TEST_IMAGE,
             task_id="unittest",
             entrypoint=TEST_ENTRYPOINT,
@@ -500,9 +500,8 @@ class TestDockerOperator:
             name="test_container",
             environment={
                 "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
-                "UNIT": "TEST",
-                "PRIVATE": "MESSAGE",
-                "VAR": "VALUE",
+                "ENV": "TEST",
+                "VAR": "MESSAGE",
             },
             host_config=self.client_mock.create_host_config.return_value,
             image=TEST_IMAGE,
@@ -514,8 +513,8 @@ class TestDockerOperator:
             ports=[],
             labels=None,
         )
-        stringio_mock.assert_called_once_with("UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
-        self.dotenv_mock.assert_called_once_with(stream="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
+        stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
+        self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
 
     def test_execute_unicode_logs(self):
         self.client_mock.attach.return_value = ["unicode container log 😁"]

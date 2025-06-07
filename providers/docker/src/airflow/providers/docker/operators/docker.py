@@ -218,7 +218,7 @@ class DockerOperator(BaseOperator):
         docker_url: str | list[str] | None = None,
         environment: dict | None = None,
         private_environment: dict | None = None,
-        env_file: str | None = None,
+        env_file: str | os.PathLike[str] | None = None,
         force_pull: bool = False,
         mem_limit: float | str | None = None,
         host_tmp_dir: str | None = None,
@@ -380,7 +380,7 @@ class DockerOperator(BaseOperator):
             docker_log_config["max-file"] = self.log_opts_max_file
         env_file_vars = {}
         if self.env_file is not None:
-            env_file_vars = self.unpack_environment_variables(self.env_file)
+            env_file_vars = self.load_environment_variables(self.env_file)
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
@@ -525,3 +525,9 @@ class DockerOperator(BaseOperator):
         :return: dictionary containing parsed environment variables
         """
         return dotenv_values(stream=StringIO(env_str))
+
+    @staticmethod
+    def load_environment_variables(env_file: str | os.PathLike[str]) -> dict:
+        with open(env_file, encoding="utf-8") as stream:
+            env_str = "".join(stream.readlines()).strip()
+            return DockerOperator.unpack_environment_variables(env_str)

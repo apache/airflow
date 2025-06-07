@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from contextlib import AbstractContextManager, contextmanager
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -65,3 +66,11 @@ def docker_hook_patcher():
 
     with _mocker_context(DockerHook, ["airflow.providers.docker.operators.docker"]) as m:
         yield m
+
+
+@pytest.fixture(scope="package")
+def env_file():
+    env_file = Path(__file__).parent / ".env"
+    env_file.write_text("ENV=FILE\nVAR=VALUE")
+    yield env_file
+    env_file.unlink(missing_ok=True)
