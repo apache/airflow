@@ -126,7 +126,6 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.docs_publisher import DocsPublisher
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -1684,6 +1683,8 @@ def run_docs_publishing(
     verbose: bool,
     output: Output | None,
 ) -> tuple[int, str]:
+    from airflow_breeze.utils.docs_publisher import DocsPublisher
+
     builder = DocsPublisher(package_name=package_name, output=output, verbose=verbose)
     return builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
 
@@ -3944,3 +3945,11 @@ def publish_docs_to_s3(
         docs_to_s3.publish_all_docs()
     if stable_versions:
         docs_to_s3.publish_stable_version_docs()
+    from airflow_breeze.utils.publish_docs_to_s3 import version_error
+
+    if version_error:
+        get_console().print(
+            "[error]There was an error with the version of the docs. "
+            "Please check the version in the docs and try again.[/]"
+        )
+        sys.exit(1)
