@@ -626,6 +626,7 @@ export type DAGRunResponse = {
   queued_at: string | null;
   start_date: string | null;
   end_date: string | null;
+  duration: number | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
   run_after: string;
