@@ -44,7 +44,7 @@
     "lasttaskInstance_one": "Letzte Task Instanz",
     "lasttaskInstance_other": "Letzte {{count}} Task Instanzen",
     "queuedDuration": "Zeit in der Warteschlange",
-    "runAfter": "Lauf nach",
+    "runAfter": "Lauf ab",
     "runDuration": "Laufzeit"
   },
   "fileUpload": {
