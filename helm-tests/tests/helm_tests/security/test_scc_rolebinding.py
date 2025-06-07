@@ -40,6 +40,7 @@ class TestSCCActivation:
                 "webserver": {"defaultUser": {"enabled": True}},
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
+                "dagProcessor":{"enabled:":False},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
@@ -60,6 +61,30 @@ class TestSCCActivation:
             assert jmespath.search("subjects[6].name", docs[0]) == "release-name-airflow-migrate-database-job"
             assert jmespath.search("subjects[7].name", docs[0]) == "release-name-airflow-create-user-job"
             assert jmespath.search("subjects[8].name", docs[0]) == "release-name-airflow-cleanup"
+
+    @pytest.mark.parametrize(
+        "dag_processor_enabled",
+        [
+            (True),
+            (False),
+        ],
+    )
+    def test_scc_subjects_include_dag_processor(self, dag_processor_enabled):
+        docs = render_chart(
+            values={
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "multiNamespaceMode": False,
+                "webserver": {"defaultUser": {"enabled": True}},
+                "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
+                "dagProcessor": {"enabled": dag_processor_enabled},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+        assert jmespath.search("kind", docs[0]) == "RoleBinding"
+        if dag_processor_enabled:
+            assert jmespath.search("subjects[9].name", docs[0]) == "release-name-dag_processor"
+
 
     @pytest.mark.parametrize(
         "rbac_enabled,scc_enabled,created,namespace,expected_name",
