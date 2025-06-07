@@ -150,6 +150,7 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
         "note": None,
         "run_type": "manual",
         "start_date": None,
+        "deadlines": [],
         "state": "queued",
         "triggered_by": "cli",
         "run_after": "2025-02-12T19:27:59.066046Z",
