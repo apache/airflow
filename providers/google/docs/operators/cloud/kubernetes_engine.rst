@@ -70,6 +70,18 @@ lot less resources wasted on idle Operators or Sensors:
     :start-after: [START howto_operator_gke_create_cluster_async]
     :end-before: [END howto_operator_gke_create_cluster_async]
 
+Create GKE cluster with Ray enabled
+'''''''''''''''''''''''''''''''''''
+
+`Ray <https://docs.ray.io/en/latest/ray-overview/index.html>`__ is an open source framework to build and scale ML and Python applications.
+
+Here is an example of a cluster definition with Ray enabled:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_ray.py
+    :language: python
+    :start-after: [START howto_operator_gcp_gke_create_cluster_definition_with_ray]
+    :end-before: [END howto_operator_gcp_gke_create_cluster_definition_with_ray]
+
 
 .. _howto/operator:GKEStartKueueInsideClusterOperator:
 
