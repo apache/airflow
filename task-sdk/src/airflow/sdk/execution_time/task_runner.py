@@ -143,6 +143,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     log_url: str | None = None
 
+    mark_success_url: str | None = None
+
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -735,6 +737,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
             ti = parse(msg, log)
             ti.log_url = get_log_url_from_ti(ti)
+            ti.mark_success_url = ti.log_url
         log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
