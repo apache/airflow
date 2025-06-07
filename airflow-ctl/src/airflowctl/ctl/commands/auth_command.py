@@ -38,10 +38,12 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             api_url=args.api_url,
             api_token="",
             api_environment=args.env,
+            client_kind=ClientKind.AUTH,
         )
         # After logging in, the token will be saved in the credentials file
         try:
             credentials.save()
+            api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.AUTH)
             login_response = api_client.login.login_with_username_and_password(
                 LoginBody(
                     username=args.username,

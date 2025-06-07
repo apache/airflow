@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
 import httpx
 import keyring
 import structlog
+from httpx import URL
 from keyring.errors import NoKeyringError
 from platformdirs import user_config_path
 from uuid6 import uuid7
@@ -48,7 +49,11 @@ from airflowctl.api.operations import (
     VariablesOperations,
     VersionOperations,
 )
-from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlNotFoundException
+from airflowctl.exceptions import (
+    AirflowCtlCredentialNotFoundException,
+    AirflowCtlException,
+    AirflowCtlNotFoundException,
+)
 from airflowctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
@@ -134,23 +139,30 @@ class Credentials:
             keyring.set_password("airflowctl", f"api_token-{self.api_environment}", self.api_token)
         except NoKeyringError as e:
             log.error(e)
+        except TypeError as e:
+            # This happens when the token is None, which is not allowed by keyring
+            if self.api_token is None and self.client_kind == ClientKind.CLI:
+                raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.") from e
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
         default_config_dir = user_config_path("airflow", "Apache Software Foundation")
         credential_path = os.path.join(default_config_dir, self.input_cli_config_file)
-        if os.path.exists(credential_path):
-            try:
-                with open(credential_path) as f:
-                    credentials = json.load(f)
-                    self.api_url = credentials["api_url"]
-                    self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
-            except FileNotFoundError:
-                if self.client_kind == ClientKind.AUTH:
-                    # Saving the URL set from the Auth Commands if Kind is AUTH
-                    self.save()
-            return self
-        raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
+        try:
+            with open(credential_path) as f:
+                credentials = json.load(f)
+                self.api_url = credentials["api_url"]
+                self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
+        except FileNotFoundError:
+            if self.client_kind == ClientKind.AUTH:
+                # Saving the URL set from the Auth Commands if Kind is AUTH
+                self.save()
+            elif self.client_kind == ClientKind.CLI:
+                raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
+            else:
+                raise AirflowCtlException(f"Unknown client kind: {self.client_kind}")
+
+        return self
 
 
 class BearerAuth(httpx.Auth):
@@ -175,10 +187,7 @@ class Client(httpx.Client):
         **kwargs: Any,
     ) -> None:
         auth = BearerAuth(token)
-        if kind == ClientKind.AUTH:
-            kwargs["base_url"] = f"{base_url}/auth"
-        else:
-            kwargs["base_url"] = f"{base_url}/api/v2"
+        kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
@@ -186,6 +195,21 @@ class Client(httpx.Client):
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )
+
+    def refresh_base_url(
+        self, base_url: str, kind: Literal[ClientKind.AUTH, ClientKind.CLI] = ClientKind.CLI
+    ):
+        """Refresh the base URL of the client."""
+        self.base_url = URL(self._get_base_url(base_url=base_url, kind=kind))
+
+    @classmethod
+    def _get_base_url(
+        cls, base_url: str, kind: Literal[ClientKind.AUTH, ClientKind.CLI] = ClientKind.CLI
+    ) -> str:
+        """Get the base URL of the client."""
+        if kind == ClientKind.AUTH:
+            return f"{base_url}/auth"
+        return f"{base_url}/api/v2"
 
     @lru_cache()  # type: ignore[misc]
     @property
