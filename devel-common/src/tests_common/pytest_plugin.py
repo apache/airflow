@@ -911,12 +911,18 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from sqlalchemy import select
 
             from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-            from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+            from airflow.models.asset import (
+                AssetModel,
+                DagScheduleAssetReference,
+                TaskInletAssetReference,
+                TaskOutletAssetReference,
+            )
 
             assets = self.session.scalars(
                 select(AssetModel).where(
-                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
+                    AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
                     | AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id)
+                    | AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id == self.dag.dag_id)
                 )
             ).all()
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
