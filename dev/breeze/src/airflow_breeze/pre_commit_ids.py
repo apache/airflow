@@ -109,6 +109,7 @@ PRE_COMMIT_LIST = [
     "generate-pypi-readme",
     "generate-tasksdk-datamodels",
     "generate-volumes-for-sources",
+    "go-mockery",
     "gofmt",
     "identity",
     "insert-license",
