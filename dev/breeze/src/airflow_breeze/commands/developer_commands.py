@@ -35,6 +35,7 @@ from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
     option_all_integration,
+    option_allow_pre_releases,
     option_answer,
     option_backend,
     option_builder,
@@ -329,6 +330,7 @@ option_load_default_connections = click.option(
 @option_standalone_dag_processor
 @option_upgrade_boto
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_uv
 @option_uv_http_timeout
@@ -386,6 +388,7 @@ def shell(
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
+    allow_pre_releases: bool,
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
@@ -409,6 +412,7 @@ def shell(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -536,6 +540,7 @@ option_auth_manager_start_airflow = click.option(
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
 def start_airflow(
@@ -544,6 +549,7 @@ def start_airflow(
     airflow_constraints_reference: str,
     airflow_extras: str,
     airflow_skip_constraints: bool,
+    allow_pre_releases: bool,
     auth_manager: str,
     backend: str,
     builder: str,
@@ -614,6 +620,7 @@ def start_airflow(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         auth_manager=auth_manager,
         backend=backend,
         builder=builder,

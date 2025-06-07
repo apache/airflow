@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -212,6 +213,7 @@ class InstallationSpec(NamedTuple):
     airflow_ctl_constraints_location: str | None
     provider_distributions: list[str]
     provider_constraints_location: str | None
+    pre_release: bool = os.environ.get("ALLOW_PRE_RELEASES", "false").lower() == "true"
 
 
 ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
@@ -247,6 +249,7 @@ def find_installation_spec(
         )
         sys.exit(1)
     extension = "whl" if distribution_format == "wheel" else "tar.gz"
+    pre_release = os.environ.get("ALLOW_PRE_RELEASES", "false").lower() == "true"
     if airflow_extras:
         console.print(f"[bright_blue]Using airflow extras: {airflow_extras}")
         airflow_extras = f"[{airflow_extras}]"
@@ -399,6 +402,18 @@ def find_installation_spec(
         )
         airflow_ctl_distribution = None
         airflow_ctl_constraints_location = None
+        try:
+            from packaging.version import Version
+
+            if Version(use_airflow_version).is_prerelease:
+                console.print(
+                    f"[yellow]Forcing pre-release installation for pre-release "
+                    f"airflow version {use_airflow_version}"
+                )
+                pre_release = True
+        except Exception:
+            # In case parsing version fails here we just skip setting pre-release
+            pass
     provider_distributions_list = []
     if use_distributions_from_dist:
         selected_providers_list = install_selected_providers.split(",") if install_selected_providers else []
@@ -425,6 +440,7 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         ),
+        pre_release=pre_release,
     )
 
 
@@ -621,8 +637,10 @@ def install_airflow_and_providers(
             "/usr/local/bin/uv",
             "pip",
             "install",
-            installation_spec.airflow_distribution,
         ]
+        if installation_spec.pre_release:
+            base_install_airflow_cmd.append("--pre")
+        base_install_airflow_cmd.append(installation_spec.airflow_distribution)
         console.print(
             f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} with constraints"
         )
@@ -705,6 +723,8 @@ def install_airflow_and_providers(
             "pip",
             "install",
         ]
+        if installation_spec.pre_release:
+            base_install_providers_cmd.append("--pre")
         if not install_airflow_with_constraints and installation_spec.airflow_distribution:
             console.print(
                 f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} without constraints"
