@@ -17,30 +17,20 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
-CONTAINER_LIFECYCLE_PARAMETERS = {
-    "preStop": {
-        "release_name": "test-release",
-        "lifecycle_templated": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}},
-        "lifecycle_parsed": {"exec": {"command": ["echo", "preStop", "test-release"]}},
-    },
-    "postStart": {
-        "release_name": "test-release",
-        "lifecycle_templated": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}},
-        "lifecycle_parsed": {"exec": {"command": ["echo", "preStop", "test-release"]}},
-    },
-}
+HOOK_TYPE = "preStop"
+LIFECYCLE_PARSED = {"exec": {"command": ["echo", HOOK_TYPE, "release-name"]}}
+LIFECYCLE_CONFIG = {HOOK_TYPE: {"exec": {"command": ["echo", HOOK_TYPE, "{{ .Release.Name }}"]}}}
 
 
 class TestContainerLifecycleHooks:
     """Tests container lifecycle hooks."""
 
     # Test container lifecycle hooks default setting
-    def test_check_default_setting(self, hook_type="preStop"):
-        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
+    def test_check_default_setting(self):
         docs = render_chart(
-            name=lifecycle_hook_params["release_name"],
             values={
                 "webserver": {"defaultUser": {"enabled": True}},
                 "flower": {"enabled": True},
@@ -74,12 +64,10 @@ class TestContainerLifecycleHooks:
         assert jmespath.search("spec.template.spec.containers[0].lifecycle.postStart", docs[-1]) is None
 
     # Test Global container lifecycle hooks for the main services
-    def test_global_setting(self, hook_type="preStop"):
-        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
+    def test_global_setting(self):
         docs = render_chart(
-            name=lifecycle_hook_params["release_name"],
             values={
-                "containerLifecycleHooks": {hook_type: lifecycle_hook_params["lifecycle_templated"]},
+                "containerLifecycleHooks": LIFECYCLE_CONFIG,
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
@@ -93,18 +81,16 @@ class TestContainerLifecycleHooks:
         )
 
         for doc in docs:
-            assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
-                f"spec.template.spec.containers[0].lifecycle.{hook_type}", doc
+            assert (
+                jmespath.search(f"spec.template.spec.containers[0].lifecycle.{HOOK_TYPE}", doc)
+                == LIFECYCLE_PARSED
             )
 
     # Test Global container lifecycle hooks for the main services
-    def test_global_setting_external(self, hook_type="preStop"):
-        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
-        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
+    def test_global_setting_external(self):
         docs = render_chart(
-            name=lifecycle_hook_params["release_name"],
             values={
-                "containerLifecycleHooks": lifecycle_hooks_config,
+                "containerLifecycleHooks": LIFECYCLE_CONFIG,
             },
             show_only=[
                 "templates/statsd/statsd-deployment.yaml",
@@ -114,40 +100,33 @@ class TestContainerLifecycleHooks:
         )
 
         for doc in docs:
-            assert lifecycle_hook_params["lifecycle_parsed"] != jmespath.search(
-                "spec.template.spec.containers[0].lifecycle", doc
-            )
+            assert jmespath.search("spec.template.spec.containers[0].lifecycle", doc) != LIFECYCLE_PARSED
 
     # <local>.containerLifecycleWebhooks > containerLifecycleWebhooks
-    def test_check_main_container_setting(self, hook_type="preStop"):
-        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
-        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
+    def test_check_main_container_setting(self):
         docs = render_chart(
-            name=lifecycle_hook_params["release_name"],
             values={
-                "containerLifecycleHooks": lifecycle_hooks_config,
-                "flower": {"containerLifecycleHooks": lifecycle_hooks_config},
-                "scheduler": {"containerLifecycleHooks": lifecycle_hooks_config},
-                "webserver": {"containerLifecycleHooks": lifecycle_hooks_config},
-                "workers": {"containerLifecycleHooks": lifecycle_hooks_config},
-                "migrateDatabaseJob": {"containerLifecycleHooks": lifecycle_hooks_config},
-                "triggerer": {"containerLifecycleHooks": lifecycle_hooks_config},
-                "redis": {"containerLifecycleHooks": lifecycle_hooks_config},
-                "statsd": {"containerLifecycleHooks": lifecycle_hooks_config},
+                "containerLifecycleHooks": LIFECYCLE_CONFIG,
+                "flower": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
+                "scheduler": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
+                "webserver": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
+                "migrateDatabaseJob": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
+                "triggerer": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
+                "redis": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
+                "statsd": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
                 "pgbouncer": {
                     "enabled": True,
-                    "containerLifecycleHooks": lifecycle_hooks_config,
+                    "containerLifecycleHooks": LIFECYCLE_CONFIG,
                 },
                 "dagProcessor": {
                     "enabled": True,
-                    "containerLifecycleHooks": lifecycle_hooks_config,
+                    "containerLifecycleHooks": LIFECYCLE_CONFIG,
                 },
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
@@ -159,59 +138,107 @@ class TestContainerLifecycleHooks:
         )
 
         for doc in docs:
-            assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
-                f"spec.template.spec.containers[0].lifecycle.{hook_type}", doc
+            assert (
+                jmespath.search(f"spec.template.spec.containers[0].lifecycle.{HOOK_TYPE}", doc)
+                == LIFECYCLE_PARSED
+            )
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"containerLifecycleHooks": LIFECYCLE_CONFIG},
+            {"celery": {"containerLifecycleHooks": LIFECYCLE_CONFIG}},
+            {
+                "containerLifecycleHooks": {HOOK_TYPE: {"exec": {"command": ["echo", "preStop", "release"]}}},
+                "celery": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
+            },
+        ],
+    )
+    def test_check_main_container_setting_workers(self, workers_values):
+        docs = render_chart(
+            values={
+                "containerLifecycleHooks": LIFECYCLE_CONFIG,
+                "workers": workers_values,
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert (
+                jmespath.search(f"spec.template.spec.containers[0].lifecycle.{HOOK_TYPE}", doc)
+                == LIFECYCLE_PARSED
             )
 
     # Test container lifecycle hooks for metrics-explorer main container
-    def test_metrics_explorer_container_setting(self, hook_type="preStop"):
-        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
-        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
+    def test_metrics_explorer_container_setting(self):
         docs = render_chart(
-            name=lifecycle_hook_params["release_name"],
             values={
                 "pgbouncer": {
                     "enabled": True,
-                    "metricsExporterSidecar": {"containerLifecycleHooks": lifecycle_hooks_config},
+                    "metricsExporterSidecar": {"containerLifecycleHooks": LIFECYCLE_CONFIG},
                 },
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
-            f"spec.template.spec.containers[1].lifecycle.{hook_type}", docs[0]
+        assert (
+            jmespath.search(f"spec.template.spec.containers[1].lifecycle.{HOOK_TYPE}", docs[0])
+            == LIFECYCLE_PARSED
         )
 
     # Test container lifecycle hooks for worker-kerberos main container
-    def test_worker_kerberos_container_setting(self, hook_type="preStop"):
-        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
-        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
-        docs = render_chart(
-            name=lifecycle_hook_params["release_name"],
-            values={
-                "workers": {
-                    "kerberosSidecar": {
-                        "enabled": True,
-                        "containerLifecycleHooks": lifecycle_hooks_config,
-                    }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True, "containerLifecycleHooks": LIFECYCLE_CONFIG}},
+            {"celery": {"kerberosSidecar": {"enabled": True, "containerLifecycleHooks": LIFECYCLE_CONFIG}}},
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "containerLifecycleHooks": {
+                        HOOK_TYPE: {"exec": {"command": ["echo", "preStop", "release"]}}
+                    },
                 },
+                "celery": {"kerberosSidecar": {"enabled": True, "containerLifecycleHooks": LIFECYCLE_CONFIG}},
+            },
+        ],
+    )
+    def test_worker_kerberos_container_setting(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
-            f"spec.template.spec.containers[2].lifecycle.{hook_type}", docs[0]
+        assert (
+            jmespath.search(f"spec.template.spec.containers[2].lifecycle.{HOOK_TYPE}", docs[0])
+            == LIFECYCLE_PARSED
         )
 
     # Test container lifecycle hooks for log-groomer-sidecar main container
-    def test_log_groomer_sidecar_container_setting(self, hook_type="preStop"):
-        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
-        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"logGroomerSidecar": {"containerLifecycleHooks": LIFECYCLE_CONFIG}},
+            {"celery": {"logGroomerSidecar": {"containerLifecycleHooks": LIFECYCLE_CONFIG}}},
+            {
+                "logGroomerSidecar": {
+                    "containerLifecycleHooks": {
+                        HOOK_TYPE: {"exec": {"command": ["echo", "preStop", "release"]}}
+                    }
+                },
+                "celery": {"logGroomerSidecar": {"containerLifecycleHooks": LIFECYCLE_CONFIG}},
+            },
+        ],
+    )
+    def test_log_groomer_sidecar_container_setting(self, workers_values):
         docs = render_chart(
-            name=lifecycle_hook_params["release_name"],
             values={
-                "scheduler": {"logGroomerSidecar": {"containerLifecycleHooks": lifecycle_hooks_config}},
-                "workers": {"logGroomerSidecar": {"containerLifecycleHooks": lifecycle_hooks_config}},
+                "scheduler": {"logGroomerSidecar": {"containerLifecycleHooks": LIFECYCLE_CONFIG}},
+                "workers": workers_values,
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -220,6 +247,7 @@ class TestContainerLifecycleHooks:
         )
 
         for doc in docs:
-            assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
-                f"spec.template.spec.containers[1].lifecycle.{hook_type}", doc
+            assert (
+                jmespath.search(f"spec.template.spec.containers[1].lifecycle.{HOOK_TYPE}", doc)
+                == LIFECYCLE_PARSED
             )

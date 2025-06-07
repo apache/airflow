@@ -139,7 +139,14 @@ class TestRBAC:
         return tuples
 
     @parametrize_version
-    def test_deployments_no_rbac_no_sa(self, version):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": False}},
+            {"celery": {"serviceAccount": {"create": False}}},
+        ],
+    )
+    def test_deployments_no_rbac_no_sa(self, version, workers_values):
         k8s_objects = render_chart(
             "test-rbac",
             values=self._get_values_with_version(
@@ -163,7 +170,7 @@ class TestRBAC:
                     "dagProcessor": {"serviceAccount": {"create": False}},
                     "webserver": {"serviceAccount": {"create": False}},
                     "apiServer": {"serviceAccount": {"create": False}},
-                    "workers": {"serviceAccount": {"create": False}},
+                    "workers": workers_values,
                     "triggerer": {"serviceAccount": {"create": False}},
                     "statsd": {"serviceAccount": {"create": False}},
                     "createUserJob": {"serviceAccount": {"create": False}},
@@ -200,7 +207,14 @@ class TestRBAC:
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
     @parametrize_version
-    def test_deployments_with_rbac_no_sa(self, version):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": False}},
+            {"celery": {"serviceAccount": {"create": False}}},
+        ],
+    )
+    def test_deployments_with_rbac_no_sa(self, version, workers_values):
         k8s_objects = render_chart(
             "test-rbac",
             values=self._get_values_with_version(
@@ -216,7 +230,7 @@ class TestRBAC:
                     "dagProcessor": {"serviceAccount": {"create": False}},
                     "webserver": {"serviceAccount": {"create": False}},
                     "apiServer": {"serviceAccount": {"create": False}},
-                    "workers": {"serviceAccount": {"create": False}},
+                    "workers": workers_values,
                     "triggerer": {"serviceAccount": {"create": False}},
                     "flower": {"enabled": True, "serviceAccount": {"create": False}},
                     "statsd": {"serviceAccount": {"create": False}},
@@ -261,7 +275,15 @@ class TestRBAC:
         )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    def test_service_account_custom_names(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+            {"celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
+            {"serviceAccount": {"name": "test"}, "celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
+        ],
+    )
+    def test_service_account_custom_names(self, workers_values):
         k8s_objects = render_chart(
             "test-rbac",
             values={
@@ -276,7 +298,7 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
-                "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                "workers": workers_values,
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
@@ -312,7 +334,15 @@ class TestRBAC:
         sa_name = jmespath.search("metadata.name", k8s_objects[0])
         assert sa_name == CUSTOM_WEBSERVER_NAME
 
-    def test_service_account_custom_names_in_objects(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+            {"celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
+            {"serviceAccount": {"name": "test"}, "celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
+        ],
+    )
+    def test_service_account_custom_names_in_objects(self, workers_values):
         k8s_objects = render_chart(
             "test-rbac",
             values={
@@ -327,7 +357,7 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
-                "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                "workers": workers_values,
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
