@@ -20,13 +20,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import (
     EmrStartNotebookExecutionOperator,
     EmrStopNotebookExecutionOperator,
 )
 from airflow.providers.amazon.aws.sensors.emr import EmrNotebookExecutionSensor
+from airflow.sdk import DAG, chain
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
