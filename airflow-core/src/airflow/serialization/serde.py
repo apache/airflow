@@ -22,6 +22,7 @@ import functools
 import logging
 import re
 import sys
+from enum import Enum
 from fnmatch import fnmatch
 from importlib import import_module
 from re import Pattern
@@ -133,6 +134,11 @@ def serialize(o: object, depth: int = 0) -> U | None:
             raise AttributeError(f"reserved key {CLASSNAME} or {SCHEMA_ID} found in dict to serialize")
 
         return {str(k): serialize(v, depth + 1) for k, v in o.items()}
+
+    # Enums are serialized as their value. While this breaks
+    # the type information, it is the only way to serialize them at the moment.
+    if isinstance(o, Enum) and isinstance(o, _primitives):
+        return o.value
 
     cls = type(o)
     classname = None
