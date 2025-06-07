@@ -64,7 +64,7 @@ def upgrade():
         batch_op.add_column(sa.Column("bundle_name", StringID()))
         batch_op.add_column(sa.Column("bundle_version", StringID()))
     # delete import_error table rows
-    op.get_bind().execute("DELETE FROM import_error")
+    op.get_bind().execute(sa.text("DELETE FROM import_error"))
 
 
 def downgrade():
