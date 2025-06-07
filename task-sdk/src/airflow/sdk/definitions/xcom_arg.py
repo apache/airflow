@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
-import contextlib
 import inspect
 import itertools
+from abc import ABCMeta, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence, Sized
+from contextlib import suppress
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Callable, overload
+from typing import TYPE_CHECKING, Any, Callable, overload, _T_co
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
 # the user, but deserialize them into strings in a serialized XComArg for
 # safety (those callables are arbitrary user code).
 MapCallables = Sequence[Callable[[Any], Any]]
+FilterCallables = Sequence[Callable[[Any], bool]]
 
 
 class XComArg(ResolveMixin, DependencyMixin):
@@ -174,6 +176,9 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def concat(self, *others: XComArg) -> ConcatXComArg:
         return ConcatXComArg([self, *others])
+
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
+        return FilterXComArg(self, [f] if f else [])
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
@@ -332,6 +337,11 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
+        if self.key != XCOM_RETURN_KEY:
+            raise ValueError("cannot filter non-return XCom")
+        return super().filter(f)
+
     def resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
         task_id = self.operator.task_id
@@ -351,6 +361,8 @@ class PlainXComArg(XComArg):
             map_indexes=map_indexes,
         )
         if not isinstance(result, ArgNotSet):
+            if isinstance(result, ResolveMixin):
+                result = result.resolve(context)
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
@@ -370,27 +382,85 @@ def _get_callable_name(f: Callable | str) -> str:
         return f.__name__
     # Parse the source to find whatever is behind "def". For safety, we don't
     # want to evaluate the code in any meaningful way!
-    with contextlib.suppress(Exception):
+    with suppress(Exception):
         kw, name, _ = f.lstrip().split(None, 2)
         if kw == "def":
             return name
     return "<function>"
 
 
-class _MapResult(Sequence):
-    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
-        self.value = value
+class _MappableResult(Sequence):
+    def __init__(self, value: Sequence | dict, callables: FilterCallables | MapCallables) -> None:
+        self.value = self._convert(value)
         self.callables = callables
 
     def __getitem__(self, index: Any) -> Any:
-        value = self.value[index]
+        raise NotImplementedError
 
-        for f in self.callables:
-            value = f(value)
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    @staticmethod
+    def _convert(value: Sequence | dict) -> list:
+        if isinstance(value, (dict, set)):
+            return list(value)
+        if isinstance(value, list):
+            return value
+        raise ValueError(
+            f"XCom filter expects sequence or dict, not {type(value).__name__}"
+        )
+
+    def _apply_callables(self, value) -> Any:
+        for func in self.callables:
+            value = func(value)
+        return value
+
+
+class _MapResult(_MappableResult):
+    def __getitem__(self, index: Any) -> Any:
+        value = self._apply_callables(self.value[index])
         return value
 
     def __len__(self) -> int:
         return len(self.value)
+
+
+class _LazyMapResult(_MappableResult):
+    def __init__(self, value: Iterable, callables: MapCallables) -> None:
+        super().__init__([], callables)
+        self._iterator = iter(value)
+
+    def __next__(self) -> Any:
+        value = self._apply_callables(next(self._iterator))
+        self.value.append(value)
+        return value
+
+    def __getitem__(self, index: Any) -> Any:
+        if index < 0:
+            raise IndexError
+
+        while len(self.value) <= index:
+            try:
+                next(self)
+            except StopIteration:
+                raise IndexError
+        return self.value[index]
+
+    def __len__(self) -> int:
+        while True:
+            try:
+                next(self)
+            except StopIteration:
+                break
+        return len(self.value)
+
+    def __iter__(self) -> Iterator:
+        yield from self.value
+        while True:
+            try:
+                yield next(self)
+            except StopIteration:
+                break
 
 
 class MapXComArg(XComArg):
@@ -429,9 +499,11 @@ class MapXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
-        if not isinstance(value, (Sequence, dict)):
-            raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
-        return _MapResult(value, self.callables)
+        if isinstance(value, (Sequence, dict)):
+            return _MapResult(value, self.callables)
+        if isinstance(value, Iterable):
+            return _LazyMapResult(value, self.callables)
+        raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
 
 
 class _ZipResult(Sequence):
@@ -562,9 +634,110 @@ class ConcatXComArg(XComArg):
         return _ConcatResult(values)
 
 
+class _FilterResult(_MappableResult):
+    def __init__(self, value: Iterable, callables: FilterCallables) -> None:
+        super().__init__([], callables)
+        self._iterator = iter(value)
+
+    def __next__(self) -> Any:
+        while True:
+            value = next(self._iterator)
+            if self._apply_callables(value):
+                self.value.append(value)
+                return value
+
+    def __getitem__(self, index: int) -> Any:
+        if index < 0:
+            raise IndexError
+
+        while len(self.value) <= index:
+            try:
+                next(self)
+            except StopIteration:
+                break
+
+        return self.value[index]
+
+    def __len__(self) -> int:
+        while True:
+            try:
+                next(self)
+            except StopIteration:
+                break
+        return len(self.value)
+
+    def __iter__(self) -> Iterator:
+        yield from self.value
+        while True:
+            try:
+                yield next(self)
+            except StopIteration:
+                break
+
+    def _apply_callables(self, value) -> bool:
+        for func in self.callables:
+            if not func(value):
+                return False
+        return True
+
+
+class FilterXComArg(XComArg):
+    """
+    An XCom reference with ``filter()`` call(s) applied.
+
+    This is based on an XComArg, but also applies a series of "filters" that
+    filters the pulled XCom value.
+
+    :meta private:
+    """
+
+    def __init__(
+        self,
+        arg: XComArg,
+        callables: FilterCallables | None,
+    ) -> None:
+        self.arg = arg
+
+        if not callables:
+            callables = [self.none_filter]
+        else:
+            for c in callables:
+                if getattr(c, "_airflow_is_task_decorator", False):
+                    raise ValueError("filter() argument must be a plain function, not a @task operator")
+        self.callables = callables
+
+    @staticmethod
+    def none_filter(value) -> bool:
+        return value if True else False
+
+    def __repr__(self) -> str:
+        map_calls = "".join(f".filter({_get_callable_name(f)})" for f in self.callables)
+        return f"{self.arg!r}{map_calls}"
+
+    def _serialize(self) -> dict[str, Any]:
+        return {
+            "arg": serialize_xcom_arg(self.arg),
+            "callables": [inspect.getsource(c) if callable(c) else c for c in self.callables],
+        }
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield from self.arg.iter_references()
+
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
+        # Filter arg.filter(f1).filter(f2) into one FilterXComArg.
+        return FilterXComArg(self.arg, [*self.callables, f if f else self.none_filter])
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        value = self.arg.resolve(context)
+        if not isinstance(value, (Iterable, Sequence, dict)):
+            raise ValueError(f"XCom filter expects sequence or dict, not {type(value).__name__}")
+        return _FilterResult(value, self.callables)
+
+
 _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
     "": PlainXComArg,
     "concat": ConcatXComArg,
+    "filter": FilterXComArg,
     "map": MapXComArg,
     "zip": ZipXComArg,
 }
@@ -619,3 +792,8 @@ def _(xcom_arg: ConcatXComArg, resolved_val: Sized, upstream_map_indexes: dict[s
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
     return sum(ready_lengths)
+
+
+@get_task_map_length.register
+def _(xcom_arg: FilterXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
+    return get_task_map_length(xcom_arg.arg, resolved_val, upstream_map_indexes)
