@@ -111,9 +111,6 @@ labelPRBasedOnFilePath:
   provider:common-sql:
     - providers/common/sql/**
 
-  provider:standard:
-    - providers/standard/**
-
   provider:databricks:
     - providers/databricks/**
 
@@ -180,6 +177,9 @@ labelPRBasedOnFilePath:
   provider:jenkins:
     - providers/jenkins/**
 
+  provider:keycloak:
+    - providers/keycloak/**
+
   provider:microsoft-azure:
     - providers/microsoft/azure/**
 
@@ -219,7 +219,7 @@ labelPRBasedOnFilePath:
   provider:opsgenie:
     - providers/opsgenie/**
 
-  provider:Oracle:
+  provider:oracle:
     - providers/oracle/**
 
   provider:pagerduty:
@@ -278,6 +278,9 @@ labelPRBasedOnFilePath:
 
   provider:ssh:
     - providers/ssh/**
+
+  provider:standard:
+    - providers/standard/**
 
   provider:tableau:
     - providers/tableau/**
