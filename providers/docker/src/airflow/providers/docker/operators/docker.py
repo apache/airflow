@@ -218,7 +218,7 @@ class DockerOperator(BaseOperator):
         docker_url: str | list[str] | None = None,
         environment: dict | None = None,
         private_environment: dict | None = None,
-        env_file: str | None = None,
+        env_file: str | os.PathLike[str] | None = None,
         force_pull: bool = False,
         mem_limit: float | str | None = None,
         host_tmp_dir: str | None = None,
