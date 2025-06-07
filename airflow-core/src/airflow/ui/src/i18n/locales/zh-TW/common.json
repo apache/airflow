@@ -27,6 +27,7 @@
   },
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
+  "mapIndex": "映射索引",
   "modal": {
     "cancel": "取消",
     "confirm": "確認",

@@ -37,7 +37,6 @@
       "dialog": {
         "affectedTasks": {
           "columns": {
-            "mapIndex": "Planungs-Index",
             "runId": "Lauf ID",
             "state": "Status",
             "taskId": "Task ID"
@@ -135,7 +134,6 @@
       "dagVersion": "Dag Version",
       "duration": "Laufzeit",
       "endDate": "Enddatum",
-      "mapIndex": "Planungs-Index",
       "operator": "Operator-Klasse",
       "pool": "Pool",
       "startDate": "Startdatum",

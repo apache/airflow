@@ -26,12 +26,12 @@ administration-and-deployment/security/kerberos.rst security/kerberos.rst
 ## It's okay to include ``/stable/``, because there's no relationship between a version of
 ## Airflow and the version of any provider package.
 
-administration-and-deployment/security/access-control.rst ../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
-administration-and-deployment/security/access-control/index.rst ../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
+administration-and-deployment/security/access-control.rst ../../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
+administration-and-deployment/security/access-control/index.rst ../../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
 administration-and-deployment/security/api.rst security/api.rst
 administration-and-deployment/security/audit_logs.rst security/audit_logs.rst
 administration-and-deployment/security/flower.rst security/flower.rst
-administration-and-deployment/security/webserver.rst ../apache-airflow-providers-fab/stable/auth-manager/security.rst
+administration-and-deployment/security/webserver.rst ../../apache-airflow-providers-fab/stable/auth-manager/security.rst
 administration-and-deployment/security/workload.rst security/workload.rst
 administration-and-deployment/security/secrets/secrets-backends/index.rst security/secrets/secrets-backends/index.rst
 administration-and-deployment/security/secrets/secrets-backends/local-filesystem-secrets-backend.rst security/secrets/secrets-backends/local-filesystem-secrets-backend.rst
@@ -44,7 +44,7 @@ howto/use-alternative-secrets-backend.rst security/secrets/secrets-backend/index
 security.rst security/index.rst
 
 # Move the documentation from core to FAB provider
-security/access-control.rst ../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
+security/access-control.rst ../../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
 
 # Operators guides
 howto/operator/external.rst howto/operator/external_task_sensor.rst
@@ -54,7 +54,7 @@ howto/customize-dag-ui-page-instance-name.rst howto/customize-ui.rst#customizing
 howto/customize-state-colors-ui.rst howto/customize-ui.rst#customizing-state-colours
 
 # Web UI
-howto/add-new-role.rst ../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
+howto/add-new-role.rst ../../apache-airflow-providers-fab/stable/auth-manager/access-control.rst
 
 # Set up a database
 howto/initialize-database.rst howto/set-up-database.rst
@@ -158,12 +158,12 @@ authoring-and-scheduling/datasets.rst authoring-and-scheduling/asset-scheduling.
 ## It's okay to include ``/stable/``, because there's no relationship between a version of
 ## Airflow and the version of any provider package.
 ### Kubernetes Executors
-core-concepts/executor/kubernetes.rst ../apache-airflow-providers-cncf-kubernetes/stable/kubernetes_executor.html
-core-concepts/executor/local_kubernetes.rst ../apache-airflow-providers-cncf-kubernetes/stable/local_kubernetes_executor.html
+core-concepts/executor/kubernetes.rst ../../apache-airflow-providers-cncf-kubernetes/stable/kubernetes_executor.html
+core-concepts/executor/local_kubernetes.rst ../../apache-airflow-providers-cncf-kubernetes/stable/local_kubernetes_executor.html
 
 ### Celery Executors
-core-concepts/executor/celery_kubernetes.rst ../apache-airflow-providers-celery/stable/celery_kubernetes_executor.html
-core-concepts/executor/celery.rst ../apache-airflow-providers-celery/stable/celery_executor.html
+core-concepts/executor/celery_kubernetes.rst ../../apache-airflow-providers-celery/stable/celery_kubernetes_executor.html
+core-concepts/executor/celery.rst ../../apache-airflow-providers-celery/stable/celery_executor.html
 
 # Python API
 python-api-ref.rst public-airflow-interface.rst
@@ -176,10 +176,10 @@ howto/use-test-config.rst index.rst
 
 # Operators/Sensors moved to standard providers
 
-howto/operator/bash.rst ../apache-airflow-providers-standard/stable/operators/bash.rst
-howto/operator/datetime.rst ../apache-airflow-providers-standard/stable/operators/datetime.rst
-howto/operator/external_task_sensor.rst ../apache-airflow-providers-standard/stable/sensors/external_task_sensor.rst
-howto/operator/file.rst ../apache-airflow-providers-standard/stable/sensors/file.rst
-howto/operator/python.rst ../apache-airflow-providers-standard/stable/operators/python.rst
-howto/operator/time.rst ../apache-airflow-providers-standard/stable/sensors/datetime.rst
-howto/operator/weekday.rst ../apache-airflow-providers-standard/stable/operators/datetime.rst#branchdayofweekoperator
+howto/operator/bash.rst ../../apache-airflow-providers-standard/stable/operators/bash.rst
+howto/operator/datetime.rst ../../apache-airflow-providers-standard/stable/operators/datetime.rst
+howto/operator/external_task_sensor.rst ../../apache-airflow-providers-standard/stable/sensors/external_task_sensor.rst
+howto/operator/file.rst ../../apache-airflow-providers-standard/stable/sensors/file.rst
+howto/operator/python.rst ../../apache-airflow-providers-standard/stable/operators/python.rst
+howto/operator/time.rst ../../apache-airflow-providers-standard/stable/sensors/datetime.rst
+howto/operator/weekday.rst ../../apache-airflow-providers-standard/stable/operators/datetime.rst#branchdayofweekoperator

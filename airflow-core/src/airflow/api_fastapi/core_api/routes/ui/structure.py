@@ -138,9 +138,9 @@ def structure_data(
                 asset_expression, entry_node_ref["id"]
             )
             data["nodes"] += upstream_asset_nodes
-            data["edges"] = upstream_asset_edges
+            data["edges"] += upstream_asset_edges
 
-        data["edges"] += start_edges + edges + end_edges
+        data["edges"] += start_edges + end_edges
 
     bind_output_assets_to_tasks(data["edges"], serialized_dag)
 
