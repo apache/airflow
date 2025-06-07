@@ -18,10 +18,10 @@
  */
 import { Box, HStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useDagServiceGetDagTags } from "openapi/queries";
+import { useDagServiceGetDagTagsInfinite } from "openapi/queries/customInfiniteQueries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
@@ -66,8 +66,12 @@ export const DagsFilters = () => {
   const isFailed = state === "failed";
   const isSuccess = state === "success";
 
-  const { data } = useDagServiceGetDagTags({
+  const [pattern, setPattern] = useState("");
+
+  const { data, fetchNextPage, fetchPreviousPage } = useDagServiceGetDagTagsInfinite({
+    limit: 10,
     orderBy: "name",
+    tagNamePattern: pattern,
   });
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -136,6 +140,7 @@ export const DagsFilters = () => {
     searchParams.delete(TAGS_MATCH_MODE_PARAM);
 
     setSearchParams(searchParams);
+    setPattern("");
   };
 
   const handleTagModeChange = useCallback(
@@ -166,11 +171,18 @@ export const DagsFilters = () => {
           showPaused={showPaused}
         />
         <TagFilter
+          onMenuScrollToBottom={() => {
+            void fetchNextPage();
+          }}
+          onMenuScrollToTop={() => {
+            void fetchPreviousPage();
+          }}
           onSelectTagsChange={handleSelectTagsChange}
           onTagModeChange={handleTagModeChange}
+          onUpdate={setPattern}
           selectedTags={selectedTags}
           tagFilterMode={tagFilterMode}
-          tags={data?.tags ?? []}
+          tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
         />
       </HStack>
       <Box>
