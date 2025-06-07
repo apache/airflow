@@ -26,6 +26,7 @@ from airflow.models import DagRun, Pool, Variable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_dags, clear_db_pools, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -109,6 +110,7 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred) VALUES (?, ?, ?, ?)",
                             "orig_error": "UNIQUE constraint failed: slot_pool.pool",
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                     HTTPException(
@@ -117,6 +119,7 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred) VALUES (%s, %s, %s, %s)",
                             "orig_error": "(1062, \"Duplicate entry 'test_pool' for key 'slot_pool.slot_pool_pool_uq'\")",
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                     HTTPException(
@@ -125,6 +128,7 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred) VALUES (%(pool)s, %(slots)s, %(description)s, %(include_deferred)s) RETURNING slot_pool.id",
                             "orig_error": 'duplicate key value violates unique constraint "slot_pool_pool_uq"\nDETAIL:  Key (pool)=(test_pool) already exists.\n',
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                 ],
@@ -135,6 +139,7 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": 'INSERT INTO variable ("key", val, description, is_encrypted) VALUES (?, ?, ?, ?)',
                             "orig_error": "UNIQUE constraint failed: variable.key",
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                     HTTPException(
@@ -143,6 +148,7 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO variable (`key`, val, description, is_encrypted) VALUES (%s, %s, %s, %s)",
                             "orig_error": "(1062, \"Duplicate entry 'test_key' for key 'variable.variable_key_uq'\")",
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                     HTTPException(
@@ -151,12 +157,14 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO variable (key, val, description, is_encrypted) VALUES (%(key)s, %(val)s, %(description)s, %(is_encrypted)s) RETURNING variable.id",
                             "orig_error": 'duplicate key value violates unique constraint "variable_key_uq"\nDETAIL:  Key (key)=(test_key) already exists.\n',
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                 ],
             ],
         ),
     )
+    @conf_vars({("api", "expose_stacktrace"): "False"})
     @provide_session
     def test_handle_single_column_unique_constraint_error(self, session, table, expected_exception) -> None:
         # Take Pool and Variable tables as test cases
@@ -188,6 +196,7 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT max(log_template.id) AS max_1 \nFROM log_template), ?, ?, ?, ?, ?, ?, ?)",
                             "orig_error": "UNIQUE constraint failed: dag_run.dag_id, dag_run.run_id",
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                     HTTPException(
@@ -196,6 +205,7 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, (SELECT max(log_template.id) AS max_1 \nFROM log_template), %s, %s, %s, %s, %s, %s, %s)",
                             "orig_error": "(1062, \"Duplicate entry 'test_dag_id-test_run_id' for key 'dag_run.dag_run_dag_id_run_id_key'\")",
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                     HTTPException(
@@ -204,12 +214,14 @@ class TestUniqueConstraintErrorHandler:
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id) VALUES (%(dag_id)s, %(queued_at)s, %(logical_date)s, %(start_date)s, %(end_date)s, %(state)s, %(run_id)s, %(creating_job_id)s, %(run_type)s, %(triggered_by)s, %(conf)s, %(data_interval_start)s, %(data_interval_end)s, %(run_after)s, %(last_scheduling_decision)s, (SELECT max(log_template.id) AS max_1 \nFROM log_template), %(updated_at)s, %(clear_number)s, %(backfill_id)s, %(bundle_version)s, %(scheduled_by_job_id)s, %(context_carrier)s, %(created_dag_version_id)s) RETURNING dag_run.id",
                             "orig_error": 'duplicate key value violates unique constraint "dag_run_dag_id_run_id_key"\nDETAIL:  Key (dag_id, run_id)=(test_dag_id, test_run_id) already exists.\n',
+                            "stacktrace": "Database Integrity Error - Check logs for more details.",
                         },
                     ),
                 ],
             ],
         ),
     )
+    @conf_vars({("api", "expose_stacktrace"): "False"})
     @provide_session
     def test_handle_multiple_columns_unique_constraint_error(
         self, session, table, expected_exception
