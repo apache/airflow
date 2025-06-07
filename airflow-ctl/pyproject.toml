@@ -157,6 +157,10 @@ addopts = [
     "--asyncio-mode=strict",
 ]
 
+markers = [
+    "flaky(reruns, reruns_delay): retry test on failure using pytest-rerunfailures"
+]
+
 norecursedirs = [
     ".eggs",
 ]
