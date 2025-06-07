@@ -37,7 +37,6 @@
       "dialog": {
         "affectedTasks": {
           "columns": {
-            "mapIndex": "Index zmapowania",
             "runId": "Identifikator Wykonania",
             "state": "Stan",
             "taskId": "Identifikator Zadania"
@@ -135,7 +134,6 @@
       "dagVersion": "Wersja Daga",
       "duration": "Czas trwania",
       "endDate": "Data zakończenia",
-      "mapIndex": "Indeks mapowania",
       "operator": "Operator",
       "pool": "Pula",
       "startDate": "Data rozpoczęcia",

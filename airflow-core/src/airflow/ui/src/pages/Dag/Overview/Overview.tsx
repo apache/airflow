@@ -19,6 +19,7 @@
 import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { lazy, useState, Suspense } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import {
@@ -37,6 +38,7 @@ const FailedLogs = lazy(() => import("./FailedLogs"));
 const defaultHour = "24";
 
 export const Overview = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId } = useParams();
 
   const now = dayjs();
@@ -103,7 +105,7 @@ export const Overview = () => {
             timestamp: ti.start_date ?? ti.logical_date,
           }))}
           isLoading={isLoading}
-          label="Failed Task"
+          label={translate("overview.buttons.failedTask", { count: failedTasks?.total_entries ?? 0 })}
           route={{
             pathname: "tasks",
             search: "state=failed",
@@ -118,7 +120,7 @@ export const Overview = () => {
             timestamp: dr.run_after,
           }))}
           isLoading={isLoadingFailedRuns}
-          label="Failed Run"
+          label={translate("overview.buttons.failedRun", { count: failedRuns?.total_entries ?? 0 })}
           route={{
             pathname: "runs",
             search: "state=failed",
@@ -140,7 +142,7 @@ export const Overview = () => {
             isLoading={isLoadingAssetEvents}
             ml={0}
             setOrderBy={setAssetSortBy}
-            title="Created Asset Event"
+            title={translate("overview.charts.assetEvent")}
           />
         ) : undefined}
       </HStack>

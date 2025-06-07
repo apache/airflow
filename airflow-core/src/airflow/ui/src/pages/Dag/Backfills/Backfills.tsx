@@ -18,6 +18,7 @@
  */
 import { Box, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
@@ -27,9 +28,9 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
-import { getDuration, pluralize } from "src/utils";
+import { getDuration } from "src/utils";
 
-const columns: Array<ColumnDef<BackfillResponse>> = [
+const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -38,7 +39,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "From",
+    header: translate("table.from"),
   },
   {
     accessorKey: "date_to",
@@ -48,7 +49,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "To",
+    header: translate("table.to"),
   },
   {
     accessorKey: "reprocess_behavior",
@@ -61,7 +62,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "Reprocess Behavior",
+    header: translate("table.reprocessBehavior"),
   },
   {
     accessorKey: "created_at",
@@ -71,7 +72,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "Created at",
+    header: translate("table.createdAt"),
   },
   {
     accessorKey: "completed_at",
@@ -81,7 +82,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "Completed at",
+    header: translate("table.completedAt"),
   },
   {
     accessorKey: "duration",
@@ -93,16 +94,17 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: "Duration",
+    header: translate("table.duration"),
   },
   {
     accessorKey: "max_active_runs",
     enableSorting: false,
-    header: "Max Active Runs",
+    header: translate("table.maxActiveRuns"),
   },
 ];
 
 export const Backfills = () => {
+  const { t: translate } = useTranslation();
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination } = tableURLState;
@@ -119,14 +121,14 @@ export const Backfills = () => {
     <Box>
       <ErrorAlert error={error} />
       <Heading my={1} size="md">
-        {pluralize("Backfill", data ? data.total_entries : 0)}
+        {translate("backfill", { count: data ? data.total_entries : 0 })}
       </Heading>
       <DataTable
-        columns={columns}
+        columns={getColumns(translate)}
         data={data ? data.backfills : []}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="Backfill"
+        modelName={translate("backfill_one")}
         onStateChange={setTableURLState}
         total={data ? data.total_entries : 0}
       />

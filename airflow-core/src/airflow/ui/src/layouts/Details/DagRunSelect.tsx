@@ -18,6 +18,7 @@
  */
 import { createListCollection, type SelectValueChangeDetails, Select } from "@chakra-ui/react";
 import { forwardRef, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { GridDAGRunwithTIs } from "openapi/requests/types.gen";
@@ -36,7 +37,7 @@ type DagRunSelectProps = {
 
 export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ limit }, ref) => {
   const { dagId = "", runId, taskId } = useParams();
-
+  const { t: translate } = useTranslation(["dag", "common"]);
   const navigate = useNavigate();
 
   const { data, isLoading } = useGrid(limit);
@@ -73,10 +74,10 @@ export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ lim
       value={runId === undefined ? [] : [runId]}
       width="250px"
     >
-      <Select.Label fontSize="xs">Dag Run</Select.Label>
+      <Select.Label fontSize="xs">{translate("common:dagRun_one")}</Select.Label>
       <Select.Control>
         <Select.Trigger>
-          <Select.ValueText placeholder="All Runs">
+          <Select.ValueText placeholder={translate("dag:allRuns")}>
             {selectedRun ? (
               <>
                 <Time datetime={selectedRun.run_after} />

@@ -37,7 +37,6 @@
       "dialog": {
         "affectedTasks": {
           "columns": {
-            "mapIndex": "映射索引",
             "runId": "執行 ID",
             "state": "狀態",
             "taskId": "任務 ID"
@@ -134,7 +133,6 @@
       "dagVersion": "Dag 版本",
       "duration": "持續時間",
       "endDate": "結束日期",
-      "mapIndex": "映射索引",
       "operator": "運算子",
       "pool": "資源池",
       "startDate": "開始日期",

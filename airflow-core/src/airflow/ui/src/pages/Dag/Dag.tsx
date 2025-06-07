@@ -18,6 +18,7 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiBarChart, FiCode } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
@@ -33,17 +34,18 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-const tabs = [
-  { icon: <LuChartColumn />, label: "Overview", value: "" },
-  { icon: <FiBarChart />, label: "Runs", value: "runs" },
-  { icon: <TaskIcon />, label: "Tasks", value: "tasks" },
-  { icon: <RiArrowGoBackFill />, label: "Backfills", value: "backfills" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
-  { icon: <FiCode />, label: "Code", value: "code" },
-  { icon: <MdDetails />, label: "Details", value: "details" },
+const getTabs = (translate: (key: string) => string) => [
+  { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
+  { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
+  { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
+  { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
+  { icon: <MdOutlineEventNote />, label: translate("tabs.events"), value: "events" },
+  { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+  { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
 ];
 
 export const Dag = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId = "" } = useParams();
 
   const {
@@ -93,7 +95,9 @@ export const Dag = () => {
         dag={dag}
         error={error ?? runsError}
         isLoading={isLoading || isLoadingRuns}
-        tabs={tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"))}
+        tabs={getTabs(translate).filter(
+          (tab) => !(dag?.timetable_summary === null && tab.value === "backfills"),
+        )}
       >
         <Header
           dag={dag}

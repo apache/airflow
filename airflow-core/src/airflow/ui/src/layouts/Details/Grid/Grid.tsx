@@ -20,6 +20,7 @@ import { Box, Flex, IconButton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
@@ -39,6 +40,7 @@ type Props = {
 };
 
 export const Grid = ({ limit }: Props) => {
+  const { t: translate } = useTranslation("dag");
   const { openGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
 
@@ -83,9 +85,9 @@ export const Grid = ({ limit }: Props) => {
           <Flex flexDirection="column-reverse" height="100px" position="relative" width="100%">
             {Boolean(runs.length) && (
               <>
-                <DurationTick bottom="92px">{Math.floor(max)}s</DurationTick>
-                <DurationTick bottom="46px">{Math.floor(max / 2)}s</DurationTick>
-                <DurationTick bottom="-4px">0s</DurationTick>
+                <DurationTick bottom="92px" duration={max} />
+                <DurationTick bottom="46px" duration={max / 2} />
+                <DurationTick bottom="-4px" duration={0} />
               </>
             )}
           </Flex>
@@ -97,12 +99,12 @@ export const Grid = ({ limit }: Props) => {
           {runAfter === undefined ? undefined : (
             <Link to={`/dags/${dagId}`}>
               <IconButton
-                aria-label="Reset to latest"
+                aria-label={translate("grid.buttons.resetToLatest")}
                 height="98px"
                 loading={isLoading}
                 minW={0}
                 ml={1}
-                title="Reset to latest"
+                title={translate("grid.buttons.resetToLatest")}
                 variant="surface"
                 zIndex={1}
               >

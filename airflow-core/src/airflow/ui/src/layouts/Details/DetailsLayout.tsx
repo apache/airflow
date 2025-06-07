@@ -20,6 +20,7 @@ import { Box, HStack, Flex, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useRef } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
@@ -50,6 +51,7 @@ type Props = {
 } & PropsWithChildren;
 
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
+  const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
 
   const { data: dag } = useDagServiceGetDag({ dagId });
@@ -108,7 +110,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                 <>
                   <ActionButton
-                    actionName="Dag warnings/errors"
+                    actionName={translate("common:dagWarnings")}
                     colorPalette={Boolean(error) ? "red" : "orange"}
                     icon={<LuFileWarning />}
                     margin="2"

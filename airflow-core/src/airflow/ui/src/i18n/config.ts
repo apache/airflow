@@ -28,6 +28,7 @@ import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
 import enComponents from "./locales/en/components.json";
 import enConnections from "./locales/en/connections.json";
+import enDag from "./locales/en/dag.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
 import koCommon from "./locales/ko/common.json";
@@ -71,6 +72,7 @@ const resources = {
     common: enCommon,
     components: enComponents,
     connections: enConnections,
+    dag: enDag,
     dags: enDags,
     dashboard: enDashboard,
   },

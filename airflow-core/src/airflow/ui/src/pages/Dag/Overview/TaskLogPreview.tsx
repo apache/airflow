@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -34,6 +35,7 @@ export const TaskLogPreview = ({
   readonly taskInstance: TaskInstanceResponse;
   readonly wrap: boolean;
 }) => {
+  const { t: translate } = useTranslation("dag");
   const { data, error, isLoading } = useLogs(
     {
       dagId: taskInstance.dag_id,
@@ -58,7 +60,9 @@ export const TaskLogPreview = ({
         <Flex gap={1}>
           <ClearTaskInstanceButton taskInstance={taskInstance} withText={false} />
           <Link asChild color="fg.info" fontSize="sm">
-            <RouterLink to={getTaskInstanceLink(taskInstance)}>View full logs</RouterLink>
+            <RouterLink to={getTaskInstanceLink(taskInstance)}>
+              {translate("overview.failedLogs.viewFullLogs")}
+            </RouterLink>
           </Link>
         </Flex>
       </Flex>
