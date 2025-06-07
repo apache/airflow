@@ -1934,7 +1934,7 @@ triggerer:
 
 # Airflow Dag Processor Config
 dagProcessor:
-  enabled: ~
+  enabled: False
   # Number of airflow dag processors in the deployment
   replicas: 1
   # Max number of old replicasets to retain
