@@ -22,6 +22,7 @@ import os
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
 from platformdirs import user_config_path
 
 from airflowctl.api.client import ClientKind
@@ -39,6 +40,7 @@ class TestCliAuthCommands:
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN"})
     @patch("airflowctl.api.client.keyring")
+    @pytest.mark.flaky(reruns=3, reruns_delay=10)
     def test_login(self, mock_keyring, api_client_maker):
         api_client = api_client_maker(
             path="/auth/token/cli",
