@@ -51,6 +51,7 @@ POD_NAME = "test-pod"
 POD_NAMESPACE = "test-namespace"
 TEST_XCOM_RESULT = '{"result": "test-xcom-result"}'
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
+ON_KILL_PROPAGATION_POLICY = "Background"
 
 
 def create_context(task, persist_to_db=False, map_index=None):
@@ -518,6 +519,45 @@ class TestKubernetesJobOperator:
         assert not mock_hook.wait_until_job_complete.called
 
     @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute_with_parallelism(
+        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_pods
+    ):
+        mock_hook.return_value.is_job_failed.return_value = False
+        mock_job_request_obj = mock_build_job_request_obj.return_value
+        mock_job_expected = mock_create_job.return_value
+        mock_pods_expected = mock_get_pods.return_value
+        mock_ti = mock.MagicMock()
+        context = dict(ti=mock_ti)
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            parallelism=2,
+        )
+        execute_result = op.execute(context=context)
+
+        mock_build_job_request_obj.assert_called_once_with(context)
+        mock_create_job.assert_called_once_with(job_request_obj=mock_job_request_obj)
+        mock_ti.xcom_push.assert_has_calls(
+            [
+                mock.call(key="job_name", value=mock_job_expected.metadata.name),
+                mock.call(key="job_namespace", value=mock_job_expected.metadata.namespace),
+                mock.call(key="job", value=mock_job_expected.to_dict.return_value),
+            ]
+        )
+
+        assert op.job_request_obj == mock_job_request_obj
+        assert op.job == mock_job_expected
+        assert op.pods == mock_pods_expected
+        assert op.pod is None
+        assert not op.wait_until_job_complete
+        assert execute_result is None
+        assert not mock_hook.wait_until_job_complete.called
+
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
@@ -607,6 +647,9 @@ class TestKubernetesJobOperator:
         )
         op.job = mock_job
         op.pod = mock_pod
+        op.pods = [
+            mock_pod,
+        ]
 
         actual_result = op.execute_deferrable()
 
@@ -617,7 +660,69 @@ class TestKubernetesJobOperator:
         mock_trigger.assert_called_once_with(
             job_name=JOB_NAME,
             job_namespace=JOB_NAMESPACE,
-            pod_name=POD_NAME,
+            pod_names=[
+                POD_NAME,
+            ],
+            pod_namespace=POD_NAMESPACE,
+            base_container_name=op.BASE_CONTAINER_NAME,
+            kubernetes_conn_id=KUBERNETES_CONN_ID,
+            cluster_context=mock_cluster_context,
+            config_file=mock_config_file,
+            in_cluster=mock_in_cluster,
+            poll_interval=POLL_INTERVAL,
+            get_logs=True,
+            do_xcom_push=False,
+        )
+        assert actual_result is None
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.defer"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobTrigger"))
+    def test_execute_deferrable_with_parallelism(self, mock_trigger, mock_execute_deferrable):
+        mock_cluster_context = mock.MagicMock()
+        mock_config_file = mock.MagicMock()
+        mock_in_cluster = mock.MagicMock()
+
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+
+        pod_name_1 = POD_NAME + "-1"
+        mock_pod_1 = mock.MagicMock()
+        mock_pod_1.metadata.name = pod_name_1
+        mock_pod_1.metadata.namespace = POD_NAMESPACE
+
+        pod_name_2 = POD_NAME + "-2"
+        mock_pod_2 = mock.MagicMock()
+        mock_pod_2.metadata.name = pod_name_2
+        mock_pod_2.metadata.namespace = POD_NAMESPACE
+
+        mock_trigger_instance = mock_trigger.return_value
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            kubernetes_conn_id=KUBERNETES_CONN_ID,
+            cluster_context=mock_cluster_context,
+            config_file=mock_config_file,
+            in_cluster=mock_in_cluster,
+            job_poll_interval=POLL_INTERVAL,
+            parallelism=2,
+            wait_until_job_complete=True,
+            deferrable=True,
+        )
+        op.job = mock_job
+        op.pods = [mock_pod_1, mock_pod_2]
+
+        actual_result = op.execute_deferrable()
+
+        mock_execute_deferrable.assert_called_once_with(
+            trigger=mock_trigger_instance,
+            method_name="execute_complete",
+        )
+        mock_trigger.assert_called_once_with(
+            job_name=JOB_NAME,
+            job_namespace=JOB_NAMESPACE,
+            pod_names=[pod_name_1, pod_name_2],
             pod_namespace=POD_NAMESPACE,
             base_container_name=op.BASE_CONTAINER_NAME,
             kubernetes_conn_id=KUBERNETES_CONN_ID,
@@ -667,9 +772,17 @@ class TestKubernetesJobOperator:
         event = {
             "job": mock_job,
             "status": "success",
-            "pod_name": POD_NAME if get_logs else None,
+            "pod_names": [
+                POD_NAME,
+            ]
+            if get_logs
+            else None,
             "pod_namespace": POD_NAMESPACE if get_logs else None,
-            "xcom_result": TEST_XCOM_RESULT if do_xcom_push else None,
+            "xcom_result": [
+                TEST_XCOM_RESULT,
+            ]
+            if do_xcom_push
+            else None,
         }
 
         KubernetesJobOperator(
@@ -709,6 +822,7 @@ class TestKubernetesJobOperator:
         mock_client.delete_namespaced_job.assert_called_once_with(
             name=JOB_NAME,
             namespace=JOB_NAMESPACE,
+            propagation_policy=ON_KILL_PROPAGATION_POLICY,
         )
 
     @pytest.mark.non_db_test_override
@@ -728,6 +842,7 @@ class TestKubernetesJobOperator:
         mock_client.delete_namespaced_job.assert_called_once_with(
             name=JOB_NAME,
             namespace=JOB_NAMESPACE,
+            propagation_policy=ON_KILL_PROPAGATION_POLICY,
             grace_period_seconds=mock_termination_grace_period,
         )
 
@@ -743,9 +858,11 @@ class TestKubernetesJobOperator:
         mock_client.delete_namespaced_job.assert_not_called()
         mock_serialize.assert_not_called()
 
+    @pytest.mark.parametrize("parallelism", [None, 2])
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.extract_xcom"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
@@ -762,10 +879,16 @@ class TestKubernetesJobOperator:
         mock_create_job,
         mock_build_job_request_obj,
         mock_get_or_create_pod,
+        mock_get_pods,
         mock_extract_xcom,
         get_logs,
         do_xcom_push,
+        parallelism,
     ):
+        if parallelism == 2:
+            mock_pod_1 = mock.MagicMock()
+            mock_pod_2 = mock.MagicMock()
+            mock_get_pods.return_value = [mock_pod_1, mock_pod_2]
         mock_ti = mock.MagicMock()
         op = KubernetesJobOperator(
             task_id="test_task_id",
@@ -773,16 +896,21 @@ class TestKubernetesJobOperator:
             job_poll_interval=POLL_INTERVAL,
             get_logs=get_logs,
             do_xcom_push=do_xcom_push,
+            parallelism=parallelism,
         )
         op.execute(context=dict(ti=mock_ti))
 
-        if do_xcom_push:
+        if do_xcom_push and not parallelism:
             mock_extract_xcom.assert_called_once()
+        elif do_xcom_push and parallelism is not None:
+            assert mock_extract_xcom.call_count == parallelism
         else:
             mock_extract_xcom.assert_not_called()
 
-        if get_logs:
+        if get_logs and not parallelism:
             mocked_fetch_logs.assert_called_once()
+        elif get_logs and parallelism is not None:
+            assert mocked_fetch_logs.call_count == parallelism
         else:
             mocked_fetch_logs.assert_not_called()
 
