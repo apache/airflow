@@ -20,13 +20,15 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from typing import cast
 
 import pendulum
 import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
-from pendulum.tz.timezone import Timezone
+from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -37,6 +39,7 @@ from airflow.exceptions import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import DeadlineAlert
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
@@ -44,11 +47,13 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey, AssetWatcher
+from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
+from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
@@ -114,6 +119,26 @@ def test_strict_mode():
     BaseSerialization.serialize(obj)  # does not raise
     with pytest.raises(SerializationError, match="Encountered unexpected type"):
         BaseSerialization.serialize(obj, strict=True)  # now raises
+
+
+def test_validate_schema():
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    with pytest.raises(AirflowException, match="BaseSerialization is not set"):
+        BaseSerialization.validate_schema({"any": "thing"})
+
+    BaseSerialization._json_schema = object()
+    with pytest.raises(TypeError, match="Invalid type: Only dict and str are supported"):
+        BaseSerialization.validate_schema(123)
+
+    class Test:
+        def validate(self, obj):
+            self.obj = obj
+
+    t = Test()
+    BaseSerialization._json_schema = t
+    BaseSerialization.validate_schema('{"foo": "bar"}')
+    assert t.obj == {"foo": "bar"}
 
 
 TI = TaskInstance(
@@ -277,6 +302,37 @@ class MockLazySelectSequence(LazySelectSequence):
             Connection(conn_id="TEST_ID", uri="mysql://"),
             DAT.CONNECTION,
             lambda a, b: a.get_uri() == b.get_uri(),
+        ),
+        (
+            TaskCallbackRequest(
+                filepath="filepath",
+                ti=TI,
+                bundle_name="testing",
+                bundle_version=None,
+            ),
+            DAT.TASK_CALLBACK_REQUEST,
+            lambda a, b: a.ti == b.ti,
+        ),
+        (
+            DagCallbackRequest(
+                filepath="filepath",
+                dag_id="fake_dag",
+                run_id="fake_run",
+                bundle_name="testing",
+                bundle_version=None,
+            ),
+            DAT.DAG_CALLBACK_REQUEST,
+            lambda a, b: a.dag_id == b.dag_id,
+        ),
+        (Asset.ref(name="test"), DAT.ASSET_REF, lambda a, b: a.name == b.name),
+        (
+            DeadlineAlert(
+                reference=cast("DeadlineReference", DeadlineReference.DAGRUN_LOGICAL_DATE),
+                interval=timedelta(),
+                callback="fake_callable",
+            ),
+            None,
+            None,
         ),
         (
             create_outlet_event_accessors(
@@ -510,3 +566,64 @@ def test_get_task_assets():
         ("c", asset1),
         ("d", asset1),
     ]
+
+
+def test_get_run_data_interval():
+    lazy_serialized_dag1 = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
+    with pytest.raises(ValueError, match="different DAGs"):
+        lazy_serialized_dag1.get_run_data_interval(DAG_RUN)
+
+    lazy_serialized_dag2 = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
+    with pytest.raises(ValueError, match="Cannot calculate data interval"):
+        lazy_serialized_dag2.get_run_data_interval(DAG_RUN)
+
+    DAG_RUN.data_interval_start = datetime(2025, 1, 1, 0, 0)
+    DAG_RUN.data_interval_end = datetime(2025, 1, 2, 0, 0)
+    interval = lazy_serialized_dag2.get_run_data_interval(DAG_RUN)
+    assert isinstance(interval, DataInterval)
+
+
+def test_hash_property():
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    data = {"dag": {"dag_id": "dag1"}}
+    lazy_serialized_dag = LazyDeserializedDAG(data=data)
+    assert lazy_serialized_dag.hash == SerializedDagModel.hash(data)
+
+
+def test_decode_asset_condition():
+    from airflow.sdk.definitions.asset import AssetAlias, AssetAll, AssetAny, AssetRef
+    from airflow.serialization.serialized_objects import decode_asset_condition
+
+    asset_dict = {
+        "__type": DAT.ASSET,
+        "name": "test_asset",
+        "uri": "test://asset-uri",
+        "group": "test-group",
+        "extra": {},
+    }
+    assert isinstance(decode_asset_condition(asset_dict), Asset)
+
+    asset_all_dict = {"__type": DAT.ASSET_ALL, "objects": [asset_dict, asset_dict]}
+    assert isinstance(decode_asset_condition(asset_all_dict), AssetAll)
+
+    asset_any_dict = {"__type": DAT.ASSET_ANY, "objects": [asset_dict]}
+    assert isinstance(decode_asset_condition(asset_any_dict), AssetAny)
+
+    asset_alias_dict = {"__type": DAT.ASSET_ALIAS, "name": "test_alias", "group": "test-alias-group"}
+    assert isinstance(decode_asset_condition(asset_alias_dict), AssetAlias)
+
+    asset_ref_dict = {"__type": DAT.ASSET_REF, "name": "test_ref"}
+    assert isinstance(decode_asset_condition(asset_ref_dict), AssetRef)
+
+    bad = {"__type": "UNKNOWN_TYPE"}
+    with pytest.raises(ValueError, match="deserialization not implemented for DAT 'UNKNOWN_TYPE'"):
+        decode_asset_condition(bad)
+
+
+def test_encode_timezone():
+    from airflow.serialization.serialized_objects import encode_timezone
+
+    assert encode_timezone(FixedTimezone(0)) == "UTC"
+    with pytest.raises(ValueError):
+        encode_timezone(object())
