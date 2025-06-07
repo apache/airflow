@@ -1,0 +1,147 @@
+{
+  "assetSchedule": "{{total}} में से {{count}} एसेट अपडेट किए गए",
+  "dagActions": {
+    "delete": {
+      "button": "डैग हटाएं",
+      "warning": "यह डैग से संबंधित सभी मेटाडेटा को हटा देगा, जिसमें रन और टास्क शामिल हैं।"
+    },
+    "trigger": {
+      "button": "ट्रिगर करें",
+      "triggerDag": "डैग ट्रिगर करें"
+    }
+  },
+  "filters": {
+    "paused": {
+      "active": "सक्रिय",
+      "all": "सभी",
+      "paused": "रुके हुए"
+    }
+  },
+  "list": {
+    "advancedSearch": "एडवांस्ड खोज",
+    "clearSearch": "खोज साफ़ करें",
+    "columns": {
+      "dagId": "डैग आईडी",
+      "lastDagRun": "पिछला डैग रन",
+      "nextDagRun": "अगला डैग रन",
+      "schedule": "अनुसूची",
+      "tags": "टैग्स"
+    },
+    "ownerLink": "{{owner}} के लिए ओनर लिंक",
+    "searchPlaceholder": "डैग्स खोजें"
+  },
+  "runAndTaskActions": {
+    "clear": {
+      "button": "{{type}} साफ़ करें",
+      "buttonTooltip": "क्लियर करने के लिए shift+c दबाएँ",
+      "dialog": {
+        "affectedTasks": {
+          "columns": {
+            "mapIndex": "मैप इंडेक्स",
+            "runId": "रन आईडी",
+            "state": "स्थिति",
+            "taskId": "टास्क आईडी"
+          },
+          "noItemsFound": "कोई टास्क नहीं मिला।",
+          "title": "प्रभावित टास्क्स: {{count}}"
+        },
+        "confirm": "पुष्टि करें",
+        "note": {
+          "placeholder": "कोई नोट जोड़ें...",
+          "title": "नोट"
+        },
+        "options": {
+          "downstream": "डाउनस्ट्रीम",
+          "existingTasks": "मौजूदा टास्क्स साफ़ करें",
+          "future": "भविष्य",
+          "onlyFailed": "केवल असफल टास्क्स साफ़ करें",
+          "past": "भूतकाल",
+          "queueNew": "नए टास्क्स कतार में लगाएँ",
+          "upstream": "अपस्ट्रीम"
+        },
+        "title": "{{type}} साफ़ करें"
+      }
+    },
+    "delete": {
+      "button": "{{type}} हटाएं",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "{{type}} हटाएं",
+        "warning": "यह {{type}} से संबंधित सभी मेटाडेटा को हटा देगा।"
+      },
+      "error": "{{type}} हटाते समय त्रुटि",
+      "success": {
+        "description": "{{type}} हटाने का अनुरोध सफल रहा।",
+        "title": "{{type}} सफलतापूर्वक हटाया गया"
+      }
+    },
+    "markAs": {
+      "button": "{{type}} को ऐसे चिह्नित करें...",
+      "buttonTooltip": {
+        "failed": "असफल चिह्नित करने के लिए shift+f दबाएँ",
+        "success": "सफल चिह्नित करने के लिए shift+s दबाएँ"
+      },
+      "dialog": {
+        "confirm": "पुष्टि करें",
+        "options": {
+          "downstream": "डाउनस्ट्रीम",
+          "future": "भविष्य",
+          "past": "भूतकाल",
+          "upstream": "अपस्ट्रीम"
+        },
+        "title": "{{type}} को {{state}} के रूप में चिह्नित करें"
+      }
+    }
+  },
+  "runs": {
+    "allRunTypes": "सभी रन प्रकार",
+    "allStates": "सभी स्थितियाँ",
+    "columns": {
+      "dagId": "डैग आईडी",
+      "dagVersions": "डैग संस्करण",
+      "duration": "अवधि",
+      "endDate": "समाप्ति तिथि",
+      "runAfter": "के बाद रन करें",
+      "runType": "रन प्रकार",
+      "startDate": "प्रारंभ तिथि",
+      "state": "स्थिति"
+    }
+  },
+  "sort": {
+    "displayName": {
+      "asc": "डिस्प्ले नाम (A-Z) द्वारा छाँटें",
+      "desc": "डिस्प्ले नाम (Z-A) द्वारा छाँटें"
+    },
+    "lastRunStartDate": {
+      "asc": "पिछले रन की प्रारंभ तिथि (प्रारंभ से अंत) द्वारा छाँटें",
+      "desc": "पिछले रन की प्रारंभ तिथि (अंत से प्रारंभ) द्वारा छाँटें"
+    },
+    "lastRunState": {
+      "asc": "पिछले रन की स्थिति (A-Z) द्वारा छाँटें",
+      "desc": "पिछले रन की स्थिति (Z-A) द्वारा छाँटें"
+    },
+    "nextDagRun": {
+      "asc": "अगले डैग रन (प्रारंभ से अंत) द्वारा छाँटें",
+      "desc": "अगले डैग रन (अंत से प्रारंभ) द्वारा छाँटें"
+    },
+    "placeholder": "इसके अनुसार छाँटें"
+  },
+  "taskInstances": {
+    "allStates": "सभी स्थितियाँ",
+    "columns": {
+      "dagId": "डैग आईडी",
+      "dagRun": "डैग रन",
+      "dagVersion": "डैग संस्करण",
+      "duration": "अवधि",
+      "endDate": "समाप्ति तिथि",
+      "mapIndex": "मैप इंडेक्स",
+      "operator": "ऑपरेटर",
+      "pool": "पूल",
+      "startDate": "प्रारंभ तिथि",
+      "state": "स्थिति",
+      "taskId": "टास्क आईडी",
+      "tryNumber": "प्रयास संख्या"
+    },
+    "searchPlaceholder": "टास्क खोजें"
+  }
+}
