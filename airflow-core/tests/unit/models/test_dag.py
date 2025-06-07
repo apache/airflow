@@ -129,7 +129,7 @@ def clear_assets():
     clear_db_assets()
 
 
-TEST_DAGS_FOLDER = Path(__file__).parent.parent / "dags"
+TEST_DAGS_FOLDER = Path(__file__).parents[1] / "dags"
 
 
 @pytest.fixture

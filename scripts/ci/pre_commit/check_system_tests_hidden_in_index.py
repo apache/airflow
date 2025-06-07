@@ -36,7 +36,7 @@ errors: list[Any] = []
 
 def check_system_test_entry_hidden(provider_index: Path):
     console.print(f"[bright_blue]Checking {provider_index}")
-    provider_path = provider_index.parent.parent.resolve().relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
+    provider_path = provider_index.parents[1].resolve().relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
     expected_text = f"""
 .. toctree::
     :hidden:

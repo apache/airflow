@@ -21,7 +21,7 @@ from pathlib import Path
 
 from tabulate import tabulate
 
-AIRFLOW_SOURCES = Path(__file__).resolve().parent.parent.parent.parent
+AIRFLOW_SOURCES = Path(__file__).resolve().parents[3]
 
 
 HEADERS = (
