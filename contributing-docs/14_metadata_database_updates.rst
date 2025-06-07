@@ -34,7 +34,7 @@ database schema that you have made. To generate a new migration file, run the fo
     $ alembic revision -m "add new field to db" --autogenerate
 
        Generating
-    ~/airflow/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
+    ~/airflow-core/src/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
 
 Note that migration file names are standardized by pre-commit hook ``update-migration-references``, so that they sort alphabetically and indicate
 the Airflow version in which they first appear (the alembic revision ID is removed). As a result you should expect to see a pre-commit failure
