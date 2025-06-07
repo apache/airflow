@@ -108,7 +108,7 @@ const taskInstanceColumns = ({
       ]),
   {
     accessorKey: "rendered_map_index",
-    header: translate("dags:taskInstances.columns.mapIndex"),
+    header: translate("common:mapIndex"),
   },
   {
     accessorKey: "state",
