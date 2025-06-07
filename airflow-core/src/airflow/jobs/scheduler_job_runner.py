@@ -42,7 +42,6 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import Log
@@ -966,8 +965,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _execute(self) -> int | None:
         self.log.info("Starting the scheduler")
-
-        executor_class, _ = ExecutorLoader.import_default_executor_cls()
 
         reset_signals = self.register_signals()
         try:
@@ -1977,7 +1974,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
         if num_times_stuck < self._num_stuck_queued_retries:
-            self.log.info("Task stuck in queued; will try to requeue. task_id=%s", ti.task_id)
+            self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
             session.add(
                 Log(
                     event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,

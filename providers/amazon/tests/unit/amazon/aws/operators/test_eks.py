@@ -823,3 +823,27 @@ class TestEksPodOperator:
         )
 
         validate_template_fields(op)
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
+    def test_trigger_reentry(self, mock_generate_config_file, mock_k8s_pod_operator_trigger_reentry):
+        ti_context = mock.MagicMock(name="ti_context")
+        event = {"eks_cluster_name": "eks_cluster_name", "namespace": "namespace"}
+
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            # Delete the pod when it reaches its final state, or the execution is interrupted.
+            on_finish_action="delete_pod",
+        )
+        op.trigger_reentry(ti_context, event)
+        mock_k8s_pod_operator_trigger_reentry.assert_called_once_with(ti_context, event)
+        mock_generate_config_file.assert_called_once_with(
+            eks_cluster_name="eks_cluster_name", pod_namespace="namespace"
+        )
+        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
