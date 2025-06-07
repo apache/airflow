@@ -154,6 +154,30 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
+    def test_inherited_primitives_fail_serialization(self):
+        """Test that classes inheriting from primitives fail to serialize"""
+
+        class CustomInt(int):
+            pass
+
+        class CustomStr(str):
+            pass
+
+        class CustomFloat(float):
+            pass
+
+        # bool is final
+
+        # These should all fail because they're not in _primitives_qn
+        with pytest.raises(TypeError, match="^cannot serialize"):
+            serialize(CustomInt(42))
+
+        with pytest.raises(TypeError, match="^cannot serialize"):
+            serialize(CustomStr("test"))
+
+        with pytest.raises(TypeError, match="^cannot serialize"):
+            serialize(CustomFloat(3.14))
+
     def test_ser_collections(self):
         i = [1, 2]
         e = deserialize(serialize(i))
