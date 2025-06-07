@@ -631,6 +631,9 @@ def install_airflow_and_providers(
                 f"\n[bright_blue]Installing airflow core distribution: {installation_spec.airflow_core_distribution} with constraints"
             )
             base_install_airflow_cmd.append(installation_spec.airflow_core_distribution)
+            if "rc" in installation_spec.airflow_core_distribution:
+                # If we install Airflow core from a pre-release version, we need to allow pre-releases to have task-sdk installable
+                base_install_airflow_cmd.append("--prerelease=allow")
         install_airflow_cmd = base_install_airflow_cmd.copy()
         if installation_spec.airflow_constraints_location:
             console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_constraints_location}")
