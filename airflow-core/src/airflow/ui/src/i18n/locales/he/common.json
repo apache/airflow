@@ -1,0 +1,79 @@
+{
+  "defaultToGraphView": "תצוגת גרף כברירת מחדל",
+  "defaultToGridView": "תצוגת רשת כברירת מחדל",
+  "logout": "התנתק",
+  "switchToDarkMode": "החלף למצב כהה",
+  "switchToLightMode": "החלף למצב בהיר",
+  "timezone": "איזור זמן",
+  "user": "משתמש",
+  "language": {
+    "chinese": "סינית מסורתית",
+    "english": "אנגלית",
+    "german": "גרמנית",
+    "korean": "קוריאנית",
+    "select": "בחר"
+  },
+  "nav": {
+    "home": "דף הבית",
+    "assets": "נכסים (Assets)",
+    "browse": "עיון",
+    "admin": "ניהול",
+    "docs": "תיעוד",
+    "plugins": "תוספים"
+  },
+  "browse": {
+    "auditLog": "יומן מערכת",
+    "xcoms": "(XComs) אקסקום"
+  },
+  "admin": {
+    "Variables": "משתנים",
+    "Pools": "מאגר משאבים",
+    "Providers": "חבילות עזר",
+    "Plugins": "פלאגינים",
+    "Connections": "חיבורים",
+    "Config": "קונפיגורציות"
+  },
+  "timeRange": {
+    "duration": "משך זמן",
+    "lastHour": "השעה האחרונה",
+    "last12Hours": "12 השעות האחרונות",
+    "last24Hours": "24 השעות האחרונות",
+    "pastWeek": "השבוע האחרון"
+  },
+  "docs": {
+    "documentation": "דוקומנטציה",
+    "githubRepo": "GitHub Repo",
+    "restApiReference": "REST API תיעוד"
+  },
+  "states": {
+    "queued": "בהמתנה למשאבי ריצה",
+    "running": "בריצה",
+    "success": "הצלחה",
+    "failed": "כשלון",
+    "skipped": "דולג",
+    "removed": "הוסר",
+    "scheduled": "בהמתנה לתזמון",
+    "restarting": "בהפעלה מחדש",
+    "up_for_retry": "בהמתנה לניסיון נוסף",
+    "up_for_reschedule": "בהמתנה לתזמון פנימי",
+    "upstream_failed": "תלויות נכשלו",
+    "deferred": "בהמתנה עד קיום תנאי",
+    "no_status": "ללא סטאטוס"
+  },
+  "dagRun_one": "Dag בודד",
+  "dagRun_other": "Dag אחר",
+  "taskInstance_one": "משימה בודדת",
+  "taskInstance_other": "משימה אחרת",
+  "assetEvent_one": "אירוע בנכס בודד (Asset)",
+  "assetEvent_other": "אירוע בנכס אחר (Asset)",
+  "triggered": "טריגרר",
+  "pools": {
+    "open": "פתוח",
+    "running": "בריצה",
+    "queued": "בהמתנה למשאבים",
+    "scheduled": "בתזמון",
+    "deferred": "בהמתנה עד קיום תנאי",
+    "pools_one": "מאגר",
+    "pools_other": "מאגרים"
+  }
+}

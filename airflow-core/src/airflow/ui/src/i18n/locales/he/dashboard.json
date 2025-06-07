@@ -1,0 +1,38 @@
+{
+  "welcome": "ברוכים הבאים",
+  "stats": {
+    "stats": "סטטיסטיקות",
+    "failedDags": "בכשלון Dags",
+    "runningDags": "בריצה Dags",
+    "activeDags": "פעיל Dags",
+    "queuedDags": "Dags בתור"
+  },
+  "health": {
+    "health": "תקינות",
+    "metaDatabase": "מטא מסד-נתונים",
+    "scheduler": "מתזמן",
+    "triggerer": "מנהל תהליכים בהמתנה",
+    "dagProcessor": "Dag מנתח",
+    "status": "סטאטוס",
+    "lastHeartbeat": "פעימה אחרונה",
+    "healthy": "תקין",
+    "unhealthy": "לא תקין"
+  },
+  "importErrors": {
+    "searchByFile": "חפש לפי קובץ",
+    "dagImportError_one": "שגיאות בטעינת Dag",
+    "dagImportError_other": "שגיאות בטעינת Dags",
+    "timestamp": "חותמת זמן"
+  },
+  "poolSlots": "סטאטוס מאגרים",
+  "managePools": "ניהול מאגרים",
+  "history": "היסטוריה",
+  "sortBy": {
+    "newestFirst": "חדש קודם",
+    "oldestFirst": "ישן קודם"
+  },
+  "source": "מקור",
+  "group": "קבוצה",
+  "uri": "URI",
+  "noAssetEvents": "אין אירועים בנכסים"
+}
