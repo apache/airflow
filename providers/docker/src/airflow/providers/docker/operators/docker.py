@@ -528,4 +528,5 @@ class DockerOperator(BaseOperator):
 
     @staticmethod
     def load_environment_variables(env_file: str | os.PathLike[str]) -> dict:
-        return dotenv_values(dotenv_path=env_file)
+        with open(env_file, encoding="utf-8") as stream:
+            return DockerOperator.unpack_environment_variables(stream)
