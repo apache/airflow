@@ -65,7 +65,7 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         """Handle IntegrityError exception."""
         if self._is_dialect_matched(exc):
             if conf.get("api", "expose_stacktrace") == "True":
-                stacktrace = "\n"
+                stacktrace = ""
                 for tb in traceback.format_tb(exc.__traceback__):
                     stacktrace += tb
             else:
