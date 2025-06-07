@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-07T14:03:27.705751
+# This constraints file was automatically generated on 2025-06-07T19:58:04.111920
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -73,7 +73,7 @@ aiobotocore==2.22.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.12.10
+aiohttp==3.12.11
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -140,6 +140,7 @@ apache-airflow-providers-docker==4.4.0
 apache-airflow-providers-edge3==1.1.0
 apache-airflow-providers-elasticsearch==6.3.0
 apache-airflow-providers-exasol==4.8.0
+apache-airflow-providers-fab==2.2.0
 apache-airflow-providers-facebook==3.8.0
 apache-airflow-providers-ftp==3.13.0
 apache-airflow-providers-git==0.0.2
@@ -531,7 +532,7 @@ oauthlib==3.2.2
 objsize==0.7.1
 openai==1.84.0
 openapi-schema-validator==0.6.3
-openapi-spec-validator==0.7.1
+openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.33.0
