@@ -33,12 +33,9 @@ from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
+from unit.utils.test_deadlines import DAG_ID, TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH
 
-DAG_ID = "dag_id_1"
 RUN_ID = 1
-
-TEST_CALLBACK_KWARGS = {"to": "the_boss@work.com"}
-TEST_CALLBACK_PATH = f"{__name__}.test_callback"
 
 
 def _clean_db():
