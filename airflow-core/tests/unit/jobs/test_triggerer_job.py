@@ -23,8 +23,9 @@ import os
 import selectors
 import time
 from collections.abc import AsyncIterator
+from concurrent.futures import Future
 from typing import TYPE_CHECKING, Any
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pendulum
 import pytest
@@ -303,8 +304,7 @@ class TestTriggerRunner:
         )
         trigger_runner = TriggerRunner()
         trigger_runner.requests_sock = MagicMock()
-        trigger_runner.response_sock = AsyncMock()
-        trigger_runner.response_sock.readline.return_value = (
+        supervisor_builder._read_stdin_line.return_value = (
             b'{"type": "TriggerStateSync", "to_create": [], "to_cancel": []}\n'
         )
 
@@ -326,6 +326,32 @@ class TestTriggerRunner:
         trigger_id, traceback = msg.failures[0]
         assert trigger_id == 1
         assert traceback[-1] == "ModuleNotFoundError: No module named 'fake'\n"
+
+    @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    async def test_sync_state_to_supervisor_calls_stdin_threadpool_executor(self, mock_supervisor_comms):
+        workload = workloads.RunTrigger.model_construct(
+            id=1, ti=None, classpath="fake.classpath", encrypted_kwargs={}
+        )
+
+        trigger_runner = TriggerRunner()
+        trigger_runner.requests_sock = MagicMock()
+        trigger_runner.to_create.append(workload)
+
+        await trigger_runner.create_triggers()
+        ids = await trigger_runner.cleanup_finished_triggers()
+
+        future = Future()
+        read_line_output = b'{"type": "TriggerStateSync", "to_create": [], "to_cancel": []}\n'
+        future.set_result(read_line_output)
+
+        with patch.object(trigger_runner, "_stdin_threadpool_executor", MagicMock()) as mock_executor:
+            mock_executor.submit.return_value = future
+
+            await trigger_runner.sync_state_to_supervisor(ids)
+
+            # Assert that _stdin_threadpool_executor.submit was called with the correct task
+            mock_executor.submit.assert_called_once_with(mock_supervisor_comms._read_stdin_line)
 
 
 @pytest.mark.asyncio
@@ -622,10 +648,6 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
         super().handle_events()
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
@@ -726,10 +748,6 @@ class CustomTriggerDagRun(BaseTrigger):
         yield TriggerEvent({"count": dag_run_states_count, "dag_run_state": dag_run_state})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(30)
@@ -822,10 +840,6 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
         yield TriggerEvent({"ti_count": ti_count, "dr_count": dr_count, "task_states": task_states})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(30)
