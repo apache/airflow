@@ -28,6 +28,7 @@ from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
+    option_allow_pre_releases,
     option_backend,
     option_clean_airflow_installation,
     option_core_integration,
@@ -609,6 +610,7 @@ option_total_test_timeout = click.option(
 @option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_xdist
 @option_verbose
@@ -673,6 +675,7 @@ def core_tests(**kwargs):
 @option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_use_xdist
 @option_verbose
@@ -980,6 +983,7 @@ def integration_providers_tests(
 @option_mysql_version
 @option_no_db_cleanup
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_airflow_constraints_reference
 @option_clean_airflow_installation
 @option_force_lowest_dependencies
@@ -1010,6 +1014,7 @@ def system_tests(
     skip_docker_compose_down: bool,
     test_timeout: int,
     use_airflow_version: str,
+    allow_pre_releases: bool,
     airflow_constraints_reference: str,
     clean_airflow_installation: bool,
     force_lowest_dependencies: bool,
@@ -1019,6 +1024,7 @@ def system_tests(
 ):
     shell_params = ShellParams(
         test_group=GroupOfTests.SYSTEM,
+        allow_pre_releases=allow_pre_releases,
         backend=backend,
         collect_only=collect_only,
         enable_coverage=enable_coverage,
@@ -1259,6 +1265,7 @@ def _run_test_command(
     *,
     test_group: GroupOfTests,
     airflow_constraints_reference: str,
+    allow_pre_releases: bool,
     backend: str,
     collect_only: bool,
     clean_airflow_installation: bool,
@@ -1311,6 +1318,7 @@ def _run_test_command(
         test_list = [test for test in test_list if test not in excluded_test_list]
     shell_params = ShellParams(
         airflow_constraints_reference=airflow_constraints_reference,
+        allow_pre_releases=allow_pre_releases,
         backend=backend,
         collect_only=collect_only,
         clean_airflow_installation=clean_airflow_installation,
