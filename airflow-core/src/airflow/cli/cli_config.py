@@ -485,10 +485,10 @@ ARG_DB_RETRY_DELAY = Arg(
 )
 ARG_DB_BATCH_SIZE = Arg(
     ("--batch-size",),
-    default=5000,
+    default=None,
     type=positive_int(allow_zero=False),
     help=(
-        "Maximum number of rows to delete or archive in a single transaction."
+        "Maximum number of rows to delete or archive in a single transaction.\n"
         "Lower values reduce long-running locks but increase the number of batches."
     ),
 )
