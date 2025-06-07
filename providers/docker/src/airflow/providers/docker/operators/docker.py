@@ -25,7 +25,7 @@ import pickle
 import tarfile
 from collections.abc import Container, Iterable, Sequence
 from functools import cached_property
-from io import BytesIO
+from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
@@ -380,7 +380,7 @@ class DockerOperator(BaseOperator):
             docker_log_config["max-file"] = self.log_opts_max_file
         env_file_vars = {}
         if self.env_file is not None:
-            env_file_vars = dotenv_values(dotenv_path=self.env_file)
+            env_file_vars = self.load_environment_variables(self.env_file)
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
@@ -514,3 +514,17 @@ class DockerOperator(BaseOperator):
                 self.log.info("Not attempting to kill container as it was not created")
                 return
             self.cli.stop(self.container["Id"])
+
+    @staticmethod
+    def unpack_environment_variables(env_str: str) -> dict:
+        r"""
+        Parse environment variables from the string.
+        :param env_str: environment variables in the ``{key}={value}`` format,
+            separated by a ``\n`` (newline)
+        :return: dictionary containing parsed environment variables
+        """
+        return dotenv_values(stream=StringIO(env_str))
+
+    @staticmethod
+    def load_environment_variables(env_file: str | os.PathLike[str]) -> dict:
+        return dotenv_values(dotenv_path=env_file)
