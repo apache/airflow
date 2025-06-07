@@ -179,10 +179,6 @@ class TestDockerOperator:
         self.dotenv_patcher.stop()
 
     def test_execute(self):
-        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
-        stringio_mock = stringio_patcher.start()
-        stringio_mock.side_effect = lambda *args: args[0]
-
         operator = DockerOperator(
             api_version=TEST_API_VERSION,
             command="env",
@@ -257,15 +253,9 @@ class TestDockerOperator:
         self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with("some_id")
         assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
-        stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
-        stringio_patcher.stop()
 
     def test_execute_no_temp_dir(self):
-        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
-        stringio_mock = stringio_patcher.start()
-        stringio_mock.side_effect = lambda *args: args[0]
-
         operator = DockerOperator(
             api_version="1.19",
             command="env",
@@ -330,19 +320,13 @@ class TestDockerOperator:
         self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with("some_id")
         assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
-        stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
-        stringio_patcher.stop()
 
     def test_execute_fallback_temp_dir(self, caplog):
         self.client_mock.create_container.side_effect = [
             APIError(message=f"wrong path: {TEMPDIR_MOCK_RETURN_VALUE}"),
             {"Id": "some_id"},
         ]
-
-        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
-        stringio_mock = stringio_patcher.start()
-        stringio_mock.side_effect = lambda *args: args[0]
 
         operator = DockerOperator(
             api_version="1.19",
@@ -465,9 +449,7 @@ class TestDockerOperator:
         self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with("some_id")
         assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
-        stringio_mock.assert_called_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_with(stream="ENV=FILE\nVAR=VALUE")
-        stringio_patcher.stop()
 
     def test_private_environment_is_private(self):
         operator = DockerOperator(
@@ -477,9 +459,7 @@ class TestDockerOperator:
             "To keep this private, it must be an underscored attribute."
         )
 
-    @mock.patch("airflow.providers.docker.operators.docker.StringIO")
-    def test_environment_overrides_env_file(self, stringio_mock):
-        stringio_mock.side_effect = lambda *args: args[0]
+    def test_environment_overrides_env_file(self):
         operator = DockerOperator(
             command="env",
             environment={"UNIT": "TEST"},
@@ -514,7 +494,6 @@ class TestDockerOperator:
             ports=[],
             labels=None,
         )
-        stringio_mock.assert_called_once_with("UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
 
     def test_execute_unicode_logs(self):
