@@ -117,6 +117,7 @@ celerybeat-schedule
 .venv*
 venv*
 ENV/
+airflow_venv
 
 # Spyder project settings
 .spyderproject

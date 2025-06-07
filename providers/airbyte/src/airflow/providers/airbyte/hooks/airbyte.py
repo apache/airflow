@@ -58,14 +58,16 @@ class AirbyteHook(BaseHook):
 
     def get_conn_params(self, conn_id: str) -> Any:
         conn = self.get_connection(conn_id)
-
+        
+        # not sure if this will show password, will need to test this.
+        self.log.debug("Connection attributes are: %s", conn.to_dict())
         conn_params: dict = {}
         conn_params["host"] = conn.host
         conn_params["client_id"] = conn.login
         conn_params["client_secret"] = conn.password
         conn_params["token_url"] = conn.schema or "v1/applications/token"
         conn_params["proxies"] = conn.extra_dejson.get("proxies", None)
-
+        
         return conn_params
 
     def create_api_session(self) -> AirbyteAPI:
@@ -78,6 +80,7 @@ class AirbyteHook(BaseHook):
 
         client = None
         if self.conn["proxies"]:
+            self.log.debug("Creating client proxy...")
             client = Session()
             client.proxies = self.conn["proxies"]
 
@@ -111,6 +114,7 @@ class AirbyteHook(BaseHook):
                     job_id=job_id,
                 )
             )
+            self.log.debug("Job details are: %s", get_job_res.job_response)
             return get_job_res.job_response
         except Exception as e:
             raise AirflowException(e)
@@ -138,12 +142,14 @@ class AirbyteHook(BaseHook):
         start = time.monotonic()
         while True:
             if timeout and start + timeout < time.monotonic():
+                self.log.debug("Canceling job...")
                 self.cancel_job(job_id=(int(job_id)))
                 raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
             time.sleep(wait_seconds)
             try:
                 job = self.get_job_details(job_id=(int(job_id)))
                 state = job.status
+                self.log.debug("Job State: %s. Job Details: %s", state, job)
 
             except AirflowException as err:
                 self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
@@ -161,12 +167,14 @@ class AirbyteHook(BaseHook):
 
     def submit_sync_connection(self, connection_id: str) -> Any:
         try:
+            self.log.debug("Creating job request..")
             res = self.airbyte_api.jobs.create_job(
                 request=JobCreateRequest(
                     connection_id=connection_id,
                     job_type=JobTypeEnum.SYNC,
                 )
             )
+            self.log.debug("Job request successful, response: %s", res.job_response)
             return res.job_response
         except Exception as e:
             raise AirflowException(e)
@@ -191,6 +199,7 @@ class AirbyteHook(BaseHook):
         """Tests the Airbyte connection by hitting the health API."""
         try:
             health_check = self.airbyte_api.health.get_health_check()
+            self.log.debug("Health check details: %s", health_check.)
             if health_check.status_code == 200:
                 return True, "Connection successfully tested"
             return False, str(health_check.raw_response)
