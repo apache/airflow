@@ -21,18 +21,22 @@ import dayjsDuration from "dayjs/plugin/duration";
 
 dayjs.extend(dayjsDuration);
 
-export const getDuration = (startDate?: string | null, endDate?: string | null) => {
-  const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
-
-  if (isNaN(seconds) || seconds <= 0) {
+export const renderDuration = (duration: any) => {
+  if (isNaN(duration) || duration <= 0) {
     return "00:00:00";
   }
 
-  if (seconds < 10) {
-    return `${seconds.toFixed(2)}s`;
+  if (duration < 10) {
+    return `${duration.toFixed(2)}s`;
   }
 
-  return seconds < 86_400
-    ? dayjs.duration(seconds, "seconds").format("HH:mm:ss")
-    : dayjs.duration(seconds, "seconds").format("D[d]HH:mm:ss");
+  return duration < 86_400
+    ? dayjs.duration(duration, "seconds").format("HH:mm:ss")
+    : dayjs.duration(duration, "seconds").format("D[d]HH:mm:ss");
+};
+
+export const getDuration = (startDate?: string | null, endDate?: string | null) => {
+  const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
+
+  return renderDuration(seconds);
 };

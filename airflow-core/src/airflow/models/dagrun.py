@@ -45,6 +45,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     and_,
+    case,
     func,
     not_,
     or_,
@@ -54,9 +55,11 @@ from sqlalchemy import (
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
-from sqlalchemy.sql.expression import case, false, select
+from sqlalchemy.sql.elements import Case
+from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
@@ -95,6 +98,7 @@ if TYPE_CHECKING:
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql.elements import Case
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
@@ -373,6 +377,24 @@ class DagRun(Base, LoggingMixin):
         if dag_versions:
             return dag_versions[-1].version_number
         return None
+
+    @hybrid_property
+    def duration(self) -> float | None:
+        if self.end_date and self.start_date:
+            return (self.end_date - self.start_date).total_seconds()
+        return None
+
+    @duration.expression  # type: ignore[no-redef]
+    def duration(cls) -> Case:
+        return case(
+            [
+                (
+                    (cls.end_date != None) & (cls.start_date != None),  # noqa: E711
+                    func.extract("epoch", cls.end_date - cls.start_date),
+                )
+            ],
+            else_=None,
+        )
 
     @provide_session
     def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):

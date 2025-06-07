@@ -1314,6 +1314,7 @@ class DAGRunResponse(BaseModel):
     queued_at: Annotated[datetime | None, Field(title="Queued At")] = None
     start_date: Annotated[datetime | None, Field(title="Start Date")] = None
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    duration: Annotated[float | None, Field(title="Duration")] = None
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[datetime, Field(title="Run After")]
