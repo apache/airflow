@@ -4648,6 +4648,9 @@ export const $TaskInstanceResponse = {
       type: "string",
       title: "Dag Id",
     },
+    dag_version: {
+      $ref: "#/components/schemas/DagVersionResponse",
+    },
     dag_run_id: {
       type: "string",
       title: "Dag Run Id",
@@ -4894,22 +4897,13 @@ export const $TaskInstanceResponse = {
         },
       ],
     },
-    dag_version: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/DagVersionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
   },
   type: "object",
   required: [
     "id",
     "task_id",
     "dag_id",
+    "dag_version",
     "dag_run_id",
     "map_index",
     "logical_date",
@@ -4938,7 +4932,6 @@ export const $TaskInstanceResponse = {
     "rendered_map_index",
     "trigger",
     "triggerer_job",
-    "dag_version",
   ],
   title: "TaskInstanceResponse",
   description: "TaskInstance serializer for responses.",

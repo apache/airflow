@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 
 from airflow.utils.context import Context
 
@@ -41,7 +43,23 @@ def mock_context(task) -> Context:
             state: str | None = TaskInstanceState.RUNNING,
             map_index: int = -1,
         ):
-            super().__init__(task=task, run_id=run_id, state=state, map_index=map_index)
+            # Inspect the parameters of TaskInstance.__init__
+            init_sig = inspect.signature(super().__init__)
+            if "dag_version_id" in init_sig.parameters:
+                super().__init__(
+                    task=task,
+                    run_id=run_id,
+                    state=state,
+                    map_index=map_index,
+                    dag_version_id=mock.MagicMock(),
+                )
+            else:
+                super().__init__(
+                    task=task,
+                    run_id=run_id,
+                    state=state,
+                    map_index=map_index,
+                )  # type: ignore[call-arg]
             self.values: dict[str, Any] = {}
 
         def xcom_pull(

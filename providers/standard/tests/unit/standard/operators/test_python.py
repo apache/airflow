@@ -49,6 +49,7 @@ from airflow.exceptions import (
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
@@ -2013,8 +2014,11 @@ DEFAULT_ARGS = {
 @pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
     def test_context_in_task(self):
-        with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
+        with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS, schedule="@once") as dag:
             op = MyContextAssertOperator(task_id="assert_context")
+            if AIRFLOW_V_3_0_PLUS:
+                dag.sync_to_db()
+                SerializedDagModel.write_dag(dag, bundle_name="testing")
             if AIRFLOW_V_3_0_1:
                 with pytest.warns(AirflowProviderDeprecationWarning):
                     op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
@@ -2022,8 +2026,11 @@ class TestCurrentContextRuntime:
                 op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
     def test_get_context_in_old_style_context_task(self):
-        with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
+        with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once") as dag:
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
+            if AIRFLOW_V_3_0_PLUS:
+                dag.sync_to_db()
+                SerializedDagModel.write_dag(dag, bundle_name="testing")
             if AIRFLOW_V_3_0_1:
                 with pytest.warns(AirflowProviderDeprecationWarning):
                     op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)

@@ -149,7 +149,7 @@ class TestCommsDecoder:
         w.makefile("wb").write(
             b'{"type":"StartupDetails", "ti": {'
             b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", '
-            b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b",'
+            b'"dag_id": "c","dag_version_id": "01234567-89ab-cdef-0123-456789abcdef"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b",'
             b'"logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
             b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,'
@@ -187,6 +187,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
             dag_id="super_basic",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -243,6 +244,7 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
             dag_id=dag_id,
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -297,6 +299,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
             dag_id="dag_name",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="path_test.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -568,6 +571,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
             dag_id="basic_templated_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         bundle_info=FAKE_BUNDLE,
         dag_rel_path="",
@@ -684,6 +688,7 @@ def test_startup_and_run_dag_with_rtif(
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
+            dag_version_id=uuid7(),
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -829,7 +834,9 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     task_id = "conditional_task"
 
     what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
+        ti=TaskInstance(
+            id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1, dag_version_id=uuid7()
+        ),
         dag_rel_path="dag_parsing_context.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
         requests_fd=0,
@@ -1073,6 +1080,7 @@ class TestRuntimeTaskInstance:
             dag_id=dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
         start_date = timezone.datetime(2025, 1, 1)
 
@@ -2187,6 +2195,7 @@ class TestTaskRunnerCallsListeners:
                 dag_id="basic_dag",
                 run_id="c",
                 try_number=1,
+                dag_version_id=uuid7(),
             ),
             dag_rel_path="",
             bundle_info=FAKE_BUNDLE,
@@ -2226,6 +2235,7 @@ class TestTaskRunnerCallsListeners:
             dag_id=dag.dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(
@@ -2264,6 +2274,7 @@ class TestTaskRunnerCallsListeners:
             dag_id=dag.dag_id,
             run_id="test_run",
             try_number=1,
+            dag_version_id=uuid7(),
         )
 
         runtime_ti = RuntimeTaskInstance.model_construct(

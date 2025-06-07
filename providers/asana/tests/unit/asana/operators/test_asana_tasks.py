@@ -23,6 +23,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.asana.operators.asana_tasks import (
     AsanaCreateTaskOperator,
     AsanaDeleteTaskOperator,
@@ -30,6 +31,8 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaUpdateTaskOperator,
 )
 from airflow.utils import db, timezone
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 # The tests do not create dag runs, so db isolation tests are skipped
 pytestmark = pytest.mark.db_test
@@ -49,6 +52,9 @@ class TestAsanaTaskOperators:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=args)
         self.dag = dag
+        if AIRFLOW_V_3_0_PLUS:
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
         db.merge_conn(Connection(conn_id="asana_test", conn_type="asana", password="test"))
 
     @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
