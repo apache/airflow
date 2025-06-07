@@ -25,6 +25,7 @@ from sqlalchemy.orm import joinedload
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
+    return_all_entries
 )
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
@@ -109,9 +110,11 @@ def get_jobs(
         .options(joinedload(Job.dag_model))
     )
 
-    jobs_select, total_entries = paginated_select(
-        statement=base_select,
-        filters=[
+    jobs = []
+    jobs,total_entries = return_all_entries(
+    operation = Job,
+    statement = base_select,
+    filters = [
             start_date_range,
             end_date_range,
             state,
@@ -119,13 +122,13 @@ def get_jobs(
             hostname,
             executor_class,
         ],
-        order_by=order_by,
-        limit=limit,
-        offset=offset,
-        session=session,
-        return_total_entries=True,
-    )
-    jobs = session.scalars(jobs_select).all()
+    order_by = order_by,
+    offset = offset,
+    limit = limit,
+    session = session,
+    return_total_entries = True,
+    all_results = jobs)
+
 
     if is_alive is not None:
         jobs = [job for job in jobs if job.is_alive()]
