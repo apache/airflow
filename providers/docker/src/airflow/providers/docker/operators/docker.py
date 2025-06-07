@@ -379,7 +379,7 @@ class DockerOperator(BaseOperator):
         if self.log_opts_max_file is not None:
             docker_log_config["max-file"] = self.log_opts_max_file
         env_file_vars = {}
-        if self.env_file is not None:  # TODO: Fixme
+        if self.env_file is not None:
             env_file_vars = dotenv_values(dotenv_path=self.env_file)
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
