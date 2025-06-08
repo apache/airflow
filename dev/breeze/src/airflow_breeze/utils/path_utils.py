@@ -45,6 +45,13 @@ def search_upwards_for_airflow_root_path(start_from: Path) -> Path | None:
         airflow_candidate_init_py = directory / "airflow-core" / "src" / "airflow" / "__init__.py"
         if airflow_candidate_init_py.exists() and "airflow" in airflow_candidate_init_py.read_text().lower():
             return directory
+        airflow_2_candidate_init_py = directory / "airflow" / "__init__.py"
+        if (
+            airflow_2_candidate_init_py.exists()
+            and "airflow" in airflow_2_candidate_init_py.read_text().lower()
+            and directory.parent.name != "src"
+        ):
+            return directory
         directory = directory.parent
     return None
 

@@ -9,6 +9,8 @@
   },
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "backfill_one": "Backfill",
+  "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
     "xcoms": "XComs"
@@ -17,15 +19,30 @@
   "dag_other": "Dags",
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
+  "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
+  "duration": {
+    "label": "Duration",
+    "seconds": "{{count}}s"
+  },
+  "endDate": "End Date",
+  "expression": {
+    "all": "All",
+    "and": "AND",
+    "any": "Any",
+    "or": "OR"
+  },
+  "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
+  "mapIndex": "Map Index",
   "modal": {
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -45,6 +62,7 @@
     "security": "Security"
   },
   "noItemsFound": "No {{modelName}} found",
+  "operator": "Operator",
   "pools": {
     "deferred": "Deferred",
     "open": "Open",
@@ -54,6 +72,7 @@
     "running": "Running",
     "scheduled": "Scheduled"
   },
+  "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
@@ -68,6 +87,8 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "startDate": "Start Date",
+  "state": "State",
   "states": {
     "deferred": "Deferred",
     "failed": "Failed",
@@ -87,20 +108,26 @@
   "switchToDarkMode": "Switch to Dark Mode",
   "switchToLightMode": "Switch to Light Mode",
   "table": {
+    "completedAt": "Completed at",
+    "createdAt": "Created at",
+    "duration": "Duration",
     "filterByTag": "Filter Dags by tag",
     "filterColumns": "Filter table columns",
-    "filters": {
-      "filter_one": "filter",
-      "filter_other": "filters",
-      "reset": "Reset"
-    },
+    "filterReset_one": "Reset filter",
+    "filterReset_other": "Reset filters",
+    "from": "From",
+    "maxActiveRuns": "Max Active Runs",
     "noTagsFound": "No tags found",
+    "reprocessBehavior": "Reprocess Behavior",
     "tagMode": {
       "all": "All",
       "any": "Any"
     },
-    "tagPlaceholder": "Filter by tag"
+    "tagPlaceholder": "Filter by tag",
+    "to": "To"
   },
+  "task_one": "Task",
+  "task_other": "Tasks",
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
@@ -118,5 +145,12 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "triggered": "Triggered",
-  "user": "User"
+  "triggerRule": "Trigger Rule",
+  "tryNumber": "Try Number",
+  "user": "User",
+  "wrap": {
+    "tooltip": "Press w to toggle wrap",
+    "unwrap": "Unwrap",
+    "wrap": "Wrap"
+  }
 }

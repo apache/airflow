@@ -24,8 +24,18 @@
     "githubRepo": "GitHub Ablage",
     "restApiReference": "REST API Referenz"
   },
+  "duration": "Laufzeit",
+  "endDate": "Enddatum",
+  "expression": {
+    "all": "Alle",
+    "and": "UND",
+    "any": "Jeder",
+    "or": "ODER"
+  },
+  "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
+  "mapIndex": "Planungs-Index",
   "modal": {
     "cancel": "Abbrechen",
     "confirm": "Bestätigen",
@@ -54,6 +64,7 @@
     "running": "Laufende",
     "scheduled": "Geplant"
   },
+  "runId": "Lauf Id",
   "runTypes": {
     "asset_triggered": "Durch Datenset (Asset) angestoßen",
     "backfill": "Nachträglich Aufgefüllt",
@@ -68,6 +79,8 @@
     "users": "Benutzer"
   },
   "selectLanguage": "Sprache wählen",
+  "startDate": "Startdatum",
+  "state": "Status",
   "states": {
     "deferred": "Delegiert",
     "failed": "Fehlgeschlagen",
@@ -89,11 +102,8 @@
   "table": {
     "filterByTag": "Dags nach Markierung filtern",
     "filterColumns": "Tabellenspalten filtern",
-    "filters": {
-      "filter_one": "Filter",
-      "filter_other": "Filter",
-      "reset": "Zurücksetzen"
-    },
+    "filterReset_one": "Filter zurücksetzen",
+    "filterReset_other": "Filter zurücksetzen",
     "noTagsFound": "Keine Markierungen gefunden",
     "tagMode": {
       "all": "Alle",
@@ -118,5 +128,6 @@
     "utc": "UTC (Koordinierte Weltzeit)"
   },
   "triggered": "Angestoßen",
+  "tryNumber": "Versuch Nummer",
   "user": "Benutzer"
 }

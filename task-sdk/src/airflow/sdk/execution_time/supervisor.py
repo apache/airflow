@@ -60,7 +60,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TaskStatesResponse,
     VariableResponse,
-    XComResponse,
+    XComSequenceIndexResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -87,6 +87,8 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
+    GetXComSequenceSlice,
+    InactiveAssetsResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -100,9 +102,12 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
+    ValidateInletsAndOutlets,
     VariableResult,
     XComCountResponse,
     XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.secrets_masker import mask_secret
 
@@ -1108,10 +1113,15 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
             )
-            if isinstance(xcom, XComResponse):
-                resp = XComResult.from_xcom_response(xcom)
+            if isinstance(xcom, XComSequenceIndexResponse):
+                resp = XComSequenceIndexResult.from_response(xcom)
             else:
                 resp = xcom
+        elif isinstance(msg, GetXComSequenceSlice):
+            xcoms = self.client.xcoms.get_sequence_slice(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.start, msg.stop, msg.step
+            )
+            resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, DeferTask):
             self._terminal_state = TaskInstanceState.DEFERRED
             self._rendered_map_index = msg.rendered_map_index
@@ -1207,6 +1217,10 @@ class ActivitySubprocess(WatchedSubprocess):
             )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
+        elif isinstance(msg, ValidateInletsAndOutlets):
+            inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
+            resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
+            dump_opts = {"exclude_unset": True}
         else:
             log.error("Unhandled request", msg=msg)
             return

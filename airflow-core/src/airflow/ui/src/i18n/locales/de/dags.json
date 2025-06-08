@@ -3,7 +3,7 @@
   "dagActions": {
     "delete": {
       "button": "Dag löschen",
-      "warning": "Diese Aktion lösche alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
+      "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
     },
     "trigger": {
       "button": "Anstoßen",
@@ -21,7 +21,7 @@
     "advancedSearch": "Erweiterte Suche",
     "clearSearch": "Suche zurücksetzen",
     "columns": {
-      "dagId": "Dag Id",
+      "dagId": "Dag ID",
       "lastDagRun": "Letzter Dag Lauf",
       "nextDagRun": "Nächster Dag Lauf",
       "schedule": "Planung",
@@ -37,10 +37,9 @@
       "dialog": {
         "affectedTasks": {
           "columns": {
-            "mapIndex": "Planungs-Index",
-            "runId": "Lauf Id",
+            "runId": "Lauf ID",
             "state": "Status",
-            "taskId": "Task Id"
+            "taskId": "Task ID"
           },
           "noItemsFound": "Keine Tasks gefunden.",
           "title": "Betroffene Tasks: {{count}}"
@@ -67,7 +66,7 @@
       "dialog": {
         "resourceName": "{{type}} {{id}}",
         "title": "{{type}} löschen",
-        "warning": "Diese Aktion lösche alle Metadaten zu dem Typ {{type}}."
+        "warning": "Diese Aktion löscht alle Metadaten zu dem Typ {{type}}."
       },
       "error": "Fehler beim Löschen von dem Typ {{type}}",
       "success": {
@@ -84,7 +83,7 @@
       "dialog": {
         "confirm": "Bestätigen",
         "options": {
-          "downstream": "Nachgolfende",
+          "downstream": "Nachfolgende",
           "future": "Zukünftige",
           "past": "Vergangene",
           "upstream": "Vorangegangene"
@@ -97,7 +96,8 @@
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
     "columns": {
-      "dagId": "Dag Id",
+      "conf": "Dag Konfiguration",
+      "dagId": "Dag ID",
       "dagVersions": "Dag Version",
       "duration": "Laufzeit",
       "endDate": "Enddatum",
@@ -113,33 +113,32 @@
       "desc": "Sortiert nach Anzeigename (Z-A)"
     },
     "lastRunStartDate": {
-      "asc": "Sortiert nach letzem Startdatum (Erster-Letzter)",
-      "desc": "Sortiert nach letzem Startdatum (Letzter-Erster)"
+      "asc": "Sortiert nach letztem Startdatum (Erster-Letzter)",
+      "desc": "Sortiert nach letztem Startdatum (Letzter-Erster)"
     },
     "lastRunState": {
-      "asc": "Sortiert nach letzen Status des Laufes (A-Z)",
-      "desc": "Sortiert nach letzen Status des Laufes (Z-A)"
+      "asc": "Sortiert nach dem Status des letzten Laufes (A-Z)",
+      "desc": "Sortiert nach dem Status des letzten Laufes (Z-A)"
     },
     "nextDagRun": {
-      "asc": "Sortiert nach nächsten Laufdatum (Erster-Letzter)",
-      "desc": "Sortiert nach nächsten Laufdatum (Letzter-Erster)"
+      "asc": "Sortiert nach nächstem Laufdatum (Erster-Letzter)",
+      "desc": "Sortiert nach nächstem Laufdatum (Letzter-Erster)"
     },
     "placeholder": "Sortieren nach"
   },
   "taskInstances": {
     "allStates": "Alle Stati",
     "columns": {
-      "dagId": "Dag Id",
+      "dagId": "Dag ID",
       "dagRun": "Dag Lauf",
       "dagVersion": "Dag Version",
       "duration": "Laufzeit",
       "endDate": "Enddatum",
-      "mapIndex": "Planungs-Index",
       "operator": "Operator-Klasse",
       "pool": "Pool",
       "startDate": "Startdatum",
       "state": "Status",
-      "taskId": "Task Id",
+      "taskId": "Task ID",
       "tryNumber": "Versuch Nummer"
     },
     "searchPlaceholder": "Tasks suchen"

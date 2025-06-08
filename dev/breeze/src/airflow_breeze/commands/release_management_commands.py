@@ -48,6 +48,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_i
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
+    option_allow_pre_releases,
     option_answer,
     option_clean_airflow_installation,
     option_commit_sha,
@@ -1460,6 +1461,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_run_in_parallel
 @option_skip_cleanup
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
 def install_provider_distributions(
@@ -1468,6 +1470,7 @@ def install_provider_distributions(
     airflow_constraints_reference: str,
     airflow_skip_constraints: bool,
     airflow_extras: str,
+    allow_pre_releases: bool,
     clean_airflow_installation: bool,
     debug_resources: bool,
     github_repository: str,
@@ -1495,6 +1498,7 @@ def install_provider_distributions(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         # We just want to install the providers by entrypoint
         # we do not need to run any command in the container
         extra_args=("exit 0",),
@@ -1605,6 +1609,7 @@ def install_provider_distributions(
 @option_providers_constraints_reference
 @option_providers_skip_constraints
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
 def verify_provider_distributions(
@@ -1625,6 +1630,7 @@ def verify_provider_distributions(
     python: str,
     airflow_skip_constraints: bool,
     use_airflow_version: str | None,
+    allow_pre_releases: bool,
     use_distributions_from_dist: bool,
 ):
     if install_selected_providers and not use_distributions_from_dist:
@@ -1639,6 +1645,7 @@ def verify_provider_distributions(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         clean_airflow_installation=clean_airflow_installation,
         github_repository=github_repository,
         install_airflow_with_constraints=install_airflow_with_constraints,
@@ -3856,7 +3863,9 @@ def generate_issue_content(
                         progress.console.print(
                             f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
                         )
-            users[pr_number].add(pr.user.login)
+            # do not add bot users to the list of users
+            if not pr.user.login.endswith("[bot]"):
+                users[pr_number].add(pr.user.login)
             for linked_issue in linked_issues[pr_number]:
                 users[pr_number].add(linked_issue.user.login)
             progress.advance(task)
