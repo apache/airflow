@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-07T19:48:57.807881
+# This constraints file was automatically generated on 2025-06-08T19:49:31.004972
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -707,7 +707,7 @@ ydb-dbapi==0.1.12
 ydb==3.21.3
 zeep==4.3.1
 zenpy==2.0.56
-zipp==3.22.0
+zipp==3.23.0
 zope.event==5.0
 zope.interface==7.2
 zstandard==0.23.0
