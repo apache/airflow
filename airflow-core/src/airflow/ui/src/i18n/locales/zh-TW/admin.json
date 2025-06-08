@@ -1,4 +1,17 @@
 {
+  "connections":{
+    "test": "測試連線",
+    "testDisabled": "測試連線功能已停用。請聯繫管理員以啟用。"
+  },
+  "plugins": {
+    "columns": {
+      "name": "名稱",
+      "source": "來源"
+    },
+    "importError_one": "外掛匯入錯誤",
+    "importError_other": "外掛匯入錯誤",
+    "searchPlaceholder": "搜尋檔案"
+  },
   "pools": {
     "add": "新增資源池",
     "deferredSlotsIncluded": "包含延後任務",
@@ -23,6 +36,13 @@
       "asc": "名稱 (A-Z)",
       "desc": "名稱 (Z-A)",
       "placeholder": "排序方式"
+    }
+  },
+  "providers": {
+    "columns": {
+      "description": "描述",
+      "packageName": "套件名稱",
+      "version": "版本"
     }
   },
   "variables": {

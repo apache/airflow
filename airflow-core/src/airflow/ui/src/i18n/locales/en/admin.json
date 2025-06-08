@@ -1,4 +1,17 @@
 {
+  "connections":{
+    "test": "Test Connection",
+    "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it."
+  },
+  "plugins": {
+    "columns": {
+      "name": "Name",
+      "source": "Source"
+    },
+    "importError_one": "Plugin Import Error",
+    "importError_other": "Plugin Import Errors",
+    "searchPlaceholder": "Search by file"
+  },
   "pools": {
     "add": "Add Pool",
     "delete":{
@@ -23,6 +36,15 @@
       "desc": "Name (Z-A)",
       "placeholder": "Sort by"
     }
+  },
+  "providers": {
+    "columns": {
+      "description": "Description",
+      "packageName": "Package Name",
+      "version": "Version"
+    },
+    "modelName": "Provider",
+    "title": "Providers"
   },
   "variables": {
     "add": "Add Variable",
