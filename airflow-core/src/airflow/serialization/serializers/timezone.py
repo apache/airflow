@@ -67,7 +67,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: object) -> Any:
+def deserialize(classname: str, version: int, data: object, cls: Any | None = None) -> Any:
     from airflow.utils.timezone import parse_timezone
 
     if not isinstance(data, (str, int)):

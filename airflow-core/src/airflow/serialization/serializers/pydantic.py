@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.serialization.serde import _is_pydantic_model
-from airflow.utils.module_loading import import_string
+from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -51,10 +51,10 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     model = cast("BaseModel", o)  # for mypy
     data = model.model_dump()
 
-    return data, "pydantic.main.BaseModel", __version__, True
+    return data, qualname(o), __version__, True
 
 
-def deserialize(classname: str, version: int, data: dict):
+def deserialize(classname: str, version: int, data: object, cls: Any | None = None):
     """
     Deserialize a dictionary into a Pydantic model instance.
 
@@ -71,14 +71,10 @@ def deserialize(classname: str, version: int, data: dict):
             f"Serialized version {version} of {classname} is newer than the supported version {__version__}"
         )
 
-    try:
-        model_class = import_string(classname)
-    except ImportError as e:
-        raise ImportError(f"Cannot import Pydantic model (sub)class: {classname}") from e
-
-    if not _is_pydantic_model(model_class):
+    if not _is_pydantic_model(cls):
         # no deserializer available
         raise TypeError(f"No deserializer found for {classname}")
 
     # Perform validation-based reconstruction
-    return model_class.model_validate(data)
+    model = cast("BaseModel", cls)  # for mypy
+    return model.model_validate(data)
