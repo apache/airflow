@@ -78,7 +78,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: str) -> Any:
+def deserialize(classname: str, version: int, data: str, cls: Any | None = None) -> Any:
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
 

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.serialization.serializers.timezone import (
     deserialize as deserialize_timezone,
@@ -59,7 +59,9 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: dict | str) -> datetime.date | datetime.timedelta:
+def deserialize(
+    classname: str, version: int, data: dict | str, cls: Any | None = None
+) -> datetime.date | datetime.timedelta:
     import datetime
 
     from pendulum import DateTime
