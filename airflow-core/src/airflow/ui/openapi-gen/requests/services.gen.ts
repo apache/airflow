@@ -92,7 +92,6 @@ import type {
   GetConfigsResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
-  GetFavoriteDagsResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -101,12 +100,14 @@ import type {
   GetDagResponse,
   PatchDagData,
   PatchDagResponse,
-  FavoriteDagData,
-  FavoriteDagResponse,
   DeleteDagData,
   DeleteDagResponse,
   GetDagDetailsData,
   GetDagDetailsResponse,
+  FavoriteDagData,
+  FavoriteDagResponse,
+  UnfavoriteDagData,
+  UnfavoriteDagResponse,
   GetDagTagsData,
   GetDagTagsResponse,
   RecentDagRunsData,
@@ -1514,26 +1515,10 @@ export class DagWarningService {
 
 export class DagService {
   /**
-   * Get Favorite Dags
-   * Get DAGs favorited by the user.
-   * @returns DAGCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getFavoriteDags(): CancelablePromise<GetFavoriteDagsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/api/v2/dags/favorite",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-      },
-    });
-  }
-
-  /**
    * Get Dags
    * Get all DAGs.
    * @param data The data for the request.
+   * @param data.favorites
    * @param data.limit
    * @param data.offset
    * @param data.tags
@@ -1558,6 +1543,7 @@ export class DagService {
       method: "GET",
       url: "/api/v2/dags",
       query: {
+        favorites: data.favorites,
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
@@ -1685,33 +1671,6 @@ export class DagService {
   }
 
   /**
-   * Favorite Dag
-   * Favorite the specific DAG.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.requestBody
-   * @returns DAGResponse Successful Response
-   * @throws ApiError
-   */
-  public static favoriteDag(data: FavoriteDagData): CancelablePromise<FavoriteDagResponse> {
-    return __request(OpenAPI, {
-      method: "PUT",
-      url: "/api/v2/dags/{dag_id}",
-      path: {
-        dag_id: data.dagId,
-      },
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
    * Delete Dag
    * Delete the specific DAG.
    * @param data The data for the request.
@@ -1753,6 +1712,54 @@ export class DagService {
       },
       errors: {
         400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Favorite Dag
+   * Mark the DAG as favorite.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @returns DAGResponse Successful Response
+   * @throws ApiError
+   */
+  public static favoriteDag(data: FavoriteDagData): CancelablePromise<FavoriteDagResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v2/dags/{dag_id}/favorite",
+      path: {
+        dag_id: data.dagId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Unfavorite Dag
+   * Unmark the DAG as favorite.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @returns DAGResponse Successful Response
+   * @throws ApiError
+   */
+  public static unfavoriteDag(data: UnfavoriteDagData): CancelablePromise<UnfavoriteDagResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v2/dags/{dag_id}/unfavorite",
+      path: {
+        dag_id: data.dagId,
+      },
+      errors: {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

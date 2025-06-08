@@ -17,14 +17,15 @@
  * under the License.
  */
 import { Box, Flex, Heading, SimpleGrid, Text } from "@chakra-ui/react";
-import { useEffect, useMemo, useState } from "react";
-import { FiStar } from "react-icons/fi";
-
-import { useDagServiceGetFavoriteDags } from "openapi/queries";
-import { useTranslation } from "react-i18next";
-import { FavoriteDagCard } from "./FavoriteDagCard";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { FiStar } from "react-icons/fi";
 import { useLocation } from "react-router-dom";
+
+import { useDagServiceGetDags } from "openapi/queries";
+
+import { FavoriteDagCard } from "./FavoriteDagCard";
 
 const MAX_VISIBLE = 5;
 
@@ -33,10 +34,10 @@ export const FavoriteDags = () => {
   const location = useLocation();
 
   const { t: translate } = useTranslation("dashboard");
-  const { data: favorites } = useDagServiceGetFavoriteDags();
+  const { data: favorites } = useDagServiceGetDags({ favorites: true });
 
   useEffect(() => {
-    queryClient.refetchQueries({ queryKey: ['DagServiceGetFavoriteDags'] });
+    void queryClient.refetchQueries({ queryKey: ["DagServiceGetDags"] });
   }, [location.key, queryClient]);
 
   const [showAll, setShowAll] = useState(false);
@@ -50,7 +51,7 @@ export const FavoriteDags = () => {
   }, [favorites, showAll]);
 
   if (!favorites) {
-    return null;
+    return undefined;
   }
 
   return (
@@ -68,7 +69,7 @@ export const FavoriteDags = () => {
         </Text>
       ) : (
         <>
-          <SimpleGrid columns={10} columnGap={1} rowGap={4} alignItems="end">
+          <SimpleGrid alignItems="end" columnGap={1} columns={10} rowGap={4}>
             {visibleFavorites.map((dag) => (
               <FavoriteDagCard dagId={dag.dag_id} key={dag.dag_id} />
             ))}

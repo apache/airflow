@@ -43,7 +43,6 @@ import {
   ClearTaskInstancesBody,
   ConnectionBody,
   CreateAssetEventsBody,
-  DAGFavoriteBody,
   DAGPatchBody,
   DAGRunClearBody,
   DAGRunPatchBody,
@@ -952,28 +951,10 @@ export const useDagWarningServiceListDagWarnings = <
     ...options,
   });
 /**
- * Get Favorite Dags
- * Get DAGs favorited by the user.
- * @returns DAGCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagServiceGetFavoriteDags = <
-  TData = Common.DagServiceGetFavoriteDagsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetFavoriteDagsKeyFn(queryKey),
-    queryFn: () => DagService.getFavoriteDags() as TData,
-    ...options,
-  });
-/**
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
+ * @param data.favorites
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -1007,6 +988,7 @@ export const useDagServiceGetDags = <
     dagRunStartDateLte,
     dagRunState,
     excludeStale,
+    favorites,
     lastDagRunState,
     limit,
     offset,
@@ -1024,6 +1006,7 @@ export const useDagServiceGetDags = <
     dagRunStartDateLte?: string;
     dagRunState?: string[];
     excludeStale?: boolean;
+    favorites?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -1047,6 +1030,7 @@ export const useDagServiceGetDags = <
         dagRunStartDateLte,
         dagRunState,
         excludeStale,
+        favorites,
         lastDagRunState,
         limit,
         offset,
@@ -1068,6 +1052,7 @@ export const useDagServiceGetDags = <
         dagRunStartDateLte,
         dagRunState,
         excludeStale,
+        favorites,
         lastDagRunState,
         limit,
         offset,
@@ -3462,6 +3447,78 @@ export const useDagRunServiceGetListDagRunsBatch = <
     ...options,
   });
 /**
+ * Favorite Dag
+ * Mark the DAG as favorite.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceFavoriteDag = <
+  TData = Common.DagServiceFavoriteDagMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId }) => DagService.favoriteDag({ dagId }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Unfavorite Dag
+ * Unmark the DAG as favorite.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceUnfavoriteDag = <
+  TData = Common.DagServiceUnfavoriteDagMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId }) => DagService.unfavoriteDag({ dagId }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Get Task Instances Batch
  * Get list of task instances.
  * @param data The data for the request.
@@ -3773,46 +3830,6 @@ export const useBackfillServiceCancelBackfill = <
   >({
     mutationFn: ({ backfillId }) =>
       BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Favorite Dag
- * Favorite the specific DAG.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.requestBody
- * @returns DAGResponse Successful Response
- * @throws ApiError
- */
-export const useDagServiceFavoriteDag = <
-  TData = Common.DagServiceFavoriteDagMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        dagId: string;
-        requestBody: DAGFavoriteBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      dagId: string;
-      requestBody: DAGFavoriteBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ dagId, requestBody }) =>
-      DagService.favoriteDag({ dagId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

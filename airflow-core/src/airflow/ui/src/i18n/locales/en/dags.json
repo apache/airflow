@@ -29,8 +29,8 @@
     },
     "favoriteDag": "Favorite Dag",
     "ownerLink": "Owner link for {{owner}}",
-    "unfavoriteDag": "Unfavorite Dag",
-    "searchPlaceholder": "Search Dags"
+    "searchPlaceholder": "Search Dags",
+    "unfavoriteDag": "Unfavorite Dag"
   },
   "runAndTaskActions": {
     "clear": {

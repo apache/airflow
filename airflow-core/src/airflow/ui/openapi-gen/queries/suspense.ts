@@ -927,28 +927,10 @@ export const useDagWarningServiceListDagWarningsSuspense = <
     ...options,
   });
 /**
- * Get Favorite Dags
- * Get DAGs favorited by the user.
- * @returns DAGCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagServiceGetFavoriteDagsSuspense = <
-  TData = Common.DagServiceGetFavoriteDagsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetFavoriteDagsKeyFn(queryKey),
-    queryFn: () => DagService.getFavoriteDags() as TData,
-    ...options,
-  });
-/**
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
+ * @param data.favorites
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -982,6 +964,7 @@ export const useDagServiceGetDagsSuspense = <
     dagRunStartDateLte,
     dagRunState,
     excludeStale,
+    favorites,
     lastDagRunState,
     limit,
     offset,
@@ -999,6 +982,7 @@ export const useDagServiceGetDagsSuspense = <
     dagRunStartDateLte?: string;
     dagRunState?: string[];
     excludeStale?: boolean;
+    favorites?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -1022,6 +1006,7 @@ export const useDagServiceGetDagsSuspense = <
         dagRunStartDateLte,
         dagRunState,
         excludeStale,
+        favorites,
         lastDagRunState,
         limit,
         offset,
@@ -1043,6 +1028,7 @@ export const useDagServiceGetDagsSuspense = <
         dagRunStartDateLte,
         dagRunState,
         excludeStale,
+        favorites,
         lastDagRunState,
         limit,
         offset,

@@ -755,20 +755,10 @@ export const ensureUseDagWarningServiceListDagWarningsData = (
     queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }),
   });
 /**
- * Get Favorite Dags
- * Get DAGs favorited by the user.
- * @returns DAGCollectionResponse Successful Response
- * @throws ApiError
- */
-export const ensureUseDagServiceGetFavoriteDagsData = (queryClient: QueryClient) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseDagServiceGetFavoriteDagsKeyFn(),
-    queryFn: () => DagService.getFavoriteDags(),
-  });
-/**
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
+ * @param data.favorites
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -799,6 +789,7 @@ export const ensureUseDagServiceGetDagsData = (
     dagRunStartDateLte,
     dagRunState,
     excludeStale,
+    favorites,
     lastDagRunState,
     limit,
     offset,
@@ -816,6 +807,7 @@ export const ensureUseDagServiceGetDagsData = (
     dagRunStartDateLte?: string;
     dagRunState?: string[];
     excludeStale?: boolean;
+    favorites?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -836,6 +828,7 @@ export const ensureUseDagServiceGetDagsData = (
       dagRunStartDateLte,
       dagRunState,
       excludeStale,
+      favorites,
       lastDagRunState,
       limit,
       offset,
@@ -855,6 +848,7 @@ export const ensureUseDagServiceGetDagsData = (
         dagRunStartDateLte,
         dagRunState,
         excludeStale,
+        favorites,
         lastDagRunState,
         limit,
         offset,

@@ -38,24 +38,20 @@ export const FavoriteDagCard = ({ dagId }: FavoriteDagProps) => {
     <Box width="100%">
       <RouterLink to={`/dags/${dagId}`}>
         <Button
-          width="100%"
-          height="auto"
           borderRadius="md"
           display="flex"
           flexDirection="column"
           gap={2}
+          height="auto"
           px={4}
           py={3}
           variant="outline"
+          width="100%"
         >
           <Box mt={1}>
             <VStack>
               <RecentRuns latestRuns={latestRuns} />
-              <Text
-                _hover={{ textDecoration: "underline" }}
-                fontSize="sm"
-                textAlign="left"
-              >
+              <Text _hover={{ textDecoration: "underline" }} fontSize="sm" textAlign="left">
                 {dagId}
               </Text>
             </VStack>

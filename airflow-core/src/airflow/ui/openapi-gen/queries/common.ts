@@ -575,16 +575,6 @@ export const UseDagWarningServiceListDagWarningsKeyFn = (
   useDagWarningServiceListDagWarningsKey,
   ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }]),
 ];
-export type DagServiceGetFavoriteDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getFavoriteDags>>;
-export type DagServiceGetFavoriteDagsQueryResult<
-  TData = DagServiceGetFavoriteDagsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagServiceGetFavoriteDagsKey = "DagServiceGetFavoriteDags";
-export const UseDagServiceGetFavoriteDagsKeyFn = (queryKey?: Array<unknown>) => [
-  useDagServiceGetFavoriteDagsKey,
-  ...(queryKey ?? []),
-];
 export type DagServiceGetDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getDags>>;
 export type DagServiceGetDagsQueryResult<
   TData = DagServiceGetDagsDefaultResponse,
@@ -601,6 +591,7 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunStartDateLte,
     dagRunState,
     excludeStale,
+    favorites,
     lastDagRunState,
     limit,
     offset,
@@ -618,6 +609,7 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunStartDateLte?: string;
     dagRunState?: string[];
     excludeStale?: boolean;
+    favorites?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -640,6 +632,7 @@ export const UseDagServiceGetDagsKeyFn = (
       dagRunStartDateLte,
       dagRunState,
       excludeStale,
+      favorites,
       lastDagRunState,
       limit,
       offset,
@@ -1881,6 +1874,8 @@ export type DagRunServiceTriggerDagRunMutationResult = Awaited<
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<
   ReturnType<typeof DagRunService.getListDagRunsBatch>
 >;
+export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
+export type DagServiceUnfavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.unfavoriteDag>>;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>
 >;
@@ -1903,7 +1898,6 @@ export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
 export type BackfillServiceCancelBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.cancelBackfill>
 >;
-export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<
   ReturnType<typeof DagParsingService.reparseDagFile>
 >;
