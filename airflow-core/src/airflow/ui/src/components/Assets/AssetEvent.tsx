@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, HStack, Code } from "@chakra-ui/react";
+import { Box, Text, HStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
@@ -24,60 +25,67 @@ import type { AssetEventResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 
+import RenderedJsonField from "../RenderedJsonField";
 import { TriggeredRuns } from "./TriggeredRuns";
 
 export const AssetEvent = ({
   assetId,
   event,
-  showExtra,
 }: {
   readonly assetId?: number;
   readonly event: AssetEventResponse;
-  readonly showExtra?: boolean;
 }) => {
+  const { t: translate } = useTranslation("dashboard");
   let source = "";
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  const { from_rest_api, from_trigger, ...extra } = event.extra ?? {};
+  const { from_rest_api: fromRestAPI, from_trigger: fromTrigger, ...extra } = event.extra ?? {};
 
-  if (from_rest_api === true) {
+  if (fromRestAPI === true) {
     source = "API";
-  } else if (from_trigger === true) {
+  } else if (fromTrigger === true) {
     source = "Trigger";
   }
 
-  const extraString = JSON.stringify(extra);
-
   return (
-    <Box borderBottomWidth={1} fontSize={13} mt={1} p={2}>
+    <Box borderBottomWidth={1} fontSize={13} pb={2}>
       <Text fontWeight="bold">
         <Time datetime={event.timestamp} />
       </Text>
       {Boolean(assetId) ? undefined : (
         <HStack>
-          <FiDatabase />
+          <Box>
+            <FiDatabase />
+          </Box>
           <Tooltip
             content={
               <div>
-                <Text> group: {event.group ?? ""} </Text>
-                <Text> uri: {event.uri ?? ""} </Text>
+                <Text>
+                  {translate("group")}: {event.group ?? ""}
+                </Text>
+                <Text>
+                  {translate("uri")}: {event.uri ?? ""}
+                </Text>
               </div>
             }
             showArrow
           >
             <Link to={`/assets/${event.asset_id}`}>
-              <Text color="fg.info"> {event.name ?? ""} </Text>
+              <Box color="fg.info" overflowWrap="anywhere" padding={0} wordWrap="break-word">
+                {event.name ?? ""}
+              </Box>
             </Link>
           </Tooltip>
         </HStack>
       )}
       <HStack>
-        <Text>Source: </Text>
+        <Box>{translate("source")}: </Box>
         {source === "" ? (
           <Link
             to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
           >
-            <Text color="fg.info"> {event.source_dag_id} </Text>
+            <Box color="fg.info" overflowWrap="anywhere" padding={0} wordWrap="break-word">
+              {event.source_dag_id}
+            </Box>
           </Link>
         ) : (
           source
@@ -86,7 +94,9 @@ export const AssetEvent = ({
       <HStack>
         <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
-      {showExtra && extraString !== "{}" ? <Code>{extraString}</Code> : undefined}
+      {Object.keys(extra).length >= 1 ? (
+        <RenderedJsonField content={extra} jsonProps={{ collapsed: true }} />
+      ) : undefined}
     </Box>
   );
 };

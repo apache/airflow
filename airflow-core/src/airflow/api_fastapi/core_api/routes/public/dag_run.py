@@ -20,10 +20,11 @@ from __future__ import annotations
 from typing import Annotated, Literal, cast
 
 import structlog
-from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -31,6 +32,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -90,7 +92,9 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
-    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    dag_run = session.scalar(
+        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
+    )
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -144,19 +148,21 @@ def patch_dag_run(
     dag_run_id: str,
     patch_body: DAGRunPatchBody,
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
     user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
-    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    dag_run = session.scalar(
+        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
+    )
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
 
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
@@ -250,17 +256,19 @@ def clear_dag_run(
     dag_id: str,
     dag_run_id: str,
     body: DAGRunClearBody,
-    request: Request,
+    dag_bag: DagBagDep,
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse | DAGRunResponse:
-    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    dag_run = session.scalar(
+        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
+    )
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = dag_bag.get_dag(dag_id)
 
     if body.dry_run:
         task_instances = dag.clear(
@@ -316,6 +324,7 @@ def get_dag_runs(
                     "end_date",
                     "updated_at",
                     "conf",
+                    "duration",
                 ],
                 DagRun,
                 {"dag_run_id": "run_id"},
@@ -324,7 +333,7 @@ def get_dag_runs(
     ],
     readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
-    request: Request,
+    dag_bag: DagBagDep,
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -334,11 +343,11 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        dag: DAG = dag_bag.get_dag(dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 
-        query = query.filter(DagRun.dag_id == dag_id)
+        query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
     dag_run_select, total_entries = paginated_select(
         statement=query,
@@ -382,7 +391,7 @@ def get_dag_runs(
 def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
-    request: Request,
+    dag_bag: DagBagDep,
     user: GetUserDep,
     session: SessionDep,
 ) -> DAGRunResponse:
@@ -398,7 +407,7 @@ def trigger_dag_run(
         )
 
     try:
-        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        dag: DAG = dag_bag.get_dag(dag_id)
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
@@ -474,7 +483,7 @@ def get_list_dag_runs_batch(
         {"dag_run_id": "run_id"},
     ).set_value(body.order_by)
 
-    base_query = select(DagRun)
+    base_query = select(DagRun).options(joinedload(DagRun.dag_model))
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
         filters=[dag_ids, logical_date, run_after, start_date, end_date, state, readable_dag_runs_filter],

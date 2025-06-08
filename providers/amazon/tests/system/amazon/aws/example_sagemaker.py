@@ -52,7 +52,6 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerTransformSensor,
     SageMakerTuningSensor,
 )
-from airflow.providers.standard.operators.python import get_current_context
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
@@ -419,6 +418,13 @@ def set_up(env_id, role_arn):
     )
     _install_aws_cli_if_needed()
     _build_and_upload_docker_image(preprocess_script, ecr_repository_uri)
+
+    from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import get_current_context
+    else:
+        from airflow.providers.standard.operators.python import get_current_context
 
     ti = get_current_context()["ti"]
     ti.xcom_push(key="docker_image", value=ecr_repository_uri)

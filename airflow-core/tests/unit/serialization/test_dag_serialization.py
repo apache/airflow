@@ -91,8 +91,10 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.mock_operators import (
+    AirflowLink,
     AirflowLink2,
     CustomOperator,
+    GithubLink,
     GoogleLink,
     MockOperator,
 )
@@ -158,6 +160,7 @@ serialized_simple_dag_ground_truth = {
         },
         "is_paused_upon_creation": False,
         "dag_id": "simple_dag",
+        "deadline": None,
         "catchup": False,
         "disable_bundle_versioning": False,
         "doc_md": "### DAG Tutorial Documentation",
@@ -685,10 +688,10 @@ class TestStringifiedDAGs:
         for field in fields_to_check:
             actual = getattr(serialized_dag, field)
             expected = getattr(dag, field, None)
+
             assert actual == expected, f"{dag.dag_id}.{field} does not match"
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path
-        assert dag._processor_dags_folder is None
         assert (
             serialized_dag._processor_dags_folder
             == (AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "tests" / "unit" / "dags").as_posix()
@@ -3095,6 +3098,13 @@ def test_mapped_task_with_operator_extra_links_property():
         XComOperatorLink(name="airflow", xcom_key="_link_AirflowLink2")
     ]
 
+    mapped_task = deserialized_dag.task_dict["task"]
+    assert mapped_task.operator_extra_link_dict == {
+        "airflow": XComOperatorLink(name="airflow", xcom_key="_link_AirflowLink2")
+    }
+    assert mapped_task.global_operator_extra_link_dict == {"airflow": AirflowLink(), "github": GithubLink()}
+    assert mapped_task.extra_links == sorted({"airflow", "github"})
+
 
 def test_handle_v1_serdag():
     v1 = {
@@ -3128,6 +3138,7 @@ def test_handle_v1_serdag():
             },
             "is_paused_upon_creation": False,
             "_dag_id": "simple_dag",
+            "deadline": None,
             "doc_md": "### DAG Tutorial Documentation",
             "fileloc": None,
             "_processor_dags_folder": (

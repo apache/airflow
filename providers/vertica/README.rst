@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-vertica``
 
-Release: ``4.0.1``
+Release: ``4.1.0``
 
 
 `Vertica <https://www.vertica.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``vertica`` provider. All classes for this provid
 are in ``airflow.providers.vertica`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-vertica/4.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-vertica/4.1.0/>`_.
 
 Installation
 ------------
@@ -53,8 +53,8 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow``                       ``>=2.10.0``
+``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``vertica-python``                       ``>=0.6.0``
 =======================================  ==================
 
@@ -78,4 +78,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-vertica/4.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-vertica/4.1.0/changelog.html>`_.

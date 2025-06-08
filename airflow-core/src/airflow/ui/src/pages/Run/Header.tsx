@@ -77,8 +77,8 @@ export const Header = ({
               text={Boolean(dagRun.note) ? "Note" : "Add a note"}
               withText={containerWidth > 700}
             />
-            <ClearRunButton dagRun={dagRun} withText={containerWidth > 700} />
-            <MarkRunAsButton dagRun={dagRun} withText={containerWidth > 700} />
+            <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
+            <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
           </>
         }
         icon={<FiBarChart />}
@@ -104,7 +104,7 @@ export const Header = ({
           },
           { label: "Start", value: <Time datetime={dagRun.start_date} /> },
           { label: "End", value: <Time datetime={dagRun.end_date} /> },
-          { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
+          { label: "Duration", value: getDuration(dagRun.start_date, dagRun.end_date) },
           {
             label: "Dag Version(s)",
             value: (

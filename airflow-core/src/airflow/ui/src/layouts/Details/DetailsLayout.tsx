@@ -18,7 +18,9 @@
  */
 import { Box, HStack, Flex, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
+import { useRef } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
@@ -49,10 +51,12 @@ type Props = {
 } & PropsWithChildren;
 
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
+  const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
 
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
+  const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
 
@@ -75,10 +79,16 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <Toaster />
       <BackfillBanner dagId={dagId} />
       <Box flex={1} minH={0}>
-        <PanelGroup autoSaveId={dagId} direction="horizontal">
+        <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
           <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
             <Box height="100%" overflowY="auto" position="relative" pr={2}>
-              <PanelButtons dagView={dagView} limit={limit} setDagView={setDagView} setLimit={setLimit} />
+              <PanelButtons
+                dagView={dagView}
+                limit={limit}
+                panelGroupRef={panelGroupRef}
+                setDagView={setDagView}
+                setLimit={setLimit}
+              />
               {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
             </Box>
           </Panel>
@@ -100,7 +110,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                 <>
                   <ActionButton
-                    actionName="Dag warnings/errors"
+                    actionName={translate("common:dagWarnings")}
                     colorPalette={Boolean(error) ? "red" : "orange"}
                     icon={<LuFileWarning />}
                     margin="2"

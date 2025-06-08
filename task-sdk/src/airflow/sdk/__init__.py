@@ -55,7 +55,7 @@ __all__ = [
     "teardown",
 ]
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.notifier import BaseNotifier
@@ -84,7 +84,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
     "AssetWatcher": ".definitions.asset",
-    "BaseNotifier": ".definitions.notifier",
+    "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",
@@ -97,6 +97,7 @@ __lazy_imports: dict[str, str] = {
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
+    "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
     "Variable": ".definitions.variable",
     "XComArg": ".definitions.xcom_arg",

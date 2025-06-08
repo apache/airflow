@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_2_10_PLUS
-
 if TYPE_CHECKING:
     from airflow.providers.standard.operators.python import (
         _SERIALIZERS,
@@ -38,13 +36,15 @@ else:
         )
     except ModuleNotFoundError:
         from airflow.operators.python import (
+            _SERIALIZERS,
             PythonOperator,
             ShortCircuitOperator,
-            get_current_context,
         )
 
-        if AIRFLOW_V_2_10_PLUS:
-            from airflow.operators.python import _SERIALIZERS
+    try:
+        from airflow.sdk import get_current_context
+    except (ImportError, ModuleNotFoundError):
+        from airflow.providers.standard.operators.python import get_current_context
 
 
 __all__ = ["PythonOperator", "_SERIALIZERS", "ShortCircuitOperator", "get_current_context"]

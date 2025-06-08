@@ -43,7 +43,7 @@ each line in detail.
 Understanding the DAG Definition File
 -------------------------------------
 Think of the Airflow Python script as a configuration file that lays out the structure of your DAG in code. The actual
-tasks you define here run in a different environment, which means this script isn't meant for data processing. It's main
+tasks you define here run in a different environment, which means this script isn't meant for data processing. Its main
 job is to define the DAG object, and it needs to evaluate quickly since the DAG File Processor checks it regularly for
 any changes.
 
@@ -173,7 +173,7 @@ documentation at the start of your DAG file.
 
 Setting up Dependencies
 -----------------------
-In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can defined
+In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can define
 their dependencies in several ways:
 
 .. code-block:: python
@@ -210,7 +210,7 @@ times.
 Working with Time Zones
 -----------------------
 
-Creating a time zone aware DAG straightforward. Just ensure you use time zone aware dates
+Creating a time zone aware DAG is straightforward. Just ensure you use time zone aware dates
 with ``pendulum``. Avoid using the standard library
 `timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they have known limitations.
 
@@ -252,8 +252,8 @@ Let's validate your script further by running a few commands:
     # prints the list of tasks in the "tutorial" DAG
     airflow tasks list tutorial
 
-    # prints the hierarchy of tasks in the "tutorial" DAG
-    airflow tasks list tutorial --tree
+    # prints the graphviz representation of "tutorial" DAG
+    airflow dags show tutorial
 
 
 Testing Task Instances and DAG Runs

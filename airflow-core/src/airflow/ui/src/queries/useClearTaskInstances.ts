@@ -60,15 +60,14 @@ export const useClearTaskInstances = ({
         (variables.requestBody.task_ids ?? [])
           .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
           .map((taskId) => {
-            const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
+            const [actualTaskId, mapIndex] = Array.isArray(taskId) ? taskId : [taskId, undefined];
             const runId = variables.requestBody.dag_run_id;
 
             if (runId === null || runId === undefined) {
               return undefined;
             }
 
-            // TODO: update mapIndex when the endpoint supports clearing mapped tasks
-            const params = { dagId, dagRunId: runId, mapIndex: -1, taskId: actualTaskId };
+            const params = { dagId, dagRunId: runId, mapIndex: mapIndex ?? -1, taskId: actualTaskId };
 
             return UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(params);
           })

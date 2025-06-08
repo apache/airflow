@@ -26,23 +26,22 @@
 Package apache-airflow-providers-edge3
 ------------------------------------------------------
 
-Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
+Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
+
+When tasks need to be executed on remote sites where the connection need to pass through
+firewalls or other network restrictions, the Edge Worker can be deployed. The Edge Worker
+is a lightweight process with reduced dependencies. The worker only needs to be able to
+communicate with the central Airflow site via HTTPS.
+
+In the central Airflow site the EdgeExecutor is used to orchestrate the work. The EdgeExecutor
+is a custom executor which is used to schedule tasks on the edge workers. The EdgeExecutor can co-exist
+with other executors (for example CeleryExecutor or KubernetesExecutor) in the same Airflow site.
+
+Additional REST API endpoints are provided to distribute tasks and manage the edge workers. The endpoints
+are provided by the API server.
 
 
 This is detailed commit list of changes for versions provider package: ``edge3``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
-
-
-1.0.0
-.....
-
-Latest change: 2025-04-19
-
-==================================================================================================  ===========  ==========================================================================
-Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ==========================================================================
-`223a741869 <https://github.com/apache/airflow/commit/223a741869505ad31c38310f307bf2f0f0f193fb>`__  2025-04-19   ``capitalize the term airflow (#49450)``
-`2ae12c815b <https://github.com/apache/airflow/commit/2ae12c815bc704eff6890df56f7387da513d14f2>`__  2025-04-16   ``Update documentation for edge3 and git provider (#49365)``
-`99666f9789 <https://github.com/apache/airflow/commit/99666f97893dff28297555778620a9c114779667>`__  2025-04-16   ``Rename 'edge' provider fom 'edgeexecutor' to 'edge3' provider (#49358)``
-==================================================================================================  ===========  ==========================================================================
+.. airflow-providers-commits::

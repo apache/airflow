@@ -155,7 +155,7 @@ def init_config(app: FastAPI) -> None:
     # and 9 (slowest, most compression)
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
-    app.state.secret_key = get_signing_key("webserver", "secret_key")
+    app.state.secret_key = get_signing_key("api", "secret_key")
 
 
 def init_error_handlers(app: FastAPI) -> None:
@@ -167,4 +167,10 @@ def init_error_handlers(app: FastAPI) -> None:
 
 
 def init_middlewares(app: FastAPI) -> None:
+    from airflow.configuration import conf
+
     app.add_middleware(FlaskExceptionsMiddleware)
+    if conf.getboolean("core", "simple_auth_manager_all_admins"):
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        app.add_middleware(SimpleAllAdminMiddleware)

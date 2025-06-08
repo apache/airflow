@@ -166,9 +166,9 @@ class TestElasticsearchSQLHook:
         self.spy_agency.assert_spy_called(self.cur.close)
         self.spy_agency.assert_spy_called(self.cur.execute)
 
-    def test_get_pandas_df(self):
+    def test_get_df_pandas(self):
         statement = "SELECT * FROM hollywood.actors"
-        df = self.db_hook.get_pandas_df(statement)
+        df = self.db_hook.get_df(statement, df_type="pandas")
 
         assert list(df.columns) == ["index", "name", "firstname", "age"]
         assert df.values.tolist() == ROWS
@@ -176,6 +176,10 @@ class TestElasticsearchSQLHook:
         self.conn.close.assert_called_once_with()
         self.spy_agency.assert_spy_called(self.cur.close)
         self.spy_agency.assert_spy_called(self.cur.execute)
+
+    def test_get_df_polars(self):
+        with pytest.raises(NotImplementedError):
+            self.db_hook.get_df("SQL", df_type="polars")
 
     def test_run(self):
         statement = "SELECT * FROM hollywood.actors"

@@ -18,7 +18,7 @@
 */}}
 
 ################################
-## Airflow api-server Service
+## Airflow API Server Service
 #################################
 {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
 apiVersion: v1

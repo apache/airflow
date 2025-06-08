@@ -122,7 +122,7 @@ class TestWorkflowTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
     async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
-        mock_get_count.return_value = 0
+        mock_get_count.side_effect = [0, 1]  # First 0 for failed_states, then 1 for allowed_states
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
@@ -130,6 +130,7 @@ class TestWorkflowTrigger:
             run_ids=[self.RUN_ID],
             external_task_ids=[self.TASK_ID],
             failed_states=self.STATES,
+            allowed_states=self.STATES,
             poke_interval=0.2,
         )
 
@@ -140,13 +141,22 @@ class TestWorkflowTrigger:
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "success"}
-        mock_get_count.assert_called_once_with(
-            dag_id="external_task",
-            task_ids=["external_task_op"],
-            logical_dates=[self.LOGICAL_DATE],
-            run_ids=[self.RUN_ID],
-            states=["success", "fail"],
+
+        # Verify both calls were made
+        assert mock_get_count.call_count == 2
+        mock_get_count.assert_has_calls(
+            [
+                mock.call(
+                    dag_id="external_task",
+                    task_ids=["external_task_op"],
+                    logical_dates=[self.LOGICAL_DATE],
+                    run_ids=[self.RUN_ID],
+                    states=["success", "fail"],
+                ),
+            ]
+            * 2
         )
+
         # test that it returns after yielding
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
@@ -468,15 +478,20 @@ class TestWorkflowTriggerAF2:
             await gen.__anext__()
 
     @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
+    @mock.patch("asyncio.sleep")
     @pytest.mark.asyncio
-    async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
-        mock_get_count.return_value = 0
+    async def test_task_workflow_trigger_fail_count_eq_0(self, mock_sleep, mock_get_count):
+        mock_get_count.side_effect = [
+            0,
+            1,
+        ]
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
             **_DATES,
             external_task_ids=[self.TASK_ID],
             failed_states=self.STATES,
+            allowed_states=self.STATES,
             poke_interval=0.2,
         )
 
@@ -487,14 +502,23 @@ class TestWorkflowTriggerAF2:
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "success"}
-        mock_get_count.assert_called_once_with(
-            dttm_filter=value,
-            external_task_ids=["external_task_op"],
-            external_task_group_id=None,
-            external_dag_id="external_task",
-            states=["success", "fail"],
+
+        assert mock_get_count.call_count == 2
+        mock_get_count.assert_has_calls(
+            [
+                mock.call(
+                    dttm_filter=value,
+                    external_task_ids=["external_task_op"],
+                    external_task_group_id=None,
+                    external_dag_id="external_task",
+                    states=["success", "fail"],
+                ),
+            ]
+            * 2
         )
-        # test that it returns after yielding
+
+        mock_sleep.assert_not_called()
+
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
 

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Heading, Skeleton, Box } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useTaskServiceGetTasks } from "openapi/queries";
@@ -24,7 +25,6 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { pluralize } from "src/utils";
 
 import { TaskCard } from "./TaskCard";
 
@@ -36,6 +36,7 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
 });
 
 export const Tasks = () => {
+  const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
   const {
     data,
@@ -50,7 +51,7 @@ export const Tasks = () => {
     <Box>
       <ErrorAlert error={tasksError} />
       <Heading my={1} size="md">
-        {pluralize("Task", data ? data.total_entries : 0)}
+        {translate("task", { count: data?.total_entries ?? 0 })}
       </Heading>
       <DataTable
         cardDef={cardDef(dagId)}

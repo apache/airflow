@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -123,16 +124,35 @@ class DagBundlesManager(LoggingMixin):
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
         self.log.debug("Syncing DAG bundles to the database")
         stored = {b.name: b for b in session.query(DagBundleModel).all()}
-        for name in self._bundle_config.keys():
+        active_bundle_names = set(self._bundle_config.keys())
+        for name in active_bundle_names:
             if bundle := stored.pop(name, None):
                 bundle.active = True
             else:
                 session.add(DagBundleModel(name=name))
                 self.log.info("Added new DAG bundle %s to the database", name)
-
+        inactive_bundle_names = []
         for name, bundle in stored.items():
             bundle.active = False
+            inactive_bundle_names.append(name)
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
+
+        if inactive_bundle_names and active_bundle_names:
+            new_bundle_name = sorted(active_bundle_names)[0]
+            updated_rows = (
+                session.query(DagVersion)
+                .filter(DagVersion.bundle_name.in_(inactive_bundle_names))
+                .update(
+                    {DagVersion.bundle_name: new_bundle_name},
+                    synchronize_session=False,
+                )
+            )
+
+            self.log.info(
+                "Updated %d DAG versions from inactive bundles to active bundle %s",
+                updated_rows,
+                new_bundle_name,
+            )
 
     def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
         """

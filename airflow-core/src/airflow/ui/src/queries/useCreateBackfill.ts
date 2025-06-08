@@ -16,20 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { useBackfillServiceCreateBackfill, useBackfillServiceListBackfillsKey } from "openapi/queries";
+import { useBackfillServiceCreateBackfill, useBackfillServiceListBackfillsUiKey } from "openapi/queries";
 import type { CreateBackfillData } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
-import { queryClient } from "src/queryClient";
 
 export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
   const [error, setError] = useState<unknown>(undefined);
+  const queryClient = useQueryClient();
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
-      queryKey: [useBackfillServiceListBackfillsKey],
+      queryKey: [useBackfillServiceListBackfillsUiKey],
     });
     toaster.create({
       description: "Backfill jobs have been successfully triggered.",

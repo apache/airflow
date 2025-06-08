@@ -33,7 +33,6 @@ from airflow.utils import timezone
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
@@ -261,7 +260,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["response"] == base64_encoded_content
 
     @pytest.mark.db_test
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
     def test_execute_with_lambda_parameter_when_response_is_bytes(self):
         content = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None

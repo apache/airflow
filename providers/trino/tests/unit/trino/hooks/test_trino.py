@@ -258,6 +258,22 @@ class TestTrinoHookConn:
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, timezone="Asia/Jerusalem")
 
+    @patch(HOOK_GET_CONNECTION)
+    @patch(TRINO_DBAPI_CONNECT)
+    def test_get_conn_extra_credential(self, mock_connect, mock_get_connection):
+        extras = {"extra_credential": [["a.username", "bar"], ["a.password", "foo"]]}
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, extra_credential=extras["extra_credential"])
+
+    @patch(HOOK_GET_CONNECTION)
+    @patch(TRINO_DBAPI_CONNECT)
+    def test_get_conn_roles(self, mock_connect, mock_get_connection):
+        extras = {"roles": {"catalog1": "trinoRoleA", "catalog2": "trinoRoleB"}}
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, roles=extras["roles"])
+
     @staticmethod
     def set_get_connection_return_value(mock_get_connection, extra=None, password=None):
         mocked_connection = Connection(
@@ -274,6 +290,8 @@ class TestTrinoHookConn:
         session_properties=None,
         client_tags=None,
         timezone=None,
+        extra_credential=None,
+        roles=None,
     ):
         mock_connect.assert_called_once_with(
             catalog="hive",
@@ -290,6 +308,8 @@ class TestTrinoHookConn:
             session_properties=session_properties,
             client_tags=client_tags,
             timezone=timezone,
+            extra_credential=extra_credential,
+            roles=roles,
         )
 
 
@@ -341,18 +361,21 @@ class TestTrinoHook:
         self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
 
-    def test_get_pandas_df(self):
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_df(self, df_type):
         statement = "SQL"
         column = "col"
         result_sets = [("row1",), ("row2",)]
-        self.cur.description = [(column,)]
+        self.cur.description = [(column, None, None, None, None, None, None)]
         self.cur.fetchall.return_value = result_sets
-        df = self.db_hook.get_pandas_df(statement)
-
+        df = self.db_hook.get_df(statement, df_type=df_type)
         assert column == df.columns[0]
-
-        assert result_sets[0][0] == df.values.tolist()[0][0]
-        assert result_sets[1][0] == df.values.tolist()[1][0]
+        if df_type == "pandas":
+            assert result_sets[0][0] == df.values.tolist()[0][0]
+            assert result_sets[1][0] == df.values.tolist()[1][0]
+        else:
+            assert result_sets[0][0] == df.row(0)[0]
+            assert result_sets[1][0] == df.row(1)[0]
 
         self.cur.execute.assert_called_once_with(statement, None)
 

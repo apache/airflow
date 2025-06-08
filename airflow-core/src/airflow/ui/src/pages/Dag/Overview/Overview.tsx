@@ -19,6 +19,7 @@
 import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { lazy, useState, Suspense } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import {
@@ -37,6 +38,7 @@ const FailedLogs = lazy(() => import("./FailedLogs"));
 const defaultHour = "24";
 
 export const Overview = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId } = useParams();
 
   const now = dayjs();
@@ -84,7 +86,7 @@ export const Overview = () => {
   });
 
   return (
-    <Box m={4}>
+    <Box m={4} spaceY={4}>
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -96,14 +98,14 @@ export const Overview = () => {
       </Box>
       <HStack flexWrap="wrap">
         <TrendCountButton
-          colorPalette="failed"
+          colorPalette={(failedTasks?.total_entries ?? 0) === 0 ? "green" : "failed"}
           count={failedTasks?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTasks?.task_instances ?? []).map((ti) => ({
             timestamp: ti.start_date ?? ti.logical_date,
           }))}
           isLoading={isLoading}
-          label="Failed Task"
+          label={translate("overview.buttons.failedTask", { count: failedTasks?.total_entries ?? 0 })}
           route={{
             pathname: "tasks",
             search: "state=failed",
@@ -111,14 +113,14 @@ export const Overview = () => {
           startDate={startDate}
         />
         <TrendCountButton
-          colorPalette="failed"
+          colorPalette={(failedRuns?.total_entries ?? 0) === 0 ? "green" : "failed"}
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
           events={(failedRuns?.dag_runs ?? []).map((dr) => ({
             timestamp: dr.run_after,
           }))}
           isLoading={isLoadingFailedRuns}
-          label="Failed Run"
+          label={translate("overview.buttons.failedRun", { count: failedRuns?.total_entries ?? 0 })}
           route={{
             pathname: "runs",
             search: "state=failed",
@@ -138,8 +140,9 @@ export const Overview = () => {
           <AssetEvents
             data={assetEventsData}
             isLoading={isLoadingAssetEvents}
+            ml={0}
             setOrderBy={setAssetSortBy}
-            title="Created Asset Event"
+            title={translate("overview.charts.assetEvent")}
           />
         ) : undefined}
       </HStack>

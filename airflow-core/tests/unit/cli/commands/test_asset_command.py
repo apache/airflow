@@ -100,6 +100,7 @@ def test_cli_assets_details(parser: ArgumentParser) -> None:
         "group": "asset",
         "extra": {},
         "aliases": [],
+        "last_asset_event": None,
     }
 
 
@@ -141,8 +142,11 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
 
     assert run_list[0] | undeterministic == undeterministic | {
         "conf": {},
+        "bundle_version": None,
+        "dag_display_name": "asset1_producer",
         "dag_id": "asset1_producer",
         "end_date": None,
+        "duration": None,
         "last_scheduling_decision": None,
         "note": None,
         "run_type": "manual",

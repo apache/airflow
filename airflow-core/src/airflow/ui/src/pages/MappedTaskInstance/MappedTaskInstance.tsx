@@ -30,8 +30,6 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
-
 export const MappedTaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
@@ -73,6 +71,10 @@ export const MappedTaskInstance = () => {
   const taskInstance = data?.dag_runs
     .find((dr) => dr.dag_run_id === runId)
     ?.task_instances.find((ti) => ti.task_id === taskId);
+
+  const tabs = [
+    { icon: <MdOutlineTask />, label: `Task Instances [${taskInstance?.task_count}]`, value: "" },
+  ];
 
   return (
     <ReactFlowProvider>

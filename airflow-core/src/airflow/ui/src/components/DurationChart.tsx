@@ -31,11 +31,11 @@ import type { PartialEventContext } from "chartjs-plugin-annotation";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
 import { Bar } from "react-chartjs-2";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
-import { pluralize } from "src/utils";
-import { getDuration } from "src/utils/datetime_utils";
 
 ChartJS.register(
   CategoryScale,
@@ -56,6 +56,8 @@ const average = (ctx: PartialEventContext, index: number) => {
 
 type RunResponse = DAGRunResponse | TaskInstanceResponse;
 
+const getDuration = (start: string, end: string | null) => dayjs.duration(dayjs(end).diff(start)).asSeconds();
+
 export const DurationChart = ({
   entries,
   kind,
@@ -63,6 +65,9 @@ export const DurationChart = ({
   readonly entries: Array<RunResponse> | undefined;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
+  const { t: translate } = useTranslation("components");
+  const navigate = useNavigate();
+
   if (!entries) {
     return undefined;
   }
@@ -94,7 +99,13 @@ export const DurationChart = ({
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
-        Last {pluralize(kind, entries.length)}
+        {entries.length > 1
+          ? kind === "Dag Run"
+            ? translate("durationChart.lastDagRun_other", { count: entries.length })
+            : translate("durationChart.lasttaskInstance_other", { count: entries.length })
+          : kind === "Dag Run"
+            ? translate("durationChart.lastDagRun_one")
+            : translate("durationChart.lasttaskInstance_one")}
       </Heading>
       <Bar
         data={{
@@ -123,7 +134,7 @@ export const DurationChart = ({
                     return 0;
                 }
               }),
-              label: "Queued duration",
+              label: translate("durationChart.queuedDuration"),
             },
             {
               backgroundColor: entries.map(
@@ -133,13 +144,40 @@ export const DurationChart = ({
               data: entries.map((entry: RunResponse) =>
                 entry.start_date === null ? 0 : Number(getDuration(entry.start_date, entry.end_date)),
               ),
-              label: "Run duration",
+              label: translate("durationChart.runDuration"),
             },
           ],
           labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD, hh:mm:ss")),
         }}
         datasetIdKey="id"
         options={{
+          onClick: (_event, elements) => {
+            const [element] = elements;
+
+            if (!element) {
+              return;
+            }
+
+            const entry = entries[element.index];
+            const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.dag_run_id}`;
+
+            switch (kind) {
+              case "Dag Run": {
+                navigate(baseUrl);
+                break;
+              }
+              case "Task Instance": {
+                const taskInstance = entry as TaskInstanceResponse;
+
+                navigate(`${baseUrl}/tasks/${taskInstance.task_id}`);
+                break;
+              }
+              default:
+            }
+          },
+          onHover: (_event, elements, chart) => {
+            chart.canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
+          },
           plugins: {
             annotation: {
               annotations: {
@@ -155,11 +193,10 @@ export const DurationChart = ({
               ticks: {
                 maxTicksLimit: 3,
               },
-              title: { align: "end", display: true, text: "Run After" },
+              title: { align: "end", display: true, text: translate("durationChart.runAfter") },
             },
-
             y: {
-              title: { align: "end", display: true, text: "Duration (seconds)" },
+              title: { align: "end", display: true, text: translate("durationChart.duration") },
             },
           },
         }}

@@ -18,18 +18,17 @@ from __future__ import annotations
 
 import os
 import shutil
-from pathlib import Path
 
 from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import get_provider_distributions_metadata, get_short_package_name
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.publish_docs_helpers import pretty_format_path
 
 PROCESS_TIMEOUT = 15 * 60
 
-ROOT_PROJECT_DIR = Path(__file__).parents[5].resolve()
-GENERATED_PATH = ROOT_PROJECT_DIR / "generated"
+GENERATED_PATH = AIRFLOW_ROOT_PATH / "generated"
 
 
 class DocsPublisher:

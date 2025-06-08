@@ -1806,3 +1806,24 @@ class TestKubernetesJobWatcher:
                 self.watcher.run()
 
             mock_underscore_run.assert_called_once_with(mock.ANY, "0", mock.ANY, mock.ANY)
+
+    @pytest.mark.parametrize(
+        "state_reasons, expected_result",
+        [
+            pytest.param("e1,e2,e3", ["e1", "e2", "e3"]),
+            pytest.param("e1, e2,e3", ["e1", "e2", "e3"]),
+            pytest.param(" e1,e2, e3", ["e1", "e2", "e3"]),
+            pytest.param("e1", ["e1"]),
+            pytest.param("e1 ", ["e1"]),
+        ],
+    )
+    def test_kube_config_parse_worker_pod_pending_fatal_container_state_reasons(
+        self, state_reasons, expected_result
+    ):
+        config = {
+            ("kubernetes_executor", "worker_pod_pending_fatal_container_state_reasons"): state_reasons,
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+
+        assert executor.kube_config.worker_pod_pending_fatal_container_state_reasons == expected_result

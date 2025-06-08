@@ -16,8 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
-import { useParams } from "react-router-dom";
+import { useParams, Link as RouterLink } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
@@ -28,6 +30,7 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { TogglePause } from "src/components/TogglePause";
 
+import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
 import { Schedule } from "../DagsList/Schedule";
 
@@ -40,30 +43,35 @@ export const Header = ({
   readonly dagWithRuns?: DAGWithLatestDagRunsResponse;
   readonly isRefreshing?: boolean;
 }) => {
+  const { t: translate } = useTranslation("dag");
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
   const latestRun = dagWithRuns?.latest_dag_runs ? dagWithRuns.latest_dag_runs[0] : undefined;
 
   const stats = [
     {
-      label: "Schedule",
+      label: translate("header.stats.schedule"),
       value: dagWithRuns === undefined ? undefined : <Schedule dag={dagWithRuns} />,
     },
     {
-      label: "Latest Run",
+      label: translate("header.stats.latestRun"),
       value:
         Boolean(latestRun) && latestRun !== undefined ? (
-          <DagRunInfo
-            endDate={latestRun.end_date}
-            logicalDate={latestRun.logical_date}
-            runAfter={latestRun.run_after}
-            startDate={latestRun.start_date}
-            state={latestRun.state}
-          />
+          <Link asChild color="fg.info">
+            <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
+              <DagRunInfo
+                endDate={latestRun.end_date}
+                logicalDate={latestRun.logical_date}
+                runAfter={latestRun.run_after}
+                startDate={latestRun.start_date}
+                state={latestRun.state}
+              />
+            </RouterLink>
+          </Link>
         ) : undefined,
     },
     {
-      label: "Next Run",
+      label: translate("header.stats.nextRun"),
       value: Boolean(dagWithRuns?.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={dagWithRuns?.next_dagrun_logical_date}
@@ -72,15 +80,15 @@ export const Header = ({
       ) : undefined,
     },
     {
-      label: "Owner",
-      value: dag?.owners.join(", "),
+      label: translate("header.stats.owner"),
+      value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
     },
     {
-      label: "Tags",
+      label: translate("header.stats.tags"),
       value: <DagTags tags={dag?.tags ?? []} />,
     },
     {
-      label: "Latest Dag Version",
+      label: translate("header.stats.latestDagVersion"),
       value: <DagVersion version={dag?.latest_dag_version} />,
     },
   ];
@@ -92,10 +100,10 @@ export const Header = ({
           <>
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
-                header="Dag Documentation"
+                header={translate("header.modals.docTitle")}
                 icon={<FiBookOpen />}
                 mdContent={dag.doc_md}
-                text="Dag Docs"
+                text={translate("header.buttons.dagDocs")}
               />
             )}
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />

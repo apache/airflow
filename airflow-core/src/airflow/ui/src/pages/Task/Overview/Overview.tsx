@@ -30,7 +30,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 const defaultHour = "24";
 
 export const Overview = () => {
-  const { dagId = "", taskId } = useParams();
+  const { dagId = "", groupId, taskId } = useParams();
 
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
@@ -46,7 +46,8 @@ export const Overview = () => {
       runAfterGte: startDate,
       runAfterLte: endDate,
       state: ["failed"],
-      taskId,
+      taskDisplayNamePattern: groupId ?? undefined,
+      taskId: Boolean(groupId) ? undefined : taskId,
     });
 
   const { data: taskInstances, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
@@ -55,7 +56,8 @@ export const Overview = () => {
       dagRunId: "~",
       limit: 14,
       orderBy: "-run_after",
-      taskId,
+      taskDisplayNamePattern: groupId ?? undefined,
+      taskId: Boolean(groupId) ? undefined : taskId,
     },
     undefined,
     {
@@ -65,7 +67,7 @@ export const Overview = () => {
   );
 
   return (
-    <Box m={4}>
+    <Box m={4} spaceY={4}>
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -77,7 +79,7 @@ export const Overview = () => {
       </Box>
       <HStack flexWrap="wrap">
         <TrendCountButton
-          colorPalette="failed"
+          colorPalette={(failedTaskInstances?.total_entries ?? 0) === 0 ? "green" : "red"}
           count={failedTaskInstances?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTaskInstances?.task_instances ?? []).map((ti) => ({

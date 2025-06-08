@@ -23,7 +23,6 @@ Each Airflow task gets delegated out to an Amazon ECS Task.
 
 from __future__ import annotations
 
-import contextlib
 import time
 from collections import defaultdict, deque
 from collections.abc import Sequence
@@ -132,7 +131,7 @@ class AwsEcsExecutor(BaseExecutor):
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
-    def _process_workloads(self, workloads: list[workloads.All]) -> None:
+    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
 
         # Airflow V3 version
@@ -450,11 +449,7 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
-                with contextlib.suppress(AttributeError):
-                    # running_state is newly added, and only needed to support task adoption (an optional
-                    # executor feature).
-                    # TODO: remove when min airflow version >= 2.9.2
-                    self.running_state(task_key, task.task_arn)
+                self.running_state(task_key, task.task_arn)
 
     def _run_task(
         self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType

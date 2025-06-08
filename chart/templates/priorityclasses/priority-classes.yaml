@@ -28,7 +28,10 @@ kind: PriorityClass
 metadata:
   name: {{ $Global.Release.Name }}-{{ $e.name }}
   labels:
+    tier: airflow
     release: {{ $Global.Release.Name }}
+    chart: "{{ $Global.Chart.Name }}-{{ $Global.Chart.Version }}"
+    heritage: {{ $Global.Release.Service }}
 preemptionPolicy: {{ default "PreemptLowerPriority" $e.preemptionPolicy }}
 value: {{ $e.value | required "value is required for priority classes" }}
 description: "This priority class will not cause other pods to be preempted."

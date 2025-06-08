@@ -61,3 +61,12 @@ class HistoricalMetricDataResponse(BaseModel):
     dag_run_types: DAGRunTypes
     dag_run_states: DAGRunStates
     task_instance_states: TaskInstanceStateCount
+
+
+class DashboardDagStatsResponse(BaseModel):
+    """Dashboard DAG Stats serializer for responses."""
+
+    active_dag_count: int
+    failed_dag_count: int
+    running_dag_count: int
+    queued_dag_count: int

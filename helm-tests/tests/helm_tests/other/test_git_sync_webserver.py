@@ -62,7 +62,10 @@ class TestGitSyncWebserver:
 
     def test_should_have_service_account_defined(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
+            values={
+                "airflowVersion": "2.10.0",
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
+            },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -158,6 +161,7 @@ class TestGitSyncWebserver:
     def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.4",
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -167,7 +171,7 @@ class TestGitSyncWebserver:
                         "branch": "test-branch",
                     },
                     "persistence": {"enabled": True},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )

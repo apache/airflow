@@ -23,9 +23,11 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_job_name,
     lineage_job_namespace,
     lineage_parent_id,
+    lineage_root_job_name,
+    lineage_root_parent_id,
+    lineage_root_run_id,
     lineage_run_id,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS
 
 
 class OpenLineageProviderPlugin(AirflowPlugin):
@@ -38,12 +40,19 @@ class OpenLineageProviderPlugin(AirflowPlugin):
 
     name = "OpenLineageProviderPlugin"
     if not conf.is_disabled():
-        macros = [lineage_job_namespace, lineage_job_name, lineage_run_id, lineage_parent_id]
+        macros = [
+            lineage_job_namespace,
+            lineage_job_name,
+            lineage_run_id,
+            lineage_parent_id,
+            lineage_root_run_id,
+            lineage_root_job_name,
+            lineage_root_parent_id,
+        ]
         listeners = [get_openlineage_listener()]
-        if AIRFLOW_V_2_10_PLUS:
-            from airflow.lineage.hook import HookLineageReader
+        from airflow.lineage.hook import HookLineageReader
 
-            hook_lineage_readers = [HookLineageReader]
+        hook_lineage_readers = [HookLineageReader]
     else:
         macros = []
         listeners = []

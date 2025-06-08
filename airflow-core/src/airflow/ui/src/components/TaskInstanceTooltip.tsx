@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import type {
   TaskInstanceHistoryResponse,
@@ -25,30 +26,45 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
+import { getDuration } from "src/utils";
 
 type Props = {
   readonly taskInstance?: GridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) =>
-  taskInstance === undefined ? (
+const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) => {
+  const { t: translate } = useTranslation("common");
+
+  return taskInstance === undefined ? (
     children
   ) : (
     <Tooltip
       {...rest}
       content={
         <Box>
-          <Text>State: {taskInstance.state}</Text>
-          {"dag_run_id" in taskInstance ? <Text>Run ID: {taskInstance.dag_run_id}</Text> : undefined}
           <Text>
-            Start Date: <Time datetime={taskInstance.start_date} />
+            {translate("state")}: {taskInstance.state}
+          </Text>
+          {"dag_run_id" in taskInstance ? (
+            <Text>
+              {translate("runId")}: {taskInstance.dag_run_id}
+            </Text>
+          ) : undefined}
+          <Text>
+            {translate("startDate")}: <Time datetime={taskInstance.start_date} />
           </Text>
           <Text>
-            End Date: <Time datetime={taskInstance.end_date} />
+            {translate("endDate")}: <Time datetime={taskInstance.end_date} />
           </Text>
-          {taskInstance.try_number > 1 && <Text>Try Number: {taskInstance.try_number}</Text>}
-          {"duration" in taskInstance ? (
-            <Text>Duration: {taskInstance.duration?.toFixed(2) ?? 0}s</Text>
+          {taskInstance.try_number > 1 && (
+            <Text>
+              {translate("tryNumber")}: {taskInstance.try_number}
+            </Text>
+          )}
+          {"start_date" in taskInstance ? (
+            <Text>
+              {translate("duration")}: {getDuration(taskInstance.start_date, taskInstance.end_date)}
+            </Text>
           ) : undefined}
         </Box>
       }
@@ -66,5 +82,6 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
       {children}
     </Tooltip>
   );
+};
 
 export default TaskInstanceTooltip;

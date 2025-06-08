@@ -266,18 +266,21 @@ class TestPrestoHook:
         self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
 
-    def test_get_pandas_df(self):
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    def test_df(self, df_type):
         statement = "SQL"
         column = "col"
         result_sets = [("row1",), ("row2",)]
-        self.cur.description = [(column,)]
+        self.cur.description = [(column, None, None, None, None, None, None)]
         self.cur.fetchall.return_value = result_sets
-        df = self.db_hook.get_pandas_df(statement)
-
+        df = self.db_hook.get_df(statement, df_type=df_type)
         assert column == df.columns[0]
-
-        assert result_sets[0][0] == df.values.tolist()[0][0]
-        assert result_sets[1][0] == df.values.tolist()[1][0]
+        if df_type == "pandas":
+            assert result_sets[0][0] == df.values.tolist()[0][0]
+            assert result_sets[1][0] == df.values.tolist()[1][0]
+        else:
+            assert result_sets[0][0] == df.row(0)[0]
+            assert result_sets[1][0] == df.row(1)[0]
 
         self.cur.execute.assert_called_once_with(statement, None)
 

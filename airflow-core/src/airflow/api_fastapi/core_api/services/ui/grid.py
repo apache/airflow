@@ -17,9 +17,7 @@
 
 from __future__ import annotations
 
-from functools import cache
-from operator import methodcaller
-from typing import Callable
+import contextlib
 from uuid import UUID
 
 import structlog
@@ -37,27 +35,19 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 from airflow.api_fastapi.core_api.datamodels.ui.structure import (
     StructureDataResponse,
 )
-from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator as DBBaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskmap import TaskMap
 from airflow.sdk import BaseOperator
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
+from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import task_group_to_dict
+from airflow.utils.task_group import get_task_group_children_getter, task_group_to_dict
 
 log = structlog.get_logger(logger_name=__name__)
-
-
-@cache
-def get_task_group_children_getter() -> Callable:
-    """Get the Task Group Children Getter for the DAG."""
-    sort_order = conf.get("webserver", "grid_view_sorting_order")
-    if sort_order == "topological":
-        return methodcaller("topological_sort")
-    return methodcaller("hierarchical_alphabetical_sort")
 
 
 def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
@@ -140,19 +130,14 @@ def get_child_task_map(parent_task_id: str, task_node_map: dict[str, dict[str, A
     return [task_id for task_id, task_map in task_node_map.items() if task_map["parent_id"] == parent_task_id]
 
 
-def _get_total_task_count(
-    run_id: str, task_count: list[int | MappedTaskGroup | MappedOperator], session: SessionDep
-) -> int:
-    return sum(
-        node
-        if isinstance(node, int)
-        else (
-            DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session) or 0
-            if isinstance(node, (MappedTaskGroup, MappedOperator))
-            else node
-        )
-        for node in task_count
-    )
+def _count_tis(node: int | MappedTaskGroup | MappedOperator, run_id: str, session: SessionDep) -> int:
+    if not isinstance(node, (MappedTaskGroup, MappedOperator)):
+        return node
+    with contextlib.suppress(NotFullyPopulated, NotMapped):
+        return DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session)
+    # If the downstream is not actually mapped, or we don't have information to
+    # determine the length yet, simply return 1 to represent the stand-in ti.
+    return 1
 
 
 def fill_task_instance_summaries(
@@ -253,7 +238,7 @@ def fill_task_instance_summaries(
                 end_date=ti_end_date,
                 queued_dttm=ti_queued_dttm,
                 child_states=child_states,
-                task_count=_get_total_task_count(run_id, task_node_map[task_id]["task_count"], session),
+                task_count=sum(_count_tis(n, run_id, session) for n in task_node_map[task_id]["task_count"]),
                 state=TaskInstanceState[overall_ti_state.upper()]
                 if overall_ti_state != "no_status"
                 else None,
@@ -264,7 +249,7 @@ def fill_task_instance_summaries(
 
 def get_structure_from_dag(dag: DAG) -> StructureDataResponse:
     """If we do not have TIs, we just get the structure from the DAG."""
-    nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+    nodes = [task_group_to_dict(child) for child in get_task_group_children_getter()(dag.task_group)]
     return StructureDataResponse(nodes=nodes, edges=[])
 
 
@@ -301,7 +286,7 @@ def get_combined_structure(task_instances, session):
         if serdag:
             dags.append(serdag.dag)
     for dag in dags:
-        nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+        nodes = [task_group_to_dict(child) for child in get_task_group_children_getter()(dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
 
     return StructureDataResponse(nodes=merged_nodes, edges=[])

@@ -34,7 +34,7 @@ from functools import reduce
 from typing import TYPE_CHECKING
 
 from dateutil import parser
-from kubernetes.client import V1EmptyDirVolumeSource, V1Volume, V1VolumeMount, models as k8s
+from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
@@ -46,6 +46,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
 )
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
@@ -53,9 +54,47 @@ from airflow.version import version as airflow_version
 if TYPE_CHECKING:
     import datetime
 
+    from airflow.executors import workloads
+    from airflow.models.taskinstance import TaskInstance
+
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
+
+
+def workload_to_command_args(workload: workloads.ExecuteTask) -> list[str]:
+    """
+    Convert a workload object to Task SDK command arguments.
+
+    :param workload: The ExecuteTask workload to convert
+    :return: List of command arguments for the Task SDK
+    """
+    ser_input = workload.model_dump_json()
+    return [
+        "python",
+        "-m",
+        "airflow.sdk.execution_time.execute_workload",
+        "--json-string",
+        ser_input,
+    ]
+
+
+def generate_pod_command_args(task_instance: TaskInstance) -> list[str]:
+    """
+    Generate command arguments for a ``TaskInstance`` to be used in a Kubernetes pod.
+
+    This function handles backwards compatibility between Airflow 2.x and 3.x:
+    - In Airflow 2.x: Uses the existing ``command_as_list()`` method
+    - In Airflow 3.x: Uses the Task SDK workload approach with serialized workload
+    """
+    if AIRFLOW_V_3_0_PLUS:
+        # In Airflow 3+, use the Task SDK workload approach
+        from airflow.executors import workloads
+
+        workload = workloads.ExecuteTask.make(task_instance)
+        return workload_to_command_args(workload)
+    # In Airflow 2.x, use the existing method
+    return task_instance.command_as_list()
 
 
 def make_safe_label_value(string: str) -> str:
@@ -287,7 +326,6 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
-        content_json_for_volume: str = "",
         *,
         with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
@@ -354,39 +392,6 @@ class PodGenerator:
         podspec = k8s.V1PodSpec(
             containers=[main_container],
         )
-
-        if content_json_for_volume:
-            import shlex
-
-            input_file_path = "/tmp/execute/input.json"
-            execute_volume = V1Volume(
-                name="execute-volume",
-                empty_dir=V1EmptyDirVolumeSource(),
-            )
-
-            execute_volume_mount = V1VolumeMount(
-                name="execute-volume",
-                mount_path="/tmp/execute",
-                read_only=False,
-            )
-
-            escaped_json = shlex.quote(content_json_for_volume)
-            init_container = k8s.V1Container(
-                name="init-container",
-                image="busybox",
-                command=["/bin/sh", "-c", f"echo {escaped_json} > {input_file_path}"],
-                volume_mounts=[execute_volume_mount],
-            )
-
-            main_container.volume_mounts = [execute_volume_mount]
-            main_container.command = args[:-1]
-            main_container.args = args[-1:]
-
-            podspec = k8s.V1PodSpec(
-                containers=[main_container],
-                volumes=[execute_volume],
-                init_containers=[init_container],
-            )
 
         dynamic_pod.spec = podspec
 
@@ -546,7 +551,7 @@ def merge_objects(base_obj, client_obj):
 
     for base_key in base_obj.to_dict():
         base_val = getattr(base_obj, base_key, None)
-        if not getattr(client_obj, base_key, None) and base_val:
+        if not getattr(client_obj, base_key, None) and base_val is not None:
             if not isinstance(client_obj_cp, dict):
                 setattr(client_obj_cp, base_key, base_val)
             else:

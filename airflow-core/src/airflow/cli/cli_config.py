@@ -177,11 +177,6 @@ ARG_OUTPUT_PATH = Arg(
     type=str,
     default="[CWD]" if BUILD_DOCS else os.getcwd(),
 )
-ARG_DRY_RUN = Arg(
-    ("-n", "--dry-run"),
-    help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
-    action="store_true",
-)
 ARG_PID = Arg(("--pid",), help="PID file location", nargs="?")
 ARG_DAEMON = Arg(
     ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
@@ -355,6 +350,13 @@ ARG_TREAT_DAG_ID_AS_REGEX = Arg(
 )
 
 # test_dag
+ARG_DAGFILE_PATH = Arg(
+    (
+        "-f",
+        "--dagfile-path",
+    ),
+    help="Path to the dag file. Can be absolute or relative to current directory",
+)
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
     help=(
@@ -590,6 +592,12 @@ ARG_DB_SKIP_INIT = Arg(
     help="Only remove tables; do not perform db init.",
     action="store_true",
     default=False,
+)
+
+ARG_DB_MANAGER_PATH = Arg(
+    ("import_path",),
+    help="The import path of the database manager to use. ",
+    default=None,
 )
 
 # api-server
@@ -1124,6 +1132,16 @@ DAGS_COMMANDS = (
         description=(
             "Execute one single DagRun for a given DAG and logical date.\n"
             "\n"
+            "You can test a DAG in three ways:\n"
+            "1. Using default bundle:\n"
+            "   airflow dags test <DAG_ID>\n"
+            "\n"
+            "2. Using a specific bundle if multiple DAG bundles are configured:\n"
+            "   airflow dags test <DAG_ID> --bundle-name <BUNDLE_NAME> (or -B <BUNDLE_NAME>)\n"
+            "\n"
+            "3. Using a specific DAG file:\n"
+            "   airflow dags test <DAG_ID> --dagfile-path <PATH> (or -f <PATH>)\n"
+            "\n"
             "The --imgcat-dagrun option only works in iTerm.\n"
             "\n"
             "For more information, see: https://www.iterm2.com/documentation-images.html\n"
@@ -1144,6 +1162,8 @@ DAGS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_LOGICAL_DATE_OPTIONAL,
+            ARG_BUNDLE_NAME,
+            ARG_DAGFILE_PATH,
             ARG_CONF,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
@@ -1251,7 +1271,6 @@ TASKS_COMMANDS = (
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL,
             ARG_BUNDLE_NAME,
-            ARG_DRY_RUN,
             ARG_TASK_PARAMS,
             ARG_POST_MORTEM,
             ARG_ENV_VARS,
@@ -1598,6 +1617,12 @@ PROVIDERS_COMMANDS = (
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
+        name="queues",
+        help="Get information about queues provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.queues_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name="notifications",
         help="Get information about notifications provided",
         func=lazy_load_command("airflow.cli.commands.provider_command.notifications_list"),
@@ -1706,6 +1731,59 @@ JOBS_COMMANDS = (
     ),
 )
 
+DB_MANAGERS_COMMANDS = (
+    ActionCommand(
+        name="reset",
+        help="Burn down and rebuild the specified external database",
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.resetdb"),
+        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="migrate",
+        help="Migrates the specified external database to the latest version",
+        description=(
+            "Migrate the schema of the metadata database. "
+            "Create the database if it does not exist "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* Alembic revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.migratedb"),
+        args=(
+            ARG_DB_MANAGER_PATH,
+            ARG_DB_REVISION__UPGRADE,
+            ARG_DB_VERSION__UPGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="downgrade",
+        help="Downgrade the schema of the external metadata database.",
+        description=(
+            "Downgrade the schema of the metadata database. "
+            "You must provide either `--to-revision` or `--to-version`. "
+            "To print but not execute commands, use option `--show-sql-only`. "
+            "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
+            "because if actually *running* migrations, we should only migrate from the *current* Alembic "
+            "revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_manager_command.downgrade"),
+        args=(
+            ARG_DB_MANAGER_PATH,
+            ARG_DB_REVISION__DOWNGRADE,
+            ARG_DB_VERSION__DOWNGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_YES,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_VERBOSE,
+        ),
+    ),
+)
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="dags",
@@ -1894,6 +1972,11 @@ core_commands: list[CLICommand] = [
         help="Run an all-in-one copy of Airflow",
         func=lazy_load_command("airflow.cli.commands.standalone_command.standalone"),
         args=(),
+    ),
+    GroupCommand(
+        name="db-manager",
+        help="Manage externally connected database managers",
+        subcommands=DB_MANAGERS_COMMANDS,
     ),
 ]
 

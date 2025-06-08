@@ -26,27 +26,33 @@ class TestIngressWeb:
 
     def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
-            values={"ingress": {"web": {"enabled": True}}},
+            values={"ingress": {"web": {"enabled": True}}, "airflowVersion": "2.10.5"},
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )  # checks that no validation exception is raised
 
     def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
         render_chart(
-            values={"ingress": {"web": {"enabled": True}}},
+            values={"ingress": {"web": {"enabled": True}}, "airflowVersion": "2.10.5"},
             show_only=["templates/webserver/webserver-ingress.yaml"],
             kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
-            values={"ingress": {"web": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}}},
+            values={
+                "airflowVersion": "2.10.5",
+                "ingress": {"web": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}},
+            },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert jmespath.search("metadata.annotations", docs[0]) == {"aa": "bb", "cc": "dd"}
 
     def test_should_set_ingress_class_name(self):
         docs = render_chart(
-            values={"ingress": {"web": {"enabled": True, "ingressClassName": "foo"}}},
+            values={
+                "airflowVersion": "2.10.5",
+                "ingress": {"web": {"enabled": True, "ingressClassName": "foo"}},
+            },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert jmespath.search("spec.ingressClassName", docs[0]) == "foo"
@@ -54,6 +60,7 @@ class TestIngressWeb:
     def test_should_ingress_hosts_objs_have_priority_over_host(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "ingress": {
                     "web": {
                         "enabled": True,
@@ -67,7 +74,7 @@ class TestIngressWeb:
                         ],
                         "host": "old-host",
                     },
-                }
+                },
             },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
@@ -87,6 +94,7 @@ class TestIngressWeb:
     def test_should_ingress_hosts_strs_have_priority_over_host(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "ingress": {
                     "web": {
                         "enabled": True,
@@ -94,7 +102,7 @@ class TestIngressWeb:
                         "hosts": ["*.a-host", "b-host", "c-host", "d-host"],
                         "host": "old-host",
                     },
-                }
+                },
             },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
@@ -106,13 +114,14 @@ class TestIngressWeb:
     def test_should_ingress_deprecated_host_and_top_level_tls_still_work(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "ingress": {
                     "web": {
                         "enabled": True,
                         "tls": {"enabled": True, "secretName": "supersecret"},
                         "host": "old-host",
                     },
-                }
+                },
             },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
@@ -125,11 +134,12 @@ class TestIngressWeb:
     def test_should_ingress_host_entry_not_exist(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "ingress": {
                     "web": {
                         "enabled": True,
                     }
-                }
+                },
             },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
@@ -148,7 +158,7 @@ class TestIngressWeb:
         ],
     )
     def test_ingress_created(self, global_value, web_value, expected):
-        values = {"ingress": {}}
+        values = {"airflowVersion": "2.10.5", "ingress": {}}
         if global_value is not None:
             values["ingress"]["enabled"] = global_value
         if web_value is not None:
@@ -161,6 +171,7 @@ class TestIngressWeb:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "ingress": {"enabled": True},
                 "webserver": {
                     "labels": {"test_label": "test_label_value"},
@@ -174,6 +185,7 @@ class TestIngressWeb:
     def test_can_ingress_hosts_be_templated(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "testValues": {
                     "scalar": "aa",
                     "list": ["bb", "cc"],
@@ -206,7 +218,7 @@ class TestIngressWeb:
 
     def test_backend_service_name(self):
         docs = render_chart(
-            values={"ingress": {"web": {"enabled": True}}},
+            values={"airflowVersion": "2.10.5", "ingress": {"web": {"enabled": True}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
 
@@ -218,6 +230,7 @@ class TestIngressWeb:
     def test_backend_service_name_with_fullname_override(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "fullnameOverride": "test-basic",
                 "useStandardNaming": True,
                 "ingress": {"web": {"enabled": True}},

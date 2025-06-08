@@ -18,6 +18,7 @@
  */
 import { createListCollection } from "@chakra-ui/react/collection";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Select } from "src/components/ui";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
@@ -33,7 +34,8 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
 };
 const enumTypes = ["string", "number", "integer"];
 
-export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
+export const FieldDropdown = ({ name, onUpdate }: FlexibleFormElementProps) => {
+  const { t: translate } = useTranslation("components");
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
@@ -55,6 +57,7 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
     }
 
     setParamsDict(paramsDict);
+    onUpdate(value);
   };
 
   return (
@@ -68,7 +71,7 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
       value={enumTypes.includes(typeof param.value) ? [param.value as string] : undefined}
     >
       <Select.Trigger clearable>
-        <Select.ValueText placeholder="Select Value" />
+        <Select.ValueText placeholder={translate("flexibleForm.placeholder")} />
       </Select.Trigger>
       <Select.Content portalRef={contentRef}>
         {selectOptions.items.map((option) => (

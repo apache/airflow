@@ -26,20 +26,24 @@ from __future__ import annotations
 from datetime import datetime
 from time import sleep
 
-from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.dag import DAG
-from airflow.models.variable import Variable
-from airflow.providers.common.compat.standard.operators import PythonOperator
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Param
 from airflow.utils.trigger_rule import TriggerRule
 
 try:
     from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.python import PythonOperator
+    from airflow.sdk import DAG, Param, Variable, task, task_group
 except ImportError:
+    # Airflow 2.10 compat
+    from airflow.decorators import task, task_group  # type: ignore[no-redef,attr-defined]
+    from airflow.models.dag import DAG  # type: ignore[no-redef,attr-defined,assignment]
+    from airflow.models.param import Param  # type: ignore[no-redef,attr-defined]
+    from airflow.models.variable import Variable  # type: ignore[no-redef,attr-defined]
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
+    from airflow.operators.empty import EmptyOperator  # type: ignore[no-redef,attr-defined]
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
 
 with DAG(
     dag_id="integration_test",
@@ -53,8 +57,17 @@ with DAG(
         "mapping_count": Param(
             4,
             type="integer",
+            minimum=1,
+            maximum=1024,
             title="Mapping Count",
             description="Amount of tasks that should be mapped",
+        ),
+        "minutes_to_run": Param(
+            15,
+            type="integer",
+            minimum=1,
+            title="Minutes to run",
+            description="Duration in minutes the long running task should run",
         ),
     },
 ) as dag:
@@ -146,9 +159,10 @@ with DAG(
         [plan_to_fail(), needs_retry()] >> capture_fail()
 
     @task
-    def long_running():
-        print("This task runs for 15 minutes")
-        for i in range(15):
+    def long_running(**context):
+        minutes_to_run: int = context["params"]["minutes_to_run"]
+        print(f"This task runs for {minutes_to_run} minute{'s' if minutes_to_run > 1 else ''}.")
+        for i in range(minutes_to_run):
             sleep(60)
             print(f"Running for {i + 1} minutes now.")
         print("Long running task completed.")
