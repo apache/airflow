@@ -40,7 +40,6 @@ class TestSCCActivation:
                 "webserver": {"defaultUser": {"enabled": True}},
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
-                "dagProcessor":{"enabled:":False},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
