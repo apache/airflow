@@ -1,4 +1,30 @@
 {
+  "pools": {
+    "add": "新增資源池",
+    "deferredSlotsIncluded": "包含延後任務",
+    "delete":{
+      "title": "刪除資源池",
+      "warning": "這將刪除與資源池相關的所有元資料，可能會影響使用此資源池的任務。"
+    },
+    "edit": "編輯資源池",
+    "form": {
+      "checkbox": "計算可用資源池配額時，將包含延後的任務",
+      "description": "描述",
+      "includeDeferred": "包含延後任務",
+      "name": "名稱",
+      "nameMaxLength": "名稱最多只能包含 256 個字元",
+      "nameRequired": "名稱是必填的",
+      "reset": "重置",
+      "save": "儲存",
+      "slots": "配額"
+    },
+    "searchPlaceholder": "搜尋資源池",
+    "sort": {
+      "asc": "名稱 (A-Z)",
+      "desc": "名稱 (Z-A)",
+      "placeholder": "排序方式"
+    }
+  },
   "variables": {
     "add": "新增變數",
     "delete": {

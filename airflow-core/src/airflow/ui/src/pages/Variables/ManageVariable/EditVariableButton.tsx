@@ -53,7 +53,7 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
   return (
     <>
       <ActionButton
-        actionName="Edit Variable"
+        actionName={translate("variables.edit")}
         disabled={disabled}
         icon={<FiEdit />}
         onClick={() => {

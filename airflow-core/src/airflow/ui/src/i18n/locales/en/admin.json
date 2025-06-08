@@ -1,4 +1,29 @@
 {
+  "pools": {
+    "add": "Add Pool",
+    "delete":{
+      "title": "Delete Pool",
+      "warning": "This will remove all metadata related to the pool and may affect tasks using this pool."
+    },
+    "edit": "Edit Pool",
+    "form": {
+      "checkbox": "Check to include deferred tasks when calculating open pool slots",
+      "description": "Description",
+      "includeDeferred": "Include Deferred",
+      "name": "Name",
+      "nameMaxLength": "Name can contain a maximum of 256 characters",
+      "nameRequired": "Name is required",
+      "reset": "Reset",
+      "save": "Save",
+      "slots": "Slots"
+    },
+    "searchPlaceholder": "Search Pools",
+    "sort": {
+      "asc": "Name (A-Z)",
+      "desc": "Name (Z-A)",
+      "placeholder": "Sort by"
+    }
+  },
   "variables": {
     "add": "Add Variable",
     "delete": {

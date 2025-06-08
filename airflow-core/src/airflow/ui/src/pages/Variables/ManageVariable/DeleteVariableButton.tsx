@@ -39,7 +39,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
   return (
     <>
       <ActionButton
-        actionName="Delete Variable"
+        actionName={translate("variables.delete")}
         disabled={disabled}
         icon={<FiTrash />}
         onClick={() => {
