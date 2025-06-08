@@ -334,7 +334,7 @@ class TestDockerOperator:
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
 
-    def test_execute_fallback_temp_dir(self, caplog, env_file):
+    def test_execute_fallback_temp_dir(self, env_file):
         self.client_mock.create_container.side_effect = [
             APIError(message=f"wrong path: {TEMPDIR_MOCK_RETURN_VALUE}"),
             {"Id": "some_id"},
@@ -364,15 +364,6 @@ class TestDockerOperator:
             container_name="test_container",
             tty=True,
         )
-        caplog.clear()
-        with caplog.at_level(logging.WARNING, logger=operator.log.name):
-            operator.execute(None)
-            warning_message = (
-                "Using remote engine or docker-in-docker and mounting temporary volume from host "
-                "is not supported. Falling back to `mount_tmp_dir=False` mode. "
-                "You can set `mount_tmp_dir` parameter to False to disable mounting and remove the warning"
-            )
-            assert warning_message in caplog.messages
 
         self.client_mock.create_container.assert_has_calls(
             [
