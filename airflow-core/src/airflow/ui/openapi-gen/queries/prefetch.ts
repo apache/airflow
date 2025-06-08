@@ -383,57 +383,110 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
   warningType?: DagWarningType;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) });
 /**
- * Get Favorite Dags
- * Get DAGs favorited by the user.
+ * Get Dags
+ * Get all DAGs.
+ * @param data The data for the request.
+ * @param data.favorites
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.tagsMatchMode
+ * @param data.owners
+ * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+ * @param data.excludeStale
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @param data.dagRunStartDateGte
+ * @param data.dagRunStartDateLte
+ * @param data.dagRunEndDateGte
+ * @param data.dagRunEndDateLte
+ * @param data.dagRunState
+ * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagServiceGetFavoriteDags = (queryClient: QueryClient) =>
+export const prefetchUseDagServiceGetDags = (
+  queryClient: QueryClient,
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
+    dagRunState,
+    excludeStale,
+    favorites,
+    lastDagRunState,
+    limit,
+    offset,
+    orderBy,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
+    dagRunState?: string[];
+    excludeStale?: boolean;
+    favorites?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagServiceGetFavoriteDagsKeyFn(),
-    queryFn: () => DagService.getFavoriteDags(),
+    queryKey: Common.UseDagServiceGetDagsKeyFn({
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunEndDateGte,
+      dagRunEndDateLte,
+      dagRunStartDateGte,
+      dagRunStartDateLte,
+      dagRunState,
+      excludeStale,
+      favorites,
+      lastDagRunState,
+      limit,
+      offset,
+      orderBy,
+      owners,
+      paused,
+      tags,
+      tagsMatchMode,
+    }),
+    queryFn: () =>
+      DagService.getDags({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
+        dagRunState,
+        excludeStale,
+        favorites,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }),
   });
-/**
-* Get Dags
-* Get all DAGs.
-* @param data The data for the request.
-* @param data.limit
-* @param data.offset
-* @param data.tags
-* @param data.tagsMatchMode
-* @param data.owners
-* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.excludeStale
-* @param data.paused
-* @param data.lastDagRunState
-* @param data.dagRunStartDateGte
-* @param data.dagRunStartDateLte
-* @param data.dagRunEndDateGte
-* @param data.dagRunEndDateLte
-* @param data.dagRunState
-* @param data.orderBy
-* @returns DAGCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
-  dagDisplayNamePattern?: string;
-  dagIdPattern?: string;
-  dagRunEndDateGte?: string;
-  dagRunEndDateLte?: string;
-  dagRunStartDateGte?: string;
-  dagRunStartDateLte?: string;
-  dagRunState?: string[];
-  excludeStale?: boolean;
-  lastDagRunState?: DagRunState;
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-  owners?: string[];
-  paused?: boolean;
-  tags?: string[];
-  tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsKeyFn({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDags({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Dag
 * Get basic information about a DAG.
