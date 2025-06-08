@@ -21,8 +21,9 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
-import { useDagServiceGetFavoriteDags } from "openapi/queries";
+import { useDagServiceGetDags } from "openapi/queries";
 import { useFavoriteDag } from "src/queries/useFavoriteDag";
+import { useUnfavoriteDag } from "src/queries/useUnfavoriteDag";
 
 import ActionButton from "../ui/ActionButton";
 
@@ -33,30 +34,28 @@ type FavoriteDagButtonProps = {
 
 export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
-  const { data: favorites, refetch } = useDagServiceGetFavoriteDags();
+  const { data: favorites, refetch } = useDagServiceGetDags({ favorites: true });
 
   const isFavorite = useMemo(
     () => favorites?.dags.some((fav) => fav.dag_id === dagId) ?? false,
     [favorites, dagId],
   );
 
-  const { mutate: toggleFavorite } = useFavoriteDag({ dagId });
+  const { mutate: favoriteDag } = useFavoriteDag({ dagId });
+  const { mutate: unfavoriteDag } = useUnfavoriteDag({ dagId });
 
   const onToggle = useCallback(() => {
-    toggleFavorite(
-      {
-        dagId,
-        requestBody: {
-          is_favorite: !isFavorite,
-        },
-      },
+    const mutationFn = isFavorite ? unfavoriteDag : favoriteDag;
+
+    mutationFn(
+      { dagId },
       {
         onSuccess: () => {
           void refetch();
         },
       },
     );
-  }, [dagId, isFavorite, toggleFavorite, refetch]);
+  }, [dagId, isFavorite, favoriteDag, unfavoriteDag, refetch]);
 
   return (
     <Box>
