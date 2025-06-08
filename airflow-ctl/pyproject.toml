@@ -113,6 +113,7 @@ docs = [
 ]
 dev = [
     "apache-airflow-ctl[dev]",
+    "apache-airflow-devel-common",
 ]
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
@@ -156,7 +157,9 @@ addopts = [
     "--disable-warnings",
     "--asyncio-mode=strict",
 ]
-
+markers = [
+    "flaky(reruns, reruns_delay): retry test on failure using pytest-rerunfailures"
+]
 norecursedirs = [
     ".eggs",
 ]
