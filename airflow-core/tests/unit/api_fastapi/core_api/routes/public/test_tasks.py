@@ -237,7 +237,7 @@ class TestGetTask(TestTaskEndpoint):
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
             task1 >> task2
-        bundle_name = "testing"
+        bundle_name = "test_bundle"
         session = settings.Session()
         orm_dag_bundle = DagBundleModel(name=bundle_name)
         session.merge(orm_dag_bundle)
