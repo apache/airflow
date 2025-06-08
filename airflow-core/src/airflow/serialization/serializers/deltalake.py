@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.utils.module_loading import qualname
 
@@ -55,7 +55,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return data, qualname(o), __version__, True
 
 
-def deserialize(classname: str, version: int, data: dict):
+def deserialize(classname: str, version: int, data: dict, cls: Any | None = None):
     from deltalake.table import DeltaTable
 
     from airflow.models.crypto import get_fernet
