@@ -19,7 +19,7 @@
 
 export { capitalize } from "./capitalize";
 export { pluralize } from "./pluralize";
-export { getDuration } from "./datetimeUtils";
+export { getDuration, renderDuration } from "./datetimeUtils";
 export { getMetaKey } from "./getMetaKey";
 export { useContainerWidth } from "./useContainerWidth";
 export * from "./query";

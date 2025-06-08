@@ -2402,6 +2402,17 @@ export const $DAGRunResponse = {
       ],
       title: "End Date",
     },
+    duration: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Duration",
+    },
     data_interval_start: {
       anyOf: [
         {
@@ -2513,6 +2524,7 @@ export const $DAGRunResponse = {
     "queued_at",
     "start_date",
     "end_date",
+    "duration",
     "data_interval_start",
     "data_interval_end",
     "run_after",
