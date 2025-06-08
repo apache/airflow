@@ -83,7 +83,7 @@ class TestSCCActivation:
         )
         assert jmespath.search("kind", docs[0]) == "RoleBinding"
         if dag_processor_enabled:
-            assert jmespath.search("subjects[9].name", docs[0]) == "release-name-dag_processor"
+            assert jmespath.search("subjects[9].name", docs[0]) == "release-name-airflow-dag_processor"
 
 
     @pytest.mark.parametrize(
