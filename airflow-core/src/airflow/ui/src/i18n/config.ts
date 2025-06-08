@@ -26,6 +26,7 @@ import deConnections from "./locales/de/connections.json";
 import deDag from "./locales/de/dag.json";
 import deDags from "./locales/de/dags.json";
 import deDashboard from "./locales/de/dashboard.json";
+import enAdmin from "./locales/en/admin.json";
 import enCommon from "./locales/en/common.json";
 import enComponents from "./locales/en/components.json";
 import enConnections from "./locales/en/connections.json";
@@ -44,6 +45,7 @@ import plConnections from "./locales/pl/connections.json";
 import plDag from "./locales/pl/dag.json";
 import plDags from "./locales/pl/dags.json";
 import plDashboard from "./locales/pl/dashboard.json";
+import zhTWAdmin from "./locales/zh-TW/admin.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
 import zhTWConnections from "./locales/zh-TW/connections.json";
 import zhTWDags from "./locales/zh-TW/dags.json";
@@ -63,7 +65,7 @@ export const supportedLanguages = [
 ] as const;
 
 export const defaultLanguage = "en";
-export const namespaces = ["common", "dashboard", "dags", "connections"] as const;
+export const namespaces = ["common", "dashboard", "dags", "connections", "admin"] as const;
 
 const resources = {
   de: {
@@ -75,6 +77,7 @@ const resources = {
     dashboard: deDashboard,
   },
   en: {
+    admin: enAdmin,
     common: enCommon,
     components: enComponents,
     connections: enConnections,
@@ -103,6 +106,7 @@ const resources = {
     dashboard: plDashboard,
   },
   "zh-TW": {
+    admin: zhTWAdmin,
     common: zhTWCommon,
     connections: zhTWConnections,
     dags: zhTWDags,

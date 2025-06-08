@@ -1,0 +1,57 @@
+{
+  "variables": {
+    "add": "新增變數",
+    "delete": {
+      "button": "刪除",
+      "confirmButton": "確定刪除",
+      "deleteVariable_one": "刪除 {{count}} 個變數",
+      "deleteVariable_other": "刪除 {{count}} 個變數",
+      "firstConfirmMessage_one": "您即將刪除 <strong>{{count}} 個變數</strong>。",
+      "firstConfirmMessage_other": "您即將刪除 <strong>{{count}} 個變數</strong>。",
+      "secondConfirmMessage": "此動作無法復原。<strong>您確定要繼續嗎？</strong>"
+    },
+    "edit": "編輯變數",
+    "export": "匯出",
+    "import": {
+      "button": "匯入",
+      "conflictResolution": "選擇變數衝突解決方式",
+      "errorParsingJsonFile": "解析 JSON 檔案時發生錯誤：請上傳包含變數的 JSON 檔案 (例如：{\"key\": \"value\", ...})。",
+      "form": {
+        "invalidJson": "無效的 JSON",
+        "keyMaxLength": "鍵最多只能包含 250 個字元",
+        "keyRequired": "鍵是必填的",
+        "reset": "重置",
+        "save": "儲存",
+        "valueRequired": "值是必填的"
+      },
+      "options": {
+        "fail": {
+          "description": "如果偵測到任何已存在的變數，則匯入失敗。",
+          "title": "失敗"
+        },
+        "overwrite": {
+          "description": "發生衝突時覆蓋變數。",
+          "title": "覆蓋"
+        },
+        "skip": {
+          "description": "略過匯入已存在的變數。",
+          "title": "跳過"
+        }
+      },
+      "title": "匯入變數",
+      "upload": "上傳 JSON 檔案",
+      "uploadPlaceholder": "上傳包含變數的 JSON 檔案 (例如：{\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "找不到變數",
+    "searchPlaceholder": "搜尋鍵",
+    "selected": "已選取",
+    "table": {
+      "columns": {
+        "description": "描述",
+        "isEncrypted": "是否加密",
+        "key": "鍵",
+        "value": "值"
+      }
+    }
+  }
+}

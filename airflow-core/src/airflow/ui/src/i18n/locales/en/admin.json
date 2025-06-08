@@ -1,0 +1,57 @@
+{
+  "variables": {
+    "add": "Add Variable",
+    "delete": {
+      "button": "Delete",
+      "confirmButton": "Yes, Delete",
+      "deleteVariable_one": "Delete {{count}} Variable",
+      "deleteVariable_other": "Delete {{count}} Variables",
+      "firstConfirmMessage_one": "You are about to delete <strong>{{count}} variable</strong>.",
+      "firstConfirmMessage_other": "You are about to delete <strong>{{count}} variables</strong>.",
+      "secondConfirmMessage": "This action is permanent and cannot be undone. <strong>Are you sure you want to proceed?</strong>"
+    },
+    "edit":  "Edit Variable",
+    "export": "Export",
+    "import": {
+      "button": "Import",
+      "conflictResolution": "Select Variable Conflict Resolution",
+      "errorParsingJsonFile": "Error Parsing JSON File: Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...}).",
+      "form": {
+        "invalidJson": "Invalid JSON",
+        "keyMaxLength": "Key can contain a maximum of 250 characters",
+        "keyRequired": "Key is required",
+        "reset": "Reset",
+        "save": "Save",
+        "valueRequired": "Value is required"
+      },
+      "options": {
+        "fail": {
+          "description": "Fails the import if any existing variables are detected.",
+          "title": "Fail"
+        },
+        "overwrite": {
+          "description": "Overwrites the variable in case of a conflict.",
+          "title": "Overwrite"
+        },
+        "skip": {
+          "description": "Skips importing variables that already exist.",
+          "title": "Skip"
+        }
+      },
+      "title": "Import Variables",
+      "upload": "Upload a JSON File",
+      "uploadPlaceholder": "Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "No variables found",
+    "searchPlaceholder": "Search Keys",
+    "selected": "Selected",
+    "table": {
+      "columns": {
+        "description": "Description",
+        "isEncrypted": "Is Encrypted",
+        "key": "Key",
+        "value": "Value"
+      }
+    }
+  }
+}
