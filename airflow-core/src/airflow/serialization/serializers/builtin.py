@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.utils.module_loading import qualname
 
@@ -35,7 +35,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return list(cast("list", o)), qualname(o), __version__, True
 
 
-def deserialize(classname: str, version: int, data: list) -> tuple | set | frozenset:
+def deserialize(classname: str, version: int, data: list, cls: Any | None = None) -> tuple | set | frozenset:
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
 

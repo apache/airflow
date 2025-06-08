@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.utils.module_loading import qualname
 
@@ -53,7 +53,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return buf.getvalue().hex().decode("utf-8"), qualname(o), __version__, True
 
 
-def deserialize(classname: str, version: int, data: object) -> pd.DataFrame:
+def deserialize(classname: str, version: int, data: object, cls: Any | None = None) -> pd.DataFrame:
     if version > __version__:
         raise TypeError(f"serialized {version} of {classname} > {__version__}")
 
