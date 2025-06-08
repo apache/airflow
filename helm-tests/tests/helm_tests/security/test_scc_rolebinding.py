@@ -84,7 +84,6 @@ class TestSCCActivation:
         if dag_processor_enabled:
             assert jmespath.search("subjects[9].name", docs[0]) == "release-name-airflow-dag-processor"
 
-
     @pytest.mark.parametrize(
         "rbac_enabled,scc_enabled,created,namespace,expected_name",
         [
