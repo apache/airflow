@@ -1952,20 +1952,6 @@ export const $DAGDetailsResponse = {
     description: 'Specific serializer for DAG Details responses.'
 } as const;
 
-export const $DAGFavoriteBody = {
-  properties: {
-    is_favorite: {
-      type: "boolean",
-      title: "Is Favorite",
-    },
-  },
-  additionalProperties: false,
-  type: "object",
-  required: ["is_favorite"],
-  title: "DAGFavoriteBody",
-  description: "Dag Serializer for updatable bodies.",
-} as const;
-
 export const $DAGPatchBody = {
     properties: {
         is_paused: {

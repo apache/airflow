@@ -207,37 +207,72 @@ export const UseDagWarningServiceListDagWarningsKeyFn = ({ dagId, limit, offset,
   orderBy?: string;
   warningType?: DagWarningType;
 } = {}, queryKey?: Array<unknown>) => [useDagWarningServiceListDagWarningsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }])];
-export type DagServiceGetFavoriteDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getFavoriteDags>>;
-export type DagServiceGetFavoriteDagsQueryResult<
-  TData = DagServiceGetFavoriteDagsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagServiceGetFavoriteDagsKey = "DagServiceGetFavoriteDags";
-export const UseDagServiceGetFavoriteDagsKeyFn = (queryKey?: Array<unknown>) => [
-  useDagServiceGetFavoriteDagsKey,
-  ...(queryKey ?? []),
-];
 export type DagServiceGetDagsDefaultResponse = Awaited<ReturnType<typeof DagService.getDags>>;
 export type DagServiceGetDagsQueryResult<TData = DagServiceGetDagsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagsKey = "DagServiceGetDags";
-export const UseDagServiceGetDagsKeyFn = ({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
-  dagDisplayNamePattern?: string;
-  dagIdPattern?: string;
-  dagRunEndDateGte?: string;
-  dagRunEndDateLte?: string;
-  dagRunStartDateGte?: string;
-  dagRunStartDateLte?: string;
-  dagRunState?: string[];
-  excludeStale?: boolean;
-  lastDagRunState?: DagRunState;
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-  owners?: string[];
-  paused?: boolean;
-  tags?: string[];
-  tagsMatchMode?: "any" | "all";
-} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
+export const UseDagServiceGetDagsKeyFn = (
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
+    dagRunState,
+    excludeStale,
+    favorites,
+    lastDagRunState,
+    limit,
+    offset,
+    orderBy,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
+    dagRunState?: string[];
+    excludeStale?: boolean;
+    favorites?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagsKey,
+  ...(queryKey ?? [
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunEndDateGte,
+      dagRunEndDateLte,
+      dagRunStartDateGte,
+      dagRunStartDateLte,
+      dagRunState,
+      excludeStale,
+      favorites,
+      lastDagRunState,
+      limit,
+      offset,
+      orderBy,
+      owners,
+      paused,
+      tags,
+      tagsMatchMode,
+    },
+  ]),
+];
 export type DagServiceGetDagDefaultResponse = Awaited<ReturnType<typeof DagService.getDag>>;
 export type DagServiceGetDagQueryResult<TData = DagServiceGetDagDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagKey = "DagServiceGetDag";
@@ -733,6 +768,8 @@ export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<Re
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceTriggerDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.triggerDagRun>>;
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<ReturnType<typeof DagRunService.getListDagRunsBatch>>;
+export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
+export type DagServiceUnfavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.unfavoriteDag>>;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>>;
 export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<ReturnType<typeof TaskInstanceService.postClearTaskInstances>>;
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
@@ -741,7 +778,6 @@ export type VariableServicePostVariableMutationResult = Awaited<ReturnType<typeo
 export type BackfillServicePauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.pauseBackfill>>;
 export type BackfillServiceUnpauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.unpauseBackfill>>;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.cancelBackfill>>;
-export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<ReturnType<typeof DagParsingService.reparseDagFile>>;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.patchConnection>>;
 export type ConnectionServiceBulkConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.bulkConnections>>;

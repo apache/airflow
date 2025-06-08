@@ -1,11 +1,11 @@
 {
-  "group": "Group",
   "favorite": {
     "favoriteDags": "Favorite Dags",
     "noFavoriteDags": "No favorites yet. Click the star icon next to a DAG in the list to add it to your favorites.",
     "showLess": "Show Less",
     "showMore": "Show More"
   },
+  "group": "Group",
   "health": {
     "dagProcessor": "Dag Processor",
     "health": "Health",
