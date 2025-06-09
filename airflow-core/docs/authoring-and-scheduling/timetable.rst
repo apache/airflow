@@ -312,12 +312,10 @@ Whether taking care of *Data Interval*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A trigger timetable *does not* include *data interval*. This means that the value of ``data_interval_start``
-and ``data_interval_end`` (and the legacy ``execution_date``) are the same; the time when a DAG run is
-triggered.
+and ``data_interval_end`` are the same; the time when a DAG run is triggered.
 
-For a data interval timetable, the value of ``data_interval_start`` and ``data_interval_end`` (and legacy
-``execution_date``) are different. ``data_interval_end`` is the time when a DAG run is triggered, while
-``data_interval_start`` and ``execution_date`` are the start of the interval.
+For a data interval timetable, the value of ``data_interval_start`` and ``data_interval_end`` are different.
+``data_interval_end`` is the time when a DAG run is triggered, while ``data_interval_start`` is the start of the interval.
 
 *Catchup* behavior
 ^^^^^^^^^^^^^^^^^^
