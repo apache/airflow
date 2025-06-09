@@ -27,6 +27,7 @@ from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 
 from airflow.configuration import conf
+from airflow.utils.strings import get_random_string
 
 T = TypeVar("T", bound=Exception)
 
@@ -67,7 +68,7 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
     def exception_handler(self, request: Request, exc: IntegrityError, exc_id: str | None = None):
         """Handle IntegrityError exception."""
         if self._is_dialect_matched(exc):
-            exception_id = hex(id(exc)) if exc_id is None else exc_id
+            exception_id = get_random_string() if exc_id is None else exc_id
             stacktrace = ""
             for tb in traceback.format_tb(exc.__traceback__):
                 stacktrace += tb
