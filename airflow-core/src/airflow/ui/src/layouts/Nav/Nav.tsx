@@ -40,11 +40,18 @@ export const Nav = () => {
 
   return (
     <VStack
+      _ltr={{
+        left: 0,
+        right: "auto",
+      }}
+      _rtl={{
+        left: "auto",
+        right: 0,
+      }}
       alignItems="center"
       bg="blue.muted"
       height="100%"
       justifyContent="space-between"
-      left={0}
       position="fixed"
       py={3}
       top={0}

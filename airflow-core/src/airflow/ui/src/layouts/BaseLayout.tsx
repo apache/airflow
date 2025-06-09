@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, LocaleProvider } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
+import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 
 import { useConfig } from "src/queries/useConfig";
@@ -26,17 +27,18 @@ import { Nav } from "./Nav";
 
 export const BaseLayout = ({ children }: PropsWithChildren) => {
   const instanceName = useConfig("instance_name");
+  const { i18n } = useTranslation();
 
   if (typeof instanceName === "string") {
     document.title = instanceName;
   }
 
   return (
-    <>
+    <LocaleProvider locale={i18n.language}>
       <Nav />
-      <Box display="flex" flexDirection="column" h="100vh" ml={20} p={3}>
+      <Box _ltr={{ ml: 20 }} _rtl={{ mr: 20 }} display="flex" flexDirection="column" h="100vh" p={3}>
         {children ?? <Outlet />}
       </Box>
-    </>
+    </LocaleProvider>
   );
 };

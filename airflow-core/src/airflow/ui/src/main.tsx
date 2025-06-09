@@ -58,10 +58,19 @@ axios.interceptors.response.use(
 
 axios.interceptors.request.use(tokenHandler);
 
+const html = document.documentElement;
+const updateHtml = (lng: string) => {
+  html.setAttribute("dir", i18n.dir(lng));
+  html.setAttribute("lang", lng);
+};
+
+updateHtml(i18n.language);
+i18n.on("languageChanged", updateHtml);
+
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
     <I18nextProvider i18n={i18n}>
-      <ChakraProvider value={system}>
+      <ChakraProvider i18nIsDynamicList={true} value={system}>
         <ColorModeProvider>
           <QueryClientProvider client={client}>
             <TimezoneProvider>

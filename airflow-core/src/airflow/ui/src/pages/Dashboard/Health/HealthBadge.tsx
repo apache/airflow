@@ -51,14 +51,13 @@ export const HealthBadge = ({
             {": "}
             {translate(`health.${status}`)}
           </Text>
-          <Text>
+          <Text hidden={latestHeartbeat === undefined}>
             {translate("health.lastHeartbeat")}
             {": "}
             <Time datetime={latestHeartbeat} />
           </Text>
         </div>
       }
-      disabled={!Boolean(latestHeartbeat)}
     >
       <StateBadge size="lg" state={state} variant="surface">
         {title}
