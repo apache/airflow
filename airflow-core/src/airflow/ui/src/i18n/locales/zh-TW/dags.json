@@ -1,0 +1,145 @@
+{
+  "assetSchedule": "{{count}} / {{total}} 個資源事件已更新",
+  "dagActions": {
+    "delete": {
+      "button": "刪除 Dag",
+      "warning": "這將會刪除所有與此 Dag 相關的系統資料，包括 Dag 執行與任務。"
+    },
+    "trigger": {
+      "button": "觸發",
+      "triggerDag": "觸發 Dag"
+    }
+  },
+  "filters": {
+    "paused": {
+      "active": "啟用中",
+      "all": "全部",
+      "paused": "暫停"
+    }
+  },
+  "list": {
+    "advancedSearch": "進階搜尋",
+    "clearSearch": "清除搜尋",
+    "columns": {
+      "dagId": "Dag ID",
+      "lastDagRun": "上次 Dag 執行",
+      "nextDagRun": "下次 Dag 執行",
+      "schedule": "排程",
+      "tags": "標籤"
+    },
+    "ownerLink": "擁有者 {{owner}} 的連結",
+    "searchPlaceholder": "搜尋 Dags"
+  },
+  "runAndTaskActions": {
+    "clear": {
+      "button": "清除 {{type}}",
+      "buttonTooltip": "按下 shift+c 清除",
+      "dialog": {
+        "affectedTasks": {
+          "columns": {
+            "runId": "執行 ID",
+            "state": "狀態",
+            "taskId": "任務 ID"
+          },
+          "noItemsFound": "找不到任務。",
+          "title": "受影響的任務: {{count}}"
+        },
+        "confirm": "確認",
+        "note": {
+          "placeholder": "新增備註...",
+          "title": "備註"
+        },
+        "options": {
+          "downstream": "下游",
+          "existingTasks": "清除現有任務",
+          "future": "未來",
+          "onlyFailed": "清除失敗任務",
+          "past": "過去",
+          "queueNew": "排隊新任務",
+          "upstream": "上游"
+        },
+        "title": "清除{{type}}"
+      }
+    },
+    "delete": {
+      "button": "刪除{{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "刪除{{type}}",
+        "warning": "這將會刪除所有與此{{type}}相關的系統資料。"
+      },
+      "error": "刪除{{type}}時發生錯誤",
+      "success": {
+        "description": "{{type}}刪除請求成功。",
+        "title": "{{type}}刪除成功"
+      }
+    },
+    "markAs": {
+      "button": "標記為{{type}}...",
+      "buttonTooltip": {
+        "failed": "按下 shift+f 標記為失敗",
+        "success": "按下 shift+s 標記為成功"
+      },
+      "dialog": {
+        "confirm": "確認",
+        "options": {
+          "downstream": "下游",
+          "future": "未來",
+          "past": "過去",
+          "upstream": "上游"
+        },
+        "title": "標記為{{type}}為{{state}}"
+      }
+    }
+  },
+  "runs": {
+    "allRunTypes": "全部執行類型",
+    "allStates": "全部狀態",
+    "columns": {
+      "dagId": "Dag ID",
+      "dagVersions": "Dag 版本",
+      "duration": "持續時間",
+      "endDate": "結束日期",
+      "runAfter": "最早可執行時間",
+      "runType": "執行類型",
+      "startDate": "開始日期",
+      "state": "狀態"
+    }
+  },
+  "sort": {
+    "displayName": {
+      "asc": "依顯示名稱排序 (A-Z)",
+      "desc": "依顯示名稱排序 (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "依上次開始執行日期排序 (從新到舊)",
+      "desc": "依上次開始執行日期排序 (從新到舊)"
+    },
+    "lastRunState": {
+      "asc": "依上次執行狀態排序 (A-Z)",
+      "desc": "依上次執行狀態排序 (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "依下次執行時間排序 (由近而遠)",
+      "desc": "依下次執行時間排序 (由遠而近)"
+    },
+    "placeholder": "排序方式"
+  },
+  "taskInstances": {
+    "allStates": "全部狀態",
+    "columns": {
+      "dagId": "Dag ID",
+      "dagRun": "Dag 執行",
+      "dagVersion": "Dag 版本",
+      "duration": "持續時間",
+      "endDate": "結束日期",
+      "operator": "運算子",
+      "pool": "資源池",
+      "startDate": "開始日期",
+      "state": "狀態",
+      "taskId": "任務 ID",
+      "tryNumber": "嘗試次數"
+    },
+    "searchPlaceholder": "搜尋任務"
+  }
+}

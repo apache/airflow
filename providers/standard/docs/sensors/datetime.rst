@@ -25,7 +25,7 @@ TimeDeltaSensor
 Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor` to end sensing after specific time.
 
 
-.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_delta_sensor]
@@ -41,7 +41,7 @@ Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensorAs
 It is an async version of the operator and requires Triggerer to run.
 
 
-.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_delta_sensor_async]
@@ -54,32 +54,16 @@ It is an async version of the operator and requires Triggerer to run.
 TimeSensor
 ==========
 
-Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to end sensing after time specified.
+Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to end sensing after time specified. ``TimeSensor`` can be run in deferrable mode, if a Triggerer is available.
 
 Time will be evaluated against ``data_interval_end`` if present for the dag run, otherwise ``run_after`` will be used.
 
-.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_sensors]
     :end-before: [END example_time_sensors]
 
-
-.. _howto/operator:TimeSensorAsync:
-
-TimeSensorAsync
-===============
-
-Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensorAsync` to end sensing after time specified.
-It is an async version of the operator and requires Triggerer to run.
-
-Time will be evaluated against ``data_interval_end`` if present for the dag run, otherwise ``run_after`` will be used.
-
-.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
-    :language: python
-    :dedent: 4
-    :start-after: [START example_time_sensors_async]
-    :end-before: [END example_time_sensors_async]
 
 .. _howto/operator:DayOfWeekSensor:
 
@@ -88,7 +72,7 @@ DayOfWeekSensor
 
 Use the :class:`~airflow.sensors.weekday.DayOfWeekSensor` to sense for day of week.
 
-.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_day_of_week_sensor]

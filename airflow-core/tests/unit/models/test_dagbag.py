@@ -32,8 +32,8 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
-import airflow.example_dags
 from airflow import settings
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -43,6 +43,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
 
+from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -51,7 +52,7 @@ from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
-example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
+example_dags_folder = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "standard"
 
 PY311 = sys.version_info >= (3, 11)
 
@@ -360,12 +361,15 @@ class TestDagBag:
         (
             pytest.param(
                 pathlib.Path(example_dags_folder) / "example_bash_operator.py",
-                {"example_bash_operator": "airflow/example_dags/example_bash_operator.py"},
+                {
+                    "example_bash_operator": f"{example_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
+                },
                 id="example_bash_operator",
             ),
         ),
     )
     def test_get_dag_registration(self, file_to_load, expected):
+        pytest.importorskip("system.standard")
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
         dagbag.process_file(os.fspath(file_to_load))
         for dag_id, path in expected.items():
@@ -470,7 +474,7 @@ class TestDagBag:
         assert dag_id == dag.dag_id
         assert dagbag.process_file_calls == 2
 
-    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path):
+    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path, session):
         """
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
@@ -483,14 +487,31 @@ class TestDagBag:
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
             EmptyOperator(task_id="task_1")
-        dag_maker.create_dagrun()
+
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
         dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
         dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
         dagbag.dags_hash = {dag.dag_id: mock.ANY}
 
+        # observe we have serdag and dag is in dagbag
+        assert SerializedDagModel.has_dag(dag.dag_id) is True
+        assert dagbag.get_dag(dag.dag_id) is not None
+
+        # now delete serdags for this dag
+        SDM = SerializedDagModel
+        sdms = session.scalars(select(SDM).where(SDM.dag_id == dag.dag_id))
+        for sdm in sdms:
+            session.delete(sdm)
+        session.commit()
+
+        # first, confirm that serdags are gone for this dag
         assert SerializedDagModel.has_dag(dag.dag_id) is False
 
+        # now see the dag is still in dagbag
+        assert dagbag.get_dag(dag.dag_id) is not None
+
+        # but, let's recreate the dagbag and see if the dag will be there
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
         assert dagbag.get_dag(dag.dag_id) is None
         assert dag.dag_id not in dagbag.dags
         assert dag.dag_id not in dagbag.dags_last_fetched
@@ -938,3 +959,56 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder="", include_examples=False, collect_dags=False, known_pools=known_pools)
         dagbag.bag_dag(dag)
         assert dagbag.dag_warnings == expected
+
+    def test_sigsegv_handling(self, tmp_path, caplog):
+        """
+        Test that a SIGSEGV in a DAG file is handled gracefully and does not crash the process.
+        """
+        # Create a DAG file that will raise a SIGSEGV
+        dag_file = tmp_path / "bad_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                import signal
+                from airflow import DAG
+                import os
+                from airflow.decorators import task
+
+                os.kill(os.getpid(), signal.SIGSEGV)
+
+                with DAG('testbug'):
+                    @task
+                    def mytask():
+                        print(1)
+                    mytask()
+                """
+            )
+        )
+
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+        assert "Received SIGSEGV signal while processing" in caplog.text
+        assert dag_file.as_posix() in dagbag.import_errors
+
+    def test_failed_signal_registration_does_not_crash_the_process(self, tmp_path, caplog):
+        """Test that a ValueError raised by a signal setting on child process does not crash the main process.
+        This was raised in test_dag_report.py module in api_fastapi/core_api/routes/public tests
+        """
+        dag_file = tmp_path / "test_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                from airflow import DAG
+                from airflow.decorators import task
+
+                with DAG('testbug'):
+                    @task
+                    def mytask():
+                        print(1)
+                    mytask()
+                """
+            )
+        )
+        with mock.patch("airflow.models.dagbag.signal.signal") as mock_signal:
+            mock_signal.side_effect = ValueError("Invalid signal setting")
+            DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+            assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text

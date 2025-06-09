@@ -138,7 +138,10 @@ class DefaultExtractor(BaseExtractor):
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
         try:
-            facets: OperatorLineage = get_facets_method(*args)
+            facets: OperatorLineage | None = get_facets_method(*args)
+            if facets is None:
+                self.log.debug("OpenLineage method returned `None`")
+                return None
             # "rewrite" OperatorLineage to safeguard against different version of the same class
             # that was existing in openlineage-airflow package outside of Airflow repo
             return OperatorLineage(

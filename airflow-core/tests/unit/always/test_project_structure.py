@@ -61,6 +61,7 @@ class TestProjectStructure:
         # We should make sure that one goes to 0
         # TODO(potiuk) - check if that test actually tests something
         OVERLOOKED_TESTS = [
+            "providers/alibaba/tests/unit/alibaba/test_version_compat.py",
             "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
             "providers/amazon/tests/unit/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
@@ -69,6 +70,8 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_boto_schema.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_utils.py",
+            "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
+            "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/docker/test_app.py",
             "providers/amazon/tests/unit/amazon/aws/executors/utils/test_base_config_keys.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_sagemaker.py",
@@ -138,6 +141,7 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/extensions/test_init_security.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_session.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_views.py",
+            "providers/fab/tests/unit/fab/www/extensions/test_init_wsgi_middlewares.py",
             "providers/fab/tests/unit/fab/www/security/test_permissions.py",
             "providers/fab/tests/unit/fab/www/test_airflow_flask_app.py",
             "providers/fab/tests/unit/fab/www/test_app.py",

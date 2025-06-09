@@ -141,6 +141,7 @@ class ShellParams:
     airflow_constraints_reference: str = ""
     airflow_extras: str = ""
     airflow_skip_constraints: bool = False
+    allow_pre_releases: bool = False
     auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
@@ -196,7 +197,6 @@ class ShellParams:
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
-    remove_arm_packages: bool = False
     restart: bool = False
     run_db_tests_only: bool = False
     run_tests: bool = False
@@ -352,8 +352,8 @@ class ShellParams:
         self.add_docker_in_docker(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
-        if os.environ.get("CI", "false") == "true" and self.use_uv:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-uv-tests.yml")
+        if os.environ.get("CI", "false") == "true":
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-tests.yml")
 
         if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
@@ -529,7 +529,7 @@ class ShellParams:
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
             "/opt/airflow/dev/breeze/src/airflow_breeze/files/simple_auth_manager_passwords.json",
         )
-        _set_var(_env, "AIRFLOW__WEBSERVER__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
+        _set_var(_env, "AIRFLOW__API__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env,
@@ -554,6 +554,7 @@ class ShellParams:
             port = 8080
             _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
+        _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
         _set_var(_env, "BREEZE", "true")
@@ -585,6 +586,7 @@ class ShellParams:
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
+        _set_var(_env, "GITHUB_TOKEN", self.github_token)
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
@@ -615,7 +617,6 @@ class ShellParams:
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
-        _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_TESTS", self.run_tests)
         _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)

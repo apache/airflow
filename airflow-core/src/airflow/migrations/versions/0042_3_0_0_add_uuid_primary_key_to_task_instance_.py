@@ -206,7 +206,10 @@ def upgrade():
         op.execute(pg_uuid7_fn)
 
         # Migrate existing rows with UUID v7 using a timestamp-based generation
+        batch_num = 0
         while True:
+            batch_num += 1
+            print(f"processing batch {batch_num}")
             result = conn.execute(
                 text(
                     """
@@ -223,7 +226,9 @@ def upgrade():
                     """
                 ).bindparams(batch_size=batch_size)
             )
-            row_count = result.rowcount
+            row_count = 0
+            if result:
+                row_count = result.rowcount
             if row_count == 0:
                 break
             print(f"Migrated {row_count} task_instance rows in this batch...")

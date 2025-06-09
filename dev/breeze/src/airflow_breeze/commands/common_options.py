@@ -38,6 +38,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
+    normalize_platform_machine,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -331,6 +332,14 @@ option_python = click.option(
     help="Python major/minor version used in Airflow image for images.",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
 )
+option_python_no_default = click.option(
+    "-p",
+    "--python",
+    type=BetterChoice(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS),
+    help="Python major/minor version used in Airflow image for images "
+    "(if not specified - all python versions are used).",
+    envvar="PYTHON_MAJOR_MINOR_VERSION",
+)
 option_python_versions = click.option(
     "--python-versions",
     help="Space separated list of python versions used for build with multiple versions.",
@@ -408,6 +417,13 @@ option_use_airflow_version = click.option(
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
+option_allow_pre_releases = click.option(
+    "--allow-pre-releases",
+    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    "Set to true automatically for pre-release --use-airflow-version)",
+    is_flag=True,
+    envvar="ALLOW_PRE_RELEASES",
+)
 option_airflow_version = click.option(
     "-A",
     "--airflow-version",
@@ -460,10 +476,18 @@ option_version_suffix = click.option(
     default="",
 )
 
+
+def _normalize_platform(ctx: click.core.Context, param: click.core.Option, value: str):
+    if not value:
+        return value
+    return normalize_platform_machine(value)
+
+
 option_platform_single = click.option(
     "--platform",
     help="Platform for Airflow image.",
     default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
     envvar="PLATFORM",
+    callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
 )

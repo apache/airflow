@@ -18,6 +18,7 @@
  */
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -68,6 +69,9 @@ export const Logs = () => {
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
 
+  useHotkeys("w", toggleWrap);
+  useHotkeys("f", toggleFullscreen);
+
   const onOpenChange = () => {
     setFullscreen(false);
   };
@@ -88,7 +92,7 @@ export const Logs = () => {
   const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
 
   return (
-    <Box p={2}>
+    <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
@@ -113,7 +117,7 @@ export const Logs = () => {
         error={error}
         isLoading={isLoading || isLoadingLogs}
         logError={logError}
-        parsedLogs={data.parsedLogs}
+        parsedLogs={data.parsedLogs ?? []}
         wrap={wrap}
       />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
@@ -135,12 +139,12 @@ export const Logs = () => {
 
           <Dialog.CloseTrigger />
 
-          <Dialog.Body>
+          <Dialog.Body display="flex" flexDirection="column">
             <TaskLogContent
               error={error}
               isLoading={isLoading || isLoadingLogs}
               logError={logError}
-              parsedLogs={data.parsedLogs}
+              parsedLogs={data.parsedLogs ?? []}
               wrap={wrap}
             />
           </Dialog.Body>

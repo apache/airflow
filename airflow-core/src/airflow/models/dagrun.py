@@ -45,6 +45,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     and_,
+    case,
     func,
     not_,
     or_,
@@ -54,9 +55,11 @@ from sqlalchemy import (
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
-from sqlalchemy.sql.expression import case, false, select
+from sqlalchemy.sql.elements import Case
+from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
@@ -95,11 +98,13 @@ if TYPE_CHECKING:
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql.elements import Case
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.dag_version import DagVersion
     from airflow.models.operator import Operator
+    from airflow.sdk import DAG as SDKDAG, Context
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
@@ -124,7 +129,7 @@ def _default_run_after(ctx):
 
 
 def _creator_note(val):
-    """Creator the ``note`` association proxy."""
+    """Creator for the ``note`` association proxy."""
     if isinstance(val, str):
         return DagRunNote(content=val)
     if isinstance(val, dict):
@@ -255,6 +260,13 @@ class DagRun(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
 
+    deadlines = relationship(
+        "Deadline",
+        back_populates="dagrun",
+        uselist=True,
+        cascade="all, delete, delete-orphan",
+    )
+
     created_dag_version = relationship("DagVersion", uselist=False, passive_deletes=True)
     """
     The dag version that was active when the dag run was created, if available.
@@ -365,6 +377,28 @@ class DagRun(Base, LoggingMixin):
         if dag_versions:
             return dag_versions[-1].version_number
         return None
+
+    @hybrid_property
+    def duration(self) -> float | None:
+        if self.end_date and self.start_date:
+            return (self.end_date - self.start_date).total_seconds()
+        return None
+
+    @duration.expression  # type: ignore[no-redef]
+    @provide_session
+    def duration(cls, session: Session = NEW_SESSION) -> Case:
+        dialect_name = session.bind.dialect.name
+        if dialect_name == "mysql":
+            return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)
+        return case(
+            [
+                (
+                    (cls.end_date != None) & (cls.start_date != None),  # noqa: E711
+                    func.extract("epoch", cls.end_date - cls.start_date),
+                )
+            ],
+            else_=None,
+        )
 
     @provide_session
     def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):
@@ -1147,8 +1181,8 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="task_failure")
 
-            if execute_callbacks:
-                dag.handle_callback(self, success=False, reason="task_failure", session=session)
+            if execute_callbacks and dag.has_on_failure_callback:
+                self.handle_dag_callback(dag=dag, success=False, reason="task_failure")
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1176,8 +1210,8 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.SUCCESS)
             self.notify_dagrun_state_changed(msg="success")
 
-            if execute_callbacks:
-                dag.handle_callback(self, success=True, reason="success", session=session)
+            if execute_callbacks and dag.has_on_success_callback:
+                self.handle_dag_callback(dag=dag, success=True, reason="success")
             elif dag.has_on_success_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1195,8 +1229,8 @@ class DagRun(Base, LoggingMixin):
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
-            if execute_callbacks:
-                dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
+            if execute_callbacks and dag.has_on_failure_callback:
+                self.handle_dag_callback(dag=dag, success=False, reason="all_tasks_deadlocked")
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1315,6 +1349,32 @@ class DagRun(Base, LoggingMixin):
         # deliberately not notifying on QUEUED
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
+
+    def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
+        """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
+        context: Context = {  # type: ignore[assignment]
+            "dag": dag,
+            "run_id": str(self.run_id),
+            "reason": reason,
+        }
+
+        callbacks = dag.on_success_callback if success else dag.on_failure_callback
+        if not callbacks:
+            self.log.warning("Callback requested, but dag didn't have any for DAG: %s.", dag.dag_id)
+            return
+        callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+
+        for callback in callbacks:
+            self.log.info(
+                "Executing on_%s dag callback: %s",
+                "success" if success else "failure",
+                callback.__name__ if hasattr(callback, "__name__") else repr(callback),
+            )
+            try:
+                callback(context)
+            except Exception:
+                self.log.exception("Callback failed for %s", dag.dag_id)
+                Stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
 
     def _get_ready_tis(
         self,
@@ -1860,6 +1920,7 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
+                and not ti.task.inlets
             ):
                 empty_ti_ids.append(ti.id)
             # check "start_trigger_args" to see whether the operator supports start execution from triggerer

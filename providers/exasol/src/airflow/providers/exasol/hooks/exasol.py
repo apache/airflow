@@ -22,8 +22,10 @@ from contextlib import closing
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 
 import pyexasol
+from deprecated import deprecated
 from pyexasol import ExaConnection, ExaStatement
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -73,7 +75,7 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(
+    def _get_pandas_df(
         self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> pd.DataFrame:
         """
@@ -89,6 +91,34 @@ class ExasolHook(DbApiHook):
         with closing(self.get_conn()) as conn:
             df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
             return df
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Execute the sql and returns a pandas dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        return self._get_pandas_df(sql, parameters, **kwargs)
+
+    def _get_polars_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ):
+        raise NotImplementedError("Polars is not supported for Exasol")
 
     def get_records(
         self,

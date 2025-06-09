@@ -342,6 +342,16 @@ export const $AssetResponse = {
       type: "array",
       title: "Aliases",
     },
+    last_asset_event: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/LastAssetEventResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -482,6 +492,10 @@ export const $BackfillResponse = {
       format: "date-time",
       title: "Updated At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -496,6 +510,7 @@ export const $BackfillResponse = {
     "created_at",
     "completed_at",
     "updated_at",
+    "dag_display_name",
   ],
   title: "BackfillResponse",
   description: "Base serializer for Backfill.",
@@ -519,13 +534,6 @@ export const $BaseInfoResponse = {
   required: ["status"],
   title: "BaseInfoResponse",
   description: "Base info serializer for responses.",
-} as const;
-
-export const $BulkAction = {
-  type: "string",
-  enum: ["create", "delete", "update"],
-  title: "BulkAction",
-  description: "Bulk Action to be performed on the used model.",
 } as const;
 
 export const $BulkActionNotOnExistence = {
@@ -572,6 +580,32 @@ export const $BulkActionResponse = {
 Represents the outcome of a single bulk operation (create, update, or delete).
 The response includes a list of successful keys and any errors encountered during the operation.
 This structure helps users understand which key actions succeeded and which failed.`,
+} as const;
+
+export const $BulkBody_BulkTaskInstanceBody_ = {
+  properties: {
+    actions: {
+      items: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/BulkCreateAction_BulkTaskInstanceBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkUpdateAction_BulkTaskInstanceBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkDeleteAction_BulkTaskInstanceBody_",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["actions"],
+  title: "BulkBody[BulkTaskInstanceBody]",
 } as const;
 
 export const $BulkBody_ConnectionBody_ = {
@@ -652,10 +686,39 @@ export const $BulkBody_VariableBody_ = {
   title: "BulkBody[VariableBody]",
 } as const;
 
+export const $BulkCreateAction_BulkTaskInstanceBody_ = {
+  properties: {
+    action: {
+      type: "string",
+      const: "create",
+      title: "Action",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/BulkTaskInstanceBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkCreateAction[BulkTaskInstanceBody]",
+} as const;
+
 export const $BulkCreateAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -680,7 +743,9 @@ export const $BulkCreateAction_ConnectionBody_ = {
 export const $BulkCreateAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -705,7 +770,9 @@ export const $BulkCreateAction_PoolBody_ = {
 export const $BulkCreateAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -727,10 +794,39 @@ export const $BulkCreateAction_VariableBody_ = {
   title: "BulkCreateAction[VariableBody]",
 } as const;
 
+export const $BulkDeleteAction_BulkTaskInstanceBody_ = {
+  properties: {
+    action: {
+      type: "string",
+      const: "delete",
+      title: "Action",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entity id/key to be deleted.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkDeleteAction[BulkTaskInstanceBody]",
+} as const;
+
 export const $BulkDeleteAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -755,7 +851,9 @@ export const $BulkDeleteAction_ConnectionBody_ = {
 export const $BulkDeleteAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -780,7 +878,9 @@ export const $BulkDeleteAction_PoolBody_ = {
 export const $BulkDeleteAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -847,10 +947,106 @@ Each action (if requested) is represented as a field containing details about su
 Fields are populated in the response only if the respective action was part of the request, else are set None.`,
 } as const;
 
+export const $BulkTaskInstanceBody = {
+  properties: {
+    new_state: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/TaskInstanceState",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 1000,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    include_upstream: {
+      type: "boolean",
+      title: "Include Upstream",
+      default: false,
+    },
+    include_downstream: {
+      type: "boolean",
+      title: "Include Downstream",
+      default: false,
+    },
+    include_future: {
+      type: "boolean",
+      title: "Include Future",
+      default: false,
+    },
+    include_past: {
+      type: "boolean",
+      title: "Include Past",
+      default: false,
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    map_index: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Map Index",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["task_id"],
+  title: "BulkTaskInstanceBody",
+  description: "Request body for bulk update, and delete task instances.",
+} as const;
+
+export const $BulkUpdateAction_BulkTaskInstanceBody_ = {
+  properties: {
+    action: {
+      type: "string",
+      const: "update",
+      title: "Action",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/BulkTaskInstanceBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be updated.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkUpdateAction[BulkTaskInstanceBody]",
+} as const;
+
 export const $BulkUpdateAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -875,7 +1071,9 @@ export const $BulkUpdateAction_ConnectionBody_ = {
 export const $BulkUpdateAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -900,7 +1098,9 @@ export const $BulkUpdateAction_PoolBody_ = {
 export const $BulkUpdateAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -1715,6 +1915,32 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Parsed",
     },
+    default_args: {
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Default Args",
+    },
+    owner_links: {
+      anyOf: [
+        {
+          additionalProperties: {
+            type: "string",
+          },
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Owner Links",
+    },
     file_token: {
       type: "string",
       title: "File Token",
@@ -1778,6 +2004,7 @@ export const $DAGDetailsResponse = {
     "template_search_path",
     "timezone",
     "last_parsed",
+    "default_args",
     "file_token",
     "concurrency",
     "latest_dag_version",
@@ -2175,6 +2402,17 @@ export const $DAGRunResponse = {
       ],
       title: "End Date",
     },
+    duration: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Duration",
+    },
     data_interval_start: {
       anyOf: [
         {
@@ -2233,8 +2471,15 @@ export const $DAGRunResponse = {
       ],
     },
     conf: {
-      additionalProperties: true,
-      type: "object",
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Conf",
     },
     note: {
@@ -2279,6 +2524,7 @@ export const $DAGRunResponse = {
     "queued_at",
     "start_date",
     "end_date",
+    "duration",
     "data_interval_start",
     "data_interval_end",
     "run_after",
@@ -2487,9 +2733,13 @@ export const $DAGSourceResponse = {
       ],
       title: "Version Number",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["content", "dag_id", "version_number"],
+  required: ["content", "dag_id", "version_number", "dag_display_name"],
   title: "DAGSourceResponse",
   description: "DAG Source serializer for responses.",
 } as const;
@@ -2858,6 +3108,10 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     bundle_url: {
       anyOf: [
         {
@@ -2872,7 +3126,16 @@ export const $DagVersionResponse = {
     },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
+  required: [
+    "id",
+    "version_number",
+    "dag_id",
+    "bundle_name",
+    "bundle_version",
+    "created_at",
+    "dag_display_name",
+    "bundle_url",
+  ],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;
@@ -3045,6 +3308,17 @@ export const $EventLogResponse = {
       ],
       title: "Extra",
     },
+    dag_display_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -3205,6 +3479,58 @@ export const $HealthInfoResponse = {
   required: ["metadatabase", "scheduler", "triggerer"],
   title: "HealthInfoResponse",
   description: "Health serializer for responses.",
+} as const;
+
+export const $IFrameViewsResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    src: {
+      type: "string",
+      title: "Src",
+    },
+    icon: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Icon",
+    },
+    url_route: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url Route",
+    },
+    destination: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["nav", "dag", "dag_run", "task", "task_instance"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Destination",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["name", "src"],
+  title: "IFrameViewsResponse",
+  description: "Serializer for IFrame Plugin responses.",
 } as const;
 
 export const $ImportErrorCollectionResponse = {
@@ -3392,6 +3718,17 @@ export const $JobResponse = {
       ],
       title: "Unixname",
     },
+    dag_display_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -3408,6 +3745,40 @@ export const $JobResponse = {
   ],
   title: "JobResponse",
   description: "Job serializer for responses.",
+} as const;
+
+export const $JsonValue = {} as const;
+
+export const $LastAssetEventResponse = {
+  properties: {
+    id: {
+      anyOf: [
+        {
+          type: "integer",
+          minimum: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Id",
+    },
+    timestamp: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  title: "LastAssetEventResponse",
+  description: "Last asset event response serializer.",
 } as const;
 
 export const $PatchTaskInstanceBody = {
@@ -3552,6 +3923,13 @@ export const $PluginResponse = {
       type: "array",
       title: "Fastapi Root Middlewares",
     },
+    iframe_views: {
+      items: {
+        $ref: "#/components/schemas/IFrameViewsResponse",
+      },
+      type: "array",
+      title: "Iframe Views",
+    },
     appbuilder_views: {
       items: {
         $ref: "#/components/schemas/AppBuilderViewResponse",
@@ -3606,6 +3984,7 @@ export const $PluginResponse = {
     "flask_blueprints",
     "fastapi_apps",
     "fastapi_root_middlewares",
+    "iframe_views",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
@@ -3869,9 +4248,13 @@ export const $QueuedEventResponse = {
       format: "date-time",
       title: "Created At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["dag_id", "asset_id", "created_at"],
+  required: ["dag_id", "asset_id", "created_at", "dag_display_name"],
   title: "QueuedEventResponse",
   description: "Queued Event serializer for responses..",
 } as const;
@@ -5451,8 +5834,7 @@ export const $VariableBody = {
       title: "Key",
     },
     value: {
-      type: "string",
-      title: "Value",
+      $ref: "#/components/schemas/JsonValue",
     },
     description: {
       anyOf: [
@@ -5630,9 +6012,22 @@ export const $XComResponse = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+  ],
   title: "XComResponse",
   description: "Serializer for a xcom item.",
 } as const;
@@ -5676,12 +6071,26 @@ export const $XComResponseNative = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     value: {
       title: "Value",
     },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+    "value",
+  ],
   title: "XComResponseNative",
   description: "XCom response serializer with native return type.",
 } as const;
@@ -5725,6 +6134,10 @@ export const $XComResponseString = {
       type: "string",
       title: "Run Id",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     value: {
       anyOf: [
         {
@@ -5738,7 +6151,17 @@ export const $XComResponseString = {
     },
   },
   type: "object",
-  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
+  required: [
+    "key",
+    "timestamp",
+    "logical_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "run_id",
+    "dag_display_name",
+    "value",
+  ],
   title: "XComResponseString",
   description: "XCom response serializer with string return type.",
 } as const;
@@ -5836,22 +6259,6 @@ export const $BaseNodeResponse = {
 
 export const $ConfigResponse = {
   properties: {
-    navbar_color: {
-      type: "string",
-      title: "Navbar Color",
-    },
-    navbar_text_color: {
-      type: "string",
-      title: "Navbar Text Color",
-    },
-    navbar_hover_color: {
-      type: "string",
-      title: "Navbar Hover Color",
-    },
-    navbar_text_hover_color: {
-      type: "string",
-      title: "Navbar Text Hover Color",
-    },
     page_size: {
       type: "integer",
       title: "Page Size",
@@ -5868,10 +6275,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Instance Name",
     },
-    instance_name_has_markup: {
-      type: "boolean",
-      title: "Instance Name Has Markup",
-    },
     enable_swagger_ui: {
       type: "boolean",
       title: "Enable Swagger Ui",
@@ -5883,18 +6286,6 @@ export const $ConfigResponse = {
     default_wrap: {
       type: "boolean",
       title: "Default Wrap",
-    },
-    warn_deployment_exposure: {
-      type: "boolean",
-      title: "Warn Deployment Exposure",
-    },
-    audit_view_excluded_events: {
-      type: "string",
-      title: "Audit View Excluded Events",
-    },
-    audit_view_included_events: {
-      type: "string",
-      title: "Audit View Included Events",
     },
     test_connection: {
       type: "string",
@@ -5925,21 +6316,13 @@ export const $ConfigResponse = {
   },
   type: "object",
   required: [
-    "navbar_color",
-    "navbar_text_color",
-    "navbar_hover_color",
-    "navbar_text_hover_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
     "instance_name",
-    "instance_name_has_markup",
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",
-    "warn_deployment_exposure",
-    "audit_view_excluded_events",
-    "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
     "show_external_log_redirect",
@@ -6394,6 +6777,31 @@ export const $DAGWithLatestDagRunsResponse = {
   ],
   title: "DAGWithLatestDagRunsResponse",
   description: "DAG with latest dag runs response serializer.",
+} as const;
+
+export const $DashboardDagStatsResponse = {
+  properties: {
+    active_dag_count: {
+      type: "integer",
+      title: "Active Dag Count",
+    },
+    failed_dag_count: {
+      type: "integer",
+      title: "Failed Dag Count",
+    },
+    running_dag_count: {
+      type: "integer",
+      title: "Running Dag Count",
+    },
+    queued_dag_count: {
+      type: "integer",
+      title: "Queued Dag Count",
+    },
+  },
+  type: "object",
+  required: ["active_dag_count", "failed_dag_count", "running_dag_count", "queued_dag_count"],
+  title: "DashboardDagStatsResponse",
+  description: "Dashboard DAG Stats serializer for responses.",
 } as const;
 
 export const $EdgeResponse = {

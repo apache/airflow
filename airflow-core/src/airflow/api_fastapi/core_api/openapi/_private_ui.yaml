@@ -94,13 +94,13 @@ paths:
                 title: Response Hook Meta Data
       security:
       - OAuth2PasswordBearer: []
-  /ui/dags/recent_dag_runs:
+  /ui/dags:
     get:
       tags:
-      - Dags
-      summary: Recent Dag Runs
-      description: Get recent DAG runs.
-      operationId: recent_dag_runs
+      - DAG
+      summary: Get Dags
+      description: Get DAGs with recent DagRun.
+      operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -171,7 +171,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -179,7 +183,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
           title: Dag Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: exclude_stale
         in: query
         required: false
@@ -203,6 +211,13 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: dag_id
+          title: Order By
       responses:
         '200':
           description: Successful Response
@@ -296,6 +311,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dashboard/dag_stats:
+    get:
+      tags:
+      - Dashboard
+      summary: Dag Stats
+      description: Return basic DAG stats with counts of DAGs in various states.
+      operationId: dag_stats
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardDagStatsResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /ui/structure/structure_data:
     get:
       tags:
@@ -372,8 +403,8 @@ paths:
     get:
       tags:
       - Backfill
-      summary: List Backfills
-      operationId: list_backfills
+      summary: List Backfills Ui
+      operationId: list_backfills_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -634,6 +665,9 @@ components:
           type: string
           format: date-time
           title: Updated At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - id
@@ -647,6 +681,7 @@ components:
       - created_at
       - completed_at
       - updated_at
+      - dag_display_name
       title: BackfillResponse
       description: Base serializer for Backfill.
     BaseEdgeResponse:
@@ -712,18 +747,6 @@ components:
       description: Base Node serializer for responses.
     ConfigResponse:
       properties:
-        navbar_color:
-          type: string
-          title: Navbar Color
-        navbar_text_color:
-          type: string
-          title: Navbar Text Color
-        navbar_hover_color:
-          type: string
-          title: Navbar Hover Color
-        navbar_text_hover_color:
-          type: string
-          title: Navbar Text Hover Color
         page_size:
           type: integer
           title: Page Size
@@ -736,9 +759,6 @@ components:
         instance_name:
           type: string
           title: Instance Name
-        instance_name_has_markup:
-          type: boolean
-          title: Instance Name Has Markup
         enable_swagger_ui:
           type: boolean
           title: Enable Swagger Ui
@@ -748,15 +768,6 @@ components:
         default_wrap:
           type: boolean
           title: Default Wrap
-        warn_deployment_exposure:
-          type: boolean
-          title: Warn Deployment Exposure
-        audit_view_excluded_events:
-          type: string
-          title: Audit View Excluded Events
-        audit_view_included_events:
-          type: string
-          title: Audit View Included Events
         test_connection:
           type: string
           title: Test Connection
@@ -775,21 +786,13 @@ components:
           title: External Log Name
       type: object
       required:
-      - navbar_color
-      - navbar_text_color
-      - navbar_hover_color
-      - navbar_text_hover_color
       - page_size
       - auto_refresh_interval
       - hide_paused_dags_by_default
       - instance_name
-      - instance_name_has_markup
       - enable_swagger_ui
       - require_confirmation_dag_change
       - default_wrap
-      - warn_deployment_exposure
-      - audit_view_excluded_events
-      - audit_view_included_events
       - test_connection
       - dashboard_alert
       - show_external_log_redirect
@@ -896,6 +899,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
         data_interval_start:
           anyOf:
           - type: string
@@ -927,8 +935,10 @@ components:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
           - type: 'null'
         conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Conf
         note:
           anyOf:
@@ -956,6 +966,7 @@ components:
       - queued_at
       - start_date
       - end_date
+      - duration
       - data_interval_start
       - data_interval_end
       - run_after
@@ -1265,6 +1276,9 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         bundle_url:
           anyOf:
           - type: string
@@ -1279,9 +1293,32 @@ components:
       - bundle_name
       - bundle_version
       - created_at
+      - dag_display_name
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
+    DashboardDagStatsResponse:
+      properties:
+        active_dag_count:
+          type: integer
+          title: Active Dag Count
+        failed_dag_count:
+          type: integer
+          title: Failed Dag Count
+        running_dag_count:
+          type: integer
+          title: Running Dag Count
+        queued_dag_count:
+          type: integer
+          title: Queued Dag Count
+      type: object
+      required:
+      - active_dag_count
+      - failed_dag_count
+      - running_dag_count
+      - queued_dag_count
+      title: DashboardDagStatsResponse
+      description: Dashboard DAG Stats serializer for responses.
     EdgeResponse:
       properties:
         source_id:

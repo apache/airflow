@@ -38,6 +38,7 @@ from airflowctl.ctl.cli_config import (
     ActionCommand,
     DefaultHelpParser,
     GroupCommand,
+    GroupCommandParser,
     core_commands,
 )
 from airflowctl.exceptions import AirflowCtlException
@@ -54,7 +55,10 @@ airflow_commands = core_commands.copy()  # make a copy to prevent bad interactio
 log = logging.getLogger(__name__)
 
 
-ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
+ALL_COMMANDS_DICT: dict[str, CLICommand] = {
+    sp.name: GroupCommandParser.from_group_command(sp) if isinstance(sp, GroupCommand) else sp
+    for sp in airflow_commands
+}
 
 
 class AirflowHelpFormatter(RichHelpFormatter):
@@ -69,7 +73,7 @@ class AirflowHelpFormatter(RichHelpFormatter):
             self._indent()
             subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(
-                lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
+                lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommandParser), subactions
             )
             yield Action([], f"\n{' ':{self._current_indent}}Groups", nargs=0)
             self._indent()
@@ -131,7 +135,7 @@ def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> Non
         )
     sub_proc.formatter_class = LazyRichHelpFormatter
 
-    if isinstance(sub, GroupCommand):
+    if isinstance(sub, GroupCommandParser):
         _add_group_command(sub, sub_proc)
     elif isinstance(sub, ActionCommand):
         _add_action_command(sub, sub_proc)
@@ -145,7 +149,7 @@ def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -
     sub_proc.set_defaults(func=sub.func)
 
 
-def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> None:
+def _add_group_command(sub: GroupCommandParser, sub_proc: argparse.ArgumentParser) -> None:
     subcommands = sub.subcommands
     sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True

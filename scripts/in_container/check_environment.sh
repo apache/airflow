@@ -31,13 +31,21 @@ EXIT_CODE=0
 
 . "$( dirname "${BASH_SOURCE[0]}" )/check_connectivity.sh"
 
+export COLOR_YELLOW=$'\e[33m'
+export COLOR_RESET=$'\e[0m'
+
 function check_service {
     local label=$1
     local call=$2
     local max_check=${3:=1}
+    local initial_delay="${4:-0}"
 
-   check_service_connection "${label}" "${call}" "${max_check}"
-   EXIT_CODE=$?
+    if [[ ${initial_delay} != 0 ]]; then
+        echo "${COLOR_YELLOW}Adding initial delay. Waiting ${initial_delay} seconds before checking ${label}.${COLOR_RESET}"
+        sleep "${initial_delay}"
+    fi
+    check_service_connection "${label}" "${call}" "${max_check}"
+    EXIT_CODE=$?
 }
 
 function check_db_backend {
@@ -175,7 +183,7 @@ if [[ ${INTEGRATION_YDB} == "true" ]]; then
 fi
 
 if [[ ${INTEGRATION_GREMLIN} == "true" ]]; then
-    check_service "gremlin" "run_nc gremlin 8182" 50
+    check_service "gremlin" "run_nc gremlin 8182" 100 30
 fi
 
 if [[ ${EXIT_CODE} != 0 ]]; then

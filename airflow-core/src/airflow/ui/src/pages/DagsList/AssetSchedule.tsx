@@ -18,6 +18,7 @@
  */
 import { HStack, Text, Link } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export const AssetSchedule = ({ dag }: Props) => {
+  const { t: translate } = useTranslation("dags");
   const { data: nextRun, isLoading } = useAssetServiceNextRunAssets({ dagId: dag.dag_id });
 
   const nextRunEvents = (nextRun?.events ?? []) as Array<NextRunEvent>;
@@ -59,7 +61,7 @@ export const AssetSchedule = ({ dag }: Props) => {
     return (
       <HStack>
         <FiDatabase style={{ display: "inline" }} />
-        <Link asChild color="fg.info" display="block" py={2}>
+        <Link asChild color="fg.info" display="block" fontSize="sm">
           <RouterLink to={`/assets/${asset.id}`}>{asset.name ?? asset.uri}</RouterLink>
         </Link>
       </HStack>
@@ -72,14 +74,16 @@ export const AssetSchedule = ({ dag }: Props) => {
       <Popover.Trigger asChild>
         <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
-          {pendingEvents.length}
-          {nextRunEvents.length > 1 ? ` of ${nextRunEvents.length} ` : " "}assets updated
+          {translate("assetSchedule", { count: pendingEvents.length, total: nextRunEvents.length })}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
         <Popover.Arrow />
         <Popover.Body>
-          <AssetExpression events={pendingEvents} expression={dag.asset_expression as ExpressionType} />
+          <AssetExpression
+            events={pendingEvents}
+            expression={(nextRun?.asset_expression ?? dag.asset_expression) as ExpressionType}
+          />
         </Popover.Body>
       </Popover.Content>
     </Popover.Root>

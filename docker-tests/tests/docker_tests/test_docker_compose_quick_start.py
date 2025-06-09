@@ -41,7 +41,7 @@ console = Console(width=400, color_system="standard")
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
-DAG_ID = "example_bash_operator"
+DAG_ID = "example_simplest_dag"
 DAG_RUN_ID = "test_dag_run_id"
 
 

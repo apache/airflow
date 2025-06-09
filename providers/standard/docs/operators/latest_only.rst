@@ -24,7 +24,7 @@ LatestOnlyOperator
 
 Use the :class:`~airflow.providers.standard.operators.latest_only.LatestOnlyOperator`.
 
-.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_latest_only.py
+.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_latest_only.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_latest_only]

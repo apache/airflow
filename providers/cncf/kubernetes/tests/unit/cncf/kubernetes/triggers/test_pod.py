@@ -111,6 +111,7 @@ class TestKubernetesPodTrigger:
             "on_finish_action": ON_FINISH_ACTION,
             "last_log_time": None,
             "logging_interval": None,
+            "trigger_kwargs": {},
         }
 
     @pytest.mark.asyncio

@@ -26,6 +26,8 @@ import {
   Portal,
   Select,
 } from "@chakra-ui/react";
+import { useReactFlow } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -41,17 +43,19 @@ import { ToggleGroups } from "./ToggleGroups";
 type Props = {
   readonly dagView: string;
   readonly limit: number;
+  readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
 };
 
-const options = createListCollection({
-  items: [
-    { label: "Only tasks", value: "tasks" },
-    { label: "External conditions", value: "immediate" },
-    { label: "All Dag Dependencies", value: "all" },
-  ],
-});
+const getOptions = (translate: (key: string) => string) =>
+  createListCollection({
+    items: [
+      { label: translate("dag:panel.dependencies.options.onlyTasks"), value: "tasks" },
+      { label: translate("dag:panel.dependencies.options.externalConditions"), value: "immediate" },
+      { label: translate("dag:panel.dependencies.options.allDagDependencies"), value: "all" },
+    ],
+  });
 
 const displayRunOptions = createListCollection({
   items: [
@@ -68,8 +72,10 @@ const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
 
-export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) => {
+export const PanelButtons = ({ dagView, limit, panelGroupRef, setDagView, setLimit }: Props) => {
+  const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "" } = useParams();
+  const { fitView } = useReactFlow();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
     "tasks",
@@ -97,23 +103,49 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
     }
   };
 
+  const handleFocus = (view: string) => {
+    if (panelGroupRef.current) {
+      const panelGroup = panelGroupRef.current;
+
+      if (typeof panelGroup.setLayout === "function") {
+        const newLayout = view === "graph" ? [70, 30] : [30, 70];
+
+        panelGroup.setLayout(newLayout);
+        // Used setTimeout to ensure DOM has been updated
+        setTimeout(() => {
+          void fitView();
+        }, 1);
+      }
+    }
+  };
+
   return (
     <Flex justifyContent="space-between" position="absolute" top={1} width="100%" zIndex={1}>
       <ButtonGroup attached size="sm" variant="outline">
         <IconButton
-          aria-label="Show Grid"
+          aria-label={translate("dag:panel.buttons.showGrid")}
           colorPalette="blue"
-          onClick={() => setDagView("grid")}
-          title="Show Grid"
+          onClick={() => {
+            setDagView("grid");
+            if (dagView === "grid") {
+              handleFocus("grid");
+            }
+          }}
+          title={translate("dag:panel.buttons.showGrid")}
           variant={dagView === "grid" ? "solid" : "outline"}
         >
           <FiGrid />
         </IconButton>
         <IconButton
-          aria-label="Show Graph"
+          aria-label={translate("dag:panel.buttons.showGraph")}
           colorPalette="blue"
-          onClick={() => setDagView("graph")}
-          title="Show Graph"
+          onClick={() => {
+            setDagView("graph");
+            if (dagView === "graph") {
+              handleFocus("graph");
+            }
+          }}
+          title={translate("dag:panel.buttons.showGraph")}
           variant={dagView === "graph" ? "solid" : "outline"}
         >
           <MdOutlineAccountTree />
@@ -125,7 +157,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
         <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
           <Popover.Trigger asChild>
             <Button size="sm" variant="outline">
-              Options
+              {translate("dag:panel.buttons.options")}
               <FiChevronDown size="0.5rem" />
             </Button>
           </Popover.Trigger>
@@ -140,16 +172,16 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
                       <DagRunSelect limit={limit} />
                       <Select.Root
                         // @ts-expect-error The expected option type is incorrect
-                        collection={options}
+                        collection={getOptions(translate)}
                         data-testid="dependencies"
                         onValueChange={handleDepsChange}
                         size="sm"
                         value={[dependencies]}
                       >
-                        <Select.Label fontSize="xs">Dependencies</Select.Label>
+                        <Select.Label fontSize="xs">{translate("dag:panel.dependencies.label")}</Select.Label>
                         <Select.Control>
                           <Select.Trigger>
-                            <Select.ValueText placeholder="Dependencies" />
+                            <Select.ValueText placeholder={translate("dag:panel.dependencies.label")} />
                           </Select.Trigger>
                           <Select.IndicatorGroup>
                             <Select.Indicator />
@@ -157,7 +189,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
                         </Select.Control>
                         <Select.Positioner>
                           <Select.Content>
-                            {options.items.map((option) => (
+                            {getOptions(translate).items.map((option) => (
                               <Select.Item item={option} key={option.value}>
                                 {option.label}
                               </Select.Item>
@@ -167,12 +199,14 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
                       </Select.Root>
                       <Select.Root
                         // @ts-expect-error The expected option type is incorrect
-                        collection={directionOptions}
+                        collection={directionOptions(translate)}
                         onValueChange={handleDirectionUpdate}
                         size="sm"
                         value={[direction]}
                       >
-                        <Select.Label fontSize="xs">Graph Direction</Select.Label>
+                        <Select.Label fontSize="xs">
+                          {translate("dag:panel.graphDirection.label")}
+                        </Select.Label>
                         <Select.Control>
                           <Select.Trigger>
                             <Select.ValueText />
@@ -183,7 +217,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
                         </Select.Control>
                         <Select.Positioner>
                           <Select.Content>
-                            {directionOptions.items.map((option) => (
+                            {directionOptions(translate).items.map((option) => (
                               <Select.Item item={option} key={option.value}>
                                 {option.label}
                               </Select.Item>
@@ -201,7 +235,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
                       size="sm"
                       value={[limit.toString()]}
                     >
-                      <Select.Label>Number of Dag Runs</Select.Label>
+                      <Select.Label>{translate("dag:panel.dagRuns.label")}</Select.Label>
                       <Select.Control>
                         <Select.Trigger>
                           <Select.ValueText />

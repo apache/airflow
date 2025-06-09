@@ -74,7 +74,7 @@ dependencies = [
     "rich-click>=1.7.1",
     "click>=8.1.8",
     "docutils>=0.21",
-    "sphinx-airflow-theme>=0.2.2",
+    "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.2.3/sphinx_airflow_theme-0.2.3-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
     "sphinx-autoapi>=3",
     "sphinx-autobuild>=2024.10.2",
@@ -137,7 +137,7 @@ dependencies = [
     "pytest-timeouts>=1.2.1",
     "pytest-unordered>=0.6.1",
     "pytest-xdist>=3.5.0",
-    "pytest>=8.3.3,<9",
+    "pytest>=8.3.3",
 ]
 "sentry" = [
     "blinker>=1.7.0",

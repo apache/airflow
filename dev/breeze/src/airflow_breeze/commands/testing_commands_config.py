@@ -67,7 +67,6 @@ TEST_UPGRADING_PACKAGES: dict[str, str | list[str]] = {
         "--upgrade-boto",
         "--downgrade-sqlalchemy",
         "--downgrade-pendulum",
-        "--remove-arm-packages",
     ],
 }
 
@@ -90,6 +89,7 @@ TEST_ADVANCED_FLAGS_FOR_INSTALLATION: dict[str, str | list[str]] = {
         "--install-airflow-with-constraints",
         "--distribution-format",
         "--use-airflow-version",
+        "--allow-pre-releases",
         "--use-distributions-from-dist",
     ],
 }

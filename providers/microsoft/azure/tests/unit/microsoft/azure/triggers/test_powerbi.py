@@ -26,7 +26,11 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshStatus,
 )
-from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
+from airflow.providers.microsoft.azure.triggers.powerbi import (
+    PowerBIDatasetListTrigger,
+    PowerBITrigger,
+    PowerBIWorkspaceListTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
@@ -35,6 +39,8 @@ POWERBI_CONN_ID = "powerbi_default"
 DATASET_ID = "dataset_id"
 GROUP_ID = "group_id"
 DATASET_REFRESH_ID = "dataset_refresh_id"
+DATASET_IDS = "dataset_ids"
+WORKSPACE_IDS = "workspace_ids"
 TIMEOUT = 5
 MODULE = "airflow.providers.microsoft.azure"
 CHECK_INTERVAL = 1
@@ -53,6 +59,31 @@ def powerbi_trigger(timeout=TIMEOUT, check_interval=CHECK_INTERVAL) -> PowerBITr
         group_id=GROUP_ID,
         check_interval=check_interval,
         wait_for_termination=True,
+        timeout=timeout,
+    )
+
+
+@pytest.fixture
+def powerbi_dataset_list_trigger(timeout=TIMEOUT, group_id=GROUP_ID) -> PowerBIDatasetListTrigger:
+    """Fixture for creating a PowerBIDatasetListTrigger with customizable timeout."""
+    return PowerBIDatasetListTrigger(
+        conn_id=POWERBI_CONN_ID,
+        proxies=None,
+        api_version=API_VERSION,
+        group_id=group_id,
+        dataset_ids=None,
+        timeout=timeout,
+    )
+
+
+@pytest.fixture
+def powerbi_workspace_list_trigger(timeout=TIMEOUT) -> PowerBIWorkspaceListTrigger:
+    """Fixture for creating a PowerBIWorkspaceListTrigger with customizable timeout."""
+    return PowerBIWorkspaceListTrigger(
+        conn_id=POWERBI_CONN_ID,
+        proxies=None,
+        api_version=API_VERSION,
+        workspace_ids=None,
         timeout=timeout,
     )
 

@@ -171,3 +171,23 @@ class TestExasolHook:
             query_params=query_params,
             export_params=export_params,
         )
+
+    def test_get_df_pandas(self):
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
+        mock_df = mock.MagicMock()
+        mock_df.columns = [column]
+        mock_df.values.tolist.return_value = result_sets
+        self.conn.export_to_pandas.return_value = mock_df
+
+        df = self.db_hook.get_df(statement, df_type="pandas")
+
+        assert column == df.columns[0]
+
+        assert result_sets[0][0] == df.values.tolist()[0][0]
+        assert result_sets[1][0] == df.values.tolist()[1][0]
+
+    def test_get_df_polars(self):
+        with pytest.raises(NotImplementedError):
+            self.db_hook.get_df("SQL", df_type="polars")

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { MdOutlineHealthAndSafety } from "react-icons/md";
 
 import { useMonitorServiceGetHealth } from "openapi/queries";
@@ -31,36 +32,41 @@ export const Health = () => {
   const { data, error, isLoading } = useMonitorServiceGetHealth(undefined, {
     refetchInterval,
   });
+  const { t: translate } = useTranslation("dashboard");
 
   return (
     <Box>
       <Flex color="fg.muted" mb={2}>
         <MdOutlineHealthAndSafety />
         <Heading ml={1} size="xs">
-          Health
+          {translate("health.health")}
         </Heading>
       </Flex>
       <ErrorAlert error={error} />
       <HStack alignItems="center" gap={2}>
-        <HealthBadge isLoading={isLoading} status={data?.metadatabase.status} title="MetaDatabase" />
+        <HealthBadge
+          isLoading={isLoading}
+          status={data?.metadatabase.status}
+          title={translate("health.metaDatabase")}
+        />
         <HealthBadge
           isLoading={isLoading}
           latestHeartbeat={data?.scheduler.latest_scheduler_heartbeat}
           status={data?.scheduler.status}
-          title="Scheduler"
+          title={translate("health.scheduler")}
         />
         <HealthBadge
           isLoading={isLoading}
           latestHeartbeat={data?.triggerer.latest_triggerer_heartbeat}
           status={data?.triggerer.status}
-          title="Triggerer"
+          title={translate("health.triggerer")}
         />
         {data?.dag_processor ? (
           <HealthBadge
             isLoading={isLoading}
             latestHeartbeat={data.dag_processor.latest_dag_processor_heartbeat}
             status={data.dag_processor.status}
-            title="Dag Processor"
+            title={translate("health.dagProcessor")}
           />
         ) : undefined}
       </HStack>

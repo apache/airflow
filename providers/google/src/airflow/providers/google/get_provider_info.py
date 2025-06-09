@@ -1338,6 +1338,12 @@ def get_provider_info():
                 "python-module": "airflow.providers.google.cloud.transfers.azure_blob_to_gcs",
                 "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/azure_blob_to_gcs.rst",
             },
+            {
+                "source-integration-name": "Hypertext Transfer Protocol (HTTP)",
+                "target-integration-name": "Google Cloud Storage (GCS)",
+                "python-module": "airflow.providers.google.cloud.transfers.http_to_gcs",
+                "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/http_to_gcs.rst",
+            },
         ],
         "connection-types": [
             {
@@ -1367,6 +1373,14 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
                 "connection-type": "leveldb",
+            },
+            {
+                "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
+                "connection-type": "google_ads",
+            },
+            {
+                "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",
+                "connection-type": "gcp_looker",
             },
         ],
         "extra-links": [
@@ -1461,11 +1475,6 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink",
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink",
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLDatasetLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLDatasetListLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelTrainLink",
-            "airflow.providers.google.cloud.links.automl.AutoMLModelPredictLink",
             "airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink",
             "airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink",
             "airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink",
