@@ -44,7 +44,7 @@ const cardDef = (): CardDef<PoolResponse> => ({
 });
 
 export const Pools = () => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
 
   const poolSortOptions = createListCollection({
     items: [
@@ -128,7 +128,8 @@ export const Pools = () => {
           displayMode="card"
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName="Pool"
+          modelName={translate("common:admin.Pools")}
+          noRowsMessage={translate("pools.noPoolsFound")}
           onStateChange={setTableURLState}
           total={data ? data.total_entries : 0}
         />

@@ -1,11 +1,67 @@
 {
+  "columns":{
+    "description": "Description",
+    "key": "Key",
+    "name": "Name",
+    "value": "Value"
+  },
+  "config":{
+    "columns":{
+      "section": "Section"
+    },
+    "title": "Airflow Configuration"
+  },
   "connections":{
+    "add":"Add Connection",
+    "columns":{
+      "connectionId": "Connection ID",
+      "connectionType": "Connection Type",
+      "host": "Host",
+      "port": "Port"
+    },
+    "delete":{
+      "deleteConnection_one": "Delete {{count}} connection",
+      "deleteConnection_other": "Delete {{count}} connections",
+      "firstConfirmMessage_one": "You are about to delete the following connection:",
+      "firstConfirmMessage_other": "You are about to delete the following connections:",
+      "secondConfirmMessage": "This action is permanent and cannot be undone. <strong>Are you sure you want to proceed?</strong>",
+      "title": "Delete Connection"
+    },
+    "edit": "Edit Connection",
+    "form":{
+      "connectionIdRequired": "Connection ID is required",
+      "connectionIdRequirement": "Connection ID cannot contain only spaces",
+      "connectionTypeRequired": "Connection Type is required",
+      "extraFields": "Extra Fields",
+      "extraFieldsJson": "Extra Fields JSON",
+      "helperText": "Connection type missing? Make sure you have installed the corresponding Airflow Providers Package.",
+      "selectConnectionType": "Select Connection Type",
+      "standardFields": "Standard Fields"
+    },
+    "noRowMessage": "No connections found",
+    "searchPlaceholder": "Search Connections",
+    "standardFields":{
+      "Description": "Description",
+      "Host": "Host",
+      "Login": "Login",
+      "Password": "Password",
+      "Port": "Port",
+      "Schema": "Schema"
+    },
     "test": "Test Connection",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it."
   },
+  "deleteActions":{
+    "button": "Delete",
+    "confirmButton": "Yes, Delete",
+    "selected": "Selected"
+  },
+  "formActions":{
+    "reset": "Reset",
+    "save": "Save"
+  },
   "plugins": {
     "columns": {
-      "name": "Name",
       "source": "Source"
     },
     "importError_one": "Plugin Import Error",
@@ -14,6 +70,7 @@
   },
   "pools": {
     "add": "Add Pool",
+    "deferredSlotsIncluded": "Deferred Slots Included",
     "delete":{
       "title": "Delete Pool",
       "warning": "This will remove all metadata related to the pool and may affect tasks using this pool."
@@ -23,13 +80,11 @@
       "checkbox": "Check to include deferred tasks when calculating open pool slots",
       "description": "Description",
       "includeDeferred": "Include Deferred",
-      "name": "Name",
       "nameMaxLength": "Name can contain a maximum of 256 characters",
       "nameRequired": "Name is required",
-      "reset": "Reset",
-      "save": "Save",
       "slots": "Slots"
     },
+    "noPoolsFound": "No pools found",
     "searchPlaceholder": "Search Pools",
     "sort": {
       "asc": "Name (A-Z)",
@@ -39,18 +94,16 @@
   },
   "providers": {
     "columns": {
-      "description": "Description",
       "packageName": "Package Name",
       "version": "Version"
-    },
-    "modelName": "Provider",
-    "title": "Providers"
+    }
   },
   "variables": {
     "add": "Add Variable",
+    "columns": {
+      "isEncrypted": "Is Encrypted"
+    },
     "delete": {
-      "button": "Delete",
-      "confirmButton": "Yes, Delete",
       "deleteVariable_one": "Delete {{count}} Variable",
       "deleteVariable_other": "Delete {{count}} Variables",
       "firstConfirmMessage_one": "You are about to delete <strong>{{count}} variable</strong>.",
@@ -59,18 +112,16 @@
     },
     "edit":  "Edit Variable",
     "export": "Export",
+    "form": {
+      "invalidJson": "Invalid JSON",
+      "keyMaxLength": "Key can contain a maximum of 250 characters",
+      "keyRequired": "Key is required",
+      "valueRequired": "Value is required"
+    },
     "import": {
       "button": "Import",
       "conflictResolution": "Select Variable Conflict Resolution",
       "errorParsingJsonFile": "Error Parsing JSON File: Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...}).",
-      "form": {
-        "invalidJson": "Invalid JSON",
-        "keyMaxLength": "Key can contain a maximum of 250 characters",
-        "keyRequired": "Key is required",
-        "reset": "Reset",
-        "save": "Save",
-        "valueRequired": "Value is required"
-      },
       "options": {
         "fail": {
           "description": "Fails the import if any existing variables are detected.",
@@ -90,15 +141,6 @@
       "uploadPlaceholder": "Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...})"
     },
     "noRowsMessage": "No variables found",
-    "searchPlaceholder": "Search Keys",
-    "selected": "Selected",
-    "table": {
-      "columns": {
-        "description": "Description",
-        "isEncrypted": "Is Encrypted",
-        "key": "Key",
-        "value": "Value"
-      }
-    }
+    "searchPlaceholder": "Search Keys"
   }
 }

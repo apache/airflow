@@ -44,7 +44,7 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
         variant="outline"
       >
         <FiTrash2 />
-        {translate("variables.delete.button")}
+        {translate("deleteActions.button")}
       </Button>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
@@ -89,7 +89,7 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">{translate("variables.delete.confirmButton")}</Text>
+                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

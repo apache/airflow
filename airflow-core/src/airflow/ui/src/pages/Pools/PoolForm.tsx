@@ -69,14 +69,14 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field, fieldState }) => (
           <Field.Root invalid={Boolean(fieldState.error)} required>
             <Field.Label fontSize="md">
-              {translate("pools.form.name")} <Field.RequiredIndicator />
+              {translate("columns.name")} <Field.RequiredIndicator />
             </Field.Label>
             <Input {...field} disabled={Boolean(initialPool.name)} required size="sm" />
             {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
           </Field.Root>
         )}
         rules={{
-          required: translate("pools.form.rules.nameRequired"),
+          required: translate("pools.form.nameRequired"),
           validate: (_value) => _value.length <= 256 || translate("pools.form.rules.nameMaxLength"),
         }}
       />
@@ -97,7 +97,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         name="description"
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
-            <Field.Label fontSize="md">{translate("pools.form.description")}</Field.Label>
+            <Field.Label fontSize="md">{translate("columns.description")}</Field.Label>
             <Textarea {...field} disabled={initialPool.name === "default_pool"} size="sm" />
           </Field.Root>
         )}
@@ -122,7 +122,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              {translate("pools.form.reset")}
+              {translate("formActions.reset")}
             </Button>
           ) : undefined}
           <Spacer />
@@ -131,7 +131,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
             disabled={!isValid || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            <FiSave /> {translate("pools.form.save")}
+            <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>
       </Box>

@@ -69,7 +69,7 @@ const createColumns = (translate: TFunction): Array<ColumnDef<ProviderResponse>>
       );
     },
     enableSorting: false,
-    header: translate("providers.columns.description"),
+    header: translate("columns.description"),
   },
 ];
 

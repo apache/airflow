@@ -1,7 +1,7 @@
 {
   "admin": {
     "Config": "設定",
-    "Connections": "連結",
+    "Connections": "連線",
     "Plugins": "外掛",
     "Pools": "資源池",
     "Providers": "Providers",
@@ -49,7 +49,7 @@
   "noItemsFound": "找不到{{modelName}}",
   "pools": {
     "deferred": "已延後",
-    "open": "開啟",
+    "open": "開放",
     "pools_one": "資源池",
     "pools_other": "資源池",
     "queued": "排隊中",

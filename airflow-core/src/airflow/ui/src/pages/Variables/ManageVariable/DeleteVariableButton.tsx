@@ -79,7 +79,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">{translate("variables.delete.confirmButton")}</Text>
+                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

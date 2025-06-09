@@ -33,7 +33,7 @@ const createColumns = (translate: TFunction): Array<ColumnDef<PluginResponse>> =
   {
     accessorKey: "name",
     enableSorting: false,
-    header: translate("plugins.columns.name"),
+    header: translate("columns.name"),
   },
   {
     accessorKey: "source",

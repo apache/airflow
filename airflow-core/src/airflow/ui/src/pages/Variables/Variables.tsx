@@ -77,21 +77,21 @@ const getColumns = ({
   {
     accessorKey: "key",
     cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
-    header: translate("variables.table.columns.key"),
+    header: translate("columns.key"),
   },
   {
     accessorKey: "value",
     cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
-    header: translate("variables.table.columns.value"),
+    header: translate("columns.value"),
   },
   {
     accessorKey: "description",
     cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
-    header: translate("variables.table.columns.description"),
+    header: translate("columns.description"),
   },
   {
     accessorKey: "is_encrypted",
-    header: translate("variables.table.columns.isEncrypted"),
+    header: translate("variables.columns.isEncrypted"),
   },
   {
     accessorKey: "actions",
@@ -219,7 +219,7 @@ export const Variables = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("variables.selected")}
+            {selectedRows.size} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content="Delete selected variables">
