@@ -28,6 +28,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
+from task_sdk.definitions.utils.test_deadlines import test_callback_for_deadline
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -58,7 +59,6 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
-from unit.utils.test_deadlines import test_callback_for_deadline
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 

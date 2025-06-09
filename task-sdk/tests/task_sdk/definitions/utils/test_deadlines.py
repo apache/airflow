@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 import pytest
+from task_sdk.definitions.test_dag import DEFAULT_DATE
 
 from airflow.sdk.definitions.deadline import DeadlineReference
-
-from unit.models import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
 

@@ -20,9 +20,9 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
-from task_sdk.definitions.test_dag import DEFAULT_DATE
 from task_sdk.definitions.utils.test_deadlines import (
     DAG_ID,
+    DEFAULT_DATE,
     REFERENCE_TYPES,
     TEST_CALLBACK_KWARGS,
     TEST_CALLBACK_PATH,
