@@ -1701,7 +1701,7 @@ class TestKubernetesPodOperator:
         assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
-            "pod": k.pod,
+            "pod": self.await_pod_mock.return_value,
             "operator": k,
             "context": context,
         }
@@ -1788,7 +1788,7 @@ class TestKubernetesPodOperator:
         assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
-            "pod": k.pod,
+            "pod": self.await_pod_mock.return_value,
             "operator": k,
             "context": context,
         }
@@ -2440,10 +2440,11 @@ class TestKubernetesPodOperatorAsync:
     )
     def test_cleanup_log_pod_spec_on_failure(self, log_pod_spec_on_failure, expect_match):
         k = KubernetesPodOperator(task_id="task", log_pod_spec_on_failure=log_pod_spec_on_failure)
-        pod = k.build_pod_request_obj(create_context(k))
+        context = create_context(k)
+        pod = k.build_pod_request_obj(context)
         pod.status = V1PodStatus(phase=PodPhase.FAILED)
         with pytest.raises(AirflowException, match=expect_match):
-            k.cleanup(pod, pod)
+            k.cleanup(pod, pod, context)
 
     @patch(f"{HOOK_CLASS}.get_pod")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")

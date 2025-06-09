@@ -711,15 +711,8 @@ class KubernetesPodOperator(BaseOperator):
             self.cleanup(
                 pod=pod_to_clean,
                 remote_pod=self.remote_pod,
+                context=context,
             )
-            for callback in self.callbacks:
-                callback.on_pod_cleanup(
-                    pod=pod_to_clean,
-                    client=self.client,
-                    mode=ExecutionMode.SYNC,
-                    context=context,
-                    operator=self,
-                )
 
         if self.do_xcom_push:
             return result
@@ -976,13 +969,10 @@ class KubernetesPodOperator(BaseOperator):
         self.cleanup(
             pod=pod,
             remote_pod=remote_pod,
+            context=context,
         )
-        for callback in self.callbacks:
-            callback.on_pod_cleanup(
-                pod=pod, client=self.client, mode=ExecutionMode.SYNC, operator=self, context=context
-            )
 
-    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, context: Context):
         # Skip cleaning the pod in the following scenarios.
         # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
         # there. Cleaning it up again will raise an exception (which might cause retry).
@@ -1006,6 +996,15 @@ class KubernetesPodOperator(BaseOperator):
                 self._read_pod_events(pod, reraise=False)
 
         self.process_pod_deletion(remote_pod, reraise=False)
+
+        for callback in self.callbacks:
+            callback.on_pod_cleanup(
+                pod=remote_pod,
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+                operator=self,
+                context=context,
+            )
 
         if self.skip_on_exit_code:
             container_statuses = (
