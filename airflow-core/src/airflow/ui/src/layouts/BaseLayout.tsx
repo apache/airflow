@@ -34,7 +34,7 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   return (
     <>
       <Nav />
-      <Box display="flex" flexDirection="column" h="100vh" ml={20} p={3}>
+      <Box _ltr={{ ml: 20 }} _rtl={{ mr: 20 }} display="flex" flexDirection="column" h="100vh" p={3}>
         {children ?? <Outlet />}
       </Box>
     </>
