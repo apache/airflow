@@ -35,7 +35,8 @@ from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.serialization.serde import DATA, deserialize, serialize
+from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
+from airflow.serialization.serializers import builtin
 from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -45,6 +46,15 @@ PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
 class CustomTZ(datetime.tzinfo):
     name = "My/Custom"
+
+    def utcoffset(self, dt: datetime.datetime | None) -> datetime.timedelta:
+        return datetime.timedelta(hours=2)
+
+    def dst(self, dt: datetime.datetime | None) -> datetime.timedelta | None:
+        return datetime.timedelta(0)
+
+    def tzname(self, dt: datetime.datetime | None) -> str | None:
+        return self.name
 
 
 class NoNameTZ(datetime.tzinfo):
@@ -178,17 +188,32 @@ class TestSerializers:
         }
 
     def test_bignum(self):
-        from airflow.serialization.serializers.bignum import deserialize, serialize
+        from airflow.serialization.serializers.bignum import serialize
 
         assert serialize(12345) == ("", "", 0, False)
 
-        with pytest.raises(TypeError) as ctx:
-            deserialize(qualname(Decimal), 999, "0")
-        assert f"serialized 999 of {qualname(Decimal)}" in str(ctx.value)
+    @pytest.mark.parametrize(
+        ("klass", "version", "payload", "msg"),
+        [
+            (
+                qualname(Decimal),
+                999,
+                "0",
+                rf"serialized 999 of {qualname(Decimal)}",  # newer version
+            ),
+            (
+                "wrong.ClassName",
+                1,
+                "0",
+                r"wrong\.ClassName != .*Decimal",  # wrong classname
+            ),
+        ],
+    )
+    def test_bignum_deserialize_errors(self, klass, version, payload, msg):
+        from airflow.serialization.serializers.bignum import deserialize
 
-        with pytest.raises(TypeError) as ctx:
-            deserialize("wrong.ClassName", 1, "0")
-        assert f"wrong.ClassName != {qualname(Decimal)}" in str(ctx.value)
+        with pytest.raises(TypeError, match=msg):
+            deserialize(klass, version, payload)
 
     def test_numpy(self):
         i = np.int16(10)
@@ -197,19 +222,24 @@ class TestSerializers:
         assert i == d
 
     def test_numpy_serializers(self):
-        from airflow.serialization.serializers.numpy import deserialize, serialize
+        from airflow.serialization.serializers.numpy import serialize
 
         assert serialize(np.bool_(False)) == (True, "numpy.bool_", 1, True)
         assert serialize(np.float32(3.14)) == (float(np.float32(3.14)), "numpy.float32", 1, True)
         assert serialize(np.array([1, 2, 3])) == ("", "", 0, False)
 
-        with pytest.raises(TypeError) as ctx:
-            deserialize("numpy.int32", 999, 123)
-        assert "serialized version is newer" in str(ctx.value)
+    @pytest.mark.parametrize(
+        ("klass", "ver", "value", "msg"),
+        [
+            ("numpy.int32", 999, 123, r"serialized version is newer"),
+            ("numpy.float32", 1, 123, r"unsupported numpy\.float32"),
+        ],
+    )
+    def test_numpy_deserialize_errors(self, klass, ver, value, msg):
+        from airflow.serialization.serializers.numpy import deserialize
 
-        with pytest.raises(TypeError) as ctx:
-            deserialize("numpy.float32", 1, 123)
-        assert "unsupported numpy.float32" in str(ctx.value)
+        with pytest.raises(TypeError, match=msg):
+            deserialize(klass, ver, value)
 
     def test_params(self):
         i = ParamsDict({"x": Param(default="value", description="there is a value", key="test")})
@@ -226,17 +256,22 @@ class TestSerializers:
         assert i.equals(d)
 
     def test_pandas_serializers(self):
-        from airflow.serialization.serializers.pandas import deserialize, serialize
+        from airflow.serialization.serializers.pandas import serialize
 
         assert serialize(123) == ("", "", 0, False)
 
-        with pytest.raises(TypeError) as ctx:
-            deserialize("pandas.core.frame.DataFrame", 999, "")
-        assert "serialized 999 of pandas.core.frame.DataFrame > 1" in str(ctx.value)
+    @pytest.mark.parametrize(
+        ("version", "data", "msg"),
+        [
+            (999, "", r"serialized 999 .* > 1"),  # version too new
+            (1, 123, r"wrong data type .*<class 'int'>"),  # bad payload type
+        ],
+    )
+    def test_pandas_deserialize_errors(self, version, data, msg):
+        from airflow.serialization.serializers.pandas import deserialize
 
-        with pytest.raises(TypeError) as ctx:
-            deserialize("pandas.core.frame.DataFrame", 1, 123)
-        assert "serialized pandas.core.frame.DataFrame has wrong data type <class 'int'>" in str(ctx.value)
+        with pytest.raises(TypeError, match=msg):
+            deserialize("pandas.core.frame.DataFrame", version, data)
 
     def test_iceberg(self):
         pytest.importorskip("pyiceberg", minversion="2.0.0")
@@ -292,17 +327,32 @@ class TestSerializers:
             assert d._storage_options is None
 
     def test_deltalake_serialize_deserialize(self):
-        from airflow.serialization.serializers.deltalake import deserialize, serialize
+        from airflow.serialization.serializers.deltalake import serialize
 
         assert serialize(object()) == ("", "", 0, False)
 
-        with pytest.raises(TypeError) as e:
-            deserialize("deltalake.table.DeltaTable", 999, {})
-        assert "serialized version is newer than class version" in str(e.value)
+    @pytest.mark.parametrize(
+        ("klass", "version", "payload", "msg"),
+        [
+            (
+                "deltalake.table.DeltaTable",
+                999,
+                {},
+                r"serialized version is newer than class version",
+            ),
+            (
+                "not_a_real_class",
+                1,
+                {},
+                r"do not know how to deserialize",
+            ),
+        ],
+    )
+    def test_deltalake_deserialize_errors(self, klass, version, payload, msg):
+        from airflow.serialization.serializers.deltalake import deserialize
 
-        with pytest.raises(TypeError) as e2:
-            deserialize("not_a_real_class", 1, {})
-        assert "do not know how to deserialize" in str(e2.value)
+        with pytest.raises(TypeError, match=msg):
+            deserialize(klass, version, payload)
 
     def test_kubernetes(self, monkeypatch):
         from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
@@ -462,28 +512,43 @@ class TestSerializers:
         assert deserialize(ser_value) == expected
 
     def test_timezone(self):
-        import pytz
-
-        from airflow.serialization.serializers.timezone import _get_tzinfo_name, deserialize, serialize
+        from airflow.serialization.serializers.timezone import serialize
 
         assert serialize(FixedTimezone(0)) == ("UTC", "pendulum.tz.timezone.FixedTimezone", 1, True)
         assert serialize(NoNameTZ()) == ("", "", 0, False)
 
-        with pytest.raises(TypeError) as ctx:
-            deserialize("pendulum.tz.timezone.FixedTimezone", 1, 1.23)
-        assert "is not of type int or str" in str(ctx.value)
-
-        with pytest.raises(TypeError) as ctx:
-            deserialize("pendulum.tz.timezone.FixedTimezone", 999, "UTC")
-        assert "serialized 999 of pendulum.tz.timezone.FixedTimezone > 1" in str(ctx.value)
+    def test_timezone_deserialize_zoneinfo(self):
+        from airflow.serialization.serializers.timezone import deserialize
 
         zi = deserialize("backports.zoneinfo.ZoneInfo", 1, "Asia/Taipei")
         assert isinstance(zi, ZoneInfo)
         assert zi.key == "Asia/Taipei"
 
-        assert _get_tzinfo_name(None) is None
-        assert _get_tzinfo_name(CustomTZ()) == "My/Custom"
-        assert _get_tzinfo_name(pytz.timezone("Asia/Taipei")) == "Asia/Taipei"
+    @pytest.mark.parametrize(
+        "klass, version, data, msg",
+        [
+            ("pendulum.tz.timezone.FixedTimezone", 1, 1.23, "is not of type int or str"),
+            ("pendulum.tz.timezone.FixedTimezone", 999, "UTC", "serialized 999 .* > 1"),
+        ],
+    )
+    def test_timezone_deserialize_errors(self, klass, version, data, msg):
+        from airflow.serialization.serializers.timezone import deserialize
+
+        with pytest.raises(TypeError, match=msg):
+            deserialize(klass, version, data)
+
+    @pytest.mark.parametrize(
+        "tz_obj, expected",
+        [
+            (None, None),
+            (CustomTZ(), "My/Custom"),
+            (ZoneInfo("Asia/Taipei"), "Asia/Taipei"),
+        ],
+    )
+    def test_timezone_get_tzinfo_name(self, tz_obj, expected):
+        from airflow.serialization.serializers.timezone import _get_tzinfo_name
+
+        assert _get_tzinfo_name(tz_obj) == expected
 
     def test_json_schema(self, monkeypatch):
         from airflow.exceptions import AirflowException
@@ -497,40 +562,52 @@ class TestSerializers:
             load_dag_schema_dict()
         assert "Schema file schema.json does not exists" in str(ctx.value)
 
-    def test_builtin(self):
-        from airflow.serialization.serializers import builtin
+    def test_builtin_deserialize_frozenset(self):
+        res = builtin.deserialize(qualname(frozenset), 1, [13, 14])
+        assert isinstance(res, frozenset)
+        assert res == frozenset({13, 14})
 
-        result = builtin.deserialize(qualname(frozenset), 1, [13, 14])
-        assert isinstance(result, frozenset)
-        assert result == frozenset([13, 14])
-
-        with pytest.raises(TypeError) as ctx:
+    def test_builtin_deserialize_version_too_new(self):
+        with pytest.raises(TypeError, match="serialized version is newer than class version"):
             builtin.deserialize(qualname(tuple), 999, [1, 2])
-        assert "serialized version is newer than class version" in str(ctx.value)
 
-        with pytest.raises(TypeError) as ctx:
-            builtin.deserialize("builtins.list", 1, [1, 2])
-        assert "do not know how to deserialize" in str(ctx.value)
+    @pytest.mark.parametrize(
+        "func, msg",
+        [
+            (builtin.deserialize, r"do not know how to deserialize"),
+            (builtin.stringify, r"do not know how to stringify"),
+        ],
+    )
+    def test_builtin_unknown_type_errors(self, func, msg):
+        with pytest.raises(TypeError, match=msg):
+            func("builtins.list", 1, [1, 2])
 
-        with pytest.raises(TypeError) as ctx:
-            builtin.stringify("builtins.list", 1, [1, 2])
-        assert "do not know how to stringify" in str(ctx.value)
-
-    def test_serde(self):
-        from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize
-
+    def test_serde_decode_type_error(self):
+        bad = {CLASSNAME: 123, VERSION: 1, DATA: {}}
         with pytest.raises(ValueError, match="cannot decode"):
-            decode({"__classname__": 123, "__version__": 1, "__data__": {}})
+            decode(bad)
 
+    def test_serde_serialize_recursion_limit(self):
+        depth = sys.getrecursionlimit() - 1
         with pytest.raises(RecursionError, match="maximum recursion depth reached for serialization"):
-            serialize(object(), depth=sys.getrecursionlimit() - 1)
+            serialize(object(), depth=depth)
 
+    def test_serde_deserialize_with_type_hint_stringified(self):
         fake = {"a": 1, "b": 2, "__version__": 1}
-        result = deserialize(fake, type_hint=dict, full=False)
-        assert result == "builtins.dict@version=0(a=1,b=2,__version__=1)"
+        got = deserialize(fake, type_hint=dict, full=False)
+        assert got == "builtins.dict@version=0(a=1,b=2,__version__=1)"
 
+    def test_serde_deserialize_empty_classname(self):
+        bad = {CLASSNAME: "", VERSION: 1, DATA: {}}
         with pytest.raises(TypeError, match="classname cannot be empty"):
-            deserialize({CLASSNAME: "", VERSION: 1, DATA: {}})
+            deserialize(bad)
 
-        assert _stringify("dummy", 1, 123) == "dummy@version=1(123)"
-        assert _stringify("dummy", 1, [1]) == "dummy@version=1([,1,])"
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (123, "dummy@version=1(123)"),
+            ([1], "dummy@version=1([,1,])"),
+        ],
+    )
+    def test_serde_stringify_primitives(self, value, expected):
+        assert _stringify("dummy", 1, value) == expected
