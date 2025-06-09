@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-08T19:49:30.000114
+# This constraints file was automatically generated on 2025-06-09T13:58:04.105777
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -282,7 +282,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.72.1
+grpcio==1.73.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.16.0
@@ -560,7 +560,7 @@ roman-numerals-py==3.1.0
 rpds-py==0.25.1
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
-ruamel.yaml==0.18.13
+ruamel.yaml==0.18.14
 ruff==0.11.2
 s3fs==2025.5.1
 s3transfer==0.11.3
