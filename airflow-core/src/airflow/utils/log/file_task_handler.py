@@ -40,7 +40,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import parse_template_string, render_template
-from airflow.utils.log.log_stream_counter import LogStreamCounter
+from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -654,9 +654,9 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.DEFERRED,
         )
 
-        with LogStreamCounter(out_stream, HEAP_DUMP_SIZE) as stream_counter:
-            log_pos = stream_counter.get_total_lines()
-            out_stream = stream_counter.get_stream()
+        with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
+            log_pos = stream_accumulator.get_total_lines()
+            out_stream = stream_accumulator.get_stream()
 
             # skip log stream until the last position
             if metadata and "log_pos" in metadata:

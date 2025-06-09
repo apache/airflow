@@ -90,14 +90,13 @@ class TaskLogReader:
 
         while True:
             log_stream, out_metadata = self.read_log_chunks(ti, try_number, metadata)
-            for log in log_stream:
-                yield log.model_dump_json() + "\n"
+            yield from (f"{log.model_dump_json()}\n" for log in log_stream)
 
             if not out_metadata.get("end_of_log", False) and ti.state not in (
                 TaskInstanceState.RUNNING,
                 TaskInstanceState.DEFERRED,
             ):
-                if logs:
+                if log_stream:
                     empty_iterations = 0
                 else:
                     # we did not receive any logs in this loop

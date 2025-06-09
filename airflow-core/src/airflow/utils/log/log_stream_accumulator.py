@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self
@@ -31,9 +31,9 @@ if TYPE_CHECKING:
     )
 
 
-class LogStreamCounter:
+class LogStreamAccumulator:
     """
-    Memory-efficient log stream counter that tracks the total number of lines while preserving the original stream.
+    Memory-efficient log stream accumulator that tracks the total number of lines while preserving the original stream.
 
     This class captures logs from a stream and stores them in a buffer, flushing them to disk when the buffer
     exceeds a specified threshold. This approach optimizes memory usage while handling large log streams.
@@ -42,12 +42,12 @@ class LogStreamCounter:
 
     .. code-block:: python
 
-        with LogStreamCounter(stream, threshold) as log_counter:
+        with LogStreamAccumulator(stream, threshold) as log_accumulator:
             # Get total number of lines captured
-            total_lines = log_counter.get_total_lines()
+            total_lines = log_accumulator.get_total_lines()
 
             # Retrieve the original stream of logs
-            for log in log_counter.get_stream():
+            for log in log_accumulator.get_stream():
                 print(log)
     """
 
@@ -55,9 +55,9 @@ class LogStreamCounter:
         self,
         stream: LogHandlerOutputStream,
         threshold: int,
-    ):
+    ) -> None:
         """
-        Initialize the LogStreamCounter.
+        Initialize the LogStreamAccumulator.
 
         Args:
             stream: The input log stream to capture and count.
@@ -67,9 +67,9 @@ class LogStreamCounter:
         self._threshold = threshold
         self._buffer: list[StructuredLogMessage] = []
         self._disk_lines: int = 0
-        self._tmpfile = None
+        self._tmpfile: IO[str] | None = None
 
-    def _flush_buffer_to_disk(self):
+    def _flush_buffer_to_disk(self) -> None:
         """Flush the buffer contents to a temporary file on disk."""
         if self._tmpfile is None:
             self._tmpfile = tempfile.NamedTemporaryFile(delete=False, mode="w+", encoding="utf-8")
@@ -79,7 +79,7 @@ class LogStreamCounter:
         self._tmpfile.flush()
         self._buffer.clear()
 
-    def _capture(self):
+    def _capture(self) -> None:
         """Capture logs from the stream into the buffer, flushing to disk when threshold is reached."""
         for log in self._stream:
             self._buffer.append(log)
@@ -87,7 +87,7 @@ class LogStreamCounter:
             if len(self._buffer) >= self._threshold:
                 self._flush_buffer_to_disk()
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """Clean up the temporary file if it exists."""
         self._buffer.clear()
         if self._tmpfile:
@@ -123,8 +123,7 @@ class LogStreamCounter:
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
 
                 with open(self._tmpfile.name, encoding="utf-8") as f:
-                    for line in f:
-                        yield StructuredLogMessage.model_validate_json(line.strip())
+                    yield from (StructuredLogMessage.model_validate_json(line.strip()) for line in f)
                 # yield the remaining buffer
                 yield from self._buffer
         finally:
