@@ -24,6 +24,7 @@ import pytest
 import time_machine
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from task_sdk.definitions.utils.test_deadlines import DAG_ID, TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH
 
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, _fetch_from_db
@@ -33,7 +34,6 @@ from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
-from unit.utils.test_deadlines import DAG_ID, TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH
 
 RUN_ID = 1
 

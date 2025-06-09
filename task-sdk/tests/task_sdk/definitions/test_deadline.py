@@ -21,17 +21,16 @@ from unittest import mock
 
 import pytest
 from task_sdk.definitions.test_dag import DEFAULT_DATE
-
-from airflow.models.deadline import ReferenceModels
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-
-from unit.models.test_deadline import TEST_CALLBACK_PATH
-from unit.utils.test_deadlines import (
+from task_sdk.definitions.utils.test_deadlines import (
     DAG_ID,
     REFERENCE_TYPES,
     TEST_CALLBACK_KWARGS,
+    TEST_CALLBACK_PATH,
     test_callback_for_deadline,
 )
+
+from airflow.models.deadline import ReferenceModels
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 
 UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
 
