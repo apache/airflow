@@ -72,6 +72,7 @@ class Mimetype(str, Enum):
 
     TEXT = "text/plain"
     JSON = "application/json"
+    NDJSON = "application/x-ndjson"
     ANY = "*/*"
 
 

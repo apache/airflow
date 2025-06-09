@@ -388,6 +388,10 @@ class AzureContainerInstancesOperator(BaseOperator):
                     self.log.info("Container exited with detail_status %s", detail_status)
                     return exit_code
 
+                if state == "Unhealthy":
+                    self.log.error("Azure provision unhealthy")
+                    return 1
+
                 if state == "Failed":
                     self.log.error("Azure provision failure")
                     return 1

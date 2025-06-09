@@ -134,16 +134,17 @@ class TestBeamPythonPipelineTrigger:
         assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.beam.triggers.beam.GCSHook")
-    async def test_beam_trigger_gcs_provide_file_should_execute_successfully(self, gcs_hook, python_trigger):
+    async def test_beam_trigger_gcs_provide_file_should_execute_successfully(self, python_trigger):
         """
         Test that BeamPythonPipelineTrigger downloads GCS provide file correct.
         """
-        gcs_provide_file = gcs_hook.return_value.provide_file
         python_trigger.py_file = TEST_GCS_PY_FILE
-        generator = python_trigger.run()
-        await generator.asend(None)
-        gcs_provide_file.assert_called_once_with(object_url=TEST_GCS_PY_FILE)
+        with mock.patch("airflow.providers.google.cloud.hooks.gcs.GCSHook") as mock_gcs_hook:
+            mock_gcs_hook.return_value.provide_file.return_value = "mocked_temp_file"
+            generator = python_trigger.run()
+            await generator.asend(None)
+            mock_gcs_hook.assert_called_once_with(gcp_conn_id=python_trigger.gcp_conn_id)
+            mock_gcs_hook.return_value.provide_file.assert_called_once_with(object_url=TEST_GCS_PY_FILE)
 
 
 class TestBeamJavaPipelineTrigger:
@@ -210,13 +211,15 @@ class TestBeamJavaPipelineTrigger:
         assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.beam.triggers.beam.GCSHook")
-    async def test_beam_trigger_gcs_provide_file_should_execute_successfully(self, gcs_hook, java_trigger):
+    async def test_beam_trigger_gcs_provide_file_should_execute_successfully(self, java_trigger):
         """
         Test that BeamJavaPipelineTrigger downloads GCS provide file correct.
         """
-        gcs_provide_file = gcs_hook.return_value.provide_file
         java_trigger.jar = TEST_GCS_JAR_FILE
-        generator = java_trigger.run()
-        await generator.asend(None)
-        gcs_provide_file.assert_called_once_with(object_url=TEST_GCS_JAR_FILE)
+
+        with mock.patch("airflow.providers.google.cloud.hooks.gcs.GCSHook") as mock_gcs_hook:
+            mock_gcs_hook.return_value.provide_file.return_value = "mocked_temp_file"
+            generator = java_trigger.run()
+            await generator.asend(None)
+            mock_gcs_hook.assert_called_once_with(gcp_conn_id=java_trigger.gcp_conn_id)
+            mock_gcs_hook.return_value.provide_file.assert_called_once_with(object_url=TEST_GCS_JAR_FILE)

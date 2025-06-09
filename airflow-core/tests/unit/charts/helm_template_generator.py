@@ -34,7 +34,7 @@ api_client = ApiClient()
 
 CHART_DIR = Path(__file__).resolve().parents[4] / "chart"
 
-DEFAULT_KUBERNETES_VERSION = "1.29.1"
+DEFAULT_KUBERNETES_VERSION = "1.30.13"
 BASE_URL_SPEC = (
     f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/"
     f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
@@ -47,6 +47,7 @@ crd_lookup = {
 }
 
 
+@cache
 def get_schema_k8s(api_version, kind, kubernetes_version):
     api_version = api_version.lower()
     kind = kind.lower()

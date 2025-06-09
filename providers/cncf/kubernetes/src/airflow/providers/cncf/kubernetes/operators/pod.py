@@ -157,8 +157,9 @@ class KubernetesPodOperator(BaseOperator):
     :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
         during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
-    :param startup_timeout_seconds: timeout in seconds to startup the pod.
+    :param startup_timeout_seconds: timeout in seconds to startup the pod after pod was scheduled.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
+    :param schedule_timeout_seconds: timeout in seconds to schedule pod in cluster.
     :param get_logs: get the stdout of the base container as logs of the tasks.
     :param init_container_logs: list of init containers whose logs will be published to stdout
         Takes a sequence of containers, a single container name or True. If True,
@@ -180,6 +181,7 @@ class KubernetesPodOperator(BaseOperator):
         If more than one secret is required, provide a
         comma separated list: secret_a,secret_b
     :param service_account_name: Name of the service account
+    :param automount_service_account_token: indicates whether pods running as this service account should have an API token automatically mounted
     :param hostnetwork: If True enable host networking on the pod.
     :param host_aliases: A list of host aliases to apply to the containers in the pod.
     :param tolerations: A list of kubernetes tolerations.
@@ -231,6 +233,7 @@ class KubernetesPodOperator(BaseOperator):
     :param logging_interval: max time in seconds that task should be in deferred state before
         resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
         is done, and no logs will be visible until that time.
+    :param trigger_kwargs: additional keyword parameters passed to the trigger
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -264,6 +267,7 @@ class KubernetesPodOperator(BaseOperator):
         "node_selector",
         "kubernetes_conn_id",
         "base_container_name",
+        "trigger_kwargs",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -289,6 +293,7 @@ class KubernetesPodOperator(BaseOperator):
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
         startup_check_interval_seconds: int = 5,
+        schedule_timeout_seconds: int | None = None,
         get_logs: bool = True,
         base_container_name: str | None = None,
         base_container_status_polling_interval: float = 1,
@@ -302,6 +307,7 @@ class KubernetesPodOperator(BaseOperator):
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -335,6 +341,7 @@ class KubernetesPodOperator(BaseOperator):
         ) = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -347,6 +354,8 @@ class KubernetesPodOperator(BaseOperator):
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
         self.startup_check_interval_seconds = startup_check_interval_seconds
+        # New parameter startup_timeout_seconds adds breaking change, to handle this as smooth as possible just reuse startup time
+        self.schedule_timeout_seconds = schedule_timeout_seconds or startup_timeout_seconds
         env_vars = convert_env_vars(env_vars) if env_vars else []
         self.env_vars = env_vars
         pod_runtime_info_envs = (
@@ -380,6 +389,7 @@ class KubernetesPodOperator(BaseOperator):
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
+        self.automount_service_account_token = automount_service_account_token
         self.hostnetwork = hostnetwork
         self.host_aliases = host_aliases
         self.tolerations = (
@@ -421,6 +431,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
         self.logging_interval = logging_interval
+        self.trigger_kwargs = trigger_kwargs
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
@@ -565,7 +576,26 @@ class KubernetesPodOperator(BaseOperator):
         if self.reattach_on_restart:
             pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
             if pod:
-                return pod
+                # If pod is terminated then delete the pod an create a new as not possible to get xcom
+                pod_phase = (
+                    pod.status.phase if hasattr(pod, "status") and hasattr(pod.status, "phase") else None
+                )
+                if pod_phase and pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED):
+                    return pod
+
+                self.log.info(
+                    "Found terminated old matching pod %s with labels %s",
+                    pod.metadata.name,
+                    pod.metadata.labels,
+                )
+
+                # if not required to delete the pod then keep old logic and not automatically create new pod
+                deleted_pod = self.process_pod_deletion(pod)
+                if not deleted_pod:
+                    return pod
+
+                self.log.info("Deleted pod to handle rerun and create new pod!")
+
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
         self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
@@ -574,8 +604,9 @@ class KubernetesPodOperator(BaseOperator):
         try:
             self.pod_manager.await_pod_start(
                 pod=pod,
+                schedule_timeout=self.schedule_timeout_seconds,
                 startup_timeout=self.startup_timeout_seconds,
-                startup_check_interval=self.startup_check_interval_seconds,
+                check_interval=self.startup_check_interval_seconds,
             )
         except PodLaunchFailedException:
             if self.log_events_on_failure:
@@ -804,6 +835,7 @@ class KubernetesPodOperator(BaseOperator):
                 on_finish_action=self.on_finish_action.value,
                 last_log_time=last_log_time,
                 logging_interval=self.logging_interval,
+                trigger_kwargs=self.trigger_kwargs,
             ),
             method_name="trigger_reentry",
         )
@@ -1054,7 +1086,7 @@ class KubernetesPodOperator(BaseOperator):
         if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
             raise AirflowException("Error while deleting istio-proxy sidecar: %s", output_str)
 
-    def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
+    def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True) -> bool:
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
                 should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
@@ -1067,8 +1099,10 @@ class KubernetesPodOperator(BaseOperator):
                 if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
-                else:
-                    self.log.info("Skipping deleting pod: %s", pod.metadata.name)
+                    return True
+                self.log.info("Skipping deleting pod: %s", pod.metadata.name)
+
+        return False
 
     def _build_find_pod_label_selector(self, context: Context | None = None, *, exclude_checked=True) -> str:
         labels = {
@@ -1175,6 +1209,7 @@ class KubernetesPodOperator(BaseOperator):
                 ],
                 image_pull_secrets=self.image_pull_secrets,
                 service_account_name=self.service_account_name,
+                automount_service_account_token=self.automount_service_account_token,
                 host_network=self.hostnetwork,
                 hostname=self.hostname,
                 subdomain=self.subdomain,

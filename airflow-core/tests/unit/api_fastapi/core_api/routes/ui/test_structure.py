@@ -313,6 +313,20 @@ class TestStructureDataEndpoint:
                 {
                     "is_setup_teardown": None,
                     "label": None,
+                    "source_id": "external_task_sensor",
+                    "target_id": "task_2",
+                    "is_source_asset": None,
+                },
+                {
+                    "is_setup_teardown": None,
+                    "label": None,
+                    "source_id": "task_1",
+                    "target_id": "external_task_sensor",
+                    "is_source_asset": None,
+                },
+                {
+                    "is_setup_teardown": None,
+                    "label": None,
                     "source_id": "and-gate-0",
                     "target_id": "task_1",
                     "is_source_asset": True,
@@ -355,21 +369,7 @@ class TestStructureDataEndpoint:
                 {
                     "is_setup_teardown": None,
                     "label": None,
-                    "source_id": "external_task_sensor",
-                    "target_id": "task_2",
-                    "is_source_asset": None,
-                },
-                {
-                    "is_setup_teardown": None,
-                    "label": None,
                     "source_id": "task_1",
-                    "target_id": "external_task_sensor",
-                    "is_source_asset": None,
-                },
-                {
-                    "is_setup_teardown": None,
-                    "label": None,
-                    "source_id": "task_2",
                     "target_id": f"asset:{asset3_id}",
                     "is_source_asset": None,
                 },

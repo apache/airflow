@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import uuid
+import warnings
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -26,9 +27,8 @@ import aiohttp
 import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-from requests.auth import HTTPBasicAuth
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -83,17 +83,6 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.token_renewal_delta = token_renewal_delta
         super().__init__(snowflake_conn_id, *args, **kwargs)
         self.private_key: Any = None
-
-    @property
-    def account_identifier(self) -> str:
-        """Returns snowflake account identifier."""
-        conn_config = self._get_conn_params
-        account_identifier = f"https://{conn_config['account']}"
-
-        if conn_config["region"]:
-            account_identifier += f".{conn_config['region']}"
-
-        return account_identifier
 
     def get_private_key(self) -> None:
         """Get the private key from snowflake connection."""
@@ -233,29 +222,14 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         return headers
 
-    def get_oauth_token(self, conn_config: dict[str, Any]) -> str:
+    def get_oauth_token(self, conn_config: dict[str, Any] | None = None) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
-        url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
-        data = {
-            "grant_type": "refresh_token",
-            "refresh_token": conn_config["refresh_token"],
-            "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
-        }
-        response = requests.post(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
+        warnings.warn(
+            "This method is deprecated. Please use `get_oauth_token` method from `SnowflakeHook` instead. ",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:  # pragma: no cover
-            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
-        return response.json()["access_token"]
+        return super().get_oauth_token(conn_config=conn_config)
 
     def get_request_url_header_params(self, query_id: str) -> tuple[dict[str, Any], dict[str, Any], str]:
         """

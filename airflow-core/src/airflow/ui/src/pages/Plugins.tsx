@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
+import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { PluginResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
+
+import { PluginImportErrors } from "./Dashboard/Stats/PluginImportErrors";
 
 const columns: Array<ColumnDef<PluginResponse>> = [
   {
@@ -42,7 +44,10 @@ export const Plugins = () => {
 
   return (
     <Box p={2}>
-      <Heading>Plugins</Heading>
+      <HStack>
+        <Heading>Plugins</Heading>
+        <PluginImportErrors iconOnly />
+      </HStack>
       <DataTable
         columns={columns}
         data={data?.plugins ?? []}

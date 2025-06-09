@@ -983,7 +983,7 @@ class TestDataflowJob:
             multiple_jobs=True,
             wait_until_finished=wait_until_finished,
         )
-        result = dataflow_job._check_dataflow_job_state(job)
+        result = dataflow_job.job_reached_terminal_state(job, wait_until_finished)
         assert result == expected_result
 
     @pytest.mark.parametrize(
@@ -1055,7 +1055,7 @@ class TestDataflowJob:
         result = False
         for current_job in jobs:
             job = {"id": "id-2", "name": "name-2", "type": current_job[0], "currentState": current_job[1]}
-            result = dataflow_job._check_dataflow_job_state(job)
+            result = dataflow_job.job_reached_terminal_state(job, wait_until_finished)
         assert result == expected_result
 
     @pytest.mark.parametrize(
@@ -1088,7 +1088,7 @@ class TestDataflowJob:
             multiple_jobs=True,
             wait_until_finished=wait_until_finished,
         )
-        result = dataflow_job._check_dataflow_job_state(job)
+        result = dataflow_job.job_reached_terminal_state(job, wait_until_finished)
         assert result == expected_result
 
     @pytest.mark.parametrize(
@@ -1159,7 +1159,7 @@ class TestDataflowJob:
             multiple_jobs=True,
         )
         with pytest.raises(AirflowException, match=exception_regex):
-            dataflow_job._check_dataflow_job_state(job)
+            dataflow_job.job_reached_terminal_state(job)
 
     @pytest.mark.parametrize(
         "job_type, expected_terminal_state, match",
@@ -1200,7 +1200,7 @@ class TestDataflowJob:
             expected_terminal_state=expected_terminal_state,
         )
         with pytest.raises(AirflowException, match=match):
-            dataflow_job._check_dataflow_job_state(job)
+            dataflow_job.job_reached_terminal_state(job, custom_terminal_state=expected_terminal_state)
 
     def test_dataflow_job_cancel_job(self):
         mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs

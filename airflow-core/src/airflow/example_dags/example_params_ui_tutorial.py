@@ -58,7 +58,7 @@ with DAG(
             type="integer",
             title="Your favorite number",
             description_md="Everybody should have a **favorite** number. Not only _math teachers_. "
-            "If you can not think of any at the moment please think of the 42 which is very famous because"
+            "If you can not think of any at the moment please think of the 42 which is very famous because "
             "of the book [The Hitchhiker's Guide to the Galaxy]"
             "(https://en.wikipedia.org/wiki/Phrases_from_The_Hitchhiker%27s_Guide_to_the_Galaxy#"
             "The_Answer_to_the_Ultimate_Question_of_Life,_the_Universe,_and_Everything_is_42).",
@@ -99,7 +99,7 @@ with DAG(
             format="date",
             title="Date Picker",
             description="Please select a date, use the button on the left for a pop-up calendar. "
-            "See that here are no times!",
+            "See that there are no times!",
             section="Typed parameters with Param object",
         ),
         "time": Param(
@@ -181,7 +181,7 @@ with DAG(
         # A multiple options selection can also be combined with values_display
         "multi_select_with_label": Param(
             ["2", "3"],
-            "Select from the list of options. See that options can have nicer text and still technical values"
+            "Select from the list of options. See that options can have nicer text and still technical values "
             "are propagated as values during trigger to the DAG.",
             type="array",
             title="Multi Select with Labels",

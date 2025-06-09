@@ -26,6 +26,7 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
+from openlineage.client.facet_v2 import parent_run
 from openlineage.client.utils import RedactMixin
 
 from airflow import __version__ as AIRFLOW_VERSION
@@ -50,7 +51,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
@@ -69,7 +70,8 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG, MappedOperator
+    from airflow.sdk import DAG
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
         Redacted,
@@ -79,7 +81,8 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
-        from airflow.sdk import DAG, MappedOperator
+        from airflow.sdk import DAG
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
     except ImportError:
         from airflow.models import DAG, MappedOperator
 
@@ -124,6 +127,27 @@ def get_operator_class(task: BaseOperator | SdkBaseOperator) -> type:
 
 def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
+
+
+def get_task_parent_run_facet(
+    parent_run_id: str, parent_job_name: str, parent_job_namespace: str = conf.namespace()
+) -> dict[str, Any]:
+    """
+    Retrieve the parent run facet for task-level events.
+
+    This facet currently always points to the DAG-level run ID and name,
+    as external events for DAG runs are not yet handled.
+    """
+    return {
+        "parent": parent_run.ParentRunFacet(
+            run=parent_run.Run(runId=parent_run_id),
+            job=parent_run.Job(namespace=parent_job_namespace, name=parent_job_name),
+            root=parent_run.Root(
+                run=parent_run.RootRun(runId=parent_run_id),
+                job=parent_run.RootJob(namespace=parent_job_namespace, name=parent_job_name),
+            ),
+        )
+    }
 
 
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
@@ -384,7 +408,13 @@ class DagRunInfo(InfoJsonEncodable):
         "end_date",
     ]
 
-    casts = {"duration": lambda dagrun: DagRunInfo.duration(dagrun)}
+    casts = {
+        "duration": lambda dagrun: DagRunInfo.duration(dagrun),
+        "dag_bundle_name": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_name"),
+        "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
+        "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
+        "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+    }
 
     @classmethod
     def duration(cls, dagrun: DagRun) -> float | None:
@@ -394,15 +424,34 @@ class DagRunInfo(InfoJsonEncodable):
             return None
         return (dagrun.end_date - dagrun.start_date).total_seconds()
 
+    @classmethod
+    def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
+        # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
+        if not getattr(dagrun, "dag_versions", []):
+            return None
+        current_version = dagrun.dag_versions[-1]
+        if key == "bundle_name":
+            return current_version.bundle_name
+        if key == "bundle_version":
+            return current_version.bundle_version
+        if key == "version_id":
+            return str(current_version.id)
+        if key == "version_number":
+            return current_version.version_number
+        raise ValueError(f"Unsupported key: {key}`")
+
 
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
     includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
     casts = {
-        "map_index": lambda ti: (
-            ti.map_index if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1 else None
-        )
+        "log_url": lambda ti: getattr(ti, "log_url", None),
+        "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
+        "dag_bundle_version": lambda ti: (
+            ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
+        ),
+        "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
 
 
@@ -779,12 +828,6 @@ def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
 
 def should_use_external_connection(hook) -> bool:
     # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
-    if not AIRFLOW_V_2_10_PLUS:
-        return hook.__class__.__name__ not in [
-            "SnowflakeHook",
-            "SnowflakeSqlApiHook",
-            "RedshiftSQLHook",
-        ]
     return True
 
 

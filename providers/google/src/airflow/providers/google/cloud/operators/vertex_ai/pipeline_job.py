@@ -112,6 +112,10 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         "project_id",
         "input_artifacts",
         "impersonation_chain",
+        "template_path",
+        "pipeline_root",
+        "parameter_values",
+        "service_account",
     ]
     operator_extra_links = (VertexAIPipelineJobLink(),)
 

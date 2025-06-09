@@ -58,7 +58,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
 
   const [actionIfExists, setActionIfExists] = useState<"fail" | "overwrite" | "skip">("fail");
   const [isParsing, setIsParsing] = useState(false);
-  const [fileContent, setFileContent] = useState<Record<string, string> | undefined>(undefined);
+  const [fileContent, setFileContent] = useState<Record<string, unknown> | undefined>(undefined);
 
   const onFileChange = (file: File) => {
     setIsParsing(true);
@@ -67,21 +67,9 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
     reader.addEventListener("load", (event) => {
       try {
         const text = event.target?.result as string;
-        const parsedContent = JSON.parse(text) as unknown;
+        const parsedContent = JSON.parse(text) as Record<string, unknown>;
 
-        if (
-          typeof parsedContent === "object" &&
-          parsedContent !== null &&
-          Object.entries(parsedContent).every(
-            ([key, value]) => typeof key === "string" && typeof value === "string",
-          )
-        ) {
-          const typedContent = parsedContent as Record<string, string>;
-
-          setFileContent(typedContent);
-        } else {
-          throw new Error("Invalid JSON format");
-        }
+        setFileContent(parsedContent);
       } catch {
         setError({
           body: {

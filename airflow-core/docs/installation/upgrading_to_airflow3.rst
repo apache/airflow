@@ -23,7 +23,7 @@ Apache Airflow 3 is a major release and contains :ref:`breaking changes<breaking
 Step 1: Take care of prerequisites
 ----------------------------------
 
-- Make sure that you are on Airflow 2.7 or later.
+- Make sure that you are on Airflow 2.7 or later. It is recommended to upgrade to latest 2.x and then to Airflow 3.
 - Make sure that your Python version is in the supported list. Airflow 3.0.0 supports the following Python versions: Python 3.9, 3.10, 3.11 and 3.12.
 - Ensure that you are not using any features or functionality that have been :ref:`removed in Airflow 3<breaking-changes>`.
 
@@ -42,10 +42,9 @@ Step 2: Clean and back up your existing Airflow Instance
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
 - Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
-  be able to run ``airflow dags reserialize`` with no errors.  If you have have to resolve errors from dag processing,
+  be able to run ``airflow dags reserialize`` with no errors.  If you have to resolve errors from dag processing,
   ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
-
 
 Step 3: DAG Authors - Check your Airflow DAGs for compatibility
 ----------------------------------------------------------------
@@ -57,19 +56,22 @@ for dag incompatibilities that will need to be fixed before they will work as ex
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301
+    ruff check dag/ --select AIR301 --preview
 
 To preview the recommended fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --show-fixes
+    ruff check dag/ --select AIR301 --show-fixes --preview
 
 Some changes can be automatically fixed. To do so, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --fix
+    ruff check dag/ --select AIR301 --fix --preview
+
+
+You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
 Step 4: Install the Standard Providers
 --------------------------------------
@@ -79,8 +81,14 @@ Step 4: Install the Standard Providers
 - For convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
+Step 5: Review custom operators for direct db access
+----------------------------------------------------
 
-Step 5: Deployment Managers - Upgrade your Airflow Instance
+- In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
+  If you have custom operators, review the code to make sure there are no direct db access.
+  You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+
+Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
 
 For an easier and safer upgrade process, we have also created a utility to upgrade your Airflow instance configuration.
@@ -107,10 +115,11 @@ The biggest part of an Airflow upgrade is the database upgrade. The database upg
     airflow db migrate
 
 
-You should now be able to start up your Airflow 3 instance.
+If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Flask-AppBuilder menu items ( ``appbuilder_menu_items`` ), or Flask blueprints ( ``flask_blueprints`` ), you will either need to convert
+them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
+Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
 
-
-Step 6: Changes to your startup scripts
+Step 7: Changes to your startup scripts
 ---------------------------------------
 
 In Airflow 3, the Webserver has become a generic API server. The API server can be started up using the following command:
@@ -125,6 +134,7 @@ The dag processor must now be started independently, even for local or developme
 
     airflow dag-processor
 
+You should now be able to start up your Airflow 3 instance.
 
 .. _breaking-changes:
 
@@ -136,8 +146,10 @@ These include:
 
 - **SubDAGs**: Replaced by TaskGroups, Assets, and Data Aware Scheduling.
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
+- **CeleryKubernetesExecutor and LocalKubernetesExecutor**: Replaced by `Multiple Executor Configuration <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
 - **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`DAG bundles </administration-and-deployment/dag-bundles>`.
+- **REST API** (``/api/v1``) replaced: Use the modern FastAPI-based stable ``/api/v2`` instead; see :doc:`Airflow API v2 </stable-rest-api-ref>` for details.
 - **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause dag errors:
   - ``tomorrow_ds``
   - ``tomorrow_ds_nodash``

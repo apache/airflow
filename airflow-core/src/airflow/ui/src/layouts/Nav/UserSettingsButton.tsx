@@ -20,7 +20,9 @@ import { useDisclosure } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser } from "react-icons/fi";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -28,6 +30,7 @@ import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
 import { useTimezone } from "src/context/timezone";
 
+import LanguageModal from "./LanguageModal";
 import LogoutModal from "./LogoutModal";
 import { NavButton } from "./NavButton";
 import TimezoneModal from "./TimezoneModal";
@@ -36,28 +39,36 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export const UserSettingsButton = () => {
+  const { t: translate } = useTranslation();
   const { colorMode, toggleColorMode } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
+  const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
   const { selectedTimezone } = useTimezone();
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
 
+  const [time, setTime] = useState(dayjs());
+
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
+    <Menu.Root onOpenChange={() => setTime(dayjs())} positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiUser size="1.75rem" />} title="User" />
+        <NavButton icon={<FiUser size="1.75rem" />} title={translate("user")} />
       </Menu.Trigger>
       <Menu.Content>
+        <Menu.Item onClick={onOpenLanguage} value="language">
+          <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
+          {translate("selectLanguage")}
+        </Menu.Item>
         <Menu.Item onClick={toggleColorMode} value="color-mode">
           {colorMode === "light" ? (
             <>
               <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
-              Switch to Dark Mode
+              {translate("switchToDarkMode")}
             </>
           ) : (
             <>
               <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
-              Switch to Light Mode
+              {translate("switchToLightMode")}
             </>
           )}
         </Menu.Item>
@@ -68,24 +79,25 @@ export const UserSettingsButton = () => {
           {dagView === "grid" ? (
             <>
               <MdOutlineAccountTree size="1.25rem" style={{ marginRight: "8px" }} />
-              Default to graph view
+              {translate("defaultToGraphView")}
             </>
           ) : (
             <>
               <FiGrid size="1.25rem" style={{ marginRight: "8px" }} />
-              Default to grid view
+              {translate("defaultToGridView")}
             </>
           )}
         </Menu.Item>
         <Menu.Item onClick={onOpenTimezone} value="timezone">
           <FiClock size="1.25rem" style={{ marginRight: "8px" }} />
-          {dayjs().tz(selectedTimezone).format("HH:mm z (Z)")}
+          {translate("timezone")}: {dayjs(time).tz(selectedTimezone).format("HH:mm z (Z)")}
         </Menu.Item>
         <Menu.Item onClick={onOpenLogout} value="logout">
           <FiLogOut size="1.25rem" style={{ marginRight: "8px" }} />
-          Logout
+          {translate("logout")}
         </Menu.Item>
       </Menu.Content>
+      <LanguageModal isOpen={isOpenLanguage} onClose={onCloseLanguage} />
       <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
       <LogoutModal isOpen={isOpenLogout} onClose={onCloseLogout} />
     </Menu.Root>

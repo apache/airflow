@@ -35,6 +35,7 @@ __deprecated_classes = {
         "ExternalPythonOperator": "airflow.providers.standard.operators.python.ExternalPythonOperator",
         "BranchExternalPythonOperator": "airflow.providers.standard.operators.python.BranchExternalPythonOperator",
         "BranchPythonVirtualenvOperator": "airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator",
+        "get_current_context": "airflow.sdk.get_current_context",
     },
     "bash":{
         "BashOperator": "airflow.providers.standard.operators.bash.BashOperator",
@@ -56,6 +57,9 @@ __deprecated_classes = {
     },
     "empty": {
         "EmptyOperator": "airflow.providers.standard.operators.empty.EmptyOperator",
+    },
+    "email": {
+        "EmailOperator": "airflow.providers.smtp.operators.smtp.EmailOperator",
     },
     "smooth": {
         "SmoothOperator": "airflow.providers.standard.operators.smooth.SmoothOperator",

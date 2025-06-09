@@ -26,7 +26,9 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
    Successful installation requires a Python 3 environment. Starting with Airflow 2.7.0, Airflow supports Python 3.9, 3.10, 3.11, and 3.12.
 
-   Officially supported installation methods include ``pip`` and ``uv``. Both tools provide a streamlined workflow for installing Airflow and managing dependencies.
+   Officially supported installation methods is with``pip`.
+
+   Run ``pip install apache-airflow[EXTRAS]==AIRFLOW_VERSION --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-AIRFLOW_VERSION/constraints-PYTHON_VERSION.txt"``, for example ``pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"`` to install Airflow in a reproducible way.
 
 
 
@@ -94,7 +96,7 @@ and create the "airflow.cfg" file with defaults that will get you going fast.
 You can override defaults using environment variables, see :doc:`/configurations-ref`.
 You can inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
 the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
-in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
+in ``$AIRFLOW_HOME/airflow-api-server.pid`` or in ``/run/airflow/airflow-webserver.pid``
 if started by systemd.
 
 As you grow and deploy Airflow to production, you will also want to move away
@@ -111,8 +113,8 @@ run the commands below.
     airflow tasks test example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
     airflow backfill create --dag-id example_bash_operator \
-        --start-date 2015-01-01 \
-        --end-date 2015-01-02
+        --from-date 2015-01-01 \
+        --to-date 2015-01-02
 
 If you want to run the individual parts of Airflow manually rather than using
 the all-in-one ``standalone`` command, you can instead run:

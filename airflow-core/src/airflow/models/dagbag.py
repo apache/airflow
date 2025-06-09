@@ -22,6 +22,7 @@ import importlib
 import importlib.machinery
 import importlib.util
 import os
+import signal
 import sys
 import textwrap
 import traceback
@@ -235,23 +236,21 @@ class DagBag(LoggingMixin):
 
         # If asking for a known subdag, we want to refresh the parent
         dag = None
-        root_dag_id = dag_id
         if dag_id in self.dags:
             dag = self.dags[dag_id]
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
-        orm_dag = DagModel.get_current(root_dag_id, session=session)
+        orm_dag = DagModel.get_current(dag_id, session=session)
         if not orm_dag:
             return self.dags.get(dag_id)
 
-        # If the dag corresponding to root_dag_id is absent or expired
-        is_missing = root_dag_id not in self.dags
+        is_missing = dag_id not in self.dags
         is_expired = (
             orm_dag.last_expired and dag and dag.last_loaded and dag.last_loaded < orm_dag.last_expired
         )
         if is_expired:
             # Remove associated dags so we can re-add them.
-            self.dags = {key: dag for key, dag in self.dags.items()}
+            self.dags.pop(dag_id, None)
         if is_missing or is_expired:
             # Reprocess source file.
             found_dags = self.process_file(
@@ -359,6 +358,17 @@ class DagBag(LoggingMixin):
 
     def _load_modules_from_file(self, filepath, safe_mode):
         from airflow.sdk.definitions._internal.contextmanager import DagContext
+
+        def handler(signum, frame):
+            """Handle SIGSEGV signal and let the user know that the import failed."""
+            msg = f"Received SIGSEGV signal while processing {filepath}."
+            self.log.error(msg)
+            self.import_errors[filepath] = msg
+
+        try:
+            signal.signal(signal.SIGSEGV, handler)
+        except ValueError:
+            self.log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
 
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages
@@ -505,8 +515,8 @@ class DagBag(LoggingMixin):
         """
         Add the DAG into the bag.
 
-        :raises: AirflowDagCycleException if a cycle is detected in this dag or its subdags.
-        :raises: AirflowDagDuplicatedIdException if this dag or its subdags already exists in the bag.
+        :raises: AirflowDagCycleException if a cycle is detected.
+        :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
         check_cycle(dag)  # throws if a task cycle is found
 

@@ -173,3 +173,17 @@ The below example demonstrates how to instantiate the SQLThresholdCheckOperator 
     :end-before: [END howto_operator_sql_threshold_check]
 
 If the value returned by the query, is within the thresholds, the task passes. Otherwise, it fails.
+
+.. _howto/operator:GenericTransfer:
+
+Generic Transfer
+~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.generic_transfer.GenericTransfer` to transfer data between
+between two connections.
+
+.. exampleinclude:: /../tests/system/common/sql/example_generic_transfer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_generic_transfer]
+    :end-before: [END howto_operator_generic_transfer]

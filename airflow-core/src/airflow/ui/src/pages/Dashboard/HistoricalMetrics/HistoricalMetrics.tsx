@@ -19,12 +19,14 @@
 import { Box, VStack, SimpleGrid, GridItem, Flex, Heading } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PiBooks } from "react-icons/pi";
 
 import { useAssetServiceGetAssetEvents, useDashboardServiceHistoricalMetrics } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
+import { useAutoRefresh } from "src/utils";
 
 import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
@@ -33,14 +35,23 @@ import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 const defaultHour = "24";
 
 export const HistoricalMetrics = () => {
+  const { t: translate } = useTranslation("dashboard");
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
   const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
-  const { data, error, isLoading } = useDashboardServiceHistoricalMetrics({
-    startDate,
-  });
+  const refetchInterval = useAutoRefresh({});
+
+  const { data, error, isLoading } = useDashboardServiceHistoricalMetrics(
+    {
+      startDate,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
 
   const dagRunTotal = data
     ? Object.values(data.dag_run_states).reduce((partialSum, value) => partialSum + value, 0)
@@ -62,7 +73,7 @@ export const HistoricalMetrics = () => {
       <Flex color="fg.muted" my={2}>
         <PiBooks />
         <Heading ml={1} size="xs">
-          History
+          {translate("history")}
         </Heading>
       </Flex>
       <ErrorAlert error={error} />
@@ -74,7 +85,7 @@ export const HistoricalMetrics = () => {
           setStartDate={setStartDate}
           startDate={startDate}
         />
-        <SimpleGrid columns={{ base: 10 }}>
+        <SimpleGrid columns={{ base: 10 }} gap={2}>
           <GridItem colSpan={{ base: 7 }}>
             {isLoading ? <MetricSectionSkeleton /> : undefined}
             {!isLoading && data !== undefined && (

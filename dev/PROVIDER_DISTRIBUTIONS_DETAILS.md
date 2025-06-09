@@ -148,13 +148,13 @@ omitting the package ids altogether.
 * To build the release candidate packages for PyPI upload run the following command:
 
 ```bash
-breeze release-management prepare-provider-distributions --distribution-format both --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
+breeze release-management prepare-provider-distributions --distribution-format both --version-suffix=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-breeze release-management prepare-provider-distributions --distribution-format both --version-suffix-for-pypi=rc1 http ...
+breeze release-management prepare-provider-distributions --distribution-format both --version-suffix=rc1 http ...
 ```
 
 * To build the final release packages run the following command:

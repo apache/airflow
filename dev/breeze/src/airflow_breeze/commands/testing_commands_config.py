@@ -67,7 +67,6 @@ TEST_UPGRADING_PACKAGES: dict[str, str | list[str]] = {
         "--upgrade-boto",
         "--downgrade-sqlalchemy",
         "--downgrade-pendulum",
-        "--remove-arm-packages",
     ],
 }
 
@@ -90,6 +89,7 @@ TEST_ADVANCED_FLAGS_FOR_INSTALLATION: dict[str, str | list[str]] = {
         "--install-airflow-with-constraints",
         "--distribution-format",
         "--use-airflow-version",
+        "--allow-pre-releases",
         "--use-distributions-from-dist",
     ],
 }
@@ -211,6 +211,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         TEST_OPTIONS_DB,
         TEST_ENVIRONMENT_DB,
         TEST_ADVANCED_FLAGS,
+        TEST_ADVANCED_FLAGS_FOR_INSTALLATION,
     ],
     "breeze testing helm-tests": [
         {
@@ -237,6 +238,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--python",
                 "--skip-docker-compose-deletion",
+                "--include-success-outputs",
                 "--github-repository",
             ],
         }

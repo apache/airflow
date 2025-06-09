@@ -45,8 +45,8 @@ import type {
   CancelBackfillResponse,
   CreateBackfillDryRunData,
   CreateBackfillDryRunResponse,
-  ListBackfills1Data,
-  ListBackfills1Response,
+  ListBackfillsUiData,
+  ListBackfillsUiResponse,
   DeleteConnectionData,
   DeleteConnectionResponse,
   GetConnectionData,
@@ -106,6 +106,8 @@ import type {
   GetDagDetailsResponse,
   GetDagTagsData,
   GetDagTagsResponse,
+  GetDagsUiData,
+  GetDagsUiResponse,
   GetEventLogData,
   GetEventLogResponse,
   GetEventLogsData,
@@ -116,22 +118,26 @@ import type {
   GetTaskInstanceResponse,
   PatchTaskInstanceData,
   PatchTaskInstanceResponse,
+  DeleteTaskInstanceData,
+  DeleteTaskInstanceResponse,
   GetMappedTaskInstancesData,
   GetMappedTaskInstancesResponse,
+  GetTaskInstanceDependenciesByMapIndexData,
+  GetTaskInstanceDependenciesByMapIndexResponse,
   GetTaskInstanceDependenciesData,
   GetTaskInstanceDependenciesResponse,
-  GetTaskInstanceDependencies1Data,
-  GetTaskInstanceDependencies1Response,
   GetTaskInstanceTriesData,
   GetTaskInstanceTriesResponse,
   GetMappedTaskInstanceTriesData,
   GetMappedTaskInstanceTriesResponse,
   GetMappedTaskInstanceData,
   GetMappedTaskInstanceResponse,
-  PatchTaskInstance1Data,
-  PatchTaskInstance1Response,
+  PatchTaskInstanceByMapIndexData,
+  PatchTaskInstanceByMapIndexResponse,
   GetTaskInstancesData,
   GetTaskInstancesResponse,
+  BulkTaskInstancesData,
+  BulkTaskInstancesResponse,
   GetTaskInstancesBatchData,
   GetTaskInstancesBatchResponse,
   GetTaskInstanceTryDetailsData,
@@ -140,12 +146,14 @@ import type {
   GetMappedTaskInstanceTryDetailsResponse,
   PostClearTaskInstancesData,
   PostClearTaskInstancesResponse,
+  PatchTaskInstanceDryRunByMapIndexData,
+  PatchTaskInstanceDryRunByMapIndexResponse,
   PatchTaskInstanceDryRunData,
   PatchTaskInstanceDryRunResponse,
-  PatchTaskInstanceDryRun1Data,
-  PatchTaskInstanceDryRun1Response,
   GetLogData,
   GetLogResponse,
+  GetExternalLogUrlData,
+  GetExternalLogUrlResponse,
   GetImportErrorData,
   GetImportErrorResponse,
   GetImportErrorsData,
@@ -206,12 +214,11 @@ import type {
   LogoutData,
   LogoutResponse,
   GetAuthMenusResponse,
-  RecentDagRunsData,
-  RecentDagRunsResponse,
   GetDependenciesData,
   GetDependenciesResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
+  DagStatsResponse2,
   StructureDataData,
   StructureDataResponse2,
   GridDataData,
@@ -225,8 +232,8 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset
-   * @param data.namePattern
-   * @param data.uriPattern
+   * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.dagIds
    * @param data.onlyActive
    * @param data.orderBy
@@ -261,7 +268,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset
-   * @param data.namePattern
+   * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.orderBy
    * @returns AssetAliasCollectionResponse Successful Response
    * @throws ApiError
@@ -802,7 +809,7 @@ export class BackfillService {
   }
 
   /**
-   * List Backfills
+   * List Backfills Ui
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset
@@ -812,7 +819,7 @@ export class BackfillService {
    * @returns BackfillCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static listBackfills1(data: ListBackfills1Data = {}): CancelablePromise<ListBackfills1Response> {
+  public static listBackfillsUi(data: ListBackfillsUiData = {}): CancelablePromise<ListBackfillsUiResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/backfills",
@@ -919,7 +926,7 @@ export class ConnectionService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @param data.connectionIdPattern
+   * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @returns ConnectionCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1512,8 +1519,8 @@ export class DagService {
    * @param data.tags
    * @param data.tagsMatchMode
    * @param data.owners
-   * @param data.dagIdPattern
-   * @param data.dagDisplayNamePattern
+   * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.excludeStale
    * @param data.paused
    * @param data.lastDagRunState
@@ -1567,10 +1574,9 @@ export class DagService {
    * @param data.tags
    * @param data.tagsMatchMode
    * @param data.owners
-   * @param data.dagIdPattern
+   * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.excludeStale
    * @param data.paused
-   * @param data.lastDagRunState
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1588,7 +1594,6 @@ export class DagService {
         dag_id_pattern: data.dagIdPattern,
         exclude_stale: data.excludeStale,
         paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
       },
       body: data.requestBody,
       mediaType: "application/json",
@@ -1716,7 +1721,7 @@ export class DagService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @param data.tagNamePattern
+   * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @returns DAGTagCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1733,6 +1738,51 @@ export class DagService {
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dags
+   * Get DAGs with recent DagRun.
+   * @param data The data for the request.
+   * @param data.dagRunsLimit
+   * @param data.limit
+   * @param data.offset
+   * @param data.tags
+   * @param data.tagsMatchMode
+   * @param data.owners
+   * @param data.dagIds
+   * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   * @param data.excludeStale
+   * @param data.paused
+   * @param data.lastDagRunState
+   * @param data.orderBy
+   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagsUi(data: GetDagsUiData = {}): CancelablePromise<GetDagsUiResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dags",
+      query: {
+        dag_runs_limit: data.dagRunsLimit,
+        limit: data.limit,
+        offset: data.offset,
+        tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
+        owners: data.owners,
+        dag_ids: data.dagIds,
+        dag_id_pattern: data.dagIdPattern,
+        dag_display_name_pattern: data.dagDisplayNamePattern,
+        exclude_stale: data.excludeStale,
+        paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
+        order_by: data.orderBy,
+      },
+      errors: {
         422: "Validation Error",
       },
     });
@@ -1918,7 +1968,7 @@ export class TaskInstanceService {
    * @param data.requestBody
    * @param data.mapIndex
    * @param data.updateMask
-   * @returns TaskInstanceResponse Successful Response
+   * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
   public static patchTaskInstance(data: PatchTaskInstanceData): CancelablePromise<PatchTaskInstanceResponse> {
@@ -1942,6 +1992,40 @@ export class TaskInstanceService {
         403: "Forbidden",
         404: "Not Found",
         409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Task Instance
+   * Delete a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns null Successful Response
+   * @throws ApiError
+   */
+  public static deleteTaskInstance(
+    data: DeleteTaskInstanceData,
+  ): CancelablePromise<DeleteTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
@@ -2030,9 +2114,9 @@ export class TaskInstanceService {
    * @returns TaskDependencyCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getTaskInstanceDependencies(
-    data: GetTaskInstanceDependenciesData,
-  ): CancelablePromise<GetTaskInstanceDependenciesResponse> {
+  public static getTaskInstanceDependenciesByMapIndex(
+    data: GetTaskInstanceDependenciesByMapIndexData,
+  ): CancelablePromise<GetTaskInstanceDependenciesByMapIndexResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies",
@@ -2062,9 +2146,9 @@ export class TaskInstanceService {
    * @returns TaskDependencyCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getTaskInstanceDependencies1(
-    data: GetTaskInstanceDependencies1Data,
-  ): CancelablePromise<GetTaskInstanceDependencies1Response> {
+  public static getTaskInstanceDependencies(
+    data: GetTaskInstanceDependenciesData,
+  ): CancelablePromise<GetTaskInstanceDependenciesResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies",
@@ -2192,12 +2276,12 @@ export class TaskInstanceService {
    * @param data.mapIndex
    * @param data.requestBody
    * @param data.updateMask
-   * @returns TaskInstanceResponse Successful Response
+   * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static patchTaskInstance1(
-    data: PatchTaskInstance1Data,
-  ): CancelablePromise<PatchTaskInstance1Response> {
+  public static patchTaskInstanceByMapIndex(
+    data: PatchTaskInstanceByMapIndexData,
+  ): CancelablePromise<PatchTaskInstanceByMapIndexResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
@@ -2245,7 +2329,7 @@ export class TaskInstanceService {
    * @param data.updatedAtLte
    * @param data.durationGte
    * @param data.durationLte
-   * @param data.taskDisplayNamePattern
+   * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.state
    * @param data.pool
    * @param data.queue
@@ -2293,6 +2377,34 @@ export class TaskInstanceService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Bulk Task Instances
+   * Bulk update, and delete task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.requestBody
+   * @returns BulkResponse Successful Response
+   * @throws ApiError
+   */
+  public static bulkTaskInstances(data: BulkTaskInstancesData): CancelablePromise<BulkTaskInstancesResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -2440,9 +2552,9 @@ export class TaskInstanceService {
    * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static patchTaskInstanceDryRun(
-    data: PatchTaskInstanceDryRunData,
-  ): CancelablePromise<PatchTaskInstanceDryRunResponse> {
+  public static patchTaskInstanceDryRunByMapIndex(
+    data: PatchTaskInstanceDryRunByMapIndexData,
+  ): CancelablePromise<PatchTaskInstanceDryRunByMapIndexResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run",
@@ -2480,9 +2592,9 @@ export class TaskInstanceService {
    * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static patchTaskInstanceDryRun1(
-    data: PatchTaskInstanceDryRun1Data,
-  ): CancelablePromise<PatchTaskInstanceDryRun1Response> {
+  public static patchTaskInstanceDryRun(
+    data: PatchTaskInstanceDryRunData,
+  ): CancelablePromise<PatchTaskInstanceDryRunResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run",
@@ -2541,6 +2653,41 @@ export class TaskInstanceService {
         token: data.token,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get External Log Url
+   * Get external log URL for a specific task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.tryNumber
+   * @param data.mapIndex
+   * @returns ExternalLogUrlResponse Successful Response
+   * @throws ApiError
+   */
+  public static getExternalLogUrl(data: GetExternalLogUrlData): CancelablePromise<GetExternalLogUrlResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/externalLogUrl/{try_number}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        try_number: data.tryNumber,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
@@ -2782,7 +2929,7 @@ export class PoolService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @param data.poolNamePattern
+   * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @returns PoolCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -3172,7 +3319,7 @@ export class VariableService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @param data.variableKeyPattern
+   * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @returns VariableCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -3423,51 +3570,6 @@ export class AuthLinksService {
   }
 }
 
-export class DagsService {
-  /**
-   * Recent Dag Runs
-   * Get recent DAG runs.
-   * @param data The data for the request.
-   * @param data.dagRunsLimit
-   * @param data.limit
-   * @param data.offset
-   * @param data.tags
-   * @param data.tagsMatchMode
-   * @param data.owners
-   * @param data.dagIds
-   * @param data.dagIdPattern
-   * @param data.dagDisplayNamePattern
-   * @param data.excludeStale
-   * @param data.paused
-   * @param data.lastDagRunState
-   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static recentDagRuns(data: RecentDagRunsData = {}): CancelablePromise<RecentDagRunsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/ui/dags/recent_dag_runs",
-      query: {
-        dag_runs_limit: data.dagRunsLimit,
-        limit: data.limit,
-        offset: data.offset,
-        tags: data.tags,
-        tags_match_mode: data.tagsMatchMode,
-        owners: data.owners,
-        dag_ids: data.dagIds,
-        dag_id_pattern: data.dagIdPattern,
-        dag_display_name_pattern: data.dagDisplayNamePattern,
-        exclude_stale: data.excludeStale,
-        paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
-      },
-      errors: {
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
 export class DependenciesService {
   /**
    * Get Dependencies
@@ -3514,6 +3616,19 @@ export class DashboardService {
         400: "Bad Request",
         422: "Validation Error",
       },
+    });
+  }
+
+  /**
+   * Dag Stats
+   * Return basic DAG stats with counts of DAGs in various states.
+   * @returns DashboardDagStatsResponse Successful Response
+   * @throws ApiError
+   */
+  public static dagStats(): CancelablePromise<DagStatsResponse2> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dashboard/dag_stats",
     });
   }
 }

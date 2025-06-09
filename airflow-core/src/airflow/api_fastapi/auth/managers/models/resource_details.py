@@ -20,6 +20,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from pydantic import NonNegativeInt
+
 
 @dataclass
 class ConfigurationDetails:
@@ -46,7 +48,7 @@ class DagDetails:
 class BackfillDetails:
     """Represents the details of a backfill."""
 
-    id: str | None = None
+    id: NonNegativeInt | None = None
 
 
 @dataclass
@@ -97,11 +99,9 @@ class DagAccessEntity(Enum):
     CODE = "CODE"
     DEPENDENCIES = "DEPENDENCIES"
     RUN = "RUN"
-    SLA_MISS = "SLA_MISS"
     TASK = "TASK"
     TASK_INSTANCE = "TASK_INSTANCE"
     TASK_LOGS = "TASK_LOGS"
-    TASK_RESCHEDULE = "TASK_RESCHEDULE"
     VERSION = "VERSION"
     WARNING = "WARNING"
     XCOM = "XCOM"

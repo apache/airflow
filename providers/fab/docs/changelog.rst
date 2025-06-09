@@ -20,6 +20,94 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'airflow db-manager' CLI for managing external databases (#50657)``
+* ``Add support for unknown OIDC providers (#50921)``
+* ``Move enable_swagger_ui config to api (#50896)``
+* ``Move secret_key config to api section (#50839)``
+* ``Move webserver config to fab provider (#50774)``
+* ``Move webserver config options to api (#50693)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#51312)``
+* ``Remove unused entries from 'DagAccessEntity' (#51174)``
+* ``Bump moment-timezone from 0.5.48 to 0.6.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#51087)``
+* ``Bump webpack from 5.99.8 to 5.99.9 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#50847)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#50783)``
+* ``Change v1 to v2 in generated OpenAPI schema files (#50705)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Compile FAB assets (#51113)``
+   * ``Stabilize FAB asset compilation (#50829)``
+   * ``Fixing fab assets generation (#50664)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add back ProxyFix Middleware for flask app builder (#49942)``
+* ``Move access_denied_message webserver config to fab (#50208)``
+* ``Move webserver expose_hostname config to fab (#50269)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#50312)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#50035)``
+* ``Upgrade 'flask-appbuilder' to 4.6.3 in FAB provider (#50513)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Update oauth keycloak example with new security manager (#50284)``
+* ``docs: conditionally render section‐move links in sections‐and‐options include (#50582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Fix main - Generate FAB assets (#50546)``
+   * ``Fix Fab docs (#50594)``
+
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add read config permission to viewer role in 'FabAuthManager' (#49581)``
+* ``Fix infinite redirect in FAB AuthManager caused by mistakenly setting token cookie as secure (#49724)``
+
+Misc
+~~~~
+
+* ``Remove some lingering subdag references (#49663)``
+* ``Bump stylelint (#49638)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#49511)``
+* ``Remove old dynamic attr accessing re dag resource in FAB provider (#49669)``
+
+Doc-only
+~~~~~~~~
+
+* ``Adding flask app configuration docs to FAB provider (#49492)``
+* ``Add note in FAB migration doc (#49423)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``capitalize the term airflow (#49450)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#49792)``
+   * ``Prepare docs for Apr ad hoc release of fab and common.compat providers (#49690)``
+
 2.0.1
 .....
 

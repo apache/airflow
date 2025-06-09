@@ -18,8 +18,10 @@
  */
 import { Text } from "@chakra-ui/react";
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { ConfirmationModal } from "src/components/ConfirmationModal";
+import { getRedirectPath } from "src/utils/links.ts";
 import { TOKEN_STORAGE_KEY } from "src/utils/tokenHandler";
 
 type LogoutModalProps = {
@@ -27,18 +29,24 @@ type LogoutModalProps = {
   readonly onClose: () => void;
 };
 
-const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => (
-  <ConfirmationModal
-    header="Logout"
-    onConfirm={() => {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      globalThis.location.replace(`/api/v2/auth/logout`);
-    }}
-    onOpenChange={onClose}
-    open={isOpen}
-  >
-    <Text>You are about to logout from the application.</Text>
-  </ConfirmationModal>
-);
+const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => {
+  const { t: translate } = useTranslation("common");
+
+  return (
+    <ConfirmationModal
+      header={translate("logout")}
+      onConfirm={() => {
+        const logoutPath = getRedirectPath("api/v2/auth/logout");
+
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        globalThis.location.replace(logoutPath);
+      }}
+      onOpenChange={onClose}
+      open={isOpen}
+    >
+      <Text>{translate("logoutConfirmation")}</Text>
+    </ConfirmationModal>
+  );
+};
 
 export default LogoutModal;

@@ -46,6 +46,7 @@ from airflow_breeze.commands.common_options import (
 from airflow_breeze.commands.production_image_commands import prod_image
 from airflow_breeze.commands.testing_commands import group_for_testing
 from airflow_breeze.configure_rich_click import click
+from airflow_breeze.global_constants import generate_provider_dependencies_if_needed
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
@@ -128,6 +129,7 @@ def main(ctx: click.Context, **kwargs: dict[str, Any]):
 
     check_for_rosetta_environment()
     check_for_python_emulation()
+    generate_provider_dependencies_if_needed()
 
     if not ctx.invoked_subcommand:
         ctx.forward(shell, extra_args={})

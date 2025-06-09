@@ -20,7 +20,9 @@
  */
 import { Flex, HStack, Link, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
@@ -32,13 +34,15 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
-import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import DeleteRunButton from "src/pages/DeleteRunButton";
+import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -48,14 +52,14 @@ const {
   STATE: STATE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
   ...(Boolean(dagId)
     ? []
     : [
         {
-          accessorKey: "dag_id",
+          accessorKey: "dag_display_name",
           enableSorting: false,
-          header: "Dag ID",
+          header: translate("dags:runs.columns.dagId"),
         },
       ]),
   {
@@ -67,7 +71,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
         </RouterLink>
       </Link>
     ),
-    header: "Run After",
+    header: translate("dags:runs.columns.runAfter"),
   },
   {
     accessorKey: "state",
@@ -76,7 +80,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
         original: { state },
       },
     }) => <StateBadge state={state}>{state}</StateBadge>,
-    header: () => "State",
+    header: () => translate("dags:runs.columns.state"),
   },
   {
     accessorKey: "run_type",
@@ -87,21 +91,22 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
       </HStack>
     ),
     enableSorting: false,
-    header: "Run Type",
+    header: translate("dags:runs.columns.runType"),
   },
   {
     accessorKey: "start_date",
     cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
-    header: "Start Date",
+    header: translate("dags:runs.columns.startDate"),
   },
   {
     accessorKey: "end_date",
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
-    header: "End Date",
+    header: translate("dags:runs.columns.endDate"),
   },
   {
-    cell: ({ row: { original } }) => getDuration(original.start_date, original.end_date),
-    header: "Duration",
+    accessorKey: "duration",
+    cell: ({ row: { original } }) => renderDuration(original.duration),
+    header: translate("dags:runs.columns.duration"),
   },
   {
     accessorKey: "dag_versions",
@@ -114,7 +119,15 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
       />
     ),
     enableSorting: false,
-    header: "Dag Version(s)",
+    header: translate("dags:runs.columns.dagVersions"),
+  },
+  {
+    accessorKey: "conf",
+    cell: ({ row: { original } }) =>
+      original.conf && Object.keys(original.conf).length > 0 ? (
+        <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
+      ) : undefined,
+    header: translate("dags:runs.columns.conf"),
   },
   {
     accessorKey: "actions",
@@ -122,6 +135,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
       <Flex justifyContent="end">
         <ClearRunButton dagRun={row.original} withText={false} />
         <MarkRunAsButton dagRun={row.original} withText={false} />
+        <DeleteRunButton dagRun={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
@@ -133,6 +147,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
 ];
 
 export const DagRuns = () => {
+  const { t: translate } = useTranslation();
   const { dagId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -205,7 +220,7 @@ export const DagRuns = () => {
 
   return (
     <>
-      <Flex>
+      <Flex gap={1}>
         <Select.Root
           collection={stateOptions}
           maxW="200px"
@@ -216,9 +231,11 @@ export const DagRuns = () => {
             <Select.ValueText width="auto">
               {() =>
                 filteredState === null ? (
-                  "All States"
+                  translate("dags:runs.allStates")
                 ) : (
-                  <StateBadge state={filteredState as DagRunState}>{capitalize(filteredState)}</StateBadge>
+                  <StateBadge state={filteredState as DagRunState}>
+                    {translate(`common:states.${filteredState}`)}
+                  </StateBadge>
                 )
               }
             </Select.ValueText>
@@ -227,9 +244,9 @@ export const DagRuns = () => {
             {stateOptions.items.map((option) => (
               <Select.Item item={option} key={option.label}>
                 {option.value === "all" ? (
-                  option.label
+                  translate(option.label)
                 ) : (
-                  <StateBadge state={option.value as DagRunState}>{option.label}</StateBadge>
+                  <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
                 )}
               </Select.Item>
             ))}
@@ -245,11 +262,11 @@ export const DagRuns = () => {
             <Select.ValueText width="auto">
               {() =>
                 filteredType === null ? (
-                  "All Run Types"
+                  translate("dags:runs.allRunTypes")
                 ) : (
                   <Flex alignItems="center" gap={1}>
                     <RunTypeIcon runType={filteredType as DagRunType} />
-                    {filteredType}
+                    {translate(`common:runTypes.${filteredType}`)}
                   </Flex>
                 )
               }
@@ -259,11 +276,11 @@ export const DagRuns = () => {
             {dagRunTypeOptions.items.map((option) => (
               <Select.Item item={option} key={option.label}>
                 {option.value === "all" ? (
-                  option.label
+                  translate(option.label)
                 ) : (
                   <Flex gap={1}>
                     <RunTypeIcon runType={option.value as DagRunType} />
-                    {option.label}
+                    {translate(option.label)}
                   </Flex>
                 )}
               </Select.Item>
@@ -272,12 +289,12 @@ export const DagRuns = () => {
         </Select.Root>
       </Flex>
       <DataTable
-        columns={runColumns(dagId)}
+        columns={runColumns(translate, dagId)}
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName="Dag Run"
+        modelName={translate("common:dagRun_other")}
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

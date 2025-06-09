@@ -68,8 +68,10 @@ LOCAL_JAR = f"gcs/data/{JAR_FILE_NAME}" if IS_COMPOSER else JAR_FILE_NAME
 REMOTE_JAR_FILE_PATH = f"dataflow/java/{JAR_FILE_NAME}"
 
 OUTPUT_TOPIC_ID = f"tp-{ENV_ID}-out"
+OUTPUT_TOPIC_ID_2 = f"tp-2-{ENV_ID}-out"
 INPUT_TOPIC = "projects/pubsub-public-data/topics/taxirides-realtime"
 OUTPUT_TOPIC = f"projects/{PROJECT_ID}/topics/{OUTPUT_TOPIC_ID}"
+OUTPUT_TOPIC_2 = f"projects/{PROJECT_ID}/topics/{OUTPUT_TOPIC_ID_2}"
 
 
 with DAG(
@@ -89,8 +91,10 @@ with DAG(
     create_output_pub_sub_topic = PubSubCreateTopicOperator(
         task_id="create_topic", topic=OUTPUT_TOPIC_ID, project_id=PROJECT_ID, fail_if_exists=False
     )
+    create_output_pub_sub_topic_2 = PubSubCreateTopicOperator(
+        task_id="create_topic_2", topic=OUTPUT_TOPIC_ID_2, project_id=PROJECT_ID, fail_if_exists=False
+    )
     # [START howto_operator_start_java_streaming]
-
     start_java_streaming_job_dataflow = BeamRunJavaPipelineOperator(
         runner=BeamRunnerType.DataflowRunner,
         task_id="start_java_streaming_dataflow_job",
@@ -107,15 +111,46 @@ with DAG(
         },
     )
     # [END howto_operator_start_java_streaming]
+
+    # [START howto_operator_start_java_streaming_deferrable]
+    start_java_streaming_job_dataflow_def = BeamRunJavaPipelineOperator(
+        runner=BeamRunnerType.DataflowRunner,
+        task_id="start_java_streaming_dataflow_job_def",
+        jar=LOCAL_JAR,
+        pipeline_options={
+            "tempLocation": GCS_TMP,
+            "input_topic": INPUT_TOPIC,
+            "output_topic": OUTPUT_TOPIC_2,
+            "streaming": True,
+        },
+        dataflow_config={
+            "job_name": f"java-streaming-job-{ENV_ID}",
+            "location": LOCATION,
+        },
+        deferrable=True,
+    )
+    # [END howto_operator_start_java_streaming_deferrable]
+
     stop_dataflow_job = DataflowStopJobOperator(
         task_id="stop_dataflow_job",
         location=LOCATION,
         job_id="{{ task_instance.xcom_pull(task_ids='start_java_streaming_dataflow_job')['dataflow_job_id'] }}",
     )
+    stop_dataflow_job_deferrable = DataflowStopJobOperator(
+        task_id="stop_dataflow_job_deferrable",
+        location=LOCATION,
+        job_id="{{ task_instance.xcom_pull(task_ids='start_java_streaming_dataflow_job_def', key='dataflow_job_id') }}",
+    )
     delete_topic = PubSubDeleteTopicOperator(
         task_id="delete_topic", topic=OUTPUT_TOPIC_ID, project_id=PROJECT_ID
     )
     delete_topic.trigger_rule = TriggerRule.ALL_DONE
+
+    delete_topic_2 = PubSubDeleteTopicOperator(
+        task_id="delete_topic_2", topic=OUTPUT_TOPIC_ID_2, project_id=PROJECT_ID
+    )
+    delete_topic_2.trigger_rule = TriggerRule.ALL_DONE
+
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
@@ -125,11 +160,14 @@ with DAG(
         create_bucket
         >> download_file
         >> create_output_pub_sub_topic
+        >> create_output_pub_sub_topic_2
         # TEST BODY
         >> start_java_streaming_job_dataflow
+        >> start_java_streaming_job_dataflow_def
         # TEST TEARDOWN
-        >> stop_dataflow_job
+        >> [stop_dataflow_job, stop_dataflow_job_deferrable]
         >> delete_topic
+        >> delete_topic_2
         >> delete_bucket
     )
 

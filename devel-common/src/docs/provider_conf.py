@@ -61,7 +61,6 @@ from docs.utils.conf_constants import (
     get_html_theme_options,
     get_intersphinx_mapping,
     get_rst_epilogue,
-    get_rst_filepath_from_path,
 )
 from sphinx_exts.provider_yaml_utils import load_package_data
 
@@ -80,7 +79,6 @@ PROVIDER_PATH = (AIRFLOW_REPO_ROOT_PATH / "providers").joinpath(*PACKAGE_ID.spli
 BASE_PROVIDER_SRC_PATH = PROVIDER_PATH / "src" / "airflow"
 PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
 SYSTEM_TESTS_DIR = PROVIDER_PATH / "tests" / "system"
-conf_py_path = f"/providers/{PACKAGE_ID.replace('.', '/')}/docs/"
 
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
@@ -145,6 +143,7 @@ extensions.extend(
     [
         "extra_provider_files_with_substitutions",
         "providers_extensions",
+        "providers_commits",
         "sphinx_jinja",
     ]
 )
@@ -156,23 +155,16 @@ exclude_patterns = [
     "operators/_partials",
     "_api/airflow/index.rst",
     "_api/airflow/providers/index.rst",
-    "_api/airflow/providers/apache/index.rst",
-    "_api/airflow/providers/atlassian/index.rst",
-    "_api/airflow/providers/cncf/index.rst",
-    "_api/airflow/providers/common/index.rst",
-    "_api/airflow/providers/common/messaging/providers/base_provider/index.rst",
-    "_api/airflow/providers/common/messaging/providers/sqs/index.rst",
-    "_api/airflow/providers/dbt/index.rst",
-    "_api/airflow/providers/microsoft/index.rst",
     "_api/docs/conf",
+    *[f"_api/airflow/providers/{subpackage}/index.rst" for subpackage in empty_subpackages],
     *[f"_api/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
     *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
 ]
 
-exclude_patterns.extend(
-    get_rst_filepath_from_path(f, AIRFLOW_REPO_ROOT_PATH)
-    for f in BASE_PROVIDER_SRC_PATH.rglob("example_dags")
-)
+# exclude_patterns.extend(
+#     get_rst_filepath_from_path(f, AIRFLOW_REPO_ROOT_PATH)
+#     for f in BASE_PROVIDER_SRC_PATH.rglob("example_dags")
+# )
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["templates"]
@@ -221,6 +213,8 @@ html_show_copyright = False
 
 html_theme_options: dict[str, Any] = get_html_theme_options()
 
+
+conf_py_path = f"/providers/{PACKAGE_ID.replace('.', '/')}/docs/"
 # A dictionary of values to pass into the template engine's context for all pages.
 html_context = get_html_context(conf_py_path)
 
@@ -302,7 +296,6 @@ autoapi_ignore.extend(
     (
         "*/airflow/__init__.py",
         "*/airflow/providers/__init__.py",
-        "*/example_dags/*",
         "*/providers/__init__.py",
         "*/conf/*",
     )
@@ -368,7 +361,7 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
         "v1-flask-api.yaml"
     )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
-        "v1-fab-auth-manager-generated.yaml"
+        "v2-fab-auth-manager-generated.yaml"
     )
     redoc = [
         {

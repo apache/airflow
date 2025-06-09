@@ -17,11 +17,11 @@
  * under the License.
  */
 import { Box, Flex, HStack, VStack, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { capitalize } from "src/utils";
 
 const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
@@ -31,7 +31,7 @@ type MetricSectionProps = {
   readonly kind: string;
   readonly runs: number;
   readonly startDate: string;
-  readonly state: TaskInstanceState;
+  readonly state: keyof TaskInstanceStateCount;
   readonly total: number;
 };
 
@@ -43,32 +43,29 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
   const remainingWidth = BAR_WIDTH - stateWidth;
 
   const searchParams = new URLSearchParams(`?state=${state}&start_date=${startDate}`);
+  const { t: translate } = useTranslation();
 
   if (endDate !== undefined) {
     searchParams.append("end_date", endDate);
   }
 
   return (
-    <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
+    <VStack align="left" gap={1} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
-            <StateBadge fontSize="md" state={state}>
+            {/* eslint-disable-next-line unicorn/no-null */}
+            <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
               {runs}
             </StateBadge>
           </RouterLink>
-          <Text>
-            {state
-              .split("_")
-              .map((st) => capitalize(st))
-              .join(" ")}
-          </Text>
+          <Text>{translate(`states.${state}`)}</Text>
         </HStack>
         <Text color="fg.muted"> {statePercent}% </Text>
       </Flex>
       <HStack gap={0} mt={2}>
         <Box
-          bg={`${state}.solid`}
+          bg={`${state === "no_status" ? "none" : state}.solid`}
           borderLeftRadius={5}
           height={`${BAR_HEIGHT}px`}
           minHeight={2}

@@ -31,8 +31,8 @@ There are very many reasons why your task might not be getting scheduled. Here a
 - Does your script "compile", can the Airflow engine parse it and find your
   DAG object? To test this, you can run ``airflow dags list`` and
   confirm that your DAG shows up in the list. You can also run
-  ``airflow tasks list foo_dag_id --tree`` and confirm that your task
-  shows up in the list as expected. If you use the CeleryExecutor, you
+  ``airflow dags show foo_dag_id`` and confirm that your task
+  shows up in the graphviz format as expected. If you use the CeleryExecutor, you
   may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
 
@@ -205,6 +205,37 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
             hello_world()
 
         return dag
+
+What to do if you see disappearing DAGs on UI?
+----------------------------------------------
+There are several reasons why DAGs might disappear from the UI. Common causes include:
+
+* **Total parsing of all DAGs is too long** - If parsing takes longer than :ref:`config:core__dagbag_import_timeout`,
+  files may not be processed completely. This often occurs when DAGs don't follow
+  :ref:`DAG writing best practices<best_practice:writing_a_dag>` like:
+
+  * Excessive top-level code execution
+  * External system calls during parsing
+  * Complex dynamic DAG generation
+
+* **Inconsistent dynamic DAG generation** - DAGs created through
+  :doc:`dynamic generation </howto/dynamic-dag-generation>` must produce stable DAG IDs across parses.
+  Verify consistency by running ``python your_dag_file.py`` repeatedly.
+
+* **File processing configuration issues** - A certain combination of parameters may lead to scenarios which certain DAGs are less likely to be processed at each loop. Check these parameters:
+
+  * :ref:`config:dag_processor__file_parsing_sort_mode` - Ensure sorting method matches your sync strategy
+  * :ref:`config:dag_processor__parsing_processes` - Number of parallel parsers
+  * :ref:`config:scheduler__parsing_cleanup_interval` - Controls stale DAG cleanup frequency
+  * :ref:`config:scheduler__dag_stale_not_seen_duration` - Time threshold for marking DAGs as stale
+
+* **File synchronization problems** - Common with git-sync setups:
+
+  * Symbolic link swapping delays
+  * Permission changes during sync
+  * ``mtime`` preservation issues
+
+* **Time synchronization issues** - Ensure all nodes (database, schedulers, workers) use NTP with <1s clock drift.
 
 
 DAG construction
