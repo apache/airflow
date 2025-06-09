@@ -123,13 +123,10 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
   },
   {
     accessorKey: "conf",
-    cell: ({ row: { original } }) => {
-      if (original.conf) {
-        return <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />;
-      }
-
-      return undefined;
-    },
+    cell: ({ row: { original } }) =>
+      original.conf && Object.keys(original.conf).length > 0 ? (
+        <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
+      ) : undefined,
     header: translate("dags:runs.columns.conf"),
   },
   {
