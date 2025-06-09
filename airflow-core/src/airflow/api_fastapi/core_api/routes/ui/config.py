@@ -20,10 +20,10 @@ from typing import Any
 
 from fastapi import Depends, status
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
-from airflow.api_fastapi.core_api.datamodels.plugins import AppBuilderMenuItemResponse
 from airflow import plugins_manager
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.plugins import AppBuilderMenuItemResponse
+from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_authenticated
 from airflow.configuration import conf
@@ -64,7 +64,7 @@ def get_configs() -> ConfigResponse:
     plugins_manager.initialize_flask_plugins()
     additional_config["plugins_extra_menu_items"] = [
         AppBuilderMenuItemResponse.model_validate(mi)
-        for mi in plugins_manager.flask_appbuilder_menu_links
+        for mi in (plugins_manager.flask_appbuilder_menu_links or [])
     ]
 
     config.update({key: value for key, value in additional_config.items()})
