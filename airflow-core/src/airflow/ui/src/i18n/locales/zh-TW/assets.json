@@ -1,0 +1,10 @@
+{
+  "columns": {
+    "consumingDags": "消費Dag",
+    "group": "群組",
+    "lastAssetEvent": "上次資源事件",
+    "name": "名稱",
+    "producingTasks": "生產任務"
+  },
+  "searchPlaceholder": "搜尋資源"
+}

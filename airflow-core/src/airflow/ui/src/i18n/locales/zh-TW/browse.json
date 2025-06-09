@@ -1,0 +1,29 @@
+{
+  "auditLog":{
+    "actions": {
+      "collapseAllExtra": "收合所有額外 JSON",
+      "expandAllExtra": "展開所有額外 JSON"
+    },
+    "columns":{
+      "event": "事件",
+      "extra": "額外資訊",
+      "tryNumber": "嘗試次數",
+      "user": "使用者",
+      "when": "時間"
+    },
+    "title": "審計日誌事件"
+  },
+  "columns":{
+    "dagId": "Dag ID",
+    "mapIndex": "映射索引",
+    "runId": "執行ID",
+    "taskId": "任務ID"
+  },
+  "xcom":{
+    "columns":{
+      "dag": "Dag",
+      "key": "鍵",
+      "value": "值"
+    }
+  }
+}

@@ -27,6 +27,8 @@ import deDag from "./locales/de/dag.json";
 import deDags from "./locales/de/dags.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enAdmin from "./locales/en/admin.json";
+import enAssets from "./locales/en/assets.json";
+import enBrowse from "./locales/en/browse.json";
 import enCommon from "./locales/en/common.json";
 import enComponents from "./locales/en/components.json";
 import enDag from "./locales/en/dag.json";
@@ -45,6 +47,8 @@ import plDag from "./locales/pl/dag.json";
 import plDags from "./locales/pl/dags.json";
 import plDashboard from "./locales/pl/dashboard.json";
 import zhTWAdmin from "./locales/zh-TW/admin.json";
+import zhTWAssets from "./locales/zh-TW/assets.json";
+import zhTWBrowse from "./locales/zh-TW/browse.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
 import zhTWDags from "./locales/zh-TW/dags.json";
 import zhTWDashboard from "./locales/zh-TW/dashboard.json";
@@ -63,7 +67,7 @@ export const supportedLanguages = [
 ] as const;
 
 export const defaultLanguage = "en";
-export const namespaces = ["common", "dashboard", "dags", "admin"] as const;
+export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets"] as const;
 
 const resources = {
   de: {
@@ -76,6 +80,8 @@ const resources = {
   },
   en: {
     admin: enAdmin,
+    assets: enAssets,
+    browse: enBrowse,
     common: enCommon,
     components: enComponents,
     dag: enDag,
@@ -104,6 +110,8 @@ const resources = {
   },
   "zh-TW": {
     admin: zhTWAdmin,
+    assets: zhTWAssets,
+    browse: zhTWBrowse,
     common: zhTWCommon,
     dags: zhTWDags,
     dashboard: zhTWDashboard,

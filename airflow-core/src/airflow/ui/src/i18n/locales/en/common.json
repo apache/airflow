@@ -7,6 +7,8 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "asset_one": "Asset",
+  "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
   "backfill_one": "Backfill",
