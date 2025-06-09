@@ -629,7 +629,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^airflow-core/src/airflow/ui/src/i18n/config.ts/|
+          ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/ui/src/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
