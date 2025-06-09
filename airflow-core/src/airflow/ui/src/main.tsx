@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, LocaleProvider } from "@chakra-ui/react";
+import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
 import { StrictMode } from "react";
@@ -70,17 +70,15 @@ i18n.on("languageChanged", updateHtml);
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
     <I18nextProvider i18n={i18n}>
-      <LocaleProvider locale={i18n.language}>
-        <ChakraProvider i18nIsDynamicList={true} value={system}>
-          <ColorModeProvider>
-            <QueryClientProvider client={client}>
-              <TimezoneProvider>
-                <RouterProvider router={router} />
-              </TimezoneProvider>
-            </QueryClientProvider>
-          </ColorModeProvider>
-        </ChakraProvider>
-      </LocaleProvider>
+      <ChakraProvider i18nIsDynamicList={true} value={system}>
+        <ColorModeProvider>
+          <QueryClientProvider client={client}>
+            <TimezoneProvider>
+              <RouterProvider router={router} />
+            </TimezoneProvider>
+          </QueryClientProvider>
+        </ColorModeProvider>
+      </ChakraProvider>
     </I18nextProvider>
   </StrictMode>,
 );
