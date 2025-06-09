@@ -18,6 +18,7 @@
  */
 import { Box, Text, HStack, StackSeparator } from "@chakra-ui/react";
 import React, { type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Tooltip } from "./ui";
 
@@ -36,6 +37,7 @@ export const LimitedItemsList = ({
   maxItems,
   separator = ", ",
 }: ListProps) => {
+  const { t: translate } = useTranslation("components");
   const shouldTruncate = maxItems !== undefined && items.length > maxItems;
   const displayItems = shouldTruncate ? items.slice(0, maxItems) : items;
   const remainingItems = shouldTruncate ? items.slice(maxItems) : [];
@@ -69,7 +71,7 @@ export const LimitedItemsList = ({
           ) : (
             <Tooltip content={remainingItemsList} interactive={interactive}>
               <Text as="span" cursor="help">
-                +{remainingItems.length} more
+                {translate("limitedList", { count: remainingItems.length })}
               </Text>
             </Tooltip>
           )

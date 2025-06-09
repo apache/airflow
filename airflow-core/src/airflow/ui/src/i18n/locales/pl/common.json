@@ -9,6 +9,8 @@
   },
   "assetEvent_one": "Zdarzenie Zasobu",
   "assetEvent_other": "Zdarzenia Zasobów",
+  "backfill_one": "Wypełnienie wsteczne",
+  "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
     "xcoms": "XComy"
@@ -17,15 +19,30 @@
   "dag_other": "Dagi",
   "dagRun_one": "Wykonanie Daga",
   "dagRun_other": "Wykonania Dagów",
-  "defaultToGraphView": "Domyślniue widok grafu",
+  "dagWarnings": "Ostrzeżenia/Błędy Daga",
+  "defaultToGraphView": "Domyślnie widok grafu",
   "defaultToGridView": "Domyślnie widok siatki",
+  "direction": "Kierunek",
   "docs": {
     "documentation": "Documentacja",
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
+  "duration": {
+    "label": "Czas trwania",
+    "seconds": "{{count}}s"
+  },
+  "endDate": "Data zakończenia",
+  "expression": {
+    "all": "Wszystkie",
+    "and": "ORAZ",
+    "any": "Dowolne",
+    "or": "LUB"
+  },
+  "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
+  "mapIndex": "Indeks mapowania",
   "modal": {
     "cancel": "Anuluj",
     "confirm": "Potwierdź",
@@ -45,6 +62,7 @@
     "security": "Bezpieczeństwo"
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
+  "operator": "Operator",
   "pools": {
     "deferred": "Odłożone",
     "open": "Otwarte",
@@ -54,9 +72,10 @@
     "running": "W trakcie",
     "scheduled": "Zaplanowane"
   },
+  "runId": "Identyfikator wykonania",
   "runTypes": {
-    "asset_triggered": "Przez zasób",
-    "backfill": "Uzupełnienie wsteczne",
+    "asset_triggered": "Wywołany Przez zasób",
+    "backfill": "Wypełnienie wsteczne",
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
   },
@@ -68,6 +87,8 @@
     "users": "Użytkownicy"
   },
   "selectLanguage": "Wybierz język",
+  "startDate": "Data rozpoczęcia",
+  "state": "Stan",
   "states": {
     "deferred": "Odłożone",
     "failed": "Niepowodzenie",
@@ -87,20 +108,26 @@
   "switchToDarkMode": "Przełącz na tryb ciemny",
   "switchToLightMode": "Przełącz na tryb jasny",
   "table": {
+    "completedAt": "Zakończono o",
+    "createdAt": "Utworzono o",
+    "duration": "Czas trwania",
     "filterByTag": "Filtruj Dagi według tagu",
     "filterColumns": "Filtruj kolumny tabeli",
-    "filters": {
-      "filter_one": "Filtr",
-      "filter_other": "Filtry",
-      "reset": "Resetuj"
-    },
+    "filterReset_one": "Resetuj filtr",
+    "filterReset_other": "Resetuj filtry",
+    "from": "Od",
+    "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "noTagsFound": "Nie znaleziono etykiet",
+    "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "tagMode": {
       "all": "Wszystkie",
       "any": "Dowolne"
     },
-    "tagPlaceholder": "Filtruj według etykiety"
+    "tagPlaceholder": "Filtruj według etykiety",
+    "to": "Do"
   },
+  "task_one": "Zadanie",
+  "task_other": "Zadania",
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
   "timeRange": {
@@ -117,6 +144,13 @@
     "title": "Wybierz strefę czasową",
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
-  "triggered": "Wyzwolony",
-  "user": "Użytkownik"
+  "triggered": "Wywołany",
+  "triggerRule": "Reguła wywołania",
+  "tryNumber": "Numer próby",
+  "user": "Użytkownik",
+  "wrap": {
+    "tooltip": "Wybierz w aby przełączyć zawijanie",
+    "unwrap": "Wyłącz zawijanie",
+    "wrap": "Włącz zawijanie"
+  }
 }

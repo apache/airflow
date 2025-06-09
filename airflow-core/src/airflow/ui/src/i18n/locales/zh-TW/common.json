@@ -13,10 +13,13 @@
     "auditLog": "審計日誌",
     "xcoms": "XComs"
   },
+  "dag_one": "Dag",
+  "dag_other": "Dags",
   "dagRun_one": "Dag 執行",
   "dagRun_other": "Dag 執行",
   "defaultToGraphView": "預設使用圖形視圖",
   "defaultToGridView": "預設使用網格視圖",
+  "direction": "書寫方向",
   "docs": {
     "documentation": "文件",
     "githubRepo": "GitHub 倉庫",
@@ -24,9 +27,14 @@
   },
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
+  "mapIndex": "映射索引",
   "modal": {
     "cancel": "取消",
-    "confirm": "確認"
+    "confirm": "確認",
+    "delete": {
+      "button": "刪除",
+      "confirmation": "確定要刪除 {{resourceName}} 嗎？此操作無法還原。"
+    }
   },
   "nav": {
     "admin": "管理者",
@@ -48,6 +56,12 @@
     "running": "執行中",
     "scheduled": "已排程"
   },
+  "runTypes": {
+    "asset_triggered": "資源觸發",
+    "backfill": "回填",
+    "manual": "手動觸發",
+    "scheduled": "已排程"
+  },
   "security": {
     "actions": "操作",
     "permissions": "權限",
@@ -60,6 +74,7 @@
     "deferred": "已延後",
     "failed": "失敗",
     "no_status": "無狀態",
+    "none": "無狀態",
     "queued": "排隊中",
     "removed": "已移除",
     "restarting": "重啟中",
@@ -73,6 +88,18 @@
   },
   "switchToDarkMode": "切換到深色模式",
   "switchToLightMode": "切換到淺色模式",
+  "table": {
+    "filterByTag": "依標籤篩選 Dags",
+    "filterColumns": "篩選表格欄位",
+    "filterReset_one": "重置篩選",
+    "filterReset_other": "重置篩選",
+    "noTagsFound": "找不到標籤",
+    "tagMode": {
+      "all": "全部",
+      "any": "任何"
+    },
+    "tagPlaceholder": "依標籤篩選"
+  },
   "taskInstance_one": "任務實例",
   "taskInstance_other": "任務實例",
   "timeRange": {

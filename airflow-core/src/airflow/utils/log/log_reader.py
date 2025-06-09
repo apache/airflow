@@ -44,6 +44,8 @@ class TaskLogReader:
 
     STREAM_LOOP_SLEEP_SECONDS = 1
     """Time to sleep between loops while waiting for more logs"""
+    STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 5
+    """Number of empty loop iterations before stopping the stream"""
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: int | None, metadata
@@ -81,6 +83,7 @@ class TaskLogReader:
 
         for key in ("end_of_log", "max_offset", "offset", "log_pos"):
             metadata.pop(key, None)
+        empty_iterations = 0
 
         while True:
             logs, out_metadata = self.read_log_chunks(ti, try_number, metadata)
@@ -96,14 +99,21 @@ class TaskLogReader:
                 TaskInstanceState.RUNNING,
                 TaskInstanceState.DEFERRED,
             ):
-                if not logs[0]:
+                if logs:
+                    empty_iterations = 0
+                else:
                     # we did not receive any logs in this loop
                     # sleeping to conserve resources / limit requests on external services
                     time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
+                    empty_iterations += 1
+                    if empty_iterations >= self.STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS:
+                        # we have not received any logs for a while, so we stop the stream
+                        yield "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n"
+                        return
             else:
                 metadata.clear()
                 metadata.update(out_metadata)
-                break
+                return
 
     @cached_property
     def log_handler(self):

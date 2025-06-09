@@ -72,7 +72,6 @@ def example_weaviate_cohere():
         data = json.load(Path("jeopardy_data_without_vectors.json").open())
         embedded_data = ti.xcom_pull(task_ids="embedding_using_xcom_data", key="return_value")
         for i, vector in enumerate(embedded_data):
-            vector = vector.float_
             data[i]["Vector"] = vector[0]
         return data
 

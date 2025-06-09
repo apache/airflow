@@ -34,6 +34,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
@@ -41,7 +42,7 @@ import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import DeleteRunButton from "src/pages/DeleteRunButton";
-import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -103,7 +104,8 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     header: translate("dags:runs.columns.endDate"),
   },
   {
-    cell: ({ row: { original } }) => getDuration(original.start_date, original.end_date),
+    accessorKey: "duration",
+    cell: ({ row: { original } }) => renderDuration(original.duration),
     header: translate("dags:runs.columns.duration"),
   },
   {
@@ -118,6 +120,14 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     ),
     enableSorting: false,
     header: translate("dags:runs.columns.dagVersions"),
+  },
+  {
+    accessorKey: "conf",
+    cell: ({ row: { original } }) =>
+      original.conf && Object.keys(original.conf).length > 0 ? (
+        <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
+      ) : undefined,
+    header: translate("dags:runs.columns.conf"),
   },
   {
     accessorKey: "actions",

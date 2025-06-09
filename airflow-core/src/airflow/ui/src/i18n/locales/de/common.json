@@ -9,6 +9,8 @@
   },
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
   "assetEvent_other": "Ereignisse zu Datensets (Asset)",
+  "backfill_one": "Auffüllung",
+  "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
     "xcoms": "Task Kommunikation (XComs)"
@@ -17,15 +19,30 @@
   "dag_other": "Dags",
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
+  "dagWarnings": "Dag Warnungen und Fehler",
   "defaultToGraphView": "Graph-Ansicht als Standard",
   "defaultToGridView": "Gitter-Ansicht als Standard",
+  "direction": "Richtung",
   "docs": {
     "documentation": "Dokumentation",
     "githubRepo": "GitHub Ablage",
     "restApiReference": "REST API Referenz"
   },
+  "duration": {
+    "label": "Laufzeit",
+    "seconds": "{{count}}s"
+  },
+  "endDate": "Enddatum",
+  "expression": {
+    "all": "Alle",
+    "and": "UND",
+    "any": "Jeder",
+    "or": "ODER"
+  },
+  "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
+  "mapIndex": "Planungs-Index",
   "modal": {
     "cancel": "Abbrechen",
     "confirm": "Bestätigen",
@@ -45,6 +62,7 @@
     "security": "Sicherheit"
   },
   "noItemsFound": "Kein Element vom Typ {{modelName}} gefunden",
+  "operator": "Operator",
   "pools": {
     "deferred": "Delegiert",
     "open": "Frei",
@@ -54,6 +72,7 @@
     "running": "Laufende",
     "scheduled": "Geplant"
   },
+  "runId": "Lauf Id",
   "runTypes": {
     "asset_triggered": "Durch Datenset (Asset) angestoßen",
     "backfill": "Nachträglich Aufgefüllt",
@@ -68,6 +87,8 @@
     "users": "Benutzer"
   },
   "selectLanguage": "Sprache wählen",
+  "startDate": "Startdatum",
+  "state": "Status",
   "states": {
     "deferred": "Delegiert",
     "failed": "Fehlgeschlagen",
@@ -87,20 +108,26 @@
   "switchToDarkMode": "Zum Dunkelmodus wechseln",
   "switchToLightMode": "Zum Hellmodus wechseln",
   "table": {
+    "completedAt": "Abgeschlossen um",
+    "createdAt": "Erstellt um",
+    "duration": "Laufzeit",
     "filterByTag": "Dags nach Markierung filtern",
     "filterColumns": "Tabellenspalten filtern",
-    "filters": {
-      "filter_one": "Filter",
-      "filter_other": "Filter",
-      "reset": "Zurücksetzen"
-    },
+    "filterReset_one": "Filter zurücksetzen",
+    "filterReset_other": "Filter zurücksetzen",
+    "from": "Von",
+    "maxActiveRuns": "Maximal aktive Läufe",
     "noTagsFound": "Keine Markierungen gefunden",
+    "reprocessBehavior": "Verhalten beim Wiederverarbeiten",
     "tagMode": {
       "all": "Alle",
       "any": "Einer"
     },
-    "tagPlaceholder": "Dags nach Markierung filtern"
+    "tagPlaceholder": "Dags nach Markierung filtern",
+    "to": "Zu"
   },
+  "task_one": "Task",
+  "task_other": "Tasks",
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
   "timeRange": {
@@ -118,5 +145,12 @@
     "utc": "UTC (Koordinierte Weltzeit)"
   },
   "triggered": "Angestoßen",
-  "user": "Benutzer"
+  "triggerRule": "Auslöse-Regel",
+  "tryNumber": "Versuch Nummer",
+  "user": "Benutzer",
+  "wrap": {
+    "tooltip": "Buchstabe w drücken um den Zeilenumbruch umzuschalten",
+    "unwrap": "Kein Zeilenumbruch",
+    "wrap": "Zeilenumbruch"
+  }
 }

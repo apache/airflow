@@ -78,6 +78,7 @@ class CustomOperatorFromEmpty(EmptyOperator):
     pass
 
 
+@pytest.mark.db_test
 def test_get_airflow_job_facet():
     with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
@@ -130,6 +131,7 @@ def test_get_airflow_job_facet():
     }
 
 
+@pytest.mark.db_test
 def test_get_airflow_dag_run_facet():
     with DAG(
         dag_id="dag",
@@ -238,6 +240,7 @@ def test_dag_run_version_no_versions():
 
 
 @pytest.mark.parametrize("key", ["bundle_name", "bundle_version", "version_id", "version_number"])
+@pytest.mark.db_test
 def test_dag_run_version(key):
     dagrun_mock = MagicMock(DagRun)
     dagrun_mock.dag_versions = [
