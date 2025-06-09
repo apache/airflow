@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from itertools import islice
 from typing import IO, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -81,11 +82,14 @@ class LogStreamAccumulator:
 
     def _capture(self) -> None:
         """Capture logs from the stream into the buffer, flushing to disk when threshold is reached."""
-        for log in self._stream:
-            self._buffer.append(log)
-
+        while True:
+            # `islice` will try to get up to `self._threshold` lines from the stream.
+            self._buffer.extend(islice(self._stream, self._threshold))
+            # If the buffer has reached the threshold, flush it to disk.
             if len(self._buffer) >= self._threshold:
                 self._flush_buffer_to_disk()
+            else:  # If there are no more lines to capture, exit the loop.
+                break
 
     def _cleanup(self) -> None:
         """Clean up the temporary file if it exists."""

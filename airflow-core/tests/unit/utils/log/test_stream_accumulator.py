@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from airflow.utils.log.file_task_handler import LogHandlerOutputStream
 
 LOG_START_DATETIME = pendulum.datetime(2023, 10, 1, 0, 0, 0)
+LOG_COUNT = 20
 
 
 class TestLogStreamAccumulator:
@@ -38,14 +39,18 @@ class TestLogStreamAccumulator:
 
     @pytest.fixture
     def structured_logs(self):
-        """Create a list of mock structured log messages."""
-        return [
-            StructuredLogMessage(
-                timestamp=LOG_START_DATETIME.add(seconds=i),
-                event=f"test_event_{i + 1}",
-            )
-            for i in range(20)
-        ]
+        """Create a stream of mock structured log messages."""
+
+        def generate_logs():
+            for i in range(LOG_COUNT):
+                yield StructuredLogMessage(
+                    event=f"test_event_{i + 1}",
+                    timestamp=LOG_START_DATETIME.add(seconds=i),
+                    level="INFO",
+                    message=f"Test log message {i + 1}",
+                )
+
+        return generate_logs()
 
     def validate_log_stream(self, log_stream: LogHandlerOutputStream):
         """Validate the log stream by checking the number of lines."""
@@ -105,7 +110,7 @@ class TestLogStreamAccumulator:
             out_stream = accumulator.get_stream()
 
             # Check if the temporary file was created
-            if threshold < len(structured_logs):
+            if threshold < LOG_COUNT:
                 tmpfile_name = accumulator._tmpfile.name
                 assert os.path.exists(tmpfile_name)
             else:
@@ -115,7 +120,7 @@ class TestLogStreamAccumulator:
             self.validate_log_stream(out_stream)
 
             # Verify temp file was created and cleaned up
-            if threshold < len(structured_logs):
+            if threshold < LOG_COUNT:
                 assert accumulator._tmpfile is None
                 assert not os.path.exists(tmpfile_name) if tmpfile_name else True
 
