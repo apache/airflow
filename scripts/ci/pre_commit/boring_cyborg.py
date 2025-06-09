@@ -31,13 +31,14 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 CONFIG_KEY = "labelPRBasedOnFilePath"
 
-repo_root = Path(__file__).parent.parent.parent.parent
+repo_root = Path(__file__).parents[3]
 cyborg_config_path = repo_root / ".github" / "boring-cyborg.yml"
 cyborg_config = yaml.safe_load(cyborg_config_path.read_text())
 if CONFIG_KEY not in cyborg_config:
     raise SystemExit(f"Missing section {CONFIG_KEY}")
 
 errors = []
+# Check if all patterns in the cyborg config are existing in the repository
 for label, patterns in cyborg_config[CONFIG_KEY].items():
     for pattern in patterns:
         try:
@@ -49,9 +50,32 @@ for label, patterns in cyborg_config[CONFIG_KEY].items():
                 f"Unused pattern [{colored(pattern, 'cyan')}] in [{colored(yaml_path, 'cyan')}] section."
             )
 
+# Check for missing providers
+EXCEPTIONS = ["edge3"]
+providers_root = repo_root / "providers"
+for p in providers_root.glob("**/provider.yaml"):
+    provider_name = str(p.parent.relative_to(providers_root)).replace("/", "-")
+    expected_key = f"provider:{provider_name}"
+    if provider_name not in EXCEPTIONS and expected_key not in cyborg_config[CONFIG_KEY]:
+        errors.append(
+            f"Provider [{colored(provider_name, 'cyan')}] is missing in [{colored(expected_key, 'cyan')}] section."
+        )
+
+# Check for missing translations
+EXCEPTIONS = ["en"]
+for p in repo_root.glob("airflow-core/src/airflow/ui/src/i18n/locales/*"):
+    if p.is_dir():
+        lang_id = p.name
+        expected_key = f"translation:{lang_id}"
+        if lang_id not in EXCEPTIONS and expected_key not in cyborg_config[CONFIG_KEY]:
+            errors.append(
+                f"Translation [{colored(lang_id, 'cyan')}] is missing in [{colored(expected_key, 'cyan')}] section."
+            )
+
 if errors:
     print(f"Found {colored(str(len(errors)), 'red')} problems:")
     print("\n".join(errors))
+    print(f"Please correct the above in {cyborg_config_path}")
     sys.exit(1)
 else:
     print("No found problems. Have a good day!")
