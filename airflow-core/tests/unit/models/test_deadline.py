@@ -24,7 +24,6 @@ import pytest
 import time_machine
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from task_sdk.definitions.utils.test_deadlines import DAG_ID, TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH
 
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, _fetch_from_db
@@ -35,7 +34,22 @@ from airflow.utils.state import DagRunState
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
 
+DAG_ID = "dag_id_1"
 RUN_ID = 1
+
+TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
+TEST_CALLBACK_KWARGS = {"arg1": "value1"}
+
+REFERENCE_TYPES = [
+    pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
+    pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
+    pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+]
+
+
+def test_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
 
 
 def _clean_db():

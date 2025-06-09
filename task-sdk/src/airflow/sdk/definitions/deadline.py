@@ -20,7 +20,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Callable
 
-from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
+from airflow.models.deadline import ReferenceModels
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.utils.module_loading import import_string, is_valid_dotpath
 

@@ -58,12 +58,23 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
-from unit.utils.test_deadlines import (
-    REFERENCE_TYPES,
-    TEST_CALLBACK_KWARGS,
-    TEST_CALLBACK_PATH,
-    test_callback_for_deadline,
-)
+from unit.models import DEFAULT_DATE
+
+DAG_ID = "dag_id_1"
+
+TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
+TEST_CALLBACK_KWARGS = {"arg1": "value1"}
+
+REFERENCE_TYPES = [
+    pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
+    pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
+    pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+]
+
+
+def test_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
 
 
 def test_recursive_serialize_calls_must_forward_kwargs():

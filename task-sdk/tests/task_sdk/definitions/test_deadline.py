@@ -16,23 +16,33 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
-from task_sdk.definitions.utils.test_deadlines import (
-    DAG_ID,
-    DEFAULT_DATE,
-    REFERENCE_TYPES,
-    TEST_CALLBACK_KWARGS,
-    TEST_CALLBACK_PATH,
-    test_callback_for_deadline,
-)
 
 from airflow.models.deadline import ReferenceModels
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 
 UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
+
+DAG_ID = "dag_id_1"
+RUN_ID = 1
+DEFAULT_DATE = datetime(2025, 6, 26)
+
+TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
+TEST_CALLBACK_KWARGS = {"arg1": "value1"}
+
+REFERENCE_TYPES = [
+    pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
+    pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
+    pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+]
+
+
+def test_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
 
 
 class TestDeadlineAlert:
