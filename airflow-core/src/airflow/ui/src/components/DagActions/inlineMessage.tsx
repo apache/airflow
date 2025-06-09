@@ -22,11 +22,11 @@ import type { TFunction } from "i18next";
 export const getInlineMessage = (isPendingDryRun: boolean, totalEntries: number, translate: TFunction) =>
   isPendingDryRun ? (
     <Skeleton height="20px" width="100px" />
-  ) : totalEntries > 1 ? (
+  ) : totalEntries === 1 ? (
     <Text color="fg.success" fontSize="sm">
       {translate("backfill.affectedOne")}
     </Text>
-  ) : totalEntries > 0 ? (
+  ) : totalEntries > 1 ? (
     <Text color="fg.success" fontSize="sm">
       {translate("backfill.affectedMultiple", { count: totalEntries })}
     </Text>
