@@ -1481,6 +1481,7 @@
             ],
             "x-docsSection": "Airflow",
             "default": null
+        },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
             "type": [
