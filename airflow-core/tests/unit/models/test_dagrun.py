@@ -28,7 +28,6 @@ import pendulum
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-from task_sdk.definitions.utils.test_deadlines import test_callback_for_deadline
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -68,6 +67,11 @@ if TYPE_CHECKING:
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
+
+
+def test_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
 
 
 @pytest.fixture(scope="module")
