@@ -98,13 +98,11 @@ class CloudFormationDeleteStackOperator(AwsBaseOperator[CloudFormationHook]):
         *,
         stack_name: str,
         cloudformation_parameters: dict | None = None,
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cloudformation_parameters = cloudformation_parameters or {}
         self.stack_name = stack_name
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
         self.log.info("CloudFormation Parameters: %s", self.cloudformation_parameters)
