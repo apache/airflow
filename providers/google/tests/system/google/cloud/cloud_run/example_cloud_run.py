@@ -27,7 +27,6 @@ from google.cloud.run_v2 import Job
 from google.cloud.run_v2.types import k8s_min
 
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
     CloudRunDeleteJobOperator,
@@ -68,41 +67,35 @@ clean1_task_name = "clean-job1"
 clean2_task_name = "clean-job2"
 
 
-def _unwrap_xcom(result):
-    if AIRFLOW_V_3_0_PLUS:
-        return result
-    return result[0]
-
-
 def _assert_executed_jobs_xcom(ti):
-    job1_dict = _unwrap_xcom(ti.xcom_pull(task_ids=[execute1_task_name], key="return_value"))
+    job1_dict = ti.xcom_pull(execute1_task_name)
     assert job1_name in job1_dict["name"]
 
-    job2_dict = _unwrap_xcom(ti.xcom_pull(task_ids=[execute2_task_name], key="return_value"))
+    job2_dict = ti.xcom_pull(execute2_task_name)
     assert job2_name in job2_dict["name"]
 
-    job3_dict = _unwrap_xcom(ti.xcom_pull(task_ids=[execute3_task_name], key="return_value"))
+    job3_dict = ti.xcom_pull(execute3_task_name)
     assert job3_name in job3_dict["name"]
 
 
 def _assert_created_jobs_xcom(ti):
-    job1_dict = _unwrap_xcom(ti.xcom_pull(task_ids=[create1_task_name], key="return_value"))
+    job1_dict = ti.xcom_pull(create1_task_name)
     assert job1_name in job1_dict["name"]
 
-    job2_dict = _unwrap_xcom(ti.xcom_pull(task_ids=[create2_task_name], key="return_value"))
+    job2_dict = ti.xcom_pull(create2_task_name)
     assert job2_name in job2_dict["name"]
 
-    job3_dict = _unwrap_xcom(ti.xcom_pull(task_ids=[create3_task_name], key="return_value"))
+    job3_dict = ti.xcom_pull(create3_task_name)
     assert job3_name in job3_dict["name"]
 
 
 def _assert_updated_job(ti):
-    job_dict = _unwrap_xcom(ti.xcom_pull(task_ids=[update_job1_task_name], key="return_value"))
+    job_dict = ti.xcom_pull(update_job1_task_name)
     assert job_dict["labels"]["somelabel"] == "label1"
 
 
 def _assert_jobs(ti):
-    job_list = _unwrap_xcom(ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value"))
+    job_list = ti.xcom_pull(list_jobs_task_name)
 
     job1_exists = any(job1_name in job["name"] for job in job_list)
     job2_exists = any(job2_name in job["name"] for job in job_list)
@@ -112,7 +105,7 @@ def _assert_jobs(ti):
 
 
 def _assert_one_job(ti):
-    job_list = _unwrap_xcom(ti.xcom_pull(task_ids=[list_jobs_limit_task_name], key="return_value"))
+    job_list = ti.xcom_pull(list_jobs_limit_task_name)
     assert len(job_list) == 1
 
 
