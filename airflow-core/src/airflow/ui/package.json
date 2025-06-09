@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@chakra-ui/anatomy": "^2.3.4",
-    "@chakra-ui/react": "^3.17.0",
+    "@chakra-ui/react": "^3.20.0",
     "@codemirror/lang-json": "^6.0.1",
     "@emotion/react": "^11.14.0",
     "@tanstack/react-query": "^5.75.1",
