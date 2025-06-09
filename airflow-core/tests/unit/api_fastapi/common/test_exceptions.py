@@ -51,10 +51,10 @@ PYTEST_MARKS_DB_DIALECT = [
         "reason": f"Test for {_DatabaseDialect.POSTGRES.value} only",
     },
 ]
-EXC_ID = "0x123e3aade"
+MOCKED_ID = "TgVcT3QW"
 MESSAGE = (
     "Serious error when handling your request. Check logs for more details - "
-    f"you will find it in api server when you look for ID {EXC_ID}"
+    f"you will find it in api server when you look for ID {MOCKED_ID}"
 )
 
 
@@ -171,7 +171,9 @@ class TestUniqueConstraintErrorHandler:
     )
     @conf_vars({("api", "expose_stacktrace"): "False"})
     @provide_session
-    def test_handle_single_column_unique_constraint_error(self, session, table, expected_exception) -> None:
+    def test_handle_single_column_unique_constraint_error(
+        self, session, table, expected_exception, monkeypatch
+    ) -> None:
         # Take Pool and Variable tables as test cases
         if table == "Pool":
             session.add(Pool(pool=TEST_POOL, slots=1, description="test pool", include_deferred=False))
@@ -183,12 +185,12 @@ class TestUniqueConstraintErrorHandler:
         with pytest.raises(IntegrityError) as exeinfo_integrity_error:
             session.commit()
 
+        monkeypatch.setattr(
+            "airflow.api_fastapi.common.exceptions.get_random_string",
+            lambda length=None, choices=None: MOCKED_ID,
+        )
         with pytest.raises(HTTPException) as exeinfo_response_error:
-            self.unique_constraint_error_handler.exception_handler(
-                None,  # type: ignore
-                exeinfo_integrity_error.value,
-                EXC_ID,
-            )
+            self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
         assert exeinfo_response_error.value.detail == expected_exception.detail
@@ -233,7 +235,7 @@ class TestUniqueConstraintErrorHandler:
     @conf_vars({("api", "expose_stacktrace"): "False"})
     @provide_session
     def test_handle_multiple_columns_unique_constraint_error(
-        self, session, table, expected_exception
+        self, session, table, expected_exception, monkeypatch
     ) -> None:
         if table == "DagRun":
             session.add(
@@ -250,12 +252,12 @@ class TestUniqueConstraintErrorHandler:
         with pytest.raises(IntegrityError) as exeinfo_integrity_error:
             session.commit()
 
+        monkeypatch.setattr(
+            "airflow.api_fastapi.common.exceptions.get_random_string",
+            lambda length=None, choices=None: MOCKED_ID,
+        )
         with pytest.raises(HTTPException) as exeinfo_response_error:
-            self.unique_constraint_error_handler.exception_handler(
-                None,  # type: ignore
-                exeinfo_integrity_error.value,
-                EXC_ID,
-            )
+            self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
         assert exeinfo_response_error.value.detail == expected_exception.detail

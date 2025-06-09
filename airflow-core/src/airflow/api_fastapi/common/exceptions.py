@@ -65,10 +65,10 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         super().__init__(IntegrityError)
         self.dialect: _DatabaseDialect.value | None = None
 
-    def exception_handler(self, request: Request, exc: IntegrityError, exc_id: str | None = None):
+    def exception_handler(self, request: Request, exc: IntegrityError):
         """Handle IntegrityError exception."""
         if self._is_dialect_matched(exc):
-            exception_id = get_random_string() if exc_id is None else exc_id
+            exception_id = get_random_string()
             stacktrace = ""
             for tb in traceback.format_tb(exc.__traceback__):
                 stacktrace += tb
