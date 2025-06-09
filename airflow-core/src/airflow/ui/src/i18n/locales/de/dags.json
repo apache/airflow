@@ -6,8 +6,8 @@
       "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
     },
     "trigger": {
-      "button": "Anstoßen",
-      "triggerDag": "Dag anstoßen"
+      "button": "Auslösen",
+      "triggerDag": "Dag auslösen"
     }
   },
   "filters": {

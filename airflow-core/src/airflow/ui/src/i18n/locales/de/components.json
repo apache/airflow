@@ -99,11 +99,11 @@
     "notesPlaceholder": "Klicken Sie hier um eine Notiz hinzuzufügen",
     "runId": "ID des Laufes (Run Id)",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
-    "selectDescription": "Einen einzelnen Lauf dieses Dag anstoßen",
+    "selectDescription": "Einen einzelnen Lauf dieses Dag auslösen",
     "selectLabel": "Einzelner Lauf",
-    "title": "Dag Anstoßen",
-    "trigger": "Anstoßen",
-    "unpause": "Dag {{dagDisplayName}} beim Anstoßen des Laufes aktiv schalten"
+    "title": "Dag Auslösen",
+    "trigger": "Auslösen",
+    "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
   },
   "versionDetails": {
     "bundleLink": "Bündel-Link",

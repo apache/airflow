@@ -9,7 +9,7 @@
   "details": {
     "fields": {
       "bundleVersion": "Bündel Version",
-      "catchup": "Nachholung",
+      "catchup": "Nachgeholt",
       "concurrency": "Parallelität",
       "dagId": "Dag ID",
       "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
