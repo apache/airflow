@@ -1,0 +1,109 @@
+{
+  "allRuns": "Alle Läufe",
+  "code": {
+    "bundleUrl": "Bündel Url",
+    "bundleVersion": "Bündel Version:",
+    "noCode": "Kein Programmcode gefunden",
+    "parsedAt": "Eingelesen um:"
+  },
+  "details": {
+    "fields": {
+      "bundleVersion": "Bündel Version",
+      "catchup": "Nachgeholt",
+      "concurrency": "Parallelität",
+      "dagId": "Dag ID",
+      "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
+      "defaultArgs": "Standard-Parameter",
+      "description": "Beschreibung",
+      "endDate": "Enddatum",
+      "fileLocation": "Ablagepfad",
+      "hasTaskConcurrencyLimits": "Hat der Task Limitierungen zur Parallelität",
+      "lastExpired": "Letztmaliger Ablauf",
+      "lastParsed": "Letztmalig Eingelesen",
+      "latestDagVersion": "Latzte Dag Version",
+      "maxActiveRuns": "Maximal aktive Läufe",
+      "maxActiveTasks": "Maximal aktive Tasks",
+      "maxConsecutiveFailedDagRuns": "Maximal fortlaufende fehlerhafte Dag Läufe",
+      "params": "Parameter",
+      "startDate": "Startdatum",
+      "timezone": "Zeitzone"
+    }
+  },
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Auf Letzten zurücksetzen",
+      "toggleGroup": "Gruppen umschalten"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Dag Dokumentation"
+    },
+    "modals": {
+      "docTitle": "Dag Dokumentation"
+    },
+    "stats": {
+      "latestDagVersion": "Letzte Dag Version",
+      "latestRun": "Letzter Lauf",
+      "nextRun": "Nächster Lauf",
+      "owner": "Eigentümer",
+      "schedule": "Zeitplan",
+      "tags": "Markierungen"
+    }
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Fehlgeschlagener Lauf",
+      "failedRun_other": "Fehlgeschlagene Läufe",
+      "failedTask_one": "Fehlgeschlagener Task",
+      "failedTask_other": "Fehlgeschlagene Tasks"
+    },
+    "charts": {
+      "assetEvent": "Erstelltes Datenset-Ereignis"
+    },
+    "failedLogs": {
+      "title": "Protokolle kürzlich fehlgeschlagener Tasks",
+      "viewFullLogs": "Vollständige Protokolle ansehen"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Optionen",
+      "showGraph": "Graph zeigen",
+      "showGrid": "Gitter zeigen"
+    },
+    "dagRuns": {
+      "label": "Anzahl von Dag Läufen"
+    },
+    "dependencies": {
+      "label": "Abhängigkeiten",
+      "options": {
+        "allDagDependencies": "Alle Dag Abhängigkeiten",
+        "externalConditions": "Externe Bedingungen",
+        "onlyTasks": "Nur Tasks"
+      },
+      "placeholder": "Abhängigkeiten"
+    },
+    "graphDirection": {
+      "label": "Richtung des Graph"
+    }
+  },
+  "tabs": {
+    "backfills": "Auffüllungen",
+    "code": "Programmcode",
+    "details": "Details",
+    "events": "Ereignisse",
+    "overview": "Übersicht",
+    "runs": "Läufe",
+    "tasks": "Tasks"
+  },
+  "task": {
+    "card": {
+      "lastInstance": "Letzte Task Instanz"
+    }
+  },
+  "taskGroups": {
+    "collapseAll": "Alle Task-Gruppen einklappen",
+    "expandAll": "Alle Task-Gruppen aufklappen"
+  }
+}

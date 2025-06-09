@@ -62,6 +62,11 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
 - `Asset Event` --> `Ereignis zu Datenset (Asset)`: Logische Konsequenz der
   Übersetzung von -->"Asset" ohne einen sperrigen Begriff wie
   "Datenssatz-Ereignis" zu erzeugen.
+- `Backfill` --> `Auffüllen`: Der technisch geprägte Term im Programm passt zu
+  der direkten Übersetzung, auch im Deutschen werden Lücken wieder "aufgefüllt".
+- `Bundle` --> `Bündel`: Die direkte Übersetzung passt zu dem Ziel der
+  Englischen Begriffsdefinition.
+- `Catchup` --> `Nachholen`: Direkte Übersetzung.
 - `Connections` --> `Verbindungen`: Ist zwar ein feststehender Begriff in
   Airflow und ein technisches Konstrukt das im Code zu finden ist, jedoch
   direkt übersetzbar und erschließt sich damit neuen Benutzern direkt.
@@ -81,6 +86,11 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   gibt und der Begriff "Mapping" eigentlich übersetzbar ist - aber in dem
   genutzen Kontext irreführend wäre, wurde hier auf die Task-Planung verwiesen
   in der ein Task aufgeplant wird.
+- `Operator` --> `Operator`: Da es sich hier um den vor allem mathematisch-
+  technischen Begriff der Implementierung handelt, passt dieser Begriff am
+  ehesten. Alternativen wie "Betreiber-Implementierung" sind sehr sperrig.
+  Wir nutzen weiter den Begriff weil er im Programmcode sich auch so
+  wiederfindet.
 - `Plugins` --> `Plug-ins`: Nach Duden empfohlen.
 - `Pools` (Unübersetzt): Der Englische Term ist so im Deutschen direkt
   verständlich. Ein präzise Übersetzung als "Ressourcen-Pool" wäre zu sperrig
@@ -97,10 +107,15 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   genutzt und passt zu der technischen Nutzung in Airflow. Alternativ wäre
   "Aufgabe" eine mögliche Übersetzung gewesen. Da aber der Begriff Task auch in
   Logs und Code zu finden ist, lag der Begriff etwas näher als "Aufgabe".
-- `Trigger`(to) --> `Anstoßen`: Genutzt für die Aktionen ein Lauf eines Dag zu
+- `Trigger`(to) --> `Auslösen`: Genutzt für die Aktionen ein Lauf eines Dag zu
   starten. Von allen Optionen der am ehesten passende Begriff auch wenn es eine
-  direkte Nutzung des Begriffs "Triggern" im Deutschen gibt. In der Nutzung im
-  UI ist der Begriff "Anstoßen" inhaltlich passender.
+  direkte Nutzung des Begriffs "Triggern" im Deutschen gibt. Der Begriff
+  "Anstoßen" ist auch passend aber in dem Zusammenhan mit Trigger Rule zur
+  Konsistenz ist "Auslösen" passender.
+- `Trigger Rule` --> `Auslöse-Regel`: Im Ablauf eines Dags bestimmt die
+  Auslöse-Regel (in Kombination mit der Position) jedes Tasks unter welchen
+  Bedingungen und zu welchem Zeitpunkt im Dag Lauf dieser Task gestartet werden
+  kann.
 - `Try Number` --> `Versuch Nummer`: Direkt Übersetzung ist passend.
 
 (Andere klassische Begriffsübersetzungen nicht im Einzelnen aufgeführt)

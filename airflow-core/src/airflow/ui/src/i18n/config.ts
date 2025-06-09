@@ -23,6 +23,7 @@ import { initReactI18next } from "react-i18next";
 import deCommon from "./locales/de/common.json";
 import deComponents from "./locales/de/components.json";
 import deConnections from "./locales/de/connections.json";
+import deDag from "./locales/de/dag.json";
 import deDags from "./locales/de/dags.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
@@ -65,6 +66,7 @@ const resources = {
     common: deCommon,
     components: deComponents,
     connections: deConnections,
+    dag: deDag,
     dags: deDags,
     dashboard: deDashboard,
   },
