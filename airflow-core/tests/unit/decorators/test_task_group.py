@@ -95,3 +95,26 @@ def test_task_group_expand_with_upstream(dag_maker, session, caplog):
     dr.task_instance_scheduling_decisions()
     assert "Cannot expand" not in caplog.text
     assert "missing upstream values: ['b']" not in caplog.text
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+def test_task_group_expand_with_upstream_invalid_xcomarg_return_value(dag_maker, session, caplog):
+    with dag_maker() as dag:
+        @dag.task
+        def t1():
+            return {"key": [1, 2, 3]}
+
+        @task_group("tg1")
+        def tg1(a, b):
+            @dag.task()
+            def t2():
+                return [a, b]
+
+            t2()
+
+        tg1.partial(a=1).expand(b=t1()["key"])
+
+    dr = dag_maker.create_dagrun()
+    dr.task_instance_scheduling_decisions()
+    assert "Cannot expand" not in caplog.text
+    assert "missing upstream values: ['b']" not in caplog.text
