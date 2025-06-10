@@ -270,3 +270,99 @@ class TestCliConfigLint:
             "- [yellow]`test_option_1` configuration parameter renamed to `test_option_2` in the `test_section` section.[/yellow]"
             in calls[1]
         )
+
+    @patch("airflowctl.api.client.Credentials.load")
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_CONFIG"})
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option"),
+                was_removed=False,
+                is_invalid_if="0",
+                suggestion="Please set the `test_option` configuration parameter to a value greater than 0.",
+            ),
+        ],
+    )
+    def test_lint_detects_invalid_values(self, mock_rich_print, api_client_maker):
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="0",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        api_client.configs.list.return_value = response_config
+
+        config_command.lint(
+            self.parser.parse_args(["config", "lint"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert "[red]Found issues in your airflow.cfg:[/red]" in calls[0]
+        assert (
+            "- [yellow]Invalid value `0` set for `test_option` configuration parameter in `test_section` section. "
+            "Please set the `test_option` configuration parameter to a value greater than 0.[/yellow]"
+            in calls[1]
+        )
+
+    @patch("airflowctl.api.client.Credentials.load")
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_CONFIG"})
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option"),
+                suggestion="This is a test suggestion.",
+            ),
+        ],
+    )
+    def test_lint_detects_configs_with_suggestions(self, mock_rich_print, api_client_maker):
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        api_client.configs.list.return_value = response_config
+
+        config_command.lint(
+            self.parser.parse_args(["config", "lint"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert "[red]Found issues in your airflow.cfg:[/red]" in calls[0]
+        assert "This is a test suggestion." in calls[1]
