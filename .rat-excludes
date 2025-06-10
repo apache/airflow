@@ -178,3 +178,4 @@ www-hash.txt
 # go setup files
 go.mod
 go.sum
+mocks/*

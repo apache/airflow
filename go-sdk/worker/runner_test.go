@@ -20,18 +20,17 @@ package worker
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jarcoal/httpmock"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/swaggest/assertjson"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/api/mocks"
 )
 
 const ExecutionAPIServer = "http://localhost:9999/execution"
@@ -68,6 +67,8 @@ func newTestWorkLoad(id string, dagId string) api.ExecuteTaskWorkload {
 type WorkerSuite struct {
 	suite.Suite
 	worker    Worker
+	client    *mocks.ClientInterface
+	ti        *mocks.TaskInstancesClient
 	transport *httpmock.MockTransport
 }
 
@@ -79,13 +80,19 @@ func (s *WorkerSuite) SetupSuite() {
 	s.worker = New(slog.Default())
 
 	s.transport = httpmock.NewMockTransport()
-	client, err := api.NewClient(ExecutionAPIServer, api.WithRoundTripper(s.transport))
-	s.Require().NoError(err)
+	s.client = &mocks.ClientInterface{}
+	s.ti = &mocks.TaskInstancesClient{}
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
-	s.worker.(*worker).client = client
+	s.worker.(*worker).client = s.client
+}
+
+func (s *WorkerSuite) TearDownSuite() {
+	s.ti.AssertExpectations(s.T())
+	s.client.AssertExpectations(s.T())
 }
 
 func (s *WorkerSuite) TestWithServer() {
+	s.T().Parallel()
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
 	iface, err := s.worker.WithServer("http://example.com")
 
@@ -98,67 +105,41 @@ func (s *WorkerSuite) TestWithServer() {
 // ExpectTaskRun sets up  a matcher for the "/task-instances/{id}/run" end point and adds a finalize check
 // that it has been called
 func (s *WorkerSuite) ExpectTaskRun(taskId string) {
-	s.transport.RegisterResponder(
-		http.MethodPatch,
-		fmt.Sprintf("=~^%s/task-instances/%s/run", ExecutionAPIServer, taskId),
-		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
-	)
-	s.T().Cleanup(func() {
-		callCounts := s.transport.GetCallCountInfo()
-
-		s.Equal(
-			callCounts[fmt.Sprintf("PATCH =~^%s/task-instances/%s/run", ExecutionAPIServer, taskId)],
-			1,
-		)
-	})
+	s.ti.EXPECT().
+		Run(mock.Anything, uuid.MustParse(taskId), mock.Anything).
+		Return(&api.TIRunContext{}, nil)
+	s.client.EXPECT().TaskInstances().Return(s.ti)
 }
 
 // ExpectTaskState sets up a matcher for the "/task-instances/{id}/state" with the given state end point
-func (s *WorkerSuite) ExpectTaskState(taskId string, state any) {
-	s.transport.RegisterMatcherResponder(
-		http.MethodPatch,
-		fmt.Sprintf("=~^%s/task-instances/%s/state", ExecutionAPIServer, taskId),
-		s.BodyJSONMatches(fmt.Appendf(nil, `{"state": %q}`, state)),
-		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
-	)
-}
+func (s *WorkerSuite) ExpectTaskState(taskId string, state api.TerminalTIState) {
+	s.ti.EXPECT().
+		UpdateState(mock.AnythingOfType("context.backgroundCtx"), uuid.MustParse(taskId), mock.AnythingOfType("*api.TIUpdateStatePayload")).
+		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIUpdateStatePayload) error {
+			if payload, err := body.AsTITerminalStatePayload(); err == nil {
+				if payload.State == api.TerminalStateNonSuccess(state) {
+					return nil
+				}
+			} else {
+				payload, err := body.AsTISuccessStatePayload()
+				if err == nil && payload.State == api.TISuccessStatePayloadState(state) {
+					return nil
+				}
+			}
+			return fmt.Errorf("Error")
+		}).
+		Once()
 
-// Validates if task identified by taskId has the "/task-instances/{id}/state" api called with the given state
-func (s *WorkerSuite) ValidateTaskState(taskId string, state any) {
-	callCounts := s.transport.GetCallCountInfo()
-	s.Equal(
-		callCounts[fmt.Sprintf("PATCH =~^%s/task-instances/%s/state <BodyJSONMatches>", ExecutionAPIServer, taskId)],
-		1,
-		"Actual call counts: %#v",
-		callCounts,
-	)
-}
-
-// BodyContainsJSON creates an httpmock Matcher that will check that the http.Request body contains the given
-// JSON fields
-//
-// The request can contain extra JSON fields. See [github.com/swaggest/assertjson.Matches] for more info
-func (s *WorkerSuite) BodyJSONMatches(expected []byte) httpmock.Matcher {
-	matcher := httpmock.NewMatcher("BodyJSONMatches", func(req *http.Request) bool {
-		b, err := io.ReadAll(req.Body)
-		match := err == nil && assertjson.Matches(s.T(), expected, b)
-		return match
-	})
-	return matcher
+	s.client.EXPECT().TaskInstances().Return(s.ti)
 }
 
 // TestTaskNotRegisteredErrors checks that when a task cannot be found we report "success" on the Workload but
 // report the task as failed to the Execution API server
 func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
+	s.T().Parallel()
 	id := uuid.New().String()
 	testWorkload := newTestWorkLoad(id, id[:8])
 	s.ExpectTaskState(id, api.TerminalTIStateFailed)
-	s.transport.RegisterMatcherResponder(
-		http.MethodPatch,
-		fmt.Sprintf("=~^%s/task-instances/%s/state", ExecutionAPIServer, id),
-		s.BodyJSONMatches([]byte(`{"state": "failed"}`)),
-		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
-	)
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 
 	s.NoError(
@@ -166,7 +147,6 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 		"ExecuteTaskWorkload should not report an error %#v",
 		s.transport.GetCallCountInfo(),
 	)
-	s.ValidateTaskState(id, api.TerminalTIStateFailed)
 }
 
 // TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't
@@ -186,7 +166,9 @@ func (s *WorkerSuite) TestTaskReturnErrorReportsFailedState() {
 }
 
 func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
+	s.T().Parallel()
 	id := uuid.New().String()
+	callCount := 0
 	testWorkload := newTestWorkLoad(id, id[:8])
 	s.worker.RegisterTaskWithName(testWorkload.TI.DagId, testWorkload.TI.TaskId, func() error {
 		time.Sleep(time.Second)
@@ -195,28 +177,24 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateSuccess)
-	s.transport.RegisterResponder(
-		http.MethodPut,
-		fmt.Sprintf("=~^%s/task-instances/%s/heartbeat", ExecutionAPIServer, id),
-		httpmock.NewJsonResponderOrPanic(200, map[string]any{}),
-	)
+	s.ti.EXPECT().
+		Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).
+		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIHeartbeatInfo) error {
+			if taskInstanceId.String() == id {
+				callCount += 1
+			}
+			return nil
+		})
+	s.client.EXPECT().TaskInstances().Return(s.ti)
 
 	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 	s.NoError(err, "ExecuteTaskWorkload should not report an error")
 
-	callCounts := s.transport.GetCallCountInfo()
-
 	// Since we heartbeat every 100ms and run for 1 second, we should expect 10 heartbeat calls. But allow +/-
 	// 1 due to timing imprecision
-	s.InDelta(
-		10,
-		callCounts[fmt.Sprintf("PUT =~^%s/task-instances/%s/heartbeat", ExecutionAPIServer, id)],
-		1,
-		"Actual call counts: %#v",
-		callCounts,
-	)
-	s.ValidateTaskState(id, api.TerminalTIStateSuccess)
+	s.Assert().
+		True(callCount < 11 && callCount > 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", callCount))
 }
 
 func (s *WorkerSuite) TestTaskHeatbeatErrorStopsTaskAndLogs() {
