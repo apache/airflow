@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# [START dag_decorator_usage]
 from __future__ import annotations
 
+# [START dag_decorator_usage]
 from typing import TYPE_CHECKING, Any
 
 import httpx

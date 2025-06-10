@@ -17,9 +17,9 @@
 # under the License.
 """Example DAG demonstrating the usage of the XComArgs."""
 
-# [START example_xcomargs]
 from __future__ import annotations
 
+# [START example_xcomargs]
 import logging
 
 import pendulum

@@ -50,9 +50,9 @@ The DAGs asset_consumes_1_never_scheduled and asset_consumes_unknown_never_sched
 automatically as they depend on assets that do not get updated or are not produced by any scheduled tasks.
 """
 
-# [START asset_def]
 from __future__ import annotations
 
+# [START asset_def]
 import pendulum
 
 from airflow.providers.standard.operators.bash import BashOperator

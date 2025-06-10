@@ -17,9 +17,9 @@
 # under the License.
 """Example DAG demonstrating the usage of setup and teardown tasks."""
 
-# [START example_setup_teardown_taskflow]
 from __future__ import annotations
 
+# [START example_setup_teardown_taskflow]
 import pendulum
 
 from airflow.sdk import DAG, setup, task, task_group, teardown

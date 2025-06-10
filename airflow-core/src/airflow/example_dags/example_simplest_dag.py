@@ -16,9 +16,9 @@
 # under the License.
 """Example DAG demonstrating the simplest use of the `@dag` decorator."""
 
-# [START simplest_dag]
 from __future__ import annotations
 
+# [START simplest_dag]
 from airflow.sdk import dag, task
 
 

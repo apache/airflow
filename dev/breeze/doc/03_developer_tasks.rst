@@ -224,9 +224,8 @@ short ``provider id`` (might be multiple of them).
 
      breeze build-docs <provider id> <provider id>
 
+To build documentation for Task SDK package, use the below command
 .. code-block:: bash
-
-     # To build documentation for Task SDK package
      breeze build-docs task-sdk
 
 or you can use package filter. The filters are glob pattern matching full

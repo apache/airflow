@@ -20,7 +20,7 @@ Apache Airflow Task SDK
 
 :any:`DAG` is where to start. :any:`dag`
 
-The Apache Airflow Task SDK(Task SDK) provides python-native interfaces for defining DAGs,
+The Apache Airflow Task SDK provides python-native interfaces for defining DAGs,
 executing tasks in isolated subprocesses and interacting with Airflow resources
 (e.g., Connections, Variables, XComs, Metrics, Logs, and OpenLineage events) at runtime.
 It also includes core execution-time components to manage communication between the worker
@@ -41,7 +41,7 @@ Getting Started
 ---------------
 Define a basic DAG and task in just a few lines of Python:
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_simplest_dag.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_simplest_dag.py
    :language: python
    :start-after: [START simplest_dag]
    :end-before: [END simplest_dag]
@@ -86,12 +86,13 @@ Model data as assets and emit them to downstream tasks with the SDK's asset libr
 
 Execution Time Components
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-At runtime, tasks run in an isolated subprocess managed by the SDK:
+At runtime, tasks run in an isolated subprocess managed by the SDK Supervisor
 
   - **Supervisor** coordinates the worker's lifecycle.
   - **TaskRunner** actually executes the user's task code.
-  - **Context** objects provide runtime metadata (e.g., connections, variables).
+  - **Context** objects provide runtime metadata (e.g., dag run details, connections, variables, etc).
     (see the **Execution Time** section below for details)
+  - **API Client** provides a client for communicating with the Airflow Execution API (e.g., heartbeats, task instance updates, XCom pushes, etc).
 
 Refer to :doc:`api` for the complete reference of all decorators and classes.
 

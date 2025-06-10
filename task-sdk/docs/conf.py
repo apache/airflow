@@ -18,9 +18,11 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 CONF_DIR = Path(__file__).parent.absolute()
+sys.path.insert(0, str(CONF_DIR.parent.parent.joinpath("devel-common", "src", "sphinx_exts").resolve()))
 
 project = "Apache Airflow Task SDK"
 
@@ -31,6 +33,8 @@ extensions = [
     "sphinx.ext.autodoc",
     "autoapi.extension",
     "sphinx.ext.intersphinx",
+    "exampleinclude",
+    "sphinxcontrib.spelling",
 ]
 
 autoapi_dirs = [CONF_DIR.joinpath("..", "src").resolve()]
@@ -52,7 +56,6 @@ autodoc_typehints = "description"
 
 # Prefer pyi over py files if both are found
 autoapi_file_patterns = ["*.pyi", "*.py"]
-# autoapi_generate_api_docs = False
 
 html_theme = "sphinx_airflow_theme"
 
@@ -68,7 +71,16 @@ intersphinx_resolve_self = "airflow"
 intersphinx_mapping = {
     "airflow": ("https://airflow.apache.org/docs/apache-airflow/stable/", None),
 }
+# Suppress known warnings
 suppress_warnings = [
     "autoapi.python_import_resolution",
     "autodoc",
 ]
+
+exampleinclude_sourceroot = str(CONF_DIR.joinpath("..").resolve())
+spelling_show_suggestions = False
+spelling_word_list_filename = [
+    str(CONF_DIR.parent.parent.joinpath("docs", "spelling_wordlist.txt").resolve())
+]
+spelling_ignore_importable_modules = True
+spelling_ignore_contributor_names = True

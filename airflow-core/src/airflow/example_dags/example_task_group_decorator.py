@@ -17,9 +17,9 @@
 # under the License.
 """Example DAG demonstrating the usage of the @taskgroup decorator."""
 
-# [START howto_task_group_decorator]
 from __future__ import annotations
 
+# [START howto_task_group_decorator]
 import pendulum
 
 from airflow.sdk import DAG, task, task_group

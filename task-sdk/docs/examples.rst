@@ -23,7 +23,7 @@ Basic Examples
 
 Define a basic DAG and task in just a few lines of Python:
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_simplest_dag.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_simplest_dag.py
    :language: python
    :start-after: [START simplest_dag]
    :end-before: [END simplest_dag]
@@ -34,7 +34,7 @@ Key Concepts
 Defining DAGs
 ~~~~~~~~~~~~~
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_dag_decorator.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_dag_decorator.py
    :language: python
    :start-after: [START dag_decorator_usage]
    :end-before: [END dag_decorator_usage]
@@ -43,13 +43,13 @@ Defining DAGs
 Decorators
 ~~~~~~~~~~
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_task_group_decorator.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_task_group_decorator.py
    :language: python
    :start-after: [START howto_task_group_decorator]
    :end-before: [END howto_task_group_decorator]
    :caption: Group tasks using the :func:`@task_group <airflow.sdk.task_group>` decorator.
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_setup_teardown_taskflow.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_setup_teardown_taskflow.py
    :language: python
    :start-after: [START example_setup_teardown_taskflow]
    :end-before: [END example_setup_teardown_taskflow]
@@ -58,13 +58,13 @@ Decorators
 Tasks and Operators
 ~~~~~~~~~~~~~~~~~~~
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py
    :language: python
    :start-after: [START example_dynamic_task_mapping]
    :end-before: [END example_dynamic_task_mapping]
    :caption: Dynamic task mapping with ``expand()``
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_xcomargs.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_xcomargs.py
    :language: python
    :start-after: [START example_xcomargs]
    :end-before: [END example_xcomargs]
@@ -73,13 +73,13 @@ Tasks and Operators
 Assets
 ~~~~~~
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_assets.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_assets.py
    :language: python
    :start-after: [START asset_def]
    :end-before: [END asset_def]
    :caption: Defining an :func:`@asset <airflow.sdk.asset>`
 
-.. literalinclude:: ../../airflow-core/src/airflow/example_dags/example_asset_alias.py
+.. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_asset_alias.py
    :language: python
    :start-after: [START example_asset_alias]
    :end-before: [END example_asset_alias]

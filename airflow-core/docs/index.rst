@@ -37,7 +37,7 @@ Airflow workflows are defined entirely in Python. This "workflows as code" appro
 Task SDK
 ========
 
-For Airflow Task SDK (Airflow 3.x+), see the standalone reference & tutorial site:
+For Airflow Task SDK, see the standalone reference & tutorial site:
 
    https://airflow.apache.org/docs/task-sdk/stable/
 
