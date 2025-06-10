@@ -268,13 +268,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         for query_id in query_ids:
             header, params, url = self.get_request_url_header_params(query_id)
-            try:
-                response = requests.get(url, headers=header, params=params)
-                response.raise_for_status()
-                self.log.info(response.json())
-            except requests.exceptions.HTTPError as e:
-                msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
-                raise AirflowException(msg)
+            _, response_json = self._make_api_call_with_retries(
+                method="GET", url=url, headers=header, params=params
+            )
+            self.log.info(response_json)
 
     def _process_response(self, status_code, resp):
         self.log.info("Snowflake SQL GET statements status API response: %s", resp)
@@ -345,7 +342,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             return True
         return False
 
-    def _make_api_call_with_retries(self, method, url, headers, params=None, data=None):
+    def _make_api_call_with_retries(
+        self, method: str, url: str, headers: dict, params: dict = None, json: dict = None
+    ):
         """
         Make an API call to the Snowflake SQL API with retry logic for specific HTTP errors.
 
@@ -362,10 +361,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
         @tenacity.retry(**self.retry_config)  # Use the retry args defined in constructor
         def _make_request():
-            if method.upper() == "GET":
-                response = requests.get(url, headers=headers, params=params)
-            elif method.upper() == "POST":
-                response = requests.post(url, headers=headers, params=params, json=data)
+            if method.upper() in ("GET", "POST"):
+                response = requests.request(
+                    method=method.lower(), url=url, headers=headers, params=params, json=json
+                )
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
             response.raise_for_status()
