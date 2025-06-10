@@ -111,7 +111,7 @@ export const useConnectionTypeMeta = () => {
     };
   });
 
-  keysList.sort((first, second) => first.localeCompare(second));
+  keysList.sort((first, second) => (hookNames[first] ?? first).localeCompare(hookNames[second] ?? second));
 
   return { formattedData, hookNames, isPending, keysList };
 };
