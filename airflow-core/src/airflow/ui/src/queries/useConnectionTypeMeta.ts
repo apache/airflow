@@ -58,6 +58,7 @@ export const useConnectionTypeMeta = () => {
   }
 
   const formattedData: Record<string, ConnectionMetaEntry> = {};
+  const hookNames: Record<string, string> = {};
   const keysList: Array<string> = [];
 
   const defaultStandardFields: StandardFieldSpec | undefined = {
@@ -91,6 +92,7 @@ export const useConnectionTypeMeta = () => {
   data?.forEach((item) => {
     const key = item.connection_type;
 
+    hookNames[key] = item.hook_name;
     keysList.push(key);
 
     const populatedStandardFields: StandardFieldSpec = mergeWithDefaults(
@@ -111,5 +113,5 @@ export const useConnectionTypeMeta = () => {
 
   keysList.sort((first, second) => first.localeCompare(second));
 
-  return { formattedData, isPending, keysList };
+  return { formattedData, hookNames, isPending, keysList };
 };
