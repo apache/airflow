@@ -445,7 +445,7 @@ class DAG:
     )
 
     fileloc: str = attrs.field(init=False, factory=_default_fileloc)
-    relative_fileloc: str | None = attrs.field(init=False, default=None)
+    relative_fileloc: str = attrs.field(init=False, default="")
     partial: bool = attrs.field(init=False, default=False)
 
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(init=False, factory=dict)

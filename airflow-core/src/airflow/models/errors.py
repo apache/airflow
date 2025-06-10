@@ -35,6 +35,6 @@ class ParseImportError(Base):
     stacktrace = Column(Text)
 
     def full_file_path(self) -> str:
-        """Return the full file path of the dag"""
+        """Return the full file path of the dag."""
         bundle = DagBundlesManager().get_bundle(self.bundle_name)
         return "/".join([str(bundle.path), self.filename])
