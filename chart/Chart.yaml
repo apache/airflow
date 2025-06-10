@@ -20,7 +20,7 @@
 apiVersion: v2
 name: airflow
 version: 1.17.0-dev
-appVersion: 3.0.0
+appVersion: 3.0.2
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
@@ -46,24 +46,22 @@ annotations:
     - name: Documentation
       url: https://airflow.apache.org/docs/helm-chart/1.17.0/
   artifacthub.io/screenshots: |
+    - title: Home Page
+      url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/home_dark.png
+    - title: DAG Overview Dashboard
+      url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/dag_overview_dashboard.png
     - title: DAGs View
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/dags.png
-    - title: Datasets View
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/datasets.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/dags.png
+    - title: Assets View
+      url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/asset_view.png
     - title: Grid View
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/grid.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/dag_overview_grid.png
     - title: Graph View
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/graph.png
-    - title: Calendar View
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/calendar.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/dag_overview_graph.png
     - title: Variable View
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/variable_hidden.png
-    - title: Gantt Chart
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/gantt.png
-    - title: Task Duration
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/duration.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/variable_hidden.png
     - title: Code View
-      url: https://airflow.apache.org/docs/apache-airflow/3.0.0/_images/code.png
+      url: https://airflow.apache.org/docs/apache-airflow/3.0.2/_images/dag_overview_code.png
   artifacthub.io/changes: |
     - description: Allow passing custom env to log groomer sidecar containers
       kind: added
