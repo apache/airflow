@@ -20,13 +20,19 @@
 Callbacks
 =========
 
-A valuable component of logging and monitoring is the use of task callbacks to act upon changes in state of a given task, or across all tasks in a given DAG.
-For example, you may wish to alert when certain tasks have failed, or have the last task in your DAG invoke a callback when it succeeds.
+A valuable component of logging and monitoring is the use of task callbacks to act upon changes in state of a given DAG or task, or across all tasks in a given DAG.
+For example, you may wish to alert when certain tasks have failed, or invoke a callback when your DAG succeeds.
+
+There are three different places where callbacks can be defined.
+
+- Callbacks set in the DAG definition will be applied at the DAG level.
+- Using ``default_args``, callbacks can be set for each task in a DAG.
+- Individual callbacks can be set for a task by setting that callback within the task definition itself.
 
 .. note::
 
-    Callback functions are only invoked when the task state changes due to execution by a worker.
-    As such, task changes set by the command line interface (:doc:`CLI <../../howto/usage-cli>`) or user interface (:doc:`UI <../../ui>`) do not
+    Callback functions are only invoked when the DAG or task state changes due to execution by a worker.
+    As such, DAG and task changes set by the command line interface (:doc:`CLI <../../howto/usage-cli>`) or user interface (:doc:`UI <../../ui>`) do not
     execute callback functions.
 
 .. warning::
@@ -39,26 +45,32 @@ For example, you may wish to alert when certain tasks have failed, or have the l
 Callback Types
 --------------
 
-There are five types of task events that can trigger a callback:
+There are six types of events that can trigger a callback:
 
 =========================================== ================================================================
 Name                                        Description
 =========================================== ================================================================
-``on_success_callback``                     Invoked when the task :ref:`succeeds <concepts:task-instances>`
-``on_failure_callback``                     Invoked when the task :ref:`fails <concepts:task-instances>`
-``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`
+``on_success_callback``                     Invoked when the :ref:`DAG succeeds <dag-run:dag-run-status>` or :ref:`task succeeds <concepts:task-instances>`.
+                                            Available at the DAG or task level.
+``on_failure_callback``                     Invoked when the task :ref:`fails <concepts:task-instances>`.
+                                            Available at the DAG or task level.
+``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`.
+                                            Available only at the task level.
 ``on_execute_callback``                     Invoked right before the task begins executing.
+                                            Available only at the task level.
 ``on_skipped_callback``                     Invoked when the task is :ref:`running <concepts:task-instances>` and  AirflowSkipException raised.
                                             Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
                                             decision in the DAG or a trigger rule which causes execution to skip so that the task execution
                                             is never scheduled.
+                                            Available only at the task level.
 =========================================== ================================================================
 
 
 Example
 -------
 
-In the following example, failures in any task call the ``task_failure_alert`` function, and success in the last task calls the ``dag_success_alert`` function:
+In the following example, failures in ``task1`` call the ``task_failure_alert`` function, and success at DAG level calls the ``dag_success_alert`` function.
+Before each task begins to execute, the ``task_execute_callback`` function will be called:
 
 .. code-block:: python
 
@@ -67,6 +79,10 @@ In the following example, failures in any task call the ``task_failure_alert`` f
 
     from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
+
+
+    def task_execute_callback(context):
+        print(f"Task has begun execution, task_instance_key_str: {context['task_instance_key_str']}")
 
 
     def task_failure_alert(context):
@@ -84,12 +100,12 @@ In the following example, failures in any task call the ``task_failure_alert`` f
         dagrun_timeout=datetime.timedelta(minutes=60),
         catchup=False,
         on_success_callback=dag_success_alert,
-        on_failure_callback=None,
+        default_args={"on_execute_callback": task_execute_callback},
         tags=["example"],
     ):
-        task1 = EmptyOperator(task_id="task1")
+        task1 = EmptyOperator(task_id="task1", on_failure_callback=[task_failure_alert])
         task2 = EmptyOperator(task_id="task2")
-        task3 = EmptyOperator(task_id="task3", on_failure_callback=[task_failure_alert])
+        task3 = EmptyOperator(task_id="task3")
         task1 >> task2 >> task3
 
 .. note::

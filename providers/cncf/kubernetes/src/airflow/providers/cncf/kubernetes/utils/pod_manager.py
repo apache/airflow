@@ -822,6 +822,10 @@ class PodManager(LoggingMixin):
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
                 self.log.info("The xcom sidecar container has started.")
                 break
+            if self.container_is_terminated(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+                raise AirflowException(
+                    "Xcom sidecar container is already terminated! Not possible to read xcom output of task."
+                )
             if (time.time() - last_log_time) >= log_interval:
                 self.log.warning(
                     "Still waiting for the xcom sidecar container to start. Elapsed time: %d seconds.",

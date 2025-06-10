@@ -43,6 +43,7 @@ iml_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
         <excludeFolder url="file://$MODULE_DIR$/tmp" />
         <excludeFolder url="file://$MODULE_DIR$/airflow-core/dist" />
         <excludeFolder url="file://$MODULE_DIR$/generated/" />
+        <excludeFolder url="file://$MODULE_DIR$/dev/breeze/.venv" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.9 (airflow)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

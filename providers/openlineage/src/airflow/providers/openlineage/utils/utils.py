@@ -70,7 +70,8 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG, MappedOperator
+    from airflow.sdk import DAG
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
         Redacted,
@@ -80,7 +81,8 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
-        from airflow.sdk import DAG, MappedOperator
+        from airflow.sdk import DAG
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
     except ImportError:
         from airflow.models import DAG, MappedOperator
 
@@ -444,6 +446,7 @@ class TaskInstanceInfo(InfoJsonEncodable):
 
     includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
     casts = {
+        "log_url": lambda ti: getattr(ti, "log_url", None),
         "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
         "dag_bundle_version": lambda ti: (
             ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None

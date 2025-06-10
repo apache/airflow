@@ -27,9 +27,10 @@ import logging
 import math
 import os
 import subprocess
+import sys
 import traceback
 import warnings
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -62,15 +63,19 @@ if TYPE_CHECKING:
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import CommandType, EventBufferValueType
+    from airflow.executors.base_executor import EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.typing_compat import TypeAlias
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds
+    CommandType = Sequence[str]
+
     TaskInstanceInCelery: TypeAlias = tuple[
         TaskInstanceKey, Union[workloads.All, CommandType], Optional[str], Task
     ]
+
+    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
@@ -180,7 +185,7 @@ if not AIRFLOW_V_3_0_PLUS:
     @app.task
     def execute_command(command_to_exec: CommandType) -> None:
         """Execute command."""
-        dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)
+        dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)  # type: ignore[attr-defined]
         celery_task_id = app.current_task.request.id
         log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
         with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
@@ -240,7 +245,7 @@ def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | N
     if celery_task_id:
         env["external_executor_id"] = celery_task_id
     try:
-        subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
+        subprocess.run(command_to_exec, stderr=sys.__stderr__, stdout=sys.__stdout__, close_fds=True, env=env)
     except subprocess.CalledProcessError as e:
         log.exception("[%s] execute_command encountered a CalledProcessError", celery_task_id)
         log.error(e.output)

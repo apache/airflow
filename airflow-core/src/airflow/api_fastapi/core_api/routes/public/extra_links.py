@@ -77,7 +77,7 @@ def get_extra_links(
     if not ti:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"DAG Run with ID = {dag_run_id} not found",
+            "TaskInstance not found",
         )
 
     all_extra_link_pairs = (

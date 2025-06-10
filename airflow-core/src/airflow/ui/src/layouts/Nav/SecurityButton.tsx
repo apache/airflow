@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
 import { FiLock } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
@@ -26,6 +27,7 @@ import { NavButton } from "./NavButton";
 
 export const SecurityButton = () => {
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
+  const { t: translate } = useTranslation("common");
 
   if (authLinks?.extra_menu_items === undefined || authLinks.extra_menu_items.length < 1) {
     return undefined;
@@ -34,16 +36,20 @@ export const SecurityButton = () => {
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiLock size="1.75rem" />} title="Security" />
+        <NavButton icon={<FiLock size="1.75rem" />} title={translate("nav.security")} />
       </Menu.Trigger>
       <Menu.Content>
-        {authLinks.extra_menu_items.map(({ text }) => (
-          <Menu.Item asChild key={text} value={text}>
-            <Link aria-label={text} to={`security/${text.toLowerCase().replace(" ", "-")}`}>
-              {text}
-            </Link>
-          </Menu.Item>
-        ))}
+        {authLinks.extra_menu_items.map(({ text }) => {
+          const securityKey = text.toLowerCase().replace(" ", "-");
+
+          return (
+            <Menu.Item asChild key={text} value={text}>
+              <Link aria-label={text} to={`security/${securityKey}`}>
+                {translate(`security.${securityKey}`)}
+              </Link>
+            </Menu.Item>
+          );
+        })}
       </Menu.Content>
     </Menu.Root>
   );

@@ -19,8 +19,6 @@
 import { HStack, Badge, Text, Skeleton } from "@chakra-ui/react";
 import { Link, type To } from "react-router-dom";
 
-import { pluralize } from "src/utils";
-
 import { TrendCountChart, type ChartEvent } from "./TrendCountChart";
 
 type Props = {
@@ -53,7 +51,7 @@ export const TrendCountButton = ({
           {count}
         </Badge>
         <Text fontSize="sm" fontWeight="bold">
-          {pluralize(label, count, undefined, true)}
+          {label}
         </Text>
         <TrendCountChart endDate={endDate} events={events} startDate={startDate} />
       </HStack>

@@ -23,7 +23,9 @@ PROJECT BY THE `generate-pypi-readme` PRE-COMMIT. YOUR CHANGES HERE WILL BE AUTO
 # Apache Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
-[![GitHub Build](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg)](https://github.com/apache/airflow/actions)
+[![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg)](https://github.com/apache/airflow/actions)
+[![GitHub Build 3.0](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg?branch=v3-0-test)](https://github.com/apache/airflow/actions)
+[![GitHub Build 2.11](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg?branch=v2-11-test)](https://github.com/apache/airflow/actions)
 [![Coverage Status](https://codecov.io/gh/apache/airflow/graph/badge.svg?token=WdLKlKHOAU)](https://codecov.io/gh/apache/airflow)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
@@ -93,6 +95,7 @@ the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+I
 
 Documentation for dependent projects like provider distributions, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
 
+
 ## Installing from PyPI
 
 We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
@@ -107,7 +110,6 @@ files in the orphan `constraints-main` and `constraints-2-0` branches. We keep t
 constraints files separately per major/minor Python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
 correct Airflow tag/version/branch and Python versions in the URL.
-
 
 1. Installing just Airflow:
 

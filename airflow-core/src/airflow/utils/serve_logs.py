@@ -72,7 +72,7 @@ def create_app():
             raise ImportError(f"Unable to load {log_config_class} due to error: {e}")
     signer = JWTValidator(
         issuer=None,
-        secret_key=get_signing_key("webserver", "secret_key"),
+        secret_key=get_signing_key("api", "secret_key"),
         algorithm="HS512",
         leeway=leeway,
         audience="task-instance-logs",

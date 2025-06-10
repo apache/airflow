@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Code, HStack, Table } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
@@ -26,6 +27,7 @@ import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 
 export const Details = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId = "" } = useParams();
 
   const { data: dag } = useDagServiceGetDagDetails({
@@ -40,7 +42,7 @@ export const Details = () => {
         <Table.Root striped>
           <Table.Body>
             <Table.Row>
-              <Table.Cell>Dag ID</Table.Cell>
+              <Table.Cell>{translate("details.fields.dagId")}</Table.Cell>
               <Table.Cell>
                 <HStack>
                   {dag.dag_id}
@@ -51,86 +53,86 @@ export const Details = () => {
               </Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Description</Table.Cell>
+              <Table.Cell>{translate("details.fields.description")}</Table.Cell>
               <Table.Cell>{dag.description}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Timezone</Table.Cell>
+              <Table.Cell>{translate("details.fields.timezone")}</Table.Cell>
               <Table.Cell>{dag.timezone}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>File Location</Table.Cell>
+              <Table.Cell>{translate("details.fields.fileLocation")}</Table.Cell>
               <Table.Cell>
                 <Code>{dag.fileloc}</Code>
               </Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Last Parsed</Table.Cell>
+              <Table.Cell>{translate("details.fields.lastParsed")}</Table.Cell>
               <Table.Cell>
                 <Time datetime={dag.last_parsed} />
               </Table.Cell>
             </Table.Row>
             {dag.bundle_version !== null && (
               <Table.Row>
-                <Table.Cell>Bundle Version</Table.Cell>
+                <Table.Cell>{translate("details.fields.bundleVersion")}</Table.Cell>
                 <Table.Cell>{dag.bundle_version}</Table.Cell>
               </Table.Row>
             )}
             <Table.Row>
-              <Table.Cell>Latest Dag Version</Table.Cell>
+              <Table.Cell>{translate("details.fields.latestDagVersion")}</Table.Cell>
               <Table.Cell>
                 <DagVersionDetails dagVersion={dag.latest_dag_version} />
               </Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Start Date</Table.Cell>
+              <Table.Cell>{translate("details.fields.startDate")}</Table.Cell>
               <Table.Cell>
                 <Time datetime={dag.start_date} />
               </Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>End Date</Table.Cell>
+              <Table.Cell>{translate("details.fields.endDate")}</Table.Cell>
               <Table.Cell>
                 <Time datetime={dag.end_date} />
               </Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Last Expired</Table.Cell>
+              <Table.Cell>{translate("details.fields.lastExpired")}</Table.Cell>
               <Table.Cell>
                 <Time datetime={dag.last_expired} />
               </Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Concurrency</Table.Cell>
+              <Table.Cell>{translate("details.fields.concurrency")}</Table.Cell>
               <Table.Cell>{dag.concurrency}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Has Task Concurrency Limits</Table.Cell>
+              <Table.Cell>{translate("details.fields.hasTaskConcurrencyLimits")}</Table.Cell>
               <Table.Cell>{dag.has_task_concurrency_limits.toString()}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Dag Run Timeout</Table.Cell>
+              <Table.Cell>{translate("details.fields.dagRunTimeout")}</Table.Cell>
               <Table.Cell>{dag.dag_run_timeout}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Max Active Runs</Table.Cell>
+              <Table.Cell>{translate("details.fields.maxActiveRuns")}</Table.Cell>
               <Table.Cell>{dag.max_active_runs}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Max Active Tasks</Table.Cell>
+              <Table.Cell>{translate("details.fields.maxActiveTasks")}</Table.Cell>
               <Table.Cell>{dag.max_active_tasks}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Max Consecutive Failed Dag Runs</Table.Cell>
+              <Table.Cell>{translate("details.fields.maxConsecutiveFailedDagRuns")}</Table.Cell>
               <Table.Cell>{dag.max_consecutive_failed_dag_runs}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Catchup</Table.Cell>
+              <Table.Cell>{translate("details.fields.catchup")}</Table.Cell>
               <Table.Cell>{dag.catchup.toString()}</Table.Cell>
             </Table.Row>
             {dag.default_args === null ? undefined : (
               <Table.Row>
-                <Table.Cell>Default Args</Table.Cell>
+                <Table.Cell>{translate("details.fields.defaultArgs")}</Table.Cell>
                 <Table.Cell>
                   <RenderedJsonField content={dag.default_args} />
                 </Table.Cell>
@@ -138,7 +140,7 @@ export const Details = () => {
             )}
             {dag.params === null ? undefined : (
               <Table.Row>
-                <Table.Cell>Params</Table.Cell>
+                <Table.Cell>{translate("details.fields.params")}</Table.Cell>
                 <Table.Cell>
                   <RenderedJsonField content={dag.params} />
                 </Table.Cell>

@@ -26,16 +26,17 @@ from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
-from airflow.models import DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubeConfig
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.utils.types import DagRunType
 
 
 @cli_utils.action_cli
@@ -48,14 +49,28 @@ def generate_pod_yaml(args):
     else:
         dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
+
+    dm = DagModel(dag_id=dag.dag_id)
+
     if AIRFLOW_V_3_0_PLUS:
         dr = DagRun(dag.dag_id, logical_date=logical_date)
+        dr.run_id = DagRun.generate_run_id(
+            run_type=DagRunType.MANUAL, logical_date=logical_date, run_after=logical_date
+        )
+        dm.bundle_name = args.bundle_name if args.bundle_name else "default"
+        dm.relative_fileloc = dag.relative_fileloc
     else:
         dr = DagRun(dag.dag_id, execution_date=logical_date)
+        dr.run_id = DagRun.generate_run_id(run_type=DagRunType.MANUAL, execution_date=logical_date)
+
     kube_config = KubeConfig()
+
     for task in dag.tasks:
-        ti = TaskInstance(task, None)
+        ti = TaskInstance(task, run_id=dr.run_id)
         ti.dag_run = dr
+        ti.dag_model = dm
+
+        command_args = generate_pod_command_args(ti)
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,
@@ -63,7 +78,7 @@ def generate_pod_yaml(args):
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
             date=ti.logical_date if AIRFLOW_V_3_0_PLUS else ti.execution_date,
-            args=ti.command_as_list(),
+            args=command_args,
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,

@@ -21,7 +21,9 @@
 # Apache Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
-[![GitHub Build](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg)](https://github.com/apache/airflow/actions)
+[![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg)](https://github.com/apache/airflow/actions)
+[![GitHub Build 3.0](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg?branch=v3-0-test)](https://github.com/apache/airflow/actions)
+[![GitHub Build 2.11](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg?branch=v2-11-test)](https://github.com/apache/airflow/actions)
 [![Coverage Status](https://codecov.io/gh/apache/airflow/graph/badge.svg?token=WdLKlKHOAU)](https://codecov.io/gh/apache/airflow)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
@@ -58,6 +60,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
+- [Installation](#installation)
 - [Official source code](#official-source-code)
 - [Convenience packages](#convenience-packages)
 - [User Interface](#user-interface)
@@ -139,6 +142,7 @@ Documentation for dependent projects like provider distributions, Docker image, 
 
 <!-- END Getting started, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
+
 ## Installing from PyPI
 
 We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
@@ -153,7 +157,6 @@ files in the orphan `constraints-main` and `constraints-2-0` branches. We keep t
 constraints files separately per major/minor Python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
 correct Airflow tag/version/branch and Python versions in the URL.
-
 
 1. Installing just Airflow:
 
@@ -189,6 +192,11 @@ For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 <!-- END Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
+
+## Installation
+
+For comprehensive instructions on setting up your local development environment and installing Apache Airflow, please refer to the [INSTALLING.md](INSTALLING.md) file.
+
 <!-- START Official source code, please keep comment here to allow auto update of PyPI readme.md -->
 ## Official source code
 
@@ -292,7 +300,7 @@ Apache Airflow version life cycle:
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-----------------------|------------------|
 | 3         | 3.0.1                 | Supported | Apr 22, 2025    | TBD                   | TBD              |
-| 2         | 2.10.5                | Supported | Dec 17, 2020    | TBD                   | TBD              |
+| 2         | 2.11.0                | Supported | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018          | Jan 03, 2018     |

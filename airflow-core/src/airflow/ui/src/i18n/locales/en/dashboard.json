@@ -1,0 +1,38 @@
+{
+  "group": "Group",
+  "health": {
+    "dagProcessor": "Dag Processor",
+    "health": "Health",
+    "healthy": "Healthy",
+    "lastHeartbeat": "Last Heartbeat",
+    "metaDatabase": "MetaDatabase",
+    "scheduler": "Scheduler",
+    "status": "Status",
+    "triggerer": "Triggerer",
+    "unhealthy": "Unhealthy"
+  },
+  "history": "History",
+  "importErrors": {
+    "dagImportError_one": "Dag Import Error",
+    "dagImportError_other": "Dag Import Errors",
+    "searchByFile": "Search by file",
+    "timestamp": "Timestamp"
+  },
+  "managePools": "Manage Pools",
+  "noAssetEvents": "No Asset Events found.",
+  "poolSlots": "Pool Slots",
+  "sortBy": {
+    "newestFirst": "Newest First",
+    "oldestFirst": "Oldest First"
+  },
+  "source": "Source",
+  "stats": {
+    "activeDags": "Active Dags",
+    "failedDags": "Failed Dags",
+    "queuedDags": "Queued Dags",
+    "runningDags": "Running Dags",
+    "stats": "Stats"
+  },
+  "uri": "Uri",
+  "welcome": "Welcome"
+}

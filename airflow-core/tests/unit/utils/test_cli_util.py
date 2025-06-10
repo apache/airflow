@@ -39,7 +39,7 @@ from airflow.utils.cli import _search_for_dag_file
 # - ``cli_action_loggers.on_pre_execution``
 # - ``cli_action_loggers.on_post_execution``
 pytestmark = pytest.mark.db_test
-repo_root = Path(airflow.__file__).parent.parent
+repo_root = Path(airflow.__file__).parents[1]
 
 
 class TestCliUtil:

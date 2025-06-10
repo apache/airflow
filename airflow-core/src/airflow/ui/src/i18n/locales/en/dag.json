@@ -1,0 +1,109 @@
+{
+  "allRuns": "All Runs",
+  "code": {
+    "bundleUrl": "Bundle Url",
+    "bundleVersion": "Bundle Version:",
+    "noCode": "No Code Found",
+    "parsedAt": "Parsed at:"
+  },
+  "details": {
+    "fields": {
+      "bundleVersion": "Bundle Version",
+      "catchup": "Catchup",
+      "concurrency": "Concurrency",
+      "dagId": "Dag ID",
+      "dagRunTimeout": "Dag Run Timeout",
+      "defaultArgs": "Default Args",
+      "description": "Description",
+      "endDate": "End Date",
+      "fileLocation": "File Location",
+      "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
+      "lastExpired": "Last Expired",
+      "lastParsed": "Last Parsed",
+      "latestDagVersion": "Latest Dag Version",
+      "maxActiveRuns": "Max Active Runs",
+      "maxActiveTasks": "Max Active Tasks",
+      "maxConsecutiveFailedDagRuns": "Max Consecutive Failed Dag Runs",
+      "params": "Params",
+      "startDate": "Start Date",
+      "timezone": "Timezone"
+    }
+  },
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Reset to latest",
+      "toggleGroup": "Toggle group"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Dag Docs"
+    },
+    "modals": {
+      "docTitle": "Dag Documentation"
+    },
+    "stats": {
+      "latestDagVersion": "Latest Dag Version",
+      "latestRun": "Latest Run",
+      "nextRun": "Next Run",
+      "owner": "Owner",
+      "schedule": "Schedule",
+      "tags": "Tags"
+    }
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Failed Run",
+      "failedRun_other": "Failed Runs",
+      "failedTask_one": "Failed Task",
+      "failedTask_other": "Failed Tasks"
+    },
+    "charts": {
+      "assetEvent": "Created Asset Event"
+    },
+    "failedLogs": {
+      "title": "Recent Failed Task Logs",
+      "viewFullLogs": "View full logs"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Options",
+      "showGraph": "Show Graph",
+      "showGrid": "Show Grid"
+    },
+    "dagRuns": {
+      "label": "Number of Dag Runs"
+    },
+    "dependencies": {
+      "label": "Dependencies",
+      "options": {
+        "allDagDependencies": "All Dag Dependencies",
+        "externalConditions": "External conditions",
+        "onlyTasks": "Only tasks"
+      },
+      "placeholder": "Dependencies"
+    },
+    "graphDirection": {
+      "label": "Graph Direction"
+    }
+  },
+  "tabs": {
+    "backfills": "Backfills",
+    "code": "Code",
+    "details": "Details",
+    "events": "Events",
+    "overview": "Overview",
+    "runs": "Runs",
+    "tasks": "Tasks"
+  },
+  "task": {
+    "card": {
+      "lastInstance": "Last Instance"
+    }
+  },
+  "taskGroups": {
+    "collapseAll": "Collapse all task groups",
+    "expandAll": "Expand all task groups"
+  }
+}

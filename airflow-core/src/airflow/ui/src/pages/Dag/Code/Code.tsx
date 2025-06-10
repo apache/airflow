@@ -19,6 +19,7 @@
 import { Box, Button, Heading, HStack, Link } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
@@ -43,6 +44,7 @@ import { useConfig } from "src/queries/useConfig";
 SyntaxHighlighter.registerLanguage("python", python);
 
 export const Code = () => {
+  const { t: translate } = useTranslation(["dag", "common"]);
   const { dagId } = useParams();
 
   const selectedVersion = useSelectedVersion();
@@ -95,7 +97,7 @@ export const Code = () => {
         <HStack gap={5}>
           {dag?.last_parsed_time !== undefined && (
             <Heading as="h4" fontSize="14px" size="md">
-              Parsed at: <Time datetime={dag.last_parsed_time} />
+              {translate("code.parsedAt")} <Time datetime={dag.last_parsed_time} />
             </Heading>
           )}
 
@@ -103,12 +105,12 @@ export const Code = () => {
             // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
             dagVersion !== undefined && dagVersion.bundle_version !== null ? (
               <Heading as="h4" fontSize="14px" size="md" wordBreak="break-word">
-                Bundle Version:{" "}
+                {translate("code.bundleVersion")}{" "}
                 {dagVersion.bundle_url === null ? (
                   dagVersion.bundle_version
                 ) : (
                   <Link
-                    aria-label="Bundle Url"
+                    aria-label={translate("code.bundleUrl")}
                     color="fg.info"
                     href={dagVersion.bundle_url}
                     rel="noopener noreferrer"
@@ -126,14 +128,14 @@ export const Code = () => {
           <ClipboardRoot value={code?.content ?? ""}>
             <ClipboardButton />
           </ClipboardRoot>
-          <Tooltip closeDelay={100} content="Press w to toggle wrap" openDelay={100}>
+          <Tooltip closeDelay={100} content={translate("common:wrap.tooltip")} openDelay={100}>
             <Button
-              aria-label={wrap ? "Unwrap" : "Wrap"}
+              aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
               bg="bg.panel"
               onClick={toggleWrap}
               variant="outline"
             >
-              {wrap ? "Unwrap" : "Wrap"}
+              {translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
             </Button>
           </Tooltip>
         </HStack>
@@ -190,7 +192,9 @@ export const Code = () => {
           style={style}
           wrapLongLines={wrap}
         >
-          {codeError?.status === 404 && !Boolean(code?.content) ? "No Code Found" : (code?.content ?? "")}
+          {codeError?.status === 404 && !Boolean(code?.content)
+            ? translate("code.noCode")
+            : (code?.content ?? "")}
         </SyntaxHighlighter>
       </Box>
     </Box>

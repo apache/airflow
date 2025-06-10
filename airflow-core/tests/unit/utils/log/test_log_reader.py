@@ -218,6 +218,27 @@ class TestLogView:
             any_order=False,
         )
 
+    @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
+    def test_read_log_stream_no_end_of_log_marker(self, mock_read):
+        mock_read.side_effect = [
+            (["hello"], {"end_of_log": False}),
+            ([], {"end_of_log": False}),
+            ([], {"end_of_log": False}),
+            ([], {"end_of_log": False}),
+            ([], {"end_of_log": False}),
+            ([], {"end_of_log": False}),
+        ]
+
+        self.ti.state = TaskInstanceState.SUCCESS
+        task_log_reader = TaskLogReader()
+        task_log_reader.STREAM_LOOP_SLEEP_SECONDS = 0.001  # to speed up the test
+        log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
+        assert list(log_stream) == [
+            "hello\n",
+            "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n",
+        ]
+        assert mock_read.call_count == 6
+
     def test_supports_external_link(self):
         task_log_reader = TaskLogReader()
 

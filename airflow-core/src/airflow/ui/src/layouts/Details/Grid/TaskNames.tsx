@@ -18,6 +18,7 @@
  */
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -48,6 +49,7 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 };
 
 export const TaskNames = ({ nodes }: Props) => {
+  const { t: translate } = useTranslation("dag");
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
@@ -65,19 +67,28 @@ export const TaskNames = ({ nodes }: Props) => {
       transition="background-color 0.2s"
     >
       {node.isGroup ? (
-        <Flex>
-          <TaskName
-            display="inline"
-            fontSize="sm"
-            fontWeight="normal"
-            isGroup={true}
-            isMapped={Boolean(node.is_mapped)}
-            label={node.label}
-            paddingLeft={node.depth * 3 + 2}
-            setupTeardownType={node.setup_teardown_type}
-          />
+        <Flex alignItems="center">
+          <Link data-testid={node.id} display="inline">
+            <RouterLink
+              replace
+              to={{
+                pathname: `/dags/${dagId}/tasks/group/${node.id}`,
+                search: searchParams.toString(),
+              }}
+            >
+              <TaskName
+                fontSize="sm"
+                fontWeight="normal"
+                isGroup={true}
+                isMapped={Boolean(node.is_mapped)}
+                label={node.label}
+                paddingLeft={node.depth * 3 + 2}
+                setupTeardownType={node.setup_teardown_type}
+              />
+            </RouterLink>
+          </Link>
           <chakra.button
-            aria-label="Toggle group"
+            aria-label={translate("grid.buttons.toggleGroup")}
             display="inline"
             height="20px"
             ml={1}

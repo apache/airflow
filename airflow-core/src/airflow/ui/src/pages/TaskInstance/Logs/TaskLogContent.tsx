@@ -17,8 +17,8 @@
  * under the License.
  */
 import { Box, Code, VStack, useToken } from "@chakra-ui/react";
-import type { ReactNode } from "react";
-import { useLayoutEffect } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useLayoutEffect, useRef } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
@@ -27,12 +27,19 @@ type Props = {
   readonly error: unknown;
   readonly isLoading: boolean;
   readonly logError: unknown;
-  readonly parsedLogs: ReactNode;
+  readonly parsedLogs: Array<JSX.Element | string | undefined>;
   readonly wrap: boolean;
 };
 
 export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
   const [bgLine] = useToken("colors", ["blue.emphasized"]);
+  const parentRef = useRef(null);
+  const rowVirtualizer = useVirtualizer({
+    count: parsedLogs.length,
+    estimateSize: () => 20,
+    getScrollElement: () => parentRef.current,
+    overscan: 10,
+  });
 
   useLayoutEffect(() => {
     if (location.hash) {
@@ -53,7 +60,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
   }, [isLoading, bgLine]);
 
   return (
-    <Box>
+    <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0}>
       <ErrorAlert error={error ?? logError} />
       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
       <Code
@@ -62,13 +69,32 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
             bg: "blue.subtle",
           },
         }}
+        data-testid="virtualized-list"
+        flexGrow={1}
+        h="auto"
         overflow="auto"
+        position="relative"
         py={3}
+        ref={parentRef}
         textWrap={wrap ? "pre" : "nowrap"}
         width="100%"
       >
-        <VStack alignItems="flex-start" gap={0}>
-          {parsedLogs}
+        <VStack alignItems="flex-start" gap={0} h={`${rowVirtualizer.getTotalSize()}px`}>
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+            <Box
+              data-index={virtualRow.index}
+              data-testid={`virtualized-item-${virtualRow.index}`}
+              key={virtualRow.key}
+              left={0}
+              position="absolute"
+              ref={rowVirtualizer.measureElement}
+              top={0}
+              transform={`translateY(${virtualRow.start}px)`}
+              width={wrap ? "100%" : "max-content"}
+            >
+              {parsedLogs[virtualRow.index] ?? undefined}
+            </Box>
+          ))}
         </VStack>
       </Code>
     </Box>

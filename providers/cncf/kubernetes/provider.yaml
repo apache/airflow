@@ -241,8 +241,8 @@ config:
         version_added: 8.1.0
         type: string
         example: ~
-        default: 'CreateContainerConfigError,ErrImagePull,CreateContainerError,ImageInspectError,
-        InvalidImageName'
+        default: "CreateContainerConfigError,ErrImagePull,CreateContainerError,ImageInspectError,\
+        InvalidImageName"
       worker_pods_creation_batch_size:
         description: |
           Number of Kubernetes Worker Pod creation calls per scheduler loop.
