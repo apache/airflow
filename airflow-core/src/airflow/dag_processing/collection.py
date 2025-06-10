@@ -391,7 +391,7 @@ def update_dag_parsing_results_in_db(
         good_dag_filelocs = {
             (bundle_name, dag.relative_fileloc)
             for dag in dags
-            if (bundle_name, dag.relative_fileloc) not in import_errors
+            if dag.relative_fileloc is not None and (bundle_name, dag.relative_fileloc) not in import_errors
         }
         _update_import_errors(
             files_parsed=good_dag_filelocs,
