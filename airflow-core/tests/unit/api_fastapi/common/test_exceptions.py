@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -169,10 +171,15 @@ class TestUniqueConstraintErrorHandler:
             ],
         ),
     )
+    @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
     @conf_vars({("api", "expose_stacktrace"): "False"})
     @provide_session
     def test_handle_single_column_unique_constraint_error(
-        self, session, table, expected_exception, monkeypatch
+        self,
+        mock_get_random_string,
+        session,
+        table,
+        expected_exception,
     ) -> None:
         # Take Pool and Variable tables as test cases
         if table == "Pool":
@@ -185,10 +192,6 @@ class TestUniqueConstraintErrorHandler:
         with pytest.raises(IntegrityError) as exeinfo_integrity_error:
             session.commit()
 
-        monkeypatch.setattr(
-            "airflow.api_fastapi.common.exceptions.get_random_string",
-            lambda length=None, choices=None: MOCKED_ID,
-        )
         with pytest.raises(HTTPException) as exeinfo_response_error:
             self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
@@ -232,10 +235,15 @@ class TestUniqueConstraintErrorHandler:
             ],
         ),
     )
+    @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
     @conf_vars({("api", "expose_stacktrace"): "False"})
     @provide_session
     def test_handle_multiple_columns_unique_constraint_error(
-        self, session, table, expected_exception, monkeypatch
+        self,
+        mock_get_random_string,
+        session,
+        table,
+        expected_exception,
     ) -> None:
         if table == "DagRun":
             session.add(
@@ -252,10 +260,6 @@ class TestUniqueConstraintErrorHandler:
         with pytest.raises(IntegrityError) as exeinfo_integrity_error:
             session.commit()
 
-        monkeypatch.setattr(
-            "airflow.api_fastapi.common.exceptions.get_random_string",
-            lambda length=None, choices=None: MOCKED_ID,
-        )
         with pytest.raises(HTTPException) as exeinfo_response_error:
             self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
