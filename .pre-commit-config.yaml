@@ -175,6 +175,7 @@ repos:
       - id: insert-license
         name: Add license for all Go files
         types: [go]
+        exclude: mocks/.*\.go$
         args:
           - --comment-style
           - "|//|"
@@ -1264,6 +1265,14 @@ repos:
         files:
           ^airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/cli/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
+      - id: go-mockery
+        name: Generate mocks for go
+        entry: -w /src/go-sdk vektra/mockery:3
+        files: ^go-sdk/
+        exclude: mocks/.*\.go$
+        types: [go]
+        pass_filenames: false
+        language: docker_image
       - id: gofmt
         name: Format go code
         entry: golines --base-formatter=gofumpt --write-output --max-len=100 --chain-split-dots
@@ -1274,7 +1283,7 @@ repos:
       - id: gci
         name: Consistent import ordering for Go files
         # Since this is invoked from the root folder, not go-sdk/, gci can't auto-detect the prefix
-        entry: gci write -s standard -s default -s "prefix(github.com/apache/airflow)"
+        entry: gci write --skip-generated -s standard -s default -s "prefix(github.com/apache/airflow)"
         additional_dependencies: [github.com/daixiang0/gci@v0.13.6]
         files: ^go-sdk/
         types: [go]
