@@ -34,18 +34,18 @@ else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 CLOUD_RUN_BASE_LINK = "/run"
-CLOUD_RUN_JOB_DETAIL_LINK = (
-    CLOUD_RUN_BASE_LINK + "/jobs/details/{region}/{job_name}"
-    "?inv=1&project={project_id}"
+CLOUD_RUN_JOB_EXECUTION_LINK = (
+    CLOUD_RUN_BASE_LINK + "/jobs/execution/{region}/{execution_name}"
+    "?project={project_id}"
 )
 
 
-class CloudRunJobDetailLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Run Job Detail Link."""
+class CloudRunJobExecutionLink(BaseGoogleLink):
+    """Helper class for constructing Cloud Run Job Execution Link."""
 
-    name = "Cloud Run Job Detail"
-    key = "cloud_run_job_detail"
-    format_str = CLOUD_RUN_JOB_DETAIL_LINK
+    name = "Cloud Run Job Execution"
+    key = "cloud_run_job_execution"
+    format_str = CLOUD_RUN_JOB_EXECUTION_LINK
 
     @staticmethod
     def persist(
@@ -53,28 +53,16 @@ class CloudRunJobDetailLink(BaseGoogleLink):
         task_instance: BaseOperator,
         project_id: str,
         region: str,
-        job_name: str,
+        execution_name: str,
     ):
         task_instance.xcom_push(
             context,
-            key=CloudRunJobDetailLink.key,
+            key=CloudRunJobExecutionLink.key,
             value={
                 "project_id": project_id,
                 "region": region,
-                "job_name": job_name,
+                "execution_name": execution_name,
             },
-        )
-        # Push the complete URL for the link
-        from airflow.providers.google.cloud.links.base import BASE_LINK
-        full_url = BASE_LINK + CloudRunJobDetailLink.format_str.format(
-            project_id=project_id,
-            region=region,
-            job_name=job_name,
-        )
-        task_instance.xcom_push(
-            context,
-            key=f"_link_{CloudRunJobDetailLink.__name__}",
-            value=full_url,
         )
 
 
