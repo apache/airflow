@@ -178,14 +178,6 @@ For details on enabling/configuring CORS, see
 To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
 and it is even possible to add your own method.
 
-If you want to check which auth backend is currently set, you can use
-`airflow config get-value api auth_backends` command as in the example below.
-
-```bash
-$ airflow config get-value api auth_backends
-airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
-```
-
 The default is to deny all requests.
 
 For details on configuring the authentication, see
@@ -279,24 +271,62 @@ import airflow_client.client
 
 ## Getting Started
 
+Before attempting the following examples ensure you have an account with API access.
+As an example you can create an account for usage with the API as follows using the Airflow CLI.
+
+```bash
+airflow users create -u admin-api -e admin-api@example.com -f admin-api -l admin-api -p $PASSWORD -r Admin
+```
+
 Please follow the [installation procedure](#installation--usage) and then run the following:
 
 ```python
 import airflow_client.client
+import requests
 from airflow_client.client.rest import ApiException
 from pprint import pprint
+from pydantic import BaseModel
+
+
+# What we expect back from auth/token
+class AirflowAccessTokenResponse(BaseModel):
+    access_token: str
+
+
+# An optional helper function to retrieve an access token
+def get_airflow_client_access_token(
+    host: str,
+    username: str,
+    password: str,
+) -> str:
+    url = f"{host}/auth/token"
+    payload = {
+        "username": username,
+        "password": password,
+    }
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code != 201:
+        raise RuntimeError(f"Failed to get access token: {response.status_code} {response.text}")
+    response_success = AirflowAccessTokenResponse(**response.json())
+    return response_success.access_token
+
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = airflow_client.client.Configuration(host="http://localhost")
+host = "http://localhost"
+configuration = airflow_client.client.Configuration(host=host)
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-configuration.access_token = os.environ["ACCESS_TOKEN"]
-
+configuration.access_token = get_airflow_client_access_token(
+    host=host,
+    username="admin-api",
+    password=os.environ["PASSWORD"],
+)
 
 # Enter a context with an instance of the API client
 with airflow_client.client.ApiClient(configuration) as api_client:
