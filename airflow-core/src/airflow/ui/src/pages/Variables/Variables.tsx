@@ -58,6 +58,7 @@ const getColumns = ({
         onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
       />
     ),
+    enableHiding: false,
     enableSorting: false,
     header: () => (
       <Checkbox
