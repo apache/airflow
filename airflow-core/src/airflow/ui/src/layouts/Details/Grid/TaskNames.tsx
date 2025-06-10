@@ -18,6 +18,7 @@
  */
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -48,6 +49,7 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 };
 
 export const TaskNames = ({ nodes }: Props) => {
+  const { t: translate } = useTranslation("dag");
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
@@ -86,7 +88,7 @@ export const TaskNames = ({ nodes }: Props) => {
             </RouterLink>
           </Link>
           <chakra.button
-            aria-label="Toggle group"
+            aria-label={translate("grid.buttons.toggleGroup")}
             display="inline"
             height="20px"
             ml={1}

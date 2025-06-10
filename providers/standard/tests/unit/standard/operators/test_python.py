@@ -1320,7 +1320,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import sys
             from pathlib import Path
 
-            pip_conf = (Path(sys.executable).parent.parent / "pip.conf").read_text()
+            pip_conf = (Path(sys.executable).parents[1] / "pip.conf").read_text()
             assert "abc.def.de" in pip_conf
             assert "xyz.abc.de" in pip_conf
             return a

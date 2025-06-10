@@ -33,6 +33,7 @@ XCOM_IMAGE = "XCOM_IMAGE"
 
 
 class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "args_only",
         [True, False],
@@ -77,6 +78,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == expected_command
         assert containers[0].args == expected_args
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "func_return, exception",
         [
@@ -117,6 +119,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         with context_manager:
             self.execute_task(k8s_task)
 
+    @pytest.mark.asyncio
     def test_kubernetes_cmd_with_input_output(self):
         """Verify @task.kubernetes_cmd will run XCom container if do_xcom_push is set."""
         with self.dag:
@@ -167,6 +170,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[1].image == XCOM_IMAGE
         assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "cmds",
         [None, ["ignored_cmd"], "ignored_cmd"],
@@ -229,6 +233,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == expected_command
         assert containers[0].args == expected_args
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         argnames=["command", "op_arg", "expected_command"],
         argvalues=[
@@ -278,6 +283,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == expected_command
         assert containers[0].args == []
 
+    @pytest.mark.asyncio
     def test_basic_context_works(self):
         """Test that decorator works with context as kwargs unpcacked in function arguments"""
         with self.dag:
@@ -308,6 +314,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == ["echo", "hello", DAG_ID]
         assert containers[0].args == []
 
+    @pytest.mark.asyncio
     def test_named_context_variables(self):
         """Test that decorator works with specific context variable as kwargs in function arguments"""
         with self.dag:
@@ -338,6 +345,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert containers[0].command == ["echo", "hello", DAG_ID]
         assert containers[0].args == []
 
+    @pytest.mark.asyncio
     def test_rendering_kubernetes_cmd_decorator_params(self):
         """Test that templating works in decorator parameters"""
         with self.dag:

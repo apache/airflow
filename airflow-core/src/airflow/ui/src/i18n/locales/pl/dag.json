@@ -1,0 +1,109 @@
+{
+  "allRuns": "Wszystkie wykonania",
+  "code": {
+    "bundleUrl": "Adres URL paczki Dagów",
+    "bundleVersion": "Wersja paczki Dagów:",
+    "noCode": "Nie znaleziono kodu",
+    "parsedAt": "Przeanalizowano o:"
+  },
+  "details": {
+    "fields": {
+      "bundleVersion": "Wersja paczki Dagów",
+      "catchup": "Nadrabianie zaległości",
+      "concurrency": "Współbieżność",
+      "dagId": "Identyfikator Daga",
+      "dagRunTimeout": "Limit czasu wykonania Daga",
+      "defaultArgs": "Domyślne argumenty",
+      "description": "Opis",
+      "endDate": "Data zakończenia",
+      "fileLocation": "Lokalizacja pliku",
+      "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
+      "lastExpired": "Ostatnio wygasły",
+      "lastParsed": "Ostatnia analiza",
+      "latestDagVersion": "Najnowsza wersja Daga",
+      "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
+      "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
+      "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
+      "params": "Parametry",
+      "startDate": "Data rozpoczęcia",
+      "timezone": "Strefa czasowa"
+    }
+  },
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Przywróć do najnowszego",
+      "toggleGroup": "Przełącz grupę"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Dokumentacja Daga"
+    },
+    "modals": {
+      "docTitle": "Dokumentacja Daga"
+    },
+    "stats": {
+      "latestDagVersion": "Najnowsza wersja Daga",
+      "latestRun": "Ostatnie wykonanie",
+      "nextRun": "Następne wykonanie",
+      "owner": "Właściciel",
+      "schedule": "Harmonogram",
+      "tags": "Etykiety"
+    }
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Nieudane wykonanie",
+      "failedRun_other": "Nieudane wykonania",
+      "failedTask_one": "Nieudane zadanie",
+      "failedTask_other": "Nieudane zadania"
+    },
+    "charts": {
+      "assetEvent": "Utworzono zdarzenie zasobu"
+    },
+    "failedLogs": {
+      "title": "Ostatnie logi nieudanych zadań",
+      "viewFullLogs": "Zobacz pełne logi"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opcje",
+      "showGraph": "Pokaż graf",
+      "showGrid": "Pokaż siatkę"
+    },
+    "dagRuns": {
+      "label": "Liczba wykonań Daga"
+    },
+    "dependencies": {
+      "label": "Zależności",
+      "options": {
+        "allDagDependencies": "Wszystkie zależności Daga",
+        "externalConditions": "Warunki zewnętrzne",
+        "onlyTasks": "Tylko zadania"
+      },
+      "placeholder": "Zależności"
+    },
+    "graphDirection": {
+      "label": "Kierunek grafu"
+    }
+  },
+  "tabs": {
+    "backfills": "Wypełnienia wsteczne",
+    "code": "Kod",
+    "details": "Szczegóły",
+    "events": "Zdarzenia",
+    "overview": "Przegląd",
+    "runs": "Uruchomienia",
+    "tasks": "Zadania"
+  },
+  "task": {
+    "card": {
+      "lastInstance": "Ostatnia instancja"
+    }
+  },
+  "taskGroups": {
+    "collapseAll": "Zwiń wszystkie grupy zadań",
+    "expandAll": "Rozwiń wszystkie grupy zadań"
+  }
+}

@@ -3,11 +3,21 @@
   "health": {
     "dagProcessor": "Dag 處理器",
     "health": "健康狀態",
+    "healthy": "健康",
+    "lastHeartbeat": "最後心跳",
     "metaDatabase": "系統資料庫",
     "scheduler": "排程器",
-    "triggerer": "觸發器"
+    "status": "狀態",
+    "triggerer": "觸發器",
+    "unhealthy": "健康狀態異常"
   },
   "history": "歷史記錄",
+  "importErrors": {
+    "dagImportError_one": "Dag 匯入錯誤",
+    "dagImportError_other": "Dag 匯入錯誤",
+    "searchByFile": "依檔案搜尋",
+    "timestamp": "時間戳記"
+  },
   "managePools": "管理資源池",
   "noAssetEvents": "未找到資源事件",
   "poolSlots": "資源池配額",

@@ -29,7 +29,7 @@ from rich.terminal_theme import SVG_EXPORT_THEME
 from rich.text import Text
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-AIRFLOW_ROOT_PATH = Path(AIRFLOW_CTL_SRC_PATH).parent.parent.parent
+AIRFLOW_ROOT_PATH = Path(AIRFLOW_CTL_SRC_PATH).parents[2]
 AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_ROOT_PATH / "src"
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported

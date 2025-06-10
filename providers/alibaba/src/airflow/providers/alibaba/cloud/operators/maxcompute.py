@@ -56,8 +56,8 @@ class MaxComputeSQLOperator(BaseOperator):
     :param default_schema: The default schema to use.
     :param quota_name: The quota name to use.
         Defaults to project default quota if not specified.
-    :param alibabacloud_conn_id: The connection ID to use. Defaults to
-        `alibabacloud_default` if not specified.
+    :param maxcompute_conn_id: The connection ID to use. Defaults to
+        `maxcompute_default` if not specified.
     :param cancel_on_kill: Flag which indicates whether to stop running instance
         or not when task is killed. Default is True.
     """
@@ -72,7 +72,7 @@ class MaxComputeSQLOperator(BaseOperator):
         "aliases",
         "default_schema",
         "quota_name",
-        "alibabacloud_conn_id",
+        "maxcompute_conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
@@ -90,7 +90,7 @@ class MaxComputeSQLOperator(BaseOperator):
         aliases: dict[str, str] | None = None,
         default_schema: str | None = None,
         quota_name: str | None = None,
-        alibabacloud_conn_id: str = "alibabacloud_default",
+        maxcompute_conn_id: str = "maxcompute_default",
         cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
@@ -104,13 +104,13 @@ class MaxComputeSQLOperator(BaseOperator):
         self.aliases = aliases
         self.default_schema = default_schema
         self.quota_name = quota_name
-        self.alibabacloud_conn_id = alibabacloud_conn_id
+        self.maxcompute_conn_id = maxcompute_conn_id
         self.cancel_on_kill = cancel_on_kill
         self.hook: MaxComputeHook | None = None
         self.instance: Instance | None = None
 
     def execute(self, context: Context) -> str:
-        self.hook = MaxComputeHook(alibabacloud_conn_id=self.alibabacloud_conn_id)
+        self.hook = MaxComputeHook(maxcompute_conn_id=self.maxcompute_conn_id)
 
         self.instance = self.hook.run_sql(
             sql=self.sql,

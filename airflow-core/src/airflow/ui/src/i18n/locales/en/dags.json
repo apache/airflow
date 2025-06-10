@@ -37,7 +37,6 @@
       "dialog": {
         "affectedTasks": {
           "columns": {
-            "mapIndex": "Map Index",
             "runId": "Run ID",
             "state": "State",
             "taskId": "Task ID"
@@ -97,6 +96,7 @@
     "allRunTypes": "All Run Types",
     "allStates": "All States",
     "columns": {
+      "conf": "Conf",
       "dagId": "Dag ID",
       "dagVersions": "Dag Versions",
       "duration": "Duration",
@@ -134,7 +134,6 @@
       "dagVersion": "Dag Version",
       "duration": "Duration",
       "endDate": "End Date",
-      "mapIndex": "Map Index",
       "operator": "Operator",
       "pool": "Pool",
       "startDate": "Start Date",

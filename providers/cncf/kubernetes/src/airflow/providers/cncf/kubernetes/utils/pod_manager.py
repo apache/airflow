@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import enum
 import json
 import math
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_container_state import V1ContainerState
     from kubernetes.client.models.v1_container_state_waiting import V1ContainerStateWaiting
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
+    from kubernetes.client.models.v1_object_reference import V1ObjectReference
     from kubernetes.client.models.v1_pod import V1Pod
     from kubernetes.client.models.v1_pod_condition import V1PodCondition
     from urllib3.response import HTTPResponse
@@ -377,7 +379,21 @@ class PodManager(LoggingMixin):
         """Launch the pod asynchronously."""
         return self.run_pod_async(pod)
 
-    def await_pod_start(
+    async def watch_pod_events(self, pod: V1Pod, check_interval: int = 1) -> None:
+        """Read pod events and writes into log."""
+        self.keep_watching_for_events = True
+        num_events = 0
+        while self.keep_watching_for_events:
+            events = self.read_pod_events(pod)
+            for new_event in events.items[num_events:]:
+                involved_object: V1ObjectReference = new_event.involved_object
+                self.log.info(
+                    "The Pod has an Event: %s from %s", new_event.message, involved_object.field_path
+                )
+            num_events = len(events.items)
+            await asyncio.sleep(check_interval)
+
+    async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: int = 1
     ) -> None:
         """
@@ -439,7 +455,7 @@ class PodManager(LoggingMixin):
                                 f"\n{container_waiting.message}"
                             )
 
-            time.sleep(check_interval)
+            await asyncio.sleep(check_interval)
 
     def fetch_container_logs(
         self,
@@ -822,6 +838,10 @@ class PodManager(LoggingMixin):
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
                 self.log.info("The xcom sidecar container has started.")
                 break
+            if self.container_is_terminated(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+                raise AirflowException(
+                    "Xcom sidecar container is already terminated! Not possible to read xcom output of task."
+                )
             if (time.time() - last_log_time) >= log_interval:
                 self.log.warning(
                     "Still waiting for the xcom sidecar container to start. Elapsed time: %d seconds.",

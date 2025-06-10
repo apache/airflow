@@ -32,7 +32,7 @@ export const Trigger = forwardRef<HTMLButtonElement, Props>((props, ref) => {
   return (
     <ChakraSelect.Control {...rest}>
       <ChakraSelect.Trigger ref={ref}>{children}</ChakraSelect.Trigger>
-      <ChakraSelect.IndicatorGroup>
+      <ChakraSelect.IndicatorGroup _rtl={{ bottom: 0, left: 0, right: "auto", top: 0 }}>
         {clearable ? (
           <ChakraSelect.ClearTrigger asChild>
             <CloseButton

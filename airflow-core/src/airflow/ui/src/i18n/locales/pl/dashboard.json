@@ -8,7 +8,7 @@
     "metaDatabase": "Baza Danych Meta",
     "scheduler": "Planer zadań",
     "status": "Stan",
-    "triggerer": "Wyzwalacz",
+    "triggerer": "Wywoływacz",
     "unhealthy": "Nieprawidłowy"
   },
   "history": "Historia",

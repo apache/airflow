@@ -1,0 +1,80 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "timetable": {
+                            "asset_condition": {
+                                "__type": "asset",
+                                "uri": "s3://bucket/file.txt",
+                                "name": "s3://bucket/file.txt",
+                                "group": "asset",
+                                "extra": {
+                                    "some_extra": 123
+                                }
+                            }
+                        },
+                        "timetable_summary": "Asset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_single_asset_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "asset_condition": {
+                                "__type": "asset",
+                                "uri": "s3://bucket/file.txt",
+                                "name": "s3://bucket/file.txt",
+                                "group": "asset",
+                                "extra": {
+                                    "some_extra": 123
+                                }
+                            }
+                        },
+                        "timetable_summary": "Asset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_single_asset_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "asset_condition": {
+                                "__type": "asset",
+                                "uri": "s3://bucket/file.txt",
+                                "name": "s3://bucket/file.txt",
+                                "group": "asset",
+                                "extra": {
+                                    "some_extra": 123
+                                }
+                            }
+                        },
+                        "timetable_summary": "Asset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_single_asset_dag.do_nothing_task"
+        }
+    }
+]

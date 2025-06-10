@@ -111,9 +111,6 @@ labelPRBasedOnFilePath:
   provider:common-sql:
     - providers/common/sql/**
 
-  provider:standard:
-    - providers/standard/**
-
   provider:databricks:
     - providers/databricks/**
 
@@ -180,6 +177,9 @@ labelPRBasedOnFilePath:
   provider:jenkins:
     - providers/jenkins/**
 
+  provider:keycloak:
+    - providers/keycloak/**
+
   provider:microsoft-azure:
     - providers/microsoft/azure/**
 
@@ -219,7 +219,7 @@ labelPRBasedOnFilePath:
   provider:opsgenie:
     - providers/opsgenie/**
 
-  provider:Oracle:
+  provider:oracle:
     - providers/oracle/**
 
   provider:pagerduty:
@@ -278,6 +278,9 @@ labelPRBasedOnFilePath:
 
   provider:ssh:
     - providers/ssh/**
+
+  provider:standard:
+    - providers/standard/**
 
   provider:tableau:
     - providers/tableau/**
@@ -343,6 +346,30 @@ labelPRBasedOnFilePath:
   area:UI:
     - airflow-core/docs/ui.rst
     - airflow-core/src/airflow/ui/**/*
+
+  area:translations:
+    - airflow-core/src/airflow/ui/src/i18n/**/*
+
+  translation:default:
+    - airflow-core/src/airflow/ui/src/i18n/locales/en/*
+
+  translation:de:
+    - airflow-core/src/airflow/ui/src/i18n/locales/de/*
+
+  translation:he:
+    - airflow-core/src/airflow/ui/src/i18n/locales/he/*
+
+  translation:ko:
+    - airflow-core/src/airflow/ui/src/i18n/locales/ko/*
+
+  translation:nl:
+    - airflow-core/src/airflow/ui/src/i18n/locales/nl/*
+
+  translation:pl:
+    - airflow-core/src/airflow/ui/src/i18n/locales/pl/*
+
+  translation:zh-TW:
+    - airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/*
 
   area:CLI:
     - airflow-core/src/airflow/cli/**/*.py

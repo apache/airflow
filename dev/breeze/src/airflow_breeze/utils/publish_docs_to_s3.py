@@ -24,7 +24,6 @@ from functools import cached_property
 
 import awswrangler as wr
 import boto3
-import semver
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
@@ -36,6 +35,15 @@ NON_SHORT_NAME_PACKAGES = ["docker-stack", "helm-chart", "apache-airflow"]
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 s3_client = boto3.client("s3")
+cloudfront_client = boto3.client("cloudfront")
+
+version_error = False
+
+
+def get_cloudfront_distribution(destination_location):
+    if "live-docs" in destination_location:
+        return "E26P75MP9PMULE"
+    return "E197MS0XRJC5F3"
 
 
 class S3DocsPublish:
@@ -260,19 +268,38 @@ class S3DocsPublish:
         # We keep metadata in the same location with constant file name so that
         # its easy to reference in airflow-site with url
         # ex: https://staging-docs-airflow-apache-org.s3.us-east-2.amazonaws.com/manifest/packages-metadata.json
-
+        get_console().print("[info]Uploading packages-metadata.json to S3\n")
         s3_client.put_object(
             Bucket=bucket,
             Key="manifest/packages-metadata.json",
             Body=json.dumps(all_packages_infos, indent=2),
             ContentType="application/json",
         )
+        get_console().print("[success]packages-metadata.json file generated successfully\n")
+        distribution_id = get_cloudfront_distribution(self.destination_location)
+        get_console().print(
+            f"[info]Invalidating CloudFront cache for the uploaded files: distribution id {distribution_id}\n"
+        )
+        # We invalidate all CloudFront caches so that all uploaded files are available immediately
+        cloudfront_client.create_invalidation(
+            DistributionId=distribution_id,
+            InvalidationBatch={
+                "Paths": {
+                    "Quantity": 1,
+                    "Items": ["/*"],
+                },
+                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", 0))),
+            },
+        )
+        get_console().print(
+            f"[success]CloudFront cache request invalidated successfully: {distribution_id}\n"
+        )
 
     def dump_docs_package_metadata(self, package_versions: dict[str, list[str]]):
         all_packages_infos = [
             {
                 "package-name": package_name,
-                "all-versions": (all_versions := self.get_all_versions(versions)),
+                "all-versions": (all_versions := self.get_all_versions(package_name, versions)),
                 "stable-version": all_versions[-1],
             }
             for package_name, versions in package_versions.items()
@@ -281,10 +308,21 @@ class S3DocsPublish:
         return all_packages_infos
 
     @staticmethod
-    def get_all_versions(versions: list[str]) -> list[str]:
+    def get_all_versions(package_name: str, versions: list[str]) -> list[str]:
+        from packaging.version import Version
+
+        good_versions = []
+        for version in versions:
+            try:
+                Version(version)
+                good_versions.append(version)
+            except ValueError as e:
+                get_console().print(f"[error]Invalid version {version}: {e}\n")
+                global version_error
+                version_error = True
         return sorted(
-            versions,
-            key=lambda d: semver.VersionInfo.parse(d),
+            good_versions,
+            key=lambda d: Version(d),
         )
 
     @staticmethod

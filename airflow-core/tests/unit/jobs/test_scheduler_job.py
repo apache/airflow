@@ -6013,7 +6013,7 @@ class TestSchedulerJob:
         assert dr.state == DagRunState.SUCCESS
 
     def test_should_mark_empty_task_as_success(self, testing_dag_bundle):
-        dag_file = Path(__file__).parent.parent / "dags/test_only_empty_tasks.py"
+        dag_file = Path(__file__).parents[1] / "dags/test_only_empty_tasks.py"
 
         # Write DAGs to dag and serialized_dag table
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)

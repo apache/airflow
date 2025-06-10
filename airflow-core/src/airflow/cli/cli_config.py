@@ -483,6 +483,15 @@ ARG_DB_RETRY_DELAY = Arg(
     type=positive_int(allow_zero=False),
     help="Wait time between retries in seconds",
 )
+ARG_DB_BATCH_SIZE = Arg(
+    ("--batch-size",),
+    default=None,
+    type=positive_int(allow_zero=False),
+    help=(
+        "Maximum number of rows to delete or archive in a single transaction.\n"
+        "Lower values reduce long-running locks but increase the number of batches."
+    ),
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -1452,6 +1461,7 @@ DB_COMMANDS = (
             ARG_VERBOSE,
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
+            ARG_DB_BATCH_SIZE,
         ),
     ),
     ActionCommand(

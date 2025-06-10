@@ -18,6 +18,7 @@
  */
 import { Box, Heading, VStack, Editable, Text, Flex } from "@chakra-ui/react";
 import { type ChangeEvent, type ReactElement, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button, Dialog } from "src/components/ui";
 
@@ -45,6 +46,7 @@ const EditableMarkdownButton = ({
   readonly text: string;
   readonly withText?: boolean;
 }) => {
+  const { t: translate } = useTranslation("common");
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -106,7 +108,7 @@ const EditableMarkdownButton = ({
                   setIsOpen(false);
                 }}
               >
-                {icon} Confirm
+                {icon} {translate("modal.confirm")}
               </Button>
             </Flex>
           </Dialog.Body>
