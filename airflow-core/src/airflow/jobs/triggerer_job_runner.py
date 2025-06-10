@@ -181,7 +181,6 @@ class messages:
     class StartTriggerer(BaseModel):
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
-        requests_fd: int
         type: Literal["StartTriggerer"] = "StartTriggerer"
 
     class TriggerStateChanges(BaseModel):
@@ -342,8 +341,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     ):
         proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
-        msg = messages.StartTriggerer(requests_fd=proc._requests_fd)
-        proc.send_msg(msg)
+        msg = messages.StartTriggerer()
+        proc.send_msg(msg, in_response_to=0)
         return proc
 
     @functools.cached_property
@@ -819,7 +818,6 @@ class TriggerRunner:
         if not isinstance(msg, messages.StartTriggerer):
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
-        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
         writer_transport, writer_protocol = await loop.connect_write_pipe(
             lambda: asyncio.streams.FlowControlMixin(loop=loop),
             comms_decoder.request_socket,

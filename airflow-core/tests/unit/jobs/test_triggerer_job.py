@@ -172,7 +172,6 @@ def supervisor_builder(mocker, session):
             pid=process.pid,
             stdin=mocker.Mock(),
             process=process,
-            requests_fd=-1,
             capacity=10,
         )
         # Mock the selector

@@ -43,15 +43,20 @@ Execution API server is because:
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Iterator
 from datetime import datetime
 from functools import cached_property
-from typing import Annotated, Any, Literal, Union
+from socket import socket
+from typing import TYPE_CHECKING, Annotated, Any, Generic, Literal, TypeVar, Union
 from uuid import UUID
 
+import aiologic
 import attrs
+import msgspec
+import structlog
 from fastapi import Body
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, field_serializer
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
@@ -80,6 +85,156 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.exceptions import ErrorType
 
+if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger as Logger
+
+SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
+ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
+
+
+class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
+    id: int
+    """
+    The request id, set by the sender.
+
+    This is used to allow "pipeling" of requests and to be able to tie response to requests, which is
+    particularly useful in the Triggerer where multiple async tasks can send a requests concurrently.
+    """
+    body: dict[str, Any]
+
+
+class _ResponseFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
+    id: int
+    """
+    The id of the request this is a response to
+    """
+    body: dict[str, Any] | None = None
+    error: dict[str, Any] | None = None
+
+
+def _msgpack_enc_hook(obj: Any) -> Any:
+    import pendulum
+
+    if isinstance(obj, pendulum.DateTime):
+        # convert the complex to a tuple of real, imag
+        return datetime(
+            obj.year, obj.month, obj.day, obj.hour, obj.minute, obj.second, obj.microsecond, tzinfo=obj.tzinfo
+        )
+    if isinstance(obj, BaseModel):
+        return obj.model_dump(exclude_unset=True)
+
+    # Raise a NotImplementedError for other types
+    raise NotImplementedError(f"Objects of type {type(obj)} are not supported")
+
+
+def _new_encoder() -> msgspec.msgpack.Encoder:
+    return msgspec.msgpack.Encoder(enc_hook=_msgpack_enc_hook)
+
+
+@attrs.define()
+class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
+    """Handle communication between the task in this process and the supervisor parent process."""
+
+    log: Logger = attrs.field(repr=False, factory=structlog.get_logger)
+    request_socket: socket = attrs.field(factory=lambda: socket(fileno=0))
+
+    # Do we still need the context lock? Keeps the change small for now
+    lock: aiologic.Lock = attrs.field(factory=aiologic.Lock, repr=False)
+
+    resp_decoder: msgspec.msgpack.Decoder[_ResponseFrame] = attrs.field(
+        factory=lambda: msgspec.msgpack.Decoder(_ResponseFrame), repr=False
+    )
+    req_encoder: msgspec.msgpack.Encoder = attrs.field(factory=_new_encoder, repr=False)
+
+    id_counter: Iterator[int] = attrs.field(factory=itertools.count)
+
+    # We could be "clever" here and set the default to this based type parameters and a custom
+    # `__class_getitem__`, but that's a lot of code the one subclass we've got currently. So we'll just use a
+    # "sort of wrong default"
+    body_decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
+
+    err_decoder: TypeAdapter[ErrorResponse] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
+
+    def send(self, msg: SendMsgType) -> ReceiveMsgType:
+        """Send a request to the parent and block until the response is received."""
+        bytes = self._encode(msg)
+
+        # print(
+        #     f"Subp: sending {type(msg)} request on {self.request_socket.fileno()}, total len={len(bytes)}",
+        #     file=__import__("sys")._ash_out,
+        # )
+        nsent = self.request_socket.send(bytes)
+        # print(f"Subp: {nsent=}", file=__import__("sys")._ash_out)
+
+        return self._get_response()
+
+    def _encode(self, msg: SendMsgType) -> bytearray:
+        # https://jcristharif.com/msgspec/perf-tips.html#length-prefix-framing for inspiration
+        buffer = bytearray(256)
+
+        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
+        self.req_encoder.encode_into(frame, buffer, 4)
+
+        n = len(buffer) - 4
+        if n > 2**32:
+            raise OverflowError("Cannot send messages larger than 4GiB")
+        buffer[:4] = n.to_bytes(4, byteorder="big")
+
+        return buffer
+
+    def _read_frame(self):
+        """
+        Get a message from the parent.
+
+        This will block until the message has been received.
+        """
+        if self.request_socket:
+            self.request_socket.setblocking(True)
+        # print("Subp: reading length prefix", file=__import__("sys")._ash_out)
+        len_bytes = self.request_socket.recv(4)
+
+        if len_bytes == b"":
+            raise EOFError("Request socket closed before length")
+
+        len = int.from_bytes(len_bytes, byteorder="big")
+        # print(f"Subp: frame {len=} ({len_bytes=})", file=__import__("sys")._ash_out)
+
+        buffer = bytearray(len)
+        nread = self.request_socket.recv_into(buffer)
+        if nread != len:
+            raise RuntimeError(
+                f"unable to read full response in child. (We read {nread}, but expected {len})"
+            )
+        if nread == 0:
+            # print("Subp: EOF when trying to read frame", file=__import__("sys")._ash_out)
+            raise EOFError("Request socket closed before response was complete")
+
+        try:
+            return self.resp_decoder.decode(buffer)
+        except Exception as e:
+            raise e
+
+    def _from_frame(self, frame):
+        from airflow.sdk.exceptions import AirflowRuntimeError
+
+        # print(f"Subp: {frame.body=}", file=__import__("sys")._ash_out)
+        if frame.error is not None:
+            err = self.err_decoder.validate_python(frame.error)
+            raise AirflowRuntimeError(error=err)
+
+        if frame.body is None:
+            return None
+
+        try:
+            return self.body_decoder.validate_python(frame.body)
+        except Exception:
+            self.log.exception("Unable to decode message")
+            raise
+
+    def _get_response(self) -> ReceiveMsgType:
+        frame = self._read_frame()
+        return self._from_frame(frame)
+
 
 class StartupDetails(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -87,13 +242,7 @@ class StartupDetails(BaseModel):
     ti: TaskInstance
     dag_rel_path: str
     bundle_info: BundleInfo
-    requests_fd: int
     start_date: datetime
-    """
-    The channel for the task to send requests over.
-
-    Responses will come back on stdin
-    """
     ti_context: TIRunContext
     type: Literal["StartupDetails"] = "StartupDetails"
 

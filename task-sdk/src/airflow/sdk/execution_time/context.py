@@ -155,8 +155,7 @@ def _get_connection(conn_id: str) -> Connection:
     # back so that two triggers don't end up interleaving requests and create a possible
     # race condition where the wrong trigger reads the response.
     with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
-        msg = SUPERVISOR_COMMS.get_message()
+        msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
 
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
@@ -208,8 +207,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     # back so that two triggers don't end up interleaving requests and create a possible
     # race condition where the wrong trigger reads the response.
     with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
-        msg = SUPERVISOR_COMMS.get_message()
+        msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
 
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
@@ -263,7 +261,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     # primarily added for triggers but it doesn't make sense to have it in some places
     # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
     with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
+        SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
 
 def _delete_variable(key: str) -> None:
@@ -279,8 +277,7 @@ def _delete_variable(key: str) -> None:
     # primarily added for triggers but it doesn't make sense to have it in some places
     # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
     with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=DeleteVariable(key=key))
-        msg = SUPERVISOR_COMMS.get_message()
+        msg = SUPERVISOR_COMMS.send(DeleteVariable(key=key))
     if TYPE_CHECKING:
         assert isinstance(msg, OKResponse)
 
@@ -387,13 +384,13 @@ class _AssetRefResolutionMixin:
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if name:
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByName(name=name))
+            msg = GetAssetByName(name=name)
         elif uri:
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByUri(uri=uri))
+            msg = GetAssetByUri(uri=uri)
         else:
             raise ValueError("Either name or uri must be provided")
 
-        msg = SUPERVISOR_COMMS.get_message()
+        msg = SUPERVISOR_COMMS.send(msg)
         if isinstance(msg, ErrorResponse):
             raise AirflowRuntimeError(msg)
 
@@ -545,24 +542,26 @@ class InletEventsAccessors(
 
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=asset.name, uri=asset.uri))
+            msg = GetAssetEventByAsset(name=asset.name, uri=asset.uri)
         elif isinstance(obj, AssetNameRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.name == obj.name)
             except StopIteration:
                 raise KeyError(obj) from None
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=asset.name, uri=None))
+            msg = GetAssetEventByAsset(name=asset.name, uri=None)
         elif isinstance(obj, AssetUriRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
             except StopIteration:
                 raise KeyError(obj) from None
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=None, uri=asset.uri))
+            msg = GetAssetEventByAsset(name=None, uri=asset.uri)
         elif isinstance(obj, AssetAlias):
             asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAssetAlias(alias_name=asset_alias.name))
+            msg = GetAssetEventByAssetAlias(alias_name=asset_alias.name)
+        else:
+            raise TypeError(f"`key` is of unknown type ({type(key).__name__})")
 
-        msg = SUPERVISOR_COMMS.get_message()
+        msg = SUPERVISOR_COMMS.send(msg)
         if isinstance(msg, ErrorResponse):
             raise AirflowRuntimeError(msg)
 
@@ -626,8 +625,7 @@ def get_previous_dagrun_success(ti_id: UUID) -> PrevSuccessfulDagRunResponse:
     )
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetPrevSuccessfulDagRun(ti_id=ti_id))
-    msg = SUPERVISOR_COMMS.get_message()
+    msg = SUPERVISOR_COMMS.send(GetPrevSuccessfulDagRun(ti_id=ti_id))
 
     if TYPE_CHECKING:
         assert isinstance(msg, PrevSuccessfulDagRunResult)

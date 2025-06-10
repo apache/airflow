@@ -30,7 +30,7 @@ from collections import deque
 from datetime import datetime, timedelta
 from logging.config import dictConfig
 from pathlib import Path
-from socket import socket
+from socket import socket, socketpair
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -54,7 +54,6 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.sdk.execution_time.supervisor import mkpipe
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -138,20 +137,19 @@ class TestDagFileProcessorManager:
         logger_filehandle = MagicMock()
         proc.create_time.return_value = time.time()
         proc.wait.return_value = 0
-        read_end, write_end = mkpipe(remote_read=True)
+        read_end, write_end = socketpair()
         ret = DagFileProcessorProcess(
             process_log=MagicMock(),
             id=uuid7(),
             pid=1234,
             process=proc,
             stdin=write_end,
-            requests_fd=123,
             logger_filehandle=logger_filehandle,
             client=MagicMock(),
         )
         if start_time:
             ret.start_time = start_time
-        ret._num_open_sockets = 0
+        ret._open_sockets.clear()
         return ret, read_end
 
     @pytest.fixture
@@ -560,7 +558,6 @@ class TestDagFileProcessorManager:
                 b"{"
                 b'"file":"/opt/airflow/dags/test_dag.py",'
                 b'"bundle_path":"/opt/airflow/dags",'
-                b'"requests_fd":123,'
                 b'"callback_requests":[],'
                 b'"type":"DagFileParseRequest"'
                 b"}\n",
@@ -580,7 +577,7 @@ class TestDagFileProcessorManager:
                 b"{"
                 b'"file":"/opt/airflow/dags/dag_callback_dag.py",'
                 b'"bundle_path":"/opt/airflow/dags",'
-                b'"requests_fd":123,"callback_requests":'
+                b'"callback_requests":'
                 b"["
                 b"{"
                 b'"filepath":"dag_callback_dag.py",'
