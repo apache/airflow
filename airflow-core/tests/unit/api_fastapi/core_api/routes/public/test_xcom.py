@@ -179,7 +179,7 @@ class TestGetXComEntry(TestXComEndpoint):
     @conf_vars({("core", "xcom_backend"): "unit.api_fastapi.core_api.routes.public.test_xcom.CustomXCom"})
     def test_custom_xcom_deserialize(self, params: str, expected_value: int | str, test_client):
         # Even with a CustomXCom defined, we should not be using it during deserialization because API / UI doesn't integrate their
-        # deserialization with chstom backends
+        # deserialization with custom backends
         XCom = resolve_xcom_backend()
         self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE, backend=XCom)
 

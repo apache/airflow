@@ -87,6 +87,7 @@ def get_xcom_entry(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
 
     item = copy.copy(result)
+
     if deserialize:
         # We use `airflow.serialization.serde` for deserialization here because custom XCom backends (with their own
         # serializers/deserializers) are only used on the worker side during task execution.
@@ -99,7 +100,9 @@ def get_xcom_entry(
         # full=False ensures that the `item` is deserialized without loading the classes, and it returns a stringified version
         item.value = serde_deserialize(XComModel.deserialize_value(item), full=False)
     else:
-        item.value = XComModel.deserialize_value(item)
+        # For native format, return the raw serialized value from the database
+        # This preserves the JSON string format that the API expects
+        item.value = result.value
 
     if stringify:
         return XComResponseString.model_validate(item)
