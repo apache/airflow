@@ -76,19 +76,14 @@ class TestCliConfigLint:
         ],
     )
     def test_lint_detects_default_changed_configs(self, mock_rich_print, api_client_maker):
-        test_section_key = "test_section"
-        test_option_key = "test_option"
-        old_default_value = "old_default"
-        new_default_value = "new_default"
-
         response_config = Config(
             sections=[
                 ConfigSection(
-                    name=test_section_key,
+                    name="test_section",
                     options=[
                         ConfigOption(
-                            key=test_option_key,
-                            value=old_default_value,
+                            key="test_option",
+                            value="old_default",
                         )
                     ],
                 )
@@ -111,7 +106,7 @@ class TestCliConfigLint:
         calls = [call[0][0] for call in mock_rich_print.call_args_list]
         assert "[red]Found issues in your airflow.cfg:[/red]" in calls[0]
         assert (
-            f"  - [yellow]Changed default value of `{test_option_key}` in `{test_section_key}` from `{old_default_value}` to `{new_default_value}`.[/yellow]"
+            "  - [yellow]Changed default value of `test_option` in `test_section` from `old_default` to `new_default`.[/yellow]"
             in calls[1]
         )
 
