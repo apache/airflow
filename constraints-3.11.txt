@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-10T08:01:17.555268
+# This constraints file was automatically generated on 2025-06-10T19:58:02.691481
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -340,7 +340,7 @@ gitdb==4.0.12
 google-ads==27.0.0
 google-analytics-admin==0.24.0
 google-api-core==2.25.0
-google-api-python-client==2.171.0
+google-api-python-client==2.172.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
@@ -418,7 +418,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.32.4
+huggingface-hub==0.32.5
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -477,7 +477,7 @@ kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.11.0
-libcst==1.8.0
+libcst==1.8.1
 limits==5.2.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
@@ -530,7 +530,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.85.0
+openai==1.86.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -707,7 +707,7 @@ sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==3.15.0
 snowflake-snowpark-python==1.32.0
-snowflake-sqlalchemy==1.7.3
+snowflake-sqlalchemy==1.7.4
 sortedcontainers==2.4.0
 soupsieve==2.7
 sphinx-argparse==0.5.2
