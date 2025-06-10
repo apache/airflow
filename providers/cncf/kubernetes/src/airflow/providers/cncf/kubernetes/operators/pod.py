@@ -84,6 +84,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -720,6 +721,8 @@ class KubernetesPodOperator(BaseOperator):
             self.cleanup(
                 pod=pod_to_clean,
                 remote_pod=self.remote_pod,
+                xcom_result=result,
+                context=context,
             )
             for callback in self.callbacks:
                 callback.on_pod_cleanup(
@@ -991,7 +994,13 @@ class KubernetesPodOperator(BaseOperator):
                 pod=pod, client=self.client, mode=ExecutionMode.SYNC, operator=self, context=context
             )
 
-    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+    def cleanup(
+        self,
+        pod: k8s.V1Pod,
+        remote_pod: k8s.V1Pod,
+        xcom_result: dict | None = None,
+        context: Context | None = None,
+    ) -> None:
         # Skip cleaning the pod in the following scenarios.
         # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
         # there. Cleaning it up again will raise an exception (which might cause retry).
@@ -1011,6 +1020,10 @@ class KubernetesPodOperator(BaseOperator):
         )
 
         if failed:
+            if self.do_xcom_push and xcom_result and context:
+                # Ensure that existing XCom is pushed even in case of failure
+                context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_result)
+
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 
