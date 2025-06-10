@@ -579,21 +579,21 @@ def test_get_task_assets():
     ]
 
 
-def test_lazy_dag_run_interval_wrong_dag(self):
+def test_lazy_dag_run_interval_wrong_dag():
     lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
 
     with pytest.raises(ValueError, match="different DAGs"):
         lazy.get_run_data_interval(DAG_RUN)
 
 
-def test_lazy_dag_run_interval_missing_interval(self):
+def test_lazy_dag_run_interval_missing_interval():
     lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
 
     with pytest.raises(ValueError, match="Cannot calculate data interval"):
         lazy.get_run_data_interval(DAG_RUN)
 
 
-def test_lazy_dag_run_interval_success(self):
+def test_lazy_dag_run_interval_success():
     run = DAG_RUN
     run.data_interval_start = datetime(2025, 1, 1)
     run.data_interval_end = datetime(2025, 1, 2)
@@ -677,13 +677,13 @@ def test_hash_property():
         ),
     ],
 )
-def test_serde_decode_asset_condition_success(self, payload, expected_cls):
+def test_serde_decode_asset_condition_success(payload, expected_cls):
     from airflow.serialization.serialized_objects import decode_asset_condition
 
     assert isinstance(decode_asset_condition(payload), expected_cls)
 
 
-def test_serde_decode_asset_condition_unknown_type(self):
+def test_serde_decode_asset_condition_unknown_type():
     from airflow.serialization.serialized_objects import decode_asset_condition
 
     with pytest.raises(
