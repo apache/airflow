@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module contains Google Cloud Run links."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -30,6 +32,50 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.xcom import XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+CLOUD_RUN_BASE_LINK = "/run"
+CLOUD_RUN_JOB_DETAIL_LINK = (
+    CLOUD_RUN_BASE_LINK + "/jobs/details/{region}/{job_name}"
+    "?inv=1&project={project_id}"
+)
+
+
+class CloudRunJobDetailLink(BaseGoogleLink):
+    """Helper class for constructing Cloud Run Job Detail Link."""
+
+    name = "Cloud Run Job Detail"
+    key = "cloud_run_job_detail"
+    format_str = CLOUD_RUN_JOB_DETAIL_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance: BaseOperator,
+        project_id: str,
+        region: str,
+        job_name: str,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=CloudRunJobDetailLink.key,
+            value={
+                "project_id": project_id,
+                "region": region,
+                "job_name": job_name,
+            },
+        )
+        # Push the complete URL for the link
+        from airflow.providers.google.cloud.links.base import BASE_LINK
+        full_url = BASE_LINK + CloudRunJobDetailLink.format_str.format(
+            project_id=project_id,
+            region=region,
+            job_name=job_name,
+        )
+        task_instance.xcom_push(
+            context,
+            key=f"_link_{CloudRunJobDetailLink.__name__}",
+            value=full_url,
+        )
 
 
 class CloudRunJobLoggingLink(BaseGoogleLink):
