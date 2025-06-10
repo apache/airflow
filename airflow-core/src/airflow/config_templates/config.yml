@@ -679,6 +679,39 @@ database:
       type: integer
       example: ~
       default: "10000"
+    check_db_discovery:
+      description: |
+        Whether to check the db discovery before creating a new session.
+        If enabled, the dns lookup to the db hostname will be checked with retries.
+        Accepts ``True`` or ``False``.
+      version_added: 3.1.0
+      type: string
+      example: ~
+      default: "False"
+    max_db_discov_retries:
+      description: |
+        Number of times the db discovery check should be retried in case of errors.
+      version_added: 3.1.0
+      type: integer
+      example: ~
+      default: "3"
+    db_discov_initial_wait_time:
+      description: |
+        The number of seconds for the initial sleep between db discovery check retries.
+      version_added: 3.1.0
+      type: float
+      example: ~
+      default: "0.5"
+    db_discov_max_wait_time:
+      description: |
+        The sleep between db discovery check retries increases exponentially.
+        Set the maximum number of seconds that the sleep can be.
+        Once this number is reached, the interval won't grow any more.
+        The value should preferably be short.
+      version_added: 3.1.0
+      type: float
+      example: ~
+      default: "5"
 logging:
   description: ~
   options:
