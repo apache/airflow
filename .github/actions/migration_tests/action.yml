@@ -38,7 +38,6 @@ runs:
           airflow db migrate --to-revision heads &&
           airflow db downgrade -n 2.7.0 -y &&
           airflow db migrate
-      if: env.BACKEND != 'sqlite'
     - name: "Bring composer down"
       shell: bash
       run: breeze down
@@ -60,7 +59,6 @@ runs:
           airflow db migrate --to-revision heads &&
           airflow db downgrade -n 2.7.0 -y &&
           airflow db migrate
-      if: env.BACKEND != 'sqlite'
     - name: "Bring compose down again"
       shell: bash
       run: breeze down
