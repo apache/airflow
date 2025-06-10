@@ -722,9 +722,8 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.9",
-        "airflow-version": "3.0.1",
-        # TODO: Remove fab when we update to Airflow 3.0.2
-        "remove-providers": "cloudant fab",
+        "airflow-version": "3.0.2",
+        "remove-providers": "cloudant",
         "run-tests": "true",
     },
 ]
