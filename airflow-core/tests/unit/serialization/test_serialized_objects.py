@@ -44,7 +44,16 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey, AssetWatcher
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetAliasEvent,
+    AssetAll,
+    AssetAny,
+    AssetRef,
+    AssetUniqueKey,
+    AssetWatcher,
+)
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.param import Param
@@ -128,6 +137,10 @@ def test_validate_schema():
     BaseSerialization._json_schema = object()
     with pytest.raises(TypeError, match="Invalid type: Only dict and str are supported"):
         BaseSerialization.validate_schema(123)
+
+
+def test_serde_validate_schema_valid_json():
+    from airflow.serialization.serialized_objects import BaseSerialization
 
     class Test:
         def validate(self, obj):
@@ -566,18 +579,28 @@ def test_get_task_assets():
     ]
 
 
-def test_get_run_data_interval():
-    lazy_serialized_dag1 = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
+def test_lazy_dag_run_interval_wrong_dag(self):
+    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
+
     with pytest.raises(ValueError, match="different DAGs"):
-        lazy_serialized_dag1.get_run_data_interval(DAG_RUN)
+        lazy.get_run_data_interval(DAG_RUN)
 
-    lazy_serialized_dag2 = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
+
+def test_lazy_dag_run_interval_missing_interval(self):
+    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
+
     with pytest.raises(ValueError, match="Cannot calculate data interval"):
-        lazy_serialized_dag2.get_run_data_interval(DAG_RUN)
+        lazy.get_run_data_interval(DAG_RUN)
 
-    DAG_RUN.data_interval_start = datetime(2025, 1, 1, 0, 0)
-    DAG_RUN.data_interval_end = datetime(2025, 1, 2, 0, 0)
-    interval = lazy_serialized_dag2.get_run_data_interval(DAG_RUN)
+
+def test_lazy_dag_run_interval_success(self):
+    run = DAG_RUN
+    run.data_interval_start = datetime(2025, 1, 1)
+    run.data_interval_end = datetime(2025, 1, 2)
+
+    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
+    interval = lazy.get_run_data_interval(run)
+
     assert isinstance(interval, DataInterval)
 
 
@@ -589,34 +612,85 @@ def test_hash_property():
     assert lazy_serialized_dag.hash == SerializedDagModel.hash(data)
 
 
-def test_decode_asset_condition():
-    from airflow.sdk.definitions.asset import AssetAlias, AssetAll, AssetAny, AssetRef
+@pytest.mark.parametrize(
+    "payload, expected_cls",
+    [
+        pytest.param(
+            {
+                "__type": DAT.ASSET,
+                "name": "test_asset",
+                "uri": "test://asset-uri",
+                "group": "test-group",
+                "extra": {},
+            },
+            Asset,
+            id="asset",
+        ),
+        pytest.param(
+            {
+                "__type": DAT.ASSET_ALL,
+                "objects": [
+                    {
+                        "__type": DAT.ASSET,
+                        "name": "x",
+                        "uri": "test://x",
+                        "group": "g",
+                        "extra": {},
+                    },
+                    {
+                        "__type": DAT.ASSET,
+                        "name": "x",
+                        "uri": "test://x",
+                        "group": "g",
+                        "extra": {},
+                    },
+                ],
+            },
+            AssetAll,
+            id="asset_all",
+        ),
+        pytest.param(
+            {
+                "__type": DAT.ASSET_ANY,
+                "objects": [
+                    {
+                        "__type": DAT.ASSET,
+                        "name": "y",
+                        "uri": "test://y",
+                        "group": "g",
+                        "extra": {},
+                    }
+                ],
+            },
+            AssetAny,
+            id="asset_any",
+        ),
+        pytest.param(
+            {"__type": DAT.ASSET_ALIAS, "name": "alias", "group": "g"},
+            AssetAlias,
+            id="asset_alias",
+        ),
+        pytest.param(
+            {"__type": DAT.ASSET_REF, "name": "ref"},
+            AssetRef,
+            id="asset_ref",
+        ),
+    ],
+)
+def test_serde_decode_asset_condition_success(self, payload, expected_cls):
     from airflow.serialization.serialized_objects import decode_asset_condition
 
-    asset_dict = {
-        "__type": DAT.ASSET,
-        "name": "test_asset",
-        "uri": "test://asset-uri",
-        "group": "test-group",
-        "extra": {},
-    }
-    assert isinstance(decode_asset_condition(asset_dict), Asset)
+    assert isinstance(decode_asset_condition(payload), expected_cls)
 
-    asset_all_dict = {"__type": DAT.ASSET_ALL, "objects": [asset_dict, asset_dict]}
-    assert isinstance(decode_asset_condition(asset_all_dict), AssetAll)
 
-    asset_any_dict = {"__type": DAT.ASSET_ANY, "objects": [asset_dict]}
-    assert isinstance(decode_asset_condition(asset_any_dict), AssetAny)
+def test_serde_decode_asset_condition_unknown_type(self):
+    from airflow.serialization.serialized_objects import decode_asset_condition
 
-    asset_alias_dict = {"__type": DAT.ASSET_ALIAS, "name": "test_alias", "group": "test-alias-group"}
-    assert isinstance(decode_asset_condition(asset_alias_dict), AssetAlias)
-
-    asset_ref_dict = {"__type": DAT.ASSET_REF, "name": "test_ref"}
-    assert isinstance(decode_asset_condition(asset_ref_dict), AssetRef)
-
-    bad = {"__type": "UNKNOWN_TYPE"}
-    with pytest.raises(ValueError, match="deserialization not implemented for DAT 'UNKNOWN_TYPE'"):
-        decode_asset_condition(bad)
+    with pytest.raises(
+        ValueError,
+        match="deserialization not implemented for DAT 'UNKNOWN_TYPE'",
+    ):
+        decode_asset_condition({"__type": "UNKNOWN_TYPE"})
 
 
 def test_encode_timezone():
