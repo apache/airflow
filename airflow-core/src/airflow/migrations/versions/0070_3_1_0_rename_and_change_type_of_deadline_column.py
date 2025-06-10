@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Rename Deadline column in the Deadline table from deadline to deadline_at and change its type from DateTime to UTC DateTime.
+Rename Deadline column in the Deadline table from deadline to deadline_time and change its type from DateTime to UTC DateTime.
 
 Revision ID: 0242ac120002
 Revises: dfee8bd5d574
@@ -47,17 +47,17 @@ def upgrade():
             existing_type=sa.DateTime(),
             type_=TIMESTAMP(timezone=True),
             existing_nullable=False,
-            new_column_name="deadline_at",
+            new_column_name="deadline_time",
         )
-    op.create_index("deadline_at_idx", "deadline", ["deadline_at"], unique=False)
+    op.create_index("deadline_time_idx", "deadline", ["deadline_time"], unique=False)
 
 
 def downgrade():
     """Unapply change to deadline column in the deadline table."""
     with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.drop_index("deadline_at_idx")
+        batch_op.drop_index("deadline_time_idx")
         batch_op.alter_column(
-            "deadline_at",
+            "deadline_time",
             existing_type=TIMESTAMP(timezone=True),
             type_=sa.DateTime(),
             existing_nullable=False,

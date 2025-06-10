@@ -54,7 +54,7 @@ class Deadline(Base):
     dagrun_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
-    deadline_at = Column(UtcDateTime, nullable=False)
+    deadline_time = Column(UtcDateTime, nullable=False)
     # The Callback to be called when the Deadline has passed.
     callback = Column(String(500), nullable=False)
     # Serialized kwargs to pass to the callback.
@@ -62,18 +62,18 @@ class Deadline(Base):
 
     dagrun = relationship("DagRun", back_populates="deadlines")
 
-    __table_args__ = (Index("deadline_at_idx", deadline_at, unique=False),)
+    __table_args__ = (Index("deadline_time_idx", deadline_time, unique=False),)
 
     def __init__(
         self,
-        deadline_at: datetime,
+        deadline_time: datetime,
         callback: str,
         callback_kwargs: dict | None = None,
         dag_id: str | None = None,
         dagrun_id: int | None = None,
     ):
         super().__init__()
-        self.deadline_at = deadline_at
+        self.deadline_time = deadline_time
         self.callback = callback
         self.callback_kwargs = callback_kwargs
         self.dag_id = dag_id
@@ -93,7 +93,7 @@ class Deadline(Base):
 
         return (
             f"[{resource_type} Deadline] {resource_details} needed by "
-            f"{self.deadline_at} or run: {self.callback}({callback_kwargs})"
+            f"{self.deadline_time} or run: {self.callback}({callback_kwargs})"
         )
 
     @classmethod
