@@ -23,13 +23,17 @@ import { initReactI18next } from "react-i18next";
 import deCommon from "./locales/de/common.json";
 import deComponents from "./locales/de/components.json";
 import deConnections from "./locales/de/connections.json";
+import deDag from "./locales/de/dag.json";
 import deDags from "./locales/de/dags.json";
 import deDashboard from "./locales/de/dashboard.json";
 import enCommon from "./locales/en/common.json";
 import enComponents from "./locales/en/components.json";
 import enConnections from "./locales/en/connections.json";
+import enDag from "./locales/en/dag.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
+import heCommon from "./locales/he/common.json";
+import heDashboard from "./locales/he/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
@@ -37,6 +41,7 @@ import nlDashboard from "./locales/nl/dashboard.json";
 import plCommon from "./locales/pl/common.json";
 import plComponents from "./locales/pl/components.json";
 import plConnections from "./locales/pl/connections.json";
+import plDag from "./locales/pl/dag.json";
 import plDags from "./locales/pl/dags.json";
 import plDashboard from "./locales/pl/dashboard.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
@@ -50,6 +55,7 @@ import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 export const supportedLanguages = [
   { code: "de", name: "Deutsch" },
   { code: "en", name: "English" },
+  { code: "he", name: "עברית" },
   { code: "ko", name: "한국어" },
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },
@@ -64,6 +70,7 @@ const resources = {
     common: deCommon,
     components: deComponents,
     connections: deConnections,
+    dag: deDag,
     dags: deDags,
     dashboard: deDashboard,
   },
@@ -71,8 +78,13 @@ const resources = {
     common: enCommon,
     components: enComponents,
     connections: enConnections,
+    dag: enDag,
     dags: enDags,
     dashboard: enDashboard,
+  },
+  he: {
+    common: heCommon,
+    dashboard: heDashboard,
   },
   ko: {
     common: koCommon,
@@ -86,6 +98,7 @@ const resources = {
     common: plCommon,
     components: plComponents,
     connections: plConnections,
+    dag: plDag,
     dags: plDags,
     dashboard: plDashboard,
   },
