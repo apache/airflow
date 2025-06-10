@@ -93,9 +93,6 @@ class CustomXCom(BaseXCom):
     def deserialize_value(cls, xcom):
         return f"real deserialized {super().deserialize_value(xcom)}"
 
-    def orm_deserialize_value(self):
-        return f"orm deserialized {super().orm_deserialize_value()}"
-
 
 class TestXComEndpoint:
     @staticmethod

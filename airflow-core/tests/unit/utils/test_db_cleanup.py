@@ -123,6 +123,20 @@ class TestDBCleanup:
         )
         assert cleanup_table_mock.call_args.kwargs["skip_archive"] is should_skip
 
+    @patch("airflow.utils.db_cleanup._cleanup_table")
+    def test_run_cleanup_batch_size_propagation(self, cleanup_table_mock):
+        """Ensure batch_size is forwarded from run_cleanup to _cleanup_table."""
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=["log"],
+            dry_run=None,
+            verbose=None,
+            confirm=False,
+            batch_size=1234,
+        )
+        cleanup_table_mock.assert_called_once()
+        assert cleanup_table_mock.call_args.kwargs["batch_size"] == 1234
+
     @pytest.mark.parametrize(
         "table_names",
         [
