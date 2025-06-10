@@ -292,6 +292,7 @@ from pydantic import BaseModel
 class AirflowAccessTokenResponse(BaseModel):
     access_token: str
 
+
 # An optional helper function to retrieve an access token
 def get_airflow_client_access_token(
     host: str,
@@ -310,6 +311,7 @@ def get_airflow_client_access_token(
     response_success = AirflowAccessTokenResponse(**response.json())
     return response_success.access_token
 
+
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
 host = "http://localhost"
@@ -324,7 +326,7 @@ configuration.access_token = get_airflow_client_access_token(
     host=host,
     username="admin-api",
     password=os.environ["PASSWORD"],
-    )
+)
 
 # Enter a context with an instance of the API client
 with airflow_client.client.ApiClient(configuration) as api_client:
