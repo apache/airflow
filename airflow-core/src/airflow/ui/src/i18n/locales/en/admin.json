@@ -20,7 +20,7 @@
       "port": "Port"
     },
     "delete":{
-      "deleteConnection_one": "Delete {{count}} connection",
+      "deleteConnection_one": "Delete 1 connection",
       "deleteConnection_other": "Delete {{count}} connections",
       "firstConfirmMessage_one": "You are about to delete the following connection:",
       "firstConfirmMessage_other": "You are about to delete the following connections:",

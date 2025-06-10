@@ -1,6 +1,6 @@
 {
   "columns": {
-    "consumingDags": "消費  Dags",
+    "consumingDags": "消費 Dags",
     "group": "群組",
     "lastAssetEvent": "最後資源事件",
     "name": "名稱",

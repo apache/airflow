@@ -20,7 +20,7 @@
       "port": "埠"
     },
     "delete":{
-      "deleteConnection_one": "刪除 {{count}} 個連線",
+      "deleteConnection_one": "刪除1個連線",
       "deleteConnection_other": "刪除 {{count}} 個連線",
       "firstConfirmMessage_one": "您即將刪除以下連線：",
       "firstConfirmMessage_other": "您即將刪除以下連線：",
