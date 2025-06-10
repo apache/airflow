@@ -279,7 +279,7 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, "resource_test")],
                 False,
             ),
-             # With specific DAG permissions but no specific DAG requested
+            # With specific DAG permissions but no specific DAG requested
             (
                 "GET",
                 None,
@@ -301,7 +301,7 @@ class TestFabAuthManager:
                 None,
                 None,
                 [(ACTION_CAN_READ, "DAG:test_dag_id")],
-                False,
+                True,
             ),
             # With correct method permissions for specific DAG
             (
@@ -418,7 +418,7 @@ class TestFabAuthManager:
                 DagAccessEntity.RUN,
                 None,
                 [(ACTION_CAN_READ, RESOURCE_DAG_RUN)],
-                False,
+                True,
             ),
             # DAG sub-entity with specific DAG permissions but missing sub-entity permission
             (
@@ -442,12 +442,14 @@ class TestFabAuthManager:
                 DagAccessEntity.RUN,
                 None,
                 [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
-                False,
+                True,
             ),
         ],
     )
+    @mock.patch.object(FabAuthManager, "get_authorized_dag_ids")
     def test_is_authorized_dag(
         self,
+        mock_get_authorized_dag_ids,
         method,
         dag_access_entity,
         dag_details,
@@ -455,8 +457,13 @@ class TestFabAuthManager:
         expected_result,
         auth_manager_with_appbuilder,
     ):
+        dag_permissions = [perm[1] for perm in user_permissions if perm[1].startswith("DAG:")]
+        dag_ids = {perm.replace("DAG:", "") for perm in dag_permissions}
+        mock_get_authorized_dag_ids.return_value = dag_ids
+
         user = Mock()
         user.perms = user_permissions
+        user.id = 1
         result = auth_manager_with_appbuilder.is_authorized_dag(
             method=method, access_entity=dag_access_entity, details=dag_details, user=user
         )
