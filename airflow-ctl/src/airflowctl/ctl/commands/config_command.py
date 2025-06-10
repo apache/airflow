@@ -67,12 +67,10 @@ class ConfigChange:
     breaking: bool = False
     remove_if_equals: str | bool | int | float | None = None
 
-    @provide_api_client(kind=ClientKind.CLI)
     def message(self, api_client=NEW_API_CLIENT) -> str | None:
         """Generate a message for this configuration change."""
         if self.default_change:
-            config_resp = api_client.configs.get(section=self.config.section, option=self.config.option)
-            value = self._get_option_value(config_resp)
+            value = self._get_option_value(api_client.configs.list())
             if value != self.new_default:
                 return (
                     f"Changed default value of `{self.config.option}` in `{self.config.section}` "
@@ -95,8 +93,7 @@ class ConfigChange:
                 f"{self.suggestion}"
             )
         if self.is_invalid_if is not None:
-            config_resp = api_client.configs.get(section=self.config.section, option=self.config.option)
-            value = self._get_option_value(config_resp)
+            value = self._get_option_value(api_client.configs.list())
             if value == self.is_invalid_if:
                 return (
                     f"Invalid value `{self.is_invalid_if}` set for `{self.config.option}` configuration parameter "
@@ -808,8 +805,8 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
                     None,
                 )
                 if target_option:
-                    if configuration.message() is not None:
-                        lint_issues.append(configuration.message())
+                    if configuration.message(api_client=api_client) is not None:
+                        lint_issues.append(configuration.message(api_client=api_client))
 
         if lint_issues:
             rich.print("[red]Found issues in your airflow.cfg:[/red]")
