@@ -67,18 +67,20 @@ apache-airflow-providers-google
 
 These operators are using SQL parsing and may query DB for lineage extraction.
 To extract unique data from each database type, a dedicated Hook implementing OpenLineage methods is required.
+Not all subclasses of :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`
+are automatically supported, only those also using a supported Hook.
 
 .. note::
-  Not all subclasses of :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` are automatically
-  supported, only those also using a supported Hook (e.g., one of supported operators is
-  :class:`~airflow.providers.databricks.operators.databricks_sql.DatabricksSqlOperator`).
   Due to the automatic generation of this documentation, some supported operators inheriting from
   :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` may not appear in the ``Providers``
-  section below - to prevent false positives. Please check your operator's code to confirm OpenLineage support.
+  section below - to prevent false positives. Examples of such Operators are:
+  :class:`~airflow.providers.databricks.operators.databricks_sql.DatabricksSqlOperator` and
+  :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator`.
+  Please check your operator's code to confirm OpenLineage support.
 
 Currently, the following databases (hooks) are supported:
 
-{% for db_type, hook in db_hooks %}
+{% for hook, db_type in db_hooks %}
 - {{ db_type }} (via :class:`~{{ hook }}`)
 {% endfor %}
 
