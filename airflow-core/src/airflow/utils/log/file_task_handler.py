@@ -45,6 +45,7 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.typing_compat import TypeAlias
 
@@ -180,15 +181,18 @@ def _interleave_logs(*logs: str | LogMessages) -> Iterable[StructuredLogMessage]
         last = msg
 
 
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
+def _ensure_ti(
+    ti: TaskInstanceKey | TaskInstance | TaskInstanceHistory, session
+) -> TaskInstance | TaskInstanceHistory:
     """
-    Given TI | TIKey, return a TI object.
+    Return a TaskInstance or TaskInstanceHistory for the given TI, TIKey, or TaskInstanceHistory.
 
-    Will raise exception if no TI is found in the database.
+    Raises AirflowException if no TI is found in the database.
     """
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
 
-    if isinstance(ti, TaskInstance):
+    if isinstance(ti, (TaskInstance, TaskInstanceHistory)):
         return ti
     val = (
         session.query(TaskInstance)
