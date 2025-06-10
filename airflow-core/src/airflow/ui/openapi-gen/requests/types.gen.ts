@@ -144,11 +144,6 @@ export type BaseInfoResponse = {
 };
 
 /**
- * Bulk Action to be performed on the used model.
- */
-export type BulkAction = "create" | "delete" | "update";
-
-/**
  * Bulk Action to be taken if the entity does not exist.
  */
 export type BulkActionNotOnExistence = "fail" | "skip";
@@ -178,6 +173,14 @@ export type BulkActionResponse = {
   }>;
 };
 
+export type BulkBody_BulkTaskInstanceBody_ = {
+  actions: Array<
+    | BulkCreateAction_BulkTaskInstanceBody_
+    | BulkUpdateAction_BulkTaskInstanceBody_
+    | BulkDeleteAction_BulkTaskInstanceBody_
+  >;
+};
+
 export type BulkBody_ConnectionBody_ = {
   actions: Array<
     BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_
@@ -194,11 +197,23 @@ export type BulkBody_VariableBody_ = {
   >;
 };
 
+export type BulkCreateAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: "create";
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<BulkTaskInstanceBody>;
+  action_on_existence?: BulkActionOnExistence;
+};
+
 export type BulkCreateAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -210,7 +225,7 @@ export type BulkCreateAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -222,7 +237,7 @@ export type BulkCreateAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "create";
   /**
    * A list of entities to be created.
    */
@@ -230,11 +245,23 @@ export type BulkCreateAction_VariableBody_ = {
   action_on_existence?: BulkActionOnExistence;
 };
 
+export type BulkDeleteAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: "delete";
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
 export type BulkDeleteAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -246,7 +273,7 @@ export type BulkDeleteAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -258,7 +285,7 @@ export type BulkDeleteAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "delete";
   /**
    * A list of entity id/key to be deleted.
    */
@@ -288,11 +315,37 @@ export type BulkResponse = {
   delete?: BulkActionResponse | null;
 };
 
+/**
+ * Request body for bulk update, and delete task instances.
+ */
+export type BulkTaskInstanceBody = {
+  new_state?: TaskInstanceState | null;
+  note?: string | null;
+  include_upstream?: boolean;
+  include_downstream?: boolean;
+  include_future?: boolean;
+  include_past?: boolean;
+  task_id: string;
+  map_index?: number | null;
+};
+
+export type BulkUpdateAction_BulkTaskInstanceBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: "update";
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<BulkTaskInstanceBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
 export type BulkUpdateAction_ConnectionBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -304,7 +357,7 @@ export type BulkUpdateAction_PoolBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -316,7 +369,7 @@ export type BulkUpdateAction_VariableBody_ = {
   /**
    * The action to be performed on the entities.
    */
-  action: BulkAction;
+  action: "update";
   /**
    * A list of entities to be updated.
    */
@@ -573,6 +626,7 @@ export type DAGRunResponse = {
   queued_at: string | null;
   start_date: string | null;
   end_date: string | null;
+  duration: number | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
   run_after: string;
@@ -1965,7 +2019,7 @@ export type CreateBackfillDryRunData = {
 
 export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
 
-export type ListBackfills1Data = {
+export type ListBackfillsUiData = {
   active?: boolean | null;
   dagId?: string | null;
   limit?: number;
@@ -1973,7 +2027,7 @@ export type ListBackfills1Data = {
   orderBy?: string;
 };
 
-export type ListBackfills1Response = BackfillCollectionResponse;
+export type ListBackfillsUiResponse = BackfillCollectionResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -2182,7 +2236,6 @@ export type PatchDagsData = {
    */
   dagIdPattern?: string | null;
   excludeStale?: boolean;
-  lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
   owners?: Array<string>;
@@ -2232,6 +2285,30 @@ export type GetDagTagsData = {
 };
 
 export type GetDagTagsResponse = DAGTagCollectionResponse;
+
+export type GetDagsUiData = {
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
+  dagDisplayNamePattern?: string | null;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
+  dagIdPattern?: string | null;
+  dagIds?: Array<string> | null;
+  dagRunsLimit?: number;
+  excludeStale?: boolean;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
+};
+
+export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
 
 export type GetEventLogData = {
   eventLogId: number;
@@ -2410,6 +2487,14 @@ export type GetTaskInstancesData = {
 };
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type BulkTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: BulkBody_BulkTaskInstanceBody_;
+};
+
+export type BulkTaskInstancesResponse = BulkResponse;
 
 export type GetTaskInstancesBatchData = {
   dagId: "~";
@@ -2725,29 +2810,6 @@ export type LogoutData = {
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
-
-export type RecentDagRunsData = {
-  /**
-   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   */
-  dagDisplayNamePattern?: string | null;
-  /**
-   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-   */
-  dagIdPattern?: string | null;
-  dagIds?: Array<string> | null;
-  dagRunsLimit?: number;
-  excludeStale?: boolean;
-  lastDagRunState?: DagRunState | null;
-  limit?: number;
-  offset?: number;
-  owners?: Array<string>;
-  paused?: boolean | null;
-  tags?: Array<string>;
-  tagsMatchMode?: "any" | "all" | null;
-};
-
-export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
 
 export type GetDependenciesData = {
   nodeId?: string | null;
@@ -3371,7 +3433,7 @@ export type $OpenApiTs = {
   };
   "/ui/backfills": {
     get: {
-      req: ListBackfills1Data;
+      req: ListBackfillsUiData;
       res: {
         /**
          * Successful Response
@@ -4206,6 +4268,21 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/ui/dags": {
+    get: {
+      req: GetDagsUiData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGWithLatestDagRunsCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/api/v2/eventLogs/{event_log_id}": {
     get: {
       req: GetEventLogData;
@@ -4583,6 +4660,27 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: BulkTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BulkResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -5595,21 +5693,6 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: MenuItemCollectionResponse;
-      };
-    };
-  };
-  "/ui/dags/recent_dag_runs": {
-    get: {
-      req: RecentDagRunsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGWithLatestDagRunsCollectionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
       };
     };
   };

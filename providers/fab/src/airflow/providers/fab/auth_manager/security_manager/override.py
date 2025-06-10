@@ -43,6 +43,7 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
     RegisterUserOAuthView,
@@ -186,6 +187,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     userremoteusermodelview = CustomUserRemoteUserModelView
     useroidmodelview = CustomUserOIDModelView
     userstatschartview = CustomUserStatsChartView
+
+    # API
+    security_api = SecurityApi
+    """ Override if you want your own Security API login endpoint """
 
     jwt_manager = None
     """ Flask-JWT-Extended """
@@ -400,6 +405,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Register FAB auth manager related views."""
         if not self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
+
+        # Security APIs
+        self.appbuilder.add_api(self.security_api)
 
         if self.auth_user_registration:
             if self.auth_type == AUTH_DB:
@@ -742,6 +750,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def builtin_roles(self):
         """Get the builtin roles."""
         return self._builtin_roles
+
+    @property
+    def api_login_allow_multiple_providers(self):
+        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
+
+    @property
+    def auth_type_provider_name(self):
+        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
+        return provider_to_auth_type.get(self.auth_type)
 
     def _init_config(self):
         """
@@ -2132,8 +2149,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "username": me["nickname"],
                 "role_keys": me.get("groups", []),
             }
-
-        return {}
+        # for other providers
+        data = self.oauth_remotes[provider].userinfo()
+        log.debug("User info from %s: %s", provider, data)
+        return {
+            "username": data.get("preferred_username", ""),
+            "first_name": data.get("given_name", ""),
+            "last_name": data.get("family_name", ""),
+            "email": data.get("email", ""),
+            "role_keys": data.get("groups", []),
+        }
 
     @staticmethod
     def oauth_token_getter():

@@ -27,7 +27,6 @@ from datetime import datetime
 from google.cloud import batch_v1
 
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchDeleteJobOperator,
     CloudBatchListJobsOperator,
@@ -52,14 +51,8 @@ list_jobs_task_name = "list-jobs"
 list_tasks_task_name = "list-tasks"
 
 
-def _unwrap_xcom(result):
-    if AIRFLOW_V_3_0_PLUS:
-        return result
-    return result[0]
-
-
 def _assert_jobs(ti):
-    job_list = _unwrap_xcom(ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value"))
+    job_list = ti.xcom_pull(list_jobs_task_name)
     job_names_str = ""
 
     if job_list:
@@ -71,7 +64,7 @@ def _assert_jobs(ti):
 
 
 def _assert_tasks(ti):
-    task_list = _unwrap_xcom(ti.xcom_pull(task_ids=[list_tasks_task_name], key="return_value"))
+    task_list = ti.xcom_pull(list_tasks_task_name)
 
     assert len(task_list) == 2
     assert "tasks/0" in task_list[0]["name"]

@@ -181,6 +181,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-i18n-json                                           | Check i18n files validity                              | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-imports-in-providers                                | Check imports in providers                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone               |         |
@@ -289,6 +291,8 @@ require Breeze Docker image to be built locally.
 | generate-tasksdk-datamodels                               | Generate Datamodels for TaskSDK client                 | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-volumes-for-sources                              | Generate volumes for docker compose                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| go-mockery                                                | Generate mocks for go                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | gofmt                                                     | Format go code                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -482,6 +486,36 @@ do not want to set it manually every time you enter the terminal.
 In case you do not have breeze image configured locally, you can also disable all checks that require breeze
 the image by setting ``SKIP_BREEZE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
 when run locally (note that those checks will anyway run in CI).
+
+Disabling goproxy for firewall issues
+-------------------------------------
+
+Sometimes your environment might not allow to connect to the ``goproxy`` server, which is used to
+proxy/cache Go modules. When your firewall blocks go proxy it usually ends with message similar to:
+
+.. code-block:: text
+
+  lookup proxy.golang.org: i/o timeout
+
+In such case, you can disable the ``goproxy`` by setting the
+``GOPROXY`` environment variable to "direct". You can do it by running:
+
+.. code-block:: bash
+
+    export GOPROXY=direct
+
+Alternatively if your company has its own Go proxy, you can set the ``GOPROXY`` to
+your company Go proxy URL. For example:
+
+.. code-block:: bash
+
+    export GOPROXY=https://mycompanygoproxy.com
+
+See `Go Proxy lesson <https://www.practical-go-lessons.com/chap-18-go-module-proxies#configuration-of-the-go-module-proxy>`__)
+for more details on how to configure Go proxy - including setting multiple proxies.
+
+You can add the variable to your ``.bashrc`` or ``.zshrc`` if you do not want to set it manually every time you
+enter the terminal.
 
 Manual pre-commits
 ------------------

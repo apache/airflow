@@ -343,7 +343,6 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 			State:   api.TISuccessStatePayloadState(finalState),
 		})
 	}
-
 	err = workloadClient.TaskInstances().UpdateState(
 		ctx,
 		workload.TI.Id,

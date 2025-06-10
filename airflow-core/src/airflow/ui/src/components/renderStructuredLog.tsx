@@ -17,6 +17,7 @@
  * under the License.
  */
 import { chakra, Code, Link } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage } from "openapi/requests/types.gen";
@@ -45,6 +46,7 @@ type RenderStructuredLogProps = {
   logLink: string;
   logMessage: string | StructuredLogMessage;
   sourceFilters?: Array<string>;
+  translate: TFunction;
 };
 
 const addLinks = (line: string) => {
@@ -94,6 +96,7 @@ export const renderStructuredLog = ({
   logLink,
   logMessage,
   sourceFilters,
+  translate,
 }: RenderStructuredLogProps) => {
   if (typeof logMessage === "string") {
     return (
@@ -169,8 +172,9 @@ export const renderStructuredLog = ({
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => (
         <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
-          File <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>, line{" "}
-          {frame.lineno} in {frame.name}
+          {translate("components:logs.file")}{" "}
+          <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
+          {translate("components:logs.line")} {frame.lineno} {translate("components:logs.in")} {frame.name}
         </chakra.p>
       ));
 
