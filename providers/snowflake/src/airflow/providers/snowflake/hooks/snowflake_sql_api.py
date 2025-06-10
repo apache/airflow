@@ -343,7 +343,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         return False
 
     def _make_api_call_with_retries(
-        self, method: str, url: str, headers: dict, params: dict = None, json: dict = None
+        self, method: str, url: str, headers: dict, params: dict | None = None, json: dict | None = None
     ):
         """
         Make an API call to the Snowflake SQL API with retry logic for specific HTTP errors.
@@ -359,7 +359,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :return: The response object from the API call.
         """
 
-        @tenacity.retry(**self.retry_config)  # Use the retry args defined in constructor
+        @tenacity.retry(**self.retry_config)  # type: ignore
         def _make_request():
             if method.upper() in ("GET", "POST"):
                 response = requests.request(
@@ -387,7 +387,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :return: The response object from the API call.
         """
 
-        @tenacity.retry(**self.retry_config)
+        @tenacity.retry(**self.retry_config)  # type: ignore
         async def _make_request():
             async with aiohttp.ClientSession(headers=headers) as session:
                 if method.upper() == "GET":
