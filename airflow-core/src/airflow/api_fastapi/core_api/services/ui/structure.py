@@ -138,7 +138,7 @@ def bind_output_assets_to_tasks(
     downstream_asset_edges = [
         edge
         for edge in edges
-        if edge["target_id"].startswith("asset:") and not edge.get("resolved_from_alias", None)
+        if edge["target_id"].startswith("asset:") and not edge.get("resolved_from_alias")
     ]
 
     for edge in downstream_asset_edges:
@@ -153,9 +153,7 @@ def bind_output_assets_to_tasks(
 
     # bind assets resolved from aliases, they do not populate the `outlet_asset_references`
     downstream_alias_resolved_edges = [
-        edge
-        for edge in edges
-        if edge["target_id"].startswith("asset:") and edge.get("resolved_from_alias", True)
+        edge for edge in edges if edge["target_id"].startswith("asset:") and edge.get("resolved_from_alias")
     ]
 
     aliases_names = {edges["resolved_from_alias"] for edges in downstream_alias_resolved_edges}
@@ -164,6 +162,7 @@ def bind_output_assets_to_tasks(
         select(AssetEvent)
         .join(AssetEvent.source_aliases)
         .join(AssetEvent.source_dag_run)
+        # That's a simplification, instead doing `version_number` in `DagRun.dag_versions`.
         .join(DagRun.created_dag_version)
         .where(AssetEvent.source_aliases.any(AssetAliasModel.name.in_(aliases_names)))
         .where(AssetEvent.source_dag_run.has(DagRun.dag_id == serialized_dag.dag_model.dag_id))

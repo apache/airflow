@@ -29,7 +29,8 @@ from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
-from airflow.sdk import Asset, AssetAlias, Metadata, task
+from airflow.sdk import Metadata, task
+from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
 from airflow.utils import timezone
 
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
@@ -114,12 +115,12 @@ def asset2() -> Asset:
 
 
 @pytest.fixture
-def asset3() -> Asset:
-    return Asset(uri="s3://dataset-bucket/example.csv")
+def asset3() -> Dataset:
+    return Dataset(uri="s3://dataset-bucket/example.csv")
 
 
 @pytest.fixture
-def make_dags(dag_maker, session, time_machine, asset1: Asset, asset2: Asset, asset3: Asset) -> None:
+def make_dags(dag_maker, session, time_machine, asset1: Asset, asset2: Asset, asset3: Dataset) -> None:
     with dag_maker(
         dag_id=DAG_ID_EXTERNAL_TRIGGER,
         serialized=True,
@@ -546,13 +547,6 @@ class TestStructureDataEndpoint:
         }
         expected = {
             "edges": [
-                {
-                    "source_id": "task_1",
-                    "target_id": "task_2",
-                    "is_setup_teardown": None,
-                    "label": None,
-                    "is_source_asset": None,
-                },
                 {
                     "source_id": "task_1",
                     "target_id": "task_2",
