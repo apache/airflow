@@ -1464,7 +1464,7 @@ class TestRuntimeTaskInstance:
         with patch.object(XCom, "get_one") as mock_get_one, patch.object(XCom, "get_all") as mock_get_all:
             if map_indexes == NOTSET:
                 # Use side_effect to return different values for different tasks
-                def mock_get_all_side_effect(*, task_id, **kwargs):
+                def mock_get_all_side_effect(task_id, **kwargs):
                     if task_id == "task_b":
                         return [{"c": 3, "d": 4}]
                     return [{"a": 1, "b": 2}]
