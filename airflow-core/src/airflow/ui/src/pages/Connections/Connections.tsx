@@ -68,6 +68,7 @@ const getColumns = ({
         onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
       />
     ),
+    enableHiding: false,
     enableSorting: false,
     header: () => (
       <Checkbox
