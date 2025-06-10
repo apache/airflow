@@ -45,7 +45,9 @@ def fallback_to_default_project_endpoint(func: Callable[..., RT]) -> Callable[..
     def inner_wrapper(self, **kwargs) -> RT:
         required_args = ("project", "endpoint")
         for arg_name in required_args:
-            kwargs[arg_name] = kwargs.get(arg_name, getattr(self, arg_name))
+            # Use the value from kwargs if it is provided and value is not None, otherwise use the
+            # value from the connection extra property.
+            kwargs[arg_name] = getattr(self, arg_name) if kwargs.get(arg_name) is None else kwargs[arg_name]
             if not kwargs[arg_name]:
                 raise MaxComputeConfigurationException(
                     f'"{arg_name}" must be passed either as '

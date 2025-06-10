@@ -9,6 +9,8 @@
   },
   "assetEvent_one": "Zdarzenie Zasobu",
   "assetEvent_other": "Zdarzenia Zasobów",
+  "backfill_one": "Wypełnienie wsteczne",
+  "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
     "xcoms": "XComy"
@@ -17,14 +19,19 @@
   "dag_other": "Dagi",
   "dagRun_one": "Wykonanie Daga",
   "dagRun_other": "Wykonania Dagów",
+  "dagWarnings": "Ostrzeżenia/Błędy Daga",
   "defaultToGraphView": "Domyślnie widok grafu",
   "defaultToGridView": "Domyślnie widok siatki",
+  "direction": "Kierunek",
   "docs": {
     "documentation": "Documentacja",
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
-  "duration": "Czas trwania",
+  "duration": {
+    "label": "Czas trwania",
+    "seconds": "{{count}}s"
+  },
   "endDate": "Data zakończenia",
   "expression": {
     "all": "Wszystkie",
@@ -55,6 +62,7 @@
     "security": "Bezpieczeństwo"
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
+  "operator": "Operator",
   "pools": {
     "deferred": "Odłożone",
     "open": "Otwarte",
@@ -64,10 +72,10 @@
     "running": "W trakcie",
     "scheduled": "Zaplanowane"
   },
-  "runId": "Identyfikator uruchomienia",
+  "runId": "Identyfikator wykonania",
   "runTypes": {
-    "asset_triggered": "Przez zasób",
-    "backfill": "Uzupełnienie wsteczne",
+    "asset_triggered": "Wywołany Przez zasób",
+    "backfill": "Wypełnienie wsteczne",
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
   },
@@ -100,17 +108,26 @@
   "switchToDarkMode": "Przełącz na tryb ciemny",
   "switchToLightMode": "Przełącz na tryb jasny",
   "table": {
+    "completedAt": "Zakończono o",
+    "createdAt": "Utworzono o",
+    "duration": "Czas trwania",
     "filterByTag": "Filtruj Dagi według tagu",
     "filterColumns": "Filtruj kolumny tabeli",
     "filterReset_one": "Resetuj filtr",
     "filterReset_other": "Resetuj filtry",
+    "from": "Od",
+    "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "noTagsFound": "Nie znaleziono etykiet",
+    "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "tagMode": {
       "all": "Wszystkie",
       "any": "Dowolne"
     },
-    "tagPlaceholder": "Filtruj według etykiety"
+    "tagPlaceholder": "Filtruj według etykiety",
+    "to": "Do"
   },
+  "task_one": "Zadanie",
+  "task_other": "Zadania",
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
   "timeRange": {
@@ -127,7 +144,13 @@
     "title": "Wybierz strefę czasową",
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
-  "triggered": "Wyzwolony",
+  "triggered": "Wywołany",
+  "triggerRule": "Reguła wywołania",
   "tryNumber": "Numer próby",
-  "user": "Użytkownik"
+  "user": "Użytkownik",
+  "wrap": {
+    "tooltip": "Wybierz w aby przełączyć zawijanie",
+    "unwrap": "Wyłącz zawijanie",
+    "wrap": "Włącz zawijanie"
+  }
 }
