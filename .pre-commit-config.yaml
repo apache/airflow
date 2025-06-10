@@ -49,7 +49,8 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.5
+    # replace hash with version once PR #103 merged comes in a release
+    rev: fd3fbe825390abc682953165e9aa58f5f1bf7339
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -171,10 +172,6 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.service$|\.tf$|Dockerfile.*$
-  # https://github.com/Lucas-C/pre-commit-hooks/pull/103
-  - repo: https://github.com/ashb/pre-commit-hooks
-    rev: 36ddb15cd7a607003b06bf11c28045c91ea97dc0
-    hooks:
       - id: insert-license
         name: Add license for all Go files
         types: [go]
@@ -632,6 +629,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/ui/src/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|

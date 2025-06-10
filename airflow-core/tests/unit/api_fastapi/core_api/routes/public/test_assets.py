@@ -1196,6 +1196,7 @@ class TestPostAssetMaterialize(TestAssets):
             "run_after": mock.ANY,
             "start_date": None,
             "end_date": None,
+            "duration": None,
             "data_interval_start": None,
             "data_interval_end": None,
             "last_scheduling_decision": None,
