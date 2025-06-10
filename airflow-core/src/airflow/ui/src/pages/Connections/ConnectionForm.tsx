@@ -197,7 +197,7 @@ const ConnectionForm = ({
               </Accordion.ItemContent>
             </Accordion.Item>
             <FlexibleForm
-              flexibleFormDefaultSection={translate("connections.form.extraFields")} // flexibleFormExtraFieldSection
+              flexibleFormDefaultSection={translate("connections.form.extraFields")}
               initialParamsDict={paramsDic}
               key={selectedConnType}
               setError={setFormErrors}

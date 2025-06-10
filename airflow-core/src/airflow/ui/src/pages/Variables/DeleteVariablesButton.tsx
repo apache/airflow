@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { FiTrash, FiTrash2 } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -62,13 +62,14 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
           <Dialog.CloseTrigger />
           <Dialog.Body width="full">
             <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
-              <Trans count={variableKeys.length} i18nKey="admin:variables.delete.firstConfirmMessage" />
+              {translate("variables.delete.firstConfirmMessage", { count: variableKeys.length })}
               <br />
               <Code mb={2} mt={2} p={4}>
                 {variableKeys.join(", ")}
               </Code>
               <br />
-              <Trans i18nKey="admin:variables.delete.secondConfirmMessage" />
+              {translate("deleteActions.modal.secondConfirmMessage")}
+              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
             </Text>
             <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
@@ -89,7 +90,7 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.confirmButton")}</Text>
+                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

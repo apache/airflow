@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Code, Flex, Heading, Text, VStack, useDisclosure } from "@chakra-ui/react";
-import { useTranslation, Trans } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { FiTrash, FiTrash2 } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -67,7 +67,8 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
                 {connectionIds.join(", ")}
               </Code>
               <br />
-              <Trans i18nKey="admin:connections.delete.secondConfirmMessage" />
+              {translate("deleteActions.modal.secondConfirmMessage")}
+              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
             </Text>
             <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
@@ -78,7 +79,7 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
                   mutate({ requestBody: { actions: [{ action: "delete", entities: connectionIds }] } });
                 }}
               >
-                <FiTrash /> <Text as="span">{translate("deleteActions.confirmButton")}</Text>
+                <FiTrash /> <Text as="span">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

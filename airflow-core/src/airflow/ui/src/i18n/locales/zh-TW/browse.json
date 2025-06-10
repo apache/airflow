@@ -16,8 +16,8 @@
   "columns":{
     "dagId": "Dag ID",
     "mapIndex": "映射索引",
-    "runId": "執行ID",
-    "taskId": "任務ID"
+    "runId": "執行 ID",
+    "taskId": "任務 ID"
   },
   "xcom":{
     "columns":{

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { FiTrash } from "react-icons/fi";
 
 import { Button, Dialog } from "src/components/ui";
@@ -39,13 +39,13 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
   return (
     <>
       <ActionButton
-        actionName={translate("variables.delete")}
+        actionName={translate("variables.delete.title")}
         disabled={disabled}
         icon={<FiTrash />}
         onClick={() => {
           onOpen();
         }}
-        text={translate("variables.delete")}
+        text={translate("variables.delete.title")}
         withText={false}
       />
 
@@ -61,13 +61,14 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
 
           <Dialog.Body width="full">
             <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
-              <Trans count={1} i18nKey="admin:variables.delete.firstConfirmMessage" />
+              {translate("variables.delete.firstConfirmMessage_one")}
               <br />
               <Code mb={2} mt={2} p={4}>
                 {variableKey}
               </Code>
               <br />
-              <Trans i18nKey="admin:variables.delete.secondConfirmMessage" />
+              {translate("deleteActions.modal.secondConfirmMessage")}
+              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
             </Text>
             <Flex justifyContent="end" mt={3}>
               <Button
@@ -79,7 +80,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.confirmButton")}</Text>
+                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

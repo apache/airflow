@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
-import { useTranslation, Trans } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { FiTrash } from "react-icons/fi";
 
 import { Button, Dialog } from "src/components/ui";
@@ -53,9 +53,7 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl">
-                {translate("connections.delete.deleteConnection_one", { count: 1 })}
-              </Heading>
+              <Heading size="xl">{translate("connections.delete.deleteConnection", { count: 1 })}</Heading>
             </VStack>
           </Dialog.Header>
 
@@ -69,7 +67,8 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
                 {connectionId}
               </Code>
               <br />
-              <Trans i18nKey="admin:connections.delete.secondConfirmMessage" />
+              {translate("deleteActions.modal.secondConfirmMessage")}
+              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
             </Text>
             <Flex justifyContent="end" mt={3}>
               <Button
@@ -81,7 +80,7 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.confirmButton")}</Text>
+                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

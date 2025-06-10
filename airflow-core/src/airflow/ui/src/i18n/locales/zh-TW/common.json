@@ -70,7 +70,7 @@
     "running": "執行中",
     "scheduled": "已排程"
   },
-  "runId": "執行ID",
+  "runId": "執行 ID",
   "runTypes": {
     "asset_triggered": "資源觸發",
     "backfill": "回填",

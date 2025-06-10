@@ -21,7 +21,6 @@ import { useState } from "react";
 import { type Control, Controller } from "react-hook-form";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 
-// import { useTranslation } from "react-i18next";
 import type { StandardFieldSpec } from "src/queries/useConnectionTypeMeta";
 
 import type { ConnectionBody } from "./Connections";
@@ -32,7 +31,6 @@ type StandardFieldsProps = {
 };
 
 const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
-  // const { t: translate } = useTranslation("admin");
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -51,7 +49,6 @@ const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
               <Field.Root mt={3} orientation="horizontal">
                 <Stack>
                   <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                    {/* {translate(`connections.standardFields.${fields.title}`)} */}
                     {fields.title ?? key}
                   </Field.Label>
                 </Stack>

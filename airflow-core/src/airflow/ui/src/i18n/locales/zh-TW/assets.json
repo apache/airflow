@@ -1,8 +1,8 @@
 {
   "columns": {
-    "consumingDags": "消費Dag",
+    "consumingDags": "消費  Dags",
     "group": "群組",
-    "lastAssetEvent": "上次資源事件",
+    "lastAssetEvent": "最後資源事件",
     "name": "名稱",
     "producingTasks": "生產任務"
   },

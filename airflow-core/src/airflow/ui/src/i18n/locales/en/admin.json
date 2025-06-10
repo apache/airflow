@@ -24,7 +24,6 @@
       "deleteConnection_other": "Delete {{count}} connections",
       "firstConfirmMessage_one": "You are about to delete the following connection:",
       "firstConfirmMessage_other": "You are about to delete the following connections:",
-      "secondConfirmMessage": "This action is permanent and cannot be undone. <strong>Are you sure you want to proceed?</strong>",
       "title": "Delete Connection"
     },
     "edit": "Edit Connection",
@@ -53,7 +52,11 @@
   },
   "deleteActions":{
     "button": "Delete",
-    "confirmButton": "Yes, Delete",
+    "modal":{
+      "confirmButton": "Yes, Delete",
+      "secondConfirmMessage": "This action is permanent and cannot be undone.",
+      "thirdConfirmMessage": " Are you sure you want to proceed?"
+    },
     "selected": "Selected"
   },
   "formActions":{
@@ -104,11 +107,11 @@
       "isEncrypted": "Is Encrypted"
     },
     "delete": {
-      "deleteVariable_one": "Delete {{count}} Variable",
+      "deleteVariable_one": "Delete 1 Variable",
       "deleteVariable_other": "Delete {{count}} Variables",
-      "firstConfirmMessage_one": "You are about to delete <strong>{{count}} variable</strong>.",
-      "firstConfirmMessage_other": "You are about to delete <strong>{{count}} variables</strong>.",
-      "secondConfirmMessage": "This action is permanent and cannot be undone. <strong>Are you sure you want to proceed?</strong>"
+      "firstConfirmMessage_one": "You are about to delete the following variable:",
+      "firstConfirmMessage_other": "You are about to delete the following variables:",
+      "title": "Delete Variable"
     },
     "edit":  "Edit Variable",
     "export": "Export",
