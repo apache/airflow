@@ -198,11 +198,11 @@ def print_language_summary(
 ) -> bool:
     found_difference = False
     missing_in_en: dict[str, dict[str, set[str]]] = {}
-    for lf in locale_files:
+    for lf in sorted(locale_files):
         locale = lf.locale
         file_missing: dict[str, list[str]] = {}
         file_extra: dict[str, list[str]] = {}
-        for filename, diff in summary.items():
+        for filename, diff in sorted(summary.items()):
             missing_keys = diff.missing_keys.get(locale, [])
             extra_keys = diff.extra_keys.get(locale, [])
             if missing_keys:
@@ -273,8 +273,10 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
     all_files = set()
     for lf in locale_files:
         all_files.update(lf.files)
-    for lf in locale_files:
+    for lf in sorted(locale_files):
         lang = lf.locale
+        if lang == "en":
+            continue
         table = tables[lang]
         table.title = f"Translation Progress: {lang}"
         table.add_column("File", style="bold cyan")
