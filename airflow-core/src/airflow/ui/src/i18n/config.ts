@@ -53,13 +53,13 @@ import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 // import Backend from 'i18next-http-backend';
 
 export const supportedLanguages = [
-  { code: "de", name: "Deutsch" },
-  { code: "en", name: "English" },
-  { code: "he", name: "עברית" },
-  { code: "ko", name: "한국어" },
-  { code: "nl", name: "Nederlands" },
-  { code: "pl", name: "Polski" },
-  { code: "zh-TW", name: "繁體中文" },
+  { code: "de", flag: "🇩🇪", name: "Deutsch" },
+  { code: "en", flag: "🇺🇸", name: "English" },
+  { code: "he", flag: "🇮🇱", name: "עברית" },
+  { code: "ko", flag: "🇰🇷", name: "한국어" },
+  { code: "nl", flag: "🇳🇱", name: "Nederlands" },
+  { code: "pl", flag: "🇵🇱", name: "Polski" },
+  { code: "zh-TW", flag: "🇹🇼", name: "繁體中文" },
 ] as const;
 
 export const defaultLanguage = "en";
