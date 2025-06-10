@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from httpx import URL
 from platformdirs import user_config_path
 
 from airflowctl.api.client import Client, ClientKind, Credentials
@@ -74,6 +75,20 @@ class TestClient:
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
         assert err.value.args == ("Client error message: {'detail': 'Not found'}",)
+
+    @pytest.mark.parametrize(
+        "base_url, client_kind, expected_base_url",
+        [
+            ("http://localhost:8080", ClientKind.CLI, "http://localhost:8080/api/v2/"),
+            ("http://localhost:8080", ClientKind.AUTH, "http://localhost:8080/auth/"),
+            ("https://example.com", ClientKind.CLI, "https://example.com/api/v2/"),
+            ("https://example.com", ClientKind.AUTH, "https://example.com/auth/"),
+        ],
+    )
+    def test_refresh_base_url(self, base_url, client_kind, expected_base_url):
+        client = Client(base_url="", token="", mounts={})
+        client.refresh_base_url(base_url=base_url, kind=client_kind)
+        assert client.base_url == URL(expected_base_url)
 
 
 class TestCredentials:
