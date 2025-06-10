@@ -400,6 +400,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-supported-versions                                 | Updates supported versions in documentation            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-translation-issue-template                         | Update translation issue template checklist            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-version                                            | Update versions in docs                                |         |

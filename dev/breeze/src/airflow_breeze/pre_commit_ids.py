@@ -152,6 +152,7 @@ PRE_COMMIT_LIST = [
     "update-reproducible-source-date-epoch",
     "update-spelling-wordlist-to-be-sorted",
     "update-supported-versions",
+    "update-translation-issue-template",
     "update-vendored-in-k8s-json-schema",
     "update-version",
     "validate-operators-init",
