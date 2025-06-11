@@ -72,6 +72,8 @@ def _create_xcom(key, value, backend, session=None) -> None:
         session=session,
     )
 
+    print("hi")
+
 
 @provide_session
 def _create_dag_run(dag_maker, session=None):
@@ -161,7 +163,7 @@ class TestGetXComEntry(TestXComEndpoint):
         [
             pytest.param(
                 {"deserialize": True},
-                f"{TEST_XCOM_VALUE_AS_JSON}",
+                TEST_XCOM_VALUE,
                 id="deserialize=true",
             ),
             pytest.param(
