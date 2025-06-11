@@ -2173,6 +2173,8 @@ class LazyDeserializedDAG(pydantic.BaseModel):
 
         data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
         if data_interval is None:
+            if run.logical_date is None:
+                raise ValueError(f"Cannot calculate data interval for run {run}")
             data_interval = self._real_dag.timetable.infer_manual_data_interval(run_after=run.logical_date)
 
         return data_interval
