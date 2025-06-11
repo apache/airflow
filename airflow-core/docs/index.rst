@@ -32,6 +32,15 @@ Airflow workflows are defined entirely in Python. This "workflows as code" appro
 - **Extensible**: The Airflow framework includes a wide range of built-in operators and can be extended to fit your needs.
 - **Flexible**: Airflow leverages the `Jinja <https://jinja.palletsprojects.com>`_ templating engine, allowing rich customizations.
 
+.. _task-sdk-docs:
+
+Task SDK
+========
+
+For Airflow Task SDK, see the standalone reference & tutorial site:
+
+   https://airflow.apache.org/docs/task-sdk/stable/
+
 Dags
 -----------------------------------------
 

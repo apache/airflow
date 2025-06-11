@@ -32,6 +32,7 @@ thus update its schedule to the asset "s3://bucket/my-task" and will also be tri
 
 from __future__ import annotations
 
+# [START example_asset_alias]
 import pendulum
 
 from airflow.sdk import DAG, Asset, AssetAlias, task
@@ -94,3 +95,4 @@ with DAG(
             print(event)
 
     consume_asset_event_from_asset_alias()
+# [END example_asset_alias]

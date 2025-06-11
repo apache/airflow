@@ -71,17 +71,17 @@ class SpellingError(NamedTuple):
         line_no_b: int = other.line_no or 0
         context_line_a: str = self.context_line or ""
         context_line_b: str = other.context_line or ""
-        left: tuple[Path, int, int, str, str] = (
+        left: tuple[Path, int, str, str, str] = (
             file_path_a,
             line_no_a,
             context_line_a,
             self.spelling or "",
             self.message or "",
         )
-        right: tuple[Path, int, int, str, str] = (
+        right: tuple[Path, int, str, str, str] = (
             file_path_b,
-            line_no_b or 0,
-            context_line_b or 0,
+            line_no_b,
+            context_line_b,
             other.spelling or "",
             other.message or "",
         )

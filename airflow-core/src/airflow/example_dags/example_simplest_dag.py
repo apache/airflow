@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+# [START simplest_dag]
 from airflow.sdk import dag, task
 
 
@@ -29,5 +30,7 @@ def example_simplest_dag():
 
     my_task()
 
+
+# [END simplest_dag]
 
 example_simplest_dag()
