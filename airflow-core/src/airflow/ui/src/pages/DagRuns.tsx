@@ -42,7 +42,7 @@ import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import DeleteRunButton from "src/pages/DeleteRunButton";
-import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -104,7 +104,8 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     header: translate("dags:runs.columns.endDate"),
   },
   {
-    cell: ({ row: { original } }) => getDuration(original.start_date, original.end_date),
+    accessorKey: "duration",
+    cell: ({ row: { original } }) => renderDuration(original.duration),
     header: translate("dags:runs.columns.duration"),
   },
   {
@@ -122,14 +123,10 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
   },
   {
     accessorKey: "conf",
-    cell: ({ row: { original } }) => {
-      if (original.conf) {
-        return <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />;
-      }
-
-      return undefined;
-    },
-    enableSorting: false,
+    cell: ({ row: { original } }) =>
+      original.conf && Object.keys(original.conf).length > 0 ? (
+        <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
+      ) : undefined,
     header: translate("dags:runs.columns.conf"),
   },
   {

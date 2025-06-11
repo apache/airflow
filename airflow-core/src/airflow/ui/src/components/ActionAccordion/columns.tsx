@@ -39,7 +39,7 @@ export const getColumns = (translate: TFunction): Array<MetaColumn<TaskInstanceR
   },
   {
     accessorKey: "map_index",
-    header: translate("dags:runAndTaskActions.clear.dialog.affectedTasks.columns.mapIndex"),
+    header: translate("common:mapIndex"),
   },
   {
     accessorKey: "run_id",

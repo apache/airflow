@@ -1,0 +1,79 @@
+{
+  "admin": {
+    "Config": "קונפיגורציות",
+    "Connections": "חיבורים",
+    "Plugins": "תוספים",
+    "Pools": "מאגר משאבים",
+    "Providers": "חבילות עזר",
+    "Variables": "משתנים"
+  },
+  "assetEvent_one": "אירוע בנכס בודד (Asset)",
+  "assetEvent_other": "אירוע בנכס אחר (Asset)",
+  "browse": {
+    "auditLog": "יומן מערכת",
+    "xcoms": "(XComs) אקסקום"
+  },
+  "dagRun_one": "הרצת Dag",
+  "dagRun_other": "הרצות Dags",
+  "defaultToGraphView": "תצוגת גרף כברירת מחדל",
+  "defaultToGridView": "תצוגת רשת כברירת מחדל",
+  "docs": {
+    "documentation": "דוקומנטציה",
+    "githubRepo": "GitHub Repo",
+    "restApiReference": "REST API תיעוד"
+  },
+  "language": {
+    "chinese": "סינית מסורתית",
+    "english": "אנגלית",
+    "german": "גרמנית",
+    "korean": "קוריאנית",
+    "select": "בחר"
+  },
+  "logout": "התנתק",
+  "nav": {
+    "admin": "ניהול",
+    "assets": "נכסים (Assets)",
+    "browse": "עיון",
+    "docs": "תיעוד",
+    "home": "דף הבית",
+    "plugins": "תוספים"
+  },
+  "pools": {
+    "deferred": "בהמתנה עד קיום תנאי",
+    "open": "פתוח",
+    "pools_one": "מאגר",
+    "pools_other": "מאגרים",
+    "queued": "בהמתנה למשאבים",
+    "running": "בריצה",
+    "scheduled": "בתזמון"
+  },
+  "states": {
+    "deferred": "בהמתנה עד קיום תנאי",
+    "failed": "כשלון",
+    "no_status": "ללא סטאטוס",
+    "queued": "בהמתנה למשאבי ריצה",
+    "removed": "הוסר",
+    "restarting": "בהפעלה מחדש",
+    "running": "בריצה",
+    "scheduled": "בהמתנה לתזמון",
+    "skipped": "דולג",
+    "success": "הצלחה",
+    "up_for_reschedule": "בהמתנה לתזמון פנימי",
+    "up_for_retry": "בהמתנה לניסיון נוסף",
+    "upstream_failed": "תלויות נכשלו"
+  },
+  "switchToDarkMode": "החלף למצב כהה",
+  "switchToLightMode": "החלף למצב בהיר",
+  "taskInstance_one": "משימה בודדת",
+  "taskInstance_other": "משימה אחרת",
+  "timeRange": {
+    "duration": "משך זמן",
+    "last12Hours": "12 השעות האחרונות",
+    "last24Hours": "24 השעות האחרונות",
+    "lastHour": "השעה האחרונה",
+    "pastWeek": "השבוע האחרון"
+  },
+  "timezone": "איזור זמן",
+  "triggered": "טריגרר",
+  "user": "משתמש"
+}

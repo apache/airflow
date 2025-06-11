@@ -1774,6 +1774,7 @@ taskgroup
 TaskGroups
 taskGroups
 TaskInstance
+taskInstance
 taskinstance
 TaskInstanceKey
 taskinstancekey
@@ -1967,6 +1968,7 @@ VideoIntelligenceServiceClient
 views
 virtualenv
 virtualenvs
+virtualized
 vm
 VolumeKmsKeyId
 VolumeMount
