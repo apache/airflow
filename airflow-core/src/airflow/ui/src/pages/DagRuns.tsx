@@ -71,7 +71,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
         </RouterLink>
       </Link>
     ),
-    header: translate("runAfter"),
+    header: translate("dagRun.runAfter"),
   },
   {
     accessorKey: "state",

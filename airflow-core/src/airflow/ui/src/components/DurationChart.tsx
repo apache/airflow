@@ -193,7 +193,7 @@ export const DurationChart = ({
               ticks: {
                 maxTicksLimit: 3,
               },
-              title: { align: "end", display: true, text: translate("durationChart.runAfter") },
+              title: { align: "end", display: true, text: translate("dagRun.runAfter") },
             },
             y: {
               title: { align: "end", display: true, text: translate("duration") },

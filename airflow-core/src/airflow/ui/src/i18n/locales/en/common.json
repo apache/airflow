@@ -54,6 +54,7 @@
     "dataIntervalStart": "Data Interval Start",
     "lastSchedulingDecision": "Last Scheduling Decision",
     "queuedAt": "Queued At",
+    "runAfter": "Run After",
     "runType": "Run Type",
     "triggeredBy": "Triggered By"
   },
@@ -116,7 +117,6 @@
     "running": "Running",
     "scheduled": "Scheduled"
   },
-  "runAfter": "Run After",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
