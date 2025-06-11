@@ -17,7 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { FiCode } from "react-icons/fi";
+import { FiCode, FiDatabase } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
@@ -36,9 +36,10 @@ const tabs = [
   { icon: <MdReorder />, label: "Logs", value: "" },
   { icon: <PiBracketsCurlyBold />, label: "Rendered Templates", value: "rendered_templates" },
   { icon: <MdSyncAlt />, label: "XCom", value: "xcom" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
+  { icon: <MdOutlineEventNote />, label: "Audit", value: "events" },
   { icon: <FiCode />, label: "Code", value: "code" },
   { icon: <MdDetails />, label: "Details", value: "details" },
+  { icon: <FiDatabase />, label: "Asset Events", value: "asset_events" },
 ];
 
 export const TaskInstance = () => {

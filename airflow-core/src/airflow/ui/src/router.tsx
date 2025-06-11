@@ -54,7 +54,9 @@ import { XCom } from "src/pages/XCom";
 
 import { Configs } from "./pages/Configs";
 import { GroupTaskInstance } from "./pages/GroupTaskInstance";
+import { AssetEvents as DagRunAssetEvents } from "./pages/Run/AssetEvents";
 import { Security } from "./pages/Security";
+import { AssetEvents as TaskInstanceAssetEvents } from "./pages/TaskInstance/AssetEvents";
 import { client } from "./queryClient";
 
 const taskInstanceRoutes = [
@@ -65,6 +67,7 @@ const taskInstanceRoutes = [
   { element: <TaskInstanceDetails />, path: "details" },
   { element: <RenderedTemplates />, path: "rendered_templates" },
   { element: <TaskInstances />, path: "task_instances" },
+  { element: <TaskInstanceAssetEvents />, path: "asset_events" },
 ];
 
 export const routerConfig = [
@@ -157,6 +160,7 @@ export const routerConfig = [
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
+          { element: <DagRunAssetEvents />, path: "asset_events" },
         ],
         element: <Run />,
         path: "dags/:dagId/runs/:runId",

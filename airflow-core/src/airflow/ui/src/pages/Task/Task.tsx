@@ -31,7 +31,7 @@ import { Header } from "./Header";
 const tabs = [
   { icon: <LuChartColumn />, label: "Overview", value: "" },
   { icon: <MdOutlineTask />, label: "Task Instances", value: "task_instances" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
+  { icon: <MdOutlineEventNote />, label: "Audit", value: "events" },
 ];
 
 export const Task = () => {
