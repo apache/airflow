@@ -137,6 +137,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
         """
+        self.query_ids = []
         conn_config = self._get_conn_params
 
         req_id = uuid.uuid4()

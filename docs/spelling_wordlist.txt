@@ -1968,6 +1968,7 @@ VideoIntelligenceServiceClient
 views
 virtualenv
 virtualenvs
+virtualized
 vm
 VolumeKmsKeyId
 VolumeMount
