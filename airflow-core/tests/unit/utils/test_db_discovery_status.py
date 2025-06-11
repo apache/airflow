@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import socket
+from unittest.mock import patch
 
 import pytest
 
@@ -26,21 +27,22 @@ from airflow.utils.db_discovery import DbDiscoveryStatus
 
 
 class TestDbDiscoveryStatus:
+    @patch("socket.getaddrinfo")
     @pytest.mark.parametrize(
         "error_code, expected_status",
         [
-            (socket.EAI_FAIL, DbDiscoveryStatus.PERMANENT_ERROR),
-            (socket.EAI_AGAIN, DbDiscoveryStatus.TEMPORARY_ERROR),
-            (socket.EAI_NONAME, DbDiscoveryStatus.UNKNOWN_HOSTNAME),
-            (socket.EAI_SYSTEM, DbDiscoveryStatus.UNKNOWN_ERROR),
+            pytest.param(socket.EAI_FAIL, DbDiscoveryStatus.PERMANENT_ERROR, id="permanent-error"),
+            pytest.param(socket.EAI_AGAIN, DbDiscoveryStatus.TEMPORARY_ERROR, id="temporary-error"),
+            pytest.param(socket.EAI_NONAME, DbDiscoveryStatus.UNKNOWN_HOSTNAME, id="unknown-hostname"),
+            pytest.param(socket.EAI_SYSTEM, DbDiscoveryStatus.UNKNOWN_ERROR, id="unknown-error"),
         ],
     )
-    def test_check_dns_resolution_with_retries(self, monkeypatch, error_code, expected_status):
+    def test_check_dns_resolution_with_retries(self, mock_getaddrinfo, error_code, expected_status):
         def raise_exc(*args, **kwargs):
             # The error message isn't important because the validation is based on the error code.
             raise socket.gaierror(error_code, "patched failure")
 
-        monkeypatch.setattr(socket, "getaddrinfo", raise_exc)
+        mock_getaddrinfo.side_effect = raise_exc
 
         status, err = db_discovery._check_dns_resolution_with_retries("some_host", 3, 0.5, 5)
 
