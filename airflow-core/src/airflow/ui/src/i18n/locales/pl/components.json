@@ -41,8 +41,8 @@
     "duration": "Czas trwania (sekundy)",
     "lastDagRun_one": "Ostatnie wykonanie Daga",
     "lastDagRun_other": "Ostatnie {{count}} wykonania Daga",
-    "lasttaskInstance_one": "Ostatnia instancja zadania",
-    "lasttaskInstance_other": "Ostatnie {{count}} instancje zadania",
+    "lastTaskInstance_one": "Ostatnia instancja zadania",
+    "lastTaskInstance_other": "Ostatnie {{count}} instancje zadania",
     "queuedDuration": "Czas oczekiwania",
     "runAfter": "Uruchom po",
     "runDuration": "Czas trwania wykonania"
