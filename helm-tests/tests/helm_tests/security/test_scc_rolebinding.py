@@ -41,7 +41,7 @@ class TestSCCActivation:
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
-                "dagProcessor": {"enabled": True}
+                "dagProcessor": {"enabled": True},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )
@@ -121,4 +121,3 @@ class TestSCCActivation:
             assert jmespath.search("subjects[3].name", docs[0]) == "release-name-airflow-triggerer"
             assert jmespath.search("subjects[4].name", docs[0]) == "release-name-airflow-migrate-database-job"
             assert len(docs[0]["subjects"]) == 5
-
