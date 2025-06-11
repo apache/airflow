@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-10T21:08:51.217211
+# This constraints file was automatically generated on 2025-06-11T10:03:31.091795
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -337,7 +337,7 @@ google-api-python-client==2.172.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.96.0
+google-cloud-aiplatform==1.97.0
 google-cloud-alloydb==0.4.6
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
@@ -410,7 +410,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.32.5
+huggingface-hub==0.32.6
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
@@ -562,7 +562,7 @@ pdpyras==5.4.1
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
-pinecone-plugin-assistant==1.6.1
+pinecone-plugin-assistant==1.7.0
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
 pinotdb==5.6.0
@@ -770,7 +770,7 @@ types-python-dateutil==2.9.0.20250516
 types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250516
 types-redis==4.6.0.20241004
-types-requests==2.32.0.20250602
+types-requests==2.32.4.20250611
 types-setuptools==80.9.0.20250529
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
