@@ -18,6 +18,7 @@
  */
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
 import { Dialog } from "src/components/ui";
@@ -28,6 +29,7 @@ import ConnectionForm from "./ConnectionForm";
 import type { ConnectionBody } from "./Connections";
 
 const AddConnectionButton = () => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { addConnection, error, isPending } = useAddConnection({ onSuccessConfirm: onClose });
   const initialConnection: ConnectionBody = {
@@ -45,11 +47,11 @@ const AddConnectionButton = () => {
   return (
     <Box>
       <ActionButton
-        actionName="Add Connection"
+        actionName={translate("connections.add")}
         colorPalette="blue"
         icon={<FiPlusCircle />}
         onClick={onOpen}
-        text="Add Connection"
+        text={translate("connections.add")}
         variant="solid"
       />
 
@@ -57,7 +59,7 @@ const AddConnectionButton = () => {
         <Dialog.Content backdrop>
           <Dialog.Header paddingBottom={0}>
             <VStack align="start" gap={4}>
-              <Heading size="xl">Add Connection</Heading>
+              <Heading size="xl">{translate("connections.add")}</Heading>
             </VStack>
           </Dialog.Header>
 

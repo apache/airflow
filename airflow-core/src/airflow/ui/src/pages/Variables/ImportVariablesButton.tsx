@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 
 import { Button, Dialog } from "src/components/ui";
@@ -28,19 +29,20 @@ type Props = {
 };
 
 const ImportVariablesButton = ({ disabled }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
     <>
       <Button colorPalette="blue" disabled={disabled} onClick={onOpen}>
-        <FiUploadCloud /> Import Variables
+        <FiUploadCloud /> {translate("variables.import.title")}
       </Button>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl"> Import Variables </Heading>
+              <Heading size="xl"> {translate("variables.import.title")} </Heading>
             </VStack>
           </Dialog.Header>
 

@@ -18,6 +18,9 @@
  */
 import { Heading, Separator } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useConfigServiceGetConfig } from "openapi/queries";
 import type { ConfigOption } from "openapi/requests/types.gen";
@@ -28,26 +31,29 @@ type ConfigColums = {
   section: string;
 } & ConfigOption;
 
-const columns: Array<ColumnDef<ConfigColums>> = [
+const createColumns = (translate: TFunction): Array<ColumnDef<ConfigColums>> => [
   {
     accessorKey: "section",
     enableSorting: false,
-    header: "Section",
+    header: translate("config.columns.section"),
   },
   {
     accessorKey: "key",
     enableSorting: false,
-    header: "Key",
+    header: translate("columns.key"),
   },
   {
     accessorKey: "value",
     enableSorting: false,
-    header: "Value",
+    header: translate("columns.value"),
   },
 ];
 
 export const Configs = () => {
+  const { t: translate } = useTranslation(["admin", "common"]);
   const { data, error } = useConfigServiceGetConfig();
+
+  const columns = useMemo(() => createColumns(translate), [translate]);
 
   const render =
     data?.sections.flatMap((section) =>
@@ -59,10 +65,10 @@ export const Configs = () => {
 
   return (
     <>
-      <Heading mb={4}>Airflow Configuration</Heading>
+      <Heading mb={4}>{translate("config.title")}</Heading>
       <Separator />
       {error === null ? (
-        <DataTable columns={columns} data={render} modelName="Config" />
+        <DataTable columns={columns} data={render} modelName={translate("common:admin.Config")} />
       ) : (
         <ErrorAlert error={error} />
       )}
