@@ -61,7 +61,6 @@ def get_configs() -> ConfigResponse:
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
     }
 
-    plugins_manager.initialize_flask_plugins()
     additional_config["plugins_extra_menu_items"] = [
         AppBuilderMenuItemResponse.model_validate(mi)
         for mi in (plugins_manager.flask_appbuilder_menu_links or [])
