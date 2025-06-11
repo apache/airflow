@@ -1,8 +1,8 @@
 {
   "backfill": {
-    "affectedMultiple": "{{count}} runs will be triggered.",
+    "affected_one": "1 run will be triggered.",
+    "affected_other": "{{count}} runs will be triggered.",
     "affectedNone": "No runs matching selected criteria.",
-    "affectedOne": "1 run will be triggered.",
     "backwards": "Run Backwards",
     "dateRange": "Date Range",
     "dateRangeFrom": "From",
