@@ -72,8 +72,6 @@ def _create_xcom(key, value, backend, session=None) -> None:
         session=session,
     )
 
-    print("hi")
-
 
 @provide_session
 def _create_dag_run(dag_maker, session=None):
