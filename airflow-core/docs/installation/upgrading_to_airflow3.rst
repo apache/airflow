@@ -49,7 +49,8 @@ Step 2: Clean and back up your existing Airflow Instance
 Step 3: Dag Authors - Check your Airflow dags for compatibility
 ----------------------------------------------------------------
 
-To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules. The rules AIR301 and AIR302 indicate breaking changes in Airflow 3, while AIR311 and AIR312 highlight changes that are not currently breaking but are strongly recommended for updates.
+To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules. 
+The rules AIR301 and AIR302 indicate breaking changes in Airflow 3, while AIR311 and AIR312 highlight changes that are not currently breaking but are strongly recommended for updates.
 
 The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.13``. The below example demonstrates how to check for dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
 
