@@ -1931,13 +1931,11 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_xcom_backend.get_one.assert_called_once_with(
+        mock_xcom_backend.get_all.assert_called_once_with(
             key="key",
             dag_id="test_dag",
             task_id="pull_task",
             run_id="test_run",
-            map_index=-1,
-            include_prior_dates=False,
         )
 
         assert not any(
