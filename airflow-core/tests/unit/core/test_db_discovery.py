@@ -144,15 +144,21 @@ class TestDbDiscoveryIntegration:
     @pytest.mark.parametrize(
         "check_enabled",
         [
-            pytest.param(True, id="check-enabled"),
-            pytest.param(False, id="check-disabled"),
+            pytest.param("True", id="check-enabled"),
+            pytest.param("False", id="check-disabled"),
         ],
     )
-    def test_no_errors(self, check_enabled: bool):
-        os.environ["AIRFLOW__DATABASE__CHECK_DB_DISCOVERY"] = str(check_enabled)
+    def test_no_errors(self, check_enabled: str):
+        os.environ["AIRFLOW__DATABASE__CHECK_DB_DISCOVERY"] = check_enabled
 
-        dispose_connection_pool()
-        make_db_test_call()
+        with patch("airflow.utils.session.check_db_discovery_with_retries", autospec=True) as spy:
+            dispose_connection_pool()
+            make_db_test_call()
+
+            if check_enabled == "True":
+                spy.assert_called_once()
+            else:
+                spy.assert_not_called()
 
         # No status checks and no retries.
         assert db_discovery.db_health_status[0] == DbDiscoveryStatus.OK
