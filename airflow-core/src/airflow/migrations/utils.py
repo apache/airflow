@@ -52,13 +52,13 @@ def get_mssql_table_constraints(conn, table_name) -> dict[str, dict[str, list[st
 
 
 @contextmanager
-def disable_sqlite_fkeys(op):
-    if op.get_bind().dialect.name == "sqlite":
-        op.execute("PRAGMA foreign_keys=off")
-        yield op
-        op.execute("PRAGMA foreign_keys=on")
+def disable_sqlite_fkeys(conn):
+    if conn.dialect.name == "sqlite":
+        conn.execute(text("PRAGMA foreign_keys=off"))
+        yield conn
+        conn.execute(text("PRAGMA foreign_keys=on"))
     else:
-        yield op
+        yield conn
 
 
 def mysql_drop_foreignkey_if_exists(constraint_name, table_name, op):
