@@ -49,6 +49,7 @@ const ConnectionForm = ({
   const [errors, setErrors] = useState<{ conf?: string }>({});
   const {
     formattedData: connectionTypeMeta,
+    hookNames: hookNameMap,
     isPending: isMetaPending,
     keysList: connectionTypes,
   } = useConnectionTypeMeta();
@@ -116,7 +117,7 @@ const ConnectionForm = ({
   };
 
   const connTypesOptions = connectionTypes.map((conn) => ({
-    label: conn,
+    label: hookNameMap[conn],
     value: conn,
   }));
 
