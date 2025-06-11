@@ -31,6 +31,8 @@ from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.settings import json
+from airflow.utils import timezone
+from airflow.utils.decorators import classproperty
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -111,11 +113,35 @@ class ReferenceModels:
     to the user interface in airflow.sdk.definitions.deadline.DeadlineReference
     """
 
+    REFERENCE_TYPE_FIELD = "reference_type"
+
+    @classmethod
+    def get_reference_class(cls, reference_name: str) -> type[BaseDeadlineReference]:
+        """
+        Get a reference class by its name.
+
+        :param reference_name: The name of the reference class to find
+        """
+        try:
+            return next(
+                ref_class
+                for name, ref_class in vars(cls).items()
+                if isinstance(ref_class, type)
+                and issubclass(ref_class, cls.BaseDeadlineReference)
+                and ref_class.__name__ == reference_name
+            )
+        except StopIteration:
+            raise ValueError(f"No reference class found with name: {reference_name}")
+
     class BaseDeadlineReference(LoggingMixin, ABC):
         """Base class for all Deadline implementations."""
 
         # Set of required kwargs - subclasses should override this.
         required_kwargs: set[str] = set()
+
+        @classproperty
+        def reference_name(cls: Any) -> str:
+            return cls.__name__
 
         def evaluate_with(self, **kwargs: Any) -> datetime:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
@@ -136,6 +162,30 @@ class ReferenceModels:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
+        @classmethod
+        def deserialize_reference(cls, reference_data: dict):
+            """
+            Deserialize a reference type from its dictionary representation.
+
+            While the base implementation doesn't use reference_data, this parameter is required
+            for subclasses that need additional data for initialization (like FixedDatetimeDeadline
+            which needs a datetime value).
+
+            :param reference_data: Dictionary containing serialized reference data.
+                Always includes a 'reference_type' field, and may include additional
+                fields needed by specific reference implementations.
+            """
+            return cls()
+
+        def serialize_reference(self) -> dict:
+            """
+            Serialize this reference type into a dictionary representation.
+
+            This method assumes that the reference doesn't require any additional data.
+            Override this method in subclasses if additional data is needed for serialization.
+            """
+            return {ReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name}
+
     @dataclass
     class FixedDatetimeDeadline(BaseDeadlineReference):
         """A deadline that always returns a fixed datetime."""
@@ -144,6 +194,16 @@ class ReferenceModels:
 
         def _evaluate_with(self, **kwargs: Any) -> datetime:
             return self._datetime
+
+        def serialize_reference(self) -> dict:
+            return {
+                ReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name,
+                "datetime": self._datetime.timestamp(),
+            }
+
+        @classmethod
+        def deserialize_reference(cls, reference_data: dict):
+            return cls(_datetime=timezone.from_timestamp(reference_data["datetime"]))
 
     class DagRunLogicalDateDeadline(BaseDeadlineReference):
         """A deadline that returns a DagRun's logical date."""

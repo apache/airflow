@@ -86,3 +86,30 @@ def fixup_decorator_warning_stack(func, delta: int = 2):
         # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
         # `warnings.warn` to ignore the decorator.
         func.__globals__["warnings"] = _autostacklevel_warn(delta)
+
+
+class classproperty:
+    """
+    Decorator that converts a method with a single cls argument into a property.
+
+    Mypy won't let us use both @property and @classmethod together, this is a workaround
+    to combine the two.
+
+    Usage:
+
+    class Circle:
+        def __init__(self, radius):
+            self.radius = radius
+
+        @classproperty
+        def pi(cls):
+            return 3.14159
+
+    print(Circle.pi)  # Outputs: 3.14159
+    """
+
+    def __init__(self, method):
+        self.method = method
+
+    def __get__(self, instance, cls=None):
+        return self.method(cls)

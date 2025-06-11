@@ -951,6 +951,8 @@ class BaseSerialization:
             return TaskInstanceKey(**var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
+        elif type_ == DAT.DEADLINE_ALERT:
+            return DeadlineAlert.deserialize_deadline_alert(var)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
@@ -1778,6 +1780,9 @@ class SerializedDAG(DAG, BaseSerialization):
             dag.has_on_success_callback = True
         if "has_on_failure_callback" in encoded_dag:
             dag.has_on_failure_callback = True
+
+        if "deadline" in encoded_dag and encoded_dag["deadline"] is not None:
+            dag.deadline = DeadlineAlert.deserialize_deadline_alert(encoded_dag["deadline"])
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
