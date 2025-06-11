@@ -24,7 +24,7 @@ from unittest.mock import call
 import pytest
 from docker import APIClient
 from docker.errors import APIError
-from docker.types import Mount, Ulimit
+from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.docker.exceptions import DockerContainerFailedException
@@ -177,6 +177,89 @@ class TestDockerOperator:
 
         self.tempdir_patcher.stop()
         self.dotenv_patcher.stop()
+
+    def test_execute(self) -> None:
+        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
+        stringio_mock = stringio_patcher.start()
+        stringio_mock.side_effect = lambda *args: args[0]
+
+        operator = DockerOperator(
+            api_version=TEST_API_VERSION,
+            command="env",
+            environment={"UNIT": "TEST"},
+            private_environment={"PRIVATE": "MESSAGE"},
+            env_file="ENV=FILE\nVAR=VALUE",
+            image=TEST_IMAGE,
+            network_mode="bridge",
+            owner="unittest",
+            task_id="unittest",
+            mounts=[Mount(source="/host/path", target="/container/path", type="bind")],
+            entrypoint=TEST_ENTRYPOINT,
+            working_dir="/container/path",
+            shm_size=1000,
+            tmp_dir=TEST_AIRFLOW_TEMP_DIRECTORY,
+            host_tmp_dir=TEST_HOST_TEMP_DIRECTORY,
+            container_name="test_container",
+            tty=True,
+            hostname=TEST_CONTAINER_HOSTNAME,
+            device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
+            log_opts_max_file="5",
+            log_opts_max_size="10m",
+        )
+        operator.execute(None)
+
+        self.client_mock.create_container.assert_called_once_with(
+            command="env",
+            name="test_container",
+            environment={
+                "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
+                "UNIT": "TEST",
+                "PRIVATE": "MESSAGE",
+                "ENV": "FILE",
+                "VAR": "VALUE",
+            },
+            host_config=self.client_mock.create_host_config.return_value,
+            image=TEST_IMAGE,
+            user=None,
+            entrypoint=["sh", "-c"],
+            working_dir="/container/path",
+            tty=True,
+            hostname=TEST_CONTAINER_HOSTNAME,
+            ports=[],
+            labels=None,
+        )
+        self.client_mock.create_host_config.assert_called_once_with(
+            mounts=[
+                Mount(source="/host/path", target="/container/path", type="bind"),
+                Mount(source="/mkdtemp", target=TEST_AIRFLOW_TEMP_DIRECTORY, type="bind"),
+            ],
+            network_mode="bridge",
+            shm_size=1000,
+            cpu_shares=1024,
+            mem_limit=None,
+            auto_remove=False,
+            dns=None,
+            dns_search=None,
+            cap_add=None,
+            extra_hosts=None,
+            privileged=False,
+            device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
+            log_config=LogConfig(config={"max-size": "10m", "max-file": "5"}),
+            ipc_mode=None,
+            port_bindings={},
+            ulimits=[],
+        )
+        self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
+        self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
+        self.client_mock.attach.assert_called_once_with(
+            container="some_id", stdout=True, stderr=True, stream=True
+        )
+        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
+        self.client_mock.wait.assert_called_once_with("some_id")
+        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
+        stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
+        self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
+        stringio_patcher.stop()
 
     def test_private_environment_is_private(self):
         operator = DockerOperator(
