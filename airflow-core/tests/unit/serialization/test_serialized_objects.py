@@ -619,9 +619,13 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
     "create_dag_run_kwargs",
     (
         {},
-        {"data_interval": None},
+        {"data_interval": None, "logical_date": None},
+        {
+            "data_interval": None,
+            "logical_date": pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
+        },
     ),
-    ids=["post-AIP-39", "pre-AIP-39"],
+    ids=["post-AIP-39", "should-not-infer", "pre-AIP-39"],
 )
 def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, session):
     """Test whether LazyDeserializedDAG can correctly get dag run data_interval
@@ -638,11 +642,15 @@ def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, 
     dr = dag_maker.create_dagrun(**create_dag_run_kwargs)
     ser_dict = SerializedDAG.to_dict(dag)
     deser_dag = LazyDeserializedDAG(data=ser_dict)
-    data_interval = deser_dag.get_run_data_interval(dr)
-    assert data_interval == DataInterval(
-        start=pendulum.DateTime(2015, 12, 31, 0, 0, 0, tzinfo=Timezone("UTC")),
-        end=pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
-    )
+    if "logical_date" in create_dag_run_kwargs and create_dag_run_kwargs["logical_date"] is None:
+        with pytest.raises(ValueError):
+            data_interval = deser_dag.get_run_data_interval(dr)
+    else:
+        data_interval = deser_dag.get_run_data_interval(dr)
+        assert data_interval == DataInterval(
+            start=pendulum.DateTime(2015, 12, 31, 0, 0, 0, tzinfo=Timezone("UTC")),
+            end=pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
+        )
 
 
 def test_get_task_assets():
