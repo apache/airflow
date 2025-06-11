@@ -24,7 +24,7 @@ from unittest.mock import call
 import pytest
 from docker import APIClient
 from docker.errors import APIError
-from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
+from docker.types import Mount, Ulimit
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.docker.exceptions import DockerContainerFailedException
