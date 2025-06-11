@@ -22,6 +22,7 @@ import os
 import shutil
 import socket
 import time
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import text
@@ -29,6 +30,8 @@ from sqlalchemy import text
 from airflow import settings
 from airflow.utils import db_discovery
 from airflow.utils.db_discovery import DbDiscoveryStatus
+
+from tests_common.test_utils.config import conf_vars
 
 log = logging.getLogger(__name__)
 
@@ -65,19 +68,8 @@ def assert_query_raises_exc(expected_error_msg: str, expected_status: str, expec
 
 @pytest.mark.backend("postgres")
 class TestDbDiscoveryIntegration:
-    @pytest.fixture
-    def patch_getaddrinfo_for_eai_fail(self, monkeypatch):
-        import socket
-
-        def always_fail(*args, **kwargs):
-            # The error message isn't important, as long as the error code is EAI_FAIL.
-            raise socket.gaierror(socket.EAI_FAIL, "permanent failure")
-
-        monkeypatch.setattr(socket, "getaddrinfo", always_fail)
-
+    @conf_vars({("database", "check_db_discovery"): "True"})
     def test_dns_resolution_blip(self):
-        os.environ["AIRFLOW__DATABASE__CHECK_DB_DISCOVERY"] = "True"
-
         resolv_file = "/etc/resolv.conf"
         resolv_backup = "/tmp/resolv.conf.bak"
 
@@ -106,8 +98,14 @@ class TestDbDiscoveryIntegration:
             with contextlib.suppress(Exception):
                 shutil.copy(resolv_backup, resolv_file)
 
-    def test_permanent_dns_failure(self, patch_getaddrinfo_for_eai_fail):
-        os.environ["AIRFLOW__DATABASE__CHECK_DB_DISCOVERY"] = "True"
+    @conf_vars({("database", "check_db_discovery"): "True"})
+    @patch("socket.getaddrinfo")
+    def test_permanent_dns_failure(self, mock_getaddrinfo):
+        def raise_eai_fail_exc(*args, **kwargs):
+            # The error message isn't important, as long as the error code is EAI_FAIL.
+            raise socket.gaierror(socket.EAI_FAIL, "permanent failure")
+
+        mock_getaddrinfo.side_effect = raise_eai_fail_exc
 
         try:
             # New connection + DNS lookup.
@@ -123,12 +121,13 @@ class TestDbDiscoveryIntegration:
             db_discovery.db_health_status = (DbDiscoveryStatus.OK, 0.0)
             db_discovery.db_retry_count = 0
 
+    @conf_vars(
+        {
+            ("database", "check_db_discovery"): "True",
+            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@invalid/airflow",
+        }
+    )
     def test_invalid_hostname_in_config(self):
-        os.environ["AIRFLOW__DATABASE__CHECK_DB_DISCOVERY"] = "True"
-        os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = (
-            "postgresql+psycopg2://postgres:airflow@invalid/airflow"
-        )
-
         try:
             # New connection + DNS lookup.
             dispose_connection_pool()
@@ -138,10 +137,6 @@ class TestDbDiscoveryIntegration:
                 expected_retry_num=0,
             )
         finally:
-            os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = (
-                "postgresql+psycopg2://postgres:airflow@postgres/airflow"
-            )
-
             # Reset the values for the next tests.
             db_discovery.db_health_status = (DbDiscoveryStatus.OK, 0.0)
             db_discovery.db_retry_count = 0
