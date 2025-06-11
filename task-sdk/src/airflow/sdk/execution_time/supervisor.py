@@ -32,6 +32,7 @@ from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
+from io import BufferedWriter
 from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
@@ -1565,7 +1566,7 @@ def supervise(
 
     # TODO: Use logging providers to handle the chunked upload for us etc.
     logger: FilteringBoundLogger | None = None
-    log_file_descriptor = None
+    log_file_descriptor: BufferedWriter | None = None
     if log_path:
         # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
         # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
