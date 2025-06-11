@@ -215,8 +215,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
         # In the case of sub dags this is just useful
         # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
-        if getattr(context_dict["dag"], "is_subdag", False):
-            labels["parent_dag_id"] = context_dict["dag"].parent_dag.dag_id
+        if getattr(context_dict["dag"], "parent_dag", False):
+            labels["parent_dag_id"] = context_dict["dag"].parent_dag.dag_id  # type: ignore[attr-defined]
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():
