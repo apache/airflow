@@ -28,8 +28,6 @@ export const getInlineMessage = (isPendingDryRun: boolean, totalEntries: number,
     </Text>
   ) : (
     <Text color="fg.success" fontSize="sm">
-      {translate(totalEntries > 1 ? "backfill.affectedMultiple" : "backfill.affectedOne", {
-        count: totalEntries,
-      })}
+      {translate("backfill.affected", { count: totalEntries })}
     </Text>
   );
