@@ -217,15 +217,14 @@ class SnowflakeHook(DbApiHook):
             "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
         }
 
-        match grant_type:
-            case "refresh_token":
-                data |= {
-                    "refresh_token": conn_config["refresh_token"],
-                }
-            case "client_credentials":
-                pass  # no setup necessary for client credentials grant.
-            case _:
-                raise ValueError(f"Unknown grant_type: {grant_type}")
+        if grant_type == "refresh_token":
+            data |= {
+                "refresh_token": conn_config["refresh_token"],
+            }
+        elif grant_type == "client_credentials":
+            pass  # no setup necessary for client credentials grant.
+        else:
+            raise ValueError(f"Unknown grant_type: {grant_type}")
 
         response = requests.post(
             url,
