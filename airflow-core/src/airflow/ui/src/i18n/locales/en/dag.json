@@ -62,11 +62,6 @@
     "runs": "Runs",
     "tasks": "Tasks"
   },
-  "task": {
-    "card": {
-      "lastInstance": "Last Instance"
-    }
-  },
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"

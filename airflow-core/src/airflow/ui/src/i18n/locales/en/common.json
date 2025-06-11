@@ -17,11 +17,9 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
-  "bundleVersion": "Bundle Version",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
-    "bundleName": "Bundle Name",
     "catchup": "Catchup",
     "concurrency": "Concurrency",
     "dagRunTimeout": "Dag Run Timeout",
@@ -41,8 +39,7 @@
     "owner": "Owner",
     "params": "Params",
     "schedule": "Schedule",
-    "tags": "Tags",
-    "timezone": "Timezone"
+    "tags": "Tags"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -105,7 +102,6 @@
     "placeholder": "Add a note...",
     "taskInstance": "Task Instance Note"
   },
-  "operator": "Operator",
   "pools": {
     "deferred": "Deferred",
     "open": "Open",
@@ -168,6 +164,11 @@
     "tagPlaceholder": "Filter by tag",
     "to": "To"
   },
+  "task": {
+    "lastInstance": "Last Instance",
+    "operator": "Operator",
+    "triggerRule": "Trigger Rule"
+  },
   "task_one": "Task",
   "task_other": "Tasks",
   "taskId": "Task ID",
@@ -177,7 +178,6 @@
     "executorConfig": "Executor Config",
     "hostname": "Hostname",
     "maxTries": "Max Tries",
-    "operator": "Operator",
     "pid": "PID",
     "pool": "Pool",
     "poolSlots": "Pool Slots",
@@ -195,7 +195,7 @@
     "lastHour": "Last Hour",
     "pastWeek": "Past Week"
   },
-  "timezone": "timezone",
+  "timezone": "Timezone",
   "timezoneModal": {
     "current-timezone": "Current time in",
     "placeholder": "Select a timezone",
@@ -203,7 +203,6 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "triggered": "Triggered",
-  "triggerRule": "Trigger Rule",
   "tryNumber": "Try Number",
   "user": "User",
   "wrap": {

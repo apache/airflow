@@ -15,11 +15,9 @@
     "auditLog": "Prüf-Log",
     "xcoms": "Task Kommunikation (XComs)"
   },
-  "bundleVersion": "Bündel Version",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
-    "bundleVersion": "Bündel Version",
     "catchup": "Nachgeholt",
     "concurrency": "Parallelität",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
@@ -38,8 +36,7 @@
     "owner": "Eigentümer",
     "params": "Parameter",
     "schedule": "Zeitplan",
-    "tags": "Markierungen",
-    "timezone": "Zeitzone"
+    "tags": "Markierungen"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -102,7 +99,6 @@
     "placeholder": "Eine Notiz hinzufügen...",
     "taskInstance": "Notizen zu Task Instanzen"
   },
-  "operator": "Operator",
   "pools": {
     "deferred": "Delegiert",
     "open": "Frei",
@@ -166,11 +162,15 @@
     "tagPlaceholder": "Dags nach Markierung filtern",
     "to": "Zu"
   },
+  "task": {
+    "lastInstance": "Letzte Task Instanz",
+    "operator": "Operator",
+    "triggerRule": "Auslöse-Regel"
+  },
   "task_one": "Task",
   "task_other": "Tasks",
   "taskInstance": {
     "dagVersion": "Dag Version",
-    "operator": "Operator-Klasse",
     "pid": "PID",
     "pool": "Pool",
     "queuedAt": "Wartend seit"
@@ -192,7 +192,6 @@
     "utc": "UTC (Koordinierte Weltzeit)"
   },
   "triggered": "Angestoßen",
-  "triggerRule": "Auslöse-Regel",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
   "wrap": {

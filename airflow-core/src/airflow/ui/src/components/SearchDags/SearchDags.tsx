@@ -86,7 +86,7 @@ export const SearchDags = ({
         loadOptions={searchDagDebounced}
         menuIsOpen
         onChange={onSelect}
-        placeholder={translate("search.placeholder")}
+        placeholder={translate("search.dags")}
         // eslint-disable-next-line unicorn/no-null
         value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
       />

@@ -62,11 +62,6 @@
     "runs": "Läufe",
     "tasks": "Tasks"
   },
-  "task": {
-    "card": {
-      "lastInstance": "Letzte Task Instanz"
-    }
-  },
   "taskGroups": {
     "collapseAll": "Alle Task-Gruppen einklappen",
     "expandAll": "Alle Task-Gruppen aufklappen"

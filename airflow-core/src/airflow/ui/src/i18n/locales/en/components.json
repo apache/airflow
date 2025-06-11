@@ -87,13 +87,13 @@
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",
   "triggerDag": {
+    "button": "Trigger",
     "loading": "Loading DAG information...",
     "loadingFailed": "Failed to load DAG information. Please try again.",
     "runIdHelp": "Optional - will be generated if not provided",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",
     "title": "Trigger Dag",
-    "trigger": "Trigger",
     "unpause": "Unpause {{dagDisplayName}} on trigger"
   },
   "versionDetails": {

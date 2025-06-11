@@ -4,10 +4,6 @@
     "delete": {
       "button": "Dag löschen",
       "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
-    },
-    "trigger": {
-      "button": "Auslösen",
-      "triggerDag": "Dag auslösen"
     }
   },
   "filters": {

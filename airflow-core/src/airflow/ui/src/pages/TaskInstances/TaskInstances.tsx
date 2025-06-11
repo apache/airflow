@@ -151,7 +151,7 @@ const taskInstanceColumns = ({
   {
     accessorKey: "operator",
     enableSorting: false,
-    header: translate("taskInstance.operator"),
+    header: translate("task.operator"),
   },
   {
     cell: ({ row: { original } }) =>

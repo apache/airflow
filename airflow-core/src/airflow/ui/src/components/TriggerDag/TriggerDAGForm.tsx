@@ -169,7 +169,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
             disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            <FiPlay /> {translate("components:triggerDag.trigger")}
+            <FiPlay /> {translate("components:triggerDag.button")}
           </Button>
         </HStack>
       </Box>

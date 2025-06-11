@@ -57,7 +57,7 @@ export const Details = () => {
               <Table.Cell>{dag.description}</Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>{translate("dagDetails.timezone")}</Table.Cell>
+              <Table.Cell>{translate("common:timezone")}</Table.Cell>
               <Table.Cell>{dag.timezone}</Table.Cell>
             </Table.Row>
             <Table.Row>
@@ -72,12 +72,6 @@ export const Details = () => {
                 <Time datetime={dag.last_parsed} />
               </Table.Cell>
             </Table.Row>
-            {dag.bundle_version !== null && (
-              <Table.Row>
-                <Table.Cell>{translate("dagDetails.bundleName")}</Table.Cell>
-                <Table.Cell>{dag.bundle_version}</Table.Cell>
-              </Table.Row>
-            )}
             <Table.Row>
               <Table.Cell>{translate("dagDetails.latestDagVersion")}</Table.Cell>
               <Table.Cell>

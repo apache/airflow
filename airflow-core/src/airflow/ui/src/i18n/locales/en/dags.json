@@ -4,10 +4,6 @@
     "delete": {
       "button": "Delete Dag",
       "warning": "This will remove all metadata related to the Dag, including Runs and Tasks."
-    },
-    "trigger": {
-      "button": "Trigger",
-      "triggerDag": "Trigger Dag"
     }
   },
   "filters": {
