@@ -42,8 +42,6 @@
     "params": "Params",
     "schedule": "Schedule",
     "tags": "Tags",
-    "timetableDescription": "Timetable Description",
-    "timetableSummary": "Timetable Summary",
     "timezone": "Timezone"
   },
   "dagId": "Dag ID",
@@ -102,10 +100,10 @@
   "noItemsFound": "No {{modelName}} found",
   "note": {
     "add": "Add a note",
-    "addPlaceholder": "Add a note...",
-    "dagRunTitle": "Dag Run Note",
+    "dagRun": "Dag Run Note",
     "label": "Note",
-    "taskInstanceTitle": "Task Instance Note"
+    "placeholder": "Add a note...",
+    "taskInstance": "Task Instance Note"
   },
   "operator": "Operator",
   "pools": {
@@ -170,6 +168,8 @@
     "tagPlaceholder": "Filter by tag",
     "to": "To"
   },
+  "task_one": "Task",
+  "task_other": "Tasks",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
@@ -184,8 +184,6 @@
     "priorityWeight": "Priority Weight",
     "queue": "Queue",
     "queuedWhen": "Queued At",
-    "renderedFields": "Rendered Fields",
-    "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
     "unixname": "Unix Name"
   },

@@ -11,24 +11,22 @@
     }
   },
   "filters": {
+    "allRunTypes": "All Run Types",
+    "allStates": "All States",
     "paused": {
       "active": "Active",
       "all": "All",
       "paused": "Paused"
     }
   },
-  "list": {
-    "advancedSearch": "Advanced Search",
-    "clearSearch": "Clear search",
-    "ownerLink": "Owner link for {{owner}}",
-    "searchPlaceholder": "Search Dags"
-  },
+  "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No tasks found.",
       "title": "Affected Tasks: {{count}}"
     },
     "clear": {
+      "button": "Clear {{type}}",
       "buttonTooltip": "Press shift+c to clear",
       "title": "Clear {{type}}"
     },
@@ -63,9 +61,12 @@
       "upstream": "Upstream"
     }
   },
-  "runs": {
-    "allRunTypes": "All Run Types",
-    "allStates": "All States"
+  "search": {
+    "advanced": "Advanced Search",
+    "clear": "Clear search",
+    "dags": "Search Dags",
+    "hotkey": "+K",
+    "tasks": "Search Tasks"
   },
   "sort": {
     "displayName": {
@@ -85,9 +86,5 @@
       "desc": "Sort by Next Dag Run (Latest-Earliest)"
     },
     "placeholder": "Sort by"
-  },
-  "taskInstances": {
-    "allStates": "All States",
-    "searchPlaceholder": "Search Tasks"
   }
 }

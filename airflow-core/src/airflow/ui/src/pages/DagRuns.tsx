@@ -231,7 +231,7 @@ export const DagRuns = () => {
             <Select.ValueText width="auto">
               {() =>
                 filteredState === null ? (
-                  translate("dags:runs.allStates")
+                  translate("dags:filters.allStates")
                 ) : (
                   <StateBadge state={filteredState as DagRunState}>
                     {translate(`common:states.${filteredState}`)}
@@ -262,7 +262,7 @@ export const DagRuns = () => {
             <Select.ValueText width="auto">
               {() =>
                 filteredType === null ? (
-                  translate("dags:runs.allRunTypes")
+                  translate("dags:filters.allRunTypes")
                 ) : (
                   <Flex alignItems="center" gap={1}>
                     <RunTypeIcon runType={filteredType as DagRunType} />

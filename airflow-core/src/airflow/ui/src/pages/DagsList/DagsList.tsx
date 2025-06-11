@@ -242,7 +242,7 @@ export const DagsList = () => {
           buttonProps={{ disabled: true }}
           defaultValue={dagDisplayNamePattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder={translate("dags:list.searchPlaceholder")}
+          placeHolder={translate("dags:search.dags")}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">

@@ -80,11 +80,6 @@
     "line": "line"
   },
   "reparseDag": "Reparse Dag",
-  "searchDags": {
-    "button": "Search Dags",
-    "hotkey": "+K",
-    "placeholder": "Search Dags"
-  },
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
@@ -94,10 +89,6 @@
   "triggerDag": {
     "loading": "Loading DAG information...",
     "loadingFailed": "Failed to load DAG information. Please try again.",
-    "logicalDate": "Logical Date",
-    "notes": "Dag Run Notes",
-    "notesPlaceholder": "Click to add note",
-    "runId": "Run ID",
     "runIdHelp": "Optional - will be generated if not provided",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",

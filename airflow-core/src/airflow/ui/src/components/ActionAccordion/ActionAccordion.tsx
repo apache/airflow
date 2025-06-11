@@ -90,14 +90,14 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
               {Boolean(note) ? (
                 <ReactMarkdown>{note}</ReactMarkdown>
               ) : (
-                <Text color="fg.subtle">{translate("note.addPlaceholder")}</Text>
+                <Text color="fg.subtle">{translate("note.placeholder")}</Text>
               )}
             </Editable.Preview>
             <Editable.Textarea
               data-testid="notes-input"
               height="200px"
               overflowY="auto"
-              placeholder={translate("note.addPlaceholder")}
+              placeholder={translate("note.placeholder")}
               resize="none"
             />
           </Editable.Root>
