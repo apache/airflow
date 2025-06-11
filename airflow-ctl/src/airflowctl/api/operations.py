@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import structlog
+from pydantic import BaseModel
 
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
@@ -74,6 +75,7 @@ from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
     from airflowctl.api.client import Client
+    from pydantic import BaseModel
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -146,6 +148,25 @@ class BaseOperations:
         for attr, value in cls.__dict__.items():
             if callable(value):
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
+
+    def return_all_entries(
+        self, *, path: str, total_entries: int, pydantic_model, offset=0, params, **kwargs
+    ) -> BaseModel | ServerResponseError:
+        params.update({"offset": 0})
+        params.update(**kwargs)
+        entry_list = []
+        try:
+            if total_entries == 0:
+                return pydantic_model.model_validate_json(self.response.content)
+            for _ in range(total_entries):
+                # while(offset <= total_entries):
+                self.response = self.client.get(path, params=params)
+                entry = pydantic_model.model_validate_json(self.response.content)
+                offset = offset + 50
+                entry_list.append(entry)
+            return entry_list
+        except ServerResponseError as e:
+            raise e
 
 
 # Login operations
@@ -592,11 +613,18 @@ class PoolsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> PoolCollectionResponse | ServerResponseError:
+    def list(self):
         """List all pools."""
         try:
             self.response = self.client.get("pools")
-            return PoolCollectionResponse.model_validate_json(self.response.content)
+            total_entries = PoolCollectionResponse.model_validate_json(self.response.content).total_entries
+            return super().return_all_entries(
+                path="pools",
+                total_entries=total_entries,
+                pydantic_model=PoolCollectionResponse,
+                offset=0,
+                params={},
+            )
         except ServerResponseError as e:
             raise e
 
@@ -660,7 +688,16 @@ class VariablesOperations(BaseOperations):
         """List all variables."""
         try:
             self.response = self.client.get("variables")
-            return VariableCollectionResponse.model_validate_json(self.response.content)
+            total_entries = VariableCollectionResponse.model_validate_json(
+                self.response.content
+            ).total_entries
+            return super().return_all_entries(
+                path="variables",
+                total_entries=total_entries,
+                pydantic_model=VariableCollectionResponse,
+                offset=0,
+                params={},
+            )
         except ServerResponseError as e:
             raise e
 
