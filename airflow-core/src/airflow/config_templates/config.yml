@@ -685,7 +685,7 @@ database:
         If enabled, the dns lookup to the db hostname will be checked with retries.
         Accepts ``True`` or ``False``.
       version_added: 3.1.0
-      type: string
+      type: boolean
       example: ~
       default: "False"
     max_db_discovery_retries:
