@@ -30,7 +30,7 @@ Another recommendation that will help you is to look for a provider that works s
 help you to set up tests and other dependencies.
 
 First, you need to set up your local development environment. See
-`Contributors Quick Start </contributing-docs/03_contributors_quick_start.rst>`_
+`Contributors Quick Start <../contributing-docs/03_contributors_quick_start.rst>`_
 if you did not set up your local environment yet. We recommend using ``breeze`` to develop locally. This way you
 easily be able to have an environment more similar to the one executed by GitHub CI workflow.
 
