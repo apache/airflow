@@ -763,7 +763,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -784,10 +783,12 @@ class TestSparkKubernetesOperator:
 
         task_context_labels = op._get_ti_pod_labels(context)
 
+        # Check that labels were added to the template body structure
+        created_body = mock_create_namespaced_crd.call_args[1]["body"]
         for component in ["driver", "executor"]:
             for label_key, label_value in task_context_labels.items():
-                assert label_key in mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"]
-                assert mock_create_namespaced_crd.call_args[1]["body"]["spec"][component]["labels"][label_key] == label_value
+                assert label_key in created_body["spec"][component]["labels"]
+                assert created_body["spec"][component]["labels"][label_key] == label_value
 
     def test_reattach_on_restart_with_task_context_labels(
         self,
@@ -797,7 +798,6 @@ class TestSparkKubernetesOperator:
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
         data_file,
@@ -819,13 +819,13 @@ class TestSparkKubernetesOperator:
         mock_pod.metadata.name = f"{task_name}-driver"
         mock_pod.metadata.labels = op._get_ti_pod_labels(context)
         mock_pod.metadata.labels["spark-role"] = "driver"
-        mock_pod.metadata.labels["try_number"] = context["ti"].try_number
-        mock_get_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+        mock_pod.metadata.labels["try_number"] = str(context["ti"].try_number)
+        mock_get_kube_client.return_value.list_namespaced_pod.return_value.items = [mock_pod]
 
         op.execute(context)
 
         label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
-        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+        mock_get_kube_client.return_value.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
 
         mock_create_namespaced_crd.assert_not_called()
 
