@@ -204,7 +204,10 @@ class SnowflakeHook(DbApiHook):
         return account_identifier
 
     def get_oauth_token(
-        self, conn_config: dict | None = None, token_endpoint: str = None, grant_type: str = "refresh_token"
+        self,
+        conn_config: dict | None = None,
+        token_endpoint: str | None = None,
+        grant_type: str = "refresh_token",
     ) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         if conn_config is None:
@@ -352,7 +355,7 @@ class SnowflakeHook(DbApiHook):
             conn_config["token"] = self.get_oauth_token(
                 conn_config=conn_config,
                 token_endpoint=token_endpoint,
-                grant_type=extra_dict.get("grant_type"),
+                grant_type=extra_dict.get("grant_type", "refresh_token"),
             )
 
             conn_config.pop("login", None)
