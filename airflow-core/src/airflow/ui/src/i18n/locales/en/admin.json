@@ -39,14 +39,6 @@
     },
     "noRowMessage": "No connections found",
     "searchPlaceholder": "Search Connections",
-    "standardFields":{
-      "Description": "Description",
-      "Host": "Host",
-      "Login": "Login",
-      "Password": "Password",
-      "Port": "Port",
-      "Schema": "Schema"
-    },
     "test": "Test Connection",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it."
   },

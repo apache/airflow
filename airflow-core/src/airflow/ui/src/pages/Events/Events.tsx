@@ -93,7 +93,7 @@ const eventsColumn = (
         {
           accessorKey: "dag_id",
           enableSorting: true,
-          header: translate("columns.dagId"),
+          header: translate("common:dagId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -105,7 +105,7 @@ const eventsColumn = (
         {
           accessorKey: "run_id",
           enableSorting: true,
-          header: translate("columns.runId"),
+          header: translate("common:runId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -117,7 +117,7 @@ const eventsColumn = (
         {
           accessorKey: "task_id",
           enableSorting: true,
-          header: translate("columns.taskId"),
+          header: translate("common:taskId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -126,7 +126,7 @@ const eventsColumn = (
   {
     accessorKey: "map_index",
     enableSorting: false,
-    header: translate("columns.mapIndex"),
+    header: translate("common:mapIndex"),
     meta: {
       skeletonWidth: 10,
     },
@@ -134,7 +134,7 @@ const eventsColumn = (
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: translate("auditLog.columns.tryNumber"),
+    header: translate("common:tryNumber"),
     meta: {
       skeletonWidth: 10,
     },

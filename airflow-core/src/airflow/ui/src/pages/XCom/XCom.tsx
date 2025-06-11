@@ -57,7 +57,7 @@ const columns = (translate: (key: string) => string): Array<ColumnDef<XComRespon
       </Link>
     ),
     enableSorting: false,
-    header: translate("columns.runId"),
+    header: translate("common:runId"),
   },
   {
     accessorKey: "task_id",
@@ -76,12 +76,12 @@ const columns = (translate: (key: string) => string): Array<ColumnDef<XComRespon
       </Link>
     ),
     enableSorting: false,
-    header: translate("columns.taskId"),
+    header: translate("common:taskId"),
   },
   {
     accessorKey: "map_index",
     enableSorting: false,
-    header: translate("columns.mapIndex"),
+    header: translate("common:mapIndex"),
   },
   {
     cell: ({ row: { original } }) => (
@@ -100,7 +100,7 @@ const columns = (translate: (key: string) => string): Array<ColumnDef<XComRespon
 
 export const XCom = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
-  const { t: translate } = useTranslation("browse");
+  const { t: translate } = useTranslation(["browse", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
