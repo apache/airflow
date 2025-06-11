@@ -267,15 +267,14 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
         self.send_msg(msg, in_response_to=0)
 
-    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:  # type: ignore[override]
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 
         resp: BaseModel | None = None
         dump_opts = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
-            return
-        if isinstance(msg, GetConnection):
+        elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
@@ -297,10 +296,16 @@ class DagFileProcessorProcess(WatchedSubprocess):
             resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
+            self.send_msg(
+                None,
+                in_response_to=req_id,
+                error=ErrorResponse(
+                    detail={"status_code": 400, "message": "Unhandled request"},
+                ),
+            )
             return
 
-        if resp:
-            self.send_msg(resp, **dump_opts)
+        self.send_msg(resp, in_response_to=req_id, error=None, **dump_opts)
 
     @property
     def is_ready(self) -> bool:
@@ -308,7 +313,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
             # Process still alive, def can't be finished yet
             return False
 
-        return self._num_open_sockets == 0
+        return not self._open_sockets
 
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")

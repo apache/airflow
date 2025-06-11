@@ -793,13 +793,12 @@ class TriggerRunner:
         This also sets up the SUPERVISOR_COMMS so that TaskSDK code can work as expected too (but that will
         need to be wrapped in an ``sync_to_async()`` call)
         """
-        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time import comms, task_runner
 
         loop = asyncio.get_event_loop()
 
-        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
-            input=sys.stdin,
-            decoder=self.decoder,
+        comms_decoder = comms.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
+            body_decoder=self.decoder,
         )
 
         task_runner.SUPERVISOR_COMMS = comms_decoder

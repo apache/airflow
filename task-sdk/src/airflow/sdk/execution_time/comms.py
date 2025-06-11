@@ -47,8 +47,9 @@ import itertools
 from collections.abc import Iterator
 from datetime import datetime
 from functools import cached_property
+from pathlib import Path
 from socket import socket
-from typing import TYPE_CHECKING, Annotated, Any, Generic, Literal, TypeVar, Union
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generic, Literal, TypeVar, Union
 from uuid import UUID
 
 import aiologic
@@ -92,26 +93,6 @@ SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
 
-class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
-    id: int
-    """
-    The request id, set by the sender.
-
-    This is used to allow "pipeling" of requests and to be able to tie response to requests, which is
-    particularly useful in the Triggerer where multiple async tasks can send a requests concurrently.
-    """
-    body: dict[str, Any]
-
-
-class _ResponseFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
-    id: int
-    """
-    The id of the request this is a response to
-    """
-    body: dict[str, Any] | None = None
-    error: dict[str, Any] | None = None
-
-
 def _msgpack_enc_hook(obj: Any) -> Any:
     import pendulum
 
@@ -120,6 +101,8 @@ def _msgpack_enc_hook(obj: Any) -> Any:
         return datetime(
             obj.year, obj.month, obj.day, obj.hour, obj.minute, obj.second, obj.microsecond, tzinfo=obj.tzinfo
         )
+    if isinstance(obj, Path):
+        return str(obj)
     if isinstance(obj, BaseModel):
         return obj.model_dump(exclude_unset=True)
 
@@ -129,6 +112,41 @@ def _msgpack_enc_hook(obj: Any) -> Any:
 
 def _new_encoder() -> msgspec.msgpack.Encoder:
     return msgspec.msgpack.Encoder(enc_hook=_msgpack_enc_hook)
+
+
+class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
+    id: int
+    """
+    The request id, set by the sender.
+
+    This is used to allow "pipeling" of requests and to be able to tie response to requests, which is
+    particularly useful in the Triggerer where multiple async tasks can send a requests concurrently.
+    """
+    body: dict[str, Any] | None
+
+    req_encoder: ClassVar[msgspec.msgpack.Encoder] = _new_encoder()
+
+    def as_bytes(self) -> bytearray:
+        # https://jcristharif.com/msgspec/perf-tips.html#length-prefix-framing for inspiration
+        buffer = bytearray(256)
+
+        self.req_encoder.encode_into(self, buffer, 4)
+
+        n = len(buffer) - 4
+        if n > 2**32:
+            raise OverflowError("Cannot send messages larger than 4GiB")
+        buffer[:4] = n.to_bytes(4, byteorder="big")
+
+        return buffer
+
+
+class _ResponseFrame(_RequestFrame, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
+    id: int
+    """
+    The id of the request this is a response to
+    """
+    body: dict[str, Any] | None = None
+    error: dict[str, Any] | None = None
 
 
 @attrs.define()
@@ -144,7 +162,6 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     resp_decoder: msgspec.msgpack.Decoder[_ResponseFrame] = attrs.field(
         factory=lambda: msgspec.msgpack.Decoder(_ResponseFrame), repr=False
     )
-    req_encoder: msgspec.msgpack.Encoder = attrs.field(factory=_new_encoder, repr=False)
 
     id_counter: Iterator[int] = attrs.field(factory=itertools.count)
 
@@ -157,30 +174,12 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     def send(self, msg: SendMsgType) -> ReceiveMsgType:
         """Send a request to the parent and block until the response is received."""
-        bytes = self._encode(msg)
+        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
+        bytes = frame.as_bytes()
 
-        # print(
-        #     f"Subp: sending {type(msg)} request on {self.request_socket.fileno()}, total len={len(bytes)}",
-        #     file=__import__("sys")._ash_out,
-        # )
-        nsent = self.request_socket.send(bytes)
-        # print(f"Subp: {nsent=}", file=__import__("sys")._ash_out)
+        self.request_socket.sendall(bytes)
 
         return self._get_response()
-
-    def _encode(self, msg: SendMsgType) -> bytearray:
-        # https://jcristharif.com/msgspec/perf-tips.html#length-prefix-framing for inspiration
-        buffer = bytearray(256)
-
-        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
-        self.req_encoder.encode_into(frame, buffer, 4)
-
-        n = len(buffer) - 4
-        if n > 2**32:
-            raise OverflowError("Cannot send messages larger than 4GiB")
-        buffer[:4] = n.to_bytes(4, byteorder="big")
-
-        return buffer
 
     def _read_frame(self):
         """
@@ -190,14 +189,12 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         if self.request_socket:
             self.request_socket.setblocking(True)
-        # print("Subp: reading length prefix", file=__import__("sys")._ash_out)
         len_bytes = self.request_socket.recv(4)
 
         if len_bytes == b"":
             raise EOFError("Request socket closed before length")
 
         len = int.from_bytes(len_bytes, byteorder="big")
-        # print(f"Subp: frame {len=} ({len_bytes=})", file=__import__("sys")._ash_out)
 
         buffer = bytearray(len)
         nread = self.request_socket.recv_into(buffer)
@@ -206,7 +203,6 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 f"unable to read full response in child. (We read {nread}, but expected {len})"
             )
         if nread == 0:
-            # print("Subp: EOF when trying to read frame", file=__import__("sys")._ash_out)
             raise EOFError("Request socket closed before response was complete")
 
         try:
@@ -217,7 +213,6 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     def _from_frame(self, frame):
         from airflow.sdk.exceptions import AirflowRuntimeError
 
-        # print(f"Subp: {frame.body=}", file=__import__("sys")._ash_out)
         if frame.error is not None:
             err = self.err_decoder.validate_python(frame.error)
             raise AirflowRuntimeError(error=err)

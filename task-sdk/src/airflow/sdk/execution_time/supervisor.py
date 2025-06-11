@@ -574,27 +574,22 @@ class WatchedSubprocess:
 
     def _on_socket_closed(self, sock: socket):
         # We want to keep servicing this process until we've read up to EOF from all the sockets.
-        self._open_sockets.pop(sock, None)
+
+        with suppress(KeyError):
+            self.selector.unregister(sock)
+            del self._open_sockets[sock]
 
     def send_msg(
         self, msg: BaseModel | None, in_response_to: int, error: ErrorResponse | None = None, **dump_opts
     ):
         """Send the msg as a length-prefixed response frame."""
-        # https://jcristharif.com/msgspec/perf-tips.html#length-prefix-framing for inspiration
         if msg:
             frame = _ResponseFrame(id=in_response_to, body=msg.model_dump(**dump_opts))
         else:
             err_resp = error.model_dump() if error else None
             frame = _ResponseFrame(id=in_response_to, error=err_resp)
-        buffer = bytearray(256)
 
-        self._frame_encoder.encode_into(frame, buffer, 4)
-        n = len(buffer) - 4
-        if n > 2**32:
-            raise OverflowError("Cannot send messages larger than 4GiB")
-        buffer[:4] = n.to_bytes(4, byteorder="big")
-
-        self.stdin.sendall(buffer)
+        self.stdin.sendall(frame.as_bytes())
 
     def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, _RequestFrame, None]:
         """Handle incoming requests from the task process, respond with the appropriate data."""
@@ -631,6 +626,7 @@ class WatchedSubprocess:
                     ),
                     in_response_to=request.id,
                 )
+                return
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         raise NotImplementedError()
@@ -758,7 +754,7 @@ class WatchedSubprocess:
         events = self.selector.select(timeout=timeout)
         for key, _ in events:
             # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
-            socket_handler = key.data
+            socket_handler, on_close = key.data
 
             # Example of handler behavior:
             # If the subprocess writes "Hello, World!" to stdout:
@@ -775,10 +771,9 @@ class WatchedSubprocess:
             # unregister it from the selector to stop monitoring; `wait()` blocks until all selectors
             # are removed.
             if not need_more:
-                self.selector.unregister(key.fileobj)
                 sock: socket = key.fileobj  # type: ignore[assignment]
+                on_close(sock)
                 sock.close()
-                self._on_socket_closed(sock)
 
         # Check if the subprocess has exited
         return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
@@ -797,16 +792,16 @@ class WatchedSubprocess:
                 raise
         else:
             self._process_exit_monotonic = time.monotonic()
-            self._close_unused_sockets(self.stdin)
-            # Put a message in the viewable task logs
 
             if expect_signal is not None and self._exit_code == -expect_signal:
                 # Bypass logging, the caller expected us to exit with this
                 return self._exit_code
 
-            # psutil turns signal exit codes into an enum for us. Handy. (Otherwise it's a plain integer) if exit_code and (name := getattr(exit_code, "name")):
+            # Put a message in the viewable task logs
+
             if self._exit_code == -signal.SIGSEGV:
                 self.process_log.critical(SIGSEGV_MESSAGE)
+            # psutil turns signal exit codes into an enum for us. Handy. (Otherwise it's a plain integer) if exit_code and (name := getattr(exit_code, "name")):
             elif name := getattr(self._exit_code, "name", None):
                 message = "Process terminated by signal"
                 level = logging.ERROR
@@ -1252,11 +1247,7 @@ class ActivitySubprocess(WatchedSubprocess):
             )
             return
 
-        if resp:
-            self.send_msg(resp, in_response_to=req_id, error=None, **dump_opts)
-        else:
-            # Send an empty response frame (which signifies no error) if we dont have anything else to say
-            self.send_msg(None, in_response_to=req_id)
+        self.send_msg(resp, in_response_to=req_id, error=None, **dump_opts)
 
 
 def in_process_api_server():
@@ -1454,7 +1445,7 @@ def make_buffered_socket_reader(
     gen: Generator[None, bytes | bytearray, None],
     on_close: Callable[[socket], None],
     buffer_size: int = 4096,
-) -> Callable[[socket], bool]:
+):
     buffer = bytearray()  # This will hold our accumulated binary data
     read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
 
@@ -1472,7 +1463,6 @@ def make_buffered_socket_reader(
                 with suppress(StopIteration):
                     gen.send(buffer)
             # Tell loop to close this selector
-            on_close(sock)
             return False
 
         buffer.extend(read_buffer[:n_received])
@@ -1483,13 +1473,12 @@ def make_buffered_socket_reader(
             try:
                 gen.send(line)
             except StopIteration:
-                on_close(sock)
                 return False
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
 
         return True
 
-    return cb
+    return cb, on_close
 
 
 def length_prefixed_frame_reader(
@@ -1506,15 +1495,12 @@ def length_prefixed_frame_reader(
     next(gen)
 
     def cb(sock: socket):
-        print("Main: length_prefixed_frame_reader.cb fired")
         nonlocal buffer, length_needed, pos
-        # Read up to `buffer_size` bytes of data from the socket
 
         if length_needed is None:
             # Read the 32bit length of the frame
             bytes = sock.recv(4)
             if bytes == b"":
-                on_close(sock)
                 return False
 
             length_needed = int.from_bytes(bytes, byteorder="big")
@@ -1523,11 +1509,10 @@ def length_prefixed_frame_reader(
             n = sock.recv_into(buffer[pos:])
             if n == 0:
                 # EOF
-                on_close(sock)
                 return False
             pos += n
 
-            if len(buffer) >= length_needed:
+            if pos >= length_needed:
                 request = decoder.decode(buffer)
                 buffer = None
                 pos = 0
@@ -1535,16 +1520,15 @@ def length_prefixed_frame_reader(
                 try:
                     gen.send(request)
                 except StopIteration:
-                    on_close(sock)
                     return False
         return True
 
-    return cb
+    return cb, on_close
 
 
 def process_log_messages_from_subprocess(
     loggers: tuple[FilteringBoundLogger, ...],
-) -> Generator[None, bytes, None]:
+) -> Generator[None, bytes | bytearray, None]:
     from structlog.stdlib import NAME_TO_LEVEL
 
     while True:
@@ -1580,10 +1564,9 @@ def process_log_messages_from_subprocess(
 
 def forward_to_log(
     target_loggers: tuple[FilteringBoundLogger, ...], chan: str, level: int
-) -> Generator[None, bytes, None]:
+) -> Generator[None, bytes | bytearray, None]:
     while True:
-        buf = yield
-        line = bytes(buf)
+        line = yield
         # Strip off new line
         line = line.rstrip()
         try:
