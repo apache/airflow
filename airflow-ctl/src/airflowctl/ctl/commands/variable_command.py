@@ -23,9 +23,9 @@ from pathlib import Path
 
 import rich
 
-from airflow.api_fastapi.core_api.datamodels.common import BulkActionOnExistence
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
+    BulkActionOnExistence,
     BulkBodyVariableBody,
     BulkCreateActionVariableBody,
     VariableBody,
@@ -33,9 +33,11 @@ from airflowctl.api.datamodels.generated import (
 
 
 @provide_api_client(kind=ClientKind.CLI)
-def import_(args, api_client=NEW_API_CLIENT):
+def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
     """Import variables from a given file."""
-    success_message = "[green]Import successful! success: {success}, errors: {errors}[/green]"
+    success_message = "[green]Import successful! success: {success}[/green]"
+    errors_message = "[red]Import failed! errors: {errors}[/red]"
+
     if not os.path.exists(args.file):
         rich.print(f"[red]Missing variable file: {args.file}")
         sys.exit(1)
@@ -71,12 +73,16 @@ def import_(args, api_client=NEW_API_CLIENT):
         ]
     )
     result = api_client.variables.bulk(variables=bulk_body)
-    rich.print(success_message.format(success=result.success, errors=result.errors))
-    return result.success, result.errors
+    if result.create.errors:
+        rich.print(errors_message.format(errors=result.create.errors))
+        sys.exit(1)
+
+    rich.print(success_message.format(success=result.create.success))
+    return result.create.success
 
 
 @provide_api_client(kind=ClientKind.CLI)
-def export(args, api_client=NEW_API_CLIENT):
+def export(args, api_client=NEW_API_CLIENT) -> None:
     """Export all the variables to the file."""
     success_message = "[green]Export successful! {total_entries} variable(s) to {file}[/green]"
     var_dict = {}
