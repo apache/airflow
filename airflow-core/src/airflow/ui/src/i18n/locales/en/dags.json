@@ -94,18 +94,7 @@
   },
   "runs": {
     "allRunTypes": "All Run Types",
-    "allStates": "All States",
-    "columns": {
-      "conf": "Conf",
-      "dagId": "Dag ID",
-      "dagVersions": "Dag Versions",
-      "duration": "Duration",
-      "endDate": "End Date",
-      "runAfter": "Run After",
-      "runType": "Run Type",
-      "startDate": "Start Date",
-      "state": "State"
-    }
+    "allStates": "All States"
   },
   "sort": {
     "displayName": {
@@ -128,19 +117,6 @@
   },
   "taskInstances": {
     "allStates": "All States",
-    "columns": {
-      "dagId": "Dag ID",
-      "dagRun": "Dag Run",
-      "dagVersion": "Dag Version",
-      "duration": "Duration",
-      "endDate": "End Date",
-      "operator": "Operator",
-      "pool": "Pool",
-      "startDate": "Start Date",
-      "state": "State",
-      "taskId": "Task ID",
-      "tryNumber": "Try Number"
-    },
     "searchPlaceholder": "Search Tasks"
   }
 }

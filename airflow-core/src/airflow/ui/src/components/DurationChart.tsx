@@ -65,7 +65,7 @@ export const DurationChart = ({
   readonly entries: Array<RunResponse> | undefined;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
-  const { t: translate } = useTranslation("components");
+  const { t: translate } = useTranslation(["components", "common"]);
   const navigate = useNavigate();
 
   if (!entries) {
@@ -196,7 +196,7 @@ export const DurationChart = ({
               title: { align: "end", display: true, text: translate("durationChart.runAfter") },
             },
             y: {
-              title: { align: "end", display: true, text: translate("durationChart.duration") },
+              title: { align: "end", display: true, text: translate("duration") },
             },
           },
         }}
