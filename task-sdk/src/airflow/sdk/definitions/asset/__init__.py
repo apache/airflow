@@ -191,8 +191,6 @@ def _validate_identifier(instance, attribute, value):
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
-    if not value.isascii():
-        raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
     return value
 
 
