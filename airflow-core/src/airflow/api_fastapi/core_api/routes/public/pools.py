@@ -115,15 +115,7 @@ def get_pools(
         session=session,
     )
 
-    pools = session.scalars(pools_select).all()
-    
-    if limit.value is not None:
-        limit.value = len(pools)
-
-    if offset.value is not None:
-        offset.value = 0
-
-    pools = pools[offset.value:limit.value]
+    pools = session.scalars(pools_select)
 
     return PoolCollectionResponse(
         pools=pools,
