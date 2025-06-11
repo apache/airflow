@@ -21,6 +21,7 @@ import logging
 import socket
 import time
 
+import tenacity
 from sqlalchemy.engine.url import make_url
 
 from airflow.configuration import conf
@@ -54,15 +55,8 @@ db_health_status: tuple[str, float] = (DbDiscoveryStatus.OK, 0.0)
 db_retry_count: int = 0
 
 
-def get_sleep_time(retry_attempt: int, initial_wait: float, max_wait: float) -> float:
-    return min(initial_wait * (2**retry_attempt), max_wait)
-
-
-def _retry_exponential_backoff(retry_attempt: int, initial_wait: float, max_wait: float) -> None:
-    sleep_time = get_sleep_time(retry_attempt, initial_wait, max_wait)
-    unit_str = "second" if sleep_time == float(1) else "seconds"
-    logger.info("Sleeping for %.2f %s.", sleep_time, unit_str)
-    time.sleep(sleep_time)
+def _is_temporary_dns_error(ex: BaseException) -> bool:
+    return isinstance(ex, socket.gaierror) and ex.errno == socket.EAI_AGAIN
 
 
 def _check_dns_resolution_with_retries(
@@ -75,26 +69,42 @@ def _check_dns_resolution_with_retries(
     # Initialize to 0 in case it has another value from previous attempts.
     db_retry_count = 0
 
-    for attempt in range(1, retries + 1):
-        try:
-            socket.getaddrinfo(host, None)
-        except socket.gaierror as err:
-            # This error is temporary, all others are permanent.
-            if err.errno == socket.EAI_AGAIN:
-                db_retry_count += 1
-                logger.warning("Temporary DNS failure for host '%s' (attempt %d/%d)", host, attempt, retries)
-                if db_retry_count >= retries:
-                    return DbDiscoveryStatus.TEMPORARY_ERROR, err
-                # Sleep.
-                _retry_exponential_backoff(
-                    retry_attempt=attempt, initial_wait=initial_retry_wait, max_wait=max_retry_wait
-                )
-                continue
-            if err.errno == socket.EAI_NONAME:
-                return DbDiscoveryStatus.UNKNOWN_HOSTNAME, err
-            if err.errno == socket.EAI_FAIL:
-                return DbDiscoveryStatus.PERMANENT_ERROR, err
-            return DbDiscoveryStatus.UNKNOWN_ERROR, err
+    def _before_sleep(retry_state: tenacity.RetryCallState) -> None:
+        nonlocal host, retries
+        global db_retry_count
+
+        db_retry_count += 1
+        logger.warning(
+            "Temporary DNS failure for host '%s' (attempt %d/%d)",
+            host,
+            retry_state.attempt_number,
+            retries,
+        )
+
+    # tenacity retries start counting from 1
+    run_with_db_discovery_retries = tenacity.Retrying(
+        retry=tenacity.retry_if_exception(_is_temporary_dns_error),
+        stop=tenacity.stop_after_attempt(retries + 1),
+        wait=tenacity.wait_exponential(
+            multiplier=initial_retry_wait,
+            max=max_retry_wait,
+        ),
+        before_sleep=_before_sleep,
+        reraise=True,
+    )
+
+    try:
+        for attempt in run_with_db_discovery_retries:
+            with attempt:
+                socket.getaddrinfo(host, None)
+    except socket.gaierror as err:
+        if err.errno == socket.EAI_AGAIN:
+            return DbDiscoveryStatus.TEMPORARY_ERROR, err
+        if err.errno == socket.EAI_NONAME:
+            return DbDiscoveryStatus.UNKNOWN_HOSTNAME, err
+        if err.errno == socket.EAI_FAIL:
+            return DbDiscoveryStatus.PERMANENT_ERROR, err
+        return DbDiscoveryStatus.UNKNOWN_ERROR, err
 
     return DbDiscoveryStatus.OK, None
 

@@ -27,22 +27,6 @@ from airflow.utils.db_discovery import DbDiscoveryStatus
 
 class TestDbDiscoveryStatus:
     @pytest.mark.parametrize(
-        "retry, expected_sleep_time",
-        [
-            pytest.param(0, 0.5, id="attempt-1"),
-            pytest.param(1, 1, id="attempt-2"),
-            pytest.param(2, 2, id="attempt-3"),
-            pytest.param(3, 4, id="attempt-4"),
-            pytest.param(4, 8, id="attempt-5"),
-            pytest.param(5, 15, id="attempt-6"),
-            pytest.param(6, 15, id="attempt-7"),
-        ],
-    )
-    def test_get_sleep_time(self, retry: int, expected_sleep_time: float):
-        sleep = db_discovery.get_sleep_time(retry, 0.5, 15)
-        assert sleep == expected_sleep_time
-
-    @pytest.mark.parametrize(
         "error_code, expected_status",
         [
             (socket.EAI_FAIL, DbDiscoveryStatus.PERMANENT_ERROR),
