@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
 import pandas as pd
 import pytest
 import requests
-import json
 
 weaviate = pytest.importorskip("weaviate")
 from weaviate import ObjectAlreadyExistsException  # noqa: E402
@@ -249,7 +249,7 @@ class TestWeaviateHook:
             auth_credentials=mock_auth_client_password(username="login", password="password", scope=None),
             headers={},
         )
-    
+
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
     def test_get_conn_localhost_with_explicit_port(self, mock_connect, mock_auth_client_password):
         conn = Connection(
@@ -257,12 +257,9 @@ class TestWeaviateHook:
             host="localhost",
             port=8080,
             conn_type="weaviate",
-            extra=json.dumps({
-                "http_secure": False,
-                "grpc_host": "localhost",
-                "grpc_port": 50051,
-                "grpc_secure": False
-            }),
+            extra=json.dumps(
+                {"http_secure": False, "grpc_host": "localhost", "grpc_port": 50051, "grpc_secure": False}
+            ),
         )
         with mock.patch.object(WeaviateHook, "get_connection", return_value=conn):
             hook = WeaviateHook(conn_id="weaviate_local")
@@ -278,6 +275,7 @@ class TestWeaviateHook:
             headers={},
             auth_credentials=mock_auth_client_password(username="", password="", scope=None),
         )
+
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
     def test_get_conn_weaviate_cloud(self, mock_connect_to_custom, mock_auth_api_key):
         cloud_host = "myinstance.c0.us-east1.gcp.weaviate.cloud"
@@ -286,13 +284,15 @@ class TestWeaviateHook:
             host=cloud_host,
             port=443,
             conn_type="weaviate",
-            extra=json.dumps({
-                "http_secure": True,
-                "grpc_secure": True,
-                "grpc_host": f"grpc-{cloud_host}",
-                "grpc_port": 443,
-                "token": "fake-api-key"
-            }),
+            extra=json.dumps(
+                {
+                    "http_secure": True,
+                    "grpc_secure": True,
+                    "grpc_host": f"grpc-{cloud_host}",
+                    "grpc_port": 443,
+                    "token": "fake-api-key",
+                }
+            ),
         )
 
         with mock.patch.object(WeaviateHook, "get_connection", return_value=conn):
@@ -310,7 +310,6 @@ class TestWeaviateHook:
             headers={},
             auth_credentials=mock_auth_api_key(api_key="fake-api-key"),
         )
-
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.generate_uuid5")
     def test_create_object(self, mock_gen_uuid, weaviate_hook):
