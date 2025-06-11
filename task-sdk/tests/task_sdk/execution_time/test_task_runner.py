@@ -77,6 +77,7 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    GetXComSequenceSlice,
     OKResponse,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
@@ -91,6 +92,7 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     VariableResult,
     XComResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -1113,7 +1115,7 @@ class TestRuntimeTaskInstance:
         task = BaseOperator(task_id="hello")
 
         # Assume the context is sent from the API server
-        # `task_sdk/tests/api/test_client.py::test_task_instance_start` checks the context is received
+        # `task-sdk/tests/api/test_client.py::test_task_instance_start` checks the context is received
         # from the API server
         runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
 
@@ -1387,7 +1389,17 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
         ser_value = BaseXCom.serialize_value(xcom_values)
-        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value=ser_value)
+
+        def mock_get_message_side_effect(*args, **kwargs):
+            calls = mock_supervisor_comms.send_request.call_args_list
+            if calls:
+                last_call = calls[-1]
+                msg = last_call[1]["msg"]
+                if isinstance(msg, GetXComSequenceSlice):
+                    return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="key", value=ser_value)
+
+        mock_supervisor_comms.get_message.side_effect = mock_get_message_side_effect
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
@@ -1403,17 +1415,30 @@ class TestRuntimeTaskInstance:
                 task_id = test_task_id
             for map_index in map_indexes:
                 if map_index == NOTSET:
-                    map_index = -1
-                mock_supervisor_comms.send_request.assert_any_call(
-                    log=mock.ANY,
-                    msg=GetXCom(
-                        key="key",
-                        dag_id="test_dag",
-                        run_id="test_run",
-                        task_id=task_id,
-                        map_index=map_index,
-                    ),
-                )
+                    mock_supervisor_comms.send_request.assert_any_call(
+                        log=mock.ANY,
+                        msg=GetXComSequenceSlice(
+                            key="key",
+                            dag_id="test_dag",
+                            run_id="test_run",
+                            task_id=task_id,
+                            start=None,
+                            stop=None,
+                            step=None,
+                        ),
+                    )
+                else:
+                    expected_map_index = map_index if map_index is not None else None
+                    mock_supervisor_comms.send_request.assert_any_call(
+                        log=mock.ANY,
+                        msg=GetXCom(
+                            key="key",
+                            dag_id="test_dag",
+                            run_id="test_run",
+                            task_id=task_id,
+                            map_index=expected_map_index,
+                        ),
+                    )
 
     @pytest.mark.parametrize(
         "task_ids, map_indexes, expected_value",
