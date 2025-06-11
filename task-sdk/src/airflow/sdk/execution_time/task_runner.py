@@ -346,7 +346,7 @@ class RuntimeTaskInstance(TaskInstance):
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
 
-        # If map_indexes is not specified, pull xcoms for all map indexes for per task
+        # If map_indexes is not specified, pull xcoms from all map indexes for each task
         if isinstance(map_indexes, ArgNotSet):
             xcoms = []
             for t_id in task_ids:
@@ -360,6 +360,10 @@ class RuntimeTaskInstance(TaskInstance):
                     xcoms.append(default)
                 else:
                     xcoms.extend(values)
+
+            # For single task pulling from unmapped task, return single value
+            if single_task_requested and len(xcoms) == 1:
+                return xcoms[0]
             return xcoms
 
         # Original logic when map_indexes is explicitly specified

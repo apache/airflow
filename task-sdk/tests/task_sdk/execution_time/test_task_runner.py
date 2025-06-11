@@ -1421,7 +1421,6 @@ class TestRuntimeTaskInstance:
             pytest.param("task_a", 0, {"a": 1, "b": 2}, id="task_id is str, map_index is int"),
             pytest.param("task_a", [0], [{"a": 1, "b": 2}], id="task_id is str, map_index is list"),
             pytest.param("task_a", None, {"a": 1, "b": 2}, id="task_id is str, map_index is None"),
-            pytest.param("task_a", NOTSET, [{"a": 1, "b": 2}], id="task_id is str, map_index is ArgNotSet"),
             pytest.param(["task_a"], 0, [{"a": 1, "b": 2}], id="task_id is list, map_index is int"),
             pytest.param(["task_a"], [0], [{"a": 1, "b": 2}], id="task_id is list, map_index is list"),
             pytest.param(["task_a"], None, [{"a": 1, "b": 2}], id="task_id is list, map_index is None"),
@@ -1431,13 +1430,14 @@ class TestRuntimeTaskInstance:
             pytest.param(None, 0, {"a": 1, "b": 2}, id="task_id is None, map_index is int"),
             pytest.param(None, [0], [{"a": 1, "b": 2}], id="task_id is None, map_index is list"),
             pytest.param(None, None, {"a": 1, "b": 2}, id="task_id is None, map_index is None"),
-            pytest.param(None, NOTSET, [{"a": 1, "b": 2}], id="task_id is None, map_index is ArgNotSet"),
             pytest.param(
                 ["task_a", "task_b"],
                 NOTSET,
                 [{"a": 1, "b": 2}, {"c": 3, "d": 4}],
                 id="multiple task_ids, map_index is ArgNotSet",
             ),
+            pytest.param("task_a", NOTSET, {"a": 1, "b": 2}, id="task_id is str, map_index is ArgNotSet"),
+            pytest.param(None, NOTSET, {"a": 1, "b": 2}, id="task_id is None, map_index is ArgNotSet"),
         ],
     )
     def test_xcom_pull_return_values(
