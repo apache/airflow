@@ -83,17 +83,6 @@ Model data as assets and emit them to downstream tasks with the SDK's asset libr
 
 - :func:`@asset <airflow.sdk.asset>`, :class:`~airflow.sdk.AssetAlias`, etc. (see the **api reference** section below)
 
-
-Execution Time Components
-~~~~~~~~~~~~~~~~~~~~~~~~~
-At runtime, tasks run in an isolated subprocess managed by the SDK Supervisor
-
-  - **Supervisor** coordinates the worker's lifecycle.
-  - **TaskRunner** actually executes the user's task code.
-  - **Context** objects provide runtime metadata (e.g., dag run details, connections, variables, etc).
-    (see the **Execution Time** section below for details)
-  - **API Client** provides a client for communicating with the Airflow Execution API (e.g., heartbeats, task instance updates, XCom pushes, etc).
-
 Refer to :doc:`api` for the complete reference of all decorators and classes.
 
 .. toctree::
