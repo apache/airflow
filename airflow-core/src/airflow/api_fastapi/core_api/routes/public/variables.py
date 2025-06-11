@@ -112,15 +112,7 @@ def get_variables(
         session=session,
     )
 
-    variables = session.scalars(variable_select).all()
-
-    if limit.value is not None:
-        limit.value = len(variables)
-
-    if offset.value is not None:
-        offset.value = 0
-
-    variables = variables[offset.value:limit.value]
+    variables = session.scalars(variable_select)
 
     return VariableCollectionResponse(
         variables=variables,
