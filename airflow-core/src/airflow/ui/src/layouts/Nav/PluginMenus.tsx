@@ -22,16 +22,21 @@ import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
 import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
-import { useConfig } from "src/queries/useConfig";
 import { Menu } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 
 import { NavButton } from "./NavButton";
 
 export const PluginMenus = () => {
   const { t: translate } = useTranslation("common");
-  const menuItems = useConfig("plugins_extra_menu_items") as Array<AppBuilderMenuItemResponse> | undefined;
+  const menuItems = useConfig("plugins_extra_menu_items");
 
-  if (!menuItems) {
+  if (
+    !Array.isArray(menuItems) ||
+    !menuItems.every(
+      (item): item is AppBuilderMenuItemResponse => "name" in item && "href" in item && "category" in item,
+    )
+  ) {
     return undefined;
   }
 
@@ -40,13 +45,15 @@ export const PluginMenus = () => {
 
   menuItems.forEach((mi) => {
     if (mi.category !== null && mi.category !== undefined) {
-      categories[mi.category] = [...(categories[mi.category] ?? []), mi];
+      const {category} = mi;
+
+      categories[category] = [...(categories[category] ?? []), mi];
     } else {
       buttons.push(mi);
     }
   });
 
-  if (!buttons.length && !Object.keys(categories).length) {
+  if (buttons.length === 0 && Object.keys(categories).length === 0) {
     return undefined;
   }
 
