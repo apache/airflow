@@ -27,10 +27,10 @@ Defining DAGs
 -------------
 .. autoapiclass:: airflow.sdk.DAG
 
-.. autoapifunction:: airflow.sdk.dag
 
 Decorators
 ----------
+.. autoapifunction:: airflow.sdk.dag
 .. autoapifunction:: airflow.sdk.task
 
 .. autoapifunction:: airflow.sdk.task_group
@@ -54,6 +54,8 @@ Bases
 .. autoapiclass:: airflow.sdk.BaseNotifier
 
 .. autoapiclass:: airflow.sdk.BaseOperatorLink
+
+.. autoapiclass:: airflow.sdk.BaseXCom
 
 .. autoapiclass:: airflow.sdk.XComArg
 
