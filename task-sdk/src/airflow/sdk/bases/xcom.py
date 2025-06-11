@@ -289,15 +289,12 @@ class BaseXCom:
         dag_id: str,
         task_id: str,
         run_id: str,
-    ) -> Any | None:
+    ) -> Any:
         """
         Retrieve all XCom values for a task, typically from all map indexes.
 
-        This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend).
-
-        If there are no results, *None* is returned. If XCom entries exist,
-        a list containing all matching XCom values is returned.
+        XComSequenceSliceResult can never have *None* in it, it returns an empty list
+        if no values were found.
 
         This is particularly useful for getting all XCom values from all map
         indexes of a mapped task at once.
@@ -306,7 +303,7 @@ class BaseXCom:
         :param run_id: DAG run ID for the task.
         :param dag_id: DAG ID to pull XComs from.
         :param task_id: Task ID to pull XComs from.
-        :return: List of all XCom values if found, None if no XComs exist.
+        :return: List of all XCom values if found.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -332,9 +329,7 @@ class BaseXCom:
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        if msg.root is not None:
-            return msg.root
-        return None
+        return msg.root
 
     @staticmethod
     def serialize_value(
