@@ -17,6 +17,7 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
+  "createdAssetEvent": "Created Asset Event",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -127,6 +128,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "sourceAssetEvent": "Source Asset Event",
   "startDate": "Start Date",
   "state": "State",
   "states": {

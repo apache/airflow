@@ -74,7 +74,7 @@ export const AssetEvents = ({
             {data?.total_entries ?? " "}
           </StateBadge>
           <Heading marginEnd="auto" size="md">
-            {translate("common:assetEvent", { count: data?.total_entries ?? 0 })}
+            {title ?? translate("common:assetEvent", { count: data?.total_entries ?? 0 })}
           </Heading>
         </HStack>
         {setOrderBy === undefined ? undefined : (
