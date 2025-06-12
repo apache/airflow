@@ -68,8 +68,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>{translate("dags:runAndTaskActions.clear.dialog.title", { type: "Run" })}: </strong>{" "}
-              {dagRunId}
+              <strong>{translate("dags:runAndTaskActions.clear.title", { type: "Run" })}: </strong> {dagRunId}
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -83,16 +82,16 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               onChange={setSelectedOptions}
               options={[
                 {
-                  label: translate("dags:runAndTaskActions.clear.dialog.options.existingTasks"),
+                  label: translate("dags:runAndTaskActions.options.existingTasks"),
                   value: "existingTasks",
                 },
                 {
-                  label: translate("dags:runAndTaskActions.clear.dialog.options.onlyFailed"),
+                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
                   value: "onlyFailed",
                 },
                 {
                   disabled: true,
-                  label: translate("dags:runAndTaskActions.clear.dialog.options.queueNew"),
+                  label: translate("dags:runAndTaskActions.options.queueNew"),
                   value: "new_tasks",
                 },
               ]}
@@ -119,7 +118,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                 }
               }}
             >
-              <CgRedo /> {translate("dags:runAndTaskActions.clear.dialog.confirm")}
+              <CgRedo /> {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

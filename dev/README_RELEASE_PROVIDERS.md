@@ -508,7 +508,13 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto>
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> all-providers
+```
+
+Or if you just want to publish a few selected providers, you can run:
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> PACKAGE1 PACKAGE2 ..
 ```
 
 The `--ref` parameter should be the tag of the release candidate you are publishing.
@@ -1252,8 +1258,15 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto>
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> all-providers
 ```
+
+Or if you just want to publish a few selected providers, you can run:
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> PACKAGE1 PACKAGE2 ..
+```
+
 
 The `--ref` parameter should be the tag of the final candidate you are publishing.
 

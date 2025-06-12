@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -106,16 +107,21 @@ def flatten_keys(d: dict, prefix: str = "") -> list[str]:
     return keys
 
 
-def compare_keys(locale_files: list[LocaleFiles]) -> dict[str, LocaleSummary]:
+def compare_keys(
+    locale_files: list[LocaleFiles],
+) -> tuple[dict[str, LocaleSummary], dict[str, dict[str, int]]]:
     """
     Compare all non-English locales with English locale only.
 
-    Returns a summary dict: filename -> LocaleSummary(missing, extra)
+    Returns a tuple:
+      - summary dict: filename -> LocaleSummary(missing, extra)
+      - missing_counts dict: filename -> {locale: count_of_missing_keys}
     """
     all_files: set[str] = set()
     for lf in locale_files:
         all_files.update(lf.files)
     summary: dict[str, LocaleSummary] = {}
+    missing_counts: dict[str, dict[str, int]] = {}
     for filename in all_files:
         key_sets: list[LocaleKeySet] = []
         for lf in locale_files:
@@ -134,17 +140,21 @@ def compare_keys(locale_files: list[LocaleFiles]) -> dict[str, LocaleSummary]:
         en_keys = keys_by_locale.get("en", set()) or set()
         missing_keys: dict[str, list[str]] = {}
         extra_keys: dict[str, list[str]] = {}
+        missing_counts[filename] = {}
         for ks in key_sets:
             if ks.locale == "en":
                 continue
             if ks.keys is None:
                 missing_keys[ks.locale] = list(en_keys)
                 extra_keys[ks.locale] = []
+                missing_counts[filename][ks.locale] = len(en_keys)
             else:
-                missing_keys[ks.locale] = list(en_keys - ks.keys)
+                missing = list(en_keys - ks.keys)
+                missing_keys[ks.locale] = missing
                 extra_keys[ks.locale] = list(ks.keys - en_keys)
+                missing_counts[filename][ks.locale] = len(missing)
         summary[filename] = LocaleSummary(missing_keys=missing_keys, extra_keys=extra_keys)
-    return summary
+    return summary, missing_counts
 
 
 def print_locale_file_table(
@@ -188,11 +198,11 @@ def print_language_summary(
 ) -> bool:
     found_difference = False
     missing_in_en: dict[str, dict[str, set[str]]] = {}
-    for lf in locale_files:
+    for lf in sorted(locale_files):
         locale = lf.locale
         file_missing: dict[str, list[str]] = {}
         file_extra: dict[str, list[str]] = {}
-        for filename, diff in summary.items():
+        for filename, diff in sorted(summary.items()):
             missing_keys = diff.missing_keys.get(locale, [])
             extra_keys = diff.extra_keys.get(locale, [])
             if missing_keys:
@@ -235,6 +245,125 @@ def get_outdated_entries_for_language(
     return outdated
 
 
+def count_todo_and_total(obj):
+    """Recursively count TODO: translate entries and total entries in a dict or list."""
+    todo = 0
+    total = 0
+    if isinstance(obj, dict):
+        for v in obj.values():
+            t, n = count_todo_and_total(v)
+            todo += t
+            total += n
+    elif isinstance(obj, list):
+        for v in obj:
+            t, n = count_todo_and_total(v)
+            todo += t
+            total += n
+    else:
+        total = 1
+        if isinstance(obj, str) and obj.strip().startswith("TODO: translate"):
+            todo = 1
+    return todo, total
+
+
+def print_translation_progress(console, locale_files, missing_counts, summary):
+    from rich.table import Table
+
+    tables = defaultdict(lambda: Table(show_lines=True))
+    all_files = set()
+    for lf in locale_files:
+        all_files.update(lf.files)
+    for lf in sorted(locale_files):
+        lang = lf.locale
+        if lang == "en":
+            continue
+        table = tables[lang]
+        table.title = f"Translation Progress: {lang}"
+        table.add_column("File", style="bold cyan")
+        table.add_column("Missing", style="red")
+        table.add_column("Extra", style="yellow")
+        table.add_column("TODOs", style="magenta")
+        table.add_column("Translated", style="green")
+        table.add_column("Total", style="bold")
+        table.add_column("Percent", style="bold")
+        total_missing = 0
+        total_extra = 0
+        total_todos = 0
+        total_translated = 0
+        total_total = 0
+        for filename in sorted(all_files):
+            file_path = Path(LOCALES_DIR / lang / filename)
+            # Always get total from English version
+            en_path = Path(LOCALES_DIR / "en" / filename)
+            if en_path.exists():
+                with open(en_path) as f:
+                    en_data = json.load(f)
+                file_total = sum(1 for _ in flatten_keys(en_data))
+            else:
+                file_total = 0
+            if file_path.exists():
+                with open(file_path) as f:
+                    data = json.load(f)
+                file_missing = missing_counts.get(filename, {}).get(lang, 0)
+                file_extra = len(summary.get(filename, LocaleSummary({}, {})).extra_keys.get(lang, []))
+
+                # Count TODOs
+                def count_todos(obj):
+                    if isinstance(obj, dict):
+                        return sum(count_todos(v) for v in obj.values())
+                    if isinstance(obj, list):
+                        return sum(count_todos(v) for v in obj)
+                    if isinstance(obj, str) and obj.strip().startswith("TODO: translate"):
+                        return 1
+                    return 0
+
+                file_todos = count_todos(data)
+                file_translated = file_total - file_missing
+                percent = 100 * file_translated / file_total if file_total else 100
+                style = (
+                    "bold green"
+                    if file_missing == 0 and file_extra == 0 and file_todos == 0
+                    else (
+                        "yellow" if file_missing < file_total or file_extra > 0 or file_todos > 0 else "red"
+                    )
+                )
+            else:
+                file_missing = file_total
+                file_extra = len(summary.get(filename, LocaleSummary({}, {})).extra_keys.get(lang, []))
+                file_todos = 0
+                file_translated = 0
+                percent = 0
+                style = "red"
+            table.add_row(
+                f"[bold reverse]{filename}[/bold reverse]",
+                str(file_missing),
+                str(file_extra),
+                str(file_todos),
+                str(file_translated),
+                str(file_total),
+                f"{percent:.1f}%",
+                style=style,
+            )
+            total_missing += file_missing
+            total_extra += file_extra
+            total_todos += file_todos
+            total_translated += file_translated
+            total_total += file_total
+        percent = 100 * total_translated / total_total if total_total else 100
+        table.add_row(
+            "All files",
+            str(total_missing),
+            str(total_extra),
+            str(total_todos),
+            str(total_translated),
+            str(total_total),
+            f"{percent:.1f}%",
+            style="red" if percent < 100 else "bold green",
+        )
+    for _lang, table in tables.items():
+        console.print(table)
+
+
 @click.command()
 @click.option(
     "--language", "-l", default=None, help="Show summary for a single language (e.g. en, de, pl, etc.)"
@@ -250,7 +379,7 @@ def cli(language: str | None = None, add_missing: bool = False):
     console = Console(force_terminal=True, color_system="auto")
     print_locale_file_table(locale_files, console, language)
     found_difference = print_file_set_differences(locale_files, console, language)
-    summary = compare_keys(locale_files)
+    summary, missing_counts = compare_keys(locale_files)
     console.print("\n[bold underline]Summary of differences by language:[/bold underline]", style="cyan")
     if language:
         locales = [lf.locale for lf in locale_files]
@@ -276,8 +405,14 @@ def cli(language: str | None = None, add_missing: bool = False):
     else:
         lang_diff = print_language_summary(locale_files, summary, console)
         found_difference = found_difference or lang_diff
+    print_translation_progress(
+        console,
+        [lf for lf in locale_files if language is None or lf.locale == language],
+        missing_counts,
+        summary,
+    )
     if not found_difference:
-        console.print("[green]All translations are complete and consistent![/green]")
+        console.print("[green]All translations are complete and consistent![green]")
     if found_difference:
         sys.exit(1)
 
@@ -302,8 +437,8 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
         try:
             lang_data = load_json(lang_path)
         except Exception as e:
-            console.print(f"[red]Failed to load {language} file {language}: {e}[/red]")
-            sys.exit(1)
+            console.print(f"[yellow]Failed to load {language} file {language}: {e}[/yellow]")
+            lang_data = {}  # Start with an empty dict if the file doesn't exist
 
         # Helper to recursively add missing keys
         def add_keys(src, dst, prefix=""):
