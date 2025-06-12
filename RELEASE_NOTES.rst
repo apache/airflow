@@ -71,7 +71,7 @@ Bug Fixes
 - Restored backward compatibility for the ``/run`` API endpoint for older Task SDK clients
 - Fixed dropdown overflow and error text styling in ``FlexibleForm`` component (#50845)
 - Corrected DAG tag rendering to display ``+1 more`` when tags exceed the display limit by one (#50669)
-- Fix permission check on the ui config endpoint (#50608)
+- Fix permission check on the ui config endpoint (#50564)
 - Fix ``default_args`` handling in operator ``.partial()`` to prevent ``TypeError`` when unused keys are present (#50525)
 - DAG Processor: Fix index to sort by last parsing duration (#50388)
 - UI: Fix border overlap issue in the Events page (#50453)
