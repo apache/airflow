@@ -35,7 +35,6 @@ from http import HTTPStatus
 from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
-    BinaryIO,
     Callable,
     ClassVar,
     NoReturn,
@@ -1578,10 +1577,10 @@ def supervise(
         pretty_logs = False
         if pretty_logs:
             log_file_descriptor = log_file.open("a", buffering=1)
-            underlying_logger: WrappedLogger = structlog.WriteLogger(cast(TextIO, log_file_descriptor))
+            underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
         else:
             log_file_descriptor = log_file.open("ab")
-            underlying_logger = structlog.BytesLogger(cast(BinaryIO, log_file_descriptor))
+            underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
