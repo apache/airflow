@@ -188,7 +188,6 @@ class TestDockerOperator:
             command="env",
             environment={"UNIT": "TEST"},
             private_environment={"PRIVATE": "MESSAGE"},
-            env_file="ENV=FILE\nVAR=VALUE",
             image=TEST_IMAGE,
             network_mode="bridge",
             owner="unittest",
