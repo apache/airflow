@@ -51,7 +51,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   setErrors,
   setFormError,
 }: ConfigFormProps<T>) => {
-  const { t: translate } = useTranslation("components");
+  const { t: translate } = useTranslation(["components", "common"]);
   const { conf, setConf } = useParamStore();
 
   const validateAndPrettifyJson = (value: string) => {
@@ -68,7 +68,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
 
       return formattedJson;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : translate("configForm.unkownError");
+      const errorMessage = error instanceof Error ? error.message : translate("common:error.unknown");
 
       setErrors((prev) => ({
         ...prev,
