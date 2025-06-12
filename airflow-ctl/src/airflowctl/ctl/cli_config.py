@@ -681,8 +681,8 @@ POOL_COMMANDS = (
 CONFIG_COMMANDS = (
     ActionCommand(
         name="lint",
-        help="Lint options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
-        description="Lint options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
+        help="Lint options for the configuration changes while migrating from Airflow 2 to Airflow 3",
+        description="Lint options for the configuration changes while migrating from Airflow 2 to Airflow 3",
         func=lazy_load_command("airflowctl.ctl.commands.config_command.lint"),
         args=(
             ARG_CONFIG_SECTION,
