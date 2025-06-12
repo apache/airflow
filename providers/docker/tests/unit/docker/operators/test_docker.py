@@ -214,8 +214,6 @@ class TestDockerOperator:
                 "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
                 "UNIT": "TEST",
                 "PRIVATE": "MESSAGE",
-                "ENV": "FILE",
-                "VAR": "VALUE",
             },
             host_config=self.client_mock.create_host_config.return_value,
             image=TEST_IMAGE,
