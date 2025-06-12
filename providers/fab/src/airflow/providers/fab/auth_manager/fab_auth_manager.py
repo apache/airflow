@@ -564,8 +564,8 @@ class FabAuthManager(BaseAuthManager[User]):
             # Check whether the user has permissions to access a specific DAG
             resource_dag_name = permissions.resource_name(details.id, RESOURCE_DAG)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
-
-        return False
+        authorized_dags = self.get_authorized_dag_ids(user=user, method=method)
+        return len(authorized_dags) > 0
 
     def _is_authorized_dag_run(
         self,
@@ -590,8 +590,8 @@ class FabAuthManager(BaseAuthManager[User]):
             # Check whether the user has permissions to access a specific DAG Run permission on a DAG Level
             resource_dag_name = permissions.resource_name(details.id, RESOURCE_DAG_RUN)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
-
-        return False
+        authorized_dags = self.get_authorized_dag_ids(user=user, method=method)
+        return len(authorized_dags) > 0
 
     @staticmethod
     def _get_fab_action(method: ResourceMethod) -> str:

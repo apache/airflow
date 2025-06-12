@@ -1,8 +1,8 @@
 {
   "backfill": {
-    "affectedMultiple": "{{count}} Läufe werden ausgelöst.",
+    "affected_one": "1 Lauf wird ausgelöst.",
+    "affected_other": "{{count}} Läufe werden ausgelöst.",
     "affectedNone": "Keine Läufe entsprechend en Kriterien.",
-    "affectedOne": "1 Lauf wird ausgelöst.",
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
     "dateRange": "Datumsbereich",
     "dateRangeFrom": "Von",
@@ -44,7 +44,7 @@
     "lasttaskInstance_one": "Letzte Task Instanz",
     "lasttaskInstance_other": "Letzte {{count}} Task Instanzen",
     "queuedDuration": "Zeit in der Warteschlange",
-    "runAfter": "Lauf nach",
+    "runAfter": "Lauf ab",
     "runDuration": "Laufzeit"
   },
   "fileUpload": {
@@ -99,11 +99,11 @@
     "notesPlaceholder": "Klicken Sie hier um eine Notiz hinzuzufügen",
     "runId": "ID des Laufes (Run Id)",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
-    "selectDescription": "Einen einzelnen Lauf dieses Dag anstoßen",
+    "selectDescription": "Einen einzelnen Lauf dieses Dag auslösen",
     "selectLabel": "Einzelner Lauf",
-    "title": "Dag Anstoßen",
-    "trigger": "Anstoßen",
-    "unpause": "Dag {{dagDisplayName}} beim Anstoßen des Laufes aktiv schalten"
+    "title": "Dag Auslösen",
+    "trigger": "Auslösen",
+    "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
   },
   "versionDetails": {
     "bundleLink": "Bündel-Link",

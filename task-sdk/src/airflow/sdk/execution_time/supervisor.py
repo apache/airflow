@@ -1107,8 +1107,8 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result
         elif isinstance(msg, GetXComCount):
-            len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=len)
+            xcom_count = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp = XComCountResponse(len=xcom_count)
         elif isinstance(msg, GetXComSequenceItem):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset

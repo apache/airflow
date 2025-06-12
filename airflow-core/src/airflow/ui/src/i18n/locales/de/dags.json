@@ -6,8 +6,8 @@
       "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
     },
     "trigger": {
-      "button": "Anstoßen",
-      "triggerDag": "Dag anstoßen"
+      "button": "Auslösen",
+      "triggerDag": "Dag auslösen"
     }
   },
   "filters": {
@@ -24,7 +24,7 @@
       "dagId": "Dag ID",
       "lastDagRun": "Letzter Dag Lauf",
       "nextDagRun": "Nächster Dag Lauf",
-      "schedule": "Planung",
+      "schedule": "Zeitplan",
       "tags": "Markierungen"
     },
     "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
@@ -37,7 +37,6 @@
       "dialog": {
         "affectedTasks": {
           "columns": {
-            "mapIndex": "Planungs-Index",
             "runId": "Lauf ID",
             "state": "Status",
             "taskId": "Task ID"
@@ -102,7 +101,7 @@
       "dagVersions": "Dag Version",
       "duration": "Laufzeit",
       "endDate": "Enddatum",
-      "runAfter": "Gelaufen nach",
+      "runAfter": "Gelaufen ab",
       "runType": "Typ des Laufs",
       "startDate": "Startdatum",
       "state": "Status"
@@ -135,7 +134,6 @@
       "dagVersion": "Dag Version",
       "duration": "Laufzeit",
       "endDate": "Enddatum",
-      "mapIndex": "Planungs-Index",
       "operator": "Operator-Klasse",
       "pool": "Pool",
       "startDate": "Startdatum",

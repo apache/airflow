@@ -35,7 +35,7 @@ type Props = {
 
 const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("dags");
 
   useHotkeys(
     "shift+c",
@@ -48,16 +48,16 @@ const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withTe
   return (
     <Tooltip
       closeDelay={100}
-      content={translate("dags:runAndTaskActions.clear.buttonTooltip")}
+      content={translate("runAndTaskActions.clear.buttonTooltip")}
       disabled={!isHotkeyEnabled}
       openDelay={100}
     >
       <Box>
         <ActionButton
-          actionName={translate("dags:runAndTaskActions.clear.button", { type: "Task Instance" })}
+          actionName={translate("runAndTaskActions.clear.button", { type: "Task Instance" })}
           icon={<CgRedo />}
           onClick={onOpen}
-          text={translate("dags:runAndTaskActions.clear.button", { type: "Task Instance" })}
+          text={translate("runAndTaskActions.clear.button", { type: "Task Instance" })}
           withText={withText}
         />
 

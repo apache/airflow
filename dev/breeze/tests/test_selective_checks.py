@@ -2048,7 +2048,7 @@ def test_expected_output_push(
                 "run-tests": "true",
                 "skip-providers-tests": "false",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql "
+                "docs-list-as-string": "apache-airflow task-sdk amazon common.compat common.io common.sql "
                 "databricks dbt.cloud ftp google microsoft.mssql mysql "
                 "openlineage postgres sftp snowflake trino",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
