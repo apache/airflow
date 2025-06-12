@@ -265,6 +265,8 @@ def _update_import_errors(
         )
     )
 
+    # the below query has to match (bundle_name, filename) tuple in that order since the
+    # import_errors list is a dict with keys as (bundle_name, relative_fileloc)
     existing_import_error_files = set(
         session.execute(select(ParseImportError.bundle_name, ParseImportError.filename))
     )
