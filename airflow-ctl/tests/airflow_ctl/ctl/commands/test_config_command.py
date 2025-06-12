@@ -361,3 +361,130 @@ class TestCliConfigLint:
         calls = [call[0][0] for call in mock_rich_print.call_args_list]
         assert "[red]Found issues in your airflow.cfg:[/red]" in calls[0]
         assert "This is a test suggestion." in calls[1]
+
+
+class TestCliConfigUpdate:
+    parser = cli_parser.get_parser()
+
+    @patch("rich.print")
+    def test_update_no_changes(self, mock_rich_print, api_client_maker):
+        """Test update when no changes are needed."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert "[green]No updates needed. Your configuration is already up-to-date.[/green]" in calls[0]
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section_breaking_change_before", "test_option"),
+                renamed_to=ConfigParameter("test_section_breaking_change_after", "test_option"),
+                breaking=True,
+            ),
+            ConfigChange(
+                config=ConfigParameter("test_section_non_breaking_change_before", "test_option"),
+                renamed_to=ConfigParameter("test_section_non_breaking_change_after", "test_option"),
+                breaking=False,
+            ),
+        ],
+    )
+    def test_update_all_recommendations(self, mock_rich_print, api_client_maker):
+        """Test update with --all-recommendations flag showing both breaking and non-breaking rename changes."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section_breaking_change_before",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value_breaking_change_before",
+                        )
+                    ],
+                ),
+                ConfigSection(
+                    name="test_section_breaking_change_after",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value_breaking_change_after",
+                        )
+                    ],
+                ),
+                ConfigSection(
+                    name="test_section_non_breaking_change_before",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value_non_breaking_change_before",
+                        )
+                    ],
+                ),
+                ConfigSection(
+                    name="test_section_non_breaking_change_after",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value_non_breaking_change_after",
+                        )
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update", "--all-recommendations"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        print("\ncalls:")
+        for i, msg in enumerate(calls):
+            print(f"{i}: {msg!r}")
+
+        assert len(calls) == 4
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert (
+            calls[1]
+            == "  - [DRY-RUN]  Renamed 'test_section_breaking_change_before/test_option' to 'test_section_breaking_change_after/test_option'."
+        )
+        assert (
+            calls[2]
+            == "  - [DRY-RUN]  Renamed 'test_section_non_breaking_change_before/test_option' to 'test_section_non_breaking_change_after/test_option'."
+        )
+        assert (
+            calls[3]
+            == "[blue]Dry-run mode is enabled. To apply above changes run the command with `--fix`.[/blue]"
+        )

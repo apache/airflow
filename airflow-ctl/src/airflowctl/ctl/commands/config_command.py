@@ -823,3 +823,175 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
     except Exception as e:
         rich.print(f"[red]Lint configs failed: {e}")
         sys.exit(1)
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def update(args, api_client=NEW_API_CLIENT) -> None:
+    """
+    Update the airflow.cfg file to migrate configuration changes from Airflow 2.x to Airflow 3.
+
+    By default, this command will perform a dry-run (showing the changes only) and list only
+    the breaking configuration changes by scanning the current configuration file for parameters that have
+    been renamed, removed, or had their default values changed in Airflow 3. To see or fix all recommended
+    changes, use the --all-recommendations argument. To automatically update your airflow.cfg file, use
+    the --fix argument.
+
+    CLI Arguments:
+        --fix: flag (optional)
+            Automatically fix/apply the breaking changes (or all changes if --all-recommendations is also
+            specified)
+            Example: --fix
+
+        --all-recommendations: flag (optional)
+            Include non-breaking (recommended) changes as well as breaking ones.
+            Can be used with --fix.
+            Example: --all-recommendations
+
+        --section: str (optional)
+            Comma-separated list of configuration sections to update.
+            Example: --section core,database
+
+        --option: str (optional)
+            Comma-separated list of configuration options to update.
+            Example: --option sql_alchemy_conn,dag_concurrency
+
+        --ignore-section: str (optional)
+            Comma-separated list of configuration sections to ignore during update.
+            Example: --ignore-section webserver
+
+        --ignore-option: str (optional)
+            Comma-separated list of configuration options to ignore during update.
+            Example: --ignore-option check_slas
+
+    Examples:
+        1. Dry-run mode (print the changes) showing only breaking changes:
+            airflowctl config update
+
+        2. Dry-run mode showing all recommendations:
+            airflowctl config update --all-recommendations
+
+        3. Apply (fix) only breaking changes:
+            airflowctl config update --fix
+
+        4. Apply (fix) all recommended changes:
+            airflowctl config update --fix --all-recommendations
+
+        5. Show changes only the specific sections:
+            airflowctl config update --section core,database
+
+        6. Show changes only the specific options:
+            airflowctl config update --option sql_alchemy_conn,dag_concurrency
+
+        7. Ignores the specific section:
+            airflowctl config update --ignore-section webserver
+
+    :param args: The CLI arguments for updating configuration.
+    """
+    dry_run = not args.fix
+    changes_applied = []
+    prefix = "[DRY-RUN] " if dry_run else ""
+
+    section_to_check_if_provided = args.section or []
+    option_to_check_if_provided = args.option or []
+
+    ignore_sections = args.ignore_section or []
+    ignore_options = args.ignore_option or []
+
+    try:
+        all_configs = api_client.configs.list()
+        for change in CONFIGS_CHANGES:
+            if section_to_check_if_provided and change.config.section not in section_to_check_if_provided:
+                continue
+
+            if option_to_check_if_provided and change.config.option not in option_to_check_if_provided:
+                continue
+
+            if change.config.section in ignore_sections or change.config.option in ignore_options:
+                continue
+
+            if not args.all_recommendations and not change.breaking:
+                continue
+
+            target_section = next(
+                (section for section in all_configs.sections if section.name == change.config.section),
+                None,
+            )
+            if not target_section:
+                continue
+
+            target_option = next(
+                (option for option in target_section.options if option.key == change.config.option),
+                None,
+            )
+            if not target_option:
+                continue
+
+            option_value = target_option.value
+
+            if change.default_change:
+                if str(option_value) != str(change.new_default):
+                    if not dry_run:
+                        api_client.configs.put(
+                            section=change.config.section,
+                            option=change.config.option,
+                            value=str(change.new_default),
+                        )
+                    changes_applied.append(
+                        f"{prefix} Updated default value of '{change.config.section}/{change.config.option}' from "
+                        f"'{option_value}' to '{change.new_default}'."
+                    )
+
+            if change.renamed_to:
+                if not dry_run:
+                    # First update the value in the new location
+                    api_client.configs.put(
+                        section=change.renamed_to.section,
+                        option=change.renamed_to.option,
+                        value=str(option_value),
+                    )
+                    # Then remove the old value
+                    api_client.configs.put(
+                        section=change.config.section, option=change.config.option, value=""
+                    )
+                changes_applied.append(
+                    f"{prefix} Renamed '{change.config.section}/{change.config.option}' to "
+                    f"'{change.renamed_to.section.lower()}/{change.renamed_to.option.lower()}'."
+                )
+
+            elif change.was_removed:
+                if change.remove_if_equals is not None:
+                    if str(option_value) == str(change.remove_if_equals):
+                        if not dry_run:
+                            api_client.configs.put(
+                                section=change.config.section, option=change.config.option, value=""
+                            )
+                        changes_applied.append(
+                            f"{prefix} Removed '{change.config.section}/{change.config.option}' from configuration."
+                        )
+                else:
+                    if not dry_run:
+                        api_client.configs.put(
+                            section=change.config.section, option=change.config.option, value=""
+                        )
+                    changes_applied.append(
+                        f"{prefix} Removed '{change.config.section}/{change.config.option}' from configuration."
+                    )
+
+        if changes_applied:
+            rich.print("[green]The following are the changes in airflow config:[/green]")
+            for change_msg in changes_applied:
+                rich.print(f"  - {change_msg}")
+            if dry_run:
+                rich.print(
+                    "[blue]Dry-run mode is enabled. To apply above changes run the command "
+                    "with `--fix`.[/blue]"
+                )
+        else:
+            rich.print("[green]No updates needed. Your configuration is already up-to-date.[/green]")
+
+        if args.verbose:
+            rich.print("[blue]Configuration update completed with verbose output enabled.[/blue]")
+
+    except Exception as e:
+        rich.print(f"[red]Update configs failed: {e}")
+        sys.exit(1)

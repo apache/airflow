@@ -284,6 +284,18 @@ ARG_CONFIG_VERBOSE = Arg(
     default=False,
     action="store_true",
 )
+ARG_CONFIG_FIX = Arg(
+    flags=("--fix",),
+    help=" Automatically apply the configuration changes instead of performing a dry run. (Default: dry-run mode)",
+    default=False,
+    action="store_true",
+)
+ARG_CONFIG_ALL_RECOMMENDATIONS = Arg(
+    flags=("--all-recommendations",),
+    help="Include non-breaking (recommended) changes along with breaking ones. (Also use with --fix)",
+    default=False,
+    action="store_true",
+)
 
 
 class ActionCommand(NamedTuple):
@@ -685,6 +697,21 @@ CONFIG_COMMANDS = (
         description="Lint options for the configuration changes while migrating from Airflow 2 to Airflow 3",
         func=lazy_load_command("airflowctl.ctl.commands.config_command.lint"),
         args=(
+            ARG_CONFIG_SECTION,
+            ARG_CONFIG_OPTION,
+            ARG_CONFIG_IGNORE_SECTION,
+            ARG_CONFIG_IGNORE_OPTION,
+            ARG_CONFIG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="update",
+        help="Update options for the configuration changes while migrating from Airflow 2 to Airflow 3",
+        description="Update options for the configuration changes while migrating from Airflow 2 to Airflow 3",
+        func=lazy_load_command("airflowctl.ctl.commands.config_command.update"),
+        args=(
+            ARG_CONFIG_FIX,
+            ARG_CONFIG_ALL_RECOMMENDATIONS,
             ARG_CONFIG_SECTION,
             ARG_CONFIG_OPTION,
             ARG_CONFIG_IGNORE_SECTION,
