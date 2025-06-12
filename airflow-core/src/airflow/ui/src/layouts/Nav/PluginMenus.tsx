@@ -45,7 +45,7 @@ export const PluginMenus = () => {
 
   menuItems.forEach((mi) => {
     if (mi.category !== null && mi.category !== undefined) {
-      const {category} = mi;
+      const { category } = mi;
 
       categories[category] = [...(categories[category] ?? []), mi];
     } else {
