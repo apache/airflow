@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 @attrs.define
 class Connection:
     """
-    A connection to an external data source.
+    A connection to an extelrnal data source.
 
     :param conn_id: The connection ID.
     :param conn_type: The connection type.
