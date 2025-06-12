@@ -206,7 +206,7 @@ class TestDockerOperator:
             log_opts_max_file="5",
             log_opts_max_size="10m",
         )
-        operator.execute(None)
+        operator.execute({})
 
         self.client_mock.create_container.assert_called_once_with(
             command="env",
