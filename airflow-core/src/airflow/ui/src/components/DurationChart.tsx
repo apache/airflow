@@ -102,10 +102,10 @@ export const DurationChart = ({
         {entries.length > 1
           ? kind === "Dag Run"
             ? translate("durationChart.lastDagRun_other", { count: entries.length })
-            : translate("durationChart.lasttaskInstance_other", { count: entries.length })
+            : translate("durationChart.lastTaskInstance_other", { count: entries.length })
           : kind === "Dag Run"
             ? translate("durationChart.lastDagRun_one")
-            : translate("durationChart.lasttaskInstance_one")}
+            : translate("durationChart.lastTaskInstance_one")}
       </Heading>
       <Bar
         data={{

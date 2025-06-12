@@ -53,6 +53,7 @@
     "queuedAt": "Queued At",
     "runAfter": "Run After",
     "runType": "Run Type",
+    "sourceAssetEvent": "Source Asset Event",
     "triggeredBy": "Triggered By"
   },
   "dagRun_one": "Dag Run",
@@ -68,6 +69,13 @@
   },
   "duration": "Duration",
   "endDate": "End Date",
+  "error": {
+    "back": "Back",
+    "defaultMessage": "An unexpected error occurred",
+    "home": "Home",
+    "notFound": "Page Not Found",
+    "title": "Error"
+  },
   "expression": {
     "all": "All",
     "and": "AND",
@@ -169,6 +177,7 @@
     "to": "To"
   },
   "task": {
+    "documentation": "Task Documentation",
     "lastInstance": "Last Instance",
     "operator": "Operator",
     "triggerRule": "Trigger Rule"
@@ -189,6 +198,14 @@
     "queue": "Queue",
     "queuedWhen": "Queued At",
     "scheduledWhen": "Scheduled At",
+    "triggerer": {
+      "assigned": "Assigned triggerer",
+      "class": "Trigger class",
+      "createdAt": "Trigger creation time",
+      "id": "Trigger ID",
+      "latestHeartbeat": "Latest triggerer heartbeat",
+      "title": "Triggerer Info"
+    },
     "unixname": "Unix Name"
   },
   "taskInstance_one": "Task Instance",

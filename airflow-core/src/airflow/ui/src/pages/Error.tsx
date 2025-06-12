@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, VStack, Heading, Text, Button, Container, HStack, Code } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useRouteError, isRouteErrorResponse } from "react-router-dom";
 
 import { AirflowPin } from "src/assets/AirflowPin";
@@ -24,15 +25,16 @@ import { AirflowPin } from "src/assets/AirflowPin";
 export const ErrorPage = () => {
   const navigate = useNavigate();
   const error = useRouteError();
+  const { t: translate } = useTranslation();
 
-  let errorMessage = "An unexpected error occurred";
+  let errorMessage = translate("error.defaultMessage");
   let statusCode = "";
 
   if (isRouteErrorResponse(error)) {
     statusCode = String(error.status);
     errorMessage =
       ((error as unknown as Error).message || (error as { statusText?: string }).statusText) ??
-      "Page Not Found";
+      translate("error.notFound");
   } else if (error instanceof Error) {
     errorMessage = error.message;
   } else if (typeof error === "string") {
@@ -49,7 +51,7 @@ export const ErrorPage = () => {
           <AirflowPin height="50px" width="50px" />
 
           <VStack gap={4}>
-            <Heading>{statusCode || "Error"}</Heading>
+            <Heading>{statusCode || translate("error.title")}</Heading>
             <Text fontSize="lg">{errorMessage}</Text>
             {error instanceof Error && isDev ? (
               <Code borderRadius="md" fontSize="sm" p={3} width="full">
@@ -60,10 +62,10 @@ export const ErrorPage = () => {
 
           <HStack gap={4}>
             <Button colorPalette="blue" onClick={() => navigate(-1)} size="lg">
-              Back
+              {translate("error.back")}
             </Button>
             <Button colorPalette="blue" onClick={() => navigate("/")} size="lg" variant="outline">
-              Home
+              {translate("error.home")}
             </Button>
           </HStack>
         </VStack>

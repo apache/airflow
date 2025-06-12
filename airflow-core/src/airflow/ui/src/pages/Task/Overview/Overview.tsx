@@ -19,6 +19,7 @@
 import { Box, HStack, Skeleton, SimpleGrid } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
@@ -31,6 +32,7 @@ const defaultHour = "24";
 
 export const Overview = () => {
   const { dagId = "", groupId, taskId } = useParams();
+  const { t: translate } = useTranslation("dag");
 
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
@@ -86,7 +88,9 @@ export const Overview = () => {
             timestamp: ti.start_date ?? ti.logical_date,
           }))}
           isLoading={isFailedTaskInstancesLoading}
-          label="Failed Task Instance"
+          label={translate("overview.buttons.failedTaskInstance", {
+            count: failedTaskInstances?.total_entries ?? 0,
+          })}
           route={{
             pathname: "task_instances",
             search: "state=failed",

@@ -1,10 +1,16 @@
 {
   "allRuns": "All Runs",
+  "blockingDeps": {
+    "dependency": "Dependency",
+    "reason": "Reason",
+    "title": "Dependencies Blocking Task From Getting Scheduled"
+  },
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
     "parsedAt": "Parsed at:"
   },
+  "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
       "resetToLatest": "Reset to latest",
@@ -16,12 +22,18 @@
       "dagDocs": "Dag Docs"
     }
   },
+  "logs": {
+    "noTryNumber": "No try number",
+    "viewInExternal": "View logs in {{name}} (attempt {{attempt}})"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Failed Run",
       "failedRun_other": "Failed Runs",
       "failedTask_one": "Failed Task",
-      "failedTask_other": "Failed Tasks"
+      "failedTask_other": "Failed Tasks",
+      "failedTaskInstance_one": "Failed Task Instance",
+      "failedTaskInstance_other": "Failed Task Instances"
     },
     "charts": {
       "assetEvent_one": "Created Asset Event",
@@ -55,14 +67,20 @@
     }
   },
   "tabs": {
-    "asset_events": "Asset Events",
+    "assetEvents": "Asset Events",
+    "auditLog": "Audit Log",
     "backfills": "Backfills",
     "code": "Code",
     "details": "Details",
-    "events": "Audit Logs",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Task Instance [{{count}}]",
+    "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Overview",
+    "renderedTemplates": "Rendered Templates",
     "runs": "Runs",
-    "tasks": "Tasks"
+    "taskInstances": "Task Instances",
+    "tasks": "Tasks",
+    "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Collapse all task groups",

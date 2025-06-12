@@ -18,6 +18,7 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -32,16 +33,17 @@ type Props = {
 
 export const CreateAssetEvent = ({ asset, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation("assets");
 
   return (
     <Box>
       <ActionButton
-        actionName="Create Asset Event"
+        actionName={translate("createEvent.button")}
         colorPalette="blue"
         disabled={asset === undefined}
         icon={<FiPlay />}
         onClick={onOpen}
-        text="Create Asset Event"
+        text={translate("createEvent.button")}
         variant="solid"
         withText={withText}
       />

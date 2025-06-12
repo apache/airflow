@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import { Box, Heading, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams } from "react-router-dom";
@@ -119,6 +119,9 @@ export const XCom = () => {
 
   return (
     <Box>
+      {dagId === "~" && runId === "~" && taskId === "~" ? (
+        <Heading size="md">{translate("xcom.title")}</Heading>
+      ) : undefined}
       <ErrorAlert error={error} />
       <DataTable
         columns={columns(translate)}
@@ -127,7 +130,7 @@ export const XCom = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="XCom"
+        modelName={translate("xcom.title")}
         onStateChange={setTableURLState}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}

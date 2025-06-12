@@ -167,7 +167,9 @@ export const Events = () => {
   return (
     <Box>
       <Flex alignItems="center" justifyContent="space-between">
-        <Heading>{translate("auditLog.title")}</Heading>
+        {dagId === undefined && runId === undefined && taskId === undefined ? (
+          <Heading size="md">{translate("auditLog.title")}</Heading>
+        ) : undefined}
         <ButtonGroup attached mt="1" size="sm" variant="surface">
           <IconButton
             aria-label={translate("auditLog.actions.expandAllExtra")}

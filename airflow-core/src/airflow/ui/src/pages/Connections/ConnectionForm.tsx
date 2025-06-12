@@ -66,7 +66,7 @@ const ConnectionForm = ({
     mode: "onBlur",
   });
 
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const selectedConnType = watch("conn_type"); // Get the selected connection type
   const standardFields = connectionTypeMeta[selectedConnType]?.standard_fields ?? {};
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
@@ -107,7 +107,7 @@ const ConnectionForm = ({
 
       return formattedJson;
     } catch (error_) {
-      const errorMessage = error_ instanceof Error ? error_.message : "Unknown error occurred.";
+      const errorMessage = error_ instanceof Error ? error_.message : translate("common:error.unknown");
 
       setErrors((prev) => ({
         ...prev,

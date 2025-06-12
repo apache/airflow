@@ -28,8 +28,7 @@
   "configForm": {
     "advancedOptions": "Advanced Options",
     "configJson": "Configuration JSON",
-    "invalidJson": "Invalid JSON format: {{errorMessage}}",
-    "unkownError": "Unknown error occurred."
+    "invalidJson": "Invalid JSON format: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 Error",
@@ -41,8 +40,8 @@
     "duration": "Duration (seconds)",
     "lastDagRun_one": "Last Dag Run",
     "lastDagRun_other": "Last {{count}} Dag Runs",
-    "lasttaskInstance_one": "Last Task Instance",
-    "lasttaskInstance_other": "Last {{count}} Task Instances",
+    "lastTaskInstance_one": "Last Task Instance",
+    "lastTaskInstance_other": "Last {{count}} Task Instances",
     "queuedDuration": "Queued Duration",
     "runAfter": "Run After",
     "runDuration": "Run Duration"
@@ -95,6 +94,11 @@
     "selectLabel": "Single Run",
     "title": "Trigger Dag",
     "unpause": "Unpause {{dagDisplayName}} on trigger"
+  },
+  "trimText": {
+    "details": "Details",
+    "empty": "Empty",
+    "noContent": "No content available."
   },
   "versionDetails": {
     "bundleLink": "Bundle Link",

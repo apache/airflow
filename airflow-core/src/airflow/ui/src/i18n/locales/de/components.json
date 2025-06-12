@@ -41,8 +41,8 @@
     "duration": "Laufzeit (Sekunden)",
     "lastDagRun_one": "Letzter Dag Lauf",
     "lastDagRun_other": "Letzte {{count}} Dag Läufe",
-    "lasttaskInstance_one": "Letzte Task Instanz",
-    "lasttaskInstance_other": "Letzte {{count}} Task Instanzen",
+    "lastTaskInstance_one": "Letzte Task Instanz",
+    "lastTaskInstance_other": "Letzte {{count}} Task Instanzen",
     "queuedDuration": "Zeit in der Warteschlange",
     "runAfter": "Lauf ab",
     "runDuration": "Laufzeit"
