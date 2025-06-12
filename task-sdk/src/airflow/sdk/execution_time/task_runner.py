@@ -338,7 +338,7 @@ class RuntimeTaskInstance(TaskInstance):
             run_id = self.run_id
 
         single_task_requested = isinstance(task_ids, (str, type(None)))
-        single_map_index_requested = isinstance(map_indexes, (int, type(None), ArgNotSet))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
 
         if task_ids is None:
             # default to the current task if not provided
@@ -346,11 +346,27 @@ class RuntimeTaskInstance(TaskInstance):
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
 
-        map_indexes_iterable: Iterable[int | None] = []
-        # If map_indexes is not provided, default to use the map_index of the calling task
+        # If map_indexes is not specified, pull xcoms from all map indexes for each task
         if isinstance(map_indexes, ArgNotSet):
-            map_indexes_iterable = [self.map_index]
-        elif isinstance(map_indexes, int) or map_indexes is None:
+            xcoms = [
+                value
+                for t_id in task_ids
+                for value in XCom.get_all(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                )
+            ]
+
+            # For single task pulling from unmapped task, return single value
+            if single_task_requested and len(xcoms) == 1:
+                return xcoms[0]
+            return xcoms
+
+        # Original logic when map_indexes is explicitly specified
+        map_indexes_iterable: Iterable[int | None] = []
+        if isinstance(map_indexes, int) or map_indexes is None:
             map_indexes_iterable = [map_indexes]
         elif isinstance(map_indexes, Iterable):
             map_indexes_iterable = map_indexes
@@ -360,10 +376,6 @@ class RuntimeTaskInstance(TaskInstance):
             )
 
         xcoms = []
-        # TODO: AIP 72 Execution API only allows working with a single map_index at a time
-        # this is inefficient and leads to task_id * map_index requests to the API.
-        # And we can't achieve the original behavior of XCom pull with multiple tasks
-        # directly now.
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
             value = XCom.get_one(
                 run_id=run_id,
