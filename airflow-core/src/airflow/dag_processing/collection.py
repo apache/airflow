@@ -208,8 +208,12 @@ def _serialize_dag_capturing_errors(
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
-        # todo AIP-66: this needs to use bundle name / rel fileloc instead
-        return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
+        return [
+            (
+                (bundle_name, dag.relative_fileloc),
+                traceback.format_exc(limit=-dagbag_import_error_traceback_depth),
+            )
+        ]
 
 
 def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
@@ -245,7 +249,10 @@ def _update_dag_warnings(
 
 
 def _update_import_errors(
-    files_parsed: set[str], bundle_name: str, import_errors: dict[str, str], session: Session
+    files_parsed: set[tuple[str, str]],
+    bundle_name: str,
+    import_errors: dict[tuple[str, str], str],
+    session: Session,
 ):
     from airflow.listeners.listener import get_listener_manager
 
@@ -254,51 +261,67 @@ def _update_import_errors(
 
     session.execute(
         delete(ParseImportError).where(
-            ParseImportError.filename.in_(list(files_parsed)), ParseImportError.bundle_name == bundle_name
+            tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(files_parsed)
         )
     )
 
+    # the below query has to match (bundle_name, filename) tuple in that order since the
+    # import_errors list is a dict with keys as (bundle_name, relative_fileloc)
     existing_import_error_files = set(
-        session.execute(select(ParseImportError.filename, ParseImportError.bundle_name))
+        session.execute(select(ParseImportError.bundle_name, ParseImportError.filename))
     )
-
     # Add the errors of the processed files
-    for filename, stacktrace in import_errors.items():
-        if (filename, bundle_name) in existing_import_error_files:
-            session.query(ParseImportError).where(
-                ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name
-            ).update(
-                {
-                    "filename": filename,
-                    "bundle_name": bundle_name,
-                    "timestamp": utcnow(),
-                    "stacktrace": stacktrace,
-                },
+    for key, stacktrace in import_errors.items():
+        bundle_name_, relative_fileloc = key
+
+        if key in existing_import_error_files:
+            session.execute(
+                update(ParseImportError)
+                .where(
+                    ParseImportError.filename == relative_fileloc,
+                    ParseImportError.bundle_name == bundle_name_,
+                )
+                .values(
+                    filename=relative_fileloc,
+                    bundle_name=bundle_name_,
+                    timestamp=utcnow(),
+                    stacktrace=stacktrace,
+                ),
             )
             # sending notification when an existing dag import error occurs
             try:
+                # todo: make listener accept bundle_name and relative_filename
+                import_error = session.scalar(
+                    select(ParseImportError).where(
+                        ParseImportError.bundle_name == bundle_name_,
+                        ParseImportError.filename == relative_fileloc,
+                    )
+                )
                 get_listener_manager().hook.on_existing_dag_import_error(
-                    filename=filename, stacktrace=stacktrace
+                    filename=import_error.full_file_path(), stacktrace=stacktrace
                 )
             except Exception:
                 log.exception("error calling listener")
         else:
-            session.add(
-                ParseImportError(
-                    filename=filename,
-                    bundle_name=bundle_name,
-                    timestamp=utcnow(),
-                    stacktrace=stacktrace,
-                )
+            import_error = ParseImportError(
+                filename=relative_fileloc,
+                bundle_name=bundle_name,
+                timestamp=utcnow(),
+                stacktrace=stacktrace,
             )
+            session.add(import_error)
             # sending notification when a new dag import error occurs
             try:
-                get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
+                get_listener_manager().hook.on_new_dag_import_error(
+                    filename=import_error.full_file_path(), stacktrace=stacktrace
+                )
             except Exception:
                 log.exception("error calling listener")
         session.execute(
             update(DagModel)
-            .where(DagModel.fileloc == filename)
+            .where(
+                DagModel.relative_fileloc == relative_fileloc,
+            )
             .values(
                 has_import_errors=True,
                 bundle_name=bundle_name,
@@ -312,7 +335,7 @@ def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
     dags: Collection[MaybeSerializedDAG],
-    import_errors: dict[str, str],
+    import_errors: dict[tuple[str, str], str],
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -362,13 +385,16 @@ def update_dag_parsing_results_in_db(
             # Only now we are "complete" do we update import_errors - don't want to record errors from
             # previous failed attempts
             import_errors.update(dict(serialize_errors))
-
     # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
     try:
         # TODO: This won't clear errors for files that exist that no longer contain DAGs. Do we need to pass
         # in the list of file parsed?
 
-        good_dag_filelocs = {dag.fileloc for dag in dags if dag.fileloc not in import_errors}
+        good_dag_filelocs = {
+            (bundle_name, dag.relative_fileloc)
+            for dag in dags
+            if dag.relative_fileloc is not None and (bundle_name, dag.relative_fileloc) not in import_errors
+        }
         _update_import_errors(
             files_parsed=good_dag_filelocs,
             bundle_name=bundle_name,
