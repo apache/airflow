@@ -19,7 +19,7 @@
 
 # Apache Airflow Task SDK
 
-[![PyPI version](https://badge.fury.io/py/apache-airflow-task-sdk.svg)](https://badge.fury.io/py/apache-airflow-task-sdk)
+[![PyPI vesion](https://badge.fury.io/py/apache-airflow-task-sdk.svg)](https://badge.fury.io/py/apache-airflow-task-sdk)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Vesion](https://img.shields.io/pypi/pyversions/apache-airflow-task-sdk.svg)](https://pypi.org/project/apache-airflow-task-sdk/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/apache-airflow-task-sdk)](https://pypi.org/project/apache-airflow-task-sdk/)
