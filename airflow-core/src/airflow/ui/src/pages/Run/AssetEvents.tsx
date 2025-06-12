@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDagRunServiceGetUpstreamAssetEvents } from "openapi/queries";
@@ -24,7 +23,6 @@ import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEven
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const AssetEvents = () => {
-  const { t: translate } = useTranslation(["common"]);
   const { dagId = "", runId = "" } = useParams();
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -43,5 +41,5 @@ export const AssetEvents = () => {
     refetchInterval: () => (isStatePending(dagRun?.state) ? refetchInterval : false),
   });
 
-  return <AssetEventsTable data={data} isLoading={isLoading} title={translate("sourceAssetEvent")} />;
+  return <AssetEventsTable data={data} isLoading={isLoading} titleKey="common:sourceAssetEvent" />;
 };

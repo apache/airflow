@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetEvents, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -24,7 +23,6 @@ import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEven
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const AssetEvents = () => {
-  const { t: translate } = useTranslation(["common"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
@@ -50,6 +48,6 @@ export const AssetEvents = () => {
   );
 
   return (
-    <AssetEventsTable data={assetEventsData} isLoading={isLoading} title={translate("createdAssetEvent")} />
+    <AssetEventsTable data={assetEventsData} isLoading={isLoading} titleKey="common:createdAssetEvent" />
   );
 };
