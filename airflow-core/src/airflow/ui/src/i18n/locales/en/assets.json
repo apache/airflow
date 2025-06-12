@@ -1,0 +1,10 @@
+{
+  "columns": {
+    "consumingDags": "Consuming Dags",
+    "group": "Group",
+    "lastAssetEvent": "Last Asset Event",
+    "name": "Name",
+    "producingTasks": "Producing Tasks"
+  },
+  "searchPlaceholder": "Search Assets"
+}

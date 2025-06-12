@@ -86,28 +86,3 @@ def get_hook_lineage_collector():
         return get_hook_lineage_collector()
 
     return _get_asset_compat_hook_lineage_collector()
-
-    # For the case that airflow has not yet upgraded to 2.10 or higher,
-    # but using the providers that already uses `get_hook_lineage_collector`
-    class NoOpCollector:
-        """
-        NoOpCollector is a hook lineage collector that does nothing.
-
-        It is used when you want to disable lineage collection.
-        """
-
-        # for providers that support asset rename
-        def add_input_asset(self, *_, **__):
-            pass
-
-        def add_output_asset(self, *_, **__):
-            pass
-
-        # for providers that do not support asset rename
-        def add_input_dataset(self, *_, **__):
-            pass
-
-        def add_output_dataset(self, *_, **__):
-            pass
-
-    return NoOpCollector()
