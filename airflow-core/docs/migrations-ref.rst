@@ -43,8 +43,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 |                         |                  |                   | task_instance.dag_version_id foreign key constraint to       |
 |                         |                  |                   | RESTRICT.                                                    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``0242ac120002``        | ``dfee8bd5d574`` | ``3.1.0``         | Change the Deadline column in the Deadline table from        |
-|                         |                  |                   | DateTime to UTC DateTime.                                    |
+| ``0242ac120002``        | ``dfee8bd5d574`` | ``3.1.0``         | Rename Deadline column in the Deadline table from deadline   |
+|                         |                  |                   | to deadline_time and change its type from DateTime to UTC    |
+|                         |                  |                   | DateTime.                                                    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``dfee8bd5d574``        | ``fe199e1abd77`` | ``3.1.0``         | Add Deadline to Dag.                                         |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+

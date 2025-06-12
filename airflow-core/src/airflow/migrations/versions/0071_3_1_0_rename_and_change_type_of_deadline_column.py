@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Change the Deadline column in the Deadline table from DateTime to UTC DateTime.
+Rename Deadline column in the Deadline table from deadline to deadline_time and change its type from DateTime to UTC DateTime.
 
 Revision ID: 0242ac120002
 Revises: dfee8bd5d574
@@ -39,22 +39,28 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
-    """Apply change deadline column in the deadline table to UTC datetime."""
+    """Apply change to deadline column in the deadline table."""
     with op.batch_alter_table("deadline", schema=None) as batch_op:
+        batch_op.drop_index("deadline_idx")
         batch_op.alter_column(
             "deadline",
             existing_type=sa.DateTime(),
             type_=TIMESTAMP(timezone=True),
             existing_nullable=False,
+            new_column_name="deadline_time",
         )
+    op.create_index("deadline_time_idx", "deadline", ["deadline_time"], unique=False)
 
 
 def downgrade():
-    """Unapply change deadline column in the deadline table to UTC datetime."""
+    """Unapply change to deadline column in the deadline table."""
     with op.batch_alter_table("deadline", schema=None) as batch_op:
+        batch_op.drop_index("deadline_time_idx")
         batch_op.alter_column(
-            "deadline",
+            "deadline_time",
             existing_type=TIMESTAMP(timezone=True),
             type_=sa.DateTime(),
             existing_nullable=False,
+            new_column_name="deadline",
         )
+    op.create_index("deadline_idx", "deadline", ["deadline"], unique=False)

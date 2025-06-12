@@ -127,7 +127,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
     _TableConfig(table_name="trigger", recency_column_name="created_date"),
     _TableConfig(table_name="dag_version", recency_column_name="created_at"),
-    _TableConfig(table_name="deadline", recency_column_name="deadline"),
+    _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
