@@ -463,10 +463,11 @@ class DAG(TaskSDKDag, LoggingMixin):
                         "update the executor configuration for this task."
                     )
 
-    def has_dagrun_deadline(self):
-        return self.deadline is not None and isinstance(
-            self.deadline.reference, tuple(DeadlineReference.TYPES.DAGRUN)
-        )
+    def get_dagrun_deadline(self) -> DeadlineAlert | None:
+        """If the DAG has a deadline related to DagRun, return it; else return None."""
+        if not (deadline := self.deadline) or deadline.reference not in DeadlineReference.TYPES.DAGRUN:
+            return None
+        return deadline
 
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):

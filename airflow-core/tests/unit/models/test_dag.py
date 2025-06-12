@@ -2042,50 +2042,52 @@ my_postgres_conn:
         assert dag.get_bundle_version() == "abc"
 
     @pytest.mark.parametrize(
-        "reference, expected_result",
+        "reference, expect_none",
         [
             pytest.param(
                 DeadlineReference.DAGRUN_LOGICAL_DATE,
-                True,
+                False,
                 id="DAGRUN_LOGICAL_DATE is considered DagRun-related",
             ),
             pytest.param(
                 DeadlineReference.DAGRUN_QUEUED_AT,
-                True,
+                False,
                 id="DAGRUN_QUEUED_AT is considered DagRun-related",
             ),
             pytest.param(
                 DeadlineReference.FIXED_DATETIME(DEFAULT_DATE),
-                True,
+                False,
                 id="FIXED_DATETIME is considered DagRun-related",
             ),
             pytest.param(
                 DeadlineReference._TEMPORARY_TEST_REFERENCE,
-                False,
-                id="Non-DagRun reference types return False",
+                True,
+                id="Non-DagRun reference types return None",
             ),
             pytest.param(
                 None,
-                False,
-                id="No provided deadline returns False",
+                True,
+                id="No provided deadline returns None",
             ),
         ],
     )
-    def test_has_dagrun_deadline(self, reference, expected_result):
-        """Test that has_dagrun_deadline correctly identifies DAG run-related deadline types."""
-        if reference:
-            dag = DAG(
-                dag_id="test_dag",
-                deadline=DeadlineAlert(
-                    reference=reference,
-                    interval=timedelta(hours=1),
-                    callback=lambda: None,
-                ),
+    def test_get_dagrun_deadline(self, reference, expect_none):
+        """Test that get_dagrun_deadline correctly identifies and returns DagRun-related deadline types."""
+        deadline = (
+            DeadlineAlert(
+                reference=reference,
+                interval=timedelta(hours=1),
+                callback=lambda: None,
             )
-        else:
-            dag = DAG(dag_id="test_dag")
+            if reference
+            else None
+        )
+        expected_result = None if expect_none else deadline
 
-        assert dag.has_dagrun_deadline() is expected_result
+        dag = DAG(dag_id="test_dag", deadline=deadline)
+        result = dag.get_dagrun_deadline()
+
+        assert result is expected_result
 
 
 class TestDagModel:
