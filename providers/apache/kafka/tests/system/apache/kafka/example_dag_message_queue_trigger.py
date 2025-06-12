@@ -33,7 +33,7 @@ def apply_function(message):
 # Define a trigger that listens to an external message queue (Apache Kafka in this case)
 trigger = MessageQueueTrigger(
     queue="kafka://localhost:9092/test",
-    apply_function="kafka_message_queue_trigger.apply_function",
+    apply_function="example_dag_message_queue_trigger.apply_function",
 )
 
 # Define an asset that watches for messages on the queue

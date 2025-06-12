@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+1.9.1
+.....
+
+Features
+~~~~~~~~
+
+* ``Add KafkaMessageQueueTrigger as specified interface for MessageQueueTrigger (#51522)``
+
+Misc
+~~~~
+* ``Add Example DAGs for KafkaMessageQueueTrigger``
+
 1.9.0
 .....
 
