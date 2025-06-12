@@ -179,8 +179,6 @@ class DeadlineReference:
     class TYPES:
         """Collection of DeadlineReference types for type checking."""
 
-        from airflow.models.deadline import ReferenceModels
-
         # Consider a FIXED_DATETIME to be one of the dagrun-based Deadlines.
         DAGRUN = {
             ReferenceModels.DagRunLogicalDateDeadline,

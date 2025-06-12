@@ -425,7 +425,10 @@ def trigger_dag_run(
         if dag.deadline and dag.has_dagrun_deadline():
             Deadline.add_deadline(
                 Deadline(
-                    deadline=dag.deadline.reference.evaluate_with(dag_id=dag.dag_id),
+                    deadline=dag.deadline.reference.evaluate_with(
+                        interval=dag.deadline.interval,
+                        dag_id=dag.dag_id,
+                    ),
                     callback=dag.deadline.callback,
                     callback_kwargs=dag.deadline.callback_kwargs or {},
                     dag_id=dag.dag_id,
