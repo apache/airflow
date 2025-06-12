@@ -1808,7 +1808,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             if isinstance(task, TaskGroup):
                 return task_group_map[task.group_id]
 
-            new_task = copy.deepcopy(task)
+            new_task = copy.copy(task)
 
             # Only overwrite the specific attributes we want to change
             new_task.task_id = task.task_id
