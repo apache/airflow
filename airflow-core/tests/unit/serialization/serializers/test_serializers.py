@@ -19,7 +19,6 @@ from __future__ import annotations
 import datetime
 import decimal
 import sys
-from decimal import Decimal
 from importlib import metadata
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -187,7 +186,7 @@ class TestSerializers:
             "spec": {"containers": [{"image": "bar", "name": "foo"}]},
         }
 
-    def test_bignum(self):
+    def test_bignum_serialize_non_decimal(self):
         from airflow.serialization.serializers.bignum import serialize
 
         assert serialize(12345) == ("", "", 0, False)
@@ -196,10 +195,10 @@ class TestSerializers:
         ("klass", "version", "payload", "msg"),
         [
             (
-                qualname(Decimal),
+                "decimal.Decimal",
                 999,
                 "0",
-                rf"serialized 999 of {qualname(Decimal)}",  # newer version
+                r"serialized 999 of decimal\.Decimal",  # newer version
             ),
             (
                 "wrong.ClassName",
@@ -354,7 +353,7 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, payload)
 
-    def test_kubernetes(self, monkeypatch):
+    def test_kubernetes_serializer(self, monkeypatch):
         from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
         from airflow.serialization.serializers.kubernetes import serialize
 
@@ -511,10 +510,14 @@ class TestSerializers:
         """Test deserialize objects in pendulum 2 which serialised in pendulum 3."""
         assert deserialize(ser_value) == expected
 
-    def test_timezone(self):
+    def test_timezone_serialize_fixed(self):
         from airflow.serialization.serializers.timezone import serialize
 
         assert serialize(FixedTimezone(0)) == ("UTC", "pendulum.tz.timezone.FixedTimezone", 1, True)
+
+    def test_timezone_serialize_no_name(self):
+        from airflow.serialization.serializers.timezone import serialize
+
         assert serialize(NoNameTZ()) == ("", "", 0, False)
 
     def test_timezone_deserialize_zoneinfo(self):
@@ -550,7 +553,7 @@ class TestSerializers:
 
         assert _get_tzinfo_name(tz_obj) == expected
 
-    def test_json_schema(self, monkeypatch):
+    def test_json_schema_load_dag_schema_dict(self, monkeypatch):
         from airflow.exceptions import AirflowException
         from airflow.serialization.json_schema import load_dag_schema_dict
 
