@@ -40,6 +40,9 @@ Breaking changes
 * Operators
 
   * ``Remove operator TextGenerationModelPredictOperator use GenerativeModelGenerateContentOperator instead``
+  * ``Remove name attribute from GKEDeleteClusterOperator operator please use cluster_name instead``
+  * ``Remove regional attribute from GKEStartPodOperator because parameter is not in actual use``
+  * ``Remove is_delete_operator_pod attribute from GKEStartPodOperator please use on_finish_action attribute instead``
 
 * Hooks
 
@@ -47,6 +50,7 @@ Breaking changes
   * ``Remove GenerativeModelHook.text_generation_model_predict use GenerativeModelHook.generative_model_generate_content instead``
   * ``Remove split_tablename function from airflow.providers.google.cloud.hooks.bigquery``
     ``use airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.split_tablename instead``
+  * ``Remove get_auto_ml_text_training_job method from AutoMLHook because of deprecation of AutoMLText API``
 
 * Links
 

@@ -111,7 +111,7 @@ with DAG(
     # [START howto_operator_gke_delete_cluster]
     delete_cluster = GKEDeleteClusterOperator(
         task_id="delete_cluster",
-        name=CLUSTER_NAME,
+        cluster_name=CLUSTER_NAME,
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
     )
