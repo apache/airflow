@@ -21,7 +21,14 @@ from typing import Any, Protocol
 
 import structlog
 
-from airflow.sdk.execution_time.comms import DeleteXCom, GetXCom, SetXCom, XComResult
+from airflow.sdk.execution_time.comms import (
+    DeleteXCom,
+    GetXCom,
+    GetXComSequenceSlice,
+    SetXCom,
+    XComResult,
+    XComSequenceSliceResult,
+)
 
 log = structlog.get_logger(logger_name="task")
 
@@ -257,6 +264,49 @@ class BaseXCom:
             map_index=map_index,
         )
         return None
+
+    @classmethod
+    def get_all(
+        cls,
+        *,
+        key: str,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+    ) -> Any:
+        """
+        Retrieve all XCom values for a task, typically from all map indexes.
+
+        XComSequenceSliceResult can never have *None* in it, it returns an empty list
+        if no values were found.
+
+        This is particularly useful for getting all XCom values from all map
+        indexes of a mapped task at once.
+
+        :param key: A key for the XCom. Only XComs with this key will be returned.
+        :param run_id: DAG run ID for the task.
+        :param dag_id: DAG ID to pull XComs from.
+        :param task_id: Task ID to pull XComs from.
+        :return: List of all XCom values if found.
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        msg = SUPERVISOR_COMMS.send(
+            msg=GetXComSequenceSlice(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                start=None,
+                stop=None,
+                step=None,
+            ),
+        )
+
+        if not isinstance(msg, XComSequenceSliceResult):
+            raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
+
+        return msg.root
 
     @staticmethod
     def serialize_value(

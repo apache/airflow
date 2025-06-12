@@ -75,6 +75,7 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    GetXComSequenceSlice,
     OKResponse,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
@@ -89,6 +90,7 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     VariableResult,
     XComResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -1036,7 +1038,7 @@ class TestRuntimeTaskInstance:
         task = BaseOperator(task_id="hello")
 
         # Assume the context is sent from the API server
-        # `task_sdk/tests/api/test_client.py::test_task_instance_start` checks the context is received
+        # `task-sdk/tests/api/test_client.py::test_task_instance_start` checks the context is received
         # from the API server
         runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
 
@@ -1304,6 +1306,10 @@ class TestRuntimeTaskInstance:
         ser_value = BaseXCom.serialize_value(xcom_values)
 
         def mock_send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            print(f"{args=}, {kwargs=}, {msg=}")
+            if isinstance(msg, GetXComSequenceSlice):
+                return XComSequenceSliceResult(root=[ser_value])
             return XComResult(key="key", value=ser_value)
 
         mock_supervisor_comms.send.side_effect = mock_send_side_effect
@@ -1322,16 +1328,28 @@ class TestRuntimeTaskInstance:
                 task_id = test_task_id
             for map_index in map_indexes:
                 if map_index == NOTSET:
-                    map_index = -1
-                mock_supervisor_comms.send.assert_any_call(
-                    msg=GetXCom(
-                        key="key",
-                        dag_id="test_dag",
-                        run_id="test_run",
-                        task_id=task_id,
-                        map_index=map_index,
-                    ),
-                )
+                    mock_supervisor_comms.send.assert_any_call(
+                        msg=GetXComSequenceSlice(
+                            key="key",
+                            dag_id="test_dag",
+                            run_id="test_run",
+                            task_id=task_id,
+                            start=None,
+                            stop=None,
+                            step=None,
+                        ),
+                    )
+                else:
+                    expected_map_index = map_index if map_index is not None else None
+                    mock_supervisor_comms.send.assert_any_call(
+                        msg=GetXCom(
+                            key="key",
+                            dag_id="test_dag",
+                            run_id="test_run",
+                            task_id=task_id,
+                            map_index=expected_map_index,
+                        ),
+                    )
 
     @pytest.mark.parametrize(
         "task_ids, map_indexes, expected_value",
@@ -1339,7 +1357,6 @@ class TestRuntimeTaskInstance:
             pytest.param("task_a", 0, {"a": 1, "b": 2}, id="task_id is str, map_index is int"),
             pytest.param("task_a", [0], [{"a": 1, "b": 2}], id="task_id is str, map_index is list"),
             pytest.param("task_a", None, {"a": 1, "b": 2}, id="task_id is str, map_index is None"),
-            pytest.param("task_a", NOTSET, {"a": 1, "b": 2}, id="task_id is str, map_index is ArgNotSet"),
             pytest.param(["task_a"], 0, [{"a": 1, "b": 2}], id="task_id is list, map_index is int"),
             pytest.param(["task_a"], [0], [{"a": 1, "b": 2}], id="task_id is list, map_index is list"),
             pytest.param(["task_a"], None, [{"a": 1, "b": 2}], id="task_id is list, map_index is None"),
@@ -1349,6 +1366,13 @@ class TestRuntimeTaskInstance:
             pytest.param(None, 0, {"a": 1, "b": 2}, id="task_id is None, map_index is int"),
             pytest.param(None, [0], [{"a": 1, "b": 2}], id="task_id is None, map_index is list"),
             pytest.param(None, None, {"a": 1, "b": 2}, id="task_id is None, map_index is None"),
+            pytest.param(
+                ["task_a", "task_b"],
+                NOTSET,
+                [{"a": 1, "b": 2}, {"c": 3, "d": 4}],
+                id="multiple task_ids, map_index is ArgNotSet",
+            ),
+            pytest.param("task_a", NOTSET, {"a": 1, "b": 2}, id="task_id is str, map_index is ArgNotSet"),
             pytest.param(None, NOTSET, {"a": 1, "b": 2}, id="task_id is None, map_index is ArgNotSet"),
         ],
     )
@@ -1362,7 +1386,7 @@ class TestRuntimeTaskInstance:
     ):
         """
         Tests return value of xcom_pull under various combinations of task_ids and map_indexes.
-        The above test covers the expected calls to supervisor comms.
+        Also verifies the correct XCom method (get_one vs get_all) is called.
         """
 
         class CustomOperator(BaseOperator):
@@ -1373,13 +1397,28 @@ class TestRuntimeTaskInstance:
         task = CustomOperator(task_id=test_task_id)
         runtime_ti = create_runtime_ti(task=task)
 
-        value = {"a": 1, "b": 2}
-        # API server returns serialised value for xcom result, staging it in that way
-        xcom_value = BaseXCom.serialize_value(value)
-        mock_supervisor_comms.send.return_value = XComResult(key="key", value=xcom_value)
+        with patch.object(XCom, "get_one") as mock_get_one, patch.object(XCom, "get_all") as mock_get_all:
+            if map_indexes == NOTSET:
+                # Use side_effect to return different values for different tasks
+                def mock_get_all_side_effect(task_id, **kwargs):
+                    if task_id == "task_b":
+                        return [{"c": 3, "d": 4}]
+                    return [{"a": 1, "b": 2}]
 
-        returned_xcom = runtime_ti.xcom_pull(key="key", task_ids=task_ids, map_indexes=map_indexes)
-        assert returned_xcom == expected_value
+                mock_get_all.side_effect = mock_get_all_side_effect
+                mock_get_one.return_value = None
+            else:
+                mock_get_one.return_value = {"a": 1, "b": 2}
+                mock_get_all.return_value = None
+
+            xcom = runtime_ti.xcom_pull(key="key", task_ids=task_ids, map_indexes=map_indexes)
+            assert xcom == expected_value
+            if map_indexes == NOTSET:
+                assert mock_get_all.called
+                assert not mock_get_one.called
+            else:
+                assert mock_get_one.called
+                assert not mock_get_all.called
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
@@ -1814,13 +1853,11 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_xcom_backend.get_one.assert_called_once_with(
+        mock_xcom_backend.get_all.assert_called_once_with(
             key="key",
             dag_id="test_dag",
             task_id="pull_task",
             run_id="test_run",
-            map_index=-1,
-            include_prior_dates=False,
         )
 
         assert not any(
