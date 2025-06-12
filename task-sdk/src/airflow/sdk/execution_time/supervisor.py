@@ -35,6 +35,7 @@ from http import HTTPStatus
 from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
+    BinaryIO,
     Callable,
     ClassVar,
     NoReturn,
