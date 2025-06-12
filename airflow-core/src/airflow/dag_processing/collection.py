@@ -261,7 +261,7 @@ def _update_import_errors(
 
     session.execute(
         delete(ParseImportError).where(
-            tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(list(files_parsed))
+            tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(files_parsed)
         )
     )
 
