@@ -19,14 +19,14 @@
 import {
   Badge,
   Box,
+  ButtonGroup,
   createListCollection,
   HStack,
   IconButton,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
-import { useCallback, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { MdOutlineOpenInFull } from "react-icons/md";
+import { useCallback} from "react";
+import {MdCompress, MdExpand, MdOutlineOpenInFull } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -117,24 +117,6 @@ export const TaskLogHeader = ({
     [searchParams, setSearchParams],
   );
 
-  useEffect(() => {
-    if (!toggleExpanded) {
-      return undefined;
-    }
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "e" || event.key === "E") {
-        event.preventDefault();
-        toggleExpanded();
-      }
-    };
-
-    globalThis.addEventListener("keydown", handler);
-
-    return () => {
-      globalThis.removeEventListener("keydown", handler);
-    };
-  }, [toggleExpanded]);
-
   return (
     <Box>
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? undefined : (
@@ -216,28 +198,28 @@ export const TaskLogHeader = ({
               {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
             </Button>
           </Tooltip>
-          {toggleExpanded ? (
-            <Tooltip
-              closeDelay={100}
-              content={expanded ? "Press e to collapse" : "Press e to expand"}
-              openDelay={100}
-            >
-              <Button
-                _hover={{ bg: "gray.800" }}
-                aria-label={expanded ? "Collapse All" : "Expand"}
-                bg="black"
-                color="white"
-                m={0}
-                onClick={toggleExpanded}
-                px={4}
-                py={2}
+          <Tooltip closeDelay={100} content="Press e to expand/collapse" openDelay={100}>
+            <ButtonGroup attached size="md" variant="outline">
+              <IconButton
+                aria-label="Expand"
+                disabled={expanded}
+                onClick={expanded ? undefined : toggleExpanded}
+                size="md"
+                variant="surface"
+              >
+                <MdExpand />
+              </IconButton>
+              <IconButton
+                aria-label="Collapse All"
+                disabled={!expanded}
+                onClick={expanded ? toggleExpanded : undefined}
                 size="md"
                 variant="outline"
               >
-                {expanded ? "Collapse All" : "Expand "}
-              </Button>
-            </Tooltip>
-          ) : undefined}
+                <MdCompress />
+              </IconButton>
+            </ButtonGroup>
+          </Tooltip>
           {!isFullscreen && (
             <Tooltip
               closeDelay={100}

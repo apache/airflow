@@ -51,8 +51,8 @@ type ParseLogsProps = {
 
 const parseLogs = ({
   data,
-  logLevelFilters,
   expanded,
+  logLevelFilters,
   sourceFilters,
   taskInstance,
   translate,
