@@ -1577,11 +1577,11 @@ def supervise(
 
         pretty_logs = False
         if pretty_logs:
-            log_file_descriptor: TextIO = log_file.open("a", buffering=1)
-            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file_descriptor)
+            log_file_descriptor = log_file.open("a", buffering=1)
+            underlying_logger: WrappedLogger = structlog.WriteLogger(cast(TextIO, log_file_descriptor))
         else:
-            log_file_descriptor: BinaryIO = log_file.open("ab")
-            underlying_logger = structlog.BytesLogger(log_file_descriptor)
+            log_file_descriptor = log_file.open("ab")
+            underlying_logger = structlog.BytesLogger(cast(BinaryIO, log_file_descriptor))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
