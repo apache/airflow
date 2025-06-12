@@ -23,6 +23,7 @@
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Making the cherry picking](#making-the-cherry-picking)
+  - [Collapse Cadwyn Migrations](#collapse-cadwyn-migrations)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
@@ -139,6 +140,15 @@ to keep a reference to the original commit we cherry picked from. ("cherry picke
 ```shell
 git cherry-pick <hash-commit> -x
 ```
+
+## Collapse Cadwyn Migrations
+
+Before cutting an RC, bump the HEAD date of Cadwyn versioned API (execution api for now: `airflow-core/src/airflow/api_fastapi/execution_api`)
+to reflect the tentative release date of Airflow. All the Cadwyn migrations in between the tentative release date and last release date
+should be collapsed.
+
+Refer https://github.com/apache/airflow/pull/49116 as a good example.
+
 
 ## Reviewing cherry-picked PRs and assigning labels
 
@@ -340,6 +350,34 @@ you need to run several workflows to publish the documentation. More details abo
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
 
+We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack task-sdk
+```
+
+The `--ref` parameter should be the tag of the release candidate you are publishing.
+
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
+if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+
+Other available parameters can be found with:
+
+```shell script
+breeze workflow-run publish-docs --help
+```
+
+### Manually using GitHub Actions
+
 There are two steps to publish the documentation:
 
 1. Publish the documentation to the `staging` S3 bucket.
@@ -349,7 +387,7 @@ The release manager publishes the documentation using GitHub Actions workflow
 the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
 manually to be `live` or `staging`.
 
-You should specify 'apache-airflow docker-stack' passed as packages to be
+You should specify 'apache-airflow docker-stack task-sdk' passed as packages to be
 built.
 
 After that step, the provider documentation should be available under https://airflow.stage.apache.org//
@@ -857,6 +895,34 @@ but the documentation source code and build tools are available in the `apache/a
 you need to run several workflows to publish the documentation. More details about it can be found in
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
+
+We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto>
+```
+
+The `--ref` parameter should be the tag of the final candidate you are publishing.
+
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
+if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+
+Other available parameters can be found with:
+
+```shell
+breeze workflow-run publish-docs --help
+```
+
+### Manually using GitHub Actions
 
 There are two steps to publish the documentation:
 

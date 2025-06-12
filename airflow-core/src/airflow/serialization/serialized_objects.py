@@ -44,7 +44,6 @@ from airflow.exceptions import AirflowException, SerializationError, TaskDeferre
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
-from airflow.models.deadline import DeadlineAlert
 from airflow.models.expandinput import (
     create_expand_input,
 )
@@ -66,6 +65,7 @@ from airflow.sdk.definitions.asset import (
     AssetWatcher,
     BaseAsset,
 )
+from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -951,6 +951,8 @@ class BaseSerialization:
             return TaskInstanceKey(**var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
+        elif type_ == DAT.DEADLINE_ALERT:
+            return DeadlineAlert.deserialize_deadline_alert(var)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
@@ -1778,6 +1780,9 @@ class SerializedDAG(DAG, BaseSerialization):
             dag.has_on_success_callback = True
         if "has_on_failure_callback" in encoded_dag:
             dag.has_on_failure_callback = True
+
+        if "deadline" in encoded_dag and encoded_dag["deadline"] is not None:
+            dag.deadline = DeadlineAlert.deserialize_deadline_alert(encoded_dag["deadline"])
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:

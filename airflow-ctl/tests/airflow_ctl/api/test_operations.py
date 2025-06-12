@@ -31,6 +31,7 @@ from airflowctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
     AssetAliasResponse,
     AssetCollectionResponse,
+    AssetEventResponse,
     AssetResponse,
     BackfillCollectionResponse,
     BackfillPostBody,
@@ -43,6 +44,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionConnectionBody,
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
+    BulkResponse,
     Config,
     ConfigOption,
     ConfigSection,
@@ -50,10 +52,12 @@ from airflowctl.api.datamodels.generated import (
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
+    CreateAssetEventsBody,
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
+    DagRunAssetReference,
     DAGRunCollectionResponse,
     DAGRunResponse,
     DagRunState,
@@ -77,6 +81,8 @@ from airflowctl.api.datamodels.generated import (
     PoolResponse,
     ProviderCollectionResponse,
     ProviderResponse,
+    QueuedEventCollectionResponse,
+    QueuedEventResponse,
     ReprocessBehavior,
     TriggerDAGRunPostBody,
     VariableBody,
@@ -111,6 +117,8 @@ class TestBaseOperations:
 
 class TestAssetsOperations:
     asset_id: int = 1
+    dag_id: str = "dag_id"
+    before: str = "2024-12-31T23:59:59+00:00"
     asset_response = AssetResponse(
         id=asset_id,
         name="asset",
@@ -127,6 +135,76 @@ class TestAssetsOperations:
         id=asset_id,
         name="asset",
         group="group",
+    )
+
+    asset_queued_event_response = QueuedEventResponse(
+        dag_id=dag_id,
+        asset_id=asset_id,
+        created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        dag_display_name=dag_id,
+    )
+
+    asset_queued_event_collection_response = QueuedEventCollectionResponse(
+        queued_events=[asset_queued_event_response],
+        total_entries=1,
+    )
+
+    dag_run_response = DAGRunResponse(
+        dag_display_name=dag_id,
+        dag_run_id=dag_id,
+        dag_id=dag_id,
+        logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        queued_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        last_scheduling_decision=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_type=DagRunType.MANUAL,
+        run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        state=DagRunState.RUNNING,
+        triggered_by=DagRunTriggeredByType.UI,
+        conf=None,
+        note=None,
+        dag_versions=[
+            DagVersionResponse(
+                id=uuid.uuid4(),
+                version_number=1,
+                dag_id=dag_id,
+                bundle_name="bundle_name",
+                bundle_version="1",
+                created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                dag_display_name=dag_id,
+            )
+        ],
+    )
+
+    asset_create_event_body = CreateAssetEventsBody(asset_id=asset_id, extra=None)
+
+    assets_dag_reference = DagRunAssetReference(
+        run_id="manual__2025-01-01T00:00:00+00:00",
+        dag_id=dag_id,
+        logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        state="RUNNING",
+        data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+    )
+
+    asset_event_response = AssetEventResponse(
+        id=asset_id,
+        asset_id=asset_id,
+        uri="uri",
+        name="asset",
+        group="group",
+        extra=None,
+        source_task_id="task_id",
+        source_dag_id=dag_id,
+        source_run_id="manual__2025-01-01T00:00:00+00:00",
+        source_map_index=1,
+        created_dagruns=[assets_dag_reference],
+        timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
     )
 
     def test_get_asset(self):
@@ -174,6 +252,55 @@ class TestAssetsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.list_by_alias()
         assert response == assets_collection_response
+
+    def test_create_event(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            return httpx.Response(200, json=json.loads(self.asset_event_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
+        assert response == self.asset_event_response
+
+    def test_materialize(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.materialize(asset_id=self.asset_id)
+        assert response == self.dag_run_response
+
+    def test_get_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(
+                200, json=json.loads(self.asset_queued_event_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get_queued_events(asset_id=self.asset_id)
+        assert response == self.asset_queued_event_collection_response
+
+    def test_get_dag_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/assets/queuedEvents"
+            return httpx.Response(
+                200, json=json.loads(self.asset_queued_event_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get_dag_queued_events(dag_id=self.dag_id, before=self.before)
+        assert response == self.asset_queued_event_collection_response
+
+    def test_get_dag_queued_event(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(200, json=json.loads(self.asset_queued_event_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get_dag_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
+        assert response == self.asset_queued_event_response
 
 
 class TestBackfillOperations:
@@ -788,7 +915,6 @@ class TestJobsOperations:
         response = client.jobs.list(
             job_type="job_type",
             hostname="hostname",
-            limit=1,
             is_alive=True,
         )
         assert response == self.job_collection_response
@@ -929,9 +1055,10 @@ class TestVariablesOperations:
             )
         ]
     )
-    variable_bulk_response = BulkActionResponse(
-        success=[key],
-        errors=[],
+    variable_bulk_response = BulkResponse(
+        create=BulkActionResponse(success=[key], errors=[]),
+        update=None,
+        delete=None,
     )
 
     def test_get(self):

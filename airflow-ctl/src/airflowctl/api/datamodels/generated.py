@@ -98,6 +98,19 @@ class BulkActionResponse(BaseModel):
     ] = []
 
 
+class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
 class BulkDeleteActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -158,6 +171,10 @@ class BulkResponse(BaseModel):
         BulkActionResponse | None,
         Field(description="Details of the bulk delete operation, including successful keys and errors."),
     ] = None
+
+
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Note")]
 
 
 class TaskIds(RootModel[list]):
@@ -291,10 +308,6 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
-
-
-class Note(RootModel[str]):
-    root: Annotated[str, Field(max_length=1000, title="Note")]
 
 
 class DAGRunPatchStates(str, Enum):
@@ -1096,6 +1109,37 @@ class BulkCreateActionVariableBody(BaseModel):
     action_on_existence: BulkActionOnExistence | None = "fail"
 
 
+class BulkTaskInstanceBody(BaseModel):
+    """
+    Request body for bulk update, and delete task instances.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    new_state: TaskInstanceState | None = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+    include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
+    include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
+    include_future: Annotated[bool | None, Field(title="Include Future")] = False
+    include_past: Annotated[bool | None, Field(title="Include Past")] = False
+    task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+
+
+class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkTaskInstanceBody], Field(description="A list of entities to be updated.", title="Entities")
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
 class BulkUpdateActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1270,6 +1314,7 @@ class DAGRunResponse(BaseModel):
     queued_at: Annotated[datetime | None, Field(title="Queued At")] = None
     start_date: Annotated[datetime | None, Field(title="Start Date")] = None
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    duration: Annotated[float | None, Field(title="Duration")] = None
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[datetime, Field(title="Run After")]
@@ -1641,6 +1686,19 @@ class BulkBodyVariableBody(BaseModel):
     ]
 
 
+class BulkCreateActionBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkTaskInstanceBody], Field(description="A list of entities to be created.", title="Entities")
+    ]
+    action_on_existence: BulkActionOnExistence | None = "fail"
+
+
 class DAGCollectionResponse(BaseModel):
     """
     DAG Collection serializer for responses.
@@ -1702,3 +1760,17 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class BulkBodyBulkTaskInstanceBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[
+            BulkCreateActionBulkTaskInstanceBody
+            | BulkUpdateActionBulkTaskInstanceBody
+            | BulkDeleteActionBulkTaskInstanceBody
+        ],
+        Field(title="Actions"),
+    ]
