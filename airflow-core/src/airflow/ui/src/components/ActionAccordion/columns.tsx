@@ -25,7 +25,7 @@ import { StateBadge } from "src/components/StateBadge";
 export const getColumns = (translate: TFunction): Array<MetaColumn<TaskInstanceResponse>> => [
   {
     accessorKey: "task_id",
-    header: translate("dags:runAndTaskActions.clear.dialog.affectedTasks.columns.taskId"),
+    header: translate("taskId"),
     size: 200,
   },
   {
@@ -35,14 +35,14 @@ export const getColumns = (translate: TFunction): Array<MetaColumn<TaskInstanceR
         original: { state },
       },
     }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
-    header: translate("dags:runAndTaskActions.clear.dialog.affectedTasks.columns.state"),
+    header: translate("state"),
   },
   {
     accessorKey: "map_index",
-    header: translate("common:mapIndex"),
+    header: translate("mapIndex"),
   },
   {
     accessorKey: "run_id",
-    header: translate("dags:runAndTaskActions.clear.dialog.affectedTasks.columns.runId"),
+    header: translate("runId"),
   },
 ];

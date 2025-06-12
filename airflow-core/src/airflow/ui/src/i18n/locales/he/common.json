@@ -22,6 +22,7 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API תיעוד"
   },
+  "duration": "משך זמן",
   "language": {
     "chinese": "סינית מסורתית",
     "english": "אנגלית",
@@ -67,7 +68,6 @@
   "taskInstance_one": "משימה בודדת",
   "taskInstance_other": "משימה אחרת",
   "timeRange": {
-    "duration": "משך זמן",
     "last12Hours": "12 השעות האחרונות",
     "last24Hours": "24 השעות האחרונות",
     "lastHour": "השעה האחרונה",

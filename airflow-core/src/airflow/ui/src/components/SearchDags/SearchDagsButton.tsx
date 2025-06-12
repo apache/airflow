@@ -28,7 +28,7 @@ import { getMetaKey } from "src/utils";
 import { SearchDags } from "./SearchDags";
 
 export const SearchDagsButton = () => {
-  const { t: translate } = useTranslation("components");
+  const { t: translate } = useTranslation("dags");
   const [isOpen, setIsOpen] = useState(false);
   const metaKey = getMetaKey();
 
@@ -48,10 +48,10 @@ export const SearchDagsButton = () => {
   return (
     <Box>
       <Button justifyContent="flex-start" onClick={() => setIsOpen(true)} variant="subtle" w={200}>
-        <MdSearch /> {translate("searchDags.button")}{" "}
+        <MdSearch /> {translate("search.dags")}{" "}
         <Kbd size="sm">
           {metaKey}
-          {translate("searchDags.hotkey")}
+          {translate("search.hotkey")}
         </Kbd>
       </Button>
       <Dialog.Root onOpenChange={onOpenChange} open={isOpen} size="sm">

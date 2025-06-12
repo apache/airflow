@@ -2,32 +2,8 @@
   "allRuns": "Alle Läufe",
   "code": {
     "bundleUrl": "Bündel Url",
-    "bundleVersion": "Bündel Version:",
     "noCode": "Kein Programmcode gefunden",
     "parsedAt": "Eingelesen um:"
-  },
-  "details": {
-    "fields": {
-      "bundleVersion": "Bündel Version",
-      "catchup": "Nachgeholt",
-      "concurrency": "Parallelität",
-      "dagId": "Dag ID",
-      "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
-      "defaultArgs": "Standard-Parameter",
-      "description": "Beschreibung",
-      "endDate": "Enddatum",
-      "fileLocation": "Ablagepfad",
-      "hasTaskConcurrencyLimits": "Hat der Task Limitierungen zur Parallelität",
-      "lastExpired": "Letztmaliger Ablauf",
-      "lastParsed": "Letztmalig Eingelesen",
-      "latestDagVersion": "Latzte Dag Version",
-      "maxActiveRuns": "Maximal aktive Läufe",
-      "maxActiveTasks": "Maximal aktive Tasks",
-      "maxConsecutiveFailedDagRuns": "Maximal fortlaufende fehlerhafte Dag Läufe",
-      "params": "Parameter",
-      "startDate": "Startdatum",
-      "timezone": "Zeitzone"
-    }
   },
   "grid": {
     "buttons": {
@@ -38,17 +14,6 @@
   "header": {
     "buttons": {
       "dagDocs": "Dag Dokumentation"
-    },
-    "modals": {
-      "docTitle": "Dag Dokumentation"
-    },
-    "stats": {
-      "latestDagVersion": "Letzte Dag Version",
-      "latestRun": "Letzter Lauf",
-      "nextRun": "Nächster Lauf",
-      "owner": "Eigentümer",
-      "schedule": "Zeitplan",
-      "tags": "Markierungen"
     }
   },
   "overview": {
@@ -96,11 +61,6 @@
     "overview": "Übersicht",
     "runs": "Läufe",
     "tasks": "Tasks"
-  },
-  "task": {
-    "card": {
-      "lastInstance": "Letzte Task Instanz"
-    }
   },
   "taskGroups": {
     "collapseAll": "Alle Task-Gruppen einklappen",

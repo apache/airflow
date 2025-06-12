@@ -47,7 +47,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              {translate("dags:runAndTaskActions.markAs.dialog.title", { state, type: "Run" })}: {dagRunId}{" "}
+              {translate("dags:runAndTaskActions.markAs.title", { state, type: "Run" })}: {dagRunId}{" "}
               <StateBadge state={state} />
             </Heading>
           </VStack>
@@ -69,7 +69,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
                 });
               }}
             >
-              {translate("dags:runAndTaskActions.markAs.dialog.confirm")}
+              {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

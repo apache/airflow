@@ -28,7 +28,7 @@ export const DurationTick = ({ duration, ...rest }: Props) => {
 
   return (
     <Text color="border.emphasized" fontSize="xs" position="absolute" right={1} whiteSpace="nowrap" {...rest}>
-      {translate("duration.seconds", { count: Math.floor(duration) })}
+      {translate("seconds", { count: Math.floor(duration) })}
     </Text>
   );
 };

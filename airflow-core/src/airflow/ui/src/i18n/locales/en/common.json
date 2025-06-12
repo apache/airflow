@@ -19,7 +19,40 @@
   },
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Catchup",
+    "concurrency": "Concurrency",
+    "dagRunTimeout": "Dag Run Timeout",
+    "defaultArgs": "Default Args",
+    "description": "Description",
+    "documentation": "Dag Documentation",
+    "fileLocation": "File Location",
+    "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
+    "lastExpired": "Last Expired",
+    "lastParsed": "Last Parsed",
+    "latestDagVersion": "Latest Dag Version",
+    "latestRun": "Latest Run",
+    "maxActiveRuns": "Max Active Runs",
+    "maxActiveTasks": "Max Active Tasks",
+    "maxConsecutiveFailedDagRuns": "Max Consecutive Failed Dag Runs",
+    "nextRun": "Next Run",
+    "owner": "Owner",
+    "params": "Params",
+    "schedule": "Schedule",
+    "tags": "Tags"
+  },
   "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "Conf",
+    "dagVersions": "Dag Version(s)",
+    "dataIntervalEnd": "Data Interval End",
+    "dataIntervalStart": "Data Interval Start",
+    "lastSchedulingDecision": "Last Scheduling Decision",
+    "queuedAt": "Queued At",
+    "runAfter": "Run After",
+    "runType": "Run Type",
+    "triggeredBy": "Triggered By"
+  },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "dagWarnings": "Dag warnings/errors",
@@ -31,10 +64,7 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
-  "duration": {
-    "label": "Duration",
-    "seconds": "{{count}}s"
-  },
+  "duration": "Duration",
   "endDate": "End Date",
   "expression": {
     "all": "All",
@@ -65,7 +95,13 @@
     "security": "Security"
   },
   "noItemsFound": "No {{modelName}} found",
-  "operator": "Operator",
+  "note": {
+    "add": "Add a note",
+    "dagRun": "Dag Run Note",
+    "label": "Note",
+    "placeholder": "Add a note...",
+    "taskInstance": "Task Instance Note"
+  },
   "pools": {
     "deferred": "Deferred",
     "open": "Open",
@@ -82,6 +118,7 @@
     "manual": "Manual",
     "scheduled": "Scheduled"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
@@ -113,7 +150,6 @@
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
-    "duration": "Duration",
     "filterByTag": "Filter Dags by tag",
     "filterColumns": "Filter table columns",
     "filterReset_one": "Reset filter",
@@ -121,7 +157,6 @@
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
     "noTagsFound": "No tags found",
-    "reprocessBehavior": "Reprocess Behavior",
     "tagMode": {
       "all": "All",
       "any": "Any"
@@ -129,19 +164,38 @@
     "tagPlaceholder": "Filter by tag",
     "to": "To"
   },
+  "task": {
+    "lastInstance": "Last Instance",
+    "operator": "Operator",
+    "triggerRule": "Trigger Rule"
+  },
   "task_one": "Task",
   "task_other": "Tasks",
   "taskId": "Task ID",
+  "taskInstance": {
+    "dagVersion": "Dag Version",
+    "executor": "Executor",
+    "executorConfig": "Executor Config",
+    "hostname": "Hostname",
+    "maxTries": "Max Tries",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Pool Slots",
+    "priorityWeight": "Priority Weight",
+    "queue": "Queue",
+    "queuedWhen": "Queued At",
+    "scheduledWhen": "Scheduled At",
+    "unixname": "Unix Name"
+  },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
-    "duration": "Duration",
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
     "lastHour": "Last Hour",
     "pastWeek": "Past Week"
   },
-  "timezone": "timezone",
+  "timezone": "Timezone",
   "timezoneModal": {
     "current-timezone": "Current time in",
     "placeholder": "Select a timezone",
@@ -149,7 +203,6 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "triggered": "Triggered",
-  "triggerRule": "Trigger Rule",
   "tryNumber": "Try Number",
   "user": "User",
   "wrap": {

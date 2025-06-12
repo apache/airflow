@@ -59,7 +59,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
         {
           accessorKey: "dag_display_name",
           enableSorting: false,
-          header: translate("dags:runs.columns.dagId"),
+          header: translate("dagId"),
         },
       ]),
   {
@@ -71,7 +71,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
         </RouterLink>
       </Link>
     ),
-    header: translate("dags:runs.columns.runAfter"),
+    header: translate("dagRun.runAfter"),
   },
   {
     accessorKey: "state",
@@ -80,7 +80,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
         original: { state },
       },
     }) => <StateBadge state={state}>{state}</StateBadge>,
-    header: () => translate("dags:runs.columns.state"),
+    header: () => translate("state"),
   },
   {
     accessorKey: "run_type",
@@ -91,22 +91,22 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       </HStack>
     ),
     enableSorting: false,
-    header: translate("dags:runs.columns.runType"),
+    header: translate("dagRun.runType"),
   },
   {
     accessorKey: "start_date",
     cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
-    header: translate("dags:runs.columns.startDate"),
+    header: translate("startDate"),
   },
   {
     accessorKey: "end_date",
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
-    header: translate("dags:runs.columns.endDate"),
+    header: translate("endDate"),
   },
   {
     accessorKey: "duration",
     cell: ({ row: { original } }) => renderDuration(original.duration),
-    header: translate("dags:runs.columns.duration"),
+    header: translate("duration"),
   },
   {
     accessorKey: "dag_versions",
@@ -119,7 +119,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       />
     ),
     enableSorting: false,
-    header: translate("dags:runs.columns.dagVersions"),
+    header: translate("dagRun.dagVersions"),
   },
   {
     accessorKey: "conf",
@@ -127,7 +127,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       original.conf && Object.keys(original.conf).length > 0 ? (
         <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
       ) : undefined,
-    header: translate("dags:runs.columns.conf"),
+    header: translate("dagRun.conf"),
   },
   {
     accessorKey: "actions",
@@ -231,7 +231,7 @@ export const DagRuns = () => {
             <Select.ValueText width="auto">
               {() =>
                 filteredState === null ? (
-                  translate("dags:runs.allStates")
+                  translate("dags:filters.allStates")
                 ) : (
                   <StateBadge state={filteredState as DagRunState}>
                     {translate(`common:states.${filteredState}`)}
@@ -262,7 +262,7 @@ export const DagRuns = () => {
             <Select.ValueText width="auto">
               {() =>
                 filteredType === null ? (
-                  translate("dags:runs.allRunTypes")
+                  translate("dags:filters.allRunTypes")
                 ) : (
                   <Flex alignItems="center" gap={1}>
                     <RunTypeIcon runType={filteredType as DagRunType} />

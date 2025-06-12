@@ -68,7 +68,7 @@ const taskInstanceColumns = ({
         {
           accessorKey: "dag_display_name",
           enableSorting: false,
-          header: translate("dags:taskInstances.columns.dagId"),
+          header: translate("dagId"),
         },
       ]),
   ...(Boolean(runId)
@@ -87,7 +87,7 @@ const taskInstanceColumns = ({
             ) : (
               <Time datetime={original.run_after} />
             ),
-          header: translate("dags:taskInstances.columns.dagRun"),
+          header: translate("dagRun_one"),
         },
       ]),
   ...(Boolean(taskId)
@@ -103,12 +103,12 @@ const taskInstanceColumns = ({
             </Link>
           ),
           enableSorting: false,
-          header: translate("dags:taskInstances.columns.taskId"),
+          header: translate("taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
-    header: translate("common:mapIndex"),
+    header: translate("mapIndex"),
   },
   {
     accessorKey: "state",
@@ -117,7 +117,7 @@ const taskInstanceColumns = ({
         original: { state },
       },
     }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
-    header: () => translate("dags:taskInstances.columns.state"),
+    header: () => translate("state"),
   },
   {
     accessorKey: "start_date",
@@ -131,38 +131,38 @@ const taskInstanceColumns = ({
       ) : (
         <Time datetime={original.start_date} />
       ),
-    header: translate("dags:taskInstances.columns.startDate"),
+    header: translate("startDate"),
   },
   {
     accessorKey: "end_date",
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
-    header: translate("dags:taskInstances.columns.endDate"),
+    header: translate("endDate"),
   },
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: translate("dags:taskInstances.columns.tryNumber"),
+    header: translate("tryNumber"),
   },
   {
     accessorKey: "pool",
     enableSorting: false,
-    header: translate("dags:taskInstances.columns.pool"),
+    header: translate("taskInstance.pool"),
   },
   {
     accessorKey: "operator",
     enableSorting: false,
-    header: translate("dags:taskInstances.columns.operator"),
+    header: translate("task.operator"),
   },
   {
     cell: ({ row: { original } }) =>
       Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
-    header: translate("dags:taskInstances.columns.duration"),
+    header: translate("duration"),
   },
   {
     accessorKey: "dag_version",
     cell: ({ row: { original } }) => <DagVersion version={original.dag_version} />,
     enableSorting: false,
-    header: translate("dags:taskInstances.columns.dagVersion"),
+    header: translate("taskInstance.dagVersion"),
   },
   {
     accessorKey: "actions",
