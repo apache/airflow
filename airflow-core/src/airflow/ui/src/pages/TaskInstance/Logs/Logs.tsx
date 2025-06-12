@@ -76,6 +76,7 @@ export const Logs = () => {
 
   useHotkeys("w", toggleWrap);
   useHotkeys("f", toggleFullscreen);
+  useHotkeys("e", toggleExpanded);
 
   const onOpenChange = () => {
     setFullscreen(false);
