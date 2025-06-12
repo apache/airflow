@@ -28,9 +28,7 @@ from typing import TYPE_CHECKING, Annotated, Literal, overload
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
 
-from airflow.models.base import Base
 from airflow.utils.db import get_query_count, get_query_count_async
 from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
@@ -181,4 +179,3 @@ def paginated_select(
     statement = apply_filters_to_select(statement=statement, filters=[order_by, offset, limit])
 
     return statement, total_entries
-
