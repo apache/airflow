@@ -134,4 +134,3 @@ def get_jobs(
         jobs=jobs,
         total_entries=total_entries,
     )
-

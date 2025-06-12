@@ -130,15 +130,7 @@ def get_connections(
         session=session,
     )
 
-    connections = session.scalars(connection_select).all()
-
-    if limit.value is not None:
-        limit.value = len(connections)
-
-    if offset.value is not None:
-        offset.value = 0
-
-    connections = connections[offset.value:limit.value]
+    connections = session.scalars(connection_select)
 
     return ConnectionCollectionResponse(
         connections=connections,
