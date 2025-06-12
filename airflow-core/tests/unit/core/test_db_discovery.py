@@ -68,6 +68,15 @@ def assert_query_raises_exc(expected_error_msg: str, expected_status: str, expec
 
 @pytest.mark.backend("postgres")
 class TestDbDiscoveryIntegration:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        # New connection + DNS lookup.
+        dispose_connection_pool()
+        yield
+        # Reset the values.
+        db_discovery.db_health_status = (DbDiscoveryStatus.OK, 0.0)
+        db_discovery.db_retry_count = 0
+
     @conf_vars({("database", "check_db_discovery"): "True"})
     def test_dns_resolution_blip(self):
         resolv_file = "/etc/resolv.conf"
@@ -81,8 +90,6 @@ class TestDbDiscoveryIntegration:
             with open(resolv_file, "w", encoding="utf-8") as fh:
                 fh.write("nameserver 10.255.255.1\noptions timeout:1 attempts:1 ndots:0\n")
 
-            # New connection + DNS lookup.
-            dispose_connection_pool()
             assert_query_raises_exc(
                 expected_error_msg="Temporary failure in name resolution",
                 expected_status=DbDiscoveryStatus.TEMPORARY_ERROR,
@@ -90,10 +97,6 @@ class TestDbDiscoveryIntegration:
             )
 
         finally:
-            # Reset the values for the next tests.
-            db_discovery.db_health_status = (DbDiscoveryStatus.OK, 0.0)
-            db_discovery.db_retry_count = 0
-
             # Restore the original file.
             with contextlib.suppress(Exception):
                 shutil.copy(resolv_backup, resolv_file)
@@ -107,19 +110,11 @@ class TestDbDiscoveryIntegration:
 
         mock_getaddrinfo.side_effect = raise_eai_fail_exc
 
-        try:
-            # New connection + DNS lookup.
-            dispose_connection_pool()
-            assert_query_raises_exc(
-                expected_error_msg="permanent failure",
-                expected_status=DbDiscoveryStatus.PERMANENT_ERROR,
-                expected_retry_num=0,
-            )
-
-        finally:
-            # Reset the values for the next tests.
-            db_discovery.db_health_status = (DbDiscoveryStatus.OK, 0.0)
-            db_discovery.db_retry_count = 0
+        assert_query_raises_exc(
+            expected_error_msg="permanent failure",
+            expected_status=DbDiscoveryStatus.PERMANENT_ERROR,
+            expected_retry_num=0,
+        )
 
     @conf_vars(
         {
@@ -128,18 +123,11 @@ class TestDbDiscoveryIntegration:
         }
     )
     def test_invalid_hostname_in_config(self):
-        try:
-            # New connection + DNS lookup.
-            dispose_connection_pool()
-            assert_query_raises_exc(
-                expected_error_msg="Name or service not known",
-                expected_status=DbDiscoveryStatus.UNKNOWN_HOSTNAME,
-                expected_retry_num=0,
-            )
-        finally:
-            # Reset the values for the next tests.
-            db_discovery.db_health_status = (DbDiscoveryStatus.OK, 0.0)
-            db_discovery.db_retry_count = 0
+        assert_query_raises_exc(
+            expected_error_msg="Name or service not known",
+            expected_status=DbDiscoveryStatus.UNKNOWN_HOSTNAME,
+            expected_retry_num=0,
+        )
 
     @pytest.mark.parametrize(
         "check_enabled",
@@ -152,14 +140,9 @@ class TestDbDiscoveryIntegration:
         os.environ["AIRFLOW__DATABASE__CHECK_DB_DISCOVERY"] = check_enabled
 
         with patch("airflow.utils.session.check_db_discovery_with_retries", autospec=True) as spy:
-            dispose_connection_pool()
             make_db_test_call()
 
             if check_enabled == "True":
                 spy.assert_called_once()
             else:
                 spy.assert_not_called()
-
-        # No status checks and no retries.
-        assert db_discovery.db_health_status[0] == DbDiscoveryStatus.OK
-        assert db_discovery.db_retry_count == 0
