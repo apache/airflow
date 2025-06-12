@@ -465,7 +465,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     def get_dagrun_deadline(self) -> DeadlineAlert | None:
         """If the DAG has a deadline related to DagRun, return it; else return None."""
-        if not (deadline := self.deadline) or deadline.reference not in DeadlineReference.TYPES.DAGRUN:
+        if not (deadline := self.deadline) or type(deadline.reference) not in DeadlineReference.TYPES.DAGRUN:
             return None
         return deadline
 
