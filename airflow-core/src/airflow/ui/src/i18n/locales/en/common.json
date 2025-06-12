@@ -227,7 +227,7 @@
   "tryNumber": "Try Number",
   "user": "User",
   "wrap": {
-    "tooltip": "Press w to toggle wrap",
+    "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"
   }

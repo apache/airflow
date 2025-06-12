@@ -25,6 +25,7 @@
   "clipboard": {
     "copy": "Copy"
   },
+  "close": "Close",
   "configForm": {
     "advancedOptions": "Advanced Options",
     "configJson": "Configuration JSON",
