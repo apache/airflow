@@ -2,32 +2,8 @@
   "allRuns": "Wszystkie wykonania",
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
-    "bundleVersion": "Wersja paczki Dagów:",
     "noCode": "Nie znaleziono kodu",
     "parsedAt": "Przeanalizowano o:"
-  },
-  "details": {
-    "fields": {
-      "bundleVersion": "Wersja paczki Dagów",
-      "catchup": "Nadrabianie zaległości",
-      "concurrency": "Współbieżność",
-      "dagId": "Identyfikator Daga",
-      "dagRunTimeout": "Limit czasu wykonania Daga",
-      "defaultArgs": "Domyślne argumenty",
-      "description": "Opis",
-      "endDate": "Data zakończenia",
-      "fileLocation": "Lokalizacja pliku",
-      "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
-      "lastExpired": "Ostatnio wygasły",
-      "lastParsed": "Ostatnia analiza",
-      "latestDagVersion": "Najnowsza wersja Daga",
-      "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
-      "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
-      "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
-      "params": "Parametry",
-      "startDate": "Data rozpoczęcia",
-      "timezone": "Strefa czasowa"
-    }
   },
   "grid": {
     "buttons": {
@@ -38,17 +14,6 @@
   "header": {
     "buttons": {
       "dagDocs": "Dokumentacja Daga"
-    },
-    "modals": {
-      "docTitle": "Dokumentacja Daga"
-    },
-    "stats": {
-      "latestDagVersion": "Najnowsza wersja Daga",
-      "latestRun": "Ostatnie wykonanie",
-      "nextRun": "Następne wykonanie",
-      "owner": "Właściciel",
-      "schedule": "Harmonogram",
-      "tags": "Etykiety"
     }
   },
   "overview": {
@@ -96,11 +61,6 @@
     "overview": "Przegląd",
     "runs": "Uruchomienia",
     "tasks": "Zadania"
-  },
-  "task": {
-    "card": {
-      "lastInstance": "Ostatnia instancja"
-    }
   },
   "taskGroups": {
     "collapseAll": "Zwiń wszystkie grupy zadań",
