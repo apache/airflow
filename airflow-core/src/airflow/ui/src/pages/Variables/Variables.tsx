@@ -223,10 +223,10 @@ export const Variables = () => {
             {selectedRows.size} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <Tooltip content="Delete selected variables">
+          <Tooltip content={translate("variables.delete.tooltip")}>
             <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
           </Tooltip>
-          <Tooltip content="Export selected variables">
+          <Tooltip content={translate("variables.exportTooltip")}>
             <Button onClick={() => downloadJson(selectedVariables, "variables")} size="sm" variant="outline">
               <FiShare />
               {translate("variables.export")}

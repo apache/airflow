@@ -49,7 +49,8 @@
       "secondConfirmMessage": "This action is permanent and cannot be undone.",
       "thirdConfirmMessage": " Are you sure you want to proceed?"
     },
-    "selected": "Selected"
+    "selected": "Selected",
+    "tooltip": "Delete selected connections"
   },
   "formActions":{
     "reset": "Reset",
@@ -103,10 +104,12 @@
       "deleteVariable_other": "Delete {{count}} Variables",
       "firstConfirmMessage_one": "You are about to delete the following variable:",
       "firstConfirmMessage_other": "You are about to delete the following variables:",
-      "title": "Delete Variable"
+      "title": "Delete Variable",
+      "tooltip": "Delete selected variables"
     },
     "edit":  "Edit Variable",
     "export": "Export",
+    "exportTooltip": "Export selected variables",
     "form": {
       "invalidJson": "Invalid JSON",
       "keyMaxLength": "Key can contain a maximum of 250 characters",

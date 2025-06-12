@@ -171,7 +171,7 @@
   "tryNumber": "嘗試次數",
   "user": "使用者",
   "wrap": {
-    "tooltip": "按 w 切換換行",
+    "tooltip": "按 {{hotkey}} 切換換行",
     "unwrap": "不換行",
     "wrap": "換行"
   }

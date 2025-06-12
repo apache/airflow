@@ -14,6 +14,7 @@
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
     "title": "Run Backfill",
+    "tooltip": "Backfill requires a schedule",
     "unpause": "Unpause {{dag_display_name}} on trigger"
   },
   "banner": {
@@ -25,6 +26,7 @@
   "clipboard": {
     "copy": "Copy"
   },
+  "close": "Close",
   "configForm": {
     "advancedOptions": "Advanced Options",
     "configJson": "Configuration JSON",

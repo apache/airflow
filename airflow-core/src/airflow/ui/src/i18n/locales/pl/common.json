@@ -188,7 +188,7 @@
   "tryNumber": "Numer próby",
   "user": "Użytkownik",
   "wrap": {
-    "tooltip": "Wybierz w aby przełączyć zawijanie",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"
   }

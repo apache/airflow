@@ -195,7 +195,7 @@
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
   "wrap": {
-    "tooltip": "Buchstabe w drücken um den Zeilenumbruch umzuschalten",
+    "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
     "unwrap": "Kein Zeilenumbruch",
     "wrap": "Zeilenumbruch"
   }
