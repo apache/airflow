@@ -3136,17 +3136,6 @@ https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.ht
 It is strongly advised to **not** enable the feature until you make sure that only
 highly trusted UI/API users have "edit connection" permissions.
 
-The ``xcomEntries`` API disables support for the ``deserialize`` flag by default (#32176)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-For security reasons, the ``/dags/*/dagRuns/*/taskInstances/*/xcomEntries/*``
-API endpoint now disables the ``deserialize`` option to deserialize arbitrary
-XCom values in the webserver. For backward compatibility, server admins may set
-the ``[api] enable_xcom_deserialize_support`` config to *True* to enable the
-flag and restore backward compatibility.
-
-However, it is strongly advised to **not** enable the feature, and perform
-deserialization at the client side instead.
-
 Change of the default Celery application name (#32526)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 Default name of the Celery application changed from ``airflow.executors.celery_executor`` to ``airflow.providers.celery.executors.celery_executor``.
