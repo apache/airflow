@@ -89,10 +89,11 @@
     }
   },
   "tabs": {
+    "asset_events": "Asset Events",
     "backfills": "Backfills",
     "code": "Code",
     "details": "Details",
-    "events": "Events",
+    "events": "Audit Logs",
     "overview": "Overview",
     "runs": "Runs",
     "tasks": "Tasks"
