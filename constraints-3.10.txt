@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-12T02:34:40.816894
+# This constraints file was automatically generated on 2025-06-12T14:06:18.860252
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -87,7 +87,7 @@ alibabacloud-adb20211201==3.1.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
-alibabacloud_endpoint_util==0.0.3
+alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.15
@@ -628,7 +628,7 @@ pypsrp==0.8.1
 pyspark==4.0.0
 pyspnego==0.11.2
 pytest-asyncio==0.25.0
-pytest-cov==6.2.0
+pytest-cov==6.2.1
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
@@ -682,7 +682,7 @@ rpds-py==0.25.1
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.14
-ruff==0.11.2
+ruff==0.11.13
 s3fs==2025.5.1
 s3transfer==0.11.3
 sagemaker_studio==1.0.14
@@ -691,9 +691,9 @@ scipy==1.15.3
 scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.4
-sendgrid==6.12.3
+sendgrid==6.12.4
 sentinels==1.0.0
-sentry-sdk==2.29.1
+sentry-sdk==2.30.0
 setproctitle==1.3.6
 shapely==2.1.1
 shellingham==1.5.4
