@@ -82,7 +82,12 @@ def _get_expected_k8s_dict():
             "labels": {},
             "imagePullSecrets": "",
             "hadoopConf": {},
-            "dynamicAllocation": {"enabled": False, "initialExecutors": 1, "maxExecutors": 1, "minExecutors": 1},
+            "dynamicAllocation": {
+                "enabled": False,
+                "initialExecutors": 1,
+                "maxExecutors": 1,
+                "minExecutors": 1,
+            },
             "driver": {
                 "cores": 1,
                 "coreLimit": "1200m",
@@ -156,6 +161,45 @@ def _get_expected_application_dict_with_labels(task_name="default_yaml"):
     }
 
 
+def _get_expected_application_dict_without_task_context_labels(task_name="default_yaml"):
+    """Create expected application dict without task context labels (only original file labels)."""
+    original_file_labels = {
+        "version": "2.4.5",
+    }
+
+    return {
+        "apiVersion": "sparkoperator.k8s.io/v1beta2",
+        "kind": "SparkApplication",
+        "metadata": {"name": task_name, "namespace": "default"},
+        "spec": {
+            "type": "Scala",
+            "mode": "cluster",
+            "image": "gcr.io/spark-operator/spark:v2.4.5",
+            "imagePullPolicy": "Always",
+            "mainClass": "org.apache.spark.examples.SparkPi",
+            "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar",
+            "sparkVersion": "2.4.5",
+            "restartPolicy": {"type": "Never"},
+            "volumes": [{"name": "test-volume", "hostPath": {"path": "/tmp", "type": "Directory"}}],
+            "driver": {
+                "cores": 1,
+                "coreLimit": "1200m",
+                "memory": "512m",
+                "labels": original_file_labels.copy(),
+                "serviceAccount": "spark",
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+            },
+            "executor": {
+                "cores": 1,
+                "instances": 1,
+                "memory": "512m",
+                "labels": original_file_labels.copy(),
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+            },
+        },
+    }
+
+
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
 def test_spark_kubernetes_operator(mock_kubernetes_hook, data_file):
     operator = SparkKubernetesOperator(
@@ -203,12 +247,6 @@ def test_spark_kubernetes_operator_hook(mock_kubernetes_hook, data_file):
         cluster_context="cluster_context",
         config_file="config_file",
     )
-
-
-
-
-
-
 
 
 def create_context(task):
@@ -281,6 +319,7 @@ class TestSparkKubernetesOperatorCreateApplication:
             application_file=application_file,
             template_spec=job_spec,
             kubernetes_conn_id="kubernetes_default_kube_config",
+            reattach_on_restart=False,  # Disable reattach for application creation tests
         )
         context = create_context(op)
         op.execute(context)
@@ -329,7 +368,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         assert isinstance(done_op.name, str)
         assert done_op.name != ""
 
-        expected_dict = _get_expected_application_dict_with_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -375,7 +414,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        expected_dict = _get_expected_application_dict_with_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -418,7 +457,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        expected_dict = _get_expected_application_dict_with_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -506,6 +545,7 @@ class TestSparkKubernetesOperatorCreateApplication:
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+@patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute", return_value=None)
 @patch(
     "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.is_in_cluster",
     new_callable=mock.PropertyMock,
@@ -526,38 +566,73 @@ class TestSparkKubernetesOperator:
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
-    def execute_operator(self, task_name, mock_create_job_name, job_spec):
+    def execute_operator(self, task_name, mock_create_job_name, job_spec, mock_get_kube_client=None):
         mock_create_job_name.return_value = task_name
+
+        if mock_get_kube_client:
+            mock_get_kube_client.list_namespaced_pod.return_value.items = []
+
         op = SparkKubernetesOperator(
             template_spec=job_spec,
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id=task_name,
             get_logs=True,
+            reattach_on_restart=False,  # Disable reattach for basic tests
         )
         context = create_context(op)
         op.execute(context)
         return op
 
-    def test_env_placeholder(
+    def test_env(
         self,
         mock_is_in_cluster,
-        mock_start_spark_job,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
         mock_create_pod,
-        mock_await_pod_start,
         mock_await_pod_completion,
         mock_fetch_requested_container_logs,
+        data_file,
     ):
-        """Placeholder method - actual test moved outside class to avoid class-level mocks."""
-        pass
+        task_name = "default_env"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        # test env vars
+        job_spec["kubernetes"]["env_vars"] = {"TEST_ENV_1": "VALUE1"}
+
+        env_from = [
+            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="env-direct-configmap")),
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="env-direct-secret")),
+        ]
+        job_spec["kubernetes"]["env_from"] = copy.deepcopy(env_from)
+
+        job_spec["kubernetes"]["from_env_config_map"] = ["env-from-configmap"]
+        job_spec["kubernetes"]["from_env_secret"] = ["env-from-secret"]
+
+        op = self.execute_operator(
+            task_name, mock_create_job_name, job_spec=job_spec, mock_get_kube_client=mock_get_kube_client
+        )
+        assert op.launcher.body["spec"]["driver"]["env"] == [
+            k8s.V1EnvVar(name="TEST_ENV_1", value="VALUE1"),
+        ]
+        assert op.launcher.body["spec"]["executor"]["env"] == [
+            k8s.V1EnvVar(name="TEST_ENV_1", value="VALUE1"),
+        ]
+
+        env_from = env_from + [
+            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="env-from-configmap")),
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="env-from-secret")),
+        ]
+        assert op.launcher.body["spec"]["driver"]["envFrom"] == env_from
+        assert op.launcher.body["spec"]["executor"]["envFrom"] == env_from
 
     @pytest.mark.asyncio
     def test_volume(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -604,6 +679,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_pull_secret(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -625,6 +702,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_affinity(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -679,6 +758,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_toleration(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -706,6 +787,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_get_logs_from_driver(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -718,10 +801,21 @@ class TestSparkKubernetesOperator:
     ):
         task_name = "test_get_logs_from_driver"
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
-        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+
+        def mock_parent_execute_side_effect(context):
+            mock_fetch_requested_container_logs(
+                pod=mock_create_pod.return_value,
+                containers="spark-kubernetes-driver",
+                follow_logs=True,
+            )
+            return None
+
+        mock_parent_execute.side_effect = mock_parent_execute_side_effect
+
+        self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
         mock_fetch_requested_container_logs.assert_called_once_with(
-            pod=op.pod,
+            pod=mock_create_pod.return_value,
             containers="spark-kubernetes-driver",
             follow_logs=True,
         )
@@ -729,6 +823,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_find_custom_pod_labels(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -757,6 +853,8 @@ class TestSparkKubernetesOperator:
 
     def test_adds_task_context_labels_to_driver_and_executor(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -792,6 +890,8 @@ class TestSparkKubernetesOperator:
 
     def test_reattach_on_restart_with_task_context_labels(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -820,12 +920,12 @@ class TestSparkKubernetesOperator:
         mock_pod.metadata.labels = op._get_ti_pod_labels(context)
         mock_pod.metadata.labels["spark-role"] = "driver"
         mock_pod.metadata.labels["try_number"] = str(context["ti"].try_number)
-        mock_get_kube_client.return_value.list_namespaced_pod.return_value.items = [mock_pod]
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
 
         op.execute(context)
 
         label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
-        mock_get_kube_client.return_value.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
 
         mock_create_namespaced_crd.assert_not_called()
 
