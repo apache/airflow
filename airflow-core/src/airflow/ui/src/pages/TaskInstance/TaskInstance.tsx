@@ -36,7 +36,7 @@ const tabs = [
   { icon: <MdReorder />, label: "Logs", value: "" },
   { icon: <PiBracketsCurlyBold />, label: "Rendered Templates", value: "rendered_templates" },
   { icon: <MdSyncAlt />, label: "XCom", value: "xcom" },
-  { icon: <MdOutlineEventNote />, label: "Audit", value: "events" },
+  { icon: <MdOutlineEventNote />, label: "Audit Logs", value: "events" },
   { icon: <FiCode />, label: "Code", value: "code" },
   { icon: <MdDetails />, label: "Details", value: "details" },
   { icon: <FiDatabase />, label: "Asset Events", value: "asset_events" },

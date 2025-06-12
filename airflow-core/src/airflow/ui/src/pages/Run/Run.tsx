@@ -29,7 +29,7 @@ import { Header } from "./Header";
 
 const tabs = [
   { icon: <MdOutlineTask />, label: "Task Instances", value: "" },
-  { icon: <MdOutlineEventNote />, label: "Audit", value: "events" },
+  { icon: <MdOutlineEventNote />, label: "Audit Logs", value: "events" },
   { icon: <FiCode />, label: "Code", value: "code" },
   { icon: <MdDetails />, label: "Details", value: "details" },
   { icon: <FiDatabase />, label: "Asset Events", value: "asset_events" },
