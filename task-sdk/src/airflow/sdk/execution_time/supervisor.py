@@ -1608,5 +1608,4 @@ def supervise(
     log.info("Task finished", exit_code=exit_code, duration=end - start, final_state=process.final_state)
     if log_path and log_file_descriptor:
         log_file_descriptor.close()
-        log.info("Log file closed successfully", log_path=log_path)
     return exit_code
