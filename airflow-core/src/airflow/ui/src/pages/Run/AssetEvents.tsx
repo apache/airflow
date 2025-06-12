@@ -41,5 +41,5 @@ export const AssetEvents = () => {
     refetchInterval: () => (isStatePending(dagRun?.state) ? refetchInterval : false),
   });
 
-  return <AssetEventsTable data={data} isLoading={isLoading} title="Source Asset Event" />;
+  return <AssetEventsTable data={data} isLoading={isLoading} titleKey="common:sourceAssetEvent" />;
 };
