@@ -21,7 +21,6 @@ import os
 import signal
 import subprocess
 import sys
-import time
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -187,19 +186,6 @@ def run_build_in_parallel(
 def prepare_for_building_ci_image(params: BuildCiParams):
     check_if_image_building_is_needed(params, output=None)
     make_sure_builder_configured(params=params)
-
-
-def build_timout_handler(build_process_group_id: int, signum, frame):
-    # Kill the forked process group - it will kill the build even if it is running in parallel
-    # with multiple processes and docker build sessions
-    os.killpg(build_process_group_id, signal.SIGTERM)
-    os.waitpid(build_process_group_id, 0)
-    # give the output a little time to flush so that the helpful error message is not hidden
-    time.sleep(5)
-    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-        get_console().print("::endgroup::")
-    get_console().print()
-    sys.exit(1)
 
 
 def kill_process_group(build_process_group_id: int):
