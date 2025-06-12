@@ -35,6 +35,7 @@ from http import HTTPStatus
 from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
+    BinaryIO,
     Callable,
     ClassVar,
     NoReturn,
@@ -88,6 +89,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    InactiveAssetsResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -101,6 +103,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
+    ValidateInletsAndOutlets,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -1105,8 +1108,8 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result
         elif isinstance(msg, GetXComCount):
-            len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=len)
+            xcom_count = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp = XComCountResponse(len=xcom_count)
         elif isinstance(msg, GetXComSequenceItem):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
@@ -1215,6 +1218,10 @@ class ActivitySubprocess(WatchedSubprocess):
             )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
+        elif isinstance(msg, ValidateInletsAndOutlets):
+            inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
+            resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
+            dump_opts = {"exclude_unset": True}
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -1559,6 +1566,7 @@ def supervise(
 
     # TODO: Use logging providers to handle the chunked upload for us etc.
     logger: FilteringBoundLogger | None = None
+    log_file_descriptor: BinaryIO | TextIO | None = None
     if log_path:
         # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
         # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
@@ -1569,9 +1577,11 @@ def supervise(
 
         pretty_logs = False
         if pretty_logs:
-            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("a", buffering=1))
+            log_file_descriptor = log_file.open("a", buffering=1)
+            underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
         else:
-            underlying_logger = structlog.BytesLogger(log_file.open("ab"))
+            log_file_descriptor = log_file.open("ab")
+            underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
@@ -1596,4 +1606,6 @@ def supervise(
     exit_code = process.wait()
     end = time.monotonic()
     log.info("Task finished", exit_code=exit_code, duration=end - start, final_state=process.final_state)
+    if log_path and log_file_descriptor:
+        log_file_descriptor.close()
     return exit_code

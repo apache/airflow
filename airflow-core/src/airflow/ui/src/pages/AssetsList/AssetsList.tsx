@@ -19,6 +19,7 @@
 import { Box, Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import { useAssetServiceGetAssets } from "openapi/queries";
@@ -30,13 +31,12 @@ import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
-import { pluralize } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
 type AssetRow = { row: { original: AssetResponse } };
 
-const columns: Array<ColumnDef<AssetResponse>> = [
+const createColumns = (translate: (key: string) => string): Array<ColumnDef<AssetResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (
@@ -44,7 +44,7 @@ const columns: Array<ColumnDef<AssetResponse>> = [
         <RouterLink to={`/assets/${original.id}`}>{original.name}</RouterLink>
       </Link>
     ),
-    header: () => "Name",
+    header: () => translate("name"),
   },
   {
     accessorKey: "last_asset_event",
@@ -59,12 +59,12 @@ const columns: Array<ColumnDef<AssetResponse>> = [
       return <Time datetime={timestamp} />;
     },
     enableSorting: false,
-    header: () => "Last Asset Event",
+    header: () => translate("lastAssetEvent"),
   },
   {
     accessorKey: "group",
     enableSorting: false,
-    header: () => "Group",
+    header: () => translate("group"),
   },
   {
     accessorKey: "consuming_dags",
@@ -73,7 +73,7 @@ const columns: Array<ColumnDef<AssetResponse>> = [
         <DependencyPopover dependencies={original.consuming_dags} type="Dag" />
       ) : undefined,
     enableSorting: false,
-    header: () => "Consuming Dags",
+    header: () => translate("consumingDags"),
   },
   {
     accessorKey: "producing_tasks",
@@ -82,7 +82,7 @@ const columns: Array<ColumnDef<AssetResponse>> = [
         <DependencyPopover dependencies={original.producing_tasks} type="Task" />
       ) : undefined,
     enableSorting: false,
-    header: () => "Producing Tasks",
+    header: () => translate("producingTasks"),
   },
   {
     accessorKey: "trigger",
@@ -95,6 +95,7 @@ const columns: Array<ColumnDef<AssetResponse>> = [
 const NAME_PATTERN_PARAM = SearchParamsKeys.NAME_PATTERN;
 
 export const AssetsList = () => {
+  const { t: translate } = useTranslation(["assets", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [namePattern, setNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
@@ -132,21 +133,21 @@ export const AssetsList = () => {
           buttonProps={{ disabled: true }}
           defaultValue={namePattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder="Search Assets"
+          placeHolder={translate("searchPlaceholder")}
         />
 
         <Heading py={3} size="md">
-          {pluralize("Asset", data?.total_entries)}
+          {data?.total_entries} {translate("common:asset", { count: data?.total_entries })}
         </Heading>
       </VStack>
       <Box overflow="auto">
         <DataTable
-          columns={columns}
+          columns={createColumns(translate)}
           data={data?.assets ?? []}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName="Asset"
+          modelName={translate("common:asset_one")}
           onStateChange={setTableURLState}
           total={data?.total_entries}
         />

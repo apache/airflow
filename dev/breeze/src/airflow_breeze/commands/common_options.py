@@ -417,6 +417,13 @@ option_use_airflow_version = click.option(
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
+option_allow_pre_releases = click.option(
+    "--allow-pre-releases",
+    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    "Set to true automatically for pre-release --use-airflow-version)",
+    is_flag=True,
+    envvar="ALLOW_PRE_RELEASES",
+)
 option_airflow_version = click.option(
     "-A",
     "--airflow-version",

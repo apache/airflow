@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Heading, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
 import { Button, Dialog, Toaster } from "src/components/ui";
@@ -29,6 +30,7 @@ type Props = {
 };
 
 const AddVariableButton = ({ disabled }: Props) => {
+  const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { addVariable, error, isPending, setError } = useAddVariable({
     onSuccessConfirm: onClose,
@@ -49,13 +51,13 @@ const AddVariableButton = ({ disabled }: Props) => {
     <>
       <Toaster />
       <Button colorPalette="blue" disabled={disabled} onClick={onOpen}>
-        <FiPlusCircle /> Add Variable
+        <FiPlusCircle /> {translate("variables.add")}
       </Button>
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Add Variable</Heading>
+            <Heading size="xl">{translate("variables.add")}</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
