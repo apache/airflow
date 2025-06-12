@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
 
-from airflow.models.taskmap import update_task_map_length
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -121,23 +120,17 @@ class SchedulerDictOfListsExpandInput(ExpandInput):
     def resolve(
         self, context: Mapping[str, Any], session: Session
     ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
-        self.log.info("expand_dict: %s", self.value)
-
         value = (
-            self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
+            self.value.resolve(context, session) if _needs_run_time_resolution(self.value) else self.value
         )
 
-        self.log.info("resolved value: %s", value)
+        self.log.debug("resolved value: %s", value)
 
         for key, item in value.items():
-            result = item.resolve(context, session)
-
-            self.log.info("resolved value %s: %s", key, result)
+            result = item.resolve(context, session) if _needs_run_time_resolution(item) else item
 
             for index, sub_item in enumerate(result):
                 yield {key: sub_item}
-
-                update_task_map_length(index, item, context["run_id"], session)
 
         return []
 
@@ -166,26 +159,18 @@ class SchedulerListOfDictsExpandInput(ExpandInput):
     def resolve(
         self, context: Mapping[str, Any], session: Session
     ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
-        self.log.info("expand_list: %s", self.value)
-
         value = (
             self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
         )
 
-        self.log.info("resolved value: %s", value)
+        self.log.debug("resolved value: %s", value)
 
         for index, entry in enumerate(value):
-            self.log.info("entry: %s", entry)
-
             for key, item in entry.items():
-                if isinstance(item, SchedulerXComArg):
+                if _needs_run_time_resolution(item):
                     entry[key] = item.resolve(context, session)
 
-                self.log.info("resolved entry: %s", entry)
-
             yield entry
-
-            update_task_map_length(index, self.value, context["run_id"], session)
 
         return []
 

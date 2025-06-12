@@ -95,8 +95,6 @@ class SchedulerPlainXComArg(SchedulerXComArg):
             },
         }
 
-        self.log.info("XCom task_instance: %s", task_instance)
-
         value = task_instance.xcom_pull(
             task_ids=self.operator.task_id,
             key=self.operator.output.key,
@@ -104,19 +102,15 @@ class SchedulerPlainXComArg(SchedulerXComArg):
             session=session,
         )
 
-        self.log.info("value: %s", value)
-        self.log.debug("xcom_backend: %s", xcom_backend)
-
         deserialized_value = xcom_backend.deserialize_value(
             XComResult(key=self.operator.output.key, value=value)
         )
 
-        self.log.info("deserialized_value: %s", deserialized_value)
+        self.log.debug("deserialized_value: %s", deserialized_value)
 
         if isinstance(deserialized_value, ResolveMixin):
-            self.log.info("context: %s", context)
             deserialized_value = deserialized_value.resolve(context)
-            self.log.info("resolved_value: %s", deserialized_value)
+            self.log.debug("resolved_value: %s", deserialized_value)
 
         return deserialized_value
 
@@ -138,18 +132,14 @@ class SchedulerMapXComArg(SchedulerXComArg):
         return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
 
     def resolve(self, context: Mapping[str, Any], session: Session) -> Any:
-        self.log.info("arg: %s", self.arg)
         resolved_arg = self.arg.resolve(context, session)
-        self.log.info("resolved_arg: %s", resolved_arg)
 
         def apply(arg: Any):
             for index, _callable in enumerate(self.callables):
                 if isinstance(_callable, str):
                     _callable = eval(_callable)
                     self.callables[index] = _callable
-                self.log.debug("arg: %s", arg)
                 arg = _callable(arg)
-                self.log.debug("apply: %s", arg)
             return arg
 
         return map(apply, resolved_arg)

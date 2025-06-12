@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from functools import cached_property, lru_cache
 from multiprocessing import Process
 from time import sleep
@@ -356,8 +357,10 @@ def run_job(
     finally:
         job.complete_execution(session=session)
 
-
-def run_job_async(job: Job, execute_callable: Callable[[], int | None], session: Session) -> None:
+@provide_session
+def run_job_async(
+    job: Job, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
+) -> int | None:
     """
     Run the job asynchronously.
 
@@ -366,9 +369,13 @@ def run_job_async(job: Job, execute_callable: Callable[[], int | None], session:
 
     :meta private:
     """
+    def execute_async_job() -> int | None:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        return execute_job(job, execute_callable)
+
     job.prepare_for_execution(session=session)
     try:
-        process = Process(target=execute_job, args=(job, execute_callable))
+        process = Process(target=execute_async_job)
         process.start()
     finally:
         job.complete_execution(session=session)

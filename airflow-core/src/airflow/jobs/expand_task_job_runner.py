@@ -65,10 +65,16 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         dag_version_id: DagVersion,
     ) -> None:
         super().__init__(job)
+        self.job.dag_id = task.dag_id
+        self.job.job_type = self.job_type
         self.task = task
         self.task.operator_class = import_string(f"{task._task_module}.{task._task_type}")
         self.run_id = run_id
         self.dag_version_id = dag_version_id
+
+    @property
+    def job_id(self) -> str:
+        return self.job.id
 
     @property
     def dag_id(self) -> str:
@@ -115,19 +121,29 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
     def _persist_task_instances(
         self, dag_run: DagRun, task_instances: list[TaskInstance], session: Session
     ) -> None:
+        from airflow.models.taskmap import update_task_map_length
+
         if dag_run and task_instances:
             self.log.info("Persisting %d new task instances", len(task_instances))
             dag_run.task_instances.extend(task_instances)
             session.merge(dag_run)
+            update_task_map_length(
+                length=task_instances[-1].map_index + 1,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                run_id=dag_run.run_id,
+                session=session,
+            )
             session.flush()
             session.commit()
             task_instances.clear()
 
-    def expand_tasks(self, session: Session) -> int:
+    def expand_tasks(self, expand_input: Iterator[dict], job_id: str | None = None, session: Session = NEW_SESSION) -> list[TaskInstance]:
         """
         Expands the task using the provided expand_input.
         """
-        counter = 0
+        from airflow.models.taskinstance import get_task_instance
+
         max_map_index = get_current_max_mapping(
             dag_id=self.dag_id,
             task_id=self.task_id,
@@ -135,24 +151,33 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             session=session,
         )
         dag_run = get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
+        unmapped_ti = get_task_instance(dag_id=self.dag_id, task_id=self.task_id, run_id=self.run_id, session=session)
 
         self.log.info("expand_tasks: %s", session)
         self.log.info("max_map_index: %s", max_map_index)
         self.log.info("dag_version_id: %s", self.dag_version_id)
         self.log.info("dag_run: %s", dag_run)
 
+        task_instances = []
         task_instances_batch = []
 
-        for map_index, mapped_kwargs in enumerate(self.expand_input(session=session)):
+        for map_index, mapped_kwargs in enumerate(expand_input):
             if map_index > max_map_index:
-                task_instance = TaskInstance(
-                    task=self.task,
-                    run_id=self.run_id,
-                    map_index=map_index,
-                    dag_version_id=self.dag_version_id,
-                )
-                task_instances_batch.append(self.expand_task(task_instance, mapped_kwargs))
-                counter += 1
+                if map_index == 0 and unmapped_ti:
+                    task_instance = unmapped_ti
+                    task_instance.map_index = map_index
+                else:
+                    task_instance = TaskInstance(
+                        task=self.task,
+                        run_id=self.run_id,
+                        map_index=map_index,
+                        dag_version_id=self.dag_version_id,
+                    )
+                if job_id:
+                    task_instance.queued_by_job_id = job_id
+                task_instance = self.expand_task(task_instance, mapped_kwargs)
+                task_instances.append(task_instance)
+                task_instances_batch.append(task_instance)
 
                 if len(task_instances_batch) == task_expansion_batch_size:
                     dag_run = get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
@@ -161,8 +186,8 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
         self._persist_task_instances(dag_run, task_instances_batch, session=session)
 
-        return counter
+        return task_instances
 
     def _execute(self) -> int | None:
         with create_session() as session:
-            return self.expand_tasks(session=session)
+            return len(self.expand_tasks(expand_input=self.expand_input(session=session), job_id=self.job_id, session=session))
