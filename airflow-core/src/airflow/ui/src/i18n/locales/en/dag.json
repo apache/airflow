@@ -24,7 +24,8 @@
       "failedTask_other": "Failed Tasks"
     },
     "charts": {
-      "assetEvent": "Created Asset Event"
+      "assetEvent_one": "Created Asset Event",
+      "assetEvent_other": "Created Asset Events"
     },
     "failedLogs": {
       "title": "Recent Failed Task Logs",

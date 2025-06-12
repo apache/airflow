@@ -44,7 +44,7 @@ type AssetEventProps = {
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;
   readonly tableUrlState?: TableState;
-  readonly title?: string;
+  readonly titleKey?: string;
 };
 
 export const AssetEvents = ({
@@ -54,10 +54,10 @@ export const AssetEvents = ({
   setOrderBy,
   setTableUrlState,
   tableUrlState,
-  title,
+  titleKey,
   ...rest
 }: AssetEventProps & BoxProps) => {
-  const { t: translate } = useTranslation(["dashboard", "common"]);
+  const { t: translate } = useTranslation(["dashboard", "common", "dag"]);
   const assetSortOptions = createListCollection({
     items: [
       { label: translate("sortBy.newestFirst"), value: "-timestamp" },
@@ -74,7 +74,7 @@ export const AssetEvents = ({
             {data?.total_entries ?? " "}
           </StateBadge>
           <Heading marginEnd="auto" size="md">
-            {translate("common:assetEvent", { count: data?.total_entries ?? 0 })}
+            {translate(titleKey ?? "common:assetEvent", { count: data?.total_entries ?? 0 })}
           </Heading>
         </HStack>
         {setOrderBy === undefined ? undefined : (

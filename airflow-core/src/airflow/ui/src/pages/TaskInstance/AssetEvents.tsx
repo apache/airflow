@@ -47,5 +47,7 @@ export const AssetEvents = () => {
     },
   );
 
-  return <AssetEventsTable data={assetEventsData} isLoading={isLoading} title="Created Asset Event" />;
+  return (
+    <AssetEventsTable data={assetEventsData} isLoading={isLoading} titleKey="common:createdAssetEvent" />
+  );
 };
