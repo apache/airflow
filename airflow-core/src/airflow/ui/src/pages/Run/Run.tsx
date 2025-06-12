@@ -17,7 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { FiCode } from "react-icons/fi";
+import { FiCode, FiDatabase } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
@@ -29,9 +29,10 @@ import { Header } from "./Header";
 
 const tabs = [
   { icon: <MdOutlineTask />, label: "Task Instances", value: "" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
+  { icon: <MdOutlineEventNote />, label: "Audit Logs", value: "events" },
   { icon: <FiCode />, label: "Code", value: "code" },
   { icon: <MdDetails />, label: "Details", value: "details" },
+  { icon: <FiDatabase />, label: "Asset Events", value: "asset_events" },
 ];
 
 export const Run = () => {
