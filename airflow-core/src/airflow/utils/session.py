@@ -41,17 +41,13 @@ def create_session(scoped: bool = True) -> Generator[SASession, None, None]:
     if Session is None:
         raise RuntimeError("Session must be set before!")
 
-    check_db_discovery = conf.getboolean("database", "check_db_discovery")
-    db_discovery_retries = conf.getint("database", "max_db_discovery_retries")
-    db_discovery_initial_wait = conf.getfloat("database", "db_discovery_initial_wait_time")
-    db_discovery_max_wait = conf.getfloat("database", "db_discovery_max_wait_time")
     # If there is an exception, it will be raised
     # in order to prevent the session from unnecessarily being created.
-    if check_db_discovery:
+    if conf.getboolean("database", "check_db_discovery"):
         check_db_discovery_with_retries(
-            retry_num=db_discovery_retries,
-            initial_retry_wait=db_discovery_initial_wait,
-            max_retry_wait=db_discovery_max_wait,
+            retry_num=conf.getint("database", "max_db_discovery_retries"),
+            initial_retry_wait=conf.getfloat("database", "db_discovery_initial_wait_time"),
+            max_retry_wait=conf.getfloat("database", "db_discovery_max_wait_time"),
         )
 
     session = Session()

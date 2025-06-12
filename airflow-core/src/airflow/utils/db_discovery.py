@@ -55,10 +55,6 @@ db_health_status: tuple[str, float] = (DbDiscoveryStatus.OK, 0.0)
 db_retry_count: int = 0
 
 
-def _is_temporary_dns_error(ex: BaseException) -> bool:
-    return isinstance(ex, socket.gaierror) and ex.errno == socket.EAI_AGAIN
-
-
 def _check_dns_resolution_with_retries(
     host: str,
     retries: int,
@@ -83,7 +79,9 @@ def _check_dns_resolution_with_retries(
 
     # tenacity retries start counting from 1
     run_with_db_discovery_retries = tenacity.Retrying(
-        retry=tenacity.retry_if_exception(_is_temporary_dns_error),
+        retry=tenacity.retry_if_exception(
+            lambda ex: isinstance(ex, socket.gaierror) and ex.errno == socket.EAI_AGAIN
+        ),
         stop=tenacity.stop_after_attempt(retries + 1),
         wait=tenacity.wait_exponential(
             multiplier=initial_retry_wait,
