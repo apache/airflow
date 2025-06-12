@@ -20,7 +20,7 @@
 Add Deadline to Dag.
 
 Revision ID: dfee8bd5d574
-Revises: 29ce7909c52b
+Revises: fe199e1abd77
 Create Date: 2024-12-18 19:10:26.962464
 """
 
@@ -33,7 +33,7 @@ from alembic import op
 from airflow.settings import json
 
 revision = "dfee8bd5d574"
-down_revision = "29ce7909c52b"
+down_revision = "fe199e1abd77"
 branch_labels = None
 depends_on = None
 airflow_version = "3.1.0"
