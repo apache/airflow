@@ -20,11 +20,9 @@ import { Box, Flex, HStack, Table, Heading } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import {
-  useAssetServiceGetAssetEvents,
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
-import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
@@ -76,24 +74,8 @@ export const Details = () => {
     },
   );
 
-  const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents(
-    {
-      sourceDagId: dagId,
-      sourceMapIndex: parseInt(mapIndex, 10),
-      sourceRunId: runId,
-      sourceTaskId: taskId,
-    },
-    undefined,
-    {
-      refetchInterval: () => (isStatePending(taskInstance?.state) ? refetchInterval : false),
-    },
-  );
-
   return (
     <Box p={2}>
-      {assetEventsData !== undefined && assetEventsData.asset_events.length > 0 ? (
-        <AssetEvents data={assetEventsData} isLoading={isLoadingAssetEvents} title="Created Asset Event" />
-      ) : undefined}
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
         <div />
       ) : (

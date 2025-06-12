@@ -19,8 +19,7 @@
 import { Box, Flex, HStack, StackSeparator, Table, Text, VStack } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun, useDagRunServiceGetUpstreamAssetEvents } from "openapi/queries";
-import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
@@ -43,17 +42,9 @@ export const Details = () => {
     { refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false) },
   );
 
-  const { data, isLoading } = useDagRunServiceGetUpstreamAssetEvents({ dagId, dagRunId: runId }, undefined, {
-    enabled: dagRun?.run_type === "asset_triggered",
-    refetchInterval: () => (isStatePending(dagRun?.state) ? refetchInterval : false),
-  });
-
   // TODO : Render DagRun configuration object
   return (
     <Box p={2}>
-      {data === undefined || dagRun?.run_type !== "asset_triggered" ? undefined : (
-        <AssetEvents data={data} isLoading={isLoading} title="Source Asset Event" />
-      )}
       {dagRun === undefined ? (
         <div />
       ) : (
