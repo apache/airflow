@@ -85,5 +85,13 @@
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
+  },
+  "taskLogs": {
+    "allLogLevels": "All Log Levels",
+    "allSources": "All Sources",
+    "fullscreen": {
+      "button": "Full screen",
+      "tooltip": "Press {{hotkey}} for fullscreen"
+    }
   }
 }
