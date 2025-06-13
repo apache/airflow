@@ -26,7 +26,6 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job
 from airflow.models import DagRun
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import TaskInstance
 from airflow.policies import task_instance_mutation_hook
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -36,6 +35,8 @@ from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.models.taskinstance import TaskInstance
 
 task_expansion_batch_size = conf.getint("scheduler", "task_expansion_batch_size", fallback=10)
 
@@ -132,6 +133,8 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         """
         Expands the task using the provided expand_input.
         """
+
+        from airflow.models.taskinstance import TaskInstance
 
         max_map_index = TaskInstance.get_current_max_mapping(
             dag_id=self.dag_id, task_id=self.task_id, run_id=self.run_id, session=session
