@@ -37,10 +37,12 @@ type Props = {
 const DeleteTaskInstancesButton = ({ clearSelections, dagId, dagRunId, deleteKeys }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useBulkDeleteTaskInstances({
-    clearSelections,
     dagId,
     dagRunId,
-    onSuccessConfirm: onClose,
+    onSuccessConfirm: () => {
+      clearSelections();
+      onClose();
+    },
   });
   const { t: translate } = useTranslation();
 
@@ -101,7 +103,7 @@ const DeleteTaskInstancesButton = ({ clearSelections, dagId, dagRunId, deleteKey
           <Dialog.CloseTrigger />
           <Flex direction="column" gap={4} p={6}>
             <Heading size="lg">{title}</Heading>
-            <Text color="red.500" fontWeight="bold">
+            <Text color="fg.error" fontWeight="bold">
               {warningText}
             </Text>
             <ActionAccordion affectedTasks={affectedTasks} />

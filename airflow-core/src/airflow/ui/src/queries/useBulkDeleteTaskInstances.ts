@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
@@ -29,15 +30,15 @@ import {
 import { toaster } from "src/components/ui";
 
 type Props = {
-  readonly clearSelections: VoidFunction;
   readonly dagId: string;
   readonly dagRunId: string;
   readonly onSuccessConfirm: VoidFunction;
 };
 
-export const useBulkDeleteTaskInstances = ({ clearSelections, dagId, dagRunId, onSuccessConfirm }: Props) => {
+export const useBulkDeleteTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
+  const { t: translate } = useTranslation("common");
 
   const onSuccess = async (responseData: { delete?: { errors: Array<unknown>; success: Array<string> } }) => {
     const queryKeys = [
@@ -60,11 +61,18 @@ export const useBulkDeleteTaskInstances = ({ clearSelections, dagId, dagRunId, o
         });
       } else if (Array.isArray(success) && success.length > 0) {
         toaster.create({
-          description: `${success.length} task instances deleted successfully. Keys: ${success.join(", ")}`,
-          title: "Delete Task Instances Request Successful",
+          description: translate("bulkAction.success.description", {
+            action: translate("delete"),
+            count: success.length,
+            keys: success.join(", "),
+            type: translate(success.length > 1 ? "taskInstance_other" : "taskInstance_one"),
+          }),
+          title: translate("bulkAction.success.title", {
+            action: translate("delete"),
+            type: translate(success.length > 1 ? "taskInstance_other" : "taskInstance_one"),
+          }),
           type: "success",
         });
-        clearSelections();
         onSuccessConfirm();
       }
     }

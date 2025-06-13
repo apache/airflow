@@ -17,6 +17,12 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
+  "bulkAction": {
+    "success": {
+      "description": "{{count}} {{type}} {{action}} successfully. Keys: {{keys}}",
+      "title": "{{action}} {{type}} Request Successful"
+    }
+  },
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
@@ -61,6 +67,7 @@
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "delete": "Delete",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",

@@ -80,10 +80,15 @@ const getColumns = ({
     cell: ({ row }) => (
       <Checkbox
         borderWidth={1}
-        checked={selectedRows.get(`${row.original.dag_run_id}${SEPARATOR}${row.original.task_id}`)}
+        checked={selectedRows.get(
+          `${row.original.dag_run_id}${SEPARATOR}${row.original.task_id}${SEPARATOR}${row.original.map_index}`,
+        )}
         colorPalette="blue"
         onCheckedChange={(event) =>
-          onRowSelect(`${row.original.dag_run_id}${SEPARATOR}${row.original.task_id}`, Boolean(event.checked))
+          onRowSelect(
+            `${row.original.dag_run_id}${SEPARATOR}${row.original.task_id}${SEPARATOR}${row.original.map_index}`,
+            Boolean(event.checked),
+          )
         }
       />
     ),
@@ -266,7 +271,8 @@ export const TaskInstances = () => {
   const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
       data: data?.task_instances,
-      getKey: (taskInstance) => `${taskInstance.dag_run_id}${SEPARATOR}${taskInstance.task_id}`,
+      getKey: (taskInstance) =>
+        `${taskInstance.dag_run_id}${SEPARATOR}${taskInstance.task_id}${SEPARATOR}${taskInstance.map_index}`,
     });
 
   const columns = useMemo(
@@ -316,7 +322,12 @@ export const TaskInstances = () => {
             {selectedRows.size} {translate("common:selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <Tooltip content="Delete selected task instances">
+          <Tooltip
+            content={`${translate("common:modal.delete.button")} ${translate(
+              `common:${selectedRows.size > 1 ? "taskInstance_other" : "taskInstance_one"}`,
+            )}`}
+            disabled={selectedRows.size === 0}
+          >
             <DeleteTaskInstancesButton
               clearSelections={clearSelections}
               dagId={dagId ?? ""}
@@ -324,10 +335,13 @@ export const TaskInstances = () => {
               deleteKeys={
                 [...selectedRows.keys()]
                   .map((id) => {
-                    const [dagRunId, currentTaskId] = id.split(SEPARATOR);
+                    const [dagRunId, currentTaskId, mapIndex] = id.split(SEPARATOR);
 
                     return data?.task_instances.find(
-                      (ti) => ti.dag_run_id === dagRunId && ti.task_id === currentTaskId,
+                      (ti) =>
+                        ti.dag_run_id === dagRunId &&
+                        ti.task_id === currentTaskId &&
+                        ti.map_index === Number(mapIndex ?? -1),
                     );
                   })
                   .filter(Boolean) as Array<TaskInstanceResponse>
