@@ -1252,9 +1252,8 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "table_id",
         "table_resource",
-        "project_id",
         "gcs_schema_object",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -1498,12 +1497,11 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "table_id",
         "table_resource",
-        "project_id",
         "gcs_schema_object",
         "labels",
         "view",
         "materialized_view",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_fields_renderers = {"table_resource": "json", "materialized_view": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -2021,8 +2019,7 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "dataset_id",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     ui_color = BigQueryUIColors.DATASET.value
 
@@ -2099,9 +2096,8 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "dataset_id",
-        "project_id",
         "dataset_reference",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_fields_renderers = {"dataset_reference": "json"}
     ui_color = BigQueryUIColors.DATASET.value
@@ -2206,8 +2202,7 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "dataset_id",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     ui_color = BigQueryUIColors.DATASET.value
     operator_extra_links = (BigQueryDatasetLink(),)
@@ -2271,8 +2266,7 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "dataset_id",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     ui_color = BigQueryUIColors.DATASET.value
 
@@ -2341,8 +2335,7 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "table_id",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -2448,8 +2441,7 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "dataset_id",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_fields_renderers = {"dataset_resource": "json"}
     ui_color = BigQueryUIColors.DATASET.value
@@ -2619,8 +2611,7 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "table_resource",
-        "impersonation_chain",
-        "project_id",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -2746,8 +2737,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         "schema_fields_updates",
         "dataset_id",
         "table_id",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_fields_renderers = {"schema_fields_updates": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -2877,8 +2867,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
     template_fields: Sequence[str] = (
         "configuration",
         "job_id",
-        "impersonation_chain",
-        "project_id",
+        *GoogleCloudBaseOperator.template_fields,
     )
     template_ext: Sequence[str] = (
         ".json",

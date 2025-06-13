@@ -58,7 +58,7 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = ("region", "gcp_conn_id", "job_name", *GoogleCloudBaseOperator.template_fields)
 
     def __init__(
         self,
@@ -142,7 +142,7 @@ class CloudBatchDeleteJobOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = ("region", "gcp_conn_id", "job_name", *GoogleCloudBaseOperator.template_fields)
 
     def __init__(
         self,
@@ -199,10 +199,9 @@ class CloudBatchListJobsOperator(GoogleCloudBaseOperator):
     """
 
     template_fields = (
-        "project_id",
         "region",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -258,7 +257,13 @@ class CloudBatchListTasksOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields = ("project_id", "region", "job_name", "gcp_conn_id", "impersonation_chain", "group_name")
+    template_fields = (
+        "region",
+        "job_name",
+        "gcp_conn_id",
+        "group_name",
+        *GoogleCloudBaseOperator.template_fields,
+    )
 
     def __init__(
         self,
