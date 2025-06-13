@@ -85,7 +85,8 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
               <Accordion.Item key={importError.import_error_id} value={importError.filename}>
                 <Accordion.ItemTrigger cursor="pointer">
                   <Text display="flex" fontWeight="bold">
-                    {translate("Bundle name:")}
+                    {translate("components:versionDetails.bundleName")}
+                    {": "}
                     {importError.bundle_name}
                   </Text>
                   <PiFilePy />
