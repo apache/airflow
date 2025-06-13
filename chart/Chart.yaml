@@ -108,6 +108,11 @@ annotations:
       links:
       - name: '#50056'
         url: https://github.com/apache/airflow/pull/50056
+    - description: Add the dag processor ServiceAccount to SecurityContextConstraints role binding
+      kind: fixed
+      links:
+      - name: '#51080'
+        url: https://github.com/apache/airflow/pull/51080
     - description: 'Docs: Bump minimum helm version in docs'
       kind: changed
       links:

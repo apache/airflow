@@ -51,6 +51,7 @@ Bug Fixes
 - Declare missing API server properties (#51012)
 - Add missing api server replicas parameter (#50814)
 - Fix FAB ``enable_proxy_fix`` default for Airflow 3 (#50056)
+- Add the dag processor ServiceAccount to SecurityContextConstraints role binding (#51080)
 
 Doc only changes
 ^^^^^^^^^^^^^^^^
