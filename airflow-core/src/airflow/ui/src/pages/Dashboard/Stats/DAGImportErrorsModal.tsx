@@ -40,7 +40,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredErrors, setFilteredErrors] = useState(importErrors);
-  const { t: translate } = useTranslation("dashboard");
+  const { t: translate } = useTranslation(["dashboard", "components"]);
 
   const startRange = (page - 1) * PAGE_LIMIT;
   const endRange = startRange + PAGE_LIMIT;
