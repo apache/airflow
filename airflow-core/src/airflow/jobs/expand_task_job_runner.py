@@ -126,18 +126,20 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             session.flush()
             task_instances.clear()
 
-    def expand_tasks(self, expand_input: Iterator[dict], job_id: str | None = None, session: Session = NEW_SESSION) -> list[TaskInstance]:
+    def expand_tasks(
+        self, expand_input: Iterator[dict], job_id: str | None = None, session: Session = NEW_SESSION
+    ) -> list[TaskInstance]:
         """
         Expands the task using the provided expand_input.
         """
+
         max_map_index = TaskInstance.get_current_max_mapping(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
-            session=session,
+            dag_id=self.dag_id, task_id=self.task_id, run_id=self.run_id, session=session
         )
         dag_run = DagRun.get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
-        unmapped_ti = TaskInstance.get_task_instance(dag_id=self.dag_id, task_id=self.task_id, run_id=self.run_id, session=session)
+        unmapped_ti = TaskInstance.get_task_instance(
+            dag_id=self.dag_id, run_id=self.run_id, task_id=self.task_id, map_index=-1, session=session
+        )
 
         self.log.info("expand_tasks: %s", session)
         self.log.info("max_map_index: %s", max_map_index)

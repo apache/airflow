@@ -2486,23 +2486,6 @@ class TaskInstance(Base, LoggingMixin):
         )
 
     @classmethod
-    def get_task_instance(
-        cls, dag_id: str, task_id: str, run_id: str, map_index: int = -1, session: Session = NEW_SESSION
-    ) -> TaskInstance | None:
-        @cache
-        def find_task_instance(_dag_id: str, _task_id: str, _run_id: str, _map_index: int):
-            return session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.dag_id == _dag_id,
-                    TaskInstance.task_id == _task_id,
-                    TaskInstance.run_id == _run_id,
-                    TaskInstance.map_index == _map_index,
-                )
-            ).one_or_none()
-
-        return find_task_instance(dag_id, task_id, run_id, map_index)
-
-    @classmethod
     def get_current_max_mapping(cls, dag_id: str, task_id: str, run_id: str, session: Session) -> int:
         return max(
             session.scalar(
