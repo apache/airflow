@@ -92,7 +92,7 @@ class DeferredIterable(Iterator, Sequence, Sized, ResolveMixin, LoggingMixin):
         yield self.operator, XCOM_RETURN_KEY
 
     def resolve(self, context: Context, session: Session = None, *, include_xcom: bool = True) -> Any:
-        self.log.info("resolve: %s", self)
+        self.log.debug("resolve: %s", self)
         return DeferredIterable(
             results=self.results,
             trigger=self.trigger,
@@ -131,11 +131,11 @@ class DeferredIterable(Iterator, Sequence, Sized, ResolveMixin, LoggingMixin):
     def _execute_trigger(self):
         try:
             with event_loop() as loop:
-                self.log.info("Running trigger: %s", self.trigger)
+                self.log.debug("Running trigger: %s", self.trigger)
                 event = loop.run_until_complete(run_trigger(self.trigger))
                 self.operator.render_template_fields(context=self.context)
                 next_method = getattr(self.operator, self.next_method)
-                self.log.info("Triggering next method: %s", self.next_method)
+                self.log.debug("Triggering next method: %s", self.next_method)
                 results = next_method(self.context, event.payload)
         except Exception as e:
             self.log.exception(e)
@@ -178,8 +178,6 @@ class DeferredIterable(Iterator, Sequence, Sized, ResolveMixin, LoggingMixin):
 
         dag_bag = DagBag(collect_dags=False)  # Avoid loading all DAGs
         dag_bag.process_file(dag_fileloc)
-        cls.logger().info("dag_bag: %s", dag_bag)
-        cls.logger().info("dags: %s", dag_bag.dags)
         return dag_bag.dags[dag_id].get_task(task_id)
 
     @classmethod
