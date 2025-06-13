@@ -1,0 +1,23 @@
+{
+  "auditLog": {
+    "actions": {
+      "collapseAllExtra": "כווץ את כל ה-JSON הנוסף",
+      "expandAllExtra": "הרחב את כל ה-JSON הנוסף"
+    },
+    "columns": {
+      "event": "אירוע",
+      "extra": "תוכן",
+      "user": "משתמש",
+      "when": "מתי"
+    },
+    "title": "יומן מערכת"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "DAG",
+      "key": "מפתח",
+      "value": "ערך"
+    },
+    "title": "XCom"
+  }
+}
