@@ -62,7 +62,8 @@ class EventsTimetable(Timetable):
         if description is None:
             if self.event_dates:
                 self.description = (
-                    f"{len(self.event_dates)} events between {self.event_dates[0]} and {self.event_dates[-1]}"
+                    f"{len(self.event_dates)} events between "
+                    f"{self.event_dates[0].isoformat(sep='T')} and {self.event_dates[-1].isoformat(sep='T')}"
                 )
             else:
                 self.description = "No events"
@@ -123,12 +124,17 @@ class EventsTimetable(Timetable):
         return {
             "event_dates": [x.isoformat(sep="T") for x in self.event_dates],
             "restrict_to_events": self.restrict_to_events,
+            "description": self.description,
+            "_summary": self._summary,
         }
 
     @classmethod
     def deserialize(cls, data) -> Timetable:
-        return cls(
-            [pendulum.DateTime.fromisoformat(x) for x in data["event_dates"]],
-            data["restrict_to_events"],
+        time_table = cls(
+            event_dates=[pendulum.DateTime.fromisoformat(x) for x in data["event_dates"]],
+            restrict_to_events=data["restrict_to_events"],
             presorted=True,
+            description=data["description"],
         )
+        time_table._summary = data["_summary"]
+        return time_table
