@@ -44,6 +44,11 @@
   },
   "duration": "時間範圍",
   "endDate": "結束日期",
+  "expand": {
+    "collapse": "收合",
+    "expand": "展開",
+    "tooltip": "按下 {{hotkey}} 切換展開"
+  },
   "expression": {
     "all": "全部",
     "and": "且",

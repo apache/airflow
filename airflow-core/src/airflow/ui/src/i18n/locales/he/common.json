@@ -23,6 +23,11 @@
     "restApiReference": "REST API תיעוד"
   },
   "duration": "משך זמן",
+  "expand": {
+    "collapse": "צמצם",
+    "expand": "הרחב",
+    "tooltip": "לחץ {{hotkey}} כדי להרחיב/לצמצם"
+  },
   "language": {
     "chinese": "סינית מסורתית",
     "english": "אנגלית",

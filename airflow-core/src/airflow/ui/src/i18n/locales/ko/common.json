@@ -23,6 +23,11 @@
     "restApiReference": "REST API 참조"
   },
   "duration": "지속 시간",
+  "expand": {
+    "collapse": "접기",
+    "expand": "확장",
+    "tooltip": "{{hotkey}}를 눌러 확장 전환"
+  },
   "logout": "로그아웃",
   "nav": {
     "admin": "관리자",

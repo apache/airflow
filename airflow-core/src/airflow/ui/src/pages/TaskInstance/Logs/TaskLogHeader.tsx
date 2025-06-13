@@ -25,8 +25,9 @@ import {
   IconButton,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
-import { useCallback} from "react";
-import {MdCompress, MdExpand, MdOutlineOpenInFull } from "react-icons/md";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { MdCompress, MdExpand, MdOutlineOpenInFull } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -198,10 +199,10 @@ export const TaskLogHeader = ({
               {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
             </Button>
           </Tooltip>
-          <Tooltip closeDelay={100} content="Press e to expand/collapse" openDelay={100}>
+          <Tooltip closeDelay={100} content={translate("expand.tooltip", { hotkey: "e" })} openDelay={100}>
             <ButtonGroup attached size="md" variant="outline">
               <IconButton
-                aria-label="Expand"
+                aria-label={translate("expand.expand")}
                 disabled={expanded}
                 onClick={expanded ? undefined : toggleExpanded}
                 size="md"
@@ -210,7 +211,7 @@ export const TaskLogHeader = ({
                 <MdExpand />
               </IconButton>
               <IconButton
-                aria-label="Collapse All"
+                aria-label={translate("expand.collapse")}
                 disabled={!expanded}
                 onClick={expanded ? toggleExpanded : undefined}
                 size="md"
@@ -228,8 +229,8 @@ export const TaskLogHeader = ({
             >
               <IconButton
                 aria-label={translate("dag:taskLogs.fullscreen.button")}
-                m={0}
                 bg="bg.panel"
+                m={0}
                 onClick={toggleFullscreen}
                 px={4}
                 py={2}

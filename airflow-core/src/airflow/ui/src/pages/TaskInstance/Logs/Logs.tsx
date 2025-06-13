@@ -33,7 +33,6 @@ import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
 
 export const Logs = () => {
-  const { t: translate } = useTranslation();
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t: translate } = useTranslation("dag");
