@@ -28,7 +28,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job
 from airflow.models import DagRun
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import TaskInstance, get_current_max_mapping
+from airflow.models.taskinstance import TaskInstance
 from airflow.policies import task_instance_mutation_hook
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -121,13 +121,16 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
     def _persist_task_instances(
         self, dag_run: DagRun, task_instances: list[TaskInstance], session: Session
     ) -> None:
-        from airflow.models.taskmap import update_task_map_length
+        """
+        Expands the task using the provided expand_input.
+        """
+        from airflow.models.taskmap import TaskMap
 
         if dag_run and task_instances:
             self.log.info("Persisting %d new task instances", len(task_instances))
             dag_run.task_instances.extend(task_instances)
             session.merge(dag_run)
-            update_task_map_length(
+            TaskMap.update_task_map_length(
                 length=task_instances[-1].map_index + 1,
                 dag_id=self.dag_id,
                 task_id=self.task_id,
@@ -141,16 +144,14 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         """
         Expands the task using the provided expand_input.
         """
-        from airflow.models.taskinstance import get_task_instance
-
-        max_map_index = get_current_max_mapping(
+        max_map_index = TaskInstance.get_current_max_mapping(
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
             session=session,
         )
         dag_run = get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
-        unmapped_ti = get_task_instance(dag_id=self.dag_id, task_id=self.task_id, run_id=self.run_id, session=session)
+        unmapped_ti = TaskInstance.get_task_instance(dag_id=self.dag_id, task_id=self.task_id, run_id=self.run_id, session=session)
 
         self.log.info("expand_tasks: %s", session)
         self.log.info("max_map_index: %s", max_map_index)

@@ -39,7 +39,7 @@ from airflow.jobs.expand_task_job_runner import TaskExpansionJobRunner
 from airflow.jobs.job import Job, run_job_async
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import get_current_max_mapping, get_task_instance
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.db import exists_query
 from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -153,7 +153,7 @@ class TaskMap(TaskInstanceDependencies):
                 f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
             )
 
-        unmapped_ti = get_task_instance(
+        unmapped_ti = TaskInstance.get_task_instance(
             dag_id=task.dag_id, task_id=task.task_id, run_id=run_id, session=session
         )
 
@@ -254,7 +254,7 @@ class TaskMap(TaskInstanceDependencies):
                 indexes_to_map: Iterable[int] = ()
             else:
                 # Only create "missing" ones.
-                current_max_mapping = get_current_max_mapping(
+                current_max_mapping = TaskInstance.get_current_max_mapping(
                     dag_id=task.dag_id, task_id=task.task_id, run_id=run_id, session=session
                 )
                 indexes_to_map = range(current_max_mapping + 1, total_length)
@@ -297,18 +297,19 @@ class TaskMap(TaskInstanceDependencies):
         session.flush()
         return all_expanded_tis, total_expanded_ti_count - 1
 
-# TODO: ths is a hack to update the TaskMap length after some task instances have been created while some of
-#  of them are already being executed and other one are still being expanded asynchronously. This is to prevent
-#  for already expanded tasks to be removed by the scheduler.
-def update_task_map_length(length: int, dag_id: str, task_id: str, run_id: str, session: Session):
-    logging.info("Persisting TaskMap length: %s", length)
-    session.execute(
-        update(TaskMap)
-        .where(
-            TaskMap.dag_id == dag_id,
-            TaskMap.task_id == task_id,
-            TaskMap.run_id == run_id,
-            TaskMap.map_index == -1,
+    # TODO: ths is a hack to update the TaskMap length after some task instances have been created while some of
+    #  of them are already being executed and other one are still being expanded asynchronously. This is to prevent
+    #  for already expanded tasks to be removed by the scheduler.
+    @classmethod
+    def update_task_map_length(cls, length: int, dag_id: str, task_id: str, run_id: str, session: Session):
+        logging.info("Persisting TaskMap length: %s", length)
+        session.execute(
+            update(TaskMap)
+            .where(
+                TaskMap.dag_id == dag_id,
+                TaskMap.task_id == task_id,
+                TaskMap.run_id == run_id,
+                TaskMap.map_index == -1,
+            )
+            .values(length=length)
         )
-        .values(length=length)
-    )
