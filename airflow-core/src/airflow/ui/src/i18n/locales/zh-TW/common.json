@@ -197,7 +197,7 @@
     "priorityWeight": "優先權權重",
     "queue": "排隊",
     "queuedWhen": "開始排隊時間",
-    "scheduledWhen": "排程時間",
+    "scheduledWhen": "開始排程時間",
     "triggerer": {
       "assigned": "指派的觸發器",
       "class": "觸發器類別",
