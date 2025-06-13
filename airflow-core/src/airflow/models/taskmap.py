@@ -39,7 +39,6 @@ from airflow.jobs.expand_task_job_runner import TaskExpansionJobRunner
 from airflow.jobs.job import Job, run_job_async
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.db import exists_query
 from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -144,6 +143,7 @@ class TaskMap(TaskInstanceDependencies):
         """
         from airflow.models.baseoperator import BaseOperator as DBBaseOperator
         from airflow.models.expandinput import NotFullyPopulated
+        from airflow.models.taskinstance import TaskInstance
         from airflow.sdk.bases.operator import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
         from airflow.settings import task_instance_mutation_hook
