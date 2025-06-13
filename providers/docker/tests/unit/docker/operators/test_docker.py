@@ -251,12 +251,228 @@ class TestDockerOperator:
         self.client_mock.wait.assert_called_once_with("some_id")
         assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
 
+    def test_execute_no_temp_dir(self):
+        operator = DockerOperator(
+            api_version="1.19",
+            command="env",
+            environment={"UNIT": "TEST"},
+            private_environment={"PRIVATE": "MESSAGE"},
+            image=TEST_IMAGE,
+            network_mode="bridge",
+            owner="unittest",
+            task_id="unittest",
+            mounts=[Mount(source="/host/path", target="/container/path", type="bind")],
+            mount_tmp_dir=False,
+            entrypoint=TEST_ENTRYPOINT,
+            working_dir="/container/path",
+            shm_size=1000,
+            host_tmp_dir=TEST_HOST_TEMP_DIRECTORY,
+            container_name="test_container",
+            hostname=TEST_CONTAINER_HOSTNAME,
+            tty=True,
+        )
+        operator.execute({})
+
+        self.client_mock.create_container.assert_called_once_with(
+            command="env",
+            name="test_container",
+            environment={"UNIT": "TEST", "PRIVATE": "MESSAGE"},
+            host_config=self.client_mock.create_host_config.return_value,
+            image=TEST_IMAGE,
+            user=None,
+            entrypoint=["sh", "-c"],
+            working_dir="/container/path",
+            tty=True,
+            hostname=TEST_CONTAINER_HOSTNAME,
+            ports=[],
+            labels=None,
+        )
+        self.client_mock.create_host_config.assert_called_once_with(
+            mounts=[
+                Mount(source="/host/path", target="/container/path", type="bind"),
+            ],
+            network_mode="bridge",
+            shm_size=1000,
+            cpu_shares=1024,
+            mem_limit=None,
+            auto_remove=False,
+            dns=None,
+            dns_search=None,
+            cap_add=None,
+            extra_hosts=None,
+            privileged=False,
+            device_requests=None,
+            log_config=LogConfig(config={}),
+            ipc_mode=None,
+            port_bindings={},
+            ulimits=[],
+        )
+        self.tempdir_mock.assert_not_called()
+        self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
+        self.client_mock.attach.assert_called_once_with(
+            container="some_id", stdout=True, stderr=True, stream=True
+        )
+        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
+        self.client_mock.wait.assert_called_once_with("some_id")
+        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
+
+    def test_execute_fallback_temp_dir(self):
+        self.client_mock.create_container.side_effect = [
+            APIError(message=f"wrong path: {TEMPDIR_MOCK_RETURN_VALUE}"),
+            {"Id": "some_id"},
+        ]
+
+        operator = DockerOperator(
+            api_version="1.19",
+            command="env",
+            environment={"UNIT": "TEST"},
+            private_environment={"PRIVATE": "MESSAGE"},
+            image=TEST_IMAGE,
+            network_mode="bridge",
+            owner="unittest",
+            task_id="unittest",
+            mounts=[Mount(source="/host/path", target="/container/path", type="bind")],
+            mount_tmp_dir=True,
+            entrypoint=TEST_ENTRYPOINT,
+            working_dir="/container/path",
+            shm_size=1000,
+            host_tmp_dir=TEST_HOST_TEMP_DIRECTORY,
+            tmp_dir=TEST_AIRFLOW_TEMP_DIRECTORY,
+            container_name="test_container",
+            tty=True,
+        )
+
+        self.client_mock.create_container.assert_has_calls(
+            [
+                call(
+                    command="env",
+                    name="test_container",
+                    environment={
+                        "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
+                        "UNIT": "TEST",
+                        "PRIVATE": "MESSAGE",
+                    },
+                    host_config=self.client_mock.create_host_config.return_value,
+                    image=TEST_IMAGE,
+                    user=None,
+                    entrypoint=["sh", "-c"],
+                    working_dir="/container/path",
+                    tty=True,
+                    hostname=None,
+                    ports=[],
+                    labels=None,
+                ),
+                call(
+                    command="env",
+                    name="test_container",
+                    environment={"UNIT": "TEST", "PRIVATE": "MESSAGE"},
+                    host_config=self.client_mock.create_host_config.return_value,
+                    image=TEST_IMAGE,
+                    user=None,
+                    entrypoint=["sh", "-c"],
+                    working_dir="/container/path",
+                    tty=True,
+                    hostname=None,
+                    ports=[],
+                    labels=None,
+                ),
+            ]
+        )
+        self.client_mock.create_host_config.assert_has_calls(
+            [
+                call(
+                    mounts=[
+                        Mount(source="/host/path", target="/container/path", type="bind"),
+                        Mount(source="/mkdtemp", target=TEST_AIRFLOW_TEMP_DIRECTORY, type="bind"),
+                    ],
+                    network_mode="bridge",
+                    shm_size=1000,
+                    cpu_shares=1024,
+                    mem_limit=None,
+                    auto_remove=False,
+                    dns=None,
+                    dns_search=None,
+                    cap_add=None,
+                    extra_hosts=None,
+                    privileged=False,
+                    device_requests=None,
+                    log_config=LogConfig(config={}),
+                    ipc_mode=None,
+                    port_bindings={},
+                    ulimits=[],
+                ),
+                call(
+                    mounts=[
+                        Mount(source="/host/path", target="/container/path", type="bind"),
+                    ],
+                    network_mode="bridge",
+                    shm_size=1000,
+                    cpu_shares=1024,
+                    mem_limit=None,
+                    auto_remove=False,
+                    dns=None,
+                    dns_search=None,
+                    cap_add=None,
+                    extra_hosts=None,
+                    privileged=False,
+                    device_requests=None,
+                    log_config=LogConfig(config={}),
+                    ipc_mode=None,
+                    port_bindings={},
+                    ulimits=[],
+                ),
+            ]
+        )
+        self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
+        self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
+        self.client_mock.attach.assert_called_once_with(
+            container="some_id", stdout=True, stderr=True, stream=True
+        )
+        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
+        self.client_mock.wait.assert_called_once_with("some_id")
+        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
+
     def test_private_environment_is_private(self):
         operator = DockerOperator(
             private_environment={"PRIVATE": "MESSAGE"}, image=TEST_IMAGE, task_id="unittest"
         )
         assert operator._private_environment == {"PRIVATE": "MESSAGE"}, (
             "To keep this private, it must be an underscored attribute."
+        )
+
+    @mock.patch("airflow.providers.docker.operators.docker.StringIO")
+    def test_environment_overrides_env_file(self):
+        operator = DockerOperator(
+            command="env",
+            environment={"UNIT": "TEST"},
+            private_environment={"PRIVATE": "MESSAGE"},
+            image=TEST_IMAGE,
+            task_id="unittest",
+            entrypoint=TEST_ENTRYPOINT,
+            working_dir="/container/path",
+            host_tmp_dir=TEST_HOST_TEMP_DIRECTORY,
+            tmp_dir=TEST_AIRFLOW_TEMP_DIRECTORY,
+            container_name="test_container",
+            tty=True,
+        )
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once_with(
+            command="env",
+            name="test_container",
+            environment={
+                "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
+                "UNIT": "TEST",
+                "PRIVATE": "MESSAGE",
+            },
+            host_config=self.client_mock.create_host_config.return_value,
+            image=TEST_IMAGE,
+            user=None,
+            entrypoint=["sh", "-c"],
+            working_dir="/container/path",
+            tty=True,
+            hostname=None,
+            ports=[],
+            labels=None,
         )
 
     def test_execute_unicode_logs(self):
