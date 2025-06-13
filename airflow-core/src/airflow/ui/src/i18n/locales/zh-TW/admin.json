@@ -49,7 +49,8 @@
       "secondConfirmMessage": "此動作無法復原。",
       "thirdConfirmMessage": "您確定要繼續嗎？"
     },
-    "selected": "已選取"
+    "selected": "已選取",
+    "tooltip": "刪除所選連線"
   },
   "formActions":{
     "reset": "重置",
@@ -103,10 +104,12 @@
       "deleteVariable_other": "刪除 {{count}} 個變數",
       "firstConfirmMessage_one": "您即將刪除以下變數：",
       "firstConfirmMessage_other": "您即將刪除以下變數：",
-      "title": "刪除變數"
+      "title": "刪除變數",
+      "tooltip": "刪除所選變數"
     },
     "edit": "編輯變數",
     "export": "匯出",
+    "exportTooltip": "匯出所選變數",
     "form": {
       "invalidJson": "無效的 JSON",
       "keyMaxLength": "鍵最多只能包含 250 個字元",

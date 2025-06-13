@@ -61,6 +61,7 @@
     "advanced": "進階搜尋",
     "clear": "清除搜尋",
     "dags": "搜尋 Dags",
+    "hotkey": "+K",
     "tasks": "搜尋任務"
   },
   "sort": {
