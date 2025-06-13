@@ -73,7 +73,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DAG, DagModel, DagRun, Deadline
+from airflow.models import DAG, DagModel, DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -421,20 +421,6 @@ def trigger_dag_run(
             state=DagRunState.QUEUED,
             session=session,
         )
-
-        if dag_deadline := dag.get_dagrun_deadline():
-            Deadline.add_deadline(
-                Deadline(
-                    deadline=dag_deadline.reference.evaluate_with(
-                        interval=dag_deadline.interval,
-                        dag_id=dag.dag_id,
-                    ),
-                    callback=dag_deadline.callback,
-                    callback_kwargs=dag_deadline.callback_kwargs or {},
-                    dag_id=dag.dag_id,
-                    dagrun_id=dag_run.run_id,
-                )
-            )
 
         dag_run_note = body.note
         if dag_run_note:

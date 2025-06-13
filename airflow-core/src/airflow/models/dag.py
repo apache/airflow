@@ -70,6 +70,7 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import Deadline
 from airflow.models.asset import (
     AssetDagRunQueue,
     AssetModel,
@@ -1603,7 +1604,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if conf:
             copied_params.update(conf)
         copied_params.validate()
-        return _create_orm_dagrun(
+        orm_dagrun = _create_orm_dagrun(
             dag=self,
             run_id=run_id,
             logical_date=logical_date,
@@ -1618,6 +1619,22 @@ class DAG(TaskSDKDag, LoggingMixin):
             triggered_by=triggered_by,
             session=session,
         )
+
+        if dag_deadline := self.get_dagrun_deadline():
+            Deadline.add_deadline(
+                Deadline(
+                    deadline=dag_deadline.reference.evaluate_with(
+                        interval=dag_deadline.interval,
+                        dag_id=self.dag_id,
+                    ),
+                    callback=dag_deadline.callback,
+                    callback_kwargs=dag_deadline.callback_kwargs or {},
+                    dag_id=self.dag_id,
+                    dagrun_id=orm_dagrun.id,
+                )
+            )
+
+        return orm_dagrun
 
     @classmethod
     @provide_session
