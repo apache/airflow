@@ -642,7 +642,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 log = structlog.get_logger(logger_name="task")
-SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
+SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]  # Will be initialized when needed
 
 # State machine!
 # 1. Start up (receive details from supervisor)
@@ -660,7 +660,6 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         log.info("Using serialized startup message from environment")
         msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
         log.info("Trying to open in rexec", fd=msg)
-        SUPERVISOR_COMMS.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
     else:
         msg = SUPERVISOR_COMMS._get_response()
         log.info("Received startup message", msg_type=type(msg).__name__)
@@ -1262,6 +1261,9 @@ def finalize(
 def main():
     # TODO: add an exception here, it causes an oof of a stack trace if it happens to early!
     log = structlog.get_logger(logger_name="task")
+
+    global SUPERVISOR_COMMS
+    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
     try:
         ti, context, log = startup()
