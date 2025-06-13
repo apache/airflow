@@ -14,7 +14,18 @@
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
     "title": "Run Backfill",
-    "unpause": "Unpause {{dag_display_name}} on trigger"
+    "toaster": {
+      "success": {
+        "description": "Backfill jobs have been successfully triggered.",
+        "title": "Backfill generated"
+      }
+    },
+    "tooltip": "Backfill requires a schedule",
+    "unpause": "Unpause {{dag_display_name}} on trigger",
+    "validation": {
+      "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
+      "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
+    }
   },
   "banner": {
     "backfillInProgress": "Backfill in progress",
@@ -25,6 +36,7 @@
   "clipboard": {
     "copy": "Copy"
   },
+  "close": "Close",
   "configForm": {
     "advancedOptions": "Advanced Options",
     "configJson": "Configuration JSON",
@@ -93,6 +105,12 @@
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",
     "title": "Trigger Dag",
+    "toaster": {
+      "success": {
+        "description": "Dag run has been successfully triggered.",
+        "title": "Dag Run Triggered"
+      }
+    },
     "unpause": "Unpause {{dagDisplayName}} on trigger"
   },
   "trimText": {
