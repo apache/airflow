@@ -1,234 +1,271 @@
 {
   "admin": {
-    "Config": "कॉन्फ़िग",
-    "Connections": "कनेक्शन",
-    "Plugins": "प्लगइन्स",
-    "Pools": "पूल्स",
-    "Providers": "प्रदाताओं",
-    "Variables": "वेरिएबल्स"
+    "Config": "Config",
+    "Connections": "Connections",
+    "Plugins": "Plugins",
+    "Pools": "Pools",
+    "Providers": "Providers",
+    "Variables": "Variables"
   },
-  "asset_one": "संपत्ति",
-  "asset_other": "संपत्तियाँ",
-  "assetEvent_one": "एसेट इवेंट",
-  "assetEvent_other": "एसेट इवेंट्स",
-  "backfill_one": "बैकफिल",
-  "backfill_other": "बैकफिल्स",
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
+  "backfill_one": "Backfill",
+  "backfill_other": "Backfills",
   "browse": {
-    "auditLog": "ऑडिट लॉग",
-    "xcoms": "एक्सकॉम्स"
+    "auditLog": "Audit Log",
+    "xcoms": "XComs"
   },
-  "createdAssetEvent_one": "एसेट इवेंट बनाया गया",
-  "createdAssetEvent_other": "एसेट इवेंट्स बनाए गए",
-  "dag_one": "डैग",
-  "dag_other": "डैग्स",
+  "createdAssetEvent_one": "Created Asset Event",
+  "createdAssetEvent_other": "Created Asset Events",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
   "dagDetails": {
-    "catchup": "कैचअप",
-    "concurrency": "कॉनकरेंसी",
-    "dagRunTimeout": "डैग रन टाइमआउट",
-    "defaultArgs": "डिफ़ॉल्ट आर्ग्स",
-    "description": "विवरण",
-    "documentation": "डैग दस्तावेज़",
-    "fileLocation": "फ़ाइल स्थान",
-    "hasTaskConcurrencyLimits": "टास्क कॉनकरेंसी सीमा है",
-    "lastExpired": "अंतिम समाप्त",
-    "lastParsed": "अंतिम पार्स",
-    "latestDagVersion": "नवीनतम डैग संस्करण",
-    "latestRun": "नवीनतम रन",
-    "maxActiveRuns": "अधिकतम सक्रिय रन",
-    "maxActiveTasks": "अधिकतम सक्रिय कार्य",
-    "maxConsecutiveFailedDagRuns": "अधिकतम लगातार विफल डैग रन",
-    "nextRun": "अगला रन",
-    "owner": "मालिक",
-    "params": "पैरामीटर",
-    "schedule": "अनुसूची",
-    "tags": "टैग्स"
+    "catchup": "Catchup",
+    "concurrency": "Concurrency",
+    "dagRunTimeout": "Dag Run Timeout",
+    "defaultArgs": "Default Args",
+    "description": "Description",
+    "documentation": "Dag Documentation",
+    "fileLocation": "File Location",
+    "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
+    "lastExpired": "Last Expired",
+    "lastParsed": "Last Parsed",
+    "latestDagVersion": "Latest Dag Version",
+    "latestRun": "Latest Run",
+    "maxActiveRuns": "Max Active Runs",
+    "maxActiveTasks": "Max Active Tasks",
+    "maxConsecutiveFailedDagRuns": "Max Consecutive Failed Dag Runs",
+    "nextRun": "Next Run",
+    "owner": "Owner",
+    "params": "Params",
+    "schedule": "Schedule",
+    "tags": "Tags"
   },
-  "dagId": "डैग आईडी",
+  "dagId": "Dag ID",
   "dagRun": {
-    "conf": "कॉन्फ़िग",
-    "dagVersions": "डैग संस्करण",
-    "dataIntervalEnd": "डेटा अंतराल समाप्त",
-    "dataIntervalStart": "डेटा अंतराल प्रारंभ",
-    "lastSchedulingDecision": "अंतिम शेड्यूलिंग निर्णय",
-    "queuedAt": "कतार में डाला गया",
-    "runAfter": "इसके बाद रन करें",
-    "runType": "रन प्रकार",
-    "sourceAssetEvent": "स्रोत एसेट इवेंट",
-    "triggeredBy": "द्वारा प्रारंभ"
+    "conf": "Conf",
+    "dagVersions": "Dag Version(s)",
+    "dataIntervalEnd": "Data Interval End",
+    "dataIntervalStart": "Data Interval Start",
+    "lastSchedulingDecision": "Last Scheduling Decision",
+    "queuedAt": "Queued At",
+    "runAfter": "Run After",
+    "runType": "Run Type",
+    "sourceAssetEvent": "Source Asset Event",
+    "triggeredBy": "Triggered By"
   },
-  "dagRun_one": "डैग रन",
-  "dagRun_other": "डैग रन",
-  "dagWarnings": "डैग चेतावनियाँ/त्रुटियाँ",
-  "defaultToGraphView": "डिफ़ॉल्ट ग्राफ़ दृश्य",
-  "defaultToGridView": "डिफ़ॉल्ट ग्रिड दृश्य",
-  "direction": "दिशा",
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "dagWarnings": "Dag warnings/errors",
+  "defaultToGraphView": "Default to graph view",
+  "defaultToGridView": "Default to grid view",
+  "direction": "Direction",
   "docs": {
-    "documentation": "दस्तावेज़",
-    "githubRepo": "GitHub रिपो",
-    "restApiReference": "REST API संदर्भ"
+    "documentation": "Documentation",
+    "githubRepo": "GitHub Repo",
+    "restApiReference": "REST API Reference"
   },
-  "duration": "अवधि",
-  "endDate": "समाप्ति तिथि",
+  "duration": "Duration",
+  "endDate": "End Date",
   "error": {
-    "back": "वापस",
-    "defaultMessage": "एक अप्रत्याशित त्रुटि हुई",
-    "home": "मुख्य पृष्ठ",
-    "notFound": "पृष्ठ नहीं मिला",
-    "title": "त्रुटि"
+    "back": "Back",
+    "defaultMessage": "An unexpected error occurred",
+    "home": "Home",
+    "notFound": "Page Not Found",
+    "title": "Error"
   },
   "expression": {
-    "all": "सभी",
-    "and": "और",
-    "any": "कोई भी",
-    "or": "या"
+    "all": "All",
+    "and": "AND",
+    "any": "Any",
+    "or": "OR"
   },
-  "logicalDate": "लॉजिकल तिथि",
-  "logout": "लॉग आउट",
-  "logoutConfirmation": "आप एप्लिकेशन से लॉग आउट करने वाले हैं।",
-  "mapIndex": "मैप इंडेक्स",
+  "logicalDate": "Logical Date",
+  "logout": "Logout",
+  "logoutConfirmation": "You are about to logout from the application.",
+  "mapIndex": "Map Index",
   "modal": {
-    "cancel": "रद्द करें",
-    "confirm": "पुष्टि करें",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
     "delete": {
-      "button": "हटाएं",
-      "confirmation": "क्या आप वाकई {{resourceName}} को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।"
+      "button": "Delete",
+      "confirmation": "Are you sure you want to delete {{resourceName}}? This action cannot be undone."
     }
   },
   "nav": {
-    "admin": "प्रशासन",
-    "assets": "संपत्तियाँ",
-    "browse": "ब्राउज़ करें",
-    "dags": "डैग्स",
-    "docs": "दस्तावेज़",
-    "home": "मुख्य पृष्ठ",
-    "plugins": "प्लगइन्स",
-    "security": "सुरक्षा"
+    "admin": "Admin",
+    "assets": "Assets",
+    "browse": "Browse",
+    "dags": "Dags",
+    "docs": "Docs",
+    "home": "Home",
+    "plugins": "Plugins",
+    "security": "Security"
   },
-  "noItemsFound": "कोई {{modelName}} नहीं मिला",
+  "noItemsFound": "No {{modelName}} found",
   "note": {
-    "add": "टिप्पणी जोड़ें",
-    "dagRun": "डैग रन टिप्पणी",
-    "label": "टिप्पणी",
-    "placeholder": "टिप्पणी जोड़ें...",
-    "taskInstance": "टास्क इंस्टेंस टिप्पणी"
+    "add": "Add a note",
+    "dagRun": "Dag Run Note",
+    "label": "Note",
+    "placeholder": "Add a note...",
+    "taskInstance": "Task Instance Note"
   },
   "pools": {
-    "deferred": "स्थगित",
-    "open": "खुला",
-    "pools_one": "पूल",
-    "pools_other": "पूल्स",
-    "queued": "कतारबद्ध",
-    "running": "चालू",
-    "scheduled": "निर्धारित"
+    "deferred": "Deferred",
+    "open": "Open",
+    "pools_one": "pool",
+    "pools_other": "pools",
+    "queued": "Queued",
+    "running": "Running",
+    "scheduled": "Scheduled"
   },
-  "runId": "रन आईडी",
+  "runId": "Run ID",
   "runTypes": {
-    "asset_triggered": "एसेट से प्रारंभ",
-    "backfill": "बैकफिल",
-    "manual": "मैनुअल",
-    "scheduled": "निर्धारित"
+    "asset_triggered": "Asset Triggered",
+    "backfill": "Backfill",
+    "manual": "Manual",
+    "scheduled": "Scheduled"
   },
-  "seconds": "{{count}} सेकंड",
+  "seconds": "{{count}}s",
   "security": {
-    "actions": "क्रियाएँ",
-    "permissions": "अनुमतियाँ",
-    "resources": "संसाधन",
-    "roles": "भूमिकाएँ",
-    "users": "उपयोगकर्ता"
+    "actions": "Actions",
+    "permissions": "Permissions",
+    "resources": "Resources",
+    "roles": "Roles",
+    "users": "Users"
   },
-  "selectLanguage": "भाषा चुनें",
-  "sourceAssetEvent_one": "स्रोत एसेट इवेंट",
-  "sourceAssetEvent_other": "स्रोत एसेट इवेंट्स",
-  "startDate": "प्रारंभ तिथि",
-  "state": "स्थिति",
+  "selectLanguage": "Select Language",
+  "sourceAssetEvent_one": "Source Asset Event",
+  "sourceAssetEvent_other": "Source Asset Events",
+  "startDate": "Start Date",
+  "state": "State",
   "states": {
-    "deferred": "स्थगित",
-    "failed": "विफल",
-    "no_status": "कोई स्थिति नहीं",
-    "none": "कोई स्थिति नहीं",
-    "queued": "कतारबद्ध",
-    "removed": "हटाया गया",
-    "restarting": "पुनः प्रारंभ हो रहा है",
-    "running": "चालू",
-    "scheduled": "निर्धारित",
-    "skipped": "छोड़ा गया",
-    "success": "सफल",
-    "up_for_reschedule": "पुनः अनुसूची के लिए तैयार",
-    "up_for_retry": "पुनः प्रयास के लिए तैयार",
-    "upstream_failed": "अपस्ट्रीम विफल"
+    "deferred": "Deferred",
+    "failed": "Failed",
+    "no_status": "No Status",
+    "none": "No Status",
+    "queued": "Queued",
+    "removed": "Removed",
+    "restarting": "Restarting",
+    "running": "Running",
+    "scheduled": "Scheduled",
+    "skipped": "Skipped",
+    "success": "Success",
+    "up_for_reschedule": "Up For Reschedule",
+    "up_for_retry": "Up For Retry",
+    "upstream_failed": "Upstream Failed"
   },
-  "switchToDarkMode": "डार्क मोड पर स्विच करें",
-  "switchToLightMode": "लाइट मोड पर स्विच करें",
+  "switchToDarkMode": "Switch to Dark Mode",
+  "switchToLightMode": "Switch to Light Mode",
   "table": {
-    "completedAt": "पूर्ण हुआ समय",
-    "createdAt": "निर्माण समय",
-    "filterByTag": "टैग द्वारा डैग्स फ़िल्टर करें",
-    "filterColumns": "टेबल कॉलम फ़िल्टर करें",
-    "filterReset_one": "फ़िल्टर रीसेट करें",
-    "filterReset_other": "फ़िल्टर्स रीसेट करें",
-    "from": "से",
-    "maxActiveRuns": "अधिकतम सक्रिय रन",
-    "noTagsFound": "कोई टैग नहीं मिला",
+    "completedAt": "Completed at",
+    "createdAt": "Created at",
+    "filterByTag": "Filter Dags by tag",
+    "filterColumns": "Filter table columns",
+    "filterReset_one": "Reset filter",
+    "filterReset_other": "Reset filters",
+    "from": "From",
+    "maxActiveRuns": "Max Active Runs",
+    "noTagsFound": "No tags found",
     "tagMode": {
-      "all": "सभी",
-      "any": "कोई भी"
+      "all": "All",
+      "any": "Any"
     },
-    "tagPlaceholder": "टैग द्वारा फ़िल्टर करें",
-    "to": "तक"
+    "tagPlaceholder": "Filter by tag",
+    "to": "To"
   },
   "task": {
-    "documentation": "टास्क दस्तावेज़",
-    "lastInstance": "अंतिम इंस्टेंस",
-    "operator": "ऑपरेटर",
-    "triggerRule": "ट्रिगर नियम"
+    "documentation": "Task Documentation",
+    "lastInstance": "Last Instance",
+    "operator": "Operator",
+    "triggerRule": "Trigger Rule"
   },
-  "task_one": "टास्क",
-  "task_other": "टास्क्स",
-  "taskId": "टास्क आईडी",
+  "task_one": "Task",
+  "task_other": "Tasks",
+  "taskId": "Task ID",
   "taskInstance": {
-    "dagVersion": "डैग संस्करण",
-    "executor": "एग्जीक्यूटर",
-    "executorConfig": "एग्जीक्यूटर कॉन्फ़िग",
-    "hostname": "होस्टनाम",
-    "maxTries": "अधिकतम प्रयास",
+    "dagVersion": "Dag Version",
+    "executor": "Executor",
+    "executorConfig": "Executor Config",
+    "hostname": "Hostname",
+    "maxTries": "Max Tries",
     "pid": "PID",
-    "pool": "पूल",
-    "poolSlots": "पूल स्लॉट्स",
-    "priorityWeight": "प्राथमिकता भार",
-    "queue": "कतार",
-    "queuedWhen": "कतार में डाले गए समय पर",
-    "scheduledWhen": "निर्धारित समय पर",
+    "pool": "Pool",
+    "poolSlots": "Pool Slots",
+    "priorityWeight": "Priority Weight",
+    "queue": "Queue",
+    "queuedWhen": "Queued At",
+    "scheduledWhen": "Scheduled At",
     "triggerer": {
-      "assigned": "सौंपा गया ट्रिगरर",
-      "class": "ट्रिगर क्लास",
-      "createdAt": "ट्रिगर निर्माण समय",
-      "id": "ट्रिगर आईडी",
-      "latestHeartbeat": "नवीनतम ट्रिगरर हार्टबीट",
-      "title": "ट्रिगरर जानकारी"
+      "assigned": "Assigned triggerer",
+      "class": "Trigger class",
+      "createdAt": "Trigger creation time",
+      "id": "Trigger ID",
+      "latestHeartbeat": "Latest triggerer heartbeat",
+      "title": "Triggerer Info"
     },
-    "unixname": "यूनिक्स नाम"
+    "unixname": "Unix Name"
   },
-  "taskInstance_one": "टास्क इंस्टेंस",
-  "taskInstance_other": "टास्क इंस्टेंसेस",
+  "taskInstance_one": "Task Instance",
+  "taskInstance_other": "Task Instances",
   "timeRange": {
-    "last12Hours": "पिछले 12 घंटे",
-    "last24Hours": "पिछले 24 घंटे",
-    "lastHour": "पिछला घंटा",
-    "pastWeek": "पिछला सप्ताह"
+    "last12Hours": "Last 12 Hours",
+    "last24Hours": "Last 24 Hours",
+    "lastHour": "Last Hour",
+    "pastWeek": "Past Week"
   },
-  "timezone": "समय क्षेत्र",
+  "timezone": "Timezone",
   "timezoneModal": {
-    "current-timezone": "वर्तमान समय",
-    "placeholder": "समय क्षेत्र चुनें",
-    "title": "समय क्षेत्र चुनें",
-    "utc": "UTC (कोऑर्डिनेटेड यूनिवर्सल टाइम)"
+    "current-timezone": "Current time in",
+    "placeholder": "Select a timezone",
+    "title": "Select Timezone",
+    "utc": "UTC (Coordinated Universal Time)"
   },
-  "triggered": "प्रारंभ किया गया",
-  "tryNumber": "प्रयास संख्या",
-  "user": "उपयोगकर्ता",
+  "toaster": {
+    "bulkDelete": {
+      "error": "Bulk Delete {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
+        "title": "Bulk Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "create": {
+      "error": "Create {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully created.",
+        "title": "Create {{resourceName}} Request Submitted"
+      }
+    },
+    "delete": {
+      "error": "Delete {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully deleted.",
+        "title": "Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "import": {
+      "error": "Import {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully imported.",
+        "title": "Import {{resourceName}} Request Submitted"
+      }
+    },
+    "update": {
+      "error": "Update {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully updated.",
+        "title": "Update {{resourceName}} Request Submitted"
+      }
+    }
+  },
+  "triggered": "Triggered",
+  "tryNumber": "Try Number",
+  "user": "User",
   "wrap": {
-    "tooltip": "रैप टॉगल करने के लिए w दबाएँ",
-    "unwrap": "अनरैप करें",
-    "wrap": "रैप करें"
+    "tooltip": "Press {{hotkey}} to toggle wrap",
+    "unwrap": "Unwrap",
+    "wrap": "Wrap"
   }
 }
