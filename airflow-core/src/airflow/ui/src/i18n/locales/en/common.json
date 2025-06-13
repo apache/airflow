@@ -136,6 +136,7 @@
     "roles": "Roles",
     "users": "Users"
   },
+  "selected": "Selected",
   "selectLanguage": "Select Language",
   "sourceAssetEvent_one": "Source Asset Event",
   "sourceAssetEvent_other": "Source Asset Events",
