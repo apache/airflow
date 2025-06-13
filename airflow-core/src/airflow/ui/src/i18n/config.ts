@@ -39,6 +39,8 @@ import heDashboard from "./locales/he/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
+import nlConnections from "./locales/nl/connections.json";
+import nlDags from "./locales/nl/dags.json";
 import nlDashboard from "./locales/nl/dashboard.json";
 import plAdmin from "./locales/pl/admin.json";
 import plCommon from "./locales/pl/common.json";
@@ -99,6 +101,8 @@ const resources = {
   },
   nl: {
     common: nlCommon,
+    connections: nlConnections,
+    dags: nlDags,
     dashboard: nlDashboard,
   },
   pl: {
