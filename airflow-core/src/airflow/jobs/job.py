@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from functools import cached_property, lru_cache
+from multiprocessing import Process
 from time import sleep
 from typing import TYPE_CHECKING, Callable, NoReturn
 
@@ -352,6 +354,29 @@ def run_job(
     job.prepare_for_execution(session=session)
     try:
         return execute_job(job, execute_callable=execute_callable)
+    finally:
+        job.complete_execution(session=session)
+
+@provide_session
+def run_job_async(
+    job: Job, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
+) -> int | None:
+    """
+    Run the job asynchronously.
+
+    The Job is always an ORM object and setting the state is happening within the
+    same DB session and the session is kept open throughout the whole execution.
+
+    :meta private:
+    """
+    def execute_async_job() -> int | None:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        return execute_job(job, execute_callable)
+
+    job.prepare_for_execution(session=session)
+    try:
+        process = Process(target=execute_async_job)
+        process.start()
     finally:
         job.complete_execution(session=session)
 

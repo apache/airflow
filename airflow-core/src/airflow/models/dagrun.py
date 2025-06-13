@@ -2009,6 +2009,15 @@ class DagRun(Base, LoggingMixin):
     def _get_partial_task_ids(dag: DAG | None) -> list[str] | None:
         return dag.task_ids if dag and dag.partial else None
 
+    @classmethod
+    def get_dag_run(cls, dag_id: str, run_id: str, session: Session) -> DagRun | None:
+        return session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag_id,
+                DagRun.run_id == run_id,
+            )
+        ).one_or_none()
+
 
 class DagRunNote(Base):
     """For storage of arbitrary notes concerning the dagrun instance."""
