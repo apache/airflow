@@ -23,7 +23,7 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "自動回填",
-    "concurrency": "同時執行數",
+    "concurrency": "並行數",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
     "description": "描述",
