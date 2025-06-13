@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-13T14:06:01.295241
+# This constraints file was automatically generated on 2025-06-13T19:58:29.689707
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -652,7 +652,7 @@ python-telegram-bot==22.1
 python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
-pyzmq==26.4.0
+pyzmq==27.0.0
 qdrant-client==1.14.2
 ray==2.42.0
 reactivex==4.0.4
