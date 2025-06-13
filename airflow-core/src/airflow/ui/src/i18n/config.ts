@@ -34,6 +34,8 @@ import enComponents from "./locales/en/components.json";
 import enDag from "./locales/en/dag.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
+import heAdmin from "./locales/he/admin.json";
+import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
 import heDashboard from "./locales/he/dashboard.json";
 import hiAdmin from "./locales/hi/admin.json";
@@ -59,6 +61,7 @@ import zhTWAssets from "./locales/zh-TW/assets.json";
 import zhTWBrowse from "./locales/zh-TW/browse.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
 import zhTWComponents from "./locales/zh-TW/components.json";
+import zhTWDag from "./locales/zh-TW/dag.json";
 import zhTWDags from "./locales/zh-TW/dags.json";
 import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 
@@ -99,6 +102,8 @@ const resources = {
     dashboard: enDashboard,
   },
   he: {
+    admin: heAdmin,
+    browse: heBrowse,
     common: heCommon,
     dashboard: heDashboard,
   },
@@ -134,6 +139,7 @@ const resources = {
     browse: zhTWBrowse,
     common: zhTWCommon,
     components: zhTWComponents,
+    dag: zhTWDag,
     dags: zhTWDags,
     dashboard: zhTWDashboard,
   },
