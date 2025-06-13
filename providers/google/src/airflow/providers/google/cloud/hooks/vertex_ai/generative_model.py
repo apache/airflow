@@ -117,11 +117,11 @@ class GenerativeModelHook(GoogleBaseHook):
         self,
         contents: list,
         location: str,
+        pretrained_model: str,
         tools: list | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
         system_instruction: str | None = None,
-        pretrained_model: str = "gemini-pro",
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
         """
@@ -135,7 +135,7 @@ class GenerativeModelHook(GoogleBaseHook):
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
         :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
         :param system_instruction: Optional. An instruction given to the model to guide its behavior.
-        :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+        :param pretrained_model: Required. Model,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
@@ -212,7 +212,7 @@ class GenerativeModelHook(GoogleBaseHook):
         self,
         contents: list,
         location: str,
-        pretrained_model: str = "gemini-pro",
+        pretrained_model: str,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types_v1beta1.CountTokensResponse:
         """
@@ -222,7 +222,7 @@ class GenerativeModelHook(GoogleBaseHook):
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param contents: Required. The multi-part content of a message that a user or a program
             gives to the generative model, in order to elicit a specific response.
-        :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+        :param pretrained_model: Required. Model,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
