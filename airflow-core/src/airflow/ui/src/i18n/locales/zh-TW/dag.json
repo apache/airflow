@@ -1,5 +1,5 @@
 {
-  "allRuns": "所有運行",
+  "allRuns": "所有執行",
   "blockingDeps": {
     "dependency": "依賴 (Dependencies)",
     "reason": "原因",
@@ -36,8 +36,8 @@
       "failedTaskInstance_other": "失敗的任務實例"
     },
     "charts": {
-      "assetEvent_one": "已建立資產事件",
-      "assetEvent_other": "已建立資產事件"
+      "assetEvent_one": "已建立資源事件",
+      "assetEvent_other": "已建立資源事件"
     },
     "failedLogs": {
       "title": "最近失敗任務的日誌",
@@ -60,7 +60,7 @@
         "externalConditions": "外部條件",
         "onlyTasks": "僅限任務"
       },
-      "placeholder": " (Dependencies)"
+      "placeholder": "依賴 (Dependencies)"
     },
     "graphDirection": {
       "label": "圖表方向"
