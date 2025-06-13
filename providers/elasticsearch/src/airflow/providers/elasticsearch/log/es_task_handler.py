@@ -354,7 +354,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     "Otherwise, the logs for this task instance may have been removed."
                 )
                 if AIRFLOW_V_3_0_PLUS:
-                    return missing_log_message, metadata
+                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                    return [StructuredLogMessage(event=missing_log_message)], metadata
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
