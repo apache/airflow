@@ -16,37 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, HStack } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
+import { useAssetServiceGetAssetEvents, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEvents";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
-export const ExtraLinks = () => {
-  const { t: translate } = useTranslation();
+export const AssetEvents = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
-  const { data } = useTaskInstanceServiceGetExtraLinks({
+  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
     dagRunId: runId,
     mapIndex: parseInt(mapIndex, 10),
     taskId,
   });
 
-  return data && Object.keys(data.extra_links).length > 0 ? (
-    <Box py={1}>
-      <Heading size="sm">{translate("dag.extraLinks")}</Heading>
-      <HStack gap={2} py={2}>
-        {Object.entries(data.extra_links).map(([key, value], _) =>
-          value === null ? undefined : (
-            <Button asChild colorPalette="blue" key={key} variant="surface">
-              <a href={value} rel="noopener noreferrer" target="_blank">
-                {key}
-              </a>
-            </Button>
-          ),
-        )}
-      </HStack>
-    </Box>
-  ) : undefined;
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data: assetEventsData, isLoading } = useAssetServiceGetAssetEvents(
+    {
+      sourceDagId: dagId,
+      sourceMapIndex: parseInt(mapIndex, 10),
+      sourceRunId: runId,
+      sourceTaskId: taskId,
+    },
+    undefined,
+    {
+      refetchInterval: () => (isStatePending(taskInstance?.state) ? refetchInterval : false),
+    },
+  );
+
+  return (
+    <AssetEventsTable data={assetEventsData} isLoading={isLoading} titleKey="common:createdAssetEvent" />
+  );
 };

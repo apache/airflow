@@ -17,34 +17,34 @@
 # under the License.
 
 """
-Add Deadline to Dag.
+Delete import errors.
 
-Revision ID: dfee8bd5d574
+Revision ID: fe199e1abd77
 Revises: 29ce7909c52b
-Create Date: 2024-12-18 19:10:26.962464
+Create Date: 2025-06-10 08:53:28.782896
+
 """
 
 from __future__ import annotations
 
 import sqlalchemy as sa
-import sqlalchemy_jsonfield
 from alembic import op
 
-from airflow.settings import json
-
-revision = "dfee8bd5d574"
+# revision identifiers, used by Alembic.
+revision = "fe199e1abd77"
 down_revision = "29ce7909c52b"
 branch_labels = None
 depends_on = None
-airflow_version = "3.1.0"
+
+airflow_version = "3.0.3"
 
 
 def upgrade():
-    op.add_column(
-        "dag",
-        sa.Column("deadline", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
-    )
+    """Apply Delete import errors."""
+    # delete import_error table rows
+    op.get_bind().execute(sa.text("DELETE FROM import_error"))
 
 
 def downgrade():
-    op.drop_column("dag", "deadline")
+    """Unapply Delete import errors."""
+    pass

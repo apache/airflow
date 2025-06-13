@@ -1,34 +1,16 @@
 {
   "allRuns": "All Runs",
+  "blockingDeps": {
+    "dependency": "Dependency",
+    "reason": "Reason",
+    "title": "Dependencies Blocking Task From Getting Scheduled"
+  },
   "code": {
     "bundleUrl": "Bundle Url",
-    "bundleVersion": "Bundle Version:",
     "noCode": "No Code Found",
     "parsedAt": "Parsed at:"
   },
-  "details": {
-    "fields": {
-      "bundleVersion": "Bundle Version",
-      "catchup": "Catchup",
-      "concurrency": "Concurrency",
-      "dagId": "Dag ID",
-      "dagRunTimeout": "Dag Run Timeout",
-      "defaultArgs": "Default Args",
-      "description": "Description",
-      "endDate": "End Date",
-      "fileLocation": "File Location",
-      "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
-      "lastExpired": "Last Expired",
-      "lastParsed": "Last Parsed",
-      "latestDagVersion": "Latest Dag Version",
-      "maxActiveRuns": "Max Active Runs",
-      "maxActiveTasks": "Max Active Tasks",
-      "maxConsecutiveFailedDagRuns": "Max Consecutive Failed Dag Runs",
-      "params": "Params",
-      "startDate": "Start Date",
-      "timezone": "Timezone"
-    }
-  },
+  "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
       "resetToLatest": "Reset to latest",
@@ -38,28 +20,24 @@
   "header": {
     "buttons": {
       "dagDocs": "Dag Docs"
-    },
-    "modals": {
-      "docTitle": "Dag Documentation"
-    },
-    "stats": {
-      "latestDagVersion": "Latest Dag Version",
-      "latestRun": "Latest Run",
-      "nextRun": "Next Run",
-      "owner": "Owner",
-      "schedule": "Schedule",
-      "tags": "Tags"
     }
+  },
+  "logs": {
+    "noTryNumber": "No try number",
+    "viewInExternal": "View logs in {{name}} (attempt {{attempt}})"
   },
   "overview": {
     "buttons": {
       "failedRun_one": "Failed Run",
       "failedRun_other": "Failed Runs",
       "failedTask_one": "Failed Task",
-      "failedTask_other": "Failed Tasks"
+      "failedTask_other": "Failed Tasks",
+      "failedTaskInstance_one": "Failed Task Instance",
+      "failedTaskInstance_other": "Failed Task Instances"
     },
     "charts": {
-      "assetEvent": "Created Asset Event"
+      "assetEvent_one": "Created Asset Event",
+      "assetEvent_other": "Created Asset Events"
     },
     "failedLogs": {
       "title": "Recent Failed Task Logs",
@@ -88,22 +66,45 @@
       "label": "Graph Direction"
     }
   },
+  "paramsFailed": "Failed to load params",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
+        "title": "Dag Failed to Reparse"
+      },
+      "success": {
+        "description": "Dag should reparse soon.",
+        "title": "Reparsing request submitted successfully"
+      }
+    }
+  },
   "tabs": {
+    "assetEvents": "Asset Events",
+    "auditLog": "Audit Log",
     "backfills": "Backfills",
     "code": "Code",
     "details": "Details",
-    "events": "Events",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Task Instance [{{count}}]",
+    "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Overview",
+    "renderedTemplates": "Rendered Templates",
     "runs": "Runs",
-    "tasks": "Tasks"
-  },
-  "task": {
-    "card": {
-      "lastInstance": "Last Instance"
-    }
+    "taskInstances": "Task Instances",
+    "tasks": "Tasks",
+    "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
+  },
+  "taskLogs": {
+    "allLogLevels": "All Log Levels",
+    "allSources": "All Sources",
+    "fullscreen": {
+      "button": "Full screen",
+      "tooltip": "Press {{hotkey}} for fullscreen"
+    }
   }
 }
