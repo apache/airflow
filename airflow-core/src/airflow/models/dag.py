@@ -464,9 +464,12 @@ class DAG(TaskSDKDag, LoggingMixin):
                         "update the executor configuration for this task."
                     )
 
-    def get_dagrun_deadline(self) -> DeadlineAlert | None:
+    def get_dagrun_creation_deadlines(self) -> DeadlineAlert | None:
         """If the DAG has a deadline related to DagRun, return it; else return None."""
-        if not (deadline := self.deadline) or type(deadline.reference) not in DeadlineReference.TYPES.DAGRUN:
+        if (
+            not (deadline := self.deadline)
+            or type(deadline.reference) not in DeadlineReference.TYPES.DAGRUN_CREATED
+        ):
             return None
         return deadline
 
@@ -1620,7 +1623,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             session=session,
         )
 
-        if dag_deadline := self.get_dagrun_deadline():
+        if dag_deadline := self.get_dagrun_creation_deadlines():
             Deadline.add_deadline(
                 Deadline(
                     deadline=dag_deadline.reference.evaluate_with(

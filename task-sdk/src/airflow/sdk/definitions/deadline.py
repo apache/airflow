@@ -179,12 +179,19 @@ class DeadlineReference:
     class TYPES:
         """Collection of DeadlineReference types for type checking."""
 
-        # Consider a FIXED_DATETIME to be one of the dagrun-based Deadlines.
-        DAGRUN = {
+        # Deadlines that should be created when the DagRun is created.
+        DAGRUN_CREATED = {
             ReferenceModels.DagRunLogicalDateDeadline,
-            ReferenceModels.DagRunQueuedAtDeadline,
             ReferenceModels.FixedDatetimeDeadline,
         }
+
+        # Deadlines that should be created when the DagRun is queued.
+        DAGRUN_QUEUED = {
+            ReferenceModels.DagRunQueuedAtDeadline,
+        }
+
+        # All DagRun-related deadline types.
+        DAGRUN = DAGRUN_CREATED | DAGRUN_QUEUED
 
     from airflow.models.deadline import ReferenceModels
 

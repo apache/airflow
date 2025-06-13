@@ -1277,8 +1277,10 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run = session.merge(dag_run)
+        dag_run.dag = dag
+
         _, callback = dag_run.update_state()
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
@@ -1294,15 +1296,20 @@ class TestDagRun:
                 interval=interval,
                 callback=test_callback_for_deadline,
             ),
-        ):
+        ) as dag:
             ...
+        # Create the DAG run first without any deadline.
         dag_run = dag_maker.create_dagrun()
-        assert not dag_run.deadlines  # No deadline should exist yet
+        dag_run = session.merge(dag_run)
+        dag_run.dag = dag
+        assert not dag_run.deadlines  # No deadline should exist yet.
 
+        # Now set the state to QUEUED which will trigger the deadline evaluation.
         dag_run.set_state(DagRunState.QUEUED)
         session.flush()
-        dag_run = session.query(DagRun).get(dag_run.id)
 
+        # Refresh from DB to ensure we see the new deadline
+        dag_run = session.get(DagRun, dag_run.id)
         assert len(dag_run.deadlines) == 1
         assert dag_run.deadlines[0].deadline == dag_run.queued_at + interval
 

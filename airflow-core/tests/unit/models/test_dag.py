@@ -2047,17 +2047,17 @@ my_postgres_conn:
             pytest.param(
                 DeadlineReference.DAGRUN_LOGICAL_DATE,
                 False,
-                id="DAGRUN_LOGICAL_DATE is considered DagRun-related",
+                id="DAGRUN_LOGICAL_DATE is considered DagRun-creation related",
             ),
             pytest.param(
                 DeadlineReference.DAGRUN_QUEUED_AT,
-                False,
-                id="DAGRUN_QUEUED_AT is considered DagRun-related",
+                True,
+                id="DAGRUN_QUEUED_AT is not considered DagRun-creation related",
             ),
             pytest.param(
                 DeadlineReference.FIXED_DATETIME(DEFAULT_DATE),
                 False,
-                id="FIXED_DATETIME is considered DagRun-related",
+                id="FIXED_DATETIME is considered DagRun-creation related",
             ),
             pytest.param(
                 DeadlineReference._TEMPORARY_TEST_REFERENCE,
@@ -2071,7 +2071,7 @@ my_postgres_conn:
             ),
         ],
     )
-    def test_get_dagrun_deadline(self, reference, expect_none):
+    def test_get_dagrun_creation_deadlines(self, reference, expect_none):
         """Test that get_dagrun_deadline correctly identifies and returns DagRun-related deadline types."""
         deadline = (
             DeadlineAlert(
@@ -2085,7 +2085,7 @@ my_postgres_conn:
         expected_result = None if expect_none else deadline
 
         dag = DAG(dag_id="test_dag", deadline=deadline)
-        result = dag.get_dagrun_deadline()
+        result = dag.get_dagrun_creation_deadlines()
 
         assert result is expected_result
 
