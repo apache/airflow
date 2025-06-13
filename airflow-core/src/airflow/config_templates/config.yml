@@ -1430,15 +1430,6 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
-    enable_xcom_deserialize_support:
-      description: |
-        Indicates whether the **xcomEntries** endpoint supports the **deserialize**
-        flag. If set to ``False``, setting this flag in a request would result in a
-        400 Bad Request error.
-      type: boolean
-      version_added: 2.7.0
-      example: ~
-      default: "False"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
