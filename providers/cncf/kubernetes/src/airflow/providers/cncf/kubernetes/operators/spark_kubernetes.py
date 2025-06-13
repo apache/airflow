@@ -307,6 +307,33 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
         self.pod_request_obj = self.launcher.pod_spec
 
+        # ─── Inject XCom sidecar into the Spark driver ───────────────────────────────
+        if self.do_xcom_push:
+            xcom_volume = k8s.V1Volume(
+                name="xcom",
+                empty_dir=k8s.V1EmptyDirVolumeSource(),
+            )
+            xcom_mount = k8s.V1VolumeMount(
+                name="xcom",
+                mount_path="/airflow/xcom",
+            )
+            sidecar = k8s.V1Container(
+                name="airflow-xcom-sidecar",
+                image="alpine",
+                command=["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;'],
+                volume_mounts=[xcom_mount],
+                resources=k8s.V1ResourceRequirements(
+                    requests={"cpu": "1m", "memory": "10Mi"}
+                ),
+            )
+            spec = self.template_body.setdefault("spec", {})
+            spec.setdefault("volumes", []).append(xcom_volume)
+            driver = spec.setdefault("driver", {})
+            driver.setdefault("volumeMounts", []).append(xcom_mount)
+            driver.setdefault("sidecars", []).append(sidecar)
+            spec["driver"] = driver
+        # ────────────────────────────────────────────────────────────────────────────
+
         return super().execute(context=context)
 
     def on_kill(self) -> None:
