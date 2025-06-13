@@ -66,6 +66,19 @@
       "label": "Graph Direction"
     }
   },
+  "paramsFailed": "Failed to load params",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
+        "title": "Dag Failed to Reparse"
+      },
+      "success": {
+        "description": "Dag should reparse soon.",
+        "title": "Reparsing request submitted successfully"
+      }
+    }
+  },
   "tabs": {
     "assetEvents": "Asset Events",
     "auditLog": "Audit Log",
