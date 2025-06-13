@@ -34,6 +34,7 @@ import enComponents from "./locales/en/components.json";
 import enDag from "./locales/en/dag.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
+import heAdmin from "./locales/he/admin.json";
 import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
 import heDashboard from "./locales/he/dashboard.json";
@@ -92,6 +93,7 @@ const resources = {
     dashboard: enDashboard,
   },
   he: {
+    admin: heAdmin,
     browse: heBrowse,
     common: heCommon,
     dashboard: heDashboard,

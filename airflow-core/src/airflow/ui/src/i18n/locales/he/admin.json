@@ -1,0 +1,109 @@
+{
+  "columns": {
+    "description": "תיאור",
+    "key": "מפתח",
+    "name": "שם",
+    "value": "ערך"
+  },
+  "config": {
+    "columns": {
+      "section": "קטגוריה"
+    },
+    "title": "תצורת Airflow"
+  },
+  "connections": {
+    "add": "הוסף חיבור חדש",
+    "columns": {
+      "connectionId": "מזהה חיבור",
+      "connectionType": "סוג חיבור",
+      "host": "כתובת",
+      "port": "פורט"
+    },
+    "delete": {
+      "deleteConnection_one": "מחק חיבור אחד",
+      "deleteConnection_other": "מחק {{count}} חיבורים",
+      "firstConfirmMessage_one": "אתה עומד למחוק את החיבור הבא:",
+      "firstConfirmMessage_other": "אתה עומד למחוק את החיבורים הבאים:",
+      "title": "מחק חיבור"
+    },
+    "edit": "ערוך חיבור",
+    "form": {
+      "connectionIdRequired": "נדרש מזהה חיבור",
+      "connectionIdRequirement": "מזהה חיבור אינו יכול להכיל רווחים בלבד",
+      "connectionTypeRequired": "נדרש סוג חיבור",
+      "extraFields": "שדות נוספים",
+      "extraFieldsJson": "שדות נוספים JSON",
+      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת ה-Airflow Providers המתאימה",
+      "selectConnectionType": "בחר סוג חיבור",
+      "standardFields": "שדות סטנדרטיים"
+    },
+    "noRowMessage": "לא נמצאו חיבורים",
+    "searchPlaceholder": "חפש חיבורים",
+    "test": "בדוק חיבור",
+    "testDisabled": "אפשרות זו אינה זמינה. פנו למנהל המערכת להפעלתה"
+  },
+  "deleteActions": {
+    "button": "מחק",
+    "modal": {
+      "confirmButton": "אשר מחיקה",
+      "secondConfirmMessage": "פעולה זו איננה הפיכה"
+    }
+  },
+  "variables": {
+    "actions": {
+      "add": "הוסף משתנה חדש",
+      "import": "ייבא משתנים"
+    },
+    "delete": {
+      "deleteVariable_one": "מחק משתנה אחד",
+      "deleteVariable_other": "מחק {{count}} משתנים",
+      "firstConfirmMessage_one": "אתה עומד למחוק את המשתנה הבא:",
+      "firstConfirmMessage_other": "אתה עומד למחוק את המשתנים הבאים:",
+      "title": "מחק משתנה"
+    },
+    "description": "משתנים הם דרך להעביר מידע בין DAGs",
+    "edit": "ערוך משתנה",
+    "form": {
+      "key": "מפתח",
+      "keyRequired": "נדרש מפתח",
+      "value": "ערך",
+      "valueRequired": "נדרש ערך"
+    },
+    "import": {
+      "button": "ייבא",
+      "description": "ניתן לייבא קובץ JSON המכיל רשימת משתנים",
+      "title": "ייבא משתנים"
+    },
+    "noRowMessage": "לא נמצאו משתנים",
+    "searchPlaceholder": "חפש משתנים"
+  },
+  "מאגי משאבים": {
+    "actions": {
+      "add": "הוספת מאגר משאבים חדש",
+      "import": "ייבא ממאגר משאבים"
+    },
+    "delete": {
+      "deletePool_one": "מחק מאגר משאבים אחד",
+      "deletePool_other": "מחק {{count}} מאגרי משאבים",
+      "firstConfirmMessage_one": "אתה עומד למחוק את מאגר המשאבים הבא:",
+      "firstConfirmMessage_other": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
+      "title": "מחק מאגר משאבים"
+    },
+    "description": "מאגרי משאבים מגבילים את מספר המשימות המקבילות שרצות עבור קבוצות משימות מסוימות",
+    "edit": "ערוך מאגר משאבים",
+    "form": {
+      "description": "תיאור",
+      "name": "שם",
+      "nameRequired": "נדרש שם",
+      "slots": "מקומות",
+      "slotsRequired": "נדרש מספר מקומות"
+    },
+    "import": {
+      "button": "ייבא",
+      "description": "ניתן לייבא קובץ JSON המכיל רשימת מאגי משאבים",
+      "title": "ייבא מאגי משאבים"
+    },
+    "noRowMessage": "לא נמצאו מאגרי משאבים",
+    "searchPlaceholder": "חפש מאגרי משאבים"
+  }
+}
