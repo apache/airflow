@@ -36,7 +36,7 @@
 /airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
 
 # Translations (i18n)
-airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl
+airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # not codeowner but engaged: @TJaniF @m1racoli
 airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W
 airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # not codeowner but engaged: @DjVinnii
 airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # not codeowner but engaged: @kacpermuda
