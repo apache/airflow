@@ -61,6 +61,13 @@ def get_provider_info():
                         "example": None,
                         "default": "http://host.docker.internal:48080",
                     },
+                    "all_admins": {
+                        "description": "If set to True, all users authenticated by Keycloak will be granted the Admin role in Airflow.\nThis is useful for testing purposes, but should not be used in production.\n",
+                        "type": "boolean",
+                        "version_added": "1.0.0",
+                        "example": None,
+                        "default": None,
+                    },
                 },
             }
         },

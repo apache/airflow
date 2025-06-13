@@ -76,7 +76,7 @@ airflow-core/src/airflow/ui/src/i18n/locales/he/ @eladkal @shahar1 @romsharon98
 /providers/edge3/ @jscheffl
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
-/providers/keycloak/ @vincbeck
+/providers/keycloak/ @vincbeck @bugraoz93
 /providers/openlineage/ @mobuchowski
 /providers/slack/ @eladkal
 /providers/smtp/ @hussein-awala

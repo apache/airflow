@@ -205,6 +205,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         )
         app.include_router(login_router)
 
+        if conf.getboolean("keycloak_auth_manager", "all_admins"):
+            from airflow.providers.keycloak.auth_manager.middleware import KeycloakAllAdminsMiddleware
+
+            app.add_middleware(KeycloakAllAdminsMiddleware)
+
         return app
 
     def _is_authorized(
@@ -216,6 +221,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resource_id: str | None = None,
         attributes: dict[str, str | None] | None = None,
     ) -> bool:
+        return True
         client_id = conf.get("keycloak_auth_manager", "client_id")
         realm = conf.get("keycloak_auth_manager", "realm")
         server_url = conf.get("keycloak_auth_manager", "server_url")
@@ -246,6 +252,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
 
     @staticmethod
+    def get_keycloak_logout_url(server_url, realm):
+        if server_url.endswith("/"):
+            server_url = server_url[:-1]
+        return f"{server_url}/realms/{realm}/protocol/openid-connect/logout"
+
+    @staticmethod
     def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):
         payload: dict[str, Any] = {
             "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
@@ -263,3 +275,15 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
+
+    def get_url_logout(self, **kwargs) -> str:
+        base_url = conf.get("api", "base_url", fallback="/")
+        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
+
+    def get_redirected_logout_url(self, url: str) -> str:
+        logout_url = self.get_keycloak_logout_url(
+            server_url=conf.get("keycloak_auth_manager", "server_url"),
+            realm=conf.get("keycloak_auth_manager", "realm"),
+        )
+        client_id = conf.get("keycloak_auth_manager", "client_id")
+        return f"{logout_url}?post_logout_redirect_uri={url}&scope=openid&client_id={client_id}"

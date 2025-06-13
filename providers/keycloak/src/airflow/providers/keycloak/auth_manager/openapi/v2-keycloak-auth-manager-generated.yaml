@@ -1,0 +1,232 @@
+openapi: 3.1.0
+info:
+  title: Keycloak auth manager sub application
+  description: This is the Keycloak auth manager fastapi sub application. This API
+    is only available if the auth manager used in the Airflow environment is Keycloak
+    auth manager. This sub application provides login routes.
+  version: 0.1.0
+paths:
+  /login:
+    get:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Login
+      description: Initiate the authentication.
+      operationId: login
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /login_callback:
+    get:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Login Callback
+      description: Authenticate the user.
+      operationId: login_callback
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /logout:
+    get:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Logout
+      description: Logout the user.
+      operationId: logout
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /token:
+    get:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Create Token All Admins
+      description: Create a token with no credentials only if ``simple_auth_manager_all_admins``
+        is True.
+      operationId: create_token_all_admins
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+    post:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Create Token
+      description: Authenticate the user.
+      operationId: create_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /token/login:
+    get:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Login All Admins
+      description: Login the user with no credentials.
+      operationId: login_all_admins
+      responses:
+        '307':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+  /token/cli:
+    post:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Create Token Cli
+      description: Authenticate the user for the CLI.
+      operationId: create_token_cli
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    HTTPExceptionResponse:
+      properties:
+        detail:
+          anyOf:
+          - type: string
+          - additionalProperties: true
+            type: object
+          title: Detail
+      type: object
+      required:
+      - detail
+      title: HTTPExceptionResponse
+      description: HTTPException Model used for error response.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LoginBody:
+      properties:
+        username:
+          type: string
+          title: Username
+        password:
+          type: string
+          title: Password
+      additionalProperties: false
+      type: object
+      required:
+      - username
+      - password
+      title: LoginBody
+      description: Login serializer for post bodies.
+    LoginResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+      type: object
+      required:
+      - access_token
+      title: LoginResponse
+      description: Login serializer for responses.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
