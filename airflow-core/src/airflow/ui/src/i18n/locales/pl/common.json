@@ -59,11 +59,6 @@
   },
   "duration": "Czas trwania",
   "endDate": "Data zakończenia",
-  "expand": {
-    "collapse": "Zwiń",
-    "expand": "Rozwiń",
-    "tooltip": "Naciśnij {{hotkey}}, aby przełączyć rozwijanie"
-  },
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",

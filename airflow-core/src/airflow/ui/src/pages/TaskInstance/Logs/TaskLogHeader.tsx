@@ -203,6 +203,7 @@ export const TaskLogHeader = ({
             <ButtonGroup attached size="md" variant="outline">
               <IconButton
                 aria-label={translate("expand.expand")}
+                bg="bg.panel"
                 disabled={expanded}
                 onClick={expanded ? undefined : toggleExpanded}
                 size="md"
@@ -212,6 +213,7 @@ export const TaskLogHeader = ({
               </IconButton>
               <IconButton
                 aria-label={translate("expand.collapse")}
+                bg="bg.panel"
                 disabled={!expanded}
                 onClick={expanded ? toggleExpanded : undefined}
                 size="md"

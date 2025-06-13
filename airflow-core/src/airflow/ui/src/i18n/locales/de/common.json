@@ -63,11 +63,6 @@
   },
   "duration": "Laufzeit",
   "endDate": "Enddatum",
-  "expand": {
-    "collapse": "Einklappen",
-    "expand": "Erweitern",
-    "tooltip": "Drücken Sie {{hotkey}}, um zu erweitern"
-  },
   "expression": {
     "all": "Alle",
     "and": "UND",
