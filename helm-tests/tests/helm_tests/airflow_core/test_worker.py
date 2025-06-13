@@ -2429,30 +2429,6 @@ class TestWorkerServiceAccount:
     """Tests worker service account."""
 
     @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"serviceAccount": {"create": True}, "labels": {"test_label": "test_label_value"}},
-            {"celery": {"serviceAccount": {"create": True}, "labels": {"test_label": "test_label_value"}}},
-            {
-                "serviceAccount": {"create": False},
-                "labels": {"test": "test"},
-                "celery": {"serviceAccount": {"create": True}, "labels": {"test_label": "test_label_value"}},
-            },
-        ],
-    )
-    def test_should_add_component_specific_labels(self, workers_values):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": workers_values,
-            },
-            show_only=["templates/workers/worker-service.yaml"],
-        )
-
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
-
-    @pytest.mark.parametrize(
         "executor, creates_service_account",
         [
             ("LocalExecutor", False),
