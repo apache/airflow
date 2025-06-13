@@ -1403,6 +1403,9 @@ workers:
     #           storage: "20Gi"
 
   kubernetes:
+    # Command to use in pod-template-file (templated)
+    command: ~
+
     # Detailed default security context for pod-template-file for container and pod level
     securityContexts:
       pod: {}

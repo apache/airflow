@@ -3460,6 +3460,17 @@
                     "type": "object",
                     "x-docsSection": "Workers",
                     "properties": {
+                        "command": {
+                            "description": "Command to use in pod-template-file (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
                         "securityContexts": {
                             "description": "Security context definition for the pod-template-file. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
