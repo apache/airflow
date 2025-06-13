@@ -33,7 +33,7 @@ from airflow.policies import task_instance_mutation_hook
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, NEW_SESSION
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -135,7 +135,6 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
                 session=session,
             )
             session.flush()
-            session.commit()
             task_instances.clear()
 
     def expand_tasks(self, expand_input: Iterator[dict], job_id: str | None = None, session: Session = NEW_SESSION) -> list[TaskInstance]:
