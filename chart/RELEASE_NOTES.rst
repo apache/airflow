@@ -55,7 +55,7 @@ Bug Fixes
 Doc only changes
 ^^^^^^^^^^^^^^^^
 - Bump minimum helm version in docs (#48700)
-- Clarify podTemplate and workers fields comments (#50458)
+- Clarify which worker fields apply to Celery and Kubernetes worker pods (#50458)
 - Capitalize the term airflow (#49450)
 - Add EdgeExecutor to readme (#51017)
 - Add 3.X/2.X clarification for CeleryKubernetesExecutor (#49916)

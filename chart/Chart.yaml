@@ -113,7 +113,7 @@ annotations:
       links:
       - name: '#48700'
         url: https://github.com/apache/airflow/pull/48700
-    - description: 'Docs: Clarify podTemplate and workers fields comments'
+    - description: 'Docs: Clarify which worker fields apply to Celery and Kubernetes worker pods'
       kind: changed
       links:
       - name: '#50458'
