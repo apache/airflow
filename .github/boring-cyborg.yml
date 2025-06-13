@@ -359,6 +359,9 @@ labelPRBasedOnFilePath:
   translation:he:
     - airflow-core/src/airflow/ui/src/i18n/locales/he/*
 
+  translation:hi:
+    - airflow-core/src/airflow/ui/src/i18n/locales/hi/*
+
   translation:ko:
     - airflow-core/src/airflow/ui/src/i18n/locales/ko/*
 

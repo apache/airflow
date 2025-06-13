@@ -36,8 +36,12 @@ import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
 import heCommon from "./locales/he/common.json";
 import heDashboard from "./locales/he/dashboard.json";
+import hiAdmin from "./locales/hi/admin.json";
+import hiAssets from "./locales/hi/assets.json";
+import hiBrowse from "./locales/hi/browse.json";
 import hiCommon from "./locales/hi/common.json";
-import hiConnections from "./locales/hi/connections.json";
+import hiComponents from "./locales/hi/components.json";
+import hiDag from "./locales/hi/dag.json";
 import hiDags from "./locales/hi/dags.json";
 import hiDashboard from "./locales/hi/dashboard.json";
 import koCommon from "./locales/ko/common.json";
@@ -99,8 +103,12 @@ const resources = {
     dashboard: heDashboard,
   },
   hi: {
+    admin: hiAdmin,
+    assets: hiAssets,
+    browse: hiBrowse,
     common: hiCommon,
-    connections: hiConnections,
+    components: hiComponents,
+    dag: hiDag,
     dags: hiDags,
     dashboard: hiDashboard,
   },

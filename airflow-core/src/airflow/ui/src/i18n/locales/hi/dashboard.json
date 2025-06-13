@@ -5,8 +5,8 @@
     "health": "स्वास्थ्य",
     "healthy": "स्वस्थ",
     "lastHeartbeat": "अंतिम हार्टबीट",
-    "metaDatabase": "मेटा डाटाबेस",
-    "scheduler": "अनुसूचक",
+    "metaDatabase": "मेटाडाटाबेस",
+    "scheduler": "शेड्यूलर",
     "status": "स्थिति",
     "triggerer": "ट्रिगरर",
     "unhealthy": "अस्वस्थ"
@@ -18,7 +18,7 @@
     "searchByFile": "फ़ाइल द्वारा खोजें",
     "timestamp": "टाइमस्टैम्प"
   },
-  "managePools": "पूल प्रबंधित करें",
+  "managePools": "पूल्स प्रबंधित करें",
   "noAssetEvents": "कोई एसेट इवेंट नहीं मिला।",
   "poolSlots": "पूल स्लॉट्स",
   "sortBy": {
