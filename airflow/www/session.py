@@ -16,9 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from flask import request
+from flask.json.tag import TaggedJSONSerializer
 from flask.sessions import SecureCookieSessionInterface
-from flask_session.sessions import SqlAlchemySessionInterface
+from flask_session.sqlalchemy import SqlAlchemySessionInterface
+
+if TYPE_CHECKING:
+    from flask_session import Session
 
 
 class SessionExemptMixin:
@@ -33,8 +39,32 @@ class SessionExemptMixin:
         return super().save_session(*args, **kwargs)
 
 
+class AirflowTaggedJSONSerializer(TaggedJSONSerializer):
+    """
+    Adapter of flask's serializer for flask-session.
+
+    This serializer is used instead of MsgPackSerializer from flask-session,
+    because MsgPackSerializer does not support Markup objects which need to be serialized in Airflow.
+
+    So we are using TaggedJSONSerializer which is compatible with Markup objects but we pretend we have
+    the same interface as MsgPackSerializer (encode/decode methods) to be compatible with flask-session.
+    """
+
+    def encode(self, session: Session) -> bytes:
+        """Serialize the session data."""
+        return self.dumps(session).encode()
+
+    def decode(self, data: bytes) -> Session:
+        """Deserialize the session data."""
+        return self.loads(data.decode())
+
+
 class AirflowDatabaseSessionInterface(SessionExemptMixin, SqlAlchemySessionInterface):
     """Session interface that exempts some routes and stores session data in the database."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.serializer = AirflowTaggedJSONSerializer()
 
 
 class AirflowSecureCookieSessionInterface(SessionExemptMixin, SecureCookieSessionInterface):

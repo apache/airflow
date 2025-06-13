@@ -191,7 +191,7 @@ class TestResetUserSessions:
         self.interface = self.app.session_interface
         self.model = self.interface.sql_session_model
         self.serializer = self.interface.serializer
-        self.db = self.interface.db
+        self.db = self.interface.client
         self.db.session.query(self.model).delete()
         self.db.session.commit()
         self.db.session.flush()
@@ -212,7 +212,7 @@ class TestResetUserSessions:
         self.db.session.add(
             self.model(
                 session_id=session_id,
-                data=self.serializer.dumps({"_user_id": user_id}),
+                data=self.serializer.encode({"_user_id": user_id}),
                 expiry=datetime.now() + time_delta,
             )
         )
