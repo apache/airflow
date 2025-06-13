@@ -66,6 +66,19 @@
       "label": "Graph Direction"
     }
   },
+  "paramsFailed": "Failed to load params",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
+        "title": "Dag Failed to Reparse"
+      },
+      "success": {
+        "description": "Dag should reparse soon.",
+        "title": "Reparsing request submitted successfully"
+      }
+    }
+  },
   "tabs": {
     "assetEvents": "Asset Events",
     "auditLog": "Audit Log",
@@ -85,5 +98,13 @@
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
+  },
+  "taskLogs": {
+    "allLogLevels": "All Log Levels",
+    "allSources": "All Sources",
+    "fullscreen": {
+      "button": "Full screen",
+      "tooltip": "Press {{hotkey}} for fullscreen"
+    }
   }
 }
