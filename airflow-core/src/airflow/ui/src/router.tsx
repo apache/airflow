@@ -25,6 +25,7 @@ import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
 import { AssetsList } from "src/pages/AssetsList";
+import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
 import { Backfills } from "src/pages/Dag/Backfills";
@@ -37,26 +38,26 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
+import { Iframe } from "src/pages/Iframe";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
+import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
+import { Security } from "src/pages/Security";
 import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
+import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
 import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
-import { Configs } from "./pages/Configs";
-import { GroupTaskInstance } from "./pages/GroupTaskInstance";
-import { AssetEvents as DagRunAssetEvents } from "./pages/Run/AssetEvents";
-import { Security } from "./pages/Security";
-import { AssetEvents as TaskInstanceAssetEvents } from "./pages/TaskInstance/AssetEvents";
 import { client } from "./queryClient";
 
 const taskInstanceRoutes = [
@@ -140,6 +141,10 @@ export const routerConfig = [
       {
         element: <Connections />,
         path: "connections",
+      },
+      {
+        element: <Iframe />,
+        path: "plugin/:page",
       },
       {
         children: [
