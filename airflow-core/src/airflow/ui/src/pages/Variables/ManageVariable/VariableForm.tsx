@@ -18,6 +18,7 @@
  */
 import { Box, Field, HStack, Input, Spacer, Textarea, Text } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -48,6 +49,7 @@ type VariableFormProps = {
 };
 
 const VariableForm = ({ error, initialVariable, isPending, manageMutate, setError }: VariableFormProps) => {
+  const { t: translate } = useTranslation("admin");
   const {
     control,
     formState: { isDirty, isValid },
@@ -75,15 +77,15 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
         render={({ field, fieldState }) => (
           <Field.Root invalid={Boolean(fieldState.error)} required>
             <Field.Label fontSize="md">
-              Key <Field.RequiredIndicator />
+              {translate("columns.key")} <Field.RequiredIndicator />
             </Field.Label>
             <Input {...field} disabled={Boolean(initialVariable.key)} required size="sm" />
             {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
           </Field.Root>
         )}
         rules={{
-          required: "Key is required",
-          validate: (_value) => _value.length <= 250 || "Key can contain a maximum of 250 characters",
+          required: translate("variables.form.keyRequired"),
+          validate: (_value) => _value.length <= 250 || translate("variables.form.keyMaxLength"),
         }}
       />
 
@@ -97,12 +99,12 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
           return (
             <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
               <Field.Label fontSize="md">
-                Value <Field.RequiredIndicator />
+                {translate("columns.value")} <Field.RequiredIndicator />
               </Field.Label>
               <Textarea {...field} size="sm" />
               {showJsonWarning ? (
                 <Text color="fg.warning" fontSize="xs">
-                  Invalid JSON
+                  {translate("variables.form.invalidJson")}
                 </Text>
               ) : undefined}
               {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
@@ -110,7 +112,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
           );
         }}
         rules={{
-          required: "Value is required",
+          required: translate("variables.form.valueRequired"),
         }}
       />
 
@@ -119,7 +121,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
         name="description"
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
-            <Field.Label fontSize="md">Description</Field.Label>
+            <Field.Label fontSize="md">{translate("columns.description")}</Field.Label>
             <Textarea {...field} size="sm" />
           </Field.Root>
         )}
@@ -131,7 +133,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              Reset
+              {translate("formActions.reset")}
             </Button>
           ) : undefined}
           <Spacer />
@@ -140,7 +142,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
             disabled={!isValid || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            <FiSave /> Save
+            <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>
       </Box>
