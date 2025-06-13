@@ -95,7 +95,10 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
           <VStack align="start" gap={4}>
             <Heading size="xl">
               <strong>
-                {translate("dags:runAndTaskActions.clear.dialog.title", { type: "Task Instance" })}:
+                {translate("dags:runAndTaskActions.clear.dialog.title", {
+                  type: translate("taskInstance_one"),
+                })}
+                :
               </strong>{" "}
               {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
             </Heading>
