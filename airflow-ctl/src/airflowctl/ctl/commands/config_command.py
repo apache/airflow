@@ -943,13 +943,13 @@ def update(args, api_client=NEW_API_CLIENT) -> None:
 
             if change.renamed_to:
                 if not dry_run:
-                    # First update the value in the new location
+                    # update the value in the new location
                     api_client.configs.put(
                         section=change.renamed_to.section,
                         option=change.renamed_to.option,
                         value=str(option_value),
                     )
-                    # Then remove the old value
+                    # remove the old value
                     api_client.configs.put(
                         section=change.config.section, option=change.config.option, value=""
                     )

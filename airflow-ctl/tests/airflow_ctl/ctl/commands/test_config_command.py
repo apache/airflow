@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.generated import Config, ConfigOption, ConfigSection
@@ -592,3 +592,371 @@ class TestCliConfigUpdate:
             calls[2]
             == "[blue]Dry-run mode is enabled. To apply above changes run the command with `--fix`.[/blue]"
         )
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section_1", "test_option_1"),
+                renamed_to=ConfigParameter("test_section_1_new", "test_option_1_new"),
+                breaking=True,
+            ),
+            ConfigChange(
+                config=ConfigParameter("test_section_2", "test_option_2"),
+                renamed_to=ConfigParameter("test_section_2_new", "test_option_2_new"),
+                breaking=True,
+            ),
+        ],
+    )
+    def test_update_with_section_filter(self, mock_rich_print, api_client_maker):
+        """Test update with --section filter to only update specific sections."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section_1",
+                    options=[
+                        ConfigOption(
+                            key="test_option_1",
+                            value="test_value_1",
+                        )
+                    ],
+                ),
+                ConfigSection(
+                    name="test_section_2",
+                    options=[
+                        ConfigOption(
+                            key="test_option_2",
+                            value="test_value_2",
+                        )
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update", "--section", "test_section_1"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert (
+            calls[1]
+            == "  - [DRY-RUN]  Renamed 'test_section_1/test_option_1' to 'test_section_1_new/test_option_1_new'."
+        )
+        assert len(calls) == 3
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option_1"),
+                renamed_to=ConfigParameter("test_section_new", "test_option_1_new"),
+                breaking=True,
+            ),
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option_2"),
+                renamed_to=ConfigParameter("test_section_new", "test_option_2_new"),
+                breaking=True,
+            ),
+        ],
+    )
+    def test_update_with_option_filter(self, mock_rich_print, api_client_maker):
+        """Test update with --option filter to only update specific options."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option_1",
+                            value="test_value_1",
+                        ),
+                        ConfigOption(
+                            key="test_option_2",
+                            value="test_value_2",
+                        ),
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update", "--option", "test_option_1"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert (
+            calls[1]
+            == "  - [DRY-RUN]  Renamed 'test_section/test_option_1' to 'test_section_new/test_option_1_new'."
+        )
+        assert len(calls) == 3
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section_1", "test_option"),
+                renamed_to=ConfigParameter("test_section_1_new", "test_option_new"),
+                breaking=True,
+            ),
+            ConfigChange(
+                config=ConfigParameter("test_section_2", "test_option"),
+                renamed_to=ConfigParameter("test_section_2_new", "test_option_new"),
+                breaking=True,
+            ),
+        ],
+    )
+    def test_update_with_ignore_section(self, mock_rich_print, api_client_maker):
+        """Test update with --ignore-section to skip specific sections."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section_1",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value_1",
+                        )
+                    ],
+                ),
+                ConfigSection(
+                    name="test_section_2",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value_2",
+                        )
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update", "--ignore-section", "test_section_1"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert (
+            calls[1]
+            == "  - [DRY-RUN]  Renamed 'test_section_2/test_option' to 'test_section_2_new/test_option_new'."
+        )
+        assert len(calls) == 3
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option_1"),
+                renamed_to=ConfigParameter("test_section_new", "test_option_1_new"),
+                breaking=True,
+            ),
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option_2"),
+                renamed_to=ConfigParameter("test_section_new", "test_option_2_new"),
+                breaking=True,
+            ),
+        ],
+    )
+    def test_update_with_ignore_option(self, mock_rich_print, api_client_maker):
+        """Test update with --ignore-option to skip specific options."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option_1",
+                            value="test_value_1",
+                        ),
+                        ConfigOption(
+                            key="test_option_2",
+                            value="test_value_2",
+                        ),
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update", "--ignore-option", "test_option_1"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert (
+            calls[1]
+            == "  - [DRY-RUN]  Renamed 'test_section/test_option_2' to 'test_section_new/test_option_2_new'."
+        )
+        assert len(calls) == 3
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option"),
+                renamed_to=ConfigParameter("test_section_new", "test_option_new"),
+                breaking=True,
+            ),
+        ],
+    )
+    def test_update_with_verbose_flag(self, mock_rich_print, api_client_maker):
+        """Test update with --verbose flag for detailed output."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value",
+                        )
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update", "--verbose"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert (
+            calls[1]
+            == "  - [DRY-RUN]  Renamed 'test_section/test_option' to 'test_section_new/test_option_new'."
+        )
+        assert (
+            calls[2]
+            == "[blue]Dry-run mode is enabled. To apply above changes run the command with `--fix`.[/blue]"
+        )
+        assert calls[3] == "[blue]Configuration update completed with verbose output enabled.[/blue]"
+
+    @patch("rich.print")
+    @patch("sys.exit")
+    def test_update_error_handling(self, mock_exit, mock_rich_print, api_client_maker):
+        """Test update error handling when API call fails."""
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json={},
+            expected_http_status_code=500,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert "[red]Update configs failed:" in calls[0]
+        mock_exit.assert_called_once_with(1)
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option"),
+                renamed_to=ConfigParameter("test_section_new", "test_option_new"),
+                breaking=True,
+            ),
+        ],
+    )
+    def test_update_with_fix_flag(self, mock_rich_print, api_client_maker):
+        """Test update with --fix flag to actually apply changes."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="test_value",
+                        )
+                    ],
+                ),
+                ConfigSection(
+                    name="test_section_new",
+                    options=[],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        api_client.configs.put = Mock()
+
+        config_command.update(
+            self.parser.parse_args(["config", "update", "--fix"]),
+            api_client=api_client,
+        )
+
+        assert api_client.configs.put.call_count == 2
+
+        api_client.configs.put.assert_any_call(
+            section="test_section_new",
+            option="test_option_new",
+            value="test_value",
+        )
+
+        api_client.configs.put.assert_any_call(
+            section="test_section",
+            option="test_option",
+            value="",
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert calls[1] == "  -  Renamed 'test_section/test_option' to 'test_section_new/test_option_new'."
