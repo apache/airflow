@@ -24,6 +24,7 @@
     "clear": {
       "button": "{{type}} zurücksetzen",
       "buttonTooltip": "STRG+C zum Zurücksetzen tippen",
+      "error": "Fehler beim Zurücksetzen von {{type}}",
       "title": "{{type}} bereinigen und neu planen"
     },
     "delete": {
