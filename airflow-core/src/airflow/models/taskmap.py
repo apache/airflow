@@ -35,7 +35,6 @@ from sqlalchemy import (
     update,
 )
 
-from airflow.jobs.expand_task_job_runner import TaskExpansionJobRunner
 from airflow.jobs.job import Job, run_job_async
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
@@ -141,6 +140,7 @@ class TaskMap(TaskInstanceDependencies):
         :return: The newly created mapped task instances (if any) in ascending
             order by map index, and the maximum map index value.
         """
+        from airflow.jobs.expand_task_job_runner import TaskExpansionJobRunner
         from airflow.models.baseoperator import BaseOperator as DBBaseOperator
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance
