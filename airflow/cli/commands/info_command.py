@@ -352,8 +352,8 @@ class FileIoException(Exception):
     stop=tenacity.stop_after_attempt(5),
     wait=tenacity.wait_exponential(multiplier=1, max=10),
     retry=tenacity.retry_if_exception_type(FileIoException),
-    before=tenacity.before_log(log, logging.DEBUG),
-    after=tenacity.after_log(log, logging.DEBUG),
+    before=tenacity.before_log(log, logging.DEBUG),  # type: ignore[arg-type]
+    after=tenacity.after_log(log, logging.DEBUG),  # type: ignore[arg-type]
 )
 def _upload_text_to_fileio(content):
     """Upload text file to File.io service and return link."""

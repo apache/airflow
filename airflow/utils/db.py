@@ -764,7 +764,7 @@ def _get_flask_db(sql_database_uri):
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db = SQLAlchemy(flask_app)
-    AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
+    AirflowDatabaseSessionInterface(app=flask_app, client=db, table="session", key_prefix="")
     return db
 
 
@@ -1709,6 +1709,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migrati
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
         drop_airflow_models(connection)
         drop_airflow_moved_tables(connection)
+        drop_flask_session_table(connection)
 
     if not skip_init:
         initdb(session=session, use_migration_files=use_migration_files)
@@ -1796,6 +1797,16 @@ def drop_airflow_moved_tables(connection):
 
     tables = set(inspect(connection).get_table_names())
     to_delete = [Table(x, Base.metadata) for x in tables if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)]
+    for tbl in to_delete:
+        tbl.drop(settings.engine, checkfirst=False)
+        Base.metadata.remove(tbl)
+
+
+def drop_flask_session_table(connection):
+    from airflow.models.base import Base
+
+    tables = set(inspect(connection).get_table_names())
+    to_delete = [Table(x, Base.metadata) for x in tables if x == "session"]
     for tbl in to_delete:
         tbl.drop(settings.engine, checkfirst=False)
         Base.metadata.remove(tbl)

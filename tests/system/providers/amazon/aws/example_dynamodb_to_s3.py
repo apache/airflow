@@ -55,8 +55,8 @@ S3_KEY_PREFIX = "dynamodb-segmented-file"
 @tenacity.retry(
     stop=tenacity.stop_after_attempt(20),
     wait=tenacity.wait_exponential(min=5),
-    before=before_log(log, logging.INFO),
-    before_sleep=before_sleep_log(log, logging.WARNING),
+    before=before_log(log, logging.INFO),  # type: ignore[arg-type]
+    before_sleep=before_sleep_log(log, logging.WARNING),  # type: ignore[arg-type]
 )
 def enable_point_in_time_recovery(table_name: str):
     boto3.client("dynamodb").update_continuous_backups(
