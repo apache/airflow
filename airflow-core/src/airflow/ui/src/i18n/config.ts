@@ -51,6 +51,7 @@ import zhTWAssets from "./locales/zh-TW/assets.json";
 import zhTWBrowse from "./locales/zh-TW/browse.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
 import zhTWComponents from "./locales/zh-TW/components.json";
+import zhTWDag from "./locales/zh-TW/dag.json";
 import zhTWDags from "./locales/zh-TW/dags.json";
 import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 
@@ -115,6 +116,7 @@ const resources = {
     browse: zhTWBrowse,
     common: zhTWCommon,
     components: zhTWComponents,
+    dag: zhTWDag,
     dags: zhTWDags,
     dashboard: zhTWDashboard,
   },
