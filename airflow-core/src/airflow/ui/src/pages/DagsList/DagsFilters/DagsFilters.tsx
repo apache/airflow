@@ -89,6 +89,7 @@ export const DagsFilters = () => {
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      searchParams.delete("offset");
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -105,6 +106,7 @@ export const DagsFilters = () => {
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      searchParams.delete("offset");
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -124,6 +126,7 @@ export const DagsFilters = () => {
       if (tags.length < 2) {
         searchParams.delete(TAGS_MATCH_MODE_PARAM);
       }
+      searchParams.delete("offset");
       setSearchParams(searchParams);
     },
     [searchParams, setSearchParams],
