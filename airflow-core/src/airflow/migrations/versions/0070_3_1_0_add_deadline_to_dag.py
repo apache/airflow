@@ -17,44 +17,34 @@
 # under the License.
 
 """
-Change the Deadline column in the Deadline table from DateTime to UTC DateTime.
+Add Deadline to Dag.
 
-Revision ID: 0242ac120002
-Revises: dfee8bd5d574
+Revision ID: dfee8bd5d574
+Revises: fe199e1abd77
 Create Date: 2024-12-18 19:10:26.962464
 """
 
 from __future__ import annotations
 
 import sqlalchemy as sa
+import sqlalchemy_jsonfield
 from alembic import op
 
-from airflow.migrations.db_types import TIMESTAMP
+from airflow.settings import json
 
-revision = "0242ac120002"
-down_revision = "dfee8bd5d574"
+revision = "dfee8bd5d574"
+down_revision = "fe199e1abd77"
 branch_labels = None
 depends_on = None
 airflow_version = "3.1.0"
 
 
 def upgrade():
-    """Apply change deadline column in the deadline table to UTC datetime."""
-    with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.alter_column(
-            "deadline",
-            existing_type=sa.DateTime(),
-            type_=TIMESTAMP(timezone=True),
-            existing_nullable=False,
-        )
+    op.add_column(
+        "dag",
+        sa.Column("deadline", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+    )
 
 
 def downgrade():
-    """Unapply change deadline column in the deadline table to UTC datetime."""
-    with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.alter_column(
-            "deadline",
-            existing_type=TIMESTAMP(timezone=True),
-            type_=sa.DateTime(),
-            existing_nullable=False,
-        )
+    op.drop_column("dag", "deadline")

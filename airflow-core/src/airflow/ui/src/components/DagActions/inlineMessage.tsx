@@ -16,5 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Text, Skeleton } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 
-export * from "./Gantt";
+export const getInlineMessage = (isPendingDryRun: boolean, totalEntries: number, translate: TFunction) =>
+  isPendingDryRun ? (
+    <Skeleton height="20px" width="100px" />
+  ) : totalEntries === 0 ? (
+    <Text color="fg.error" fontSize="sm" fontWeight="medium">
+      {translate("backfill.affectedNone")}
+    </Text>
+  ) : (
+    <Text color="fg.success" fontSize="sm">
+      {translate("backfill.affected", { count: totalEntries })}
+    </Text>
+  );

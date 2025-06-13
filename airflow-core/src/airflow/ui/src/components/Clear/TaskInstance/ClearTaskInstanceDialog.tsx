@@ -95,7 +95,10 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
           <VStack align="start" gap={4}>
             <Heading size="xl">
               <strong>
-                {translate("dags:runAndTaskActions.clear.dialog.title", { type: "Task Instance" })}:
+                {translate("dags:runAndTaskActions.clear.dialog.title", {
+                  type: translate("taskInstance_one"),
+                })}
+                :
               </strong>{" "}
               {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
             </Heading>
@@ -112,24 +115,24 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
               options={[
                 {
                   disabled: taskInstance.logical_date === null,
-                  label: translate("dags:runAndTaskActions.clear.dialog.options.past"),
+                  label: translate("dags:runAndTaskActions.options.past"),
                   value: "past",
                 },
                 {
                   disabled: taskInstance.logical_date === null,
-                  label: translate("dags:runAndTaskActions.clear.dialog.options.future"),
+                  label: translate("dags:runAndTaskActions.options.future"),
                   value: "future",
                 },
                 {
-                  label: translate("dags:runAndTaskActions.clear.dialog.options.upstream"),
+                  label: translate("dags:runAndTaskActions.options.upstream"),
                   value: "upstream",
                 },
                 {
-                  label: translate("dags:runAndTaskActions.clear.dialog.options.downstream"),
+                  label: translate("dags:runAndTaskActions.options.downstream"),
                   value: "downstream",
                 },
                 {
-                  label: translate("dags:runAndTaskActions.clear.dialog.options.onlyFailed"),
+                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
                   value: "onlyFailed",
                 },
               ]}
@@ -166,7 +169,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                 }
               }}
             >
-              <CgRedo /> {translate("dags:runAndTaskActions.clear.dialog.confirm")}
+              <CgRedo /> {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>

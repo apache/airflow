@@ -33,16 +33,16 @@ type Props = {
 
 const TriggerDAGButton: React.FC<Props> = ({ dag, withText = true }) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { t: translate } = useTranslation("dags");
+  const { t: translate } = useTranslation("components");
 
   return (
     <Box>
       <ActionButton
-        actionName={translate("dagActions.trigger.triggerDag")}
+        actionName={translate("triggerDag.title")}
         colorPalette="blue"
         icon={<FiPlay />}
         onClick={onOpen}
-        text={translate("dagActions.trigger.button")}
+        text={translate("triggerDag.button")}
         variant="solid"
         withText={withText}
       />

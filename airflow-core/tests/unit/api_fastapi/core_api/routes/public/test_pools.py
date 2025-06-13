@@ -417,7 +417,7 @@ class TestPostPool(TestPoolsEndpoint):
         else:
             response_json = response.json()
             assert "detail" in response_json
-            assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
+            assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
 
         assert session.query(Pool).count() == n_pools + 1
 

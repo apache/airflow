@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 import logging
@@ -83,6 +84,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -576,19 +578,46 @@ class KubernetesPodOperator(BaseOperator):
         if self.reattach_on_restart:
             pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
             if pod:
-                return pod
+                # If pod is terminated then delete the pod an create a new as not possible to get xcom
+                pod_phase = (
+                    pod.status.phase if hasattr(pod, "status") and hasattr(pod.status, "phase") else None
+                )
+                if pod_phase and pod_phase not in (PodPhase.SUCCEEDED, PodPhase.FAILED):
+                    return pod
+
+                self.log.info(
+                    "Found terminated old matching pod %s with labels %s",
+                    pod.metadata.name,
+                    pod.metadata.labels,
+                )
+
+                # if not required to delete the pod then keep old logic and not automatically create new pod
+                deleted_pod = self.process_pod_deletion(pod)
+                if not deleted_pod:
+                    return pod
+
+                self.log.info("Deleted pod to handle rerun and create new pod!")
+
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
         self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
 
     def await_pod_start(self, pod: k8s.V1Pod) -> None:
         try:
-            self.pod_manager.await_pod_start(
-                pod=pod,
-                schedule_timeout=self.schedule_timeout_seconds,
-                startup_timeout=self.startup_timeout_seconds,
-                check_interval=self.startup_check_interval_seconds,
+            loop = asyncio.get_event_loop()
+            events_task = asyncio.ensure_future(
+                self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
             )
+            loop.run_until_complete(
+                self.pod_manager.await_pod_start(
+                    pod=pod,
+                    schedule_timeout=self.schedule_timeout_seconds,
+                    startup_timeout=self.startup_timeout_seconds,
+                    check_interval=self.startup_check_interval_seconds,
+                )
+            )
+            loop.run_until_complete(events_task)
+            loop.close()
         except PodLaunchFailedException:
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
@@ -692,6 +721,8 @@ class KubernetesPodOperator(BaseOperator):
             self.cleanup(
                 pod=pod_to_clean,
                 remote_pod=self.remote_pod,
+                xcom_result=result,
+                context=context,
             )
             for callback in self.callbacks:
                 callback.on_pod_cleanup(
@@ -963,7 +994,13 @@ class KubernetesPodOperator(BaseOperator):
                 pod=pod, client=self.client, mode=ExecutionMode.SYNC, operator=self, context=context
             )
 
-    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+    def cleanup(
+        self,
+        pod: k8s.V1Pod,
+        remote_pod: k8s.V1Pod,
+        xcom_result: dict | None = None,
+        context: Context | None = None,
+    ) -> None:
         # Skip cleaning the pod in the following scenarios.
         # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
         # there. Cleaning it up again will raise an exception (which might cause retry).
@@ -983,6 +1020,10 @@ class KubernetesPodOperator(BaseOperator):
         )
 
         if failed:
+            if self.do_xcom_push and xcom_result and context:
+                # Ensure that existing XCom is pushed even in case of failure
+                context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_result)
+
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 
@@ -1067,7 +1108,7 @@ class KubernetesPodOperator(BaseOperator):
         if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
             raise AirflowException("Error while deleting istio-proxy sidecar: %s", output_str)
 
-    def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
+    def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True) -> bool:
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
                 should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
@@ -1080,8 +1121,10 @@ class KubernetesPodOperator(BaseOperator):
                 if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
-                else:
-                    self.log.info("Skipping deleting pod: %s", pod.metadata.name)
+                    return True
+                self.log.info("Skipping deleting pod: %s", pod.metadata.name)
+
+        return False
 
     def _build_find_pod_label_selector(self, context: Context | None = None, *, exclude_checked=True) -> str:
         labels = {

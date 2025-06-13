@@ -27,7 +27,7 @@ from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TASK_ID = "sns_publish_job"
 AWS_CONN_ID = "custom_aws_conn"
-TARGET_ARN = "arn:aws:sns:eu-central-1:1234567890:test-topic"
+TARGET_ARN = "test-topic.fifo"
 MESSAGE = "Message to send"
 SUBJECT = "Subject to send"
 MESSAGE_ATTRIBUTES = {"test-attribute": "Attribute to send"}
@@ -57,6 +57,8 @@ class TestSnsPublishOperator:
             region_name="us-west-1",
             verify="/spam/egg.pem",
             botocore_config={"read_timeout": 42},
+            message_deduplication_id="abc",
+            message_group_id="a",
         )
         assert op.hook.aws_conn_id == AWS_CONN_ID
         assert op.hook._region_name == "us-west-1"
@@ -65,11 +67,24 @@ class TestSnsPublishOperator:
         assert op.hook._config.read_timeout == 42
 
     @mock.patch.object(SnsPublishOperator, "hook")
-    def test_execute(self, mocked_hook):
+    @pytest.mark.parametrize(
+        "message_deduplication_id_,message_group_id_",
+        [
+            ("abc", "a"),
+            (None, None),
+            ("abc", None),
+            (None, "a"),
+        ],
+    )
+    def test_execute(self, mocked_hook, message_deduplication_id_, message_group_id_):
         hook_response = {"MessageId": "foobar"}
         mocked_hook.publish_to_target.return_value = hook_response
 
-        op = SnsPublishOperator(**self.default_op_kwargs)
+        op = SnsPublishOperator(
+            **self.default_op_kwargs,
+            message_deduplication_id=message_deduplication_id_,
+            message_group_id=message_group_id_,
+        )
         assert op.execute({}) == hook_response
 
         mocked_hook.publish_to_target.assert_called_once_with(
@@ -77,8 +92,12 @@ class TestSnsPublishOperator:
             message_attributes=MESSAGE_ATTRIBUTES,
             subject=SUBJECT,
             target_arn=TARGET_ARN,
+            message_deduplication_id=message_deduplication_id_,
+            message_group_id=message_group_id_,
         )
 
     def test_template_fields(self):
-        operator = SnsPublishOperator(**self.default_op_kwargs)
+        operator = SnsPublishOperator(
+            **self.default_op_kwargs, message_deduplication_id="abc", message_group_id="a"
+        )
         validate_template_fields(operator)

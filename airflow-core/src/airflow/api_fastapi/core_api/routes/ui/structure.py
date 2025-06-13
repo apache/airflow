@@ -26,7 +26,10 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.api_fastapi.core_api.services.ui.structure import get_upstream_assets
+from airflow.api_fastapi.core_api.services.ui.structure import (
+    bind_output_assets_to_tasks,
+    get_upstream_assets,
+)
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dag_edges import dag_edges
@@ -119,7 +122,15 @@ def structure_data(
                 elif (
                     dependency.target == dependency.dependency_type or dependency.source == dag_id
                 ) and exit_node_ref:
-                    end_edges.append({"source_id": exit_node_ref["id"], "target_id": dependency.node_id})
+                    end_edges.append(
+                        {
+                            "source_id": exit_node_ref["id"],
+                            "target_id": dependency.node_id,
+                            "resolved_from_alias": dependency.source.replace("asset-alias:", "", 1)
+                            if dependency.source.startswith("asset-alias:")
+                            else None,
+                        }
+                    )
 
                 # Add nodes
                 nodes.append(
@@ -135,8 +146,10 @@ def structure_data(
                 asset_expression, entry_node_ref["id"]
             )
             data["nodes"] += upstream_asset_nodes
-            data["edges"] = upstream_asset_edges
+            data["edges"] += upstream_asset_edges
 
-        data["edges"] += start_edges + edges + end_edges
+        data["edges"] += start_edges + end_edges
+
+    bind_output_assets_to_tasks(data["edges"], serialized_dag, version_number, session)
 
     return StructureDataResponse(**data)
