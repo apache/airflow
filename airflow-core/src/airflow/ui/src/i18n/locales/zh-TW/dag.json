@@ -1,9 +1,9 @@
 {
   "allRuns": "所有運行",
   "blockingDeps": {
-    "dependency": "依賴(Dependencies)",
+    "dependency": "依賴 (Dependencies)",
     "reason": "原因",
-    "title": "依賴(Dependencies)阻礙任務排程"
+    "title": "依賴 (Dependencies) 阻礙任務排程"
   },
   "code": {
     "bundleUrl": "套件包網址",
@@ -54,16 +54,29 @@
       "label": "Dag 執行次數"
     },
     "dependencies": {
-      "label": "依賴(Dependencies)",
+      "label": "依賴 (Dependencies)",
       "options": {
         "allDagDependencies": "所有 Dag 相依性",
         "externalConditions": "外部條件",
         "onlyTasks": "僅限任務"
       },
-      "placeholder": "依賴(Dependencies)"
+      "placeholder": " (Dependencies)"
     },
     "graphDirection": {
       "label": "圖表方向"
+    }
+  },
+  "paramsFailed": "載入參數失敗",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag 解析請求失敗。可能還有待處理的解析請求。",
+        "title": "Dag 重新解析失敗"
+      },
+      "success": {
+        "description": "Dag 即將重新解析。",
+        "title": "已成功提交重新解析請求"
+      }
     }
   },
   "tabs": {

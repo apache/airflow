@@ -24,34 +24,35 @@
     "clear": {
       "button": "清除 {{type}}",
       "buttonTooltip": "按下 shift+c 清除",
-      "title": "清除{{type}}"
+      "error": "清除 {{type}} 時發生錯誤",
+      "title": "清除 {{type}}"
     },
     "delete": {
-      "button": "刪除{{type}}",
+      "button": "刪除 {{type}}",
       "dialog": {
         "resourceName": "{{type}} {{id}}",
-        "title": "刪除{{type}}",
-        "warning": "這將會刪除所有與此{{type}}相關的系統資料。"
+        "title": "刪除 {{type}}",
+        "warning": "這將會刪除所有與此 {{type}} 相關的系統資料。"
       },
-      "error": "刪除{{type}}時發生錯誤",
+      "error": "刪除 {{type}} 時發生錯誤",
       "success": {
-        "description": "{{type}}刪除請求成功。",
-        "title": "{{type}}刪除成功"
+        "description": "{{type}} 刪除請求成功。",
+        "title": "{{type}} 刪除成功"
       }
     },
     "markAs": {
-      "button": "標記為{{type}}...",
+      "button": "標記 {{type}} 為...",
       "buttonTooltip": {
         "failed": "按下 shift+f 標記為失敗",
         "success": "按下 shift+s 標記為成功"
       },
-      "title": "標記為{{type}}為{{state}}"
+      "title": "標記為 {{type}} 為 {{state}}"
     },
     "options": {
       "downstream": "下游",
       "existingTasks": "清除現有任務",
       "future": "未來",
-      "onlyFailed": "清除失敗任務",
+      "onlyFailed": "只清除失敗任務",
       "past": "過去",
       "queueNew": "排隊新任務",
       "upstream": "上游"

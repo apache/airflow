@@ -8,14 +8,24 @@
     "dateRangeFrom": "從",
     "dateRangeTo": "到",
     "errorStartDateBeforeEndDate": "開始日期必須早於結束日期。",
-    "maxRuns": "最大活躍運行數",
+    "maxRuns": "活躍執行數上限",
     "reprocessBehavior": "重新處理行為",
     "run": "執行回填",
     "selectDescription": "為指定的日期範圍補上 Dag 執行",
     "selectLabel": "回填",
     "title": "執行回填",
+    "toaster": {
+      "success": {
+        "description": "已成功觸發回填作業。",
+        "title": "已觸發 Dag 執行"
+      }
+    },
     "tooltip": "回填功能需要 Dag 具有排程",
-    "unpause": "觸發時取消暫停 {{dag_display_name}}"
+    "unpause": "觸發時取消暫停 {{dag_display_name}}",
+    "validation": {
+      "datesRequired": "必須提供資料區間的開始與結束日期。",
+      "startBeforeEnd": "資料區間起始日期必須早於或等於結束日期。"
+    }
   },
   "banner": {
     "backfillInProgress": "回填正在進行中",
@@ -30,7 +40,7 @@
   "configForm": {
     "advancedOptions": "進階選項",
     "configJson": "設定 JSON",
-    "invalidJson": "無效的 JSON 格式：{{errorMessage}}"
+    "invalidJson": "無效的 JSON 格式: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 個錯誤",
@@ -95,6 +105,12 @@
     "selectDescription": "觸發此 Dag 單次執行",
     "selectLabel": "單次執行",
     "title": "觸發 Dag",
+    "toaster": {
+      "success": {
+        "description": "已成功觸發 Dag 執行。",
+        "title": "已觸發 Dag 執行"
+      }
+    },
     "unpause": "觸發時取消暫停 {{dagDisplayName}}"
   },
   "trimText": {

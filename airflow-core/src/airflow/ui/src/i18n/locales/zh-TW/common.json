@@ -23,20 +23,20 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "自動回填",
-    "concurrency": "併發數",
+    "concurrency": "併行數",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
     "description": "描述",
     "documentation": "Dag 文件",
     "fileLocation": "檔案位置",
-    "hasTaskConcurrencyLimits": "有任務併發限制",
+    "hasTaskConcurrencyLimits": "有任務並行數限制",
     "lastExpired": "最後過期時間",
     "lastParsed": "最後解析時間",
     "latestDagVersion": "最新 Dag 版本",
     "latestRun": "上次 Dag 執行",
-    "maxActiveRuns": "最大活躍執行數",
-    "maxActiveTasks": "最大活躍任務數",
-    "maxConsecutiveFailedDagRuns": "最大連續失敗執行數",
+    "maxActiveRuns": "活躍執行數上限",
+    "maxActiveTasks": "活躍任務數上限",
+    "maxConsecutiveFailedDagRuns": "連續失敗執行數上限",
     "nextRun": "下次 Dag 執行",
     "owner": "擁有者",
     "params": "參數",
@@ -48,7 +48,7 @@
     "conf": "設定",
     "dagVersions": "Dag 版本",
     "dataIntervalEnd": "資料區間結束",
-    "dataIntervalStart": "資料區間開始",
+    "dataIntervalStart": "資料區間起始",
     "lastSchedulingDecision": "最後排程決策",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
@@ -222,6 +222,43 @@
     "placeholder": "搜尋時區",
     "title": "選擇時區",
     "utc": "UTC"
+  },
+    "toaster": {
+    "bulkDelete": {
+      "error": "批次刪除 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "已成功刪除 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "title": "已提交批次刪除 {{resourceName}} 請求"
+      }
+    },
+    "create": {
+      "error": "建立 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "{{resourceName}} 已成功建立。",
+        "title": "已提交建立 {{resourceName}} 請求"
+      }
+    },
+    "delete": {
+      "error": "刪除 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "{{resourceName}} 已成功刪除。",
+        "title": "已提交刪除 {{resourceName}} 請求"
+      }
+    },
+    "import": {
+      "error": "匯入 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "已成功匯入 {{count}} 個 {{resourceName}}。",
+        "title": "已提交匯入 {{resourceName}} 請求"
+      }
+    },
+    "update": {
+      "error": "更新 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "{{resourceName}} 已成功更新。",
+        "title": "已提交更新 {{resourceName}} 請求"
+      }
+    }
   },
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
