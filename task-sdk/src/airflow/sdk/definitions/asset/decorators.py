@@ -74,6 +74,8 @@ class _AssetMainOperator(PythonOperator):
 
         def _fetch_asset(name: str) -> Asset:
             resp = SUPERVISOR_COMMS.send(GetAssetByName(name=name))
+            if resp is None:
+                raise RuntimeError("Empty non-error response received")
             if isinstance(resp, ErrorResponse):
                 raise AirflowRuntimeError(resp)
             return Asset(**resp.model_dump(exclude={"type"}))

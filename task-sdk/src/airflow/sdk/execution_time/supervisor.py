@@ -45,7 +45,6 @@ from typing import (
 )
 from uuid import UUID
 
-import aiologic
 import attrs
 import httpx
 import msgspec
@@ -1264,7 +1263,6 @@ class InProcessSupervisorComms:
 
     supervisor: InProcessTestSupervisor
     messages: deque[BaseModel] = attrs.field(factory=deque)
-    lock: aiologic.Lock = attrs.field(factory=aiologic.Lock)
 
     def get_message(self) -> BaseModel:
         """Get a message from the supervisor. Blocks until a message is available."""
@@ -1293,7 +1291,6 @@ class InProcessTestSupervisor(ActivitySubprocess):
     """A supervisor that runs tasks in-process for easier testing."""
 
     comms: InProcessSupervisorComms = attrs.field(init=False)
-    stdin = attrs.field(init=False)
 
     @classmethod
     def start(  # type: ignore[override]
