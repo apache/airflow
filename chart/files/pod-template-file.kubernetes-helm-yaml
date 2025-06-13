@@ -17,17 +17,20 @@
  under the License.
 */}}
 ---
-{{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
-{{- $affinity := or .Values.workers.affinity .Values.affinity }}
-{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
-{{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $nodeSelector := or .Values.workers.kubernetes.nodeSelector .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.workers.kubernetes.affinity .Values.workers.affinity .Values.affinity }}
+{{- $tolerations := or .Values.workers.kubernetes.tolerations .Values.workers.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.workers.kubernetes.topologySpreadConstraints .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
+{{- $securityContextKubernetes := include "airflowPodSecurityContext" (list . .Values.workers.kubernetes) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
-{{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerSecurityContextKerberosSidecarKubernetes := include "containerSecurityContext" (list . .Values.workers.kubernetes.kerberosSidecar) }}
+{{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kubernetes.kerberosSidecar.containerLifecycleHooks .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
-{{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
-{{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
+{{- $containerSecurityContextKubernetes := include "containerSecurityContext" (list . .Values.workers.kubernetes) }}
+{{- $containerLifecycleHooks := or .Values.workers.kubernetes.containerLifecycleHooks .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" ((or .Values.workers.kubernetes.safeToEvict .Values.workers.safeToEvict) | toString) }}
+{{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations .Values.workers.kubernetes.podAnnotations }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -36,12 +39,12 @@ metadata:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
-    {{- if or (.Values.labels) (.Values.workers.labels) }}
-      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or .Values.labels .Values.workers.labels .Values.workers.kubernetes.labels }}
+      {{- mustMerge .Values.workers.kubernetes.labels .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   annotations:
     {{- toYaml $podAnnotations | nindent 4 }}
-    {{- if .Values.workers.kerberosInitContainer.enabled }}
+    {{- if or .Values.workers.kerberosInitContainer.enabled .Values.workers.kubernetes.kerberosInitContainer.enabled }}
     checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
     {{- end }}
 spec:
@@ -49,15 +52,15 @@ spec:
     {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
       {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
     {{- end }}
-    {{- if .Values.workers.extraInitContainers }}
-      {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 4 }}
+    {{- if or .Values.workers.extraInitContainers .Values.workers.kubernetes.extraInitContainers }}
+      {{- tpl (toYaml (.Values.workers.kubernetes.extraInitContainers | default .Values.workers.extraInitContainers)) . | nindent 4 }}
     {{- end }}
-    {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer.enabled }}
+    {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kubernetes.kerberosInitContainer.enabled) }}
     - name: kerberos-init
       image: {{ template "airflow_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
       args: ["kerberos", "-o"]
-      resources: {{- toYaml .Values.workers.kerberosInitContainer.resources | nindent 8 }}
+      resources: {{- toYaml (.Values.workers.kubernetes.kerberosInitContainer.resources | default .Values.workers.kerberosInitContainer.resources) | nindent 8 }}
       volumeMounts:
         - name: logs
           mountPath: {{ template "airflow_logs" . }}
@@ -76,8 +79,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
           {{- include "airflow_webserver_config_mount" . | nindent 8 }}
@@ -96,7 +99,7 @@ spec:
       env:
         - name: AIRFLOW__CORE__EXECUTOR
           value: {{ .Values.executor | quote }}
-        {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.kerberosInitContainer.enabled}}
+        {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.kubernetes.kerberosSidecar.enabled .Values.workers.kerberosInitContainer.enabled .Values.workers.kubernetes.kerberosInitContainer.enabled}}
         - name: KRB5_CONFIG
           value: {{ .Values.kerberos.configPath | quote }}
         - name: KRB5CCNAME
@@ -104,18 +107,22 @@ spec:
         {{- end }}
         {{- include "standard_airflow_environment" . | indent 6}}
         {{- include "custom_airflow_environment" . | indent 6 }}
-        {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
+        {{- include "container_extra_envs" (list . (.Values.workers.kubernetes.env | default .Values.workers.env)) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
+      {{- if .Values.workers.kubernetes.securityContexts.container }}
+      securityContext: {{ $containerSecurityContextKubernetes | nindent 8 }}
+      {{- else }}
       securityContext: {{ $containerSecurityContext | nindent 8 }}
+      {{- end }}
       {{- if $containerLifecycleHooks }}
       lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 8 }}
       {{- end }}
       name: base
-      {{- if .Values.workers.command }}
-      command: {{ tpl (toYaml .Values.workers.command) . | nindent 8 }}
+      {{- if or .Values.workers.command .Values.workers.kubernetes.command }}
+      command: {{ tpl (toYaml (.Values.workers.kubernetes.command | default .Values.workers.command)) . | nindent 8 }}
       {{- end }}
-      resources: {{- toYaml .Values.workers.resources | nindent 8 }}
+      resources: {{- toYaml (.Values.workers.kubernetes.resources | default .Values.workers.resources) | nindent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
@@ -126,8 +133,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if .Values.kerberos.enabled }}
         - name: kerberos-keytab
@@ -142,16 +149,20 @@ spec:
           mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
           readOnly: true
         {{- end }}
-    {{- if .Values.workers.kerberosSidecar.enabled }}
+    {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.kubernetes.kerberosSidecar.enabled }}
     - name: worker-kerberos
       image: {{ template "airflow_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+      {{- if .Values.workers.kubernetes.kerberosSidecar.securityContexts.container }}
+      securityContext: {{ $containerSecurityContextKerberosSidecarKubernetes | nindent 8 }}
+      {{- else }}
       securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 8 }}
+      {{- end }}
       {{- if $containerLifecycleHooksKerberosSidecar }}
       lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 8 }}
       {{- end }}
       args: ["kerberos"]
-      resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 8 }}
+      resources: {{- toYaml (.Values.workers.kubernetes.kerberosSidecar.resources | default .Values.workers.kerberosSidecar.resources) | nindent 8 }}
       volumeMounts:
         - name: logs
           mountPath: {{ template "airflow_logs" . }}
@@ -170,8 +181,8 @@ spec:
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
-        {{- if .Values.workers.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
         {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
           {{- include "airflow_webserver_config_mount" . | nindent 8 }}
@@ -185,30 +196,38 @@ spec:
         {{- include "custom_airflow_environment" . | indent 6 }}
         {{- include "standard_airflow_environment" . | indent 6 }}
     {{- end }}
-    {{- if .Values.workers.extraContainers }}
-      {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 4 }}
+    {{- if or .Values.workers.extraContainers .Values.workers.kubernetes.extraContainers }}
+      {{- tpl (toYaml (.Values.workers.kubernetes.extraContainers | default .Values.workers.extraContainers)) . | nindent 4 }}
     {{- end }}
-  {{- if .Values.workers.priorityClassName }}
-  priorityClassName: {{ .Values.workers.priorityClassName }}
+  {{- if or .Values.workers.priorityClassName .Values.workers.kubernetes.priorityClassName }}
+  priorityClassName: {{ .Values.workers.kubernetes.priorityClassName | default .Values.workers.priorityClassName }}
   {{- end }}
-  {{- if .Values.workers.runtimeClassName }}
-  runtimeClassName: {{ .Values.workers.runtimeClassName }}
+  {{- if or .Values.workers.runtimeClassName .Values.workers.kubernetes.runtimeClassName }}
+  runtimeClassName: {{ .Values.workers.kubernetes.runtimeClassName | default .Values.workers.runtimeClassName }}
   {{- end }}
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:
     - name: {{ template "registry_secret" . }}
   {{- end }}
-  {{- if .Values.workers.hostAliases }}
-  hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 4 }}
+  {{- if or .Values.workers.hostAliases .Values.workers.kubernetes.hostAliases }}
+  hostAliases: {{- toYaml (.Values.workers.kubernetes.hostAliases | default .Values.workers.hostAliases) | nindent 4 }}
   {{- end }}
   restartPolicy: Never
+  {{- if .Values.workers.kubernetes.securityContexts.pod }}
+  securityContext: {{ $securityContextKubernetes | nindent 4 }}
+  {{- else }}
   securityContext: {{ $securityContext | nindent 4 }}
+  {{- end }}
   nodeSelector: {{- toYaml $nodeSelector | nindent 4 }}
   affinity: {{- toYaml $affinity | nindent 4 }}
   {{- if .Values.schedulerName }}
   schedulerName: {{ .Values.schedulerName }}
   {{- end }}
+  {{- if ne (int .Values.workers.kubernetes.terminationGracePeriodSeconds) 600 }}
+  terminationGracePeriodSeconds: {{ .Values.workers.kubernetes.terminationGracePeriodSeconds }}
+  {{- else }}
   terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
+  {{- end }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
   {{- if .Values.workers.useWorkerDedicatedServiceAccounts }}
@@ -239,7 +258,7 @@ spec:
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
-  {{- if and (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kerberosSidecar.enabled)}}
+  {{- if and (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kerberosSidecar.enabled .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kubernetes.kerberosSidecar.enabled)}}
   - name: webserver-config
     configMap:
       name: {{ template "airflow_webserver_config_configmap_name" . }}
@@ -254,6 +273,6 @@ spec:
   - name: kerberos-ccache
     emptyDir: {}
   {{- end }}
-  {{- if .Values.workers.extraVolumes }}
-    {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 2 }}
+  {{- if or .Values.workers.extraVolumes .Values.workers.kubernetes.extraVolumes }}
+    {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumes | default .Values.workers.extraVolumes)) . | nindent 2 }}
   {{- end }}
