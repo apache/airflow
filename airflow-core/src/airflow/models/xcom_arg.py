@@ -25,7 +25,7 @@ import attrs
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from airflow.models.taskinstance import get_task_instance
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions._internal.types import ArgNotSet
@@ -80,7 +80,7 @@ class SchedulerPlainXComArg(SchedulerXComArg):
         return cls(dag.get_task(data["task_id"]), data["key"])
 
     def resolve(self, context: Mapping[str, Any], session: Session) -> Any:
-        task_instance = get_task_instance(
+        task_instance = TaskInstance.get_task_instance(
             dag_id=self.operator.dag_id,
             task_id=self.operator.task_id,
             run_id=context["run_id"],
