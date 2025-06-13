@@ -403,13 +403,13 @@ class TestCliConfigUpdate:
         "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
         [
             ConfigChange(
-                config=ConfigParameter("test_section_breaking_change_before", "test_option"),
-                renamed_to=ConfigParameter("test_section_breaking_change_after", "test_option"),
+                config=ConfigParameter("test_section_breaking_change", "test_option"),
+                renamed_to=ConfigParameter("test_section_breaking_change_new", "test_option"),
                 breaking=True,
             ),
             ConfigChange(
-                config=ConfigParameter("test_section_non_breaking_change_before", "test_option"),
-                renamed_to=ConfigParameter("test_section_non_breaking_change_after", "test_option"),
+                config=ConfigParameter("test_section_non_breaking_change", "test_option"),
+                renamed_to=ConfigParameter("test_section_non_breaking_change_new", "test_option"),
                 breaking=False,
             ),
         ],
@@ -419,38 +419,38 @@ class TestCliConfigUpdate:
         response_config = Config(
             sections=[
                 ConfigSection(
-                    name="test_section_breaking_change_before",
+                    name="test_section_breaking_change",
                     options=[
                         ConfigOption(
                             key="test_option",
-                            value="test_value_breaking_change_before",
+                            value="test_value_breaking_change",
                         )
                     ],
                 ),
                 ConfigSection(
-                    name="test_section_breaking_change_after",
+                    name="test_section_breaking_change_new",
                     options=[
                         ConfigOption(
                             key="test_option",
-                            value="test_value_breaking_change_after",
+                            value="test_value_breaking_change_new",
                         )
                     ],
                 ),
                 ConfigSection(
-                    name="test_section_non_breaking_change_before",
+                    name="test_section_non_breaking_change",
                     options=[
                         ConfigOption(
                             key="test_option",
-                            value="test_value_non_breaking_change_before",
+                            value="test_value_non_breaking_change",
                         )
                     ],
                 ),
                 ConfigSection(
-                    name="test_section_non_breaking_change_after",
+                    name="test_section_non_breaking_change_new",
                     options=[
                         ConfigOption(
                             key="test_option",
-                            value="test_value_non_breaking_change_after",
+                            value="test_value_non_breaking_change_new",
                         )
                     ],
                 ),
@@ -470,21 +470,125 @@ class TestCliConfigUpdate:
         )
 
         calls = [call[0][0] for call in mock_rich_print.call_args_list]
-        print("\ncalls:")
-        for i, msg in enumerate(calls):
-            print(f"{i}: {msg!r}")
 
         assert len(calls) == 4
         assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
         assert (
             calls[1]
-            == "  - [DRY-RUN]  Renamed 'test_section_breaking_change_before/test_option' to 'test_section_breaking_change_after/test_option'."
+            == "  - [DRY-RUN]  Renamed 'test_section_breaking_change/test_option' to 'test_section_breaking_change_new/test_option'."
         )
         assert (
             calls[2]
-            == "  - [DRY-RUN]  Renamed 'test_section_non_breaking_change_before/test_option' to 'test_section_non_breaking_change_after/test_option'."
+            == "  - [DRY-RUN]  Renamed 'test_section_non_breaking_change/test_option' to 'test_section_non_breaking_change_new/test_option'."
         )
         assert (
             calls[3]
+            == "[blue]Dry-run mode is enabled. To apply above changes run the command with `--fix`.[/blue]"
+        )
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option"),
+                default_change=True,
+                was_removed=False,
+                old_default="old_default",
+                new_default="new_default",
+                breaking=True,
+            ),
+        ],
+    )
+    def test_update_default_value_change(self, mock_rich_print, api_client_maker):
+        """Test update with default value change."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="old_default",
+                        )
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        print("\ncalls:")
+        for i, msg in enumerate(calls):
+            print(f"{i}: {msg!r}")
+
+        assert len(calls) == 3
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert (
+            calls[1]
+            == "  - [DRY-RUN]  Updated default value of 'test_section/test_option' from 'old_default' to 'new_default'."
+        )
+        assert (
+            calls[2]
+            == "[blue]Dry-run mode is enabled. To apply above changes run the command with `--fix`.[/blue]"
+        )
+
+    @patch("rich.print")
+    @patch(
+        "airflowctl.ctl.commands.config_command.CONFIGS_CHANGES",
+        [
+            ConfigChange(
+                config=ConfigParameter("test_section", "test_option"),
+                was_removed=True,
+                breaking=True,
+            ),
+        ],
+    )
+    def test_update_removed_option(self, mock_rich_print, api_client_maker):
+        """Test update with removed option."""
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="test_section",
+                    options=[
+                        ConfigOption(
+                            key="test_option",
+                            value="some_value",
+                        )
+                    ],
+                ),
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.update(
+            self.parser.parse_args(["config", "update"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+
+        assert len(calls) == 3
+        assert calls[0] == "[green]The following are the changes in airflow config:[/green]"
+        assert calls[1] == "  - [DRY-RUN]  Removed 'test_section/test_option' from configuration."
+        assert (
+            calls[2]
             == "[blue]Dry-run mode is enabled. To apply above changes run the command with `--fix`.[/blue]"
         )
