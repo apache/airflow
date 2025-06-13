@@ -20,8 +20,6 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -40,18 +38,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 task_expansion_batch_size = conf.getint("scheduler", "task_expansion_batch_size", fallback=10)
-
-
-def get_dag_run(dag_id: str, run_id: str, session: Session) -> DagRun | None:
-    """
-    Returns the TaskInstance for the task that is being expanded.
-    """
-    return session.scalars(
-        select(DagRun).where(
-            DagRun.dag_id == dag_id,
-            DagRun.run_id == run_id,
-        )
-    ).one_or_none()
 
 
 class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
@@ -150,7 +136,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
             run_id=self.run_id,
             session=session,
         )
-        dag_run = get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
+        dag_run = DagRun.get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
         unmapped_ti = TaskInstance.get_task_instance(dag_id=self.dag_id, task_id=self.task_id, run_id=self.run_id, session=session)
 
         self.log.info("expand_tasks: %s", session)
@@ -180,7 +166,7 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
                 task_instances_batch.append(task_instance)
 
                 if len(task_instances_batch) == task_expansion_batch_size:
-                    dag_run = get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
+                    dag_run = DagRun.get_dag_run(dag_id=self.dag_id, run_id=self.run_id, session=session)
                     self._check_dag_run_state(dag_run)
                     self._persist_task_instances(dag_run, task_instances_batch, session=session)
 
