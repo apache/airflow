@@ -35,11 +35,12 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal
 import attrs
 import lazy_object_proxy
 import structlog
-from pydantic import AwareDatetime, ConfigDict, Field, JsonValue
+from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
+from airflow.exceptions import AirflowConfigException, AirflowInactiveAssetInInletOrOutletException
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -644,7 +645,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   deeply nested execution stack.
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
+log = structlog.get_logger(logger_name="task")
+SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
 # State machine!
 # 1. Start up (receive details from supervisor)
@@ -655,12 +657,20 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     # The parent sends us a StartupDetails message un-prompted. After this, ever single message is only sent
     # in response to us sending a request.
-    msg = SUPERVISOR_COMMS._get_response()
+    log = structlog.get_logger(logger_name="task")
+
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
+        # re exec process
+        log.info("Using serialized startup message from environment")
+        msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
+        log.info("Trying to open in rexec", fd=msg)
+        SUPERVISOR_COMMS.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
+    else:
+        msg = SUPERVISOR_COMMS._get_response()
+        log.info("Received startup message", msg_type=type(msg).__name__)
 
     if not isinstance(msg, StartupDetails):
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
-
-    log = structlog.get_logger(logger_name="task")
 
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
@@ -680,6 +690,21 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         ti = parse(msg, log)
         ti.log_url = get_log_url_from_ti(ti)
     log.debug("DAG file parsed", file=msg.dag_rel_path)
+
+    try:
+        run_as_user = getattr(ti.task, "run_as_user", None) or conf.get("core", "default_impersonation")
+    except AirflowConfigException:
+        run_as_user = None
+
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user:
+        # re-exec process
+        os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
+        # store statrup messgae
+        os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
+        os.set_inheritable(SUPERVISOR_COMMS.request_socket.fileno(), True)
+        log.info("Running command", command=["sudo", "-E", "-H", "-u", run_as_user, sys.executable, __file__])
+        os.execvp("sudo", ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, __file__])
+        return None, None, None
 
     return ti, ti.get_template_context(), log
 
@@ -1241,9 +1266,6 @@ def finalize(
 def main():
     # TODO: add an exception here, it causes an oof of a stack trace if it happens to early!
     log = structlog.get_logger(logger_name="task")
-
-    global SUPERVISOR_COMMS
-    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
     try:
         ti, context, log = startup()
