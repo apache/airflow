@@ -45,11 +45,11 @@ const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
   return (
     <>
       <ActionButton
-        actionName={translate("dags:runAndTaskActions.delete.button", { type: "Run" })}
+        actionName={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text={translate("dags:runAndTaskActions.delete.button", { type: "Run" })}
+        text={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
         variant="solid"
         withText={withText}
       />
@@ -66,10 +66,12 @@ const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
         open={open}
         resourceName={translate("dags:runAndTaskActions.delete.dialog.resourceName", {
           id: dagRun.dag_run_id,
-          type: "Run",
+          type: translate("dagRun_one"),
         })}
-        title={translate("dags:runAndTaskActions.delete.dialog.title", { type: "Run" })}
-        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", { type: "Run" })}
+        title={translate("dags:runAndTaskActions.delete.dialog.title", { type: translate("dagRun_one") })}
+        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", {
+          type: translate("dagRun_one"),
+        })}
       />
     </>
   );

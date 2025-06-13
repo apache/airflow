@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
@@ -29,14 +30,6 @@ import { toaster } from "src/components/ui";
 
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
-const onError = () => {
-  toaster.create({
-    description: "Patch Dag Run request failed",
-    title: "Failed to patch the Dag Run",
-    type: "error",
-  });
-};
-
 export const usePatchDagRun = ({
   dagId,
   dagRunId,
@@ -47,6 +40,17 @@ export const usePatchDagRun = ({
   onSuccess?: () => void;
 }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation();
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("toaster.update.error.title", {
+        resourceName: translate("dagRun_one"),
+      }),
+      type: "error",
+    });
+  };
 
   const onSuccessFn = async () => {
     const queryKeys = [

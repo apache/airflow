@@ -223,6 +223,43 @@
     "title": "Select Timezone",
     "utc": "UTC (Coordinated Universal Time)"
   },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Bulk Delete {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
+        "title": "Bulk Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "create": {
+      "error": "Create {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully created.",
+        "title": "Create {{resourceName}} Request Submitted"
+      }
+    },
+    "delete": {
+      "error": "Delete {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully deleted.",
+        "title": "Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "import": {
+      "error": "Import {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully imported.",
+        "title": "Import {{resourceName}} Request Submitted"
+      }
+    },
+    "update": {
+      "error": "Update {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully updated.",
+        "title": "Update {{resourceName}} Request Submitted"
+      }
+    }
+  },
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",

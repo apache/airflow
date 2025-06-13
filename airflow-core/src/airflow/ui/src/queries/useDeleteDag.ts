@@ -17,18 +17,11 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { useDagServiceDeleteDag } from "openapi/queries";
 import { useDagServiceGetDagKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
-
-const onError = () => {
-  toaster.create({
-    description: "Delete DAG request failed",
-    title: "Failed to delete DAG",
-    type: "error",
-  });
-};
 
 export const useDeleteDag = ({
   dagId,
@@ -38,6 +31,17 @@ export const useDeleteDag = ({
   onSuccessConfirm: () => void;
 }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation();
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("toaster.delete.error.title", {
+        resourceName: translate("dag_one"),
+      }),
+      type: "error",
+    });
+  };
 
   const onSuccess = async () => {
     const queryKeys = [[useDagServiceGetDagKey, { dagId }]];
@@ -45,8 +49,12 @@ export const useDeleteDag = ({
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      description: "The DAG deletion request was successful.",
-      title: "DAG Deleted Successfully",
+      description: translate("toaster.delete.success.description", {
+        resourceName: translate("dag_one"),
+      }),
+      title: translate("toaster.delete.success.title", {
+        resourceName: translate("dag_one"),
+      }),
       type: "success",
     });
 

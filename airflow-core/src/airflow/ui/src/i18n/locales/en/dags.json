@@ -24,6 +24,7 @@
     "clear": {
       "button": "Clear {{type}}",
       "buttonTooltip": "Press shift+c to clear",
+      "error": "Failed to clear {{type}}",
       "title": "Clear {{type}}"
     },
     "delete": {

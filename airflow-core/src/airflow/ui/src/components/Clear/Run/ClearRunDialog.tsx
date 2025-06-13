@@ -68,7 +68,10 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>{translate("dags:runAndTaskActions.clear.title", { type: "Run" })}: </strong> {dagRunId}
+              <strong>
+                {translate("dags:runAndTaskActions.clear.title", { type: translate("dagRun_one") })}:{" "}
+              </strong>{" "}
+              {dagRunId}
             </Heading>
           </VStack>
         </Dialog.Header>

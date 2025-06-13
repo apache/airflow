@@ -90,7 +90,11 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           <VStack align="start" gap={4}>
             <Heading size="xl">
               <strong>
-                {translate("dags:runAndTaskActions.markAs.title", { state, type: "Task Instance" })}:
+                {translate("dags:runAndTaskActions.markAs.title", {
+                  state,
+                  type: translate("taskInstance_one"),
+                })}
+                :
               </strong>{" "}
               {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />{" "}
               <StateBadge state={state} />
