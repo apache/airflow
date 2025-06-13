@@ -125,3 +125,22 @@ class PluginImportErrorCollectionResponse(BaseModel):
 
     import_errors: list[PluginImportErrorResponse]
     total_entries: int
+
+
+class UiPluginResponse(BaseModel):
+    """UI Plugin serializer for responses."""
+
+    slug: str
+    label: str
+    icon: str | None = None
+    entry: str
+    type: Literal["iframe", "module"]
+    permissions: list[str]
+    plugin_name: str
+
+
+class UiPluginCollectionResponse(BaseModel):
+    """UI Plugin Collection serializer."""
+
+    plugins: list[UiPluginResponse]
+    total_entries: int

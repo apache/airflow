@@ -1402,6 +1402,29 @@ export type TriggererInfoResponse = {
   latest_triggerer_heartbeat: string | null;
 };
 
+/**
+ * UI Plugin Collection serializer.
+ */
+export type UiPluginCollectionResponse = {
+  plugins: Array<UiPluginResponse>;
+  total_entries: number;
+};
+
+/**
+ * UI Plugin serializer for responses.
+ */
+export type UiPluginResponse = {
+  slug: string;
+  label: string;
+  icon?: string | null;
+  entry: string;
+  type: "iframe" | "module";
+  permissions: Array<string>;
+  plugin_name: string;
+};
+
+export type type = "iframe" | "module";
+
 export type ValidationError = {
   loc: Array<string | number>;
   msg: string;
@@ -1547,7 +1570,7 @@ export type BaseNodeResponse = {
     | "trigger";
 };
 
-export type type =
+export type type2 =
   | "join"
   | "task"
   | "asset-condition"
@@ -2615,6 +2638,8 @@ export type GetPluginsData = {
 export type GetPluginsResponse = PluginCollectionResponse;
 
 export type ImportErrorsResponse = PluginImportErrorCollectionResponse;
+
+export type GetUiPluginsResponse = UiPluginCollectionResponse;
 
 export type DeletePoolData = {
   poolName: string;
@@ -5023,6 +5048,24 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: PluginImportErrorCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+      };
+    };
+  };
+  "/api/v2/plugins/ui-plugins": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: UiPluginCollectionResponse;
         /**
          * Unauthorized
          */
