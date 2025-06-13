@@ -94,13 +94,13 @@ paths:
                 title: Response Hook Meta Data
       security:
       - OAuth2PasswordBearer: []
-  /ui/dags/recent_dag_runs:
+  /ui/dags:
     get:
       tags:
       - DAG
-      summary: Recent Dag Runs
-      description: Get recent DAG runs.
-      operationId: recent_dag_runs
+      summary: Get Dags
+      description: Get DAGs with recent DagRun.
+      operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -211,6 +211,13 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: dag_id
+          title: Order By
       responses:
         '200':
           description: Successful Response
@@ -892,6 +899,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
         data_interval_start:
           anyOf:
           - type: string
@@ -954,6 +966,7 @@ components:
       - queued_at
       - start_date
       - end_date
+      - duration
       - data_interval_start
       - data_interval_end
       - run_after

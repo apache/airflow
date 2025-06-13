@@ -53,20 +53,21 @@ BASE_CONNECTION_KWARGS: dict = {
     },
 }
 
-CONN_PARAMS_OAUTH = {
+CONN_PARAMS_OAUTH_BASE = {
     "account": "airflow",
     "application": "AIRFLOW",
     "authenticator": "oauth",
     "database": "db",
     "client_id": "test_client_id",
     "client_secret": "test_client_pw",
-    "refresh_token": "secrettoken",
     "region": "af_region",
     "role": "af_role",
     "schema": "public",
     "session_parameters": None,
     "warehouse": "af_wh",
 }
+
+CONN_PARAMS_OAUTH = CONN_PARAMS_OAUTH_BASE | {"refresh_token": "secrettoken"}
 
 
 @pytest.fixture
@@ -559,6 +560,112 @@ class TestPytestSnowflakeHook:
         assert "region" in conn_params_extra_keys
         assert "account" in conn_params_extra_keys
 
+    @mock.patch("requests.post")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    def test_get_conn_params_should_support_oauth_with_token_endpoint(
+        self, mock_get_conn_params, requests_post
+    ):
+        requests_post.return_value = Mock(
+            status_code=200,
+            json=lambda: {
+                "access_token": "supersecretaccesstoken",
+                "expires_in": 600,
+                "refresh_token": "secrettoken",
+                "token_type": "Bearer",
+                "username": "test_user",
+            },
+        )
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "test_client_id",
+            "password": "test_client_secret",
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "refresh_token": "secrettoken",
+                "authenticator": "oauth",
+                "token_endpoint": "https://www.example.com/oauth/token",
+            },
+        }
+        mock_get_conn_params.return_value = connection_kwargs
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+        conn_params_keys = conn_params.keys()
+        conn_params_extra = conn_params.get("extra", {})
+        conn_params_extra_keys = conn_params_extra.keys()
+
+        assert "authenticator" in conn_params_extra_keys
+        assert conn_params_extra["authenticator"] == "oauth"
+        assert conn_params_extra["token_endpoint"] == "https://www.example.com/oauth/token"
+
+        assert "user" not in conn_params_keys
+        assert "password" in conn_params_keys
+        assert "refresh_token" in conn_params_extra_keys
+        # Mandatory fields to generate account_identifier `https://<account>.<region>`
+        assert "region" in conn_params_extra_keys
+        assert "account" in conn_params_extra_keys
+
+    @mock.patch("requests.post")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    def test_get_conn_params_should_support_oauth_with_client_credentials(
+        self, mock_get_conn_params, requests_post
+    ):
+        requests_post.return_value = Mock(
+            status_code=200,
+            json=lambda: {
+                "access_token": "supersecretaccesstoken",
+                "expires_in": 600,
+                "refresh_token": "secrettoken",
+                "token_type": "Bearer",
+                "username": "test_user",
+            },
+        )
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "test_client_id",
+            "password": "test_client_secret",
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "authenticator": "oauth",
+                "token_endpoint": "https://www.example.com/oauth/token",
+                "grant_type": "client_credentials",
+            },
+        }
+        mock_get_conn_params.return_value = connection_kwargs
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+        conn_params_keys = conn_params.keys()
+        conn_params_extra = conn_params.get("extra", {})
+        conn_params_extra_keys = conn_params_extra.keys()
+
+        assert "authenticator" in conn_params_extra_keys
+        assert conn_params_extra["authenticator"] == "oauth"
+        assert conn_params_extra["grant_type"] == "client_credentials"
+
+        assert "user" not in conn_params_keys
+        assert "password" in conn_params_keys
+        assert "refresh_token" not in conn_params_extra_keys
+        # Mandatory fields to generate account_identifier `https://<account>.<region>`
+        assert "region" in conn_params_extra_keys
+        assert "account" in conn_params_extra_keys
+
     def test_should_add_partner_info(self):
         with mock.patch.dict(
             "os.environ",
@@ -909,6 +1016,34 @@ class TestPytestSnowflakeHook:
         hook.get_oauth_token(conn_config=CONN_PARAMS_OAUTH)
         requests_post.assert_called_once_with(
             f"https://{CONN_PARAMS_OAUTH['account']}.snowflakecomputing.com/oauth/token-request",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": CONN_PARAMS_OAUTH["refresh_token"],
+                "redirect_uri": "https://localhost.com",
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            auth=basic_auth,
+        )
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
+    @mock.patch("requests.post")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    def test_get_oauth_token_with_token_endpoint(self, mock_conn_param, requests_post, mock_auth):
+        """Test get_oauth_token method makes the right http request"""
+        basic_auth = {"Authorization": "Basic usernamepassword"}
+        token_endpoint = "https://example.com/oauth/token"
+        mock_conn_param.return_value = CONN_PARAMS_OAUTH
+        requests_post.return_value.status_code = 200
+        mock_auth.return_value = basic_auth
+
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+        hook.get_oauth_token(conn_config=CONN_PARAMS_OAUTH, token_endpoint=token_endpoint)
+
+        requests_post.assert_called_once_with(
+            token_endpoint,
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": CONN_PARAMS_OAUTH["refresh_token"],

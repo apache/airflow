@@ -101,7 +101,16 @@ PERF_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "dev" / "airflow_perf" / "dags"
 ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
-EXAMPLE_STANDARD_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "providers" / "standard" / "tests" / "system" / "standard"
+EXAMPLE_STANDARD_DAGS_FOLDER = (
+    AIRFLOW_ROOT_PATH
+    / "providers"
+    / "standard"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "standard"
+    / "example_dags"
+)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
@@ -6004,7 +6013,7 @@ class TestSchedulerJob:
         assert dr.state == DagRunState.SUCCESS
 
     def test_should_mark_empty_task_as_success(self, testing_dag_bundle):
-        dag_file = Path(__file__).parent.parent / "dags/test_only_empty_tasks.py"
+        dag_file = Path(__file__).parents[1] / "dags/test_only_empty_tasks.py"
 
         # Write DAGs to dag and serialized_dag table
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)

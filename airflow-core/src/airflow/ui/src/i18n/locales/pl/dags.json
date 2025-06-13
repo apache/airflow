@@ -1,37 +1,68 @@
 {
-  "actions": {
-    "delete": "Skasuj Daga",
-    "deleteDagWarning": "Ta operacja usunie wszystkie metadane, takie jak wykonania Daga i zadania.",
-    "trigger": "Uruchom",
-    "triggerDag": "Uruchom Daga"
-  },
   "assetSchedule": "Uaktualniono {{count}} z {{total}} zasobów",
+  "dagActions": {
+    "delete": {
+      "button": "Usuń Daga",
+      "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań i zadań zostaną usunięte."
+    }
+  },
   "filters": {
+    "allRunTypes": "Wszystkie Typy Wykonań",
+    "allStates": "Wszystkie Stany",
     "paused": {
       "active": "Aktywne",
       "all": "Wszystkie",
       "paused": "Wstrzymane"
     }
   },
-  "list": {
-    "advancedSearch": "Wyszukiwanie zaawansowane",
-    "clearSearch": "Wyczyść wyszukiwanie",
-    "columns": {
-      "dagId": "Identyfikator Daga",
-      "lastDagRun": "Ostatnie Wykonanie Daga",
-      "nextDagRun": "Następne Wykonanie Daga",
-      "schedule": "Harmonogram",
-      "tags": "Etykiety"
+  "ownerLink": "Link do właściciela {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Nie znaleziono zadań.",
+      "title": "Liczba wybranych zadań: {{count}}"
     },
-    "ownerLink": "Link do właściciela {{owner}}",
-    "runs": {
-      "duration": "Czas trwania",
-      "endDate": "Data zakończenia",
-      "runAfter": "Uruchom po",
-      "startDate": "Data rozpoczęcia",
-      "state": "Stan"
+    "clear": {
+      "button": "Wyczyść {{type}}",
+      "buttonTooltip": "Użyj shift+c żeby wyczyścić",
+      "title": "Wyczyść {{type}}"
     },
-    "searchPlaceholder": "Szukaj Dagów"
+    "delete": {
+      "button": "Usuń {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Usuń {{type}}",
+        "warning": "Wzystkie metadane związane z tym {{type}} zostaną usunięte"
+      },
+      "error": "Błąd usuwania {{type}}",
+      "success": {
+        "description": "{{type}} został usunięty pomyślnie.",
+        "title": "{{type}} usunięto."
+      }
+    },
+    "markAs": {
+      "button": "Ustaw {{type}} jako...",
+      "buttonTooltip": {
+        "failed": "Użyj shift+f aby oznaczyć jako nieudane",
+        "success": "Użyj shift+s aby oznaczyć jako udane"
+      },
+      "title": "Ustaw {{type}} jako {{state}}"
+    },
+    "options": {
+      "downstream": "Taski podrzędne",
+      "existingTasks": "Wyczyść istniejące zadania",
+      "future": "Przyszłe zadania",
+      "onlyFailed": "Wyczyść tylko nieudane zadania",
+      "past": "Przeszłe zadania",
+      "queueNew": "Kolejkuj nowe zadania",
+      "upstream": "Taski nadrzędne"
+    }
+  },
+  "search": {
+    "advanced": "Wyszukiwanie zaawansowane",
+    "clear": "Wyczyść wyszukiwanie",
+    "dags": "Szukaj Dagów",
+    "hotkey": "+K",
+    "tasks": "Szukaj instancji zadań"
   },
   "sort": {
     "displayName": {
