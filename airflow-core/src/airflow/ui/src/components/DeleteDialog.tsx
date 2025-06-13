@@ -55,7 +55,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
         <Dialog.CloseTrigger />
         <Dialog.Body>
           <Text>{translate("modal.delete.confirmation", { resourceName })}</Text>
-          <Text color="red.500" fontWeight="bold" mt={4}>
+          <Text color="fg.error" fontWeight="bold" mt={4}>
             {warningText}
           </Text>
         </Dialog.Body>

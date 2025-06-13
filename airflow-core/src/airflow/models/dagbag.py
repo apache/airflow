@@ -130,7 +130,7 @@ class DagBag(LoggingMixin):
         bundle_path: Path | None = None,
     ):
         super().__init__()
-        self.bundle_path: Path | None = bundle_path
+        self.bundle_path = bundle_path
         include_examples = (
             include_examples
             if isinstance(include_examples, bool)
@@ -145,6 +145,7 @@ class DagBag(LoggingMixin):
         self.dags: dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed: dict[str, datetime] = {}
+        # Store import errors with relative file paths as keys (relative to bundle_path)
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
@@ -356,6 +357,17 @@ class DagBag(LoggingMixin):
                 )
         return warnings
 
+    def _get_relative_fileloc(self, filepath: str) -> str:
+        """
+        Get the relative file location for a given filepath.
+
+        :param filepath: Absolute path to the file
+        :return: Relative path from bundle_path, or original filepath if no bundle_path
+        """
+        if self.bundle_path:
+            return str(Path(filepath).relative_to(self.bundle_path))
+        return filepath
+
     def _load_modules_from_file(self, filepath, safe_mode):
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
@@ -363,7 +375,8 @@ class DagBag(LoggingMixin):
             """Handle SIGSEGV signal and let the user know that the import failed."""
             msg = f"Received SIGSEGV signal while processing {filepath}."
             self.log.error(msg)
-            self.import_errors[filepath] = msg
+            relative_filepath = self._get_relative_fileloc(filepath)
+            self.import_errors[relative_filepath] = msg
 
         try:
             signal.signal(signal.SIGSEGV, handler)
@@ -402,12 +415,13 @@ class DagBag(LoggingMixin):
                 # This would also catch `exit()` in a dag file
                 DagContext.autoregistered_dags.clear()
                 self.log.exception("Failed to import: %s", filepath)
+                relative_filepath = self._get_relative_fileloc(filepath)
                 if self.dagbag_import_error_tracebacks:
-                    self.import_errors[filepath] = traceback.format_exc(
+                    self.import_errors[relative_filepath] = traceback.format_exc(
                         limit=-self.dagbag_import_error_traceback_depth
                     )
                 else:
-                    self.import_errors[filepath] = str(e)
+                    self.import_errors[relative_filepath] = str(e)
                 return []
 
         dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
@@ -467,12 +481,13 @@ class DagBag(LoggingMixin):
                     DagContext.autoregistered_dags.clear()
                     fileloc = os.path.join(filepath, zip_info.filename)
                     self.log.exception("Failed to import: %s", fileloc)
+                    relative_fileloc = self._get_relative_fileloc(fileloc)
                     if self.dagbag_import_error_tracebacks:
-                        self.import_errors[fileloc] = traceback.format_exc(
+                        self.import_errors[relative_fileloc] = traceback.format_exc(
                             limit=-self.dagbag_import_error_traceback_depth
                         )
                     else:
-                        self.import_errors[fileloc] = str(e)
+                        self.import_errors[relative_fileloc] = str(e)
                 finally:
                     if sys.path[0] == filepath:
                         del sys.path[0]
@@ -494,10 +509,8 @@ class DagBag(LoggingMixin):
 
         for dag, mod in top_level_dags:
             dag.fileloc = mod.__file__
-            if self.bundle_path:
-                dag.relative_fileloc = str(Path(mod.__file__).relative_to(self.bundle_path))
-            else:
-                dag.relative_fileloc = dag.fileloc
+            relative_fileloc = self._get_relative_fileloc(dag.fileloc)
+            dag.relative_fileloc = relative_fileloc
             try:
                 dag.validate()
                 self.bag_dag(dag=dag)
@@ -505,7 +518,7 @@ class DagBag(LoggingMixin):
                 pass
             except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
+                self.import_errors[relative_fileloc] = f"{type(e).__name__}: {e}"
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             else:
                 found_dags.append(dag)
@@ -665,12 +678,13 @@ class DagBag(LoggingMixin):
             else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
             for dag in self.dags.values()
         ]
+        import_errors = {(bundle_name, rel_path): error for rel_path, error in self.import_errors.items()}
 
         update_dag_parsing_results_in_db(
             bundle_name,
             bundle_version,
             dags,
-            self.import_errors,
+            import_errors,
             self.dag_warnings,
             session=session,
         )

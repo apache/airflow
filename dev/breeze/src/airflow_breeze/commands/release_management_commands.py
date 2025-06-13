@@ -48,6 +48,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_i
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
+    option_allow_pre_releases,
     option_answer,
     option_clean_airflow_installation,
     option_commit_sha,
@@ -126,7 +127,6 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.docs_publisher import DocsPublisher
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -1460,6 +1460,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_run_in_parallel
 @option_skip_cleanup
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
 def install_provider_distributions(
@@ -1468,6 +1469,7 @@ def install_provider_distributions(
     airflow_constraints_reference: str,
     airflow_skip_constraints: bool,
     airflow_extras: str,
+    allow_pre_releases: bool,
     clean_airflow_installation: bool,
     debug_resources: bool,
     github_repository: str,
@@ -1495,6 +1497,7 @@ def install_provider_distributions(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         # We just want to install the providers by entrypoint
         # we do not need to run any command in the container
         extra_args=("exit 0",),
@@ -1605,6 +1608,7 @@ def install_provider_distributions(
 @option_providers_constraints_reference
 @option_providers_skip_constraints
 @option_use_airflow_version
+@option_allow_pre_releases
 @option_use_distributions_from_dist
 @option_verbose
 def verify_provider_distributions(
@@ -1625,6 +1629,7 @@ def verify_provider_distributions(
     python: str,
     airflow_skip_constraints: bool,
     use_airflow_version: str | None,
+    allow_pre_releases: bool,
     use_distributions_from_dist: bool,
 ):
     if install_selected_providers and not use_distributions_from_dist:
@@ -1639,6 +1644,7 @@ def verify_provider_distributions(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        allow_pre_releases=allow_pre_releases,
         clean_airflow_installation=clean_airflow_installation,
         github_repository=github_repository,
         install_airflow_with_constraints=install_airflow_with_constraints,
@@ -1684,6 +1690,8 @@ def run_docs_publishing(
     verbose: bool,
     output: Output | None,
 ) -> tuple[int, str]:
+    from airflow_breeze.utils.docs_publisher import DocsPublisher
+
     builder = DocsPublisher(package_name=package_name, output=output, verbose=verbose)
     return builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
 
@@ -3944,3 +3952,11 @@ def publish_docs_to_s3(
         docs_to_s3.publish_all_docs()
     if stable_versions:
         docs_to_s3.publish_stable_version_docs()
+    from airflow_breeze.utils.publish_docs_to_s3 import version_error
+
+    if version_error:
+        get_console().print(
+            "[error]There was an error with the version of the docs. "
+            "Please check the version in the docs and try again.[/]"
+        )
+        sys.exit(1)
