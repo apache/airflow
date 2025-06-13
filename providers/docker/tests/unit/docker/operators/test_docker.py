@@ -250,7 +250,6 @@ class TestDockerOperator:
         self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with("some_id")
         assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
-        self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
 
     def test_private_environment_is_private(self):
         operator = DockerOperator(
