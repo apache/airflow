@@ -549,13 +549,13 @@ class GCSHook(GoogleBaseHook):
         if cache_control:
             blob.cache_control = cache_control
 
-        if filename and data:
+        if filename is not None and data is not None:
             raise ValueError(
                 "'filename' and 'data' parameter provided. Please "
                 "specify a single parameter, either 'filename' for "
                 "local file uploads or 'data' for file content uploads."
             )
-        if filename:
+        if filename is not None:
             if not mime_type:
                 mime_type = "application/octet-stream"
             if gzip:
@@ -575,7 +575,7 @@ class GCSHook(GoogleBaseHook):
             if gzip:
                 os.remove(filename)
             self.log.info("File %s uploaded to %s in %s bucket", filename, object_name, bucket_name)
-        elif data:
+        elif data is not None:
             if not mime_type:
                 mime_type = "text/plain"
             if gzip:
