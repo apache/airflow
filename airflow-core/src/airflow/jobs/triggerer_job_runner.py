@@ -43,6 +43,7 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.providers.standard.api.client import UpdateHITLResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
@@ -71,6 +72,19 @@ from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
+
+# TODO: Remove this block once we can make the execution API pluggable.
+try:
+    from airflow.providers.standard.execution_time.comms import (
+        GetHITLResponseContentDetail,
+        HITLResponseContentDetailResult,
+        UpdateHITLResponse,
+    )
+except ModuleNotFoundError:
+    GetHITLResponseContentDetail = object  # type: ignore[misc, assignment]
+    UpdateHITLResponse = object  # type: ignore[misc, assignment]
+    HITLResponseContentDetailResult = object  # type: ignore[misc, assignment]
+
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -219,6 +233,7 @@ ToTriggerRunner = Annotated[
     | DRCount
     | TICount
     | TaskStatesResult
+    | HITLResponseContentDetailResult
     | ErrorResponse,
     Field(discriminator="type"),
 ]
@@ -236,7 +251,9 @@ ToTriggerSupervisor = Annotated[
     | GetTICount
     | GetTaskStates
     | GetDagRunState
-    | GetDRCount,
+    | GetDRCount
+    | GetHITLResponseContentDetail
+    | UpdateHITLResponse,
     Field(discriminator="type"),
 ]
 """
@@ -448,6 +465,24 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
+        # TODO: Remove this block once we can make the execution API pluggable.
+        elif issubclass(UpdateHITLResponse, BaseModel) and isinstance(msg, UpdateHITLResponse):
+            if TYPE_CHECKING:
+                assert HITLResponseContentDetailResult is not None
+            api_resp = self.client.hitl.update_response(
+                ti_id=msg.ti_id,
+                response_content=msg.response_content,
+                params_input=msg.params_input,
+            )
+            resp = HITLResponseContentDetailResult.from_api_response(response=api_resp)
+        # TODO: Remove this block once we can make the execution API pluggable.
+        elif issubclass(GetHITLResponseContentDetail, BaseModel) and isinstance(
+            msg, GetHITLResponseContentDetail
+        ):
+            if TYPE_CHECKING:
+                assert HITLResponseContentDetailResult is not None
+            api_resp = self.client.hitl.get_response_content_detail(ti_id=msg.ti_id)
+            resp = HITLResponseContentDetailResult.from_api_response(response=api_resp)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
