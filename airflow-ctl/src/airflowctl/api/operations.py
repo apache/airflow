@@ -148,7 +148,7 @@ class BaseOperations:
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
     def return_all_entries(
-        self, *, path: str, total_entries: int, data_model, offset=0 ,params, **kwargs
+        self, *, path: str, total_entries: int, data_model, offset=0, limit: int = 50, params, **kwargs
     ) -> list | ServerResponseError:
         params.update(**kwargs)
         entry_list = []
@@ -156,10 +156,10 @@ class BaseOperations:
             if total_entries == 0:
                 return [data_model.model_validate_json(self.response.content)]
             while offset <= total_entries:
-                params.update({"offset": offset})
+                params.update({"offset": offset, "limit": limit})
                 self.response = self.client.get(path, params=params)
                 entry = data_model.model_validate_json(self.response.content)
-                offset = offset + 50 # default limit params = 50
+                offset = offset + limit  # default limit params = 50
                 entry_list.append(entry)
             return entry_list
         except ServerResponseError as e:
@@ -620,6 +620,7 @@ class PoolsOperations(BaseOperations):
                 total_entries=total_entries,
                 data_model=PoolCollectionResponse,
                 offset=0,
+                limit=50,
                 params={},
             )
         except ServerResponseError as e:
@@ -693,6 +694,7 @@ class VariablesOperations(BaseOperations):
                 total_entries=total_entries,
                 data_model=VariableCollectionResponse,
                 offset=0,
+                limit=50,
                 params={},
             )
         except ServerResponseError as e:
