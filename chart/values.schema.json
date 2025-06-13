@@ -1064,6 +1064,11 @@
                     "type": "boolean",
                     "default": true
                 },
+                "AIRFLOW__API_AUTH__JWT_SECRET": {
+                    "description": "Enable ``AIRFLOW__API_AUTH__JWT_SECRET`` variable to be read from the JWT Secret",
+                    "type": "boolean",
+                    "default": true
+                },
                 "AIRFLOW__WEBSERVER__SECRET_KEY": {
                     "description": "Enable ``AIRFLOW__WEBSERVER__SECRET_KEY`` variable to be read from the Webserver Secret Key Secret",
                     "type": "boolean",
@@ -1458,6 +1463,24 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "jwtSecret": {
+            "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs (can only be set during install, not upgrade).",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
+        "jwtSecretName": {
+            "description": "The JWT secret name.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Airflow",
+            "default": null
         },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
