@@ -2474,7 +2474,7 @@
                 "celery": {
                     "description": "Airflow Celery Workers configuration.",
                     "type": "object",
-                    "x-docsSection": "Celery",
+                    "x-docsSection": "Workers",
                     "properties": {
                         "replicas": {
                             "description": "Number of Airflow Celery workers.",
@@ -3388,7 +3388,7 @@
                 "kubernetes": {
                     "description": "Airflow pod-template-file configuration.",
                     "type": "object",
-                    "x-docsSection": "Kubernetes",
+                    "x-docsSection": "Workers",
                     "properties": {
                         "command": {
                             "description": "Command to use in pod-template-file (templated).",
