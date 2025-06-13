@@ -6,11 +6,11 @@
     },
     "columns": {
       "event": "אירוע",
-      "extra": "נוסף",
+      "extra": "תוכן",
       "user": "משתמש",
       "when": "מתי"
     },
-    "title": "יומן ביקורת"
+    "title": "יומן מערכת"
   },
   "xcom": {
     "columns": {
