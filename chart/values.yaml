@@ -2820,7 +2820,7 @@ config:
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
-    auth_manager: '{{ ternary "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager" "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager" (semverCompare ">=3.0.0" .Values.airflowVersion) }}'
+    auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'
