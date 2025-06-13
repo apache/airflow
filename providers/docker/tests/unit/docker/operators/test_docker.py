@@ -440,7 +440,6 @@ class TestDockerOperator:
             "To keep this private, it must be an underscored attribute."
         )
 
-    @mock.patch("airflow.providers.docker.operators.docker.StringIO")
     def test_environment_overrides_env_file(self):
         operator = DockerOperator(
             command="env",
