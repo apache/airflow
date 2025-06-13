@@ -1,22 +1,64 @@
 {
   "admin": {
     "Config": "設定",
-    "Connections": "連結",
+    "Connections": "連線",
     "Plugins": "外掛",
     "Pools": "資源池",
     "Providers": "Providers",
     "Variables": "變數"
   },
+  "asset_one": "資源",
+  "asset_other": "資源",
   "assetEvent_one": "資源事件",
   "assetEvent_other": "資源事件",
+  "backfill_one": "回填",
+  "backfill_other": "回填",
   "browse": {
     "auditLog": "審計日誌",
     "xcoms": "XComs"
   },
+  "createdAssetEvent_one": "已建立資源事件",
+  "createdAssetEvent_other": "已建立資源事件",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "自動回填",
+    "concurrency": "並行數",
+    "dagRunTimeout": "Dag 執行超時",
+    "defaultArgs": "預設參數",
+    "description": "描述",
+    "documentation": "Dag 文件",
+    "fileLocation": "檔案位置",
+    "hasTaskConcurrencyLimits": "有任務並行數限制",
+    "lastExpired": "最後過期時間",
+    "lastParsed": "最後解析時間",
+    "latestDagVersion": "最新 Dag 版本",
+    "latestRun": "上次 Dag 執行",
+    "maxActiveRuns": "活躍執行數上限",
+    "maxActiveTasks": "活躍任務數上限",
+    "maxConsecutiveFailedDagRuns": "連續失敗執行數上限",
+    "nextRun": "下次 Dag 執行",
+    "owner": "擁有者",
+    "params": "參數",
+    "schedule": "排程",
+    "tags": "標籤"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "設定",
+    "dagVersions": "Dag 版本",
+    "dataIntervalEnd": "資料區間結束",
+    "dataIntervalStart": "資料區間起始",
+    "lastSchedulingDecision": "最後排程決策",
+    "queuedAt": "開始排隊時間",
+    "runAfter": "最早可執行時間",
+    "runType": "執行類型",
+    "sourceAssetEvent": "來源資源事件",
+    "triggeredBy": "觸發者"
+  },
   "dagRun_one": "Dag 執行",
   "dagRun_other": "Dag 執行",
+  "dagWarnings": "Dag 警告 / 錯誤",
   "defaultToGraphView": "預設使用圖形視圖",
   "defaultToGridView": "預設使用網格視圖",
   "direction": "書寫方向",
@@ -25,6 +67,22 @@
     "githubRepo": "GitHub 倉庫",
     "restApiReference": "REST API 參考"
   },
+  "duration": "時間範圍",
+  "endDate": "結束日期",
+  "error": {
+    "back": "返回",
+    "defaultMessage": "發生未預期的錯誤",
+    "home": "首頁",
+    "notFound": "找不到頁面",
+    "title": "錯誤"
+  },
+  "expression": {
+    "all": "全部",
+    "and": "且",
+    "any": "任何",
+    "or": "或"
+  },
+  "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
   "mapIndex": "映射索引",
@@ -46,22 +104,31 @@
     "plugins": "插件",
     "security": "安全"
   },
-  "noItemsFound": "找不到{{modelName}}",
+  "noItemsFound": "找不到 {{modelName}}",
+  "note": {
+    "add": "新增筆記",
+    "dagRun": "Dag 執行筆記",
+    "label": "筆記",
+    "placeholder": "新增筆記...",
+    "taskInstance": "任務實例筆記"
+  },
   "pools": {
     "deferred": "已延後",
-    "open": "開啟",
+    "open": "開放",
     "pools_one": "資源池",
     "pools_other": "資源池",
     "queued": "排隊中",
     "running": "執行中",
     "scheduled": "已排程"
   },
+  "runId": "執行 ID",
   "runTypes": {
     "asset_triggered": "資源觸發",
     "backfill": "回填",
     "manual": "手動觸發",
     "scheduled": "已排程"
   },
+  "seconds": "{{count}} 秒",
   "security": {
     "actions": "操作",
     "permissions": "權限",
@@ -70,6 +137,10 @@
     "users": "使用者"
   },
   "selectLanguage": "選擇語言",
+  "sourceAssetEvent_one": "來源資源事件",
+  "sourceAssetEvent_other": "來源資源事件",
+  "startDate": "開始日期",
+  "state": "狀態",
   "states": {
     "deferred": "已延後",
     "failed": "失敗",
@@ -89,21 +160,57 @@
   "switchToDarkMode": "切換到深色模式",
   "switchToLightMode": "切換到淺色模式",
   "table": {
+    "completedAt": "完成時間",
+    "createdAt": "建立時間",
     "filterByTag": "依標籤篩選 Dags",
     "filterColumns": "篩選表格欄位",
     "filterReset_one": "重置篩選",
     "filterReset_other": "重置篩選",
+    "from": "從",
+    "maxActiveRuns": "最大活躍執行數",
     "noTagsFound": "找不到標籤",
     "tagMode": {
       "all": "全部",
       "any": "任何"
     },
-    "tagPlaceholder": "依標籤篩選"
+    "tagPlaceholder": "依標籤篩選",
+    "to": "到"
+  },
+  "task": {
+    "documentation": "任務文件",
+    "lastInstance": "最後實例",
+    "operator": "運算子",
+    "triggerRule": "觸發規則"
+  },
+  "task_one": "任務",
+  "task_other": "任務",
+  "taskId": "任務 ID",
+  "taskInstance": {
+    "dagVersion": "Dag 版本",
+    "executor": "執行器",
+    "executorConfig": "執行器設定",
+    "hostname": "主機名稱",
+    "maxTries": "最大嘗試次數",
+    "pid": "PID",
+    "pool": "資源池",
+    "poolSlots": "資源池配額",
+    "priorityWeight": "優先權權重",
+    "queue": "排隊",
+    "queuedWhen": "開始排隊時間",
+    "scheduledWhen": "開始排程時間",
+    "triggerer": {
+      "assigned": "指派的觸發器",
+      "class": "觸發器類別",
+      "createdAt": "觸發器建立時間",
+      "id": "觸發器 ID",
+      "latestHeartbeat": "最新觸發器心跳時間",
+      "title": "觸發器資訊"
+    },
+    "unixname": "Unix 名稱"
   },
   "taskInstance_one": "任務實例",
   "taskInstance_other": "任務實例",
   "timeRange": {
-    "duration": "時間範圍",
     "last12Hours": "最近 12 小時",
     "last24Hours": "最近 24 小時",
     "lastHour": "最近 1 小時",
@@ -116,6 +223,49 @@
     "title": "選擇時區",
     "utc": "UTC"
   },
+    "toaster": {
+    "bulkDelete": {
+      "error": "批次刪除 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "已成功刪除 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "title": "已提交批次刪除 {{resourceName}} 請求"
+      }
+    },
+    "create": {
+      "error": "建立 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "{{resourceName}} 已成功建立。",
+        "title": "已提交建立 {{resourceName}} 請求"
+      }
+    },
+    "delete": {
+      "error": "刪除 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "{{resourceName}} 已成功刪除。",
+        "title": "已提交刪除 {{resourceName}} 請求"
+      }
+    },
+    "import": {
+      "error": "匯入 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "已成功匯入 {{count}} 個 {{resourceName}}。",
+        "title": "已提交匯入 {{resourceName}} 請求"
+      }
+    },
+    "update": {
+      "error": "更新 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "{{resourceName}} 已成功更新。",
+        "title": "已提交更新 {{resourceName}} 請求"
+      }
+    }
+  },
   "triggered": "已觸發",
-  "user": "使用者"
+  "tryNumber": "嘗試次數",
+  "user": "使用者",
+  "wrap": {
+    "tooltip": "按 {{hotkey}} 切換換行",
+    "unwrap": "不換行",
+    "wrap": "換行"
+  }
 }

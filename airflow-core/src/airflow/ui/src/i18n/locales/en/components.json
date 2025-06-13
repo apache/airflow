@@ -14,7 +14,18 @@
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
     "title": "Run Backfill",
-    "unpause": "Unpause {{dag_display_name}} on trigger"
+    "toaster": {
+      "success": {
+        "description": "Backfill jobs have been successfully triggered.",
+        "title": "Backfill generated"
+      }
+    },
+    "tooltip": "Backfill requires a schedule",
+    "unpause": "Unpause {{dag_display_name}} on trigger",
+    "validation": {
+      "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
+      "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
+    }
   },
   "banner": {
     "backfillInProgress": "Backfill in progress",
@@ -25,11 +36,11 @@
   "clipboard": {
     "copy": "Copy"
   },
+  "close": "Close",
   "configForm": {
     "advancedOptions": "Advanced Options",
     "configJson": "Configuration JSON",
-    "invalidJson": "Invalid JSON format: {{errorMessage}}",
-    "unkownError": "Unknown error occurred."
+    "invalidJson": "Invalid JSON format: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 Error",
@@ -41,8 +52,8 @@
     "duration": "Duration (seconds)",
     "lastDagRun_one": "Last Dag Run",
     "lastDagRun_other": "Last {{count}} Dag Runs",
-    "lasttaskInstance_one": "Last Task Instance",
-    "lasttaskInstance_other": "Last {{count}} Task Instances",
+    "lastTaskInstance_one": "Last Task Instance",
+    "lastTaskInstance_other": "Last {{count}} Task Instances",
     "queuedDuration": "Queued Duration",
     "runAfter": "Run After",
     "runDuration": "Run Duration"
@@ -80,11 +91,6 @@
     "line": "line"
   },
   "reparseDag": "Reparse Dag",
-  "searchDags": {
-    "button": "Search Dags",
-    "hotkey": "+K",
-    "placeholder": "Search Dags"
-  },
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
@@ -92,18 +98,25 @@
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",
   "triggerDag": {
+    "button": "Trigger",
     "loading": "Loading DAG information...",
     "loadingFailed": "Failed to load DAG information. Please try again.",
-    "logicalDate": "Logical Date",
-    "notes": "Dag Run Notes",
-    "notesPlaceholder": "Click to add note",
-    "runId": "Run ID",
     "runIdHelp": "Optional - will be generated if not provided",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",
     "title": "Trigger Dag",
-    "trigger": "Trigger",
+    "toaster": {
+      "success": {
+        "description": "Dag run has been successfully triggered.",
+        "title": "Dag Run Triggered"
+      }
+    },
     "unpause": "Unpause {{dagDisplayName}} on trigger"
+  },
+  "trimText": {
+    "details": "Details",
+    "empty": "Empty",
+    "noContent": "No content available."
   },
   "versionDetails": {
     "bundleLink": "Bundle Link",

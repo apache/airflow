@@ -18,7 +18,9 @@
  */
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiShare } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
@@ -47,7 +49,8 @@ const getColumns = ({
   onRowSelect,
   onSelectAll,
   selectedRows,
-}: GetColumnsParams): Array<ColumnDef<VariableResponse>> => [
+  translate,
+}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<VariableResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => (
@@ -75,21 +78,21 @@ const getColumns = ({
   {
     accessorKey: "key",
     cell: ({ row }) => <TrimText isClickable onClickContent={row.original} text={row.original.key} />,
-    header: "Key",
+    header: translate("columns.key"),
   },
   {
     accessorKey: "value",
     cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
-    header: "Value",
+    header: translate("columns.value"),
   },
   {
     accessorKey: "description",
     cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
-    header: "Description",
+    header: translate("columns.description"),
   },
   {
     accessorKey: "is_encrypted",
-    header: "Is Encrypted",
+    header: translate("variables.columns.isEncrypted"),
   },
   {
     accessorKey: "actions",
@@ -108,6 +111,7 @@ const getColumns = ({
 ];
 
 export const Variables = () => {
+  const { t: translate } = useTranslation("admin");
   const { setTableURLState, tableURLState } = useTableURLState({
     pagination: { pageIndex: 0, pageSize: 30 },
     sorting: [{ desc: false, id: "key" }],
@@ -142,8 +146,9 @@ export const Variables = () => {
         onRowSelect: handleRowSelect,
         onSelectAll: handleSelectAll,
         selectedRows,
+        translate,
       }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows],
+    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows, translate],
   );
 
   const handleSearchChange = (value: string) => {
@@ -190,7 +195,7 @@ export const Variables = () => {
           buttonProps={{ disabled: true }}
           defaultValue={variableKeyPattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder="Search Keys"
+          placeHolder={translate("variables.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
@@ -206,22 +211,25 @@ export const Variables = () => {
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
-          modelName="Variable"
+          modelName={translate("common:admin.Variables")}
+          noRowsMessage={translate("variables.noRowsMessage")}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}
         />
       </Box>
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
-          <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("deleteActions.selected")}
+          </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <Tooltip content="Delete selected variables">
+          <Tooltip content={translate("variables.delete.tooltip")}>
             <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
           </Tooltip>
-          <Tooltip content="Export selected variables">
+          <Tooltip content={translate("variables.exportTooltip")}>
             <Button onClick={() => downloadJson(selectedVariables, "variables")} size="sm" variant="outline">
               <FiShare />
-              Export
+              {translate("variables.export")}
             </Button>
           </Tooltip>
           <ActionBar.CloseTrigger onClick={clearSelections} />

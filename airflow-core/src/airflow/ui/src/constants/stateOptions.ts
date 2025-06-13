@@ -25,7 +25,7 @@ export const taskInstanceStateOptions = createListCollection<{
   value: TaskInstanceState | "all" | "none";
 }>({
   items: [
-    { label: "dags:taskInstances.allStates", value: "all" },
+    { label: "dags:filters.allStates", value: "all" },
     { label: "common:states.scheduled", value: "scheduled" },
     { label: "common:states.queued", value: "queued" },
     { label: "common:states.running", value: "running" },
@@ -44,7 +44,7 @@ export const taskInstanceStateOptions = createListCollection<{
 
 export const dagRunStateOptions = createListCollection({
   items: [
-    { label: "dags:runs.allStates", value: "all" },
+    { label: "dags:filters.allStates", value: "all" },
     { label: "common:states.queued", value: "queued" },
     { label: "common:states.running", value: "running" },
     { label: "common:states.failed", value: "failed" },
@@ -54,7 +54,7 @@ export const dagRunStateOptions = createListCollection({
 
 export const dagRunTypeOptions = createListCollection({
   items: [
-    { label: "dags:runs.allRunTypes", value: "all" },
+    { label: "dags:filters.allRunTypes", value: "all" },
     { label: "common:runTypes.backfill", value: "backfill" },
     { label: "common:runTypes.manual", value: "manual" },
     { label: "common:runTypes.scheduled", value: "scheduled" },

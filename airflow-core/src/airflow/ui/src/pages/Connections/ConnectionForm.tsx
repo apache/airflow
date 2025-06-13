@@ -20,10 +20,11 @@ import { Input, Button, Box, Spacer, HStack, Field, Stack, VStack, Spinner } fro
 import { Select } from "chakra-react-select";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { FlexibleForm, flexibleFormExtraFieldSection } from "src/components/FlexibleForm";
+import { FlexibleForm } from "src/components/FlexibleForm";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Accordion } from "src/components/ui";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
@@ -65,6 +66,7 @@ const ConnectionForm = ({
     mode: "onBlur",
   });
 
+  const { t: translate } = useTranslation(["admin", "common"]);
   const selectedConnType = watch("conn_type"); // Get the selected connection type
   const standardFields = connectionTypeMeta[selectedConnType]?.standard_fields ?? {};
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
@@ -105,7 +107,7 @@ const ConnectionForm = ({
 
       return formattedJson;
     } catch (error_) {
-      const errorMessage = error_ instanceof Error ? error_.message : "Unknown error occurred.";
+      const errorMessage = error_ instanceof Error ? error_.message : translate("common:error.unknown");
 
       setErrors((prev) => ({
         ...prev,
@@ -131,7 +133,7 @@ const ConnectionForm = ({
             <Field.Root invalid={Boolean(fieldState.error)} orientation="horizontal" required>
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                  Connection ID <Field.RequiredIndicator />
+                  {translate("connections.columns.connectionId")} <Field.RequiredIndicator />
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
@@ -141,8 +143,9 @@ const ConnectionForm = ({
             </Field.Root>
           )}
           rules={{
-            required: "Connection ID is required",
-            validate: (value) => (value.trim() === "" ? "Connection ID cannot contain only spaces" : true),
+            required: translate("connections.form.connectionIdRequired"),
+            validate: (value) =>
+              value.trim() === "" ? translate("connections.form.connectionIdRequirement") : true,
           }}
         />
 
@@ -153,7 +156,7 @@ const ConnectionForm = ({
             <Field.Root invalid={Boolean(fieldState.error)} orientation="horizontal" required>
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                  Connection Type <Field.RequiredIndicator />
+                  {translate("connections.columns.connectionType")} <Field.RequiredIndicator />
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
@@ -166,19 +169,16 @@ const ConnectionForm = ({
                     isDisabled={isMetaPending}
                     onChange={(val) => onChange(val?.value)}
                     options={connTypesOptions}
-                    placeholder="Select Connection Type"
+                    placeholder={translate("connections.form.selectConnectionType")}
                     value={connTypesOptions.find((type) => type.value === value)}
                   />
                 </Stack>
-                <Field.HelperText>
-                  Connection type missing? Make sure you have installed the corresponding Airflow Providers
-                  Package.
-                </Field.HelperText>
+                <Field.HelperText>{translate("connections.form.helperText")}</Field.HelperText>
               </Stack>
             </Field.Root>
           )}
           rules={{
-            required: "Connection Type is required",
+            required: translate("connections.form.connectionTypeRequired"),
           }}
         />
 
@@ -192,19 +192,21 @@ const ConnectionForm = ({
             variant="enclosed"
           >
             <Accordion.Item key="standardFields" value="standardFields">
-              <Accordion.ItemTrigger>Standard Fields</Accordion.ItemTrigger>
+              <Accordion.ItemTrigger>{translate("connections.form.standardFields")}</Accordion.ItemTrigger>
               <Accordion.ItemContent>
                 <StandardFields control={control} standardFields={standardFields} />
               </Accordion.ItemContent>
             </Accordion.Item>
             <FlexibleForm
-              flexibleFormDefaultSection={flexibleFormExtraFieldSection}
+              flexibleFormDefaultSection={translate("connections.form.extraFields")}
               initialParamsDict={paramsDic}
               key={selectedConnType}
               setError={setFormErrors}
             />
             <Accordion.Item key="extraJson" value="extraJson">
-              <Accordion.ItemTrigger cursor="button">Extra Fields JSON</Accordion.ItemTrigger>
+              <Accordion.ItemTrigger cursor="button">
+                {translate("connections.form.extraFieldsJson")}
+              </Accordion.ItemTrigger>
               <Accordion.ItemContent>
                 <Controller
                   control={control}
@@ -235,7 +237,7 @@ const ConnectionForm = ({
             disabled={Boolean(errors.conf) || formErrors || isPending || !isValid}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            <FiSave /> Save
+            <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>
       </Box>
