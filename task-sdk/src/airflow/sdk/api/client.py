@@ -32,6 +32,7 @@ from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
 from airflow.configuration import conf
+from airflow.providers.standard.api_fastapi.execution_api.datamodels.interactive import InteractiveResponse
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -618,6 +619,26 @@ class DagRunOperations:
         return DRCount(count=resp.json())
 
 
+class InteractiveResponseOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client) -> None:
+        self.client = client
+
+    def write_response(self, ti_id: uuid.UUID, content: str) -> OKResponse:
+        """Write Interactive Response via the API server."""
+        from airflow.providers.standard.api_fastapi.datamodel.interactive import AddInteractiveResponsePayload
+
+        payload = AddInteractiveResponsePayload(ti_id=ti_id, content_to_add=content)
+        self.client.post(f"/interactive/{ti_id}/response", content=payload)
+        return OKResponse(ok=True)
+
+    def get_response(self, ti_id: uuid.UUID) -> InteractiveResponse:
+        """Get the Interactive Response of a specific Task Instance."""
+        resp = self.client.get(f"/interactive/{ti_id}/response")
+        return InteractiveResponse.model_validate_json(resp.read())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -750,6 +771,12 @@ class Client(httpx.Client):
     def asset_events(self) -> AssetEventOperations:
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def interactive_responses(self) -> InteractiveResponseOperations:
+        """Operations related to Interactive Responses."""
+        return InteractiveResponseOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

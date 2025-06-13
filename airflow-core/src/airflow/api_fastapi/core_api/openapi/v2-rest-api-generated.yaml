@@ -9395,6 +9395,25 @@ components:
       - name
       title: FastAPIRootMiddlewareResponse
       description: Serializer for Plugin FastAPI root middleware responses.
+    HITLResponse:
+      properties:
+        ti_id:
+          type: string
+          title: Ti Id
+        content:
+          type: string
+          title: Content
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - ti_id
+      - content
+      - created_at
+      title: HITLResponse
+      description: Schema for added HITLResponse.
     HTTPExceptionResponse:
       properties:
         detail:
