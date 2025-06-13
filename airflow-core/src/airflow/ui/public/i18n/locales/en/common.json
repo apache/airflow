@@ -76,6 +76,11 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
+  "expand":{
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "tooltip": "Press {{hotkey}} to toggle expand"
+  },
   "expression": {
     "all": "All",
     "and": "AND",

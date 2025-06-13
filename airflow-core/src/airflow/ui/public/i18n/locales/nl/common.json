@@ -23,6 +23,11 @@
     "restApiReference": "REST API referentie"
   },
   "duration": "Duur",
+  "expand": {
+    "collapse": "Invouwen",
+    "expand": "Uitvouwen",
+    "tooltip": "Druk op {{hotkey}} om uit te vouwen"
+  },
   "logout": "Uitloggen",
   "nav": {
     "admin": "Beheer",
