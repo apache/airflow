@@ -148,18 +148,18 @@ class BaseOperations:
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
     def return_all_entries(
-        self, *, path: str, total_entries: int, data_model, offset=0, params, **kwargs
+        self, *, path: str, total_entries: int, data_model, offset=0 ,params, **kwargs
     ) -> list | ServerResponseError:
-        params.update({"offset": 0})
         params.update(**kwargs)
         entry_list = []
         try:
             if total_entries == 0:
                 return [data_model.model_validate_json(self.response.content)]
             while offset <= total_entries:
+                params.update({"offset": offset})
                 self.response = self.client.get(path, params=params)
                 entry = data_model.model_validate_json(self.response.content)
-                offset = offset + 50  # default limit params = 50
+                offset = offset + 50 # default limit params = 50
                 entry_list.append(entry)
             return entry_list
         except ServerResponseError as e:
