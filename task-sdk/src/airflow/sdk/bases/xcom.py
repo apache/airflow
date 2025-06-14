@@ -77,9 +77,8 @@ class BaseXCom:
             map_index=map_index,
         )
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=SetXCom(
+        SUPERVISOR_COMMS.send(
+            SetXCom(
                 key=key,
                 value=value,
                 dag_id=dag_id,
@@ -114,9 +113,8 @@ class BaseXCom:
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=SetXCom(
+        SUPERVISOR_COMMS.send(
+            SetXCom(
                 key=key,
                 value=value,
                 dag_id=dag_id,
@@ -193,9 +191,8 @@ class BaseXCom:
         # back so that two triggers don't end up interleaving requests and create a possible
         # race condition where the wrong trigger reads the response.
         with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
+            msg = SUPERVISOR_COMMS.send(
+                GetXCom(
                     key=key,
                     dag_id=dag_id,
                     task_id=task_id,
@@ -204,7 +201,6 @@ class BaseXCom:
                 ),
             )
 
-            msg = SUPERVISOR_COMMS.get_message()
         if not isinstance(msg, XComResult):
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
@@ -253,9 +249,8 @@ class BaseXCom:
         # back so that two triggers don't end up interleaving requests and create a possible
         # race condition where the wrong trigger reads the response.
         with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
+            msg = SUPERVISOR_COMMS.send(
+                GetXCom(
                     key=key,
                     dag_id=dag_id,
                     task_id=task_id,
@@ -264,7 +259,6 @@ class BaseXCom:
                     include_prior_dates=include_prior_dates,
                 ),
             )
-            msg = SUPERVISOR_COMMS.get_message()
 
         if not isinstance(msg, XComResult):
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
@@ -379,9 +373,8 @@ class BaseXCom:
             map_index=map_index,
         )
         cls.purge(xcom_result)  # type: ignore[call-arg]
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=DeleteXCom(
+        SUPERVISOR_COMMS.send(
+            DeleteXCom(
                 key=key,
                 dag_id=dag_id,
                 task_id=task_id,

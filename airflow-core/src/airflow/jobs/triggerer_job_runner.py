@@ -181,7 +181,6 @@ class messages:
     class StartTriggerer(BaseModel):
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
-        requests_fd: int
         type: Literal["StartTriggerer"] = "StartTriggerer"
 
     class TriggerStateChanges(BaseModel):
@@ -342,8 +341,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     ):
         proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
-        msg = messages.StartTriggerer(requests_fd=proc._requests_fd)
-        proc.send_msg(msg)
+        msg = messages.StartTriggerer()
+        proc.send_msg(msg, in_response_to=0)
         return proc
 
     @functools.cached_property
@@ -794,13 +793,12 @@ class TriggerRunner:
         This also sets up the SUPERVISOR_COMMS so that TaskSDK code can work as expected too (but that will
         need to be wrapped in an ``sync_to_async()`` call)
         """
-        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time import comms, task_runner
 
         loop = asyncio.get_event_loop()
 
-        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
-            input=sys.stdin,
-            decoder=self.decoder,
+        comms_decoder = comms.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
+            body_decoder=self.decoder,
         )
 
         task_runner.SUPERVISOR_COMMS = comms_decoder
@@ -819,7 +817,6 @@ class TriggerRunner:
         if not isinstance(msg, messages.StartTriggerer):
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
-        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
         writer_transport, writer_protocol = await loop.connect_write_pipe(
             lambda: asyncio.streams.FlowControlMixin(loop=loop),
             comms_decoder.request_socket,
