@@ -25,6 +25,7 @@ Apache Kafka Message Queue
 ==========================
 
 
+
 Apache Kafka Queue Provider
 ---------------------------
 
@@ -68,3 +69,38 @@ Topics can also be specified via the Queue URI instead of the ``topics`` kwarg. 
     :dedent: 0
     :start-after: [START extract_topics]
     :end-before: [END extract_topics]
+
+
+.. _howto/triggers:KafkaMessageQueueTrigger:
+
+Apache Kafka Message Queue Trigger
+----------------------------------
+
+Implemented by :class:`~airflow.providers.apache.kafka.triggers.msg_queue.KafkaMessageQueueTrigger`
+
+Inherited from :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger`
+
+Wait for a message in a queue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of how you can configure an Airflow DAG to be triggered by a message in Apache Kafka.
+
+.. exampleinclude:: /../tests/system/apache/kafka/example_dag_kafka_message_queue_trigger.py
+    :language: python
+    :start-after: [START howto_trigger_message_queue]
+    :end-before: [END howto_trigger_message_queue]
+
+
+How it works
+------------
+1. **Kafka Message Queue Trigger**: The ``KafkaMessageQueueTrigger`` listens for messages from Apache Kafka Topic(s).
+
+2. **Asset and Watcher**: The ``Asset`` abstracts the external entity, the Kafka queue in this example.
+The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
+asset.
+
+3. **Event-Driven DAG**: Instead of running on a fixed schedule, the DAG executes when the asset receives an update
+(e.g., a new message in the queue).
+
+For how to use the trigger, refer to the documentation of the
+:ref:`Messaging Trigger <howto/trigger:MessageQueueTrigger>`
