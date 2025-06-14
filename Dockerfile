@@ -1493,7 +1493,7 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 RUN bash /scripts/docker/install_mysql.sh dev && \
     bash /scripts/docker/install_mssql.sh dev && \
     bash /scripts/docker/install_postgres.sh dev
-ENV PATH=${PATH}:/opt/mssql-tools/bin
+ENV PATH=${HOME}/.cargo/bin:${PATH}:/opt/mssql-tools/bin
 
 # By default we do not install from docker context files but if we decide to install from docker context
 # files, we should override those variables to "docker-context-files"
