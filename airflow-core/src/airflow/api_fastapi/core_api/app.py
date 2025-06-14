@@ -58,8 +58,7 @@ def init_views(app: FastAPI) -> None:
     if dev_mode:
         app.mount(
             "/static/i18n",
-            StaticFiles(directory=Path(AIRFLOW_PATH) /
-                        "airflow/ui/public/i18n"),
+            StaticFiles(directory=Path(AIRFLOW_PATH) / "airflow/ui/public/i18n"),
             name="dev_i18n_static",
         )
 
