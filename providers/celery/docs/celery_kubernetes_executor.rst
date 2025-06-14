@@ -25,6 +25,11 @@ CeleryKubernetes Executor
     ``apache-airflow-providers-cncf-kubernetes>=7.4.0`` or by installing Airflow
     with the ``celery`` and ``cncf.kubernetes`` extras: ``pip install 'apache-airflow[celery,cncf.kubernetes]'``.
 
+.. note::
+
+    ``CeleryKubernetesExecutor`` is no longer supported starting from Airflow 3.0.0. You can use the
+    :ref:`Using Multiple Executors Concurrently <using-multiple-executors-concurrently>` feature instead,
+    which provides equivalent functionality in a more flexible manner.
 
 The :class:`~airflow.providers.celery.executors.celery_kubernetes_executor.CeleryKubernetesExecutor` allows users
 to run simultaneously a ``CeleryExecutor`` and a ``KubernetesExecutor``.

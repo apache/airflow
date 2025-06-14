@@ -112,6 +112,8 @@ Airflow tasks are executed ad hoc inside containers/pods. Each task is isolated 
 
     New Airflow users may assume they need to run a separate executor process using one of the Local or Remote Executors. This is not correct. The executor logic runs *inside* the scheduler process, and will run the tasks locally or not depending on the executor selected.
 
+.. _using-multiple-executors-concurrently:
+
 Using Multiple Executors Concurrently
 -------------------------------------
 
@@ -208,11 +210,13 @@ Logging works the same as the single executor use case.
 Statically-coded Hybrid Executors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are currently two "statically coded" executors, these executors are hybrids of two different executors: the :doc:`LocalKubernetesExecutor <apache-airflow-providers-cncf-kubernetes:local_kubernetes_executor>` and the :doc:`CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>`. Their implementation is not native or intrinsic to core Airflow. These hybrid executors instead make use of the ``queue`` field on Task Instances to indicate and persist which sub-executor to run on. This is a misuse of the ``queue`` field and makes it impossible to use it for its intended purpose when using these hybrid executors.
+There were two "statically coded" executors, but they are no longer supported starting from Airflow 3.0.0.
+
+These executors are hybrids of two different executors: the :doc:`LocalKubernetesExecutor <apache-airflow-providers-cncf-kubernetes:local_kubernetes_executor>` and the :doc:`CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>`. Their implementation is not native or intrinsic to core Airflow. These hybrid executors instead make use of the ``queue`` field on Task Instances to indicate and persist which sub-executor to run on. This is a misuse of the ``queue`` field and makes it impossible to use it for its intended purpose when using these hybrid executors.
 
 Executors such as these also require hand crafting new "concrete" classes to create each permutation of possible combinations of executors. This is untenable as more executors are created and leads to more maintenance overhead. Bespoke coding effort should not be required to use any combination of executors.
 
-Therefore using these types of executors is no longer recommended.
+Therefore using these types of executors is no longer supported starting from Airflow 3.0.0. It's recommended to use the :ref:`Using Multiple Executors Concurrently <using-multiple-executors-concurrently>` feature instead.
 
 
 Writing Your Own Executor
