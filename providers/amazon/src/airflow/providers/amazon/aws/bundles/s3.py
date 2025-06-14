@@ -129,7 +129,7 @@ class S3DagBundle(BaseDagBundle):
             self._log.debug(
                 "Downloading DAGs from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
             )
-            self.s3_hook.download_s3(
+            self.s3_hook.sync_to_local_dir(
                 bucket_name=self.bucket_name,
                 s3_prefix=self.prefix,
                 local_dir=self.s3_dags_dir,

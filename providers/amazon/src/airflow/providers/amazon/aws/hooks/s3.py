@@ -1684,7 +1684,7 @@ class S3Hook(AwsBaseHook):
         s3_client = self.get_conn()
         s3_client.delete_bucket_tagging(Bucket=bucket_name)
 
-    def _download_s3_delete_stale_local_files(self, current_s3_objects: list[Path], local_dir: Path):
+    def _sync_to_local_dir_delete_stale_local_files(self, current_s3_objects: list[Path], local_dir: Path):
         current_s3_keys = {key for key in current_s3_objects}
 
         for item in local_dir.iterdir():
@@ -1707,7 +1707,7 @@ class S3Hook(AwsBaseHook):
                     self.log.error("Error deleting stale item %s: %s", item, e)
                     raise e
 
-    def _download_s3_object_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
+    def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
         should_download = False
         download_msg = ""
         if not local_target_path.exists():
@@ -1739,7 +1739,7 @@ class S3Hook(AwsBaseHook):
                 s3_object.key,
             )
 
-    def download_s3(self, bucket_name: str, local_dir: Path, s3_prefix="", delete_stale: bool = True):
+    def sync_to_local_dir(self, bucket_name: str, local_dir: Path, s3_prefix="", delete_stale: bool = True):
         """Download S3 files from the S3 bucket to the local directory."""
         self.log.debug("Downloading data from s3://%s/%s to %s", bucket_name, s3_prefix, local_dir)
 
