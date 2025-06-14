@@ -72,7 +72,7 @@ const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Pr
       <Link
         replace
         to={{
-          pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
+          pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}/gantt`,
           search,
         }}
       >

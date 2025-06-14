@@ -85,6 +85,7 @@
     "backfills": "Backfills",
     "code": "Code",
     "details": "Details",
+    "gantt": "Gantt",
     "logs": "Logs",
     "mappedTaskInstances_one": "Task Instance [{{count}}]",
     "mappedTaskInstances_other": "Task Instances [{{count}}]",

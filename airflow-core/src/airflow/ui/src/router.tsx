@@ -23,6 +23,7 @@ import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+import { Gantt } from "src/layouts/Details/Gantt";
 import { Asset } from "src/pages/Asset";
 import { AssetsList } from "src/pages/AssetsList";
 import { Connections } from "src/pages/Connections";
@@ -61,6 +62,7 @@ import { client } from "./queryClient";
 
 const taskInstanceRoutes = [
   { element: <Logs />, index: true },
+  { element: <Gantt />, path: "gantt" },
   { element: <Events />, path: "events" },
   { element: <XCom />, path: "xcom" },
   { element: <Code />, path: "code" },
@@ -157,6 +159,7 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
+          { element: <Gantt />, path: "gantt" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
@@ -176,7 +179,10 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },
       {
-        children: [{ element: <TaskInstances />, index: true }],
+        children: [
+          { element: <TaskInstances />, index: true },
+          { element: <Gantt />, path: "gantt" },
+        ],
         element: <GroupTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
       },
