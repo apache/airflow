@@ -30,6 +30,7 @@ from dateutil.tz import tzutc
 from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
+from pydantic import BaseModel, Field
 
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
@@ -37,6 +38,13 @@ from airflow.serialization.serde import DATA, deserialize, serialize
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
+
+
+class FooBarModel(BaseModel):
+    """Pydantic BaseModel for testing Pydantic Serialization/Deserialization."""
+
+    banana: float = 1.1
+    foo: str = Field()
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -238,6 +246,14 @@ class TestSerializers:
             assert i.version() == d.version()
             assert i._storage_options == d._storage_options
             assert d._storage_options is None
+
+    def test_pydantic(self):
+        m = FooBarModel(banana=3.14, foo="hello")
+        e = serialize(m)
+        d = deserialize(e)
+
+        assert m.banana == d.banana
+        assert m.foo == d.foo
 
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(

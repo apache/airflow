@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.utils.module_loading import qualname
 
@@ -47,7 +47,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return float(o), name, __version__, True
 
 
-def deserialize(classname: str, version: int, data: object) -> decimal.Decimal:
+def deserialize(classname: str, version: int, data: object, cls: Any | None = None) -> decimal.Decimal:
     from decimal import Decimal
 
     if version > __version__:
