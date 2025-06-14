@@ -74,8 +74,8 @@ export const GroupTaskInstance = () => {
     ?.task_instances.find((ti) => ti.task_id === groupId);
 
   const tabs = [
-    { icon: <LuChartGantt />, label: "Gantt", value: "" },
-    { icon: <MdOutlineTask />, label: "Task Instances", value: "task_instances" },
+    { icon: <MdOutlineTask />, label: "Task Instances", value: "" },
+    { icon: <LuChartGantt />, label: "Gantt", value: "gantt" },
   ];
 
   return (

@@ -34,8 +34,8 @@ export const Run = () => {
   const { dagId = "", runId = "" } = useParams();
 
   const tabs = [
-    { icon: <LuChartGantt />, label: translate("tabs.gantt"), value: "" },
-    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "task_instances" },
+    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    { icon: <LuChartGantt />, label: translate("tabs.gantt"), value: "gantt" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },

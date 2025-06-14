@@ -122,6 +122,9 @@ export const Gantt = () => {
         }}
         datasetIdKey="id"
         options={{
+          animation: {
+            duration: 400,
+          },
           indexAxis: "y",
           maintainAspectRatio: false,
           plugins: {
@@ -174,7 +177,6 @@ export const Gantt = () => {
               },
             },
           },
-          resizeDelay: 20,
           responsive: true,
           scales: {
             x: {

@@ -61,8 +61,8 @@ import { AssetEvents as TaskInstanceAssetEvents } from "./pages/TaskInstance/Ass
 import { client } from "./queryClient";
 
 const taskInstanceRoutes = [
-  { element: <Gantt />, index: true },
-  { element: <Logs />, path: "logs" },
+  { element: <Logs />, index: true },
+  { element: <Gantt />, path: "gantt" },
   { element: <Events />, path: "events" },
   { element: <XCom />, path: "xcom" },
   { element: <Code />, path: "code" },
@@ -180,8 +180,8 @@ export const routerConfig = [
       },
       {
         children: [
-          { element: <Gantt />, index: true },
-          { element: <TaskInstances />, path: "task_instances" },
+          { element: <TaskInstances />, index: true },
+          { element: <Gantt />, path: "gantt" },
         ],
         element: <GroupTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/group/:groupId",

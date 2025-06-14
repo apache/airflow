@@ -39,8 +39,8 @@ export const TaskInstance = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const tabs = [
-    { icon: <LuChartGantt />, label: translate("tabs.gantt"), value: "" },
-    { icon: <MdReorder />, label: translate("tabs.logs"), value: "logs" },
+    { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
+    { icon: <LuChartGantt />, label: translate("tabs.gantt"), value: "gantt" },
     {
       icon: <PiBracketsCurlyBold />,
       label: translate("tabs.renderedTemplates"),
