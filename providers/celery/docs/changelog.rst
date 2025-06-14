@@ -45,6 +45,7 @@ Misc
 
 * ``Add worker_umask to celery provider.yaml (#51218)``
 * ``Remove Airflow 2 code path in executors (#51009)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51733)``
 
 Doc-only
 ~~~~~~~~

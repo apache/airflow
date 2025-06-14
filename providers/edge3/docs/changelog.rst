@@ -41,6 +41,8 @@ Misc
 * ``Remove Airflow 2 code path in executors (#51009)``
 * ``Refactor Edge Worker CLI for smaller module (#50738)``
 * ``Bump some provider dependencies for faster resolution (#51727)``
+* ``Edge list worker cli command to list active job metrics (#51720)``
+* ``Extend command column in the edge_job table to accomodate more chars (#51716)``
 
 Doc-only
 ~~~~~~~~

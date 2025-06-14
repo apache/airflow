@@ -52,6 +52,7 @@ Misc
 * ``Adjust code path in executors to be compatible with airflow task run (#51009)``
 * ``Port ''ti.run'' to Task SDK execution path (#50141)``
 * ``Bump some provider dependencies for faster resolution (#51727)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51733)``
 
 Doc-only
 ~~~~~~~~
