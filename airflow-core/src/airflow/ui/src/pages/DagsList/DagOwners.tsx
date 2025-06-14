@@ -46,7 +46,7 @@ export const DagOwners = ({
         rel="noopener noreferrer"
         target="_blank"
       >
-        {owner}
+        <a>{owner}</a>
       </Link>
     ) : (
       <Text as="span" key={owner}>
