@@ -102,6 +102,16 @@ dependencies = [
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.27.0",
     "opentelemetry-exporter-otlp>=1.27.0",
+    # opentelemetry-proto is a transitive dependency of
+    # opentelemetry-exporter-otlp and other OpenTelemetry packages.
+    # opentelemetry-proto adds a very restrictive dependency on
+    # protobuf, causing conflicts with other packages, so to help
+    # the pip resolver we add it as a direct dependency with an upper
+    # bound, which signals to the pip resolver it is a problematic
+    # dependency and should be resolved as early as possible.
+    # This may be removed when future versions of pip are able
+    # to handle this dependency resolution automatically.
+    "opentelemetry-proto<9999",
     "packaging>=23.2",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
