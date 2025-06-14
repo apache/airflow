@@ -634,6 +634,7 @@ export type DAGRunResponse = {
   run_type: DagRunType;
   state: DagRunState;
   triggered_by: DagRunTriggeredByType | null;
+  triggering_user: string | null;
   conf: {
     [key: string]: unknown;
   } | null;
