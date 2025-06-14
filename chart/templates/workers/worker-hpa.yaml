@@ -20,7 +20,7 @@
 ################################
 ## Airflow Worker HPA
 #################################
-{{- if and (and (not .Values.workers.keda.enabled) .Values.workers.hpa.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- if and (and (not .Values.workers.keda.enabled) (not .Values.workers.celery.keda.enabled) (or .Values.workers.hpa.enabled .Values.workers.celery.hpa.enabled)) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -32,18 +32,30 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     deploymentName: {{ .Release.Name }}-worker
-    {{- if or (.Values.labels) (.Values.workers.labels) }}
-      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or .Values.labels .Values.workers.labels .Values.workers.celery.labels }}
+      {{- mustMerge .Values.workers.celery.labels .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
-    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
+    kind: {{ ternary "StatefulSet" "Deployment" (and .Values.workers.persistence.enabled .Values.workers.celery.persistence.enabled) }}
     name: {{ include "airflow.fullname" . }}-worker
+  {{- if ne (int .Values.workers.celery.hpa.minReplicaCount) 0 }}
+  minReplicas: {{ .Values.workers.celery.hpa.minReplicaCount }}
+  {{- else }}
   minReplicas: {{ .Values.workers.hpa.minReplicaCount }}
+  {{- end }}
+  {{- if ne (int .Values.workers.celery.hpa.maxReplicaCount) 5 }}
+  maxReplicas: {{ .Values.workers.celery.hpa.maxReplicaCount }}
+  {{- else }}
   maxReplicas: {{ .Values.workers.hpa.maxReplicaCount }}
+  {{- end }}
+  {{- if ne (toJson .Values.workers.celery.hpa.metrics | quote) (toJson "[{\"resource\":{\"name\":\"cpu\",\"target\":{\"averageUtilization\":80,\"type\":\"Utilization\"}},\"type\":\"Resource\"}]") }}
+  metrics: {{- toYaml .Values.workers.celery.hpa.metrics | nindent 4 }}
+  {{- else }}
   metrics: {{- toYaml .Values.workers.hpa.metrics | nindent 4 }}
-  {{- with .Values.workers.hpa.behavior }}
+  {{- end }}
+  {{- with (.Values.workers.celery.hpa.behavior | default .Values.workers.hpa.behavior) }}
   behavior: {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}

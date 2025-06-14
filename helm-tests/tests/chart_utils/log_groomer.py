@@ -26,18 +26,27 @@ class LogGroomerTestBase:
     obj_name: str = ""
     folder: str = ""
 
+    def get_show_only(self):
+        if self.obj_name == "workers-celery":
+            return [f"templates/{self.folder}/worker-deployment.yaml"]
+
+        return [f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+
     def test_log_groomer_collector_default_enabled(self):
         if self.obj_name == "dag-processor":
             values = {"dagProcessor": {"enabled": True}}
         else:
             values = None
 
-        docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
-        )
+        if self.obj_name == "workers-celery":
+            container_name = "worker-log-groomer"
+        else:
+            container_name = f"{self.obj_name}-log-groomer"
+
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert len(jmespath.search("spec.template.spec.containers", docs[0])) == 2
-        assert f"{self.obj_name}-log-groomer" in [
+        assert container_name in [
             c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
         ]
 
@@ -49,13 +58,18 @@ class LogGroomerTestBase:
                     "logGroomerSidecar": {"enabled": False},
                 }
             }
+        elif self.obj_name == "workers-celery":
+            values = {
+                "workers": {
+                    "celery": {
+                        "logGroomerSidecar": {"enabled": False},
+                    }
+                }
+            }
         else:
             values = {f"{self.folder}": {"logGroomerSidecar": {"enabled": False}}}
 
-        docs = render_chart(
-            values=values,
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         actual = jmespath.search("spec.template.spec.containers", docs[0])
 
@@ -67,9 +81,7 @@ class LogGroomerTestBase:
         else:
             values = None
 
-        docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
         assert jmespath.search("spec.template.spec.containers[1].args", docs[0]) == ["bash", "/clean-logs"]
@@ -80,9 +92,7 @@ class LogGroomerTestBase:
         else:
             values = None
 
-        docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert (
             jmespath.search("spec.template.spec.containers[1].env[0].name", docs[0])
@@ -98,6 +108,8 @@ class LogGroomerTestBase:
 
         if self.obj_name == "dag-processor":
             values = {"dagProcessor": {"enabled": True, "logGroomerSidecar": {"env": env}}}
+        elif self.obj_name == "workers-celery":
+            values = {"workers": {"celery": {"logGroomerSidecar": {"env": env}}}}
         else:
             values = {
                 "workers": {"logGroomerSidecar": {"env": env}},
@@ -105,9 +117,7 @@ class LogGroomerTestBase:
                 "triggerer": {"logGroomerSidecar": {"env": env}},
             }
 
-        docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert {"name": "APP_RELEASE_NAME", "value": "release-name-airflow"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
@@ -126,13 +136,12 @@ class LogGroomerTestBase:
                     "logGroomerSidecar": {"command": command, "args": args},
                 }
             }
+        elif self.obj_name == "workers-celery":
+            values = {"workers": {"celery": {"logGroomerSidecar": {"command": command, "args": args}}}}
         else:
             values = {f"{self.folder}": {"logGroomerSidecar": {"command": command, "args": args}}}
 
-        docs = render_chart(
-            values=values,
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert command == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
@@ -148,6 +157,17 @@ class LogGroomerTestBase:
                     },
                 }
             }
+        elif self.obj_name == "workers-celery":
+            values = {
+                "workers": {
+                    "celery": {
+                        "logGroomerSidecar": {
+                            "command": ["{{ .Release.Name }}"],
+                            "args": ["{{ .Release.Service }}"],
+                        }
+                    }
+                }
+            }
         else:
             values = {
                 f"{self.folder}": {
@@ -158,10 +178,7 @@ class LogGroomerTestBase:
                 }
             }
 
-        docs = render_chart(
-            values=values,
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) == ["release-name"]
         assert jmespath.search("spec.template.spec.containers[1].args", docs[0]) == ["Helm"]
@@ -172,13 +189,12 @@ class LogGroomerTestBase:
             values = {
                 "dagProcessor": {"enabled": True, "logGroomerSidecar": {"retentionDays": retention_days}}
             }
+        elif self.obj_name == "workers-celery":
+            values = {"workers": {"celery": {"logGroomerSidecar": {"retentionDays": retention_days}}}}
         else:
             values = {f"{self.folder}": {"logGroomerSidecar": {"retentionDays": retention_days}}}
 
-        docs = render_chart(
-            values=values,
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         if retention_result:
             assert (
@@ -200,13 +216,12 @@ class LogGroomerTestBase:
                     "logGroomerSidecar": {"frequencyMinutes": frequency_minutes},
                 }
             }
+        elif self.obj_name == "workers-celery":
+            values = {"workers": {"celery": {"logGroomerSidecar": {"frequencyMinutes": frequency_minutes}}}}
         else:
             values = {f"{self.folder}": {"logGroomerSidecar": {"frequencyMinutes": frequency_minutes}}}
 
-        docs = render_chart(
-            values=values,
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         if frequency_result:
             assert (
@@ -232,6 +247,19 @@ class LogGroomerTestBase:
                     },
                 }
             }
+        elif self.obj_name == "workers-celery":
+            values = {
+                "workers": {
+                    "celery": {
+                        "logGroomerSidecar": {
+                            "resources": {
+                                "requests": {"memory": "2Gi", "cpu": "1"},
+                                "limits": {"memory": "3Gi", "cpu": "2"},
+                            }
+                        }
+                    }
+                }
+            }
         else:
             values = {
                 f"{self.folder}": {
@@ -244,10 +272,7 @@ class LogGroomerTestBase:
                 }
             }
 
-        docs = render_chart(
-            values=values,
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert jmespath.search("spec.template.spec.containers[1].resources", docs[0]) == {
             "limits": {
@@ -266,9 +291,7 @@ class LogGroomerTestBase:
         else:
             values = None
 
-        docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
-        )
+        docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert (
             jmespath.search("spec.template.spec.containers[1].env[?name=='AIRFLOW_HOME'].name | [0]", docs[0])
