@@ -28,7 +28,7 @@ This policy aims to avoid inconsistencies, maintenance issues, unclear ownership
 
 This policy applies to:
 
-- Each supported locale included in `airflow-core/src/airflow/ui/src/i18n/locales`.
+- Each supported locale included in `airflow-core/src/airflow/ui/public/i18n/locales`.
 - Contributors making changes in the default locale (English).
 - Contributors suggesting new locales to be added to the codebase.
 - Maintainers of supported locales in any role defined below.
@@ -42,7 +42,7 @@ This policy applies to:
 
 **Internationalization (i18n)** - The process of designing a software application so that it can be adapted to various languages and regions without engineering changes (see also the [Wikipedia article](https://en.wikipedia.org/wiki/Internationalization_and_localization)).
 
-**Supported locale** - An officially accepted locale in `airflow-core/src/airflow/ui/src/i18n/locales`.
+**Supported locale** - An officially accepted locale in `airflow-core/src/airflow/ui/public/i18n/locales`.
 
 **Default locale** - English (`en`), the primary locale and fallback for all other locales.
 
@@ -175,7 +175,7 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
 The following steps outline the process for approving a new locale to be added to the supported locales:
 
 - Creating a PR for adding the suggested locale to the codebase ([see example](https://github.com/apache/airflow/pull/51258/files)), which includes:
-    - The locale files (translated according to the guidelines) in the `airflow-core/src/airflow/ui/src/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional variants should be handled in separate directories, where the name is suffixed with `-<VARIANT>`, and `<VARIANT>` is the variant that follows ISO 3166-1 or UN M.49 codes in lowercase (e.g., `zh-tw` for Taiwanese Mandarin).
+    - The locale files (translated according to the guidelines) in the `airflow-core/src/airflow/ui/public/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional variants should be handled in separate directories, where the name is suffixed with `-<VARIANT>`, and `<VARIANT>` is the variant that follows ISO 3166-1 or UN M.49 codes in lowercase (e.g., `zh-tw` for Taiwanese Mandarin).
     - Making the required modifications in `airflow-core/src/airflow/ui/src/i18n/config.ts` ([see example](https://github.com/apache/airflow/pull/51258/files#diff-bfb4d5fafd26d206fb4a545a41ba303f33d15a479d21e0a726fd743bdf9717ff)).
     - Changes to the `.github/CODEOWNERS` file to include the designated code owner(s) and translation owner(s) for the new locale, considering the following:
         - A code owner who is also a translation sponsor should be indicated in a comment as well.
