@@ -24,12 +24,12 @@ import { toaster } from "src/components/ui";
 
 export const useDeleteConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
 
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("toaster.delete.error.title", {
+      title: translate("common:toaster.delete.error", {
         resourceName: translate("admin:connections.connection_one"),
       }),
       type: "error",
@@ -42,10 +42,10 @@ export const useDeleteConnection = ({ onSuccessConfirm }: { onSuccessConfirm: ()
     });
 
     toaster.create({
-      description: translate("toaster.delete.success.description", {
+      description: translate("common:toaster.delete.success.description", {
         resourceName: translate("admin:connections.connection_one"),
       }),
-      title: translate("toaster.delete.success.title", {
+      title: translate("common:toaster.delete.success.title", {
         resourceName: translate("admin:connections.connection_one"),
       }),
       type: "success",
