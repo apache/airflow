@@ -39,7 +39,10 @@ export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} *
   { ignores: ["**/dist/", "**coverage/"] },
   // Base rules
   coreRules,
-  typescriptRules,
+  {
+    ...typescriptRules,
+    files: ['**/*.{ts,tsx,js,jsx}'],
+  },
   // Da rest
   perfectionistRules,
   prettierRules,
