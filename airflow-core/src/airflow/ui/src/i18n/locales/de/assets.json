@@ -3,7 +3,7 @@
   "createEvent": {
     "button": "Ereignis erstellen",
     "manual": {
-      "description": "Direkt ein Ereignis zu Datensets (Asset) erstellen",
+      "description": "Manuell ein Ereignis zu Datensets (Asset) erstellen",
       "extra": "Extra Daten zu Ereignis",
       "label": "Manuell"
     },
