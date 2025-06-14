@@ -61,13 +61,18 @@ export const Bar = ({ max, nodes, run }: Props) => {
           alignItems="center"
           color="white"
           dagId={dagId}
+          endDate={run.end_date}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
           label={run.run_after}
+          logicalDate={run.logical_date}
           minHeight="14px"
+          note={run.note}
           runId={run.dag_run_id}
+          runType={run.run_type}
           searchParams={search}
+          startDate={run.start_date}
           state={run.state}
           zIndex={1}
         >
