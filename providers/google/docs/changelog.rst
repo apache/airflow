@@ -113,6 +113,7 @@ Misc
 * ``Remove ray extra from google aiplatform for Python 3.12 (#49797)``
 * ``Temporarily install ray explicitly for python 3.12 (#49759)``
 * ``Remove on_finish_action from template fields (#49637)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
 
 Doc-only
 ~~~~~~~~

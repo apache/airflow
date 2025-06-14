@@ -57,8 +57,8 @@ PIP package             Version required
 ``apache-airflow``      ``>=2.10.0``
 ``asgiref``             ``>=3.5.2``
 ``cryptography``        ``>=41.0.0``
-``kubernetes``          ``>=29.0.0,<33.0.0``
-``kubernetes_asyncio``  ``>=29.0.0,<33.0.0``
+``kubernetes``          ``>=32.0.0,<33.0.0``
+``kubernetes_asyncio``  ``>=32.0.0,<33.0.0``
 ======================  ====================
 
 The changelog for the provider package can be found in the

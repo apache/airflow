@@ -40,6 +40,7 @@ Misc
 
 * ``Remove Airflow 2 code path in executors (#51009)``
 * ``Refactor Edge Worker CLI for smaller module (#50738)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
 
 Doc-only
 ~~~~~~~~

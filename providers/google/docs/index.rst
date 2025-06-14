@@ -178,7 +178,7 @@ PIP package                                  Version required
 ``PyOpenSSL``                                ``>=23.0.0``
 ``sqlalchemy-bigquery``                      ``>=1.2.1``
 ``sqlalchemy-spanner``                       ``>=1.6.2``
-``tenacity``                                 ``>=8.1.0``
+``tenacity``                                 ``>=8.3.0``
 ``immutabledict``                            ``>=4.2.0``
 ``types-protobuf``                           ``>=5.27.0,!=5.29.1.20250402``
 ===========================================  ======================================

@@ -35,8 +35,10 @@ Features
 
 * ``Add option to create connections using proxies (#49729)``
 
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
+Misc
+~~~~
+
+* ``Bump some provider dependencies for faster resolution (#51727)``
 
 5.1.0
 .....

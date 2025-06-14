@@ -49,8 +49,9 @@ Misc
 ~~~~
 
 * ``Relax Kubernetes client version support to <33.0.0 (#51195)``
-* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Adjust code path in executors to be compatible with airflow task run (#51009)``
 * ``Port ''ti.run'' to Task SDK execution path (#50141)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
 
 Doc-only
 ~~~~~~~~
