@@ -16,15 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, VStack, HStack, Text, Badge, type FlexProps } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
+import { Flex, type FlexProps } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
-import { RunTypeIcon } from "src/components/RunTypeIcon";
-import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
-import { getDuration } from "src/utils";
+
+import { GridTooltips } from "./GridTooltips";
 
 type Props = {
   readonly dagId: string;
@@ -57,61 +54,18 @@ export const GridButton = ({
   taskId,
   ...rest
 }: Props) => {
-  const { t: translate } = useTranslation("common");
-
-  const tooltipContent = (
-    <VStack align="stretch" gap={2} minW="200px" p={2}>
-      <HStack justify="space-between">
-        <Text color="white" fontSize="xs" fontWeight="semibold">
-          {runId}
-        </Text>
-        {Boolean(runType) && (
-          <Badge size="sm" variant="subtle">
-            {Boolean(runType) && (
-              <RunTypeIcon
-                runType={runType as "asset_triggered" | "backfill" | "manual" | "scheduled"}
-                size="12px"
-              />
-            )}
-            {runType}
-          </Badge>
-        )}
-      </HStack>
-      <VStack align="stretch" gap={0.5}>
-        {Boolean(logicalDate) && (
-          <HStack fontSize="xs" justify="space-between">
-            <Text color="gray.200">{translate("logicalDate")}:</Text>
-            <Time datetime={logicalDate} />
-          </HStack>
-        )}
-
-        {Boolean(startDate) && (
-          <HStack fontSize="xs" justify="space-between">
-            <Text color="gray.200">{translate("duration")}:</Text>
-            <Text>{getDuration(startDate, endDate)}</Text>
-          </HStack>
-        )}
-        {Boolean(note) && (
-          <HStack fontSize="xs" justify="space-between">
-            <Text color="gray.200">{translate("note.label")}:</Text>
-            <Text overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
-              {note}
-            </Text>
-          </HStack>
-        )}
-      </VStack>
-    </VStack>
-  );
+  const tooltipProps = {
+    endDate,
+    logicalDate,
+    note,
+    runId,
+    runType,
+    startDate,
+    state,
+  };
 
   return isGroup ? (
-    <Tooltip
-      content={tooltipContent}
-      portalled
-      positioning={{
-        offset: { crossAxis: 5, mainAxis: 8 },
-        placement: "bottom-start",
-      }}
-    >
+    <GridTooltips {...tooltipProps}>
       <Flex
         background={`${state}.solid`}
         borderRadius={2}
@@ -123,16 +77,9 @@ export const GridButton = ({
       >
         {children}
       </Flex>
-    </Tooltip>
+    </GridTooltips>
   ) : (
-    <Tooltip
-      content={tooltipContent}
-      portalled
-      positioning={{
-        offset: { crossAxis: 5, mainAxis: 8 },
-        placement: "bottom-start",
-      }}
-    >
+    <GridTooltips {...tooltipProps}>
       <Link
         replace
         to={{
@@ -152,6 +99,6 @@ export const GridButton = ({
           {children}
         </Flex>
       </Link>
-    </Tooltip>
+    </GridTooltips>
   );
 };
