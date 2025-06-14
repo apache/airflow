@@ -20,8 +20,12 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
+import arAdmin from "./locales/ar/admin.json";
+import arAssets from "./locales/ar/assets.json";
+import arBrowse from "./locales/ar/browse.json";
 import arCommon from "./locales/ar/common.json";
-import arConnections from "./locales/ar/connections.json";
+import arComponents from "./locales/ar/components.json";
+import arDag from "./locales/ar/dag.json";
 import arDags from "./locales/ar/dags.json";
 import arDashboard from "./locales/ar/dashboard.json";
 import deAdmin from "./locales/de/admin.json";
@@ -87,8 +91,12 @@ export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "as
 
 const resources = {
   ar: {
+    admin: arAdmin,
+    assets: arAssets,
+    browse: arBrowse,
     common: arCommon,
-    connections: arConnections,
+    components: arComponents,
+    dag: arDag,
     dags: arDags,
     dashboard: arDashboard,
   },

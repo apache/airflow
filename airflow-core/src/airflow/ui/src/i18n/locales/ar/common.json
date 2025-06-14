@@ -7,12 +7,18 @@
     "Providers": "حُزم",
     "Variables": "متغيرات"
   },
+  "asset_one": "واقعة",
+  "asset_other": "واقعات",
   "assetEvent_one": "واقعة اصل",
   "assetEvent_other": "واقعات اصل",
+  "backfill_one": "إعادة ملء",
+  "backfill_other": "إعادات ملء",
   "browse": {
     "auditLog": "سجل المراجعة",
     "xcoms": "(XComs) إكس كوم"
   },
+  "createdAssetEvent_one": "تم إنشاء واقعة اصل",
+  "createdAssetEvent_other": "تم إنشاء واقعات اصل",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagRun_one": "مثيل تشغيل لDAG",
@@ -24,6 +30,7 @@
     "githubRepo": "مستودع GitHub",
     "restApiReference": "مرجع REST API"
   },
+  "duration": "المدة",
   "logout": "تسجيل الخروج",
   "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
   "modal": {
@@ -104,7 +111,6 @@
   "taskInstance_one": "مثيل المهمة",
   "taskInstance_other": "مثيلات المهام",
   "timeRange": {
-    "duration": "المدة",
     "last12Hours": "آخر 12 ساعة",
     "last24Hours": "آخر 24 ساعة",
     "lastHour": "الساعة الماضية",
