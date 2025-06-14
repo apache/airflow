@@ -25,6 +25,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.models.backfill import ReprocessBehavior, _create_backfill, _do_dry_run
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import sigint_handler
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
 
@@ -77,5 +78,6 @@ def create_backfill(args) -> None:
         max_active_runs=args.max_active_runs,
         reverse=args.run_backwards,
         dag_run_conf=args.dag_run_conf,
+        triggering_user=getuser(),
         reprocess_behavior=reprocess_behavior,
     )
