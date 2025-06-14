@@ -105,6 +105,7 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
             config=self.botocore_config,
         )
 
+
 class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
     """
     Trigger when an MWAA Task is complete.
@@ -184,6 +185,7 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
 
 def _build_waiter_acceptors(
     success_states: set[str], failure_states: set[str], in_progress_states: set[str]

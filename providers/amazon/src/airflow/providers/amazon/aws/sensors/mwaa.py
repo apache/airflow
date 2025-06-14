@@ -160,6 +160,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         else:
             super().execute(context=context)
 
+
 class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
     """
     Waits for a task in an MWAA Environment to complete.

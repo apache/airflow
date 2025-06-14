@@ -30,9 +30,6 @@ from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor, MwaaTask
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
-from airflow.providers.standard.example_dags.example_external_task_parent_deferrable import \
-    external_task_sensor
-
 DAG_ID = "example_mwaa"
 
 # Externally fetched variables:
@@ -68,23 +65,22 @@ def unpause_dag(env_name: str, dag_id: str):
     )
     return not response["RestApiResponse"]["is_paused"]
 
+
 # Can only be run after 'trigger_dag_run' task is run.
 @task
 def get_task_id(env_name: str, dag_id: str):
     mwaa_hook = MwaaHook()
-    dag_runs = mwaa_hook.invoke_rest_api(
-        env_name=env_name, path=f"/dags/{dag_id}/dagRuns", method="GET"
-    )
+    dag_runs = mwaa_hook.invoke_rest_api(env_name=env_name, path=f"/dags/{dag_id}/dagRuns", method="GET")
     dag_run_id = dag_runs["RestApiResponse"]["dag_runs"][0]["dag_run_id"]
 
     response = mwaa_hook.invoke_rest_api(
-        env_name=env_name, path=f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
-        method="GET"
+        env_name=env_name, path=f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances", method="GET"
     )
     print("test debug")
     print(response)
 
     return response["RestApiResponse"]["task_instances"][0]["task_id"]
+
 
 # This task in the system test verifies that the MwaaHook's IAM fallback mechanism continues to work with
 # the live MWAA API. This fallback depends on parsing a specific error message from the MWAA API, so we

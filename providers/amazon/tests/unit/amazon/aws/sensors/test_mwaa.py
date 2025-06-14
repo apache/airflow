@@ -51,10 +51,12 @@ SENSOR_STATE_KWARGS = {
     "failure_states": ["c", "d"],
 }
 
+
 @pytest.fixture
 def mock_invoke_rest_api():
     with mock.patch.object(MwaaHook, "invoke_rest_api") as m:
         yield m
+
 
 class TestMwaaDagRunSuccessSensor:
     def test_init_success(self):
@@ -75,7 +77,9 @@ class TestMwaaDagRunSuccessSensor:
     def test_init_failure(self):
         with pytest.raises(ValueError, match=r".*success_states.*failure_states.*"):
             MwaaDagRunSensor(
-                **SENSOR_DAG_RUN_KWARGS, success_states={"state1", "state2"}, failure_states={"state2", "state3"}
+                **SENSOR_DAG_RUN_KWARGS,
+                success_states={"state1", "state2"},
+                failure_states={"state2", "state3"},
             )
 
     @pytest.mark.parametrize("state", SENSOR_STATE_KWARGS["success_states"])
@@ -93,6 +97,7 @@ class TestMwaaDagRunSuccessSensor:
         mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": state}}
         with pytest.raises(AirflowException, match=f".*{state}.*"):
             MwaaDagRunSensor(**SENSOR_DAG_RUN_KWARGS, **SENSOR_STATE_KWARGS).poke({})
+
 
 class TestMwaaTaskSuccessSensor:
     def test_init_success(self):
