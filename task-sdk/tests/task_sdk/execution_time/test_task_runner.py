@@ -22,11 +22,9 @@ import functools
 import json
 import os
 import textwrap
-import uuid
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
-from socket import socketpair
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
@@ -103,7 +101,6 @@ from airflow.sdk.execution_time.context import (
     VariableAccessor,
 )
 from airflow.sdk.execution_time.task_runner import (
-    CommsDecoder,
     RuntimeTaskInstance,
     TaskRunnerMarker,
     _push_xcom_if_needed,
@@ -139,47 +136,6 @@ class CustomOperator(BaseOperator):
         print(f"Hello World {task_id}!")
 
 
-class TestCommsDecoder:
-    """Test the communication between the subprocess and the "supervisor"."""
-
-    @pytest.mark.usefixtures("disable_capturing")
-    def test_recv_StartupDetails(self):
-        r, w = socketpair()
-        # Create a valid FD for the decoder to open
-        _, w2 = socketpair()
-
-        w.makefile("wb").write(
-            b'{"type":"StartupDetails", "ti": {'
-            b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", '
-            b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b",'
-            b'"logical_date":"2024-12-01T01:00:00Z",'
-            b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
-            b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,'
-            b'"run_type":"manual","conf":null,"consumed_asset_events":[]},'
-            b'"max_tries":0,"should_retry":false,"variables":null,"connections":null},"file": "/dev/null",'
-            b'"start_date":"2024-12-01T01:00:00Z", "dag_rel_path": "/dev/null", "bundle_info": {"name": '
-            b'"any-name", "version": "any-version"}, "requests_fd": '
-            + str(w2.fileno()).encode("ascii")
-            + b"}\n"
-        )
-
-        decoder = CommsDecoder(input=r.makefile("r"))
-
-        msg = decoder.get_message()
-        assert isinstance(msg, StartupDetails)
-        assert msg.ti.id == uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab")
-        assert msg.ti.task_id == "a"
-        assert msg.ti.dag_id == "c"
-        assert msg.dag_rel_path == "/dev/null"
-        assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
-        assert msg.start_date == timezone.datetime(2024, 12, 1, 1)
-
-        # Since this was a StartupDetails message, the decoder should open the other socket
-        assert decoder.request_socket is not None
-        assert decoder.request_socket.writable()
-        assert decoder.request_socket.fileno() == w2.fileno()
-
-
 def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
@@ -192,7 +148,6 @@ def test_parse(test_dags_dir: Path, make_ti_context):
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
-        requests_fd=0,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
     )
@@ -248,7 +203,6 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
-        requests_fd=0,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
     )
@@ -302,7 +256,6 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         ),
         dag_rel_path="path_test.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
-        requests_fd=0,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
     )
@@ -573,7 +526,6 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
         ),
         bundle_info=FAKE_BUNDLE,
         dag_rel_path="",
-        requests_fd=0,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
     )
@@ -689,7 +641,6 @@ def test_startup_and_run_dag_with_rtif(
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
-        requests_fd=0,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
     )
@@ -834,7 +785,6 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
         ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
         dag_rel_path="dag_parsing_context.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
-        requests_fd=0,
         ti_context=make_ti_context(dag_id=dag_id, run_id="c"),
         start_date=timezone.utcnow(),
     )
@@ -2234,7 +2184,6 @@ class TestTaskRunnerCallsListeners:
             ),
             dag_rel_path="",
             bundle_info=FAKE_BUNDLE,
-            requests_fd=0,
             ti_context=make_ti_context(),
             start_date=timezone.utcnow(),
         )
