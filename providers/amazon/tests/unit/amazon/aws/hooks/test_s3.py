@@ -1774,6 +1774,8 @@ class TestAwsS3Hook:
 
         local_file_that_should_be_deleted = Path(sync_local_dir).joinpath("file_that_should_be_deleted.py")
         local_file_that_should_be_deleted.write_text("test dag")
+        local_folder_should_be_deleted = Path(sync_local_dir).joinpath("local_folder_should_be_deleted")
+        local_folder_should_be_deleted.mkdir(exist_ok=True)
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
@@ -1781,6 +1783,8 @@ class TestAwsS3Hook:
             caplog.text.count(f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}")
             == 1
         )
+        assert caplog.text.count(f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}") == 1
+
         s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data-changed")
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True

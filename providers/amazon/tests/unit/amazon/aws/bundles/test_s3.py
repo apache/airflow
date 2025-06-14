@@ -191,62 +191,19 @@ class TestS3DagBundle:
     def test_refresh(self, s3_bucket, s3_client, caplog, cap_structlog):
         caplog.set_level(logging.ERROR)
         caplog.set_level(logging.DEBUG, logger="airflow.providers.amazon.aws.bundles.s3.S3DagBundle")
-        caplog.set_level(
-            logging.DEBUG, logger="airflow.task.hooks.airflow.providers.amazon.aws.hooks.s3.S3Hook"
-        )
         bundle = S3DagBundle(
             name="test",
             aws_conn_id=AWS_CONN_ID_WITH_REGION,
             prefix=S3_BUCKET_PREFIX,
             bucket_name=S3_BUCKET_NAME,
         )
-
         bundle.initialize()
         # dags are downloaded once by initialize and once with refresh called post initialize
         assert cap_structlog.text.count("Downloading DAGs from s3") == 1
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=rf"Downloaded.*{S3_BUCKET_PREFIX}.*subproject1/dag_a.py.*{bundle.s3_dags_dir.as_posix()}.*subproject1/dag_a.py.*",
-        )
-
-        s3_client.put_object(Bucket=s3_bucket.name, Key=S3_BUCKET_PREFIX + "/dag_03.py", Body=b"test data")
         bundle.refresh()
         assert cap_structlog.text.count("Downloading DAGs from s3") == 2
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=rf"Local file.*/{bundle.name}/subproject1/dag_a.py.*is up-to-date with S3 object.*{S3_BUCKET_PREFIX}.*subproject1/dag_a.py.*",
-        )
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=rf"Downloaded.*{S3_BUCKET_PREFIX}.*dag_03.py.*/{bundle.name}/dag_03.py",
-        )
-        assert bundle.s3_dags_dir.joinpath("dag_03.py").read_text() == "test data"
-        bundle.s3_dags_dir.joinpath("dag_should_be_deleted.py").write_text("test dag")
-        bundle.s3_dags_dir.joinpath("dag_should_be_deleted_folder").mkdir(exist_ok=True)
-        s3_client.put_object(
-            Bucket=s3_bucket.name, Key=S3_BUCKET_PREFIX + "/dag_03.py", Body=b"test data-changed"
-        )
         bundle.refresh()
         assert cap_structlog.text.count("Downloading DAGs from s3") == 3
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=r"S3 object size.*and local file size.*differ.*Downloaded.*dag_03.py.*",
-        )
-        assert bundle.s3_dags_dir.joinpath("dag_03.py").read_text() == "test data-changed"
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=r"Deleted stale empty directory.*dag_should_be_deleted_folder.*",
-        )
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=r"Deleted stale local file.*dag_should_be_deleted.py.*",
-        )
 
     @pytest.mark.db_test
     def test_refresh_without_prefix(self, s3_bucket, s3_client, caplog, cap_structlog):
@@ -262,27 +219,8 @@ class TestS3DagBundle:
         )
         assert bundle.prefix == ""
         bundle.initialize()
-
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=rf"Downloaded.*subproject1/dag_a.py.*{bundle.s3_dags_dir.as_posix()}.*subproject1/dag_a.py.*",
-        )
-        s3_client.put_object(Bucket=s3_bucket.name, Key=S3_BUCKET_PREFIX + "/dag_03.py", Body=b"test data")
         bundle.refresh()
         assert cap_structlog.text.count("Downloading DAGs from s3") == 2
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=rf"Local file.*/{bundle.name}.*/dag_a.py.*is up-to-date with S3 object.*dag_a.py.*",
-        )
-        self.assert_log_matches_regex(
-            caplog=caplog,
-            level="DEBUG",
-            regex=rf"Downloaded.*dag_03.py.*/{bundle.name}.*/dag_03.py",
-        )
-        # we are using s3 bucket rood but the dag file is in sub folder, project1/dags/dag_03.py
-        assert bundle.s3_dags_dir.joinpath("project1/dags/dag_03.py").read_text() == "test data"
 
     def assert_log_matches_regex(self, caplog, level, regex):
         """Helper function to assert if a log message matches a regex."""
