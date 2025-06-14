@@ -94,7 +94,9 @@ export const GridButton = ({
         {Boolean(note) && (
           <HStack fontSize="xs" justify="space-between">
             <Text color="gray.200">{translate("note.label")}:</Text>
-            <Text>{note}</Text>
+            <Text overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+              {note}
+            </Text>
           </HStack>
         )}
       </VStack>
