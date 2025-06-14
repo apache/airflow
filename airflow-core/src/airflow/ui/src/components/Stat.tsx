@@ -28,6 +28,8 @@ export const Stat = ({ children, label, ...rest }: Props) => (
     <Heading color="fg.muted" fontSize="xs" lineHeight="1.25rem">
       {label}
     </Heading>
-    <Center height="100%">{children}</Center>
+    <Center fontSize="sm" height="100%">
+      {children}
+    </Center>
   </VStack>
 );
