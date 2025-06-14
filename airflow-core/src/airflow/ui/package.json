@@ -39,6 +39,7 @@
     "html-to-image": "^1.11.13",
     "i18next": "^25.1.2",
     "i18next-browser-languagedetector": "^8.1.0",
+    "i18next-http-backend": "^3.0.2",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",

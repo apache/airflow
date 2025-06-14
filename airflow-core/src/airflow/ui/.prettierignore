@@ -5,4 +5,4 @@ dist/
 *.yaml
 coverage/*
 .pnpm-store
-src/i18n/locales/*
+public/i18n/locales/*
