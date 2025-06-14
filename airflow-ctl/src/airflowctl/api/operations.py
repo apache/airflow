@@ -351,6 +351,16 @@ class ConfigOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
+    def put(self, section: str, option: str, value: str) -> Config | ServerResponseError:
+        """Update a config value on the API server."""
+        try:
+            self.response = self.client.put(
+                f"/config/section/{section}/option/{option}", json={"value": value}
+            )
+            return Config.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
 
 class ConnectionsOperations(BaseOperations):
     """Connection operations."""
