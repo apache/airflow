@@ -73,7 +73,7 @@ export const Grid = ({ limit }: Props) => {
   );
 
   return (
-    <Flex justifyContent="flex-start" position="relative" pt={36} width="100%">
+    <Flex justifyContent="flex-start" mt={2} position="relative" pt={48} width="100%">
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
         <TaskNames nodes={flatNodes} />
       </Box>

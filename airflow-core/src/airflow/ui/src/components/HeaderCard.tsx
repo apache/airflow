@@ -47,8 +47,9 @@ export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle
       borderColor="border"
       borderRadius={8}
       borderWidth={1}
-      h={isGanttPage ? "150px" : undefined}
+      h={isGanttPage ? 52 : undefined}
       ml={2}
+      overflow="auto"
       p={2}
       ref={containerRef}
     >
@@ -60,10 +61,10 @@ export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle
           {state === undefined ? undefined : <StateBadge state={state}>{state}</StateBadge>}
           {isRefreshing ? <Spinner /> : <div />}
         </Flex>
-        <Stack direction={isGanttPage && containerWidth <= 600 ? "row" : "column"} mt={2} w="100%">
+        <Stack direction={isGanttPage && containerWidth <= 380 ? "row" : "column"} mt={2} w="100%">
           <HStack gap={1}>{actions}</HStack>
           <StatsDisplay
-            isCompact={isGanttPage ? containerWidth < 600 : false}
+            isCompact={isGanttPage ? containerWidth <= 380 : false}
             stats={stats}
             title={typeof title === "string" ? title : undefined}
           />

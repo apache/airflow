@@ -85,22 +85,18 @@ export const Gantt = () => {
     return undefined;
   }
 
-  const data = flatNodes.map((node) => {
-    const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
+  const validTaskInstances = flatNodes
+    .map((node) => taskInstances.find((ti) => ti.task_id === node.id))
+    .filter((ti) => ti !== undefined);
 
-    if (taskInstance === undefined) {
-      return undefined;
-    }
-
-    return {
-      state: taskInstance.state,
-      x: [
-        dayjs(taskInstance.start_date).tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss.SSS"),
-        dayjs(taskInstance.end_date).tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss.SSS"),
-      ],
-      y: taskInstance.task_id,
-    };
-  });
+  const data = validTaskInstances.map((taskInstance) => ({
+    state: taskInstance.state,
+    x: [
+      dayjs(taskInstance.start_date).tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss.SSS"),
+      dayjs(taskInstance.end_date).tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss.SSS"),
+    ],
+    y: taskInstance.task_id,
+  }));
 
   const fixedHeight = data.length * CHART_ROW_HEIGHT + CHART_PADDING;
 
@@ -112,7 +108,7 @@ export const Gantt = () => {
             {
               backgroundColor: data.map(
                 (dataItem) =>
-                  system.tokens.categoryMap.get("colors")?.get(`${dataItem?.state}.600`)?.value as string,
+                  system.tokens.categoryMap.get("colors")?.get(`${dataItem.state}.600`)?.value as string,
               ),
               data,
               maxBarThickness: CHART_ROW_HEIGHT,
@@ -122,9 +118,7 @@ export const Gantt = () => {
         }}
         datasetIdKey="id"
         options={{
-          animation: {
-            duration: 400,
-          },
+          animation: false,
           indexAxis: "y",
           maintainAspectRatio: false,
           plugins: {
@@ -143,12 +137,12 @@ export const Gantt = () => {
                         xMin: "min",
                         yMax:
                           selectedTaskId === undefined
-                            ? data.findIndex((dataItem) => dataItem?.y === selectedGroupId) + 0.5
-                            : data.findIndex((dataItem) => dataItem?.y === selectedTaskId) + 0.5,
+                            ? data.findIndex((dataItem) => dataItem.y === selectedGroupId) + 0.5
+                            : data.findIndex((dataItem) => dataItem.y === selectedTaskId) + 0.5,
                         yMin:
                           selectedTaskId === undefined
-                            ? data.findIndex((dataItem) => dataItem?.y === selectedGroupId) - 0.5
-                            : data.findIndex((dataItem) => dataItem?.y === selectedTaskId) - 0.5,
+                            ? data.findIndex((dataItem) => dataItem.y === selectedGroupId) - 0.5
+                            : data.findIndex((dataItem) => dataItem.y === selectedTaskId) - 0.5,
                       },
                     ],
             },
@@ -158,7 +152,7 @@ export const Gantt = () => {
             tooltip: {
               callbacks: {
                 afterBody(tooltipItems) {
-                  const taskInstance = data.find((dataItem) => dataItem?.y === tooltipItems[0]?.label);
+                  const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
                   const startDate = dayjs(taskInstance?.x[0]).format("YYYY-MM-DD HH:mm:ss");
                   const endDate = dayjs(taskInstance?.x[1]).format("YYYY-MM-DD HH:mm:ss");
 
@@ -170,13 +164,14 @@ export const Gantt = () => {
                 },
                 label(tooltipItem) {
                   const { label } = tooltipItem;
-                  const taskInstance = data.find((dataItem) => dataItem?.y === label);
+                  const taskInstance = data.find((dataItem) => dataItem.y === label);
 
                   return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
                 },
               },
             },
           },
+          resizeDelay: 100,
           responsive: true,
           scales: {
             x: {
@@ -191,8 +186,9 @@ export const Gantt = () => {
               ticks: {
                 align: "start",
                 callback: (value) => dayjs(value).tz(selectedTimezone).format("HH:mm:ss"),
+                maxRotation: 12,
                 maxTicksLimit: 8,
-                minRotation: 14,
+                minRotation: 12,
               },
               type: "time",
             },
