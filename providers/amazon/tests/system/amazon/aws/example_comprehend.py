@@ -19,9 +19,6 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from airflow import DAG
-from airflow.decorators import task_group
-from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.comprehend import ComprehendStartPiiEntitiesDetectionJobOperator
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
@@ -31,6 +28,14 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendStartPiiEntitiesDetectionJobCompletedSensor,
 )
+
+try:
+    from airflow.sdk import DAG, chain, task_group
+except ImportError:
+    # Airflow 2.10 compat
+    from airflow.decorators import task_group
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

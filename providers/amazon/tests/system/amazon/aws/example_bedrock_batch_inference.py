@@ -23,9 +23,6 @@ from tempfile import NamedTemporaryFile
 
 from botocore.exceptions import ClientError
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.bedrock import (
@@ -37,6 +34,14 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.sensors.bedrock import BedrockBatchInferenceSensor
+
+try:
+    from airflow.sdk import DAG, chain, task
+except ImportError:
+    # Airflow 2.10 compat
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

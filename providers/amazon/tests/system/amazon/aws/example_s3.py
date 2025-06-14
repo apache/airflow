@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
     S3CreateBucketOperator,
@@ -34,6 +32,13 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3PutBucketTaggingOperator,
 )
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
+
+try:
+    from airflow.sdk import DAG, chain
+except ImportError:
+    # Airflow 2.10 compat
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder

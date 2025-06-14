@@ -18,9 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3DeleteBucketOperator,
@@ -31,6 +28,14 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
 )
+
+try:
+    from airflow.sdk import DAG, chain, task
+except ImportError:
+    # Airflow 2.10 compat
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
