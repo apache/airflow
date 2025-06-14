@@ -31,7 +31,7 @@ import {
   TimeScale,
 } from "chart.js";
 import "chart.js/auto";
-import "chartjs-adapter-dayjs-4";
+import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
 import { useMemo, useRef } from "react";
