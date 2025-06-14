@@ -369,6 +369,7 @@ def create_next_run(
             max_active_runs=2,
             reverse=False,
             dag_run_conf=None,
+            triggering_user="pytest",
             reprocess_behavior=reprocess,
         )
         assert b
