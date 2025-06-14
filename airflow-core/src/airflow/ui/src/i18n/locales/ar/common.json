@@ -15,8 +15,8 @@
   },
   "dag_one": "Dag",
   "dag_other": "Dags",
-  "dagRun_one": "تشغيل Dag",
-  "dagRun_other": "تشغيلات Dag",
+  "dagRun_one": "مثيل تشغيل لDAG",
+  "dagRun_other": "مثيل تشغيلات لDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
   "docs": {
@@ -112,7 +112,7 @@
   },
   "timezone": "المنطقة الزمنية",
   "timezoneModal": {
-    "current-timezone": "المنطقة الزمنية الحالية في",
+    "current-timezone": "المنطقة الزمنية الحالية",
     "placeholder": "اختر المنطقة الزمنية",
     "title": "اختيار المنطقة الزمنية",
     "utc": "UTC (التوقيت العالمي المنسق)"

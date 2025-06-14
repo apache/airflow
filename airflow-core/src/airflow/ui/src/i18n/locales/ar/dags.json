@@ -51,7 +51,7 @@
           "title": "ملاحظة"
         },
         "options": {
-          "downstream": "المهام التابعة",
+          "downstream": "المهام اللاحقة",
           "existingTasks": "مسح المهام الحالية",
           "future": "المستقبل",
           "onlyFailed": "مسح المهام الفاشلة فقط",
@@ -84,7 +84,7 @@
       "dialog": {
         "confirm": "تأكيد",
         "options": {
-          "downstream": "المهام التابعة",
+          "downstream": "المهام اللاحقة",
           "future": "المهام المستقبلية",
           "past": "المهام الماضية",
           "upstream": "المهام السابقة"
