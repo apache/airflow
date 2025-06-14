@@ -50,7 +50,7 @@ const getKeys = (obj, prefix = "") => {
 };
 
 // Path to locales directory
-const localesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/i18n/locales");
+const localesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public/i18n/locales");
 
 // Default language (English) as reference
 const defaultLanguage = "en";
