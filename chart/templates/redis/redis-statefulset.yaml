@@ -39,7 +39,7 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     {{- with .Values.labels }}
-      {{- toYaml . | nindent 4 }}
+      {{- tpl (toYaml .) $ | nindent 4 }}
     {{- end }}
   {{- if .Values.redis.annotations }}
   annotations: {{- toYaml .Values.redis.annotations | nindent 4 }}
@@ -58,7 +58,7 @@ spec:
         component: redis
         release: {{ .Release.Name }}
         {{- with .Values.labels }}
-          {{- toYaml . | nindent 8 }}
+          {{- tpl (toYaml .) $ | nindent 8 }}
         {{- end }}
       {{- if or .Values.redis.safeToEvict .Values.redis.podAnnotations }}
       annotations:
