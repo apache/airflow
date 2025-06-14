@@ -20,7 +20,9 @@ from typing import Any
 
 from fastapi import Depends, status
 
+from airflow import plugins_manager
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.plugins import AppBuilderMenuItemResponse
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_authenticated
@@ -58,6 +60,11 @@ def get_configs() -> ConfigResponse:
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
     }
+
+    additional_config["plugins_extra_menu_items"] = [
+        AppBuilderMenuItemResponse.model_validate(mi)
+        for mi in (plugins_manager.flask_appbuilder_menu_links or [])
+    ]
 
     config.update({key: value for key, value in additional_config.items()})
 

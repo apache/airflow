@@ -410,7 +410,10 @@ def initialize_airflow_tests(request):
 
 
 def _initialize_airflow_db(force_db_init: bool, airflow_home: str | Path):
-    db_init_lock_file = Path(airflow_home).joinpath(".airflow_db_initialised")
+    # db_init_lock_file = Path(airflow_home).joinpath(".airflow_db_initialised")
+    airflow_home = Path(airflow_home)
+    airflow_home.mkdir(parents=True, exist_ok=True)
+    db_init_lock_file = airflow_home.joinpath(".airflow_db_initialised")
     if not force_db_init and db_init_lock_file.exists():
         print(
             "Skipping initializing of the DB as it was initialized already.\n"
