@@ -79,6 +79,13 @@ class EdgeExecutor(BaseExecutor):
         if edge_job_columns and "concurrency_slots" not in edge_job_columns:
             EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
 
+        # Increase command column size in edge_job table to support larger commands
+        if edge_job_columns and "command" in edge_job_columns:
+            with Session(engine) as session:
+                query = "ALTER TABLE edge_job ALTER COLUMN command TYPE VARCHAR(2048);"
+                session.execute(text(query))
+                session.commit()
+
         edge_worker_columns = None
         with contextlib.suppress(NoSuchTableError):
             edge_worker_columns = [column["name"] for column in inspector.get_columns("edge_worker")]
