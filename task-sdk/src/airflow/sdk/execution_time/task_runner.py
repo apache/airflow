@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import contextlib
 import contextvars
 import functools
@@ -653,6 +654,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
+TRIGGERER_SUPERVISOR_COMMS_FUTURE: concurrent.futures.Future | None = None
+
 
 @attrs.define()
 class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
@@ -669,13 +672,40 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     lock: aiologic.Lock = attrs.field(factory=aiologic.Lock, repr=False)
 
+    def _read_stdin_line(self):
+        """
+        Read triggerer workloads.
+
+        Used in ThreadPoolExecutor in triggerer to read blockingly from stdin.
+        """
+        line = None
+        while not line:
+            line = self.input.readline()
+        return line.encode()
+
     def get_message(self) -> ReceiveMsgType:
         """
         Get a message from the parent.
 
         This will block until the message has been received.
         """
+        global TRIGGERER_SUPERVISOR_COMMS_FUTURE
         line = None
+
+        if TRIGGERER_SUPERVISOR_COMMS_FUTURE is not None:
+            # If there are any ThreadPoolExecutor tasks submitted from triggerer, we wait for the future to complete, the task in
+            # the triggerer process sync_state_to_supervisor to read triggerer workloads.
+            # Waiting for the future to complete
+
+            try:
+                TRIGGERER_SUPERVISOR_COMMS_FUTURE.result()
+            except Exception as e:
+                structlog.get_logger(logger_name="CommsDecoder").exception(
+                    "Error while waiting for TRIGGERER_SUPERVISOR_COMMS_FUTURE", error=e
+                )
+                raise
+            finally:
+                TRIGGERER_SUPERVISOR_COMMS_FUTURE = None
 
         # TODO: Investigate why some empty lines are sent to the processes stdin.
         #   That was highlighted when working on https://github.com/apache/airflow/issues/48183
