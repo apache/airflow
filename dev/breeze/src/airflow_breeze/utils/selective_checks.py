@@ -1245,7 +1245,8 @@ class SelectiveChecks:
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
             or self._matching_files(FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES)
         ):
-            pre_commits_to_skip.add("ts-compile-format-lint-ui")
+            pre_commits_to_skip.add("ts-compile-lint-ui")
+            pre_commits_to_skip.add("ts-compile-lint-simple-auth-manager-ui")
         if not self._matching_files(FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
             pre_commits_to_skip.add("flynt")
         if not self._matching_files(
