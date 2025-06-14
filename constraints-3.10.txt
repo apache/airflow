@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-13T19:56:19.728691
+# This constraints file was automatically generated on 2025-06-14T02:33:02.923858
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -478,8 +478,8 @@ kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.11.0
-libcst==1.8.1
-limits==5.2.0
+libcst==1.8.2
+limits==5.3.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.8.0
@@ -685,7 +685,7 @@ ruamel.yaml==0.18.14
 ruff==0.11.13
 s3fs==2025.5.1
 s3transfer==0.13.0
-sagemaker_studio==1.0.14
+sagemaker_studio==1.0.15
 scikit-learn==1.5.2
 scipy==1.15.3
 scramp==1.4.5
