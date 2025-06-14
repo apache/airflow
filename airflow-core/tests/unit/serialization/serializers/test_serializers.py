@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import enum
 from importlib import metadata
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -386,3 +387,38 @@ class TestSerializers:
     def test_pendulum_3_to_2(self, ser_value, expected):
         """Test deserialize objects in pendulum 2 which serialised in pendulum 3."""
         assert deserialize(ser_value) == expected
+
+    def test_custom_enum_fail_serialization(self):
+        """Test that custom Enums without registered serializers fail to serialize"""
+
+        class Color(enum.Enum):
+            RED = "red"
+            GREEN = "green"
+            BLUE = "blue"
+
+        class Status(enum.Enum):
+            ACTIVE = 1
+            INACTIVE = 2
+
+        class Priority(enum.Flag):
+            LOW = 1
+            MEDIUM = 2
+            HIGH = 4
+
+        # These should fail because they don't have registered serializers
+        # and don't match the builtin enum types
+        with pytest.raises(TypeError, match="^cannot serialize"):
+            serialize(Color.RED)
+
+        with pytest.raises(TypeError, match="^cannot serialize"):
+            serialize(Status.ACTIVE)
+
+        with pytest.raises(TypeError, match="^cannot serialize"):
+            serialize(Priority.HIGH)
+
+    def test_builtin_enum_serialization_works(self):
+        """Verify that builtin IntEnum still works (regression test)"""
+        Color = enum.IntEnum("Color", ["RED", "GREEN"])
+        i = Color.RED
+        e = serialize(i)
+        assert i == e
