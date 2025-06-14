@@ -958,6 +958,7 @@ export const useDagWarningServiceListDagWarnings = <
  * @param data.offset
  * @param data.tags
  * @param data.tagsMatchMode
+ * @param data.tagsAdvancedQuery Advanced tag query, e.g. (tag1 OR tag2) AND tag3
  * @param data.owners
  * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -994,6 +995,7 @@ export const useDagServiceGetDags = <
     owners,
     paused,
     tags,
+    tagsAdvancedQuery,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
@@ -1011,6 +1013,7 @@ export const useDagServiceGetDags = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsAdvancedQuery?: string;
     tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
@@ -1034,6 +1037,7 @@ export const useDagServiceGetDags = <
         owners,
         paused,
         tags,
+        tagsAdvancedQuery,
         tagsMatchMode,
       },
       queryKey,
@@ -1055,6 +1059,7 @@ export const useDagServiceGetDags = <
         owners,
         paused,
         tags,
+        tagsAdvancedQuery,
         tagsMatchMode,
       }) as TData,
     ...options,
@@ -1155,6 +1160,7 @@ export const useDagServiceGetDagTags = <
  * @param data.offset
  * @param data.tags
  * @param data.tagsMatchMode
+ * @param data.tagsAdvancedQuery Advanced tag query, e.g. (tag1 OR tag2) AND tag3
  * @param data.owners
  * @param data.dagIds
  * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -1184,6 +1190,7 @@ export const useDagServiceGetDagsUi = <
     owners,
     paused,
     tags,
+    tagsAdvancedQuery,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
@@ -1198,6 +1205,7 @@ export const useDagServiceGetDagsUi = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsAdvancedQuery?: string;
     tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
@@ -1218,6 +1226,7 @@ export const useDagServiceGetDagsUi = <
         owners,
         paused,
         tags,
+        tagsAdvancedQuery,
         tagsMatchMode,
       },
       queryKey,
@@ -1236,6 +1245,7 @@ export const useDagServiceGetDagsUi = <
         owners,
         paused,
         tags,
+        tagsAdvancedQuery,
         tagsMatchMode,
       }) as TData,
     ...options,

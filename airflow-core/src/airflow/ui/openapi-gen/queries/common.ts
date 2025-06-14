@@ -598,6 +598,7 @@ export const UseDagServiceGetDagsKeyFn = (
     owners,
     paused,
     tags,
+    tagsAdvancedQuery,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
@@ -615,6 +616,7 @@ export const UseDagServiceGetDagsKeyFn = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsAdvancedQuery?: string;
     tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: Array<unknown>,
@@ -637,6 +639,7 @@ export const UseDagServiceGetDagsKeyFn = (
       owners,
       paused,
       tags,
+      tagsAdvancedQuery,
       tagsMatchMode,
     },
   ]),
@@ -709,6 +712,7 @@ export const UseDagServiceGetDagsUiKeyFn = (
     owners,
     paused,
     tags,
+    tagsAdvancedQuery,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
@@ -723,6 +727,7 @@ export const UseDagServiceGetDagsUiKeyFn = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsAdvancedQuery?: string;
     tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: Array<unknown>,
@@ -742,6 +747,7 @@ export const UseDagServiceGetDagsUiKeyFn = (
       owners,
       paused,
       tags,
+      tagsAdvancedQuery,
       tagsMatchMode,
     },
   ]),
