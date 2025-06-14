@@ -41,7 +41,7 @@ export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} *
   coreRules,
   {
     ...typescriptRules,
-    files: ['**/*.{ts,tsx,js,jsx}'],
+    files: ["**/*.{ts,tsx,js,jsx}"],
   },
   // Da rest
   perfectionistRules,
