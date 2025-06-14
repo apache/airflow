@@ -37,7 +37,7 @@
 
 # Translations (i18n)
 airflow-core/src/airflow/ui/src/i18n/locales/de/ @jscheffl # not codeowner but engaged: @TJaniF @m1racoli
-airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/ @Lee-W
+airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/ @Lee-W @jason810496 # not codeowner but engaged: @RoyLee1224 @guan404ming
 airflow-core/src/airflow/ui/src/i18n/locales/nl/ @BasPH # not codeowner but engaged: @DjVinnii
 airflow-core/src/airflow/ui/src/i18n/locales/pl/ @potiuk @mobuchowski # not codeowner but engaged: @kacpermuda
 airflow-core/src/airflow/ui/src/i18n/locales/he/ @eladkal @shahar1 @romsharon98
