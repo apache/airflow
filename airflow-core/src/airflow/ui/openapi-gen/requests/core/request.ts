@@ -31,14 +31,14 @@ export const isSuccess = (status: number): boolean => {
 export const base64 = (str: string): string => {
   try {
     return btoa(str);
-  } catch (err) {
+  } catch {
     // @ts-ignore
     return Buffer.from(str).toString("base64");
   }
 };
 
 export const getQueryString = (params: Record<string, unknown>): string => {
-  const qs: string[] = [];
+  const qs: Array<string> = [];
 
   const append = (key: string, value: unknown) => {
     qs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
@@ -70,14 +70,16 @@ const getUrl = (config: OpenAPIConfig, options: ApiRequestOptions): string => {
 
   const path = options.url
     .replace("{api-version}", config.VERSION)
-    .replace(/{(.*?)}/g, (substring: string, group: string) => {
+    .replaceAll(/{(.*?)}/g, (substring: string, group: string) => {
       if (options.path?.hasOwnProperty(group)) {
         return encoder(String(options.path[group]));
       }
+
       return substring;
     });
 
   const url = config.BASE + path;
+
   return options.query ? url + getQueryString(options.query) : url;
 };
 
@@ -105,6 +107,7 @@ export const getFormData = (options: ApiRequestOptions): FormData | undefined =>
 
     return formData;
   }
+
   return undefined;
 };
 
@@ -112,11 +115,12 @@ type Resolver<T> = (options: ApiRequestOptions<T>) => Promise<T>;
 
 export const resolve = async <T>(
   options: ApiRequestOptions<T>,
-  resolver?: T | Resolver<T>,
+  resolver?: Resolver<T> | T,
 ): Promise<T | undefined> => {
   if (typeof resolver === "function") {
     return (resolver as Resolver<T>)(options);
   }
+
   return resolver;
 };
 
@@ -135,27 +139,24 @@ export const getHeaders = async <T>(
     resolve(options, config.HEADERS),
   ]);
 
-  const headers = Object.entries({
+  const headers = Object.fromEntries(Object.entries({
     Accept: "application/json",
     ...additionalHeaders,
     ...options.headers,
   })
     .filter(([, value]) => value !== undefined && value !== null)
-    .reduce(
-      (headers, [key, value]) => ({
-        ...headers,
-        [key]: String(value),
-      }),
-      {} as Record<string, string>,
-    );
+    .map<Record<string, string>>(
+      ( [key, value]) => [key, String(value)],
+    ));
 
   if (isStringWithValue(token)) {
-    headers["Authorization"] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
 
   if (isStringWithValue(username) && isStringWithValue(password)) {
     const credentials = base64(`${username}:${password}`);
-    headers["Authorization"] = `Basic ${credentials}`;
+
+    headers.Authorization = `Basic ${credentials}`;
   }
 
   if (options.body !== undefined) {
@@ -181,6 +182,7 @@ export const getRequestBody = (options: ApiRequestOptions): unknown => {
   if (options.body) {
     return options.body;
   }
+
   return undefined;
 };
 
@@ -215,6 +217,7 @@ export const sendRequest = async <T>(
     return await axiosClient.request(requestConfig);
   } catch (error) {
     const axiosError = error as AxiosError<T>;
+
     if (axiosError.response) {
       return axiosError.response;
     }
@@ -228,10 +231,12 @@ export const getResponseHeader = (
 ): string | undefined => {
   if (responseHeader) {
     const content = response.headers[responseHeader];
+
     if (isString(content)) {
       return content;
     }
   }
+
   return undefined;
 };
 
@@ -239,6 +244,7 @@ export const getResponseBody = (response: AxiosResponse<unknown>): unknown => {
   if (response.status !== 204) {
     return response.data;
   }
+
   return undefined;
 };
 
@@ -288,6 +294,7 @@ export const catchErrorCodes = (options: ApiRequestOptions, result: ApiResult): 
   };
 
   const error = errors[result.status];
+
   if (error) {
     throw new ApiError(options, result, error);
   }
@@ -298,7 +305,7 @@ export const catchErrorCodes = (options: ApiRequestOptions, result: ApiResult): 
     const errorBody = (() => {
       try {
         return JSON.stringify(result.body, null, 2);
-      } catch (e) {
+      } catch {
         return undefined;
       }
     })();
@@ -351,16 +358,17 @@ export const request = <T>(
         const responseHeader = getResponseHeader(response, options.responseHeader);
 
         let transformedBody = responseBody;
+
         if (options.responseTransformer && isSuccess(response.status)) {
           transformedBody = await options.responseTransformer(responseBody);
         }
 
         const result: ApiResult = {
-          url,
+          body: responseHeader ?? transformedBody,
           ok: isSuccess(response.status),
           status: response.status,
           statusText: response.statusText,
-          body: responseHeader ?? transformedBody,
+          url,
         };
 
         catchErrorCodes(options, result);

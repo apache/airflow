@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2
-import { UseQueryResult } from "@tanstack/react-query";
+import type { UseQueryResult } from "@tanstack/react-query";
 
-import {
+import type {
   AssetService,
   AuthLinksService,
   BackfillService,
@@ -34,7 +34,7 @@ import {
   VersionService,
   XcomService,
 } from "../requests/services.gen";
-import { DagRunState, DagWarningType } from "../requests/types.gen";
+import type { DagRunState, DagWarningType } from "../requests/types.gen";
 
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<
@@ -52,7 +52,7 @@ export const UseAssetServiceGetAssetsKeyFn = (
     orderBy,
     uriPattern,
   }: {
-    dagIds?: string[];
+    dagIds?: Array<string>;
     limit?: number;
     namePattern?: string;
     offset?: number;
@@ -419,10 +419,10 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
-    runType?: string[];
+    runType?: Array<string>;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
+    state?: Array<string>;
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
@@ -464,7 +464,7 @@ export const UseDagSourceServiceGetDagSourceKeyFn = (
     dagId,
     versionNumber,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "*/*" | "application/json" | "text/plain";
     dagId: string;
     versionNumber?: number;
   },
@@ -482,7 +482,7 @@ export const UseDagStatsServiceGetDagStatsKeyFn = (
   {
     dagIds,
   }: {
-    dagIds?: string[];
+    dagIds?: Array<string>;
   } = {},
   queryKey?: Array<unknown>,
 ) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
@@ -513,7 +513,7 @@ export const UseConfigServiceGetConfigKeyFn = (
     accept,
     section,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "*/*" | "application/json" | "text/plain";
     section?: string;
   } = {},
   queryKey?: Array<unknown>,
@@ -532,7 +532,7 @@ export const UseConfigServiceGetConfigValueKeyFn = (
     option,
     section,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "*/*" | "application/json" | "text/plain";
     option: string;
     section: string;
   },
@@ -606,16 +606,16 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunEndDateLte?: string;
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
-    dagRunState?: string[];
+    dagRunState?: Array<string>;
     excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     orderBy?: string;
-    owners?: string[];
+    owners?: Array<string>;
     paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
+    tags?: Array<string>;
+    tagsMatchMode?: "all" | "any";
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -713,17 +713,17 @@ export const UseDagServiceGetDagsUiKeyFn = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
-    dagIds?: string[];
+    dagIds?: Array<string>;
     dagRunsLimit?: number;
     excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     orderBy?: string;
-    owners?: string[];
+    owners?: Array<string>;
     paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
+    tags?: Array<string>;
+    tagsMatchMode?: "all" | "any";
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -791,8 +791,8 @@ export const UseEventLogServiceGetEventLogsKeyFn = (
     before?: string;
     dagId?: string;
     event?: string;
-    excludedEvents?: string[];
-    includedEvents?: string[];
+    excludedEvents?: Array<string>;
+    includedEvents?: Array<string>;
     limit?: number;
     mapIndex?: number;
     offset?: number;
@@ -928,23 +928,23 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     durationLte?: number;
     endDateGte?: string;
     endDateLte?: string;
-    executor?: string[];
+    executor?: Array<string>;
     limit?: number;
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
-    pool?: string[];
-    queue?: string[];
+    pool?: Array<string>;
+    queue?: Array<string>;
     runAfterGte?: string;
     runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
+    state?: Array<string>;
     taskId: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
-    versionNumber?: number[];
+    versionNumber?: Array<number>;
   },
   queryKey?: Array<unknown>,
 ) => [
@@ -1146,24 +1146,24 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     durationLte?: number;
     endDateGte?: string;
     endDateLte?: string;
-    executor?: string[];
+    executor?: Array<string>;
     limit?: number;
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
-    pool?: string[];
-    queue?: string[];
+    pool?: Array<string>;
+    queue?: Array<string>;
     runAfterGte?: string;
     runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
+    state?: Array<string>;
     taskDisplayNamePattern?: string;
     taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
-    versionNumber?: number[];
+    versionNumber?: Array<number>;
   },
   queryKey?: Array<unknown>,
 ) => [
@@ -1270,7 +1270,7 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
     token,
     tryNumber,
   }: {
-    accept?: "application/json" | "*/*" | "application/x-ndjson";
+    accept?: "*/*" | "application/json" | "application/x-ndjson";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -1822,8 +1822,8 @@ export const UseGridServiceGridDataKeyFn = (
     root?: string;
     runAfterGte?: string;
     runAfterLte?: string;
-    runType?: string[];
-    state?: string[];
+    runType?: Array<string>;
+    state?: Array<string>;
   },
   queryKey?: Array<unknown>,
 ) => [

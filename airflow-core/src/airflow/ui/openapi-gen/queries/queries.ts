@@ -1,5 +1,5 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2
-import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
+import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 
 import {
   AssetService,
@@ -34,7 +34,7 @@ import {
   VersionService,
   XcomService,
 } from "../requests/services.gen";
-import {
+import type {
   BackfillPostBody,
   BulkBody_BulkTaskInstanceBody_,
   BulkBody_ConnectionBody_,
@@ -77,7 +77,7 @@ import * as Common from "./common";
 export const useAssetServiceGetAssets = <
   TData = Common.AssetServiceGetAssetsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagIds,
@@ -88,7 +88,7 @@ export const useAssetServiceGetAssets = <
     orderBy,
     uriPattern,
   }: {
-    dagIds?: string[];
+    dagIds?: Array<string>;
     limit?: number;
     namePattern?: string;
     offset?: number;
@@ -97,13 +97,9 @@ export const useAssetServiceGetAssets = <
     uriPattern?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetsKeyFn(
-      { dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern },
-      queryKey,
-    ),
     queryFn: () =>
       AssetService.getAssets({
         dagIds,
@@ -114,6 +110,10 @@ export const useAssetServiceGetAssets = <
         orderBy,
         uriPattern,
       }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn(
+      { dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern },
+      queryKey,
+    ),
     ...options,
   });
 /**
@@ -130,7 +130,7 @@ export const useAssetServiceGetAssets = <
 export const useAssetServiceGetAssetAliases = <
   TData = Common.AssetServiceGetAssetAliasesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     limit,
@@ -144,11 +144,11 @@ export const useAssetServiceGetAssetAliases = <
     orderBy?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }, queryKey),
     queryFn: () => AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }, queryKey),
     ...options,
   });
 /**
@@ -162,7 +162,7 @@ export const useAssetServiceGetAssetAliases = <
 export const useAssetServiceGetAssetAlias = <
   TData = Common.AssetServiceGetAssetAliasDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     assetAliasId,
@@ -170,11 +170,11 @@ export const useAssetServiceGetAssetAlias = <
     assetAliasId: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn({ assetAliasId }, queryKey),
     queryFn: () => AssetService.getAssetAlias({ assetAliasId }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn({ assetAliasId }, queryKey),
     ...options,
   });
 /**
@@ -197,7 +197,7 @@ export const useAssetServiceGetAssetAlias = <
 export const useAssetServiceGetAssetEvents = <
   TData = Common.AssetServiceGetAssetEventsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     assetId,
@@ -223,9 +223,22 @@ export const useAssetServiceGetAssetEvents = <
     timestampLte?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      AssetService.getAssetEvents({
+        assetId,
+        limit,
+        offset,
+        orderBy,
+        sourceDagId,
+        sourceMapIndex,
+        sourceRunId,
+        sourceTaskId,
+        timestampGte,
+        timestampLte,
+      }) as TData,
     queryKey: Common.UseAssetServiceGetAssetEventsKeyFn(
       {
         assetId,
@@ -241,19 +254,6 @@ export const useAssetServiceGetAssetEvents = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      AssetService.getAssetEvents({
-        assetId,
-        limit,
-        offset,
-        orderBy,
-        sourceDagId,
-        sourceMapIndex,
-        sourceRunId,
-        sourceTaskId,
-        timestampGte,
-        timestampLte,
-      }) as TData,
     ...options,
   });
 /**
@@ -268,7 +268,7 @@ export const useAssetServiceGetAssetEvents = <
 export const useAssetServiceGetAssetQueuedEvents = <
   TData = Common.AssetServiceGetAssetQueuedEventsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     assetId,
@@ -278,11 +278,11 @@ export const useAssetServiceGetAssetQueuedEvents = <
     before?: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ assetId, before }, queryKey),
     queryFn: () => AssetService.getAssetQueuedEvents({ assetId, before }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ assetId, before }, queryKey),
     ...options,
   });
 /**
@@ -296,7 +296,7 @@ export const useAssetServiceGetAssetQueuedEvents = <
 export const useAssetServiceGetAsset = <
   TData = Common.AssetServiceGetAssetDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     assetId,
@@ -304,11 +304,11 @@ export const useAssetServiceGetAsset = <
     assetId: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }, queryKey),
     queryFn: () => AssetService.getAsset({ assetId }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }, queryKey),
     ...options,
   });
 /**
@@ -323,7 +323,7 @@ export const useAssetServiceGetAsset = <
 export const useAssetServiceGetDagAssetQueuedEvents = <
   TData = Common.AssetServiceGetDagAssetQueuedEventsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     before,
@@ -333,11 +333,11 @@ export const useAssetServiceGetDagAssetQueuedEvents = <
     dagId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ before, dagId }, queryKey),
     queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData,
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ before, dagId }, queryKey),
     ...options,
   });
 /**
@@ -353,7 +353,7 @@ export const useAssetServiceGetDagAssetQueuedEvents = <
 export const useAssetServiceGetDagAssetQueuedEvent = <
   TData = Common.AssetServiceGetDagAssetQueuedEventDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     assetId,
@@ -365,11 +365,11 @@ export const useAssetServiceGetDagAssetQueuedEvent = <
     dagId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({ assetId, before, dagId }, queryKey),
     queryFn: () => AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData,
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({ assetId, before, dagId }, queryKey),
     ...options,
   });
 /**
@@ -382,7 +382,7 @@ export const useAssetServiceGetDagAssetQueuedEvent = <
 export const useAssetServiceNextRunAssets = <
   TData = Common.AssetServiceNextRunAssetsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -390,11 +390,11 @@ export const useAssetServiceNextRunAssets = <
     dagId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     ...options,
   });
 /**
@@ -410,7 +410,7 @@ export const useAssetServiceNextRunAssets = <
 export const useBackfillServiceListBackfills = <
   TData = Common.BackfillServiceListBackfillsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -424,11 +424,11 @@ export const useBackfillServiceListBackfills = <
     orderBy?: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({ dagId, limit, offset, orderBy }, queryKey),
     queryFn: () => BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({ dagId, limit, offset, orderBy }, queryKey),
     ...options,
   });
 /**
@@ -441,7 +441,7 @@ export const useBackfillServiceListBackfills = <
 export const useBackfillServiceGetBackfill = <
   TData = Common.BackfillServiceGetBackfillDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     backfillId,
@@ -449,11 +449,11 @@ export const useBackfillServiceGetBackfill = <
     backfillId: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }, queryKey),
     queryFn: () => BackfillService.getBackfill({ backfillId }) as TData,
+    queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }, queryKey),
     ...options,
   });
 /**
@@ -470,7 +470,7 @@ export const useBackfillServiceGetBackfill = <
 export const useBackfillServiceListBackfillsUi = <
   TData = Common.BackfillServiceListBackfillsUiDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     active,
@@ -486,14 +486,14 @@ export const useBackfillServiceListBackfillsUi = <
     orderBy?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData,
     queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn(
       { active, dagId, limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -507,7 +507,7 @@ export const useBackfillServiceListBackfillsUi = <
 export const useConnectionServiceGetConnection = <
   TData = Common.ConnectionServiceGetConnectionDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     connectionId,
@@ -515,11 +515,11 @@ export const useConnectionServiceGetConnection = <
     connectionId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey),
     queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey),
     ...options,
   });
 /**
@@ -536,7 +536,7 @@ export const useConnectionServiceGetConnection = <
 export const useConnectionServiceGetConnections = <
   TData = Common.ConnectionServiceGetConnectionsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     connectionIdPattern,
@@ -550,14 +550,14 @@ export const useConnectionServiceGetConnections = <
     orderBy?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
       { connectionIdPattern, limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -569,14 +569,14 @@ export const useConnectionServiceGetConnections = <
 export const useConnectionServiceHookMetaData = <
   TData = Common.ConnectionServiceHookMetaDataDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(queryKey),
     queryFn: () => ConnectionService.hookMetaData() as TData,
+    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(queryKey),
     ...options,
   });
 /**
@@ -590,7 +590,7 @@ export const useConnectionServiceHookMetaData = <
 export const useDagRunServiceGetDagRun = <
   TData = Common.DagRunServiceGetDagRunDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -600,11 +600,11 @@ export const useDagRunServiceGetDagRun = <
     dagRunId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }, queryKey),
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }, queryKey),
     ...options,
   });
 /**
@@ -619,7 +619,7 @@ export const useDagRunServiceGetDagRun = <
 export const useDagRunServiceGetUpstreamAssetEvents = <
   TData = Common.DagRunServiceGetUpstreamAssetEventsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -629,11 +629,11 @@ export const useDagRunServiceGetUpstreamAssetEvents = <
     dagRunId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey),
     queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey),
     ...options,
   });
 /**
@@ -664,7 +664,7 @@ export const useDagRunServiceGetUpstreamAssetEvents = <
 export const useDagRunServiceGetDagRuns = <
   TData = Common.DagRunServiceGetDagRunsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -694,17 +694,36 @@ export const useDagRunServiceGetDagRuns = <
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
-    runType?: string[];
+    runType?: Array<string>;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
+    state?: Array<string>;
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      DagRunService.getDagRuns({
+        dagId,
+        endDateGte,
+        endDateLte,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        runAfterGte,
+        runAfterLte,
+        runType,
+        startDateGte,
+        startDateLte,
+        state,
+        updatedAtGte,
+        updatedAtLte,
+      }) as TData,
     queryKey: Common.UseDagRunServiceGetDagRunsKeyFn(
       {
         dagId,
@@ -726,25 +745,6 @@ export const useDagRunServiceGetDagRuns = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      DagRunService.getDagRuns({
-        dagId,
-        endDateGte,
-        endDateLte,
-        limit,
-        logicalDateGte,
-        logicalDateLte,
-        offset,
-        orderBy,
-        runAfterGte,
-        runAfterLte,
-        runType,
-        startDateGte,
-        startDateLte,
-        state,
-        updatedAtGte,
-        updatedAtLte,
-      }) as TData,
     ...options,
   });
 /**
@@ -760,23 +760,23 @@ export const useDagRunServiceGetDagRuns = <
 export const useDagSourceServiceGetDagSource = <
   TData = Common.DagSourceServiceGetDagSourceDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     accept,
     dagId,
     versionNumber,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "*/*" | "application/json" | "text/plain";
     dagId: string;
     versionNumber?: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({ accept, dagId, versionNumber }, queryKey),
     queryFn: () => DagSourceService.getDagSource({ accept, dagId, versionNumber }) as TData,
+    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({ accept, dagId, versionNumber }, queryKey),
     ...options,
   });
 /**
@@ -790,19 +790,19 @@ export const useDagSourceServiceGetDagSource = <
 export const useDagStatsServiceGetDagStats = <
   TData = Common.DagStatsServiceGetDagStatsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagIds,
   }: {
-    dagIds?: string[];
+    dagIds?: Array<string>;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
     queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
     ...options,
   });
 /**
@@ -816,7 +816,7 @@ export const useDagStatsServiceGetDagStats = <
 export const useDagReportServiceGetDagReports = <
   TData = Common.DagReportServiceGetDagReportsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     subdir,
@@ -824,11 +824,11 @@ export const useDagReportServiceGetDagReports = <
     subdir: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }, queryKey),
     queryFn: () => DagReportService.getDagReports({ subdir }) as TData,
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }, queryKey),
     ...options,
   });
 /**
@@ -842,21 +842,21 @@ export const useDagReportServiceGetDagReports = <
 export const useConfigServiceGetConfig = <
   TData = Common.ConfigServiceGetConfigDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     accept,
     section,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "*/*" | "application/json" | "text/plain";
     section?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }, queryKey),
     queryFn: () => ConfigService.getConfig({ accept, section }) as TData,
+    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }, queryKey),
     ...options,
   });
 /**
@@ -871,23 +871,23 @@ export const useConfigServiceGetConfig = <
 export const useConfigServiceGetConfigValue = <
   TData = Common.ConfigServiceGetConfigValueDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     accept,
     option,
     section,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
+    accept?: "*/*" | "application/json" | "text/plain";
     option: string;
     section: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey),
     queryFn: () => ConfigService.getConfigValue({ accept, option, section }) as TData,
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey),
     ...options,
   });
 /**
@@ -899,14 +899,14 @@ export const useConfigServiceGetConfigValue = <
 export const useConfigServiceGetConfigs = <
   TData = Common.ConfigServiceGetConfigsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey),
     queryFn: () => ConfigService.getConfigs() as TData,
+    queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey),
     ...options,
   });
 /**
@@ -924,7 +924,7 @@ export const useConfigServiceGetConfigs = <
 export const useDagWarningServiceListDagWarnings = <
   TData = Common.DagWarningServiceListDagWarningsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -940,14 +940,14 @@ export const useDagWarningServiceListDagWarnings = <
     warningType?: DagWarningType;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData,
     queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn(
       { dagId, limit, offset, orderBy, warningType },
       queryKey,
     ),
-    queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData,
     ...options,
   });
 /**
@@ -976,7 +976,7 @@ export const useDagWarningServiceListDagWarnings = <
 export const useDagServiceGetDags = <
   TData = Common.DagServiceGetDagsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagDisplayNamePattern,
@@ -1002,21 +1002,40 @@ export const useDagServiceGetDags = <
     dagRunEndDateLte?: string;
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
-    dagRunState?: string[];
+    dagRunState?: Array<string>;
     excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     orderBy?: string;
-    owners?: string[];
+    owners?: Array<string>;
     paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
+    tags?: Array<string>;
+    tagsMatchMode?: "all" | "any";
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      DagService.getDags({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
+        dagRunState,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }) as TData,
     queryKey: Common.UseDagServiceGetDagsKeyFn(
       {
         dagDisplayNamePattern,
@@ -1038,25 +1057,6 @@ export const useDagServiceGetDags = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      DagService.getDags({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagRunEndDateGte,
-        dagRunEndDateLte,
-        dagRunStartDateGte,
-        dagRunStartDateLte,
-        dagRunState,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        orderBy,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }) as TData,
     ...options,
   });
 /**
@@ -1070,7 +1070,7 @@ export const useDagServiceGetDags = <
 export const useDagServiceGetDag = <
   TData = Common.DagServiceGetDagDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1078,11 +1078,11 @@ export const useDagServiceGetDag = <
     dagId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagKeyFn({ dagId }, queryKey),
     queryFn: () => DagService.getDag({ dagId }) as TData,
+    queryKey: Common.UseDagServiceGetDagKeyFn({ dagId }, queryKey),
     ...options,
   });
 /**
@@ -1096,7 +1096,7 @@ export const useDagServiceGetDag = <
 export const useDagServiceGetDagDetails = <
   TData = Common.DagServiceGetDagDetailsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1104,11 +1104,11 @@ export const useDagServiceGetDagDetails = <
     dagId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey),
     queryFn: () => DagService.getDagDetails({ dagId }) as TData,
+    queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey),
     ...options,
   });
 /**
@@ -1125,7 +1125,7 @@ export const useDagServiceGetDagDetails = <
 export const useDagServiceGetDagTags = <
   TData = Common.DagServiceGetDagTagsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     limit,
@@ -1139,11 +1139,11 @@ export const useDagServiceGetDagTags = <
     tagNamePattern?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey),
     queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData,
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey),
     ...options,
   });
 /**
@@ -1169,7 +1169,7 @@ export const useDagServiceGetDagTags = <
 export const useDagServiceGetDagsUi = <
   TData = Common.DagServiceGetDagsUiDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagDisplayNamePattern,
@@ -1188,22 +1188,38 @@ export const useDagServiceGetDagsUi = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
-    dagIds?: string[];
+    dagIds?: Array<string>;
     dagRunsLimit?: number;
     excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     orderBy?: string;
-    owners?: string[];
+    owners?: Array<string>;
     paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
+    tags?: Array<string>;
+    tagsMatchMode?: "all" | "any";
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      DagService.getDagsUi({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        orderBy,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }) as TData,
     queryKey: Common.UseDagServiceGetDagsUiKeyFn(
       {
         dagDisplayNamePattern,
@@ -1222,22 +1238,6 @@ export const useDagServiceGetDagsUi = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      DagService.getDagsUi({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        orderBy,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }) as TData,
     ...options,
   });
 /**
@@ -1250,7 +1250,7 @@ export const useDagServiceGetDagsUi = <
 export const useEventLogServiceGetEventLog = <
   TData = Common.EventLogServiceGetEventLogDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     eventLogId,
@@ -1258,11 +1258,11 @@ export const useEventLogServiceGetEventLog = <
     eventLogId: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
     queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
     ...options,
   });
 /**
@@ -1289,7 +1289,7 @@ export const useEventLogServiceGetEventLog = <
 export const useEventLogServiceGetEventLogs = <
   TData = Common.EventLogServiceGetEventLogsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     after,
@@ -1311,8 +1311,8 @@ export const useEventLogServiceGetEventLogs = <
     before?: string;
     dagId?: string;
     event?: string;
-    excludedEvents?: string[];
-    includedEvents?: string[];
+    excludedEvents?: Array<string>;
+    includedEvents?: Array<string>;
     limit?: number;
     mapIndex?: number;
     offset?: number;
@@ -1323,9 +1323,26 @@ export const useEventLogServiceGetEventLogs = <
     tryNumber?: number;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      EventLogService.getEventLogs({
+        after,
+        before,
+        dagId,
+        event,
+        excludedEvents,
+        includedEvents,
+        limit,
+        mapIndex,
+        offset,
+        orderBy,
+        owner,
+        runId,
+        taskId,
+        tryNumber,
+      }) as TData,
     queryKey: Common.UseEventLogServiceGetEventLogsKeyFn(
       {
         after,
@@ -1345,23 +1362,6 @@ export const useEventLogServiceGetEventLogs = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      EventLogService.getEventLogs({
-        after,
-        before,
-        dagId,
-        event,
-        excludedEvents,
-        includedEvents,
-        limit,
-        mapIndex,
-        offset,
-        orderBy,
-        owner,
-        runId,
-        taskId,
-        tryNumber,
-      }) as TData,
     ...options,
   });
 /**
@@ -1378,7 +1378,7 @@ export const useEventLogServiceGetEventLogs = <
 export const useExtraLinksServiceGetExtraLinks = <
   TData = Common.ExtraLinksServiceGetExtraLinksDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1392,11 +1392,11 @@ export const useExtraLinksServiceGetExtraLinks = <
     taskId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey),
     queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData,
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey),
     ...options,
   });
 /**
@@ -1413,7 +1413,7 @@ export const useExtraLinksServiceGetExtraLinks = <
 export const useTaskInstanceServiceGetExtraLinks = <
   TData = Common.TaskInstanceServiceGetExtraLinksDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1427,14 +1427,14 @@ export const useTaskInstanceServiceGetExtraLinks = <
     taskId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData,
     queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1450,7 +1450,7 @@ export const useTaskInstanceServiceGetExtraLinks = <
 export const useTaskInstanceServiceGetTaskInstance = <
   TData = Common.TaskInstanceServiceGetTaskInstanceDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1462,11 +1462,11 @@ export const useTaskInstanceServiceGetTaskInstance = <
     taskId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }, queryKey),
     queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }, queryKey),
     ...options,
   });
 /**
@@ -1502,7 +1502,7 @@ export const useTaskInstanceServiceGetTaskInstance = <
 export const useTaskInstanceServiceGetMappedTaskInstances = <
   TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1535,28 +1535,54 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     durationLte?: number;
     endDateGte?: string;
     endDateLte?: string;
-    executor?: string[];
+    executor?: Array<string>;
     limit?: number;
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
-    pool?: string[];
-    queue?: string[];
+    pool?: Array<string>;
+    queue?: Array<string>;
     runAfterGte?: string;
     runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
+    state?: Array<string>;
     taskId: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
-    versionNumber?: number[];
+    versionNumber?: Array<number>;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstances({
+        dagId,
+        dagRunId,
+        durationGte,
+        durationLte,
+        endDateGte,
+        endDateLte,
+        executor,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        pool,
+        queue,
+        runAfterGte,
+        runAfterLte,
+        startDateGte,
+        startDateLte,
+        state,
+        taskId,
+        updatedAtGte,
+        updatedAtLte,
+        versionNumber,
+      }) as TData,
     queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn(
       {
         dagId,
@@ -1585,32 +1611,6 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getMappedTaskInstances({
-        dagId,
-        dagRunId,
-        durationGte,
-        durationLte,
-        endDateGte,
-        endDateLte,
-        executor,
-        limit,
-        logicalDateGte,
-        logicalDateLte,
-        offset,
-        orderBy,
-        pool,
-        queue,
-        runAfterGte,
-        runAfterLte,
-        startDateGte,
-        startDateLte,
-        state,
-        taskId,
-        updatedAtGte,
-        updatedAtLte,
-        versionNumber,
-      }) as TData,
     ...options,
   });
 /**
@@ -1627,7 +1627,7 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
 export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = <
   TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1641,13 +1641,9 @@ export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = <
     taskId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn(
-      { dagId, dagRunId, mapIndex, taskId },
-      queryKey,
-    ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceDependenciesByMapIndex({
         dagId,
@@ -1655,6 +1651,10 @@ export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = <
         mapIndex,
         taskId,
       }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
     ...options,
   });
 /**
@@ -1671,7 +1671,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = <
 export const useTaskInstanceServiceGetTaskInstanceDependencies = <
   TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1685,15 +1685,15 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies = <
     taskId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData,
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1710,7 +1710,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies = <
 export const useTaskInstanceServiceGetTaskInstanceTries = <
   TData = Common.TaskInstanceServiceGetTaskInstanceTriesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1724,14 +1724,14 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
     taskId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData,
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1747,7 +1747,7 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
 export const useTaskInstanceServiceGetMappedTaskInstanceTries = <
   TData = Common.TaskInstanceServiceGetMappedTaskInstanceTriesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1761,15 +1761,15 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTries = <
     taskId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData,
     queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getMappedTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1786,7 +1786,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTries = <
 export const useTaskInstanceServiceGetMappedTaskInstance = <
   TData = Common.TaskInstanceServiceGetMappedTaskInstanceDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1800,14 +1800,14 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
     taskId: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }) as TData,
     queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1847,7 +1847,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
 export const useTaskInstanceServiceGetTaskInstances = <
   TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1881,29 +1881,56 @@ export const useTaskInstanceServiceGetTaskInstances = <
     durationLte?: number;
     endDateGte?: string;
     endDateLte?: string;
-    executor?: string[];
+    executor?: Array<string>;
     limit?: number;
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
-    pool?: string[];
-    queue?: string[];
+    pool?: Array<string>;
+    queue?: Array<string>;
     runAfterGte?: string;
     runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
+    state?: Array<string>;
     taskDisplayNamePattern?: string;
     taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
-    versionNumber?: number[];
+    versionNumber?: Array<number>;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      TaskInstanceService.getTaskInstances({
+        dagId,
+        dagRunId,
+        durationGte,
+        durationLte,
+        endDateGte,
+        endDateLte,
+        executor,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        pool,
+        queue,
+        runAfterGte,
+        runAfterLte,
+        startDateGte,
+        startDateLte,
+        state,
+        taskDisplayNamePattern,
+        taskId,
+        updatedAtGte,
+        updatedAtLte,
+        versionNumber,
+      }) as TData,
     queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn(
       {
         dagId,
@@ -1933,33 +1960,6 @@ export const useTaskInstanceServiceGetTaskInstances = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getTaskInstances({
-        dagId,
-        dagRunId,
-        durationGte,
-        durationLte,
-        endDateGte,
-        endDateLte,
-        executor,
-        limit,
-        logicalDateGte,
-        logicalDateLte,
-        offset,
-        orderBy,
-        pool,
-        queue,
-        runAfterGte,
-        runAfterLte,
-        startDateGte,
-        startDateLte,
-        state,
-        taskDisplayNamePattern,
-        taskId,
-        updatedAtGte,
-        updatedAtLte,
-        versionNumber,
-      }) as TData,
     ...options,
   });
 /**
@@ -1977,7 +1977,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
 export const useTaskInstanceServiceGetTaskInstanceTryDetails = <
   TData = Common.TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -1993,13 +1993,9 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetails = <
     taskTryNumber: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn(
-      { dagId, dagRunId, mapIndex, taskId, taskTryNumber },
-      queryKey,
-    ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTryDetails({
         dagId,
@@ -2008,6 +2004,10 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetails = <
         taskId,
         taskTryNumber,
       }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn(
+      { dagId, dagRunId, mapIndex, taskId, taskTryNumber },
+      queryKey,
+    ),
     ...options,
   });
 /**
@@ -2024,7 +2024,7 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetails = <
 export const useTaskInstanceServiceGetMappedTaskInstanceTryDetails = <
   TData = Common.TaskInstanceServiceGetMappedTaskInstanceTryDetailsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -2040,13 +2040,9 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTryDetails = <
     taskTryNumber: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn(
-      { dagId, dagRunId, mapIndex, taskId, taskTryNumber },
-      queryKey,
-    ),
     queryFn: () =>
       TaskInstanceService.getMappedTaskInstanceTryDetails({
         dagId,
@@ -2055,6 +2051,10 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTryDetails = <
         taskId,
         taskTryNumber,
       }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn(
+      { dagId, dagRunId, mapIndex, taskId, taskTryNumber },
+      queryKey,
+    ),
     ...options,
   });
 /**
@@ -2075,7 +2075,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTryDetails = <
 export const useTaskInstanceServiceGetLog = <
   TData = Common.TaskInstanceServiceGetLogDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     accept,
@@ -2087,7 +2087,7 @@ export const useTaskInstanceServiceGetLog = <
     token,
     tryNumber,
   }: {
-    accept?: "application/json" | "*/*" | "application/x-ndjson";
+    accept?: "*/*" | "application/json" | "application/x-ndjson";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -2097,13 +2097,9 @@ export const useTaskInstanceServiceGetLog = <
     tryNumber: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetLogKeyFn(
-      { accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber },
-      queryKey,
-    ),
     queryFn: () =>
       TaskInstanceService.getLog({
         accept,
@@ -2115,6 +2111,10 @@ export const useTaskInstanceServiceGetLog = <
         token,
         tryNumber,
       }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetLogKeyFn(
+      { accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber },
+      queryKey,
+    ),
     ...options,
   });
 /**
@@ -2132,7 +2132,7 @@ export const useTaskInstanceServiceGetLog = <
 export const useTaskInstanceServiceGetExternalLogUrl = <
   TData = Common.TaskInstanceServiceGetExternalLogUrlDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -2148,15 +2148,15 @@ export const useTaskInstanceServiceGetExternalLogUrl = <
     tryNumber: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData,
     queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn(
       { dagId, dagRunId, mapIndex, taskId, tryNumber },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData,
     ...options,
   });
 /**
@@ -2170,7 +2170,7 @@ export const useTaskInstanceServiceGetExternalLogUrl = <
 export const useImportErrorServiceGetImportError = <
   TData = Common.ImportErrorServiceGetImportErrorDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     importErrorId,
@@ -2178,11 +2178,11 @@ export const useImportErrorServiceGetImportError = <
     importErrorId: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ importErrorId }, queryKey),
     queryFn: () => ImportErrorService.getImportError({ importErrorId }) as TData,
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ importErrorId }, queryKey),
     ...options,
   });
 /**
@@ -2198,7 +2198,7 @@ export const useImportErrorServiceGetImportError = <
 export const useImportErrorServiceGetImportErrors = <
   TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     limit,
@@ -2210,11 +2210,11 @@ export const useImportErrorServiceGetImportErrors = <
     orderBy?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }, queryKey),
     queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }, queryKey),
     ...options,
   });
 /**
@@ -2239,7 +2239,7 @@ export const useImportErrorServiceGetImportErrors = <
 export const useJobServiceGetJobs = <
   TData = Common.JobServiceGetJobsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     endDateGte,
@@ -2269,9 +2269,24 @@ export const useJobServiceGetJobs = <
     startDateLte?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      JobService.getJobs({
+        endDateGte,
+        endDateLte,
+        executorClass,
+        hostname,
+        isAlive,
+        jobState,
+        jobType,
+        limit,
+        offset,
+        orderBy,
+        startDateGte,
+        startDateLte,
+      }) as TData,
     queryKey: Common.UseJobServiceGetJobsKeyFn(
       {
         endDateGte,
@@ -2289,21 +2304,6 @@ export const useJobServiceGetJobs = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      JobService.getJobs({
-        endDateGte,
-        endDateLte,
-        executorClass,
-        hostname,
-        isAlive,
-        jobState,
-        jobType,
-        limit,
-        offset,
-        orderBy,
-        startDateGte,
-        startDateLte,
-      }) as TData,
     ...options,
   });
 /**
@@ -2317,7 +2317,7 @@ export const useJobServiceGetJobs = <
 export const usePluginServiceGetPlugins = <
   TData = Common.PluginServiceGetPluginsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     limit,
@@ -2327,11 +2327,11 @@ export const usePluginServiceGetPlugins = <
     offset?: number;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }, queryKey),
     queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }, queryKey),
     ...options,
   });
 /**
@@ -2342,14 +2342,14 @@ export const usePluginServiceGetPlugins = <
 export const usePluginServiceImportErrors = <
   TData = Common.PluginServiceImportErrorsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UsePluginServiceImportErrorsKeyFn(queryKey),
     queryFn: () => PluginService.importErrors() as TData,
+    queryKey: Common.UsePluginServiceImportErrorsKeyFn(queryKey),
     ...options,
   });
 /**
@@ -2363,7 +2363,7 @@ export const usePluginServiceImportErrors = <
 export const usePoolServiceGetPool = <
   TData = Common.PoolServiceGetPoolDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     poolName,
@@ -2371,11 +2371,11 @@ export const usePoolServiceGetPool = <
     poolName: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }, queryKey),
     queryFn: () => PoolService.getPool({ poolName }) as TData,
+    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }, queryKey),
     ...options,
   });
 /**
@@ -2392,7 +2392,7 @@ export const usePoolServiceGetPool = <
 export const usePoolServiceGetPools = <
   TData = Common.PoolServiceGetPoolsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     limit,
@@ -2406,11 +2406,11 @@ export const usePoolServiceGetPools = <
     poolNamePattern?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }, queryKey),
     queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }) as TData,
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }, queryKey),
     ...options,
   });
 /**
@@ -2425,7 +2425,7 @@ export const usePoolServiceGetPools = <
 export const useProviderServiceGetProviders = <
   TData = Common.ProviderServiceGetProvidersDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     limit,
@@ -2435,11 +2435,11 @@ export const useProviderServiceGetProviders = <
     offset?: number;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey),
     queryFn: () => ProviderService.getProviders({ limit, offset }) as TData,
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey),
     ...options,
   });
 /**
@@ -2459,7 +2459,7 @@ export const useProviderServiceGetProviders = <
 export const useXcomServiceGetXcomEntry = <
   TData = Common.XcomServiceGetXcomEntryDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -2479,13 +2479,9 @@ export const useXcomServiceGetXcomEntry = <
     xcomKey: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn(
-      { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
-      queryKey,
-    ),
     queryFn: () =>
       XcomService.getXcomEntry({
         dagId,
@@ -2496,6 +2492,10 @@ export const useXcomServiceGetXcomEntry = <
         taskId,
         xcomKey,
       }) as TData,
+    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn(
+      { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
+      queryKey,
+    ),
     ...options,
   });
 /**
@@ -2517,7 +2517,7 @@ export const useXcomServiceGetXcomEntry = <
 export const useXcomServiceGetXcomEntries = <
   TData = Common.XcomServiceGetXcomEntriesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -2537,15 +2537,15 @@ export const useXcomServiceGetXcomEntries = <
     xcomKey?: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) as TData,
     queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn(
       { dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey },
       queryKey,
     ),
-    queryFn: () =>
-      XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) as TData,
     ...options,
   });
 /**
@@ -2560,7 +2560,7 @@ export const useXcomServiceGetXcomEntries = <
 export const useTaskServiceGetTasks = <
   TData = Common.TaskServiceGetTasksDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -2570,11 +2570,11 @@ export const useTaskServiceGetTasks = <
     orderBy?: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskServiceGetTasksKeyFn({ dagId, orderBy }, queryKey),
     queryFn: () => TaskService.getTasks({ dagId, orderBy }) as TData,
+    queryKey: Common.UseTaskServiceGetTasksKeyFn({ dagId, orderBy }, queryKey),
     ...options,
   });
 /**
@@ -2589,7 +2589,7 @@ export const useTaskServiceGetTasks = <
 export const useTaskServiceGetTask = <
   TData = Common.TaskServiceGetTaskDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -2599,11 +2599,11 @@ export const useTaskServiceGetTask = <
     taskId: unknown;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }, queryKey),
     queryFn: () => TaskService.getTask({ dagId, taskId }) as TData,
+    queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }, queryKey),
     ...options,
   });
 /**
@@ -2617,7 +2617,7 @@ export const useTaskServiceGetTask = <
 export const useVariableServiceGetVariable = <
   TData = Common.VariableServiceGetVariableDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     variableKey,
@@ -2625,11 +2625,11 @@ export const useVariableServiceGetVariable = <
     variableKey: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }, queryKey),
     queryFn: () => VariableService.getVariable({ variableKey }) as TData,
+    queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }, queryKey),
     ...options,
   });
 /**
@@ -2646,7 +2646,7 @@ export const useVariableServiceGetVariable = <
 export const useVariableServiceGetVariables = <
   TData = Common.VariableServiceGetVariablesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     limit,
@@ -2660,14 +2660,14 @@ export const useVariableServiceGetVariables = <
     variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
     queryKey: Common.UseVariableServiceGetVariablesKeyFn(
       { limit, offset, orderBy, variableKeyPattern },
       queryKey,
     ),
-    queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
     ...options,
   });
 /**
@@ -2682,7 +2682,7 @@ export const useVariableServiceGetVariables = <
 export const useDagVersionServiceGetDagVersion = <
   TData = Common.DagVersionServiceGetDagVersionDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -2692,11 +2692,11 @@ export const useDagVersionServiceGetDagVersion = <
     versionNumber: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }, queryKey),
     queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) as TData,
+    queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }, queryKey),
     ...options,
   });
 /**
@@ -2718,7 +2718,7 @@ export const useDagVersionServiceGetDagVersion = <
 export const useDagVersionServiceGetDagVersions = <
   TData = Common.DagVersionServiceGetDagVersionsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     bundleName,
@@ -2738,13 +2738,9 @@ export const useDagVersionServiceGetDagVersions = <
     versionNumber?: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn(
-      { bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber },
-      queryKey,
-    ),
     queryFn: () =>
       DagVersionService.getDagVersions({
         bundleName,
@@ -2755,6 +2751,10 @@ export const useDagVersionServiceGetDagVersions = <
         orderBy,
         versionNumber,
       }) as TData,
+    queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn(
+      { bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber },
+      queryKey,
+    ),
     ...options,
   });
 /**
@@ -2765,14 +2765,14 @@ export const useDagVersionServiceGetDagVersions = <
 export const useMonitorServiceGetHealth = <
   TData = Common.MonitorServiceGetHealthDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
     queryFn: () => MonitorService.getHealth() as TData,
+    queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
     ...options,
   });
 /**
@@ -2784,14 +2784,14 @@ export const useMonitorServiceGetHealth = <
 export const useVersionServiceGetVersion = <
   TData = Common.VersionServiceGetVersionDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
     queryFn: () => VersionService.getVersion() as TData,
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
     ...options,
   });
 /**
@@ -2805,7 +2805,7 @@ export const useVersionServiceGetVersion = <
 export const useLoginServiceLogin = <
   TData = Common.LoginServiceLoginDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     next,
@@ -2813,11 +2813,11 @@ export const useLoginServiceLogin = <
     next?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey),
     queryFn: () => LoginService.login({ next }) as TData,
+    queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey),
     ...options,
   });
 /**
@@ -2831,7 +2831,7 @@ export const useLoginServiceLogin = <
 export const useLoginServiceLogout = <
   TData = Common.LoginServiceLogoutDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     next,
@@ -2839,11 +2839,11 @@ export const useLoginServiceLogout = <
     next?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
     queryFn: () => LoginService.logout({ next }) as TData,
+    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
     ...options,
   });
 /**
@@ -2854,14 +2854,14 @@ export const useLoginServiceLogout = <
 export const useAuthLinksServiceGetAuthMenus = <
   TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
     queryFn: () => AuthLinksService.getAuthMenus() as TData,
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
     ...options,
   });
 /**
@@ -2875,7 +2875,7 @@ export const useAuthLinksServiceGetAuthMenus = <
 export const useDependenciesServiceGetDependencies = <
   TData = Common.DependenciesServiceGetDependenciesDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     nodeId,
@@ -2883,11 +2883,11 @@ export const useDependenciesServiceGetDependencies = <
     nodeId?: string;
   } = {},
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey),
     queryFn: () => DependenciesService.getDependencies({ nodeId }) as TData,
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey),
     ...options,
   });
 /**
@@ -2902,7 +2902,7 @@ export const useDependenciesServiceGetDependencies = <
 export const useDashboardServiceHistoricalMetrics = <
   TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     endDate,
@@ -2912,11 +2912,11 @@ export const useDashboardServiceHistoricalMetrics = <
     startDate: string;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
     ...options,
   });
 /**
@@ -2928,14 +2928,14 @@ export const useDashboardServiceHistoricalMetrics = <
 export const useDashboardServiceDagStats = <
   TData = Common.DashboardServiceDagStatsDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDashboardServiceDagStatsKeyFn(queryKey),
     queryFn: () => DashboardService.dagStats() as TData,
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(queryKey),
     ...options,
   });
 /**
@@ -2954,7 +2954,7 @@ export const useDashboardServiceDagStats = <
 export const useStructureServiceStructureData = <
   TData = Common.StructureServiceStructureDataDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -2972,13 +2972,9 @@ export const useStructureServiceStructureData = <
     versionNumber?: number;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber },
-      queryKey,
-    ),
     queryFn: () =>
       StructureService.structureData({
         dagId,
@@ -2988,6 +2984,10 @@ export const useStructureServiceStructureData = <
         root,
         versionNumber,
       }) as TData,
+    queryKey: Common.UseStructureServiceStructureDataKeyFn(
+      { dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber },
+      queryKey,
+    ),
     ...options,
   });
 /**
@@ -3013,7 +3013,7 @@ export const useStructureServiceStructureData = <
 export const useGridServiceGridData = <
   TData = Common.GridServiceGridDataDefaultResponse,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TQueryKey extends Array<unknown> = Array<unknown>,
 >(
   {
     dagId,
@@ -3041,13 +3041,29 @@ export const useGridServiceGridData = <
     root?: string;
     runAfterGte?: string;
     runAfterLte?: string;
-    runType?: string[];
-    state?: string[];
+    runType?: Array<string>;
+    state?: Array<string>;
   },
   queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">,
 ) =>
   useQuery<TData, TError>({
+    queryFn: () =>
+      GridService.gridData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        root,
+        runAfterGte,
+        runAfterLte,
+        runType,
+        state,
+      }) as TData,
     queryKey: Common.UseGridServiceGridDataKeyFn(
       {
         dagId,
@@ -3066,22 +3082,6 @@ export const useGridServiceGridData = <
       },
       queryKey,
     ),
-    queryFn: () =>
-      GridService.gridData({
-        dagId,
-        includeDownstream,
-        includeUpstream,
-        limit,
-        logicalDateGte,
-        logicalDateLte,
-        offset,
-        orderBy,
-        root,
-        runAfterGte,
-        runAfterLte,
-        runType,
-        state,
-      }) as TData,
     ...options,
   });
 /**
@@ -3819,7 +3819,7 @@ export const useConnectionServicePatchConnection = <
       {
         connectionId: string;
         requestBody: ConnectionBody;
-        updateMask?: string[];
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -3832,7 +3832,7 @@ export const useConnectionServicePatchConnection = <
     {
       connectionId: string;
       requestBody: ConnectionBody;
-      updateMask?: string[];
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -3905,7 +3905,7 @@ export const useDagRunServicePatchDagRun = <
         dagId: string;
         dagRunId: string;
         requestBody: DAGRunPatchBody;
-        updateMask?: string[];
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -3919,7 +3919,7 @@ export const useDagRunServicePatchDagRun = <
       dagId: string;
       dagRunId: string;
       requestBody: DAGRunPatchBody;
-      updateMask?: string[];
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -3958,12 +3958,12 @@ export const useDagServicePatchDags = <
         excludeStale?: boolean;
         limit?: number;
         offset?: number;
-        owners?: string[];
+        owners?: Array<string>;
         paused?: boolean;
         requestBody: DAGPatchBody;
-        tags?: string[];
-        tagsMatchMode?: "any" | "all";
-        updateMask?: string[];
+        tags?: Array<string>;
+        tagsMatchMode?: "all" | "any";
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -3978,12 +3978,12 @@ export const useDagServicePatchDags = <
       excludeStale?: boolean;
       limit?: number;
       offset?: number;
-      owners?: string[];
+      owners?: Array<string>;
       paused?: boolean;
       requestBody: DAGPatchBody;
-      tags?: string[];
-      tagsMatchMode?: "any" | "all";
-      updateMask?: string[];
+      tags?: Array<string>;
+      tagsMatchMode?: "all" | "any";
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -4035,7 +4035,7 @@ export const useDagServicePatchDag = <
       {
         dagId: string;
         requestBody: DAGPatchBody;
-        updateMask?: string[];
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -4048,7 +4048,7 @@ export const useDagServicePatchDag = <
     {
       dagId: string;
       requestBody: DAGPatchBody;
-      updateMask?: string[];
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -4084,7 +4084,7 @@ export const useTaskInstanceServicePatchTaskInstance = <
         mapIndex?: number;
         requestBody: PatchTaskInstanceBody;
         taskId: string;
-        updateMask?: string[];
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -4100,7 +4100,7 @@ export const useTaskInstanceServicePatchTaskInstance = <
       mapIndex?: number;
       requestBody: PatchTaskInstanceBody;
       taskId: string;
-      updateMask?: string[];
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -4143,7 +4143,7 @@ export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <
         mapIndex: number;
         requestBody: PatchTaskInstanceBody;
         taskId: string;
-        updateMask?: string[];
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -4159,7 +4159,7 @@ export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <
       mapIndex: number;
       requestBody: PatchTaskInstanceBody;
       taskId: string;
-      updateMask?: string[];
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -4245,7 +4245,7 @@ export const useTaskInstanceServicePatchTaskInstanceDryRunByMapIndex = <
         mapIndex: number;
         requestBody: PatchTaskInstanceBody;
         taskId: string;
-        updateMask?: string[];
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -4261,7 +4261,7 @@ export const useTaskInstanceServicePatchTaskInstanceDryRunByMapIndex = <
       mapIndex: number;
       requestBody: PatchTaskInstanceBody;
       taskId: string;
-      updateMask?: string[];
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -4304,7 +4304,7 @@ export const useTaskInstanceServicePatchTaskInstanceDryRun = <
         mapIndex?: number;
         requestBody: PatchTaskInstanceBody;
         taskId: string;
-        updateMask?: string[];
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -4320,7 +4320,7 @@ export const useTaskInstanceServicePatchTaskInstanceDryRun = <
       mapIndex?: number;
       requestBody: PatchTaskInstanceBody;
       taskId: string;
-      updateMask?: string[];
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -4357,7 +4357,7 @@ export const usePoolServicePatchPool = <
       {
         poolName: string;
         requestBody: PoolPatchBody;
-        updateMask?: string[];
+        updateMask?: Array<string>;
       },
       TContext
     >,
@@ -4370,7 +4370,7 @@ export const usePoolServicePatchPool = <
     {
       poolName: string;
       requestBody: PoolPatchBody;
-      updateMask?: string[];
+      updateMask?: Array<string>;
     },
     TContext
   >({
@@ -4490,7 +4490,7 @@ export const useVariableServicePatchVariable = <
       TError,
       {
         requestBody: VariableBody;
-        updateMask?: string[];
+        updateMask?: Array<string>;
         variableKey: string;
       },
       TContext
@@ -4503,7 +4503,7 @@ export const useVariableServicePatchVariable = <
     TError,
     {
       requestBody: VariableBody;
-      updateMask?: string[];
+      updateMask?: Array<string>;
       variableKey: string;
     },
     TContext
