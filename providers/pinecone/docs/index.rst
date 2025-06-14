@@ -71,7 +71,7 @@ apache-airflow-providers-pinecone package
 `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 
-Release: 2.3.0
+Release: 2.3.1
 
 Provider package
 ----------------
@@ -95,5 +95,5 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
-``pinecone``        ``>=3.1.0``
+``pinecone``        ``>=7.0.0``
 ==================  ==================

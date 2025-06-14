@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+1.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Edge Worker Remove when in unknown state (#50717)``
+
+Misc
+~~~~
+
+* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Refactor Edge Worker CLI for smaller module (#50738)``
+
+Doc-only
+~~~~~~~~
+
+* ``Move example_dags in standard provider to example_dags in sources (#51260)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.1.0
 .....
 
