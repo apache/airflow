@@ -33,6 +33,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
+    AIRFLOW_TASK_SDK_SOURCES_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
@@ -547,6 +548,19 @@ def get_airflow_version():
     if airflow_version == "unknown":
         raise RuntimeError("Unable to determine Airflow version")
     return airflow_version
+
+
+def get_task_sdk_version():
+    task_sdk_init_py_file = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py"
+    task_sdk_version = "unknown"
+    with open(task_sdk_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                task_sdk_version = line.split()[2][1:-1]
+                break
+    if task_sdk_version == "unknown":
+        raise RuntimeError("Unable to determine Task SDK version")
+    return task_sdk_version
 
 
 @clearable_cache

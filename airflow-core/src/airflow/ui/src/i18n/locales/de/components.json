@@ -41,8 +41,8 @@
     "duration": "Laufzeit (Sekunden)",
     "lastDagRun_one": "Letzter Dag Lauf",
     "lastDagRun_other": "Letzte {{count}} Dag Läufe",
-    "lasttaskInstance_one": "Letzte Task Instanz",
-    "lasttaskInstance_other": "Letzte {{count}} Task Instanzen",
+    "lastTaskInstance_one": "Letzte Task Instanz",
+    "lastTaskInstance_other": "Letzte {{count}} Task Instanzen",
     "queuedDuration": "Zeit in der Warteschlange",
     "runAfter": "Lauf ab",
     "runDuration": "Laufzeit"
@@ -80,11 +80,6 @@
     "line": "Zeile"
   },
   "reparseDag": "Dag neu parsen",
-  "searchDags": {
-    "button": "Dags suchen",
-    "hotkey": "+K",
-    "placeholder": "Dags suchen"
-  },
   "sortedAscending": "aufsteigend sortier",
   "sortedDescending": "absteigend sortier",
   "sortedUnsorted": "unsortiert",
@@ -92,17 +87,13 @@
   "toggleCardView": "Kachelansicht anzeigen",
   "toggleTableView": "Tabellenansicht anzeigen",
   "triggerDag": {
+    "button": "Auslösen",
     "loading": "Lade DAG Information...",
     "loadingFailed": "Das Laden der DAG Information fehlgeschlagen. Bitt versuchen Sie es noch einmal.",
-    "logicalDate": "Logisches Datum",
-    "notes": "Notizen zum Dag Lauf",
-    "notesPlaceholder": "Klicken Sie hier um eine Notiz hinzuzufügen",
-    "runId": "ID des Laufes (Run Id)",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
     "selectDescription": "Einen einzelnen Lauf dieses Dag auslösen",
     "selectLabel": "Einzelner Lauf",
     "title": "Dag Auslösen",
-    "trigger": "Auslösen",
     "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
   },
   "versionDetails": {

@@ -136,7 +136,7 @@ codegen = [
     "datamodel-code-generator[http]==0.28.2",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "ruff==0.11.2",
+    "ruff==0.11.13",
     "rich>=12.4.4",
 ]
 dev = [

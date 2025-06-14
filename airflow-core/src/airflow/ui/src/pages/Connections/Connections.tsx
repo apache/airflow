@@ -123,7 +123,7 @@ const getColumns = ({
 ];
 
 export const Connections = () => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
@@ -208,7 +208,7 @@ export const Connections = () => {
             {selectedRows.size} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          <Tooltip content="Delete selected connections">
+          <Tooltip content={translate("deleteActions.tooltip")}>
             <DeleteConnectionsButton
               clearSelections={clearSelections}
               deleteKeys={[...selectedRows.keys()]}
