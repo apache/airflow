@@ -3,7 +3,7 @@
   "createEvent": {
     "button": "Utwórz zdarzenie",
     "manual": {
-      "description": "Utwórz bezpośrednio zdarzenie zasobu",
+      "description": "Utwórz ręcznie zdarzenie zasobu",
       "extra": "Dodatkowe informacje o zdarzeniu zasobu",
       "label": "Ręcznie"
     },
