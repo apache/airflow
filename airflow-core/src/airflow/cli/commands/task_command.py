@@ -47,6 +47,7 @@ from airflow.utils.cli import (
     get_dags,
     suppress_logs_and_warning,
 )
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
@@ -129,6 +130,7 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user=getuser(),
             state=DagRunState.RUNNING,
         )
         return dag_run, True
@@ -141,6 +143,7 @@ def _get_dag_run(
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user=getuser(),
             session=session,
             start_date=logical_date or run_after,
             conf=None,
