@@ -105,8 +105,8 @@ def _instantiate_task(definition: AssetDefinition | MultiAssetDefinition) -> Non
 
         decorated_operator.kwargs["outlets"] = [v for _, v in definition.iter_assets()]
         decorated_operator()
-
-    _AssetMainOperator.from_definition(definition)
+    else:
+        _AssetMainOperator.from_definition(definition)
 
 
 @attrs.define(kw_only=True)
