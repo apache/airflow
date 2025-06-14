@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.1.1
+.....
+
+Misc
+~~~~
+
+* ``Add lower bound to Sendgrid after #50221 (#51278)``
+* ``Bump min version of sendgrid sdk (#50221)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.1.0
 .....
 

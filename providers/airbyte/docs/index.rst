@@ -76,7 +76,7 @@ apache-airflow-providers-airbyte package
 `Airbyte <https://airbyte.com/>`__
 
 
-Release: 5.1.0
+Release: 5.2.0
 
 Provider package
 ----------------
@@ -101,4 +101,5 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
 ``airbyte-api``     ``>=0.52.0``
+``requests``        ``>=2.32.0``
 ==================  ==================
