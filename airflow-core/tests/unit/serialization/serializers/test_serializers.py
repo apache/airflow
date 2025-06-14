@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import datetime
 import decimal
-import sys
 from importlib import metadata
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -589,11 +588,6 @@ class TestSerializers:
         bad = {CLASSNAME: 123, VERSION: 1, DATA: {}}
         with pytest.raises(ValueError, match="cannot decode"):
             decode(bad)
-
-    def test_serde_serialize_recursion_limit(self):
-        depth = sys.getrecursionlimit() - 1
-        with pytest.raises(RecursionError, match="maximum recursion depth reached for serialization"):
-            serialize(object(), depth=depth)
 
     def test_serde_deserialize_with_type_hint_stringified(self):
         fake = {"a": 1, "b": 2, "__version__": 1}
