@@ -20,6 +20,14 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
+import arAdmin from "./locales/ar/admin.json";
+import arAssets from "./locales/ar/assets.json";
+import arBrowse from "./locales/ar/browse.json";
+import arCommon from "./locales/ar/common.json";
+import arComponents from "./locales/ar/components.json";
+import arDag from "./locales/ar/dag.json";
+import arDags from "./locales/ar/dags.json";
+import arDashboard from "./locales/ar/dashboard.json";
 import deAdmin from "./locales/de/admin.json";
 import deCommon from "./locales/de/common.json";
 import deComponents from "./locales/de/components.json";
@@ -61,6 +69,7 @@ import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 // import Backend from 'i18next-http-backend';
 
 export const supportedLanguages = [
+  { code: "ar", flag: "🇸🇦", name: "العربية" },
   { code: "de", flag: "🇩🇪", name: "Deutsch" },
   { code: "en", flag: "🇺🇸", name: "English" },
   { code: "he", flag: "🇮🇱", name: "עברית" },
@@ -74,6 +83,16 @@ export const defaultLanguage = "en";
 export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets"] as const;
 
 const resources = {
+  ar: {
+    admin: arAdmin,
+    assets: arAssets,
+    browse: arBrowse,
+    common: arCommon,
+    components: arComponents,
+    dag: arDag,
+    dags: arDags,
+    dashboard: arDashboard,
+  },
   de: {
     admin: deAdmin,
     common: deCommon,

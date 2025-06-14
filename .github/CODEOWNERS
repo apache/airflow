@@ -41,6 +41,7 @@ airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/ @Lee-W
 airflow-core/src/airflow/ui/src/i18n/locales/nl/ @BasPH # not codeowner but engaged: @DjVinnii
 airflow-core/src/airflow/ui/src/i18n/locales/pl/ @potiuk @mobuchowski # not codeowner but engaged: @kacpermuda
 airflow-core/src/airflow/ui/src/i18n/locales/he/ @eladkal @shahar1 @romsharon98
+airflow-core/src/airflow/ui/src/i18n/locales/ar/ @shahar1 @hussein-awala # not codeowner but engaged: @ahmadtfarhan
 
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
