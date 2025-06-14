@@ -38,6 +38,14 @@ import heAdmin from "./locales/he/admin.json";
 import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
 import heDashboard from "./locales/he/dashboard.json";
+import hiAdmin from "./locales/hi/admin.json";
+import hiAssets from "./locales/hi/assets.json";
+import hiBrowse from "./locales/hi/browse.json";
+import hiCommon from "./locales/hi/common.json";
+import hiComponents from "./locales/hi/components.json";
+import hiDag from "./locales/hi/dag.json";
+import hiDags from "./locales/hi/dags.json";
+import hiDashboard from "./locales/hi/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
@@ -64,6 +72,7 @@ export const supportedLanguages = [
   { code: "de", flag: "🇩🇪", name: "Deutsch" },
   { code: "en", flag: "🇺🇸", name: "English" },
   { code: "he", flag: "🇮🇱", name: "עברית" },
+  { code: "hi", flag: "🇮🇳", name: "हिन्दी" },
   { code: "ko", flag: "🇰🇷", name: "한국어" },
   { code: "nl", flag: "🇳🇱", name: "Nederlands" },
   { code: "pl", flag: "🇵🇱", name: "Polski" },
@@ -97,6 +106,16 @@ const resources = {
     browse: heBrowse,
     common: heCommon,
     dashboard: heDashboard,
+  },
+  hi: {
+    admin: hiAdmin,
+    assets: hiAssets,
+    browse: hiBrowse,
+    common: hiCommon,
+    components: hiComponents,
+    dag: hiDag,
+    dags: hiDags,
+    dashboard: hiDashboard,
   },
   ko: {
     common: koCommon,

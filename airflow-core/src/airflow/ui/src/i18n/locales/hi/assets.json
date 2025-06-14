@@ -1,0 +1,29 @@
+{
+  "consumingDags": "उपयोग करने वाले डैग्स",
+  "createEvent": {
+    "button": "इवेंट बनाएँ",
+    "manual": {
+      "description": "प्रत्यक्ष रूप से एक एसेट इवेंट बनाएँ",
+      "extra": "एसेट इवेंट अतिरिक्त",
+      "label": "मैनुअल"
+    },
+    "materialize": {
+      "description": "इस एसेट के अपस्ट्रीम डैग को ट्रिगर करें",
+      "descriptionWithDag": "इस एसेट के अपस्ट्रीम डैग को ट्रिगर करें: {{dagName}}",
+      "label": "मैटेरियलाइज़",
+      "unpauseDag": "ट्रिगर पर {{dagName}} को अनपॉज़ करें"
+    },
+    "success": {
+      "manualDescription": "मैनुअल एसेट इवेंट सफलतापूर्वक बनाया गया।",
+      "manualTitle": "एसेट इवेंट बनाया गया",
+      "materializeDescription": "अपस्ट्रीम डैग {{dagId}} सफलतापूर्वक ट्रिगर हुआ।",
+      "materializeTitle": "एसेट मैटेरियलाइज़ किया जा रहा है"
+    },
+    "title": "{{name}} के लिए एसेट इवेंट बनाएँ"
+  },
+  "group": "समूह",
+  "lastAssetEvent": "पिछला एसेट इवेंट",
+  "name": "नाम",
+  "producingTasks": "उत्पादन करने वाले कार्य",
+  "searchPlaceholder": "एसेट्स खोजें"
+}

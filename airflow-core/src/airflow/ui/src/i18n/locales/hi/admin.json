@@ -1,0 +1,141 @@
+{
+  "columns": {
+    "description": "विवरण",
+    "key": "कुंजी",
+    "name": "नाम",
+    "value": "मान"
+  },
+  "config": {
+    "columns": {
+      "section": "अनुभाग"
+    },
+    "title": "एयरफ्लो कॉन्फ़िगरेशन"
+  },
+  "connections": {
+    "add": "कनेक्शन जोड़ें",
+    "columns": {
+      "connectionId": "कनेक्शन आईडी",
+      "connectionType": "कनेक्शन प्रकार",
+      "host": "होस्ट",
+      "port": "पोर्ट"
+    },
+    "delete": {
+      "deleteConnection_one": "1 कनेक्शन हटाएं",
+      "deleteConnection_other": "{{count}} कनेक्शन हटाएं",
+      "firstConfirmMessage_one": "आप निम्नलिखित कनेक्शन को हटाने वाले हैं:",
+      "firstConfirmMessage_other": "आप निम्नलिखित कनेक्शन्स को हटाने वाले हैं:",
+      "title": "कनेक्शन हटाएं"
+    },
+    "edit": "कनेक्शन संपादित करें",
+    "form": {
+      "connectionIdRequired": "कनेक्शन आईडी आवश्यक है",
+      "connectionIdRequirement": "कनेक्शन आईडी केवल रिक्त स्थान नहीं हो सकती",
+      "connectionTypeRequired": "कनेक्शन प्रकार आवश्यक है",
+      "extraFields": "अतिरिक्त फ़ील्ड्स",
+      "extraFieldsJson": "अतिरिक्त फ़ील्ड्स JSON",
+      "helperText": "कनेक्शन प्रकार नहीं मिल रहा? सुनिश्चित करें कि संबंधित एयरफ्लो प्रदाता पैकेज स्थापित है।",
+      "selectConnectionType": "कनेक्शन प्रकार चुनें",
+      "standardFields": "मानक फ़ील्ड्स"
+    },
+    "noRowMessage": "कोई कनेक्शन नहीं मिला",
+    "searchPlaceholder": "कनेक्शन खोजें",
+    "test": "कनेक्शन परीक्षण करें",
+    "testDisabled": "कनेक्शन परीक्षण सुविधा अक्षम है। कृपया इसे सक्षम करने के लिए प्रशासक से संपर्क करें।"
+  },
+  "deleteActions": {
+    "button": "हटाएं",
+    "modal": {
+      "confirmButton": "हाँ, हटाएं",
+      "secondConfirmMessage": "यह क्रिया स्थायी है और पूर्ववत नहीं की जा सकती।",
+      "thirdConfirmMessage": "क्या आप वाकई आगे बढ़ना चाहते हैं?"
+    },
+    "selected": "चयनित"
+  },
+  "formActions": {
+    "reset": "रीसेट करें",
+    "save": "सहेजें"
+  },
+  "plugins": {
+    "columns": {
+      "source": "स्रोत"
+    },
+    "importError_one": "प्लगइन आयात त्रुटि",
+    "importError_other": "प्लगइन आयात त्रुटियाँ",
+    "searchPlaceholder": "फ़ाइल द्वारा खोजें"
+  },
+  "pools": {
+    "add": "पूल जोड़ें",
+    "deferredSlotsIncluded": "स्थगित स्लॉट्स शामिल हैं",
+    "delete": {
+      "title": "पूल हटाएं",
+      "warning": "यह पूल से संबंधित सभी मेटाडेटा को हटा देगा और इस पूल का उपयोग करने वाले कार्यों को प्रभावित कर सकता है।"
+    },
+    "edit": "पूल संपादित करें",
+    "form": {
+      "checkbox": "खुली स्लॉट्स की गणना करते समय स्थगित कार्यों को शामिल करने के लिए चेक करें",
+      "description": "विवरण",
+      "includeDeferred": "स्थगित शामिल करें",
+      "nameMaxLength": "नाम अधिकतम 256 वर्णों का हो सकता है",
+      "nameRequired": "नाम आवश्यक है",
+      "slots": "स्लॉट्स"
+    },
+    "noPoolsFound": "कोई पूल नहीं मिला",
+    "searchPlaceholder": "पूल खोजें",
+    "sort": {
+      "asc": "नाम (A-Z)",
+      "desc": "नाम (Z-A)",
+      "placeholder": "इसके अनुसार क्रमबद्ध करें"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "पैकेज का नाम",
+      "version": "संस्करण"
+    }
+  },
+  "variables": {
+    "add": "वेरिएबल जोड़ें",
+    "columns": {
+      "isEncrypted": "एन्क्रिप्टेड है"
+    },
+    "delete": {
+      "deleteVariable_one": "1 वेरिएबल हटाएं",
+      "deleteVariable_other": "{{count}} वेरिएबल्स हटाएं",
+      "firstConfirmMessage_one": "आप निम्नलिखित वेरिएबल को हटाने वाले हैं:",
+      "firstConfirmMessage_other": "आप निम्नलिखित वेरिएबल्स को हटाने वाले हैं:",
+      "title": "वेरिएबल हटाएं"
+    },
+    "edit": "वेरिएबल संपादित करें",
+    "export": "निर्यात करें",
+    "form": {
+      "invalidJson": "अवैध JSON",
+      "keyMaxLength": "कुंजी अधिकतम 250 वर्णों की हो सकती है",
+      "keyRequired": "कुंजी आवश्यक है",
+      "valueRequired": "मान आवश्यक है"
+    },
+    "import": {
+      "button": "आयात करें",
+      "conflictResolution": "वेरिएबल संघर्ष समाधान चुनें",
+      "errorParsingJsonFile": "JSON फ़ाइल को पार्स करने में त्रुटि: कृपया वेरिएबल्स युक्त एक JSON फ़ाइल अपलोड करें (उदा. {\"key\": \"value\", ...})",
+      "options": {
+        "fail": {
+          "description": "यदि कोई मौजूदा वेरिएबल्स मिले तो आयात विफल हो जाएगा।",
+          "title": "विफल"
+        },
+        "overwrite": {
+          "description": "संघर्ष की स्थिति में वेरिएबल को अधिलेखित करें।",
+          "title": "अधिलेखित करें"
+        },
+        "skip": {
+          "description": "पहले से मौजूद वेरिएबल्स को छोड़ दें।",
+          "title": "छोड़ें"
+        }
+      },
+      "title": "वेरिएबल्स आयात करें",
+      "upload": "एक JSON फ़ाइल अपलोड करें",
+      "uploadPlaceholder": "वेरिएबल्स युक्त JSON फ़ाइल अपलोड करें (उदा. {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "कोई वेरिएबल्स नहीं मिला",
+    "searchPlaceholder": "कुंजी खोजें"
+  }
+}

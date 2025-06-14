@@ -1,0 +1,89 @@
+{
+  "allRuns": "सभी रन",
+  "blockingDeps": {
+    "dependency": "निर्भरता",
+    "reason": "कारण",
+    "title": "कार्य को शेड्यूल होने से रोकने वाली निर्भरताएँ"
+  },
+  "code": {
+    "bundleUrl": "बंडल URL",
+    "noCode": "कोड नहीं मिला",
+    "parsedAt": "पार्स किया गया:"
+  },
+  "extraLinks": "अतिरिक्त लिंक",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "नवीनतम पर रीसेट करें",
+      "toggleGroup": "समूह टॉगल करें"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "डैग दस्तावेज़"
+    }
+  },
+  "logs": {
+    "noTryNumber": "कोई प्रयास संख्या नहीं",
+    "viewInExternal": "{{name}} में लॉग देखें (प्रयास {{attempt}})"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "विफल रन",
+      "failedRun_other": "विफल रन",
+      "failedTask_one": "विफल टास्क",
+      "failedTask_other": "विफल टास्क्स",
+      "failedTaskInstance_one": "विफल टास्क इंस्टेंस",
+      "failedTaskInstance_other": "विफल टास्क इंस्टेंसेस"
+    },
+    "charts": {
+      "assetEvent_one": "बनाया गया एसेट इवेंट",
+      "assetEvent_other": "बनाए गए एसेट इवेंट्स"
+    },
+    "failedLogs": {
+      "title": "हाल के विफल टास्क लॉग्स",
+      "viewFullLogs": "पूर्ण लॉग्स देखें"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "विकल्प",
+      "showGraph": "ग्राफ़ दिखाएँ",
+      "showGrid": "ग्रिड दिखाएँ"
+    },
+    "dagRuns": {
+      "label": "डैग रन की संख्या"
+    },
+    "dependencies": {
+      "label": "निर्भरताएँ",
+      "options": {
+        "allDagDependencies": "सभी डैग निर्भरताएँ",
+        "externalConditions": "बाहरी स्थितियाँ",
+        "onlyTasks": "केवल टास्क्स"
+      },
+      "placeholder": "निर्भरताएँ"
+    },
+    "graphDirection": {
+      "label": "ग्राफ़ की दिशा"
+    }
+  },
+  "tabs": {
+    "assetEvents": "एसेट इवेंट्स",
+    "auditLog": "ऑडिट लॉग",
+    "backfills": "बैकफिल्स",
+    "code": "कोड",
+    "details": "विवरण",
+    "logs": "लॉग्स",
+    "mappedTaskInstances_one": "टास्क इंस्टेंस [{{count}}]",
+    "mappedTaskInstances_other": "टास्क इंस्टेंसेस [{{count}}]",
+    "overview": "अवलोकन",
+    "renderedTemplates": "रेंडर किए गए टेम्प्लेट्स",
+    "runs": "रन",
+    "taskInstances": "टास्क इंस्टेंसेस",
+    "tasks": "टास्क्स",
+    "xcom": "एक्सकॉम"
+  },
+  "taskGroups": {
+    "collapseAll": "सभी टास्क समूह संक्षिप्त करें",
+    "expandAll": "सभी टास्क समूह विस्तार करें"
+  }
+}
