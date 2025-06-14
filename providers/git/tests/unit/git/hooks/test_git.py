@@ -110,11 +110,11 @@ class TestGitHook:
         "conn_id, hook_kwargs, expected_repo_url",
         [
             (CONN_DEFAULT, {}, AIRFLOW_GIT),
-            (CONN_HTTPS, {}, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
+            (CONN_HTTPS, {}, f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"),
             (
                 CONN_HTTPS,
                 {"repo_url": "https://github.com/apache/zzzairflow"},
-                f"https://{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+                f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
             ),
             (CONN_ONLY_PATH, {}, "path/to/repo"),
         ],
