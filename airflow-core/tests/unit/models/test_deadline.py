@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -252,17 +252,18 @@ class TestCalculatedDeadlineDatabaseCalls:
         Verifies:
         1. Calculated deadlines call _fetch_from_db with correct column.
         2. Fixed deadlines do not interact with database.
+        3. Intervals are added to reference times.
         """
         conditions = {"dag_id": DAG_ID}
-
+        interval = timedelta(hours=1)
         with mock.patch("airflow.models.deadline._fetch_from_db") as mock_fetch:
             mock_fetch.return_value = DEFAULT_DATE
 
             if expected_column is not None:
-                result = reference.evaluate_with(**conditions)
+                result = reference.evaluate_with(interval=interval, **conditions)
                 mock_fetch.assert_called_once_with(expected_column, **conditions)
             else:
-                result = reference.evaluate_with(**conditions)
+                result = reference.evaluate_with(interval=interval)
                 mock_fetch.assert_not_called()
 
-            assert result == DEFAULT_DATE
+            assert result == DEFAULT_DATE + interval
