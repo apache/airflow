@@ -131,7 +131,11 @@ class CeleryKubernetesExecutor(BaseExecutor):
     def start(self) -> None:
         """Start celery and kubernetes executor."""
         if AIRFLOW_V_3_0_PLUS:
-            raise RuntimeError(f"{self.__class__.__name__} does not support Airflow 3.0+.")
+            raise RuntimeError(
+                f"{self.__class__.__name__} does not support Airflow 3.0+. See "
+                "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently"
+                " how to use multiple executors concurrently."
+            )
 
         self.celery_executor.start()
         self.kubernetes_executor.start()
