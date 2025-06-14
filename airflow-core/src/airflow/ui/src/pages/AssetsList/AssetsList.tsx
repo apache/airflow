@@ -63,6 +63,19 @@ const createColumns = (translate: (key: string) => string): Array<ColumnDef<Asse
   },
   {
     accessorKey: "group",
+    cell: ({ row: { original } }: AssetRow) => {
+      const { group } = original;
+
+      if (!group) {
+        return undefined;
+      }
+
+      return (
+        <Link asChild color="fg.info" fontWeight="bold">
+          <RouterLink to={`/assets/group/${group}`}>{group}</RouterLink>
+        </Link>
+      );
+    },
     enableSorting: false,
     header: () => translate("group"),
   },
@@ -92,38 +105,86 @@ const createColumns = (translate: (key: string) => string): Array<ColumnDef<Asse
   },
 ];
 
-const NAME_PATTERN_PARAM = SearchParamsKeys.NAME_PATTERN;
-
 export const AssetsList = () => {
   const { t: translate } = useTranslation(["assets", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [namePattern, setNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  const [searchValue, setSearchValue] = useState(
+    searchParams.get(SearchParamsKeys.NAME_PATTERN) ??
+      searchParams.get(SearchParamsKeys.GROUP_PATTERN) ??
+      undefined,
+  );
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const { data, error, isLoading } = useAssetServiceGetAssets({
+  const {
+    data: dataByName,
+    error: errorByName,
+    isLoading: isLoadingByName,
+  } = useAssetServiceGetAssets({
     limit: pagination.pageSize,
-    namePattern,
+    namePattern: searchValue ?? undefined,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
   });
 
+  const {
+    data: dataByGroup,
+    error: errorByGroup,
+    isLoading: isLoadingByGroup,
+  } = useAssetServiceGetAssets({
+    groupPattern: searchValue ?? undefined,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy,
+  });
+
+  // Merge results, removing duplicates
+  const assetsByName = dataByName?.assets ?? [];
+  const assetsByGroup = dataByGroup?.assets ?? [];
+  const assetsMap = new Map<number, AssetResponse>();
+
+  assetsByName.forEach((asset) => assetsMap.set(asset.id, asset));
+  assetsByGroup.forEach((asset) => assetsMap.set(asset.id, asset));
+  const assets = [...assetsMap.values()];
+  const totalEntries = assets.length;
+
+  // Merge loading
+  const isLoading = Boolean(isLoadingByName) || Boolean(isLoadingByGroup);
+
+  // Merge errors
+  let mergedError: React.ReactNode = undefined;
+
+  if (errorByName !== undefined && errorByGroup !== undefined) {
+    mergedError = (
+      <>
+        <ErrorAlert error={errorByName} />
+        <ErrorAlert error={errorByGroup} />
+      </>
+    );
+  } else if (errorByName !== undefined) {
+    mergedError = <ErrorAlert error={errorByName} />;
+  } else if (errorByGroup !== undefined) {
+    mergedError = <ErrorAlert error={errorByGroup} />;
+  }
+
   const handleSearchChange = (value: string) => {
+    setSearchValue(value);
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(SearchParamsKeys.NAME_PATTERN, value);
+      searchParams.set(SearchParamsKeys.GROUP_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(SearchParamsKeys.NAME_PATTERN);
+      searchParams.delete(SearchParamsKeys.GROUP_PATTERN);
     }
     setSearchParams(searchParams);
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
-    setNamePattern(value);
   };
 
   return (
@@ -131,25 +192,24 @@ export const AssetsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          defaultValue={namePattern ?? ""}
+          defaultValue={searchValue ?? ""}
           onChange={handleSearchChange}
           placeHolder={translate("searchPlaceholder")}
         />
-
         <Heading py={3} size="md">
-          {data?.total_entries} {translate("common:asset", { count: data?.total_entries })}
+          {totalEntries} {translate("common:asset", { totalEntries })}
         </Heading>
       </VStack>
       <Box overflow="auto">
         <DataTable
           columns={createColumns(translate)}
-          data={data?.assets ?? []}
-          errorMessage={<ErrorAlert error={error} />}
+          data={assets}
+          errorMessage={mergedError}
           initialState={tableURLState}
           isLoading={isLoading}
           modelName={translate("common:asset_one")}
           onStateChange={setTableURLState}
-          total={data?.total_entries}
+          total={totalEntries}
         />
       </Box>
     </>

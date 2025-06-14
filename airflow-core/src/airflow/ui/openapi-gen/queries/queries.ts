@@ -69,6 +69,7 @@ import * as Common from "./common";
  * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.dagIds
+ * @param data.groupPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.onlyActive
  * @param data.orderBy
  * @returns AssetCollectionResponse Successful Response
@@ -81,6 +82,7 @@ export const useAssetServiceGetAssets = <
 >(
   {
     dagIds,
+    groupPattern,
     limit,
     namePattern,
     offset,
@@ -89,6 +91,7 @@ export const useAssetServiceGetAssets = <
     uriPattern,
   }: {
     dagIds?: string[];
+    groupPattern?: string;
     limit?: number;
     namePattern?: string;
     offset?: number;
@@ -101,12 +104,13 @@ export const useAssetServiceGetAssets = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn(
-      { dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern },
+      { dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, uriPattern },
       queryKey,
     ),
     queryFn: () =>
       AssetService.getAssets({
         dagIds,
+        groupPattern,
         limit,
         namePattern,
         offset,
@@ -2866,9 +2870,10 @@ export const useAuthLinksServiceGetAuthMenus = <
   });
 /**
  * Get Dependencies
- * Dependencies graph.
+ * Dependencies graph. Supports a single node_id or multiple node_ids separated by commas.
  * @param data The data for the request.
  * @param data.nodeId
+ * @param data.nodeIds Comma-separated list of node ids
  * @returns BaseGraphResponse Successful Response
  * @throws ApiError
  */
@@ -2879,15 +2884,17 @@ export const useDependenciesServiceGetDependencies = <
 >(
   {
     nodeId,
+    nodeIds,
   }: {
     nodeId?: string;
+    nodeIds?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey),
-    queryFn: () => DependenciesService.getDependencies({ nodeId }) as TData,
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId, nodeIds }, queryKey),
+    queryFn: () => DependenciesService.getDependencies({ nodeId, nodeIds }) as TData,
     ...options,
   });
 /**
