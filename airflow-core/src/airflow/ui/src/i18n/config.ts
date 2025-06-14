@@ -18,7 +18,7 @@
  */
 import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
-import Backend from 'i18next-http-backend';
+import Backend from "i18next-http-backend";
 import { initReactI18next } from "react-i18next";
 
 export const supportedLanguages = [
@@ -36,14 +36,13 @@ export const supportedLanguages = [
 export const defaultLanguage = "en";
 export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets"] as const;
 
-
 void i18n
   .use(Backend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     backend: {
-      loadPath: "/static/i18n/locales/{{lng}}/{{ns}}.json"
+      loadPath: "/static/i18n/locales/{{lng}}/{{ns}}.json",
     },
     defaultNS: "common",
     detection: {
