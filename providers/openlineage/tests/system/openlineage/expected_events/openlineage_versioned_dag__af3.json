@@ -1,0 +1,53 @@
+[
+  {
+    "eventType": "START",
+    "run": {
+      "facets": {
+        "airflowDagRun": {
+          "dagRun": {
+            "dag_id": "openlineage_versioned_dag",
+            "dag_bundle_name": "{{ result is string }}",
+            "dag_bundle_version": "{{ result is string }}",
+            "dag_version_id": "{{ is_uuid(result) }}",
+            "dag_version_number": "{{ result is number }}"
+          }
+        }
+      }
+    },
+    "job": {
+      "name": "openlineage_versioned_dag"
+    }
+  },
+  {
+    "eventType": "START",
+    "run": {
+      "facets": {
+        "airflow": {
+          "taskInstance": {
+            "dag_bundle_name": "{{ result is string }}",
+            "dag_bundle_version": "{{ result is string }}"
+          }
+        }
+      }
+    },
+    "job": {
+      "name": "openlineage_versioned_dag.do_nothing_task"
+    }
+  },
+  {
+    "eventType": "COMPLETE",
+    "run": {
+      "facets": {
+        "airflow": {
+          "taskInstance": {
+            "dag_bundle_name": "{{ result is string }}",
+            "dag_bundle_version": "{{ result is string }}"
+          }
+        }
+      }
+    },
+    "job": {
+      "name": "openlineage_versioned_dag.do_nothing_task"
+    }
+  }
+]

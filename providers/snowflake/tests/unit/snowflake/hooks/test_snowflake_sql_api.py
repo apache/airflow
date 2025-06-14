@@ -203,6 +203,46 @@ class TestSnowflakeSqlApiHook:
         query_ids = hook.execute_query(sql, statement_count)
         assert query_ids == expected_query_ids
 
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    def test_execute_query_multiple_times_give_fresh_query_ids_each_time(
+        self, mock_get_header, mock_conn_param, mock_requests
+    ):
+        """Test execute_query method, run query by mocking post request method and return the query ids"""
+        sql, statement_count, expected_response, expected_query_ids = (
+            SQL_MULTIPLE_STMTS,
+            4,
+            {"statementHandles": ["uuid2", "uuid3"]},
+            ["uuid2", "uuid3"],
+        )
+
+        mock_requests.codes.ok = 200
+        mock_requests.post.side_effect = [
+            create_successful_response_mock(expected_response),
+        ]
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        hook = SnowflakeSqlApiHook("mock_conn_id")
+        query_ids = hook.execute_query(sql, statement_count)
+        assert query_ids == expected_query_ids
+
+        sql, statement_count, expected_response, expected_query_ids = (
+            SINGLE_STMT,
+            1,
+            {"statementHandle": "uuid"},
+            ["uuid"],
+        )
+        mock_requests.post.side_effect = [
+            create_successful_response_mock(expected_response),
+        ]
+        query_ids = hook.execute_query(sql, statement_count)
+        assert query_ids == expected_query_ids
+
     @pytest.mark.parametrize(
         "sql,statement_count,expected_response, expected_query_ids",
         [(SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"])],

@@ -48,6 +48,29 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
         logical_date=DEFAULT_DATE,
     )
 
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.executors import workloads
+
+        workload = workloads.ExecuteTask.make(ti)
+        rendered_args = [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            workload.model_dump_json(),
+        ]
+    else:
+        rendered_args = [
+            "airflow",
+            "tasks",
+            "run",
+            "test_render_k8s_pod_yaml",
+            "op1",
+            "test_run_id",
+            "--subdir",
+            mock.ANY,
+        ]
+
     expected_pod_spec = {
         "metadata": {
             "annotations": {
@@ -71,16 +94,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
         "spec": {
             "containers": [
                 {
-                    "args": [
-                        "airflow",
-                        "tasks",
-                        "run",
-                        "test_render_k8s_pod_yaml",
-                        "op1",
-                        "test_run_id",
-                        "--subdir",
-                        mock.ANY,
-                    ],
+                    "args": rendered_args,
                     "name": "base",
                     "env": [{"name": "AIRFLOW_IS_K8S_EXECUTOR_POD", "value": "True"}],
                 }

@@ -39,10 +39,17 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``0242ac120002`` (head) | ``dfee8bd5d574`` | ``3.1.0``         | Change the Deadline column in the Deadline table from        |
-|                         |                  |                   | DateTime to UTC DateTime.                                    |
+| ``3ac9e5732b1f`` (head) | ``0242ac120002`` | ``3.1.0``         | Change the on-delete behaviour of                            |
+|                         |                  |                   | task_instance.dag_version_id foreign key constraint to       |
+|                         |                  |                   | RESTRICT.                                                    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``dfee8bd5d574``        | ``29ce7909c52b`` | ``3.1.0``         | Add Deadline to Dag.                                         |
+| ``0242ac120002``        | ``dfee8bd5d574`` | ``3.1.0``         | Rename Deadline column in the Deadline table from deadline   |
+|                         |                  |                   | to deadline_time and change its type from DateTime to UTC    |
+|                         |                  |                   | DateTime.                                                    |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``dfee8bd5d574``        | ``fe199e1abd77`` | ``3.1.0``         | Add Deadline to Dag.                                         |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``fe199e1abd77``        | ``29ce7909c52b`` | ``3.0.3``         | Delete import errors.                                        |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``29ce7909c52b``        | ``959e216a3abb`` | ``3.0.0``         | Change TI table to have unique UUID id/pk per attempt.       |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+

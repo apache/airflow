@@ -21,8 +21,6 @@ import { http, HttpResponse, type HttpHandler } from "msw";
 export const handlers: Array<HttpHandler> = [
   http.get("/ui/config", () =>
     HttpResponse.json({
-      audit_view_excluded_events: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data",
-      audit_view_included_events: "",
       auto_refresh_interval: 3,
       default_wrap: false,
       enable_swagger_ui: true,

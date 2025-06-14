@@ -35,6 +35,13 @@
 # UI
 /airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
 
+# Translations (i18n)
+airflow-core/src/airflow/ui/src/i18n/locales/de/ @jscheffl # not codeowner but engaged: @TJaniF @m1racoli
+airflow-core/src/airflow/ui/src/i18n/locales/zh-TW/ @Lee-W
+airflow-core/src/airflow/ui/src/i18n/locales/nl/ @BasPH # not codeowner but engaged: @DjVinnii
+airflow-core/src/airflow/ui/src/i18n/locales/pl/ @potiuk @mobuchowski # not codeowner but engaged: @kacpermuda
+airflow-core/src/airflow/ui/src/i18n/locales/he/ @eladkal @shahar1 @romsharon98
+
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
 
@@ -69,6 +76,7 @@
 /providers/edge3/ @jscheffl
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
+/providers/keycloak/ @vincbeck
 /providers/openlineage/ @mobuchowski
 /providers/slack/ @eladkal
 /providers/smtp/ @hussein-awala
@@ -109,4 +117,8 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 /providers/fab/src/airflow-core/src/airflow/providers/fab/migrations/ @ephraimbuddy
 
 # AIP-72 - Task SDK
+# Python SDK
 /task-sdk/ @ashb @kaxil @amoghrajesh
+
+# Golang SDK
+/go-sdk/ @ashb @kaxil @amoghrajesh

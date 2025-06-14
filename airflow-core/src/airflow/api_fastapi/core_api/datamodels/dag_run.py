@@ -67,6 +67,7 @@ class DAGRunResponse(BaseModel):
     queued_at: datetime | None
     start_date: datetime | None
     end_date: datetime | None
+    duration: float | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     deadlines: list[DeadlineResponse] | None

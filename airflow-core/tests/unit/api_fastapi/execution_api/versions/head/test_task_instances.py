@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import operator
 from datetime import datetime
 from unittest import mock
 from uuid import uuid4
@@ -34,7 +33,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import TaskGroup
+from airflow.sdk import Asset, TaskGroup, task, task_group
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
@@ -236,6 +235,128 @@ class TestTIRunState:
             },
         )
         assert response.status_code == 409
+
+    def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
+        """
+        Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances
+        """
+
+        with dag_maker("test_dynamic_task_mapping_with_parse_time_value", serialized=True):
+
+            @task_group
+            def task_group_1(arg1):
+                @task
+                def group1_task_1(arg1):
+                    return {"a": arg1}
+
+                @task
+                def group1_task_2(arg2):
+                    return arg2
+
+                group1_task_2(group1_task_1(arg1))
+
+            @task
+            def task2():
+                return None
+
+            task_group_1.expand(arg1=[0, 1]) >> task2()
+
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        # key: (task_id, map_index)
+        # value: result upstream_map_indexes ({task_id: map_indexes})
+        expected_upstream_map_indexes = {
+            # no upstream task for task_group_1.group_task_1
+            ("task_group_1.group1_task_1", 0): {},
+            ("task_group_1.group1_task_1", 1): {},
+            # the upstream task for task_group_1.group_task_2 is task_group_1.group_task_2
+            # since they are in the same task group, the upstream map index should be the same as the task
+            ("task_group_1.group1_task_2", 0): {"task_group_1.group1_task_1": 0},
+            ("task_group_1.group1_task_2", 1): {"task_group_1.group1_task_1": 1},
+            # the upstream task for task2 is the last tasks of task_group_1, which is
+            # task_group_1.group_task_2
+            # since they are not in the same task group, the upstream map index should include all the
+            # expanded tasks
+            ("task2", -1): {"task_group_1.group1_task_2": [0, 1]},
+        }
+
+        for ti in dr.get_task_instances():
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+            assert response.status_code == 200
+            upstream_map_indexes = response.json()["upstream_map_indexes"]
+            assert upstream_map_indexes == expected_upstream_map_indexes[(ti.task_id, ti.map_index)]
+
+    def test_dynamic_task_mapping_with_xcom(self, client, dag_maker, create_task_instance, session, run_task):
+        """
+        Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances with xcom
+        """
+        from airflow.models.taskmap import TaskMap
+
+        with dag_maker(session=session):
+
+            @task
+            def task_1():
+                return [0, 1]
+
+            @task_group
+            def tg(x, y):
+                @task
+                def task_2():
+                    pass
+
+                task_2()
+
+            @task
+            def task_3():
+                pass
+
+            tg.expand(x=task_1(), y=[1, 2, 3]) >> task_3()
+
+        dr = dag_maker.create_dagrun()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        # Simulate task_1 execution to produce TaskMap.
+        (ti_1,) = decision.schedulable_tis
+        # ti_1 = dr.get_task_instance(task_id="task_1")
+        ti_1.state = TaskInstanceState.SUCCESS
+        session.add(TaskMap.from_task_instance_xcom(ti_1, [0, 1]))
+        session.flush()
+
+        # Now task_2 in mapped tagk group is expanded.
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        (task_3_ti,) = decision.schedulable_tis
+        task_3_ti.set_state(State.QUEUED)
+
+        response = client.patch(
+            f"/execution/task-instances/{task_3_ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+        assert response.json()["upstream_map_indexes"] == {"tg.task_2": [0, 1, 2, 3, 4, 5]}
 
     def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
         instant_str = "2024-09-30T12:00:00Z"
@@ -584,6 +705,40 @@ class TestTIUpdateState:
         assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
         assert event[0].extra == expected_extra
 
+    def test_ti_update_state_to_failed_with_inactive_asset(self, client, session, create_task_instance):
+        # inactive
+        asset = AssetModel(
+            id=1,
+            name="my-task-2",
+            uri="s3://bucket/my-task",
+            group="asset",
+            extra={},
+        )
+        session.add(asset)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_with_asset_events",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [{"name": "my-task-2", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                "outlet_events": [],
+            },
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+
     @pytest.mark.parametrize(
         "outlet_events, expected_extra",
         [
@@ -855,8 +1010,13 @@ class TestTIUpdateState:
             },
         )
 
-        assert response.status_code == 422
-        assert response.json()["detail"]["reason"] == "invalid_reschedule_date"
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
 
     def test_ti_update_state_handle_retry(self, client, session, create_task_instance):
         ti = create_task_instance(
@@ -962,22 +1122,18 @@ class TestTISkipDownstream:
             t1 = EmptyOperator(task_id="t1")
             t0 >> t1
         dr = dag_maker.create_dagrun(run_id="run")
-        decision = dr.task_instance_scheduling_decisions(session=session)
-        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
-            # TODO: TaskSDK #45549
-            ti.task = dag_maker.dag.get_task(ti.task_id)
-            ti.run(session=session)
 
-        t0 = dr.get_task_instance("t0")
+        ti0 = dr.get_task_instance("t0")
+        ti0.set_state(State.SUCCESS)
+
         response = client.patch(
-            f"/execution/task-instances/{t0.id}/skip-downstream",
+            f"/execution/task-instances/{ti0.id}/skip-downstream",
             json=_json,
         )
-        t1 = dr.get_task_instance("t1")
+        ti1 = dr.get_task_instance("t1")
 
         assert response.status_code == 204
-        assert decision.schedulable_tis[0].state == State.SUCCESS
-        assert t1.state == State.SKIPPED
+        assert ti1.state == State.SKIPPED
 
 
 class TestTIHealthEndpoint:
@@ -2022,3 +2178,68 @@ class TestGetTaskStates:
         response = client.get("/execution/task-instances/states", params={"dag_id": dr.dag_id, **params})
         assert response.status_code == 200
         assert response.json() == {"task_states": {dr.run_id: expected}}
+
+
+class TestInvactiveInletsAndOutlets:
+    @pytest.mark.parametrize(
+        "logical_date",
+        [
+            datetime(2025, 6, 6, tzinfo=timezone.utc),
+            None,
+        ],
+    )
+    def test_ti_inactive_inlets_and_outlets(self, logical_date, client, dag_maker):
+        """Test the inactive assets in inlets and outlets can be found."""
+        with dag_maker("test_inlets_and_outlets"):
+            EmptyOperator(
+                task_id="task1",
+                inlets=[Asset(name="inlet-name"), Asset(name="inlet-name", uri="but-different-uri")],
+                outlets=[
+                    Asset(name="outlet-name", uri="uri"),
+                    Asset(name="outlet-name", uri="second-different-uri"),
+                ],
+            )
+
+        dr = dag_maker.create_dagrun(logical_date=logical_date)
+
+        task1_ti = dr.get_task_instance("task1")
+        response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
+        assert response.status_code == 200
+        inactive_assets = response.json()["inactive_assets"]
+        expected_inactive_assets = (
+            {
+                "name": "inlet-name",
+                "type": "Asset",
+                "uri": "but-different-uri",
+            },
+            {
+                "name": "outlet-name",
+                "type": "Asset",
+                "uri": "second-different-uri",
+            },
+        )
+        for asset in expected_inactive_assets:
+            assert asset in inactive_assets
+
+    @pytest.mark.parametrize(
+        "logical_date",
+        [
+            datetime(2025, 6, 6, tzinfo=timezone.utc),
+            None,
+        ],
+    )
+    def test_ti_inactive_inlets_and_outlets_without_inactive_assets(self, logical_date, client, dag_maker):
+        """Test the task without inactive assets in its inlets or outlets returns empty list."""
+        with dag_maker("test_inlets_and_outlets_inactive"):
+            EmptyOperator(
+                task_id="inactive_task1",
+                inlets=[Asset(name="inlet-name")],
+                outlets=[Asset(name="outlet-name", uri="uri")],
+            )
+
+        dr = dag_maker.create_dagrun(logical_date=logical_date)
+
+        task1_ti = dr.get_task_instance("inactive_task1")
+        response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
+        assert response.status_code == 200
+        assert response.json() == {"inactive_assets": []}

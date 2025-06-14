@@ -536,13 +536,6 @@ export const $BaseInfoResponse = {
   description: "Base info serializer for responses.",
 } as const;
 
-export const $BulkAction = {
-  type: "string",
-  enum: ["create", "delete", "update"],
-  title: "BulkAction",
-  description: "Bulk Action to be performed on the used model.",
-} as const;
-
 export const $BulkActionNotOnExistence = {
   type: "string",
   enum: ["fail", "skip"],
@@ -587,6 +580,32 @@ export const $BulkActionResponse = {
 Represents the outcome of a single bulk operation (create, update, or delete).
 The response includes a list of successful keys and any errors encountered during the operation.
 This structure helps users understand which key actions succeeded and which failed.`,
+} as const;
+
+export const $BulkBody_BulkTaskInstanceBody_ = {
+  properties: {
+    actions: {
+      items: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/BulkCreateAction_BulkTaskInstanceBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkUpdateAction_BulkTaskInstanceBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkDeleteAction_BulkTaskInstanceBody_",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["actions"],
+  title: "BulkBody[BulkTaskInstanceBody]",
 } as const;
 
 export const $BulkBody_ConnectionBody_ = {
@@ -667,10 +686,39 @@ export const $BulkBody_VariableBody_ = {
   title: "BulkBody[VariableBody]",
 } as const;
 
+export const $BulkCreateAction_BulkTaskInstanceBody_ = {
+  properties: {
+    action: {
+      type: "string",
+      const: "create",
+      title: "Action",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/BulkTaskInstanceBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkCreateAction[BulkTaskInstanceBody]",
+} as const;
+
 export const $BulkCreateAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -695,7 +743,9 @@ export const $BulkCreateAction_ConnectionBody_ = {
 export const $BulkCreateAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -720,7 +770,9 @@ export const $BulkCreateAction_PoolBody_ = {
 export const $BulkCreateAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "create",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -742,10 +794,39 @@ export const $BulkCreateAction_VariableBody_ = {
   title: "BulkCreateAction[VariableBody]",
 } as const;
 
+export const $BulkDeleteAction_BulkTaskInstanceBody_ = {
+  properties: {
+    action: {
+      type: "string",
+      const: "delete",
+      title: "Action",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entity id/key to be deleted.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkDeleteAction[BulkTaskInstanceBody]",
+} as const;
+
 export const $BulkDeleteAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -770,7 +851,9 @@ export const $BulkDeleteAction_ConnectionBody_ = {
 export const $BulkDeleteAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -795,7 +878,9 @@ export const $BulkDeleteAction_PoolBody_ = {
 export const $BulkDeleteAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "delete",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -862,10 +947,106 @@ Each action (if requested) is represented as a field containing details about su
 Fields are populated in the response only if the respective action was part of the request, else are set None.`,
 } as const;
 
+export const $BulkTaskInstanceBody = {
+  properties: {
+    new_state: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/TaskInstanceState",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 1000,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    include_upstream: {
+      type: "boolean",
+      title: "Include Upstream",
+      default: false,
+    },
+    include_downstream: {
+      type: "boolean",
+      title: "Include Downstream",
+      default: false,
+    },
+    include_future: {
+      type: "boolean",
+      title: "Include Future",
+      default: false,
+    },
+    include_past: {
+      type: "boolean",
+      title: "Include Past",
+      default: false,
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    map_index: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Map Index",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["task_id"],
+  title: "BulkTaskInstanceBody",
+  description: "Request body for bulk update, and delete task instances.",
+} as const;
+
+export const $BulkUpdateAction_BulkTaskInstanceBody_ = {
+  properties: {
+    action: {
+      type: "string",
+      const: "update",
+      title: "Action",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/BulkTaskInstanceBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be updated.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkUpdateAction[BulkTaskInstanceBody]",
+} as const;
+
 export const $BulkUpdateAction_ConnectionBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -890,7 +1071,9 @@ export const $BulkUpdateAction_ConnectionBody_ = {
 export const $BulkUpdateAction_PoolBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -915,7 +1098,9 @@ export const $BulkUpdateAction_PoolBody_ = {
 export const $BulkUpdateAction_VariableBody_ = {
   properties: {
     action: {
-      $ref: "#/components/schemas/BulkAction",
+      type: "string",
+      const: "update",
+      title: "Action",
       description: "The action to be performed on the entities.",
     },
     entities: {
@@ -2217,6 +2402,17 @@ export const $DAGRunResponse = {
       ],
       title: "End Date",
     },
+    duration: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Duration",
+    },
     data_interval_start: {
       anyOf: [
         {
@@ -2342,6 +2538,7 @@ export const $DAGRunResponse = {
     "queued_at",
     "start_date",
     "end_date",
+    "duration",
     "data_interval_start",
     "data_interval_end",
     "deadlines",
@@ -3341,6 +3538,58 @@ export const $HealthInfoResponse = {
   description: "Health serializer for responses.",
 } as const;
 
+export const $IFrameViewsResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    src: {
+      type: "string",
+      title: "Src",
+    },
+    icon: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Icon",
+    },
+    url_route: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url Route",
+    },
+    destination: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["nav", "dag", "dag_run", "task", "task_instance"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Destination",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["name", "src"],
+  title: "IFrameViewsResponse",
+  description: "Serializer for IFrame Plugin responses.",
+} as const;
+
 export const $ImportErrorCollectionResponse = {
   properties: {
     import_errors: {
@@ -3731,6 +3980,13 @@ export const $PluginResponse = {
       type: "array",
       title: "Fastapi Root Middlewares",
     },
+    iframe_views: {
+      items: {
+        $ref: "#/components/schemas/IFrameViewsResponse",
+      },
+      type: "array",
+      title: "Iframe Views",
+    },
     appbuilder_views: {
       items: {
         $ref: "#/components/schemas/AppBuilderViewResponse",
@@ -3785,6 +4041,7 @@ export const $PluginResponse = {
     "flask_blueprints",
     "fastapi_apps",
     "fastapi_root_middlewares",
+    "iframe_views",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
@@ -6087,14 +6344,6 @@ export const $ConfigResponse = {
       type: "boolean",
       title: "Default Wrap",
     },
-    audit_view_excluded_events: {
-      type: "string",
-      title: "Audit View Excluded Events",
-    },
-    audit_view_included_events: {
-      type: "string",
-      title: "Audit View Included Events",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -6131,8 +6380,6 @@ export const $ConfigResponse = {
     "enable_swagger_ui",
     "require_confirmation_dag_change",
     "default_wrap",
-    "audit_view_excluded_events",
-    "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
     "show_external_log_redirect",

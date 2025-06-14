@@ -124,3 +124,19 @@ class TestMetadataConnectionSecret:
             connection == "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
             "somedb?sslmode=disable"
         )
+
+    def test_should_add_annotations_to_metadata_connection_secret(self):
+        docs = render_chart(
+            values={
+                "data": {
+                    "metadataConnection": {
+                        **self.non_chart_database_values,
+                        "secretAnnotations": {"test_annotation": "test_annotation_value"},
+                    }
+                }
+            },
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
