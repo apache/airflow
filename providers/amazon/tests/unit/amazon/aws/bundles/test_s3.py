@@ -283,8 +283,6 @@ class TestS3DagBundle:
         )
         # we are using s3 bucket rood but the dag file is in sub folder, project1/dags/dag_03.py
         assert bundle.s3_dags_dir.joinpath("project1/dags/dag_03.py").read_text() == "test data"
-        bundle.s3_dags_dir.joinpath("dag_should_be_deleted.py").write_text("test dag")
-        bundle.s3_dags_dir.joinpath("dag_should_be_deleted_folder").mkdir(exist_ok=True)
 
     def assert_log_matches_regex(self, caplog, level, regex):
         """Helper function to assert if a log message matches a regex."""

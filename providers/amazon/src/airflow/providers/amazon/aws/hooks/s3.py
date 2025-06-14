@@ -1751,12 +1751,12 @@ class S3Hook(AwsBaseHook):
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)
-            self._download_s3_object_if_changed(
+            self._sync_to_local_dir_if_changed(
                 s3_bucket=s3_bucket, s3_object=obj, local_target_path=local_target_path
             )
             local_s3_objects.append(local_target_path)
 
         if delete_stale:
-            self._download_s3_delete_stale_local_files(
+            self._sync_to_local_dir_delete_stale_local_files(
                 current_s3_objects=local_s3_objects, local_dir=local_dir
             )

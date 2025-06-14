@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import gzip as gz
 import inspect
+import logging
 import os
 import re
 from datetime import datetime as std_datetime, timezone
+from pathlib import Path
 from unittest import mock, mock as async_mock
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from urllib.parse import parse_qs
@@ -48,6 +50,12 @@ from airflow.utils.timezone import datetime
 def mocked_s3_res():
     with mock_aws():
         yield boto3.resource("s3")
+
+
+@pytest.fixture
+def s3_client():
+    with mock_aws():
+        yield boto3.client("s3")
 
 
 @pytest.fixture
@@ -1725,6 +1733,60 @@ class TestAwsS3Hook:
 
         with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
             hook.get_bucket_tagging(bucket_name="new_bucket")
+
+    def test_sync_to_local_dir_behaviour(self, s3_bucket, s3_client, caplog, cap_structlog, tmp_path):
+        caplog.set_level(logging.ERROR)
+        caplog.set_level(logging.DEBUG, logger="airflow.providers.amazon.aws.bundles.s3.S3DagBundle")
+        caplog.set_level(
+            logging.DEBUG, logger="airflow.task.hooks.airflow.providers.amazon.aws.hooks.s3.S3Hook"
+        )
+
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_01.py", Body=b"test data")
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_02.py", Body=b"test data")
+        s3_client.put_object(Bucket=s3_bucket, Key="subproject1/dag_a.py", Body=b"test data")
+        s3_client.put_object(Bucket=s3_bucket, Key="subproject1/dag_b.py", Body=b"test data")
+
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        hook = S3Hook()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        assert caplog.text.count(f"Downloading data from s3://{s3_bucket}") == 1
+        #
+        assert caplog.text.count(f"does not exist. Downloaded dag_01.py to {sync_local_dir}/dag_01.py") == 1
+        assert caplog.text.count("does not exist. Downloaded dag_01.py to") == 1
+        assert caplog.text.count(f"does not exist. Downloaded subproject1/dag_a.py to {sync_local_dir}") == 1
+        # add new file to bucket and sync
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data")
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        print(caplog)
+        assert (
+            caplog.text.count(
+                "subproject1/dag_b.py is up-to-date with S3 object subproject1/dag_b.py. Skipping download"
+            )
+            == 1
+        )
+        assert caplog.text.count(f"does not exist. Downloaded dag_03.py to {sync_local_dir}/dag_03.py") == 1
+        # read that file is donloaded and has same content
+        assert Path(sync_local_dir).joinpath("dag_03.py").read_text() == "test data"
+
+        local_file_that_should_be_deleted = Path(sync_local_dir).joinpath("file_that_should_be_deleted.py")
+        local_file_that_should_be_deleted.write_text("test dag")
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        assert (
+            caplog.text.count(f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}")
+            == 1
+        )
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data-changed")
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        assert caplog.text.count("S3 object size") == 1
+        assert caplog.text.count("differ. Downloaded dag_03.py to") == 1
 
 
 @pytest.mark.parametrize(
