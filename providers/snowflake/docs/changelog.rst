@@ -40,6 +40,7 @@ Bug Fixes
 
 * ``fix: make query_ids in SnowflakeSqlApiOperator in deferrable mode consistent (#51542)``
 * ``fix: Duplicate region in Snowflake URI no longer breaks OpenLineage (#50831)``
+* ``Do not allow semicolons in CopyFromExternalStageToSnowflakeOperator fieldS (#51734)``
 
 Misc
 ~~~~
