@@ -19,9 +19,9 @@
  * under the License.
  */
 import { render, screen } from "@testing-library/react";
+import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
 import { afterEach, describe, it, vi, expect, beforeAll } from "vitest";
-import i18n from "i18next";
 
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -125,8 +125,6 @@ describe("DagCard", () => {
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     screen.debug();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
-    expect(
-      screen.getByText((content) => content.includes("+2 more"))
-    ).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes("+2 more"))).toBeInTheDocument();
   });
 });

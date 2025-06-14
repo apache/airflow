@@ -2080,7 +2080,7 @@ export type ClearDagRunData = {
     requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
+export type ClearDagRunResponse = DAGRunResponse | TaskInstanceCollectionResponse;
 
 export type GetDagRunsData = {
     dagId: string;
