@@ -456,11 +456,11 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
+  airflow db reset
 
 .. code-block:: bash
 
-        root@b76fcb399bb6:/opt/airflow# airflow users create \
+        airflow users create \
                 --username admin \
                 --firstname FIRST_NAME \
                 --lastname LAST_NAME \
@@ -476,7 +476,7 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# exit
+  exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
    background) via ``breeze down`` command
