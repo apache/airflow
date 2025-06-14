@@ -26,9 +26,12 @@ from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
-from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor
+from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor, MwaaTaskSensor
 
 from system.amazon.aws.utils import SystemTestContextBuilder
+
+from airflow.providers.standard.example_dags.example_external_task_parent_deferrable import \
+    external_task_sensor
 
 DAG_ID = "example_mwaa"
 
@@ -65,6 +68,23 @@ def unpause_dag(env_name: str, dag_id: str):
     )
     return not response["RestApiResponse"]["is_paused"]
 
+# Can only be run after 'trigger_dag_run' task is run.
+@task
+def get_task_id(env_name: str, dag_id: str):
+    mwaa_hook = MwaaHook()
+    dag_runs = mwaa_hook.invoke_rest_api(
+        env_name=env_name, path=f"/dags/{dag_id}/dagRuns", method="GET"
+    )
+    dag_run_id = dag_runs["RestApiResponse"]["dag_runs"][0]["dag_run_id"]
+
+    response = mwaa_hook.invoke_rest_api(
+        env_name=env_name, path=f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+        method="GET"
+    )
+    print("test debug")
+    print(response)
+
+    return response["RestApiResponse"]["task_instances"][0]["task_id"]
 
 # This task in the system test verifies that the MwaaHook's IAM fallback mechanism continues to work with
 # the live MWAA API. This fallback depends on parsing a specific error message from the MWAA API, so we
@@ -107,8 +127,21 @@ with DAG(
         env_name=env_name,
         trigger_dag_id=trigger_dag_id,
         wait_for_completion=True,
+        deferrable=True,
     )
     # [END howto_operator_mwaa_trigger_dag_run]
+    task_id = get_task_id(env_name, trigger_dag_id)
+
+    # [START howto_sensor_mwaa_task]
+    wait_for_task = MwaaTaskSensor(
+        task_id="wait_for_task",
+        external_env_name=env_name,
+        external_dag_id=trigger_dag_id,
+        external_task_id=task_id,
+        external_dag_run_id="{{ task_instance.xcom_pull(task_ids='trigger_dag_run')['RestApiResponse']['dag_run_id'] }}",
+        poke_interval=5,
+    )
+    # [END howto_sensor_mwaa_task]
 
     # [START howto_sensor_mwaa_dag_run]
     wait_for_dag_run = MwaaDagRunSensor(
@@ -126,6 +159,8 @@ with DAG(
         # TEST BODY
         unpause_dag(env_name, trigger_dag_id),
         trigger_dag_run,
+        get_task_id(env_name, trigger_dag_id),
+        wait_for_task,
         wait_for_dag_run,
         test_iam_fallback(restricted_role_arn, env_name),
     )
