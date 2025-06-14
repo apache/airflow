@@ -55,7 +55,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
 ``airbyte-api``     ``>=0.52.0``
-``requests``        ``>=2.31.0``
+``requests``        ``>=2.32.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the

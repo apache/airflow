@@ -56,6 +56,7 @@ Misc
 * ``Update Redshift cluster operator and sensor to inherit AwsBaseOperator (#51129)``
 * ``Remove Airflow 2 code path in executors (#51009)``
 * ``Move AWS auth dependencies to python3-saml extra (#50449)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
 
 Doc-only
 ~~~~~~~~
