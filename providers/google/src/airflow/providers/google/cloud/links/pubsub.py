@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
 
 PUBSUB_BASE_LINK = "/cloudpubsub"
 PUBSUB_TOPIC_LINK = PUBSUB_BASE_LINK + "/topic/detail/{topic_id}?project={project_id}"
@@ -39,19 +33,6 @@ class PubSubTopicLink(BaseGoogleLink):
     key = "pubsub_topic"
     format_str = PUBSUB_TOPIC_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        topic_id: str,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=PubSubTopicLink.key,
-            value={"topic_id": topic_id, "project_id": project_id},
-        )
-
 
 class PubSubSubscriptionLink(BaseGoogleLink):
     """Helper class for constructing Pub/Sub Subscription Link."""
@@ -59,16 +40,3 @@ class PubSubSubscriptionLink(BaseGoogleLink):
     name = "Pub/Sub Subscription"
     key = "pubsub_subscription"
     format_str = PUBSUB_SUBSCRIPTION_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        subscription_id: str | None,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=PubSubSubscriptionLink.key,
-            value={"subscription_id": subscription_id, "project_id": project_id},
-        )

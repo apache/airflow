@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -32,6 +32,7 @@ from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
+from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import StorageLink
 
@@ -42,16 +43,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom  # type: ignore[no-redef]
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
-
-
 BASE_LINK = "https://console.cloud.google.com"
 METASTORE_BASE_LINK = BASE_LINK + "/dataproc/metastore/services/{region}/{service_id}"
 METASTORE_BACKUP_LINK = METASTORE_BASE_LINK + "/backups/{resource}?project={project_id}"
@@ -61,97 +52,50 @@ METASTORE_IMPORT_LINK = METASTORE_BASE_LINK + "/imports/{resource}?project={proj
 METASTORE_SERVICE_LINK = METASTORE_BASE_LINK + "/config?project={project_id}"
 
 
-class DataprocMetastoreLink(BaseOperatorLink):
+class DataprocMetastoreLink(BaseGoogleLink):
     """Helper class for constructing Dataproc Metastore resource link."""
 
     name = "Dataproc Metastore"
     key = "conf"
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: (
-            DataprocMetastoreCreateServiceOperator
-            | DataprocMetastoreGetServiceOperator
-            | DataprocMetastoreRestoreServiceOperator
-            | DataprocMetastoreUpdateServiceOperator
-            | DataprocMetastoreListBackupsOperator
-            | DataprocMetastoreExportMetadataOperator
-        ),
-        url: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprocMetastoreLink.key,
-            value={
-                "region": task_instance.region,
-                "service_id": task_instance.service_id,
-                "project_id": task_instance.project_id,
-                "url": url,
-            },
-        )
-
     def get_link(
         self,
         operator: BaseOperator,
         *,
         ti_key: TaskInstanceKey,
     ) -> str:
-        conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        return (
-            conf["url"].format(
-                region=conf["region"],
-                service_id=conf["service_id"],
-                project_id=conf["project_id"],
-            )
-            if conf
-            else ""
+        conf = self.get_config(operator, ti_key)
+        if not conf:
+            return ""
+
+        return conf["url"].format(
+            region=conf["region"],
+            service_id=conf["service_id"],
+            project_id=conf["project_id"],
         )
 
 
-class DataprocMetastoreDetailedLink(BaseOperatorLink):
+class DataprocMetastoreDetailedLink(BaseGoogleLink):
     """Helper class for constructing Dataproc Metastore detailed resource link."""
 
     name = "Dataproc Metastore resource"
     key = "config"
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: (
-            DataprocMetastoreCreateBackupOperator | DataprocMetastoreCreateMetadataImportOperator
-        ),
-        url: str,
-        resource: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataprocMetastoreDetailedLink.key,
-            value={
-                "region": task_instance.region,
-                "service_id": task_instance.service_id,
-                "project_id": task_instance.project_id,
-                "url": url,
-                "resource": resource,
-            },
-        )
-
     def get_link(
         self,
         operator: BaseOperator,
         *,
         ti_key: TaskInstanceKey,
     ) -> str:
-        conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        return (
-            conf["url"].format(
-                region=conf["region"],
-                service_id=conf["service_id"],
-                project_id=conf["project_id"],
-                resource=conf["resource"],
-            )
-            if conf
-            else ""
+        conf = self.get_config(operator, ti_key)
+        if not conf:
+            return ""
+
+        return conf["url"].format(
+            region=conf["region"],
+            service_id=conf["service_id"],
+            project_id=conf["project_id"],
+            resource=conf["resource"],
         )
 
 
@@ -231,6 +175,14 @@ class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "service_id": self.service_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -263,7 +215,7 @@ class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
         DataprocMetastoreDetailedLink.persist(
-            context=context, task_instance=self, url=METASTORE_BACKUP_LINK, resource=self.backup_id
+            context=context, url=METASTORE_BACKUP_LINK, resource=self.backup_id
         )
         return Backup.to_dict(backup)
 
@@ -344,6 +296,14 @@ class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "service_id": self.service_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -364,7 +324,7 @@ class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
         self.log.info("Metadata import %s created successfully", self.metadata_import_id)
 
         DataprocMetastoreDetailedLink.persist(
-            context=context, task_instance=self, url=METASTORE_IMPORT_LINK, resource=self.metadata_import_id
+            context=context, url=METASTORE_IMPORT_LINK, resource=self.metadata_import_id
         )
         return MetadataImport.to_dict(metadata_import)
 
@@ -437,6 +397,14 @@ class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "service_id": self.service_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -465,7 +433,7 @@ class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
+        DataprocMetastoreLink.persist(context=context, url=METASTORE_SERVICE_LINK)
         return Service.to_dict(service)
 
 
@@ -689,6 +657,14 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "service_id": self.service_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -708,9 +684,9 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
         metadata_export = self._wait_for_export_metadata(hook)
         self.log.info("Metadata from service %s exported successfully", self.service_id)
 
-        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_EXPORT_LINK)
+        DataprocMetastoreLink.persist(context=context, url=METASTORE_EXPORT_LINK)
         uri = self._get_uri_from_destination(MetadataExport.to_dict(metadata_export)["destination_gcs_uri"])
-        StorageLink.persist(context=context, task_instance=self, uri=uri, project_id=self.project_id)
+        StorageLink.persist(context=context, uri=uri, project_id=self.project_id)
         return MetadataExport.to_dict(metadata_export)
 
     def _get_uri_from_destination(self, destination_uri: str):
@@ -799,6 +775,14 @@ class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "service_id": self.service_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -812,7 +796,7 @@ class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
+        DataprocMetastoreLink.persist(context=context, url=METASTORE_SERVICE_LINK)
         return Service.to_dict(result)
 
 
@@ -880,6 +864,14 @@ class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "service_id": self.service_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> list[dict]:
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -897,7 +889,7 @@ class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_BACKUPS_LINK)
+        DataprocMetastoreLink.persist(context=context, url=METASTORE_BACKUPS_LINK)
         return [Backup.to_dict(backup) for backup in backups]
 
 
@@ -981,6 +973,14 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "service_id": self.service_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -1004,7 +1004,7 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
         )
         self._wait_for_restore_service(hook)
         self.log.info("Service %s restored from backup %s", self.service_id, self.backup_id)
-        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
+        DataprocMetastoreLink.persist(context=context, url=METASTORE_SERVICE_LINK)
 
     def _wait_for_restore_service(self, hook: DataprocMetastoreHook):
         """
@@ -1107,6 +1107,14 @@ class DataprocMetastoreUpdateServiceOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "service_id": self.service_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
@@ -1126,4 +1134,4 @@ class DataprocMetastoreUpdateServiceOperator(GoogleCloudBaseOperator):
         )
         hook.wait_for_operation(self.timeout, operation)
         self.log.info("Service %s updated successfully", self.service.get("name"))
-        DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
+        DataprocMetastoreLink.persist(context=context, url=METASTORE_SERVICE_LINK)
