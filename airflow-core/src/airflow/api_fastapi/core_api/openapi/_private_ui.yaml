@@ -604,6 +604,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/i18n/locales/{lng}/{ns}.json:
+    get:
+      tags:
+      - i18n
+      summary: Get Translation
+      operationId: get_translation
+      parameters:
+      - name: lng
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Lng
+      - name: ns
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Ns
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BackfillCollectionResponse:
