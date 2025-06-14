@@ -20,6 +20,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import jsoncParser from "jsonc-eslint-parser";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,7 +73,7 @@ fs.readdirSync(defaultLanguageDir)
   });
 
 export const i18nPlugin = {
-  files: ["**/i18n/locales/**/*.json"],
+  files: ["public/i18n/locales/**/*.json"],
   rules: {
     "check-translation-completeness": {
       /** @param {import('@typescript-eslint/utils').TSESLint.RuleContext<'missingKeys' | 'fileError', []>} context */
@@ -155,7 +156,10 @@ export const i18nPlugin = {
 
 /** @type {import("@typescript-eslint/utils/ts-eslint").FlatConfig.Config} */
 export const i18nRules = {
-  files: ["**/i18n/locales/**/*.json"],
+  files: ["public/i18n/locales/**/*.json"],
+  languageOptions: {
+    parser: jsoncParser,
+  },
   plugins: {
     [i18nNamespace]: i18nPlugin,
   },
