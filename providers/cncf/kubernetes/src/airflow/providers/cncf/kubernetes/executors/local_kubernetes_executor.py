@@ -26,6 +26,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
@@ -119,6 +120,9 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     def start(self) -> None:
         """Start local and kubernetes executor."""
+        if AIRFLOW_V_3_0_PLUS:
+            raise RuntimeError(f"{self.__class__.__name__} does not support Airflow 3.0+.")
+
         self.log.info("Starting local and Kubernetes Executor")
         self.local_executor.start()
         self.kubernetes_executor.start()

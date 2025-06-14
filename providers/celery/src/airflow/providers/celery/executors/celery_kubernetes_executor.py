@@ -26,7 +26,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
 
 try:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
@@ -130,6 +130,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
 
     def start(self) -> None:
         """Start celery and kubernetes executor."""
+        if AIRFLOW_V_3_0_PLUS:
+            raise RuntimeError(f"{self.__class__.__name__} does not support Airflow 3.0+.")
+
         self.celery_executor.start()
         self.kubernetes_executor.start()
 
