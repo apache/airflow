@@ -8,7 +8,7 @@
     "metaDatabase": "Baza Danych Meta",
     "scheduler": "Planer zadań",
     "status": "Stan",
-    "triggerer": "Wywoływacz",
+    "triggerer": "Komponent odroczonych uruchomień",
     "unhealthy": "Nieprawidłowy"
   },
   "history": "Historia",
