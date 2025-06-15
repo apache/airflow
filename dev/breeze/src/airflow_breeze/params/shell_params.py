@@ -37,6 +37,12 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    BREEZE_DEBUG_API_SERVER_PORT,
+    BREEZE_DEBUG_CELERY_WORKER_PORT,
+    BREEZE_DEBUG_DAG_PROCESSOR_PORT,
+    BREEZE_DEBUG_EDGE_PORT,
+    BREEZE_DEBUG_FLOWER_PORT,
+    BREEZE_DEBUG_SCHEDULER_PORT,
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
@@ -644,6 +650,13 @@ class ShellParams:
         _set_var(_env, "WEB_HOST_PORT", None, WEB_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
+        _set_var(_env, "BREEZE_DEBUG_SCHEDULER_PORT", None, BREEZE_DEBUG_SCHEDULER_PORT)
+        _set_var(_env, "BREEZE_DEBUG_DAG_PROCESSOR_PORT", None, BREEZE_DEBUG_DAG_PROCESSOR_PORT)
+        _set_var(_env, "BREEZE_DEBUG_API_SERVER_PORT", None, BREEZE_DEBUG_API_SERVER_PORT)
+        _set_var(_env, "BREEZE_DEBUG_CELERY_WORKER_PORT", None, BREEZE_DEBUG_CELERY_WORKER_PORT)
+        _set_var(_env, "BREEZE_DEBUG_EDGE_PORT", None, BREEZE_DEBUG_EDGE_PORT)
+        _set_var(_env, "BREEZE_DEBUG_FLOWER_PORT", None, BREEZE_DEBUG_FLOWER_PORT)
+
         self._generate_env_for_docker_compose_file_if_needed(_env)
 
         _target_env: dict[str, str] = os.environ.copy()
