@@ -66,6 +66,7 @@ class Client:
                 "run_type": dag_run.run_type,
                 "start_date": dag_run.start_date,
                 "state": dag_run.state,
+                "triggering_user": dag_run.triggering_user,
             }
         return dag_run
 
