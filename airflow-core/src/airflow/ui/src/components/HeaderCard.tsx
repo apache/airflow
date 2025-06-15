@@ -16,12 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, GridItem, Heading, HStack, Spinner } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, Spinner, Stack } from "@chakra-ui/react";
+import { useRef } from "react";
 import type { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
-import { Stat } from "src/components/Stat";
 import { StateBadge } from "src/components/StateBadge";
+import { useContainerWidth } from "src/utils/useContainerWidth";
+
+import StatsDisplay from "./StatsDisplay";
 
 type Props = {
   readonly actions?: ReactNode;
@@ -33,24 +37,39 @@ type Props = {
   readonly title: ReactNode | string;
 };
 
-export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1} ml={2} p={2}>
-    <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
-      <Flex alignItems="center" flexWrap="wrap" gap={2}>
-        <Heading size="xl">{icon}</Heading>
-        <Heading size="lg">{title}</Heading>
-        <Heading size="lg">{subTitle}</Heading>
-        {state === undefined ? undefined : <StateBadge state={state}>{state}</StateBadge>}
-        {isRefreshing ? <Spinner /> : <div />}
+export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => {
+  const containerRef = useRef<HTMLDivElement>();
+  const containerWidth = useContainerWidth(containerRef);
+  const isGanttPage = useLocation().pathname.includes("/gantt");
+
+  return (
+    <Box
+      borderColor="border"
+      borderRadius={8}
+      borderWidth={1}
+      h={isGanttPage ? 52 : undefined}
+      ml={2}
+      overflow="auto"
+      p={2}
+      ref={containerRef}
+    >
+      <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
+        <Flex alignItems="center" flexWrap="wrap" gap={2}>
+          <Heading size="xl">{icon}</Heading>
+          <Heading size="lg">{title}</Heading>
+          <Heading size="lg">{subTitle}</Heading>
+          {state === undefined ? undefined : <StateBadge state={state}>{state}</StateBadge>}
+          {isRefreshing ? <Spinner /> : <div />}
+        </Flex>
+        <Stack direction={isGanttPage && containerWidth <= 380 ? "row" : "column"} mt={2} w="100%">
+          <HStack gap={1}>{actions}</HStack>
+          <StatsDisplay
+            isCompact={isGanttPage ? containerWidth <= 380 : false}
+            stats={stats}
+            title={typeof title === "string" ? title : undefined}
+          />
+        </Stack>
       </Flex>
-      <HStack gap={1}>{actions}</HStack>
-    </Flex>
-    <HStack alignItems="flex-start" flexWrap="wrap" gap={5} justifyContent="space-between" my={2}>
-      {stats.map(({ label, value }) => (
-        <GridItem key={label}>
-          <Stat label={label}>{value}</Stat>
-        </GridItem>
-      ))}
-    </HStack>
-  </Box>
-);
+    </Box>
+  );
+};

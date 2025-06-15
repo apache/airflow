@@ -19,6 +19,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase } from "react-icons/fi";
+import { LuChartGantt } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
@@ -34,6 +35,7 @@ export const Run = () => {
 
   const tabs = [
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    { icon: <LuChartGantt />, label: translate("tabs.gantt"), value: "gantt" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },

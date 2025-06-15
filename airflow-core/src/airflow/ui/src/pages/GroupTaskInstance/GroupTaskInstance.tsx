@@ -17,6 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
+import { LuChartGantt } from "react-icons/lu";
 import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
@@ -72,7 +73,10 @@ export const GroupTaskInstance = () => {
     .find((dr) => dr.dag_run_id === runId)
     ?.task_instances.find((ti) => ti.task_id === groupId);
 
-  const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
+  const tabs = [
+    { icon: <MdOutlineTask />, label: "Task Instances", value: "" },
+    { icon: <LuChartGantt />, label: "Gantt", value: "gantt" },
+  ];
 
   return (
     <ReactFlowProvider>
