@@ -27,7 +27,7 @@ The Tableau connection type enables the Tableau Integrations.
 Authenticating to Tableau
 -------------------------
 
-There are two ways to connect to Tableau using Airflow.
+There are three ways to connect to Tableau using Airflow.
 
 1. Use `Password and Username Authentication
    <https://tableau.github.io/server-client-python/docs/api-ref#tableauauth-class>`_
@@ -39,7 +39,7 @@ There are two ways to connect to Tableau using Airflow.
    <https://tableau.github.io/server-client-python/docs/sign-in-out.html#sign-in-with-json-web-token-jwt>`_
    i.e add a ``jwt_file`` or a ``jwt_token`` to the Airflow connection extras.
 
-Authentication by personal token was deprecated as Tableau automatically invalidates opened
+ Authentication by personal token was deprecated as Tableau automatically invalidates opened
 personal token connection if one or more parallel connections with the same token are opened.
 So, in the environments with multiple parallel tasks this authentication method can lead to numerous bugs
 and all the jobs will not run as they intended. Therefore, personal token auth option
@@ -91,6 +91,7 @@ When specifying the connection in environment variable you should specify
 it using URI syntax.
 
 Note that all components of the URI should be URL-encoded.
+
 
 For example:
 
