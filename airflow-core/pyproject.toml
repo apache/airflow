@@ -164,7 +164,7 @@ dependencies = [
 "async" = [
     "eventlet>=0.37.0",
     "gevent>=24.2.1",
-    "greenlet>=0.4.9",
+    "greenlet>=3.1.0",
 ]
 "graphviz" = [
     # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
