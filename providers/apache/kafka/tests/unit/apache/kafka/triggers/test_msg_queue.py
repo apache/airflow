@@ -23,11 +23,13 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
-from airflow.providers.apache.kafka.triggers.msg_queue import KafkaMessageQueueTrigger
-from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 from airflow.utils import db
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.apache.kafka.triggers.msg_queue import KafkaMessageQueueTrigger
+    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
 pytestmark = pytest.mark.db_test
 
