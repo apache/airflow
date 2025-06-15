@@ -65,6 +65,18 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: group_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Group Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: only_active
         in: query
         required: false

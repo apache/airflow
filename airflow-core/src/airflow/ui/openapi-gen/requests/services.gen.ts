@@ -235,6 +235,7 @@ export class AssetService {
    * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.dagIds
+   * @param data.groupPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
    * @param data.onlyActive
    * @param data.orderBy
    * @returns AssetCollectionResponse Successful Response
@@ -250,6 +251,7 @@ export class AssetService {
         name_pattern: data.namePattern,
         uri_pattern: data.uriPattern,
         dag_ids: data.dagIds,
+        group_pattern: data.groupPattern,
         only_active: data.onlyActive,
         order_by: data.orderBy,
       },
@@ -3573,9 +3575,10 @@ export class AuthLinksService {
 export class DependenciesService {
   /**
    * Get Dependencies
-   * Dependencies graph.
+   * Dependencies graph. Supports a single node_id or multiple node_ids separated by commas.
    * @param data The data for the request.
    * @param data.nodeId
+   * @param data.nodeIds Comma-separated list of node ids
    * @returns BaseGraphResponse Successful Response
    * @throws ApiError
    */
@@ -3585,6 +3588,7 @@ export class DependenciesService {
       url: "/ui/dependencies",
       query: {
         node_id: data.nodeId,
+        node_ids: data.nodeIds,
       },
       errors: {
         404: "Not Found",

@@ -45,6 +45,7 @@ export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
 export const UseAssetServiceGetAssetsKeyFn = (
   {
     dagIds,
+    groupPattern,
     limit,
     namePattern,
     offset,
@@ -53,6 +54,7 @@ export const UseAssetServiceGetAssetsKeyFn = (
     uriPattern,
   }: {
     dagIds?: string[];
+    groupPattern?: string;
     limit?: number;
     namePattern?: string;
     offset?: number;
@@ -63,7 +65,7 @@ export const UseAssetServiceGetAssetsKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetsKey,
-  ...(queryKey ?? [{ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }]),
+  ...(queryKey ?? [{ dagIds, groupPattern, limit, namePattern, offset, onlyActive, orderBy, uriPattern }]),
 ];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetAliases>
@@ -1727,11 +1729,13 @@ export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetD
 export const UseDependenciesServiceGetDependenciesKeyFn = (
   {
     nodeId,
+    nodeIds,
   }: {
     nodeId?: string;
+    nodeIds?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId }])];
+) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId, nodeIds }])];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;

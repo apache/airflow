@@ -1855,6 +1855,10 @@ export type category = "info" | "warning" | "error";
 
 export type GetAssetsData = {
   dagIds?: Array<string>;
+  /**
+   * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+   */
+  groupPattern?: string | null;
   limit?: number;
   /**
    * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2813,6 +2817,10 @@ export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type GetDependenciesData = {
   nodeId?: string | null;
+  /**
+   * Comma-separated list of node ids
+   */
+  nodeIds?: string | null;
 };
 
 export type GetDependenciesResponse = BaseGraphResponse;
