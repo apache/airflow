@@ -30,8 +30,9 @@ Changelog
 16.0.0
 ......
 
-Breaking changes
-~~~~~~~~~~~~~~~~
+.. note::
+    This release of provider is only available for Airflow 2.10+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
 
 .. warning::
   Deprecated classes, parameters and features have been removed from the Google provider package.
@@ -60,6 +61,78 @@ Breaking changes
   * ``Remove AutoMLModelTrainLink use TranslationLegacyModelTrainLink instead``
   * ``Remove AutoMLModelPredictLink use TranslationLegacyModelPredictLink``
 
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Removal of deprecated items scheduled for May and June (#51646)``
+* ``Remove deprecated for December 2024 and April 2025 in providers/google. (#50021)``
+
+Features
+~~~~~~~~
+
+* ``Allow creation of empty files on GCS (#51669)``
+* ``Add HttpToGCSOperator for transferring data from HTTP to GCS (#49625)``
+* ``Add project_id to the BigQueryCheckOperator, BigQueryValueCheckOperator, BigQueryIntervalCheckOperator, BigQueryColumnCheckOperator, BigQueryTableCheckOperator, BigQueryToBigQueryOperator (#51006)``
+* ``refactor: allow to edit the file listings before copy in S3ToGCSOperator (#49766)``
+* ``feat: implementation of BaseOperatorLink for cloud run jobs to expose the GCP cloud logging url (#46911)``
+* ``feat: add columnNameCharacterMap option to 'GCSToBigQueryOperator' (#49458)``
+* ``Add DataflowJobStateCompleteTrigger (#47993)``
+* ``Create operators for working with Ray for VertexAI (#47340)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove direct access to DB for safe_to_cancel() method for Dataproc and BigQuery triggers (#49711)``
+* ``fix(providers/google): update the default value of PubSubPullOperator.deferrable to  conf.getboolean("operators", "default_deferrable", fallback=False) (#50935)``
+* ``fix: CloudRunExecutJobOperator job_name param description (#50628)``
+* ``Make gcs remote log args optional when using connection id (#50590)``
+* ``FacebookAdsReportToGcsOperator: Replace 'converted_rows[0].keys()' with 'fields' (#50442)``
+* ``Fix gcp remote log module import in airflow local settings (#49788)``
+
+Misc
+~~~~
+
+* ``Add 'polling_period_seconds' and 'timeout_seconds' to the template fields of 'CloudRunExecuteJobOperator' (#49704)``
+* ``Add extra fields and hide unnecessary fields for LevelDB connection UI page (#51343)``
+* ``Remove sqlalchemy-spanner exclusion after it's been yanked. (#51433)``
+* ``Exclude 'sqlalchemy-spanner' 1.12.0 (#51379)``
+* ``Preemptively add proper Apache license for wordcount.go (#50968)``
+* ``Add GoogleAdsHook UI connection form (#50755)``
+* ``Add more template_fields to RunPipelineJobOperator (#50220)``
+* ``Add match_glob field to templated fields of GCSListObjectsOperator (#50393)``
+* ``Migrate 'BigQueryHook' to use 'get_df' (#50341)``
+* ``Remove deprecated 'automl' link (#50456)``
+* ``Ignore typing error that might occur for internal import in ray (#50253)``
+* ``add root parent information to OpenLineage events (#49237)``
+* ``Fix  error on pip 25.1 (#50098)``
+* ``Add lower-binding for types-protobuf (#50075)``
+* ``Remove AIRFLOW_2_10_PLUS conditions (#49877)``
+* ``Bump min Airflow version in providers to 2.10 (#49843)``
+* ``Adding dependency on google-cloud-bigquery-storage temporarily for google (#49807)``
+* ``Remove ray extra from google aiplatform for Python 3.12 (#49797)``
+* ``Temporarily install ray explicitly for python 3.12 (#49759)``
+* ``Remove on_finish_action from template fields (#49637)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Looker connection types and LevelDB documentation (#51058)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update xcom_pull usage for google system tests (#51527)``
+   * ``fix exmaple_cloud_composer system test (#51108)``
+   * ``Fix translate gcp native model system test (#51238)``
+   * ``Fixes issue: https://github.com/apache/airflow/issues/40212 (#47479)``
+   * ``Replace ORM calls in system tests when creating a connection (#50643)``
+   * ``Flattening the 'requirements' input for python venv operators (#50521)``
+   * ``Update system tests for Translate and Dataproc services (#49785)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Make xcom compatible with af2 in system tests in google provider (#49362)``
+   * ``Avoid committing history for providers (#49907)``
+   * ``Update system tests with GCE instance adding auto_delete parameter (#49232)``
 
 15.1.0
 ......

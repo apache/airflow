@@ -61,7 +61,7 @@ apache-airflow-providers-sendgrid package
 `Sendgrid <https://sendgrid.com/>`__
 
 
-Release: 4.1.0
+Release: 4.1.1
 
 Provider package
 ----------------
@@ -81,11 +81,10 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-==================  ==================
+==================  =============================================
 PIP package         Version required
-==================  ==================
+==================  =============================================
 ``apache-airflow``  ``>=2.10.0``
-``sendgrid``        ``>=6.0.0``
-``ecdsa``           ``>=0.19.1,<1``
-``werkzeug``        ``>=2.2,<4``
-==================  ==================
+``sendgrid``        ``>=6.12.3; python_version < "3.12"``
+``sendgrid``        ``>=6.0.0,<6.12.3; python_version >= "3.12"``
+==================  =============================================

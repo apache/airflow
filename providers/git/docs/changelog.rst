@@ -15,6 +15,20 @@
     specific language governing permissions and limitations
     under the License.
 
+0.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``add user_name to http git (#51256)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for providers May 2025 (#50531)``
+   * ``Update description of provider.yaml dependencies (#50231)``
+   * ``Avoid committing history for providers (#49907)``
+
 0.0.2
 .....
 

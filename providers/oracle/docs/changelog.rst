@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+4.1.1
+.....
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+Doc-only
+~~~~~~~~
+
+* ``Move example_dags in standard provider to example_dags in sources (#51260)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.1.0
 .....
 

@@ -28,6 +28,41 @@ Changelog
 ---------
 
 
+10.6.0
+......
+
+Features
+~~~~~~~~
+
+* ``KubernetesPodOperator push xcom after failed pod (#51475)``
+* ``[KubernetesPodOperator] Reads Kubernetes events and writes them into log (#50192)``
+* ``Added detection of terminated pod during get_or_create_pod (#51158)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add xcom sidecar terminated detection (#51144)``
+* ``Fix 'EksPodOperator' in deferrable mode (#51255)``
+* ``Fix a bug where Kube config "worker_pod_pending_fatal_container_state_reasons" is parsed wrongly (#50931)``
+
+Misc
+~~~~
+
+* ``Relax Kubernetes client version support to <33.0.0 (#51195)``
+* ``Adjust code path in executors to be compatible with airflow task run (#51009)``
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51733)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update the executor and provider doc to highlight the two statically coded hybrid executors are no longer supported in Airflow 3.0.0+ (#51715)``
+* ``Update operators.rst - fix typo Kubernetes Pod Operator doc (#51574)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.5.0
 ......
 

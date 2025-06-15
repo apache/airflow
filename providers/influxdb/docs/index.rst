@@ -77,7 +77,7 @@ apache-airflow-providers-influxdb package
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 2.9.0
+Release: 2.9.1
 
 Provider package
 ----------------
@@ -102,5 +102,5 @@ PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.10.0``
 ``influxdb-client``  ``>=1.19.0``
-``requests``         ``>=2.31.0,<3``
+``requests``         ``>=2.32.0,<3``
 ===================  ==================

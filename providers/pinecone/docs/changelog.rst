@@ -20,6 +20,19 @@
 Changelog
 ---------
 
+2.3.1
+.....
+
+Misc
+~~~~
+
+* ``Bumping pinecone sdk to 7.0.0 to improve podspec handling (#50868)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Pinecone Cohere Integration System Test (#51466)``
+   * ``Fix Pinecone Cohere Integration System Test (#51290)``
+
 2.3.0
 .....
 
