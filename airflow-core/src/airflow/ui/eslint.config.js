@@ -35,8 +35,9 @@ import { unicornRules } from "./rules/unicorn.js";
  * @see [ESLint configuration](https://eslint.org/docs/latest/use/configure/)
  */
 export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} */ ([
+  i18nRules,
   // Global ignore of dist directory
-  { ignores: ["**/dist/", "**coverage/"] },
+  { ignores: ["**/dist/", "**coverage/", "public/i18n/locales/**/*.json"] },
   // Base rules
   coreRules,
   typescriptRules,
@@ -47,5 +48,4 @@ export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} *
   stylisticRules,
   unicornRules,
   i18nextRules,
-  i18nRules,
 ]);
