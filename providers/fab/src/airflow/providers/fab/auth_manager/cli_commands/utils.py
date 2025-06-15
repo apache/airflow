@@ -41,26 +41,45 @@ if TYPE_CHECKING:
 @cache
 def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Return an appbuilder instance for the given app."""
+    # Enable customizations in webserver_config.py to be applied via Flask.current_app.
+    webserver_config = conf.get_mandatory_value("fab", "config_file")
+    app.config.from_pyfile(webserver_config, silent=True)
+    app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+    url = make_url(app.config["SQLALCHEMY_DATABASE_URI"])
+    if url.drivername == "sqlite" and url.database and not isabs(url.database):
+        raise AirflowConfigException(
+            f"Cannot use relative path: `{conf.get('database', 'SQL_ALCHEMY_CONN')}` to connect to sqlite. "
+            "Please use absolute path such as `sqlite:////tmp/airflow.db`."
+        )
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     init_appbuilder(app, enable_plugins=False)
     init_plugins(app)
     init_airflow_session_interface(app)
     return app.appbuilder  # type: ignore[attr-defined]
 
 
+current_appbuilder: AirflowAppBuilder | None = None
+
+
 @contextmanager
 def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
+    global current_appbuilder
+    if current_appbuilder:
+        yield current_appbuilder
+        return
     static_folder = os.path.join(os.path.dirname(airflow.__file__), "www", "static")
     flask_app = Flask(__name__, static_folder=static_folder)
-    webserver_config = conf.get_mandatory_value("fab", "config_file")
     with flask_app.app_context():
-        # Enable customizations in webserver_config.py to be applied via Flask.current_app.
-        flask_app.config.from_pyfile(webserver_config, silent=True)
-        flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
-        url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
-        if url.drivername == "sqlite" and url.database and not isabs(url.database):
-            raise AirflowConfigException(
-                f"Cannot use relative path: `{conf.get('database', 'SQL_ALCHEMY_CONN')}` to connect to sqlite. "
-                "Please use absolute path such as `sqlite:////tmp/airflow.db`."
-            )
-        flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-        yield _return_appbuilder(flask_app)
+        from flask_appbuilder.extensions import db
+
+        db.metadata.clear()
+        current_appbuilder = _return_appbuilder(flask_app)
+        try:
+            yield current_appbuilder
+        finally:
+            from flask_appbuilder.extensions import db
+
+            db.engine.dispose(close=True)
+            current_appbuilder.session.remove()
+            current_appbuilder = None
+            airflow.app = None

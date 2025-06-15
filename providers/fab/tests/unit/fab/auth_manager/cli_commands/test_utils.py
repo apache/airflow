@@ -40,7 +40,6 @@ def flask_app():
     """Fixture to set up the Flask app with the necessary configuration."""
     # Get the webserver config file path
     webserver_config = conf.get_mandatory_value("fab", "config_file")
-
     with get_application_builder() as appbuilder:
         flask_app = appbuilder.app
 
@@ -78,6 +77,7 @@ class TestCliUtils:
 
     def test_database_auth_backend_in_session(self, flask_app):
         """Test that the database is used for session management when AUTH_BACKEND is set to 'database'."""
+
         with get_application_builder() as appbuilder:
             flask_app = appbuilder.app
             # Ensure that the correct session interface is set (for 'database' auth backend)
