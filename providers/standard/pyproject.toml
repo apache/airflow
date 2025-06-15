@@ -106,5 +106,9 @@ apache-airflow-providers-standard = {workspace = true}
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.standard.get_provider_info:get_provider_info"
 
+# TODO: move it to jinja2 template
+[project.entry-points."airflow.plugins"]
+interactive_response_api = "airflow.providers.standard.api_fastapi.plugin:InteractiveResponseAPI"
+
 [tool.flit.module]
 name = "airflow.providers.standard"
