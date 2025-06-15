@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -88,6 +90,57 @@ class TestTableauHook:
                 site_id=tableau_hook.conn.extra_dejson["site_id"],
             )
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
+        mock_server.return_value.auth.sign_out.assert_called_once_with()
+
+    @patch("airflow.providers.tableau.hooks.tableau.JWTAuth")
+    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    def test_get_jwt_auth(self, mock_server, mock_tableau_jwt_auth):
+        """
+        Test get conn using JWT authentication via a token string
+        """
+        db.merge_conn(
+            models.Connection(
+                conn_id="tableau_test_jwt_auth",
+                conn_type="tableau",
+                host="tableau",
+                extra='{"auth": "jwt", "jwt_token": "fake_jwt_token", "site_id": ""}',
+            )
+        )
+        with TableauHook(tableau_conn_id="tableau_test_jwt_auth") as tableau_hook:
+            mock_server.assert_called_once_with(tableau_hook.conn.host)
+            mock_tableau_jwt_auth.assert_called_once_with(
+                jwt_token="fake_jwt_token",
+                site_id="",
+            )
+            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_jwt_auth.return_value)
+        mock_server.return_value.auth.sign_out.assert_called_once_with()
+
+    @patch("airflow.providers.tableau.hooks.tableau.JWTAuth")
+    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    def test_get_jwt_auth_from_file(self, mock_server, mock_tableau_jwt_auth):
+        """
+        Test get conn using JWT token read from file
+        """
+        fake_jwt_token = "fake_jwt_token_from_file"
+
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False) as jwt_file:
+            jwt_file.write(fake_jwt_token)
+            jwt_file_path = jwt_file.name
+        db.merge_conn(
+            models.Connection(
+                conn_id="tableau_test_jwt_file_auth",
+                conn_type="tableau",
+                host="tableau",
+                extra=json.dumps({"auth": "jwt", "jwt_file": jwt_file_path, "site_id": ""}),
+            )
+        )
+        with TableauHook(tableau_conn_id="tableau_test_jwt_file_auth") as tableau_hook:
+            mock_server.assert_called_once_with(tableau_hook.conn.host)
+            mock_tableau_jwt_auth.assert_called_once_with(
+                jwt_token=fake_jwt_token,
+                site_id="",
+            )
+            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_jwt_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
