@@ -36,6 +36,7 @@ export const useDags = ({
   owners,
   paused,
   tags,
+  tagsAdvancedQuery,
   tagsMatchMode,
 }: {
   dagDisplayNamePattern?: string;
@@ -49,6 +50,7 @@ export const useDags = ({
   owners?: Array<string>;
   paused?: boolean;
   tags?: Array<string>;
+  tagsAdvancedQuery?: string;
   tagsMatchMode?: "all" | "any";
 }) => {
   const refetchInterval = useAutoRefresh({});
@@ -66,6 +68,7 @@ export const useDags = ({
       owners,
       paused,
       tags,
+      tagsAdvancedQuery,
       tagsMatchMode,
     },
     undefined,

@@ -762,6 +762,7 @@ export const ensureUseDagWarningServiceListDagWarningsData = (
  * @param data.offset
  * @param data.tags
  * @param data.tagsMatchMode
+ * @param data.tagsAdvancedQuery Advanced tag query, e.g. (tag1 OR tag2) AND tag3
  * @param data.owners
  * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
  * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -795,6 +796,7 @@ export const ensureUseDagServiceGetDagsData = (
     owners,
     paused,
     tags,
+    tagsAdvancedQuery,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
@@ -812,6 +814,7 @@ export const ensureUseDagServiceGetDagsData = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsAdvancedQuery?: string;
     tagsMatchMode?: "any" | "all";
   } = {},
 ) =>
@@ -832,6 +835,7 @@ export const ensureUseDagServiceGetDagsData = (
       owners,
       paused,
       tags,
+      tagsAdvancedQuery,
       tagsMatchMode,
     }),
     queryFn: () =>
@@ -851,6 +855,7 @@ export const ensureUseDagServiceGetDagsData = (
         owners,
         paused,
         tags,
+        tagsAdvancedQuery,
         tagsMatchMode,
       }),
   });
@@ -932,6 +937,7 @@ export const ensureUseDagServiceGetDagTagsData = (
  * @param data.offset
  * @param data.tags
  * @param data.tagsMatchMode
+ * @param data.tagsAdvancedQuery Advanced tag query, e.g. (tag1 OR tag2) AND tag3
  * @param data.owners
  * @param data.dagIds
  * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -958,6 +964,7 @@ export const ensureUseDagServiceGetDagsUiData = (
     owners,
     paused,
     tags,
+    tagsAdvancedQuery,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
@@ -972,6 +979,7 @@ export const ensureUseDagServiceGetDagsUiData = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsAdvancedQuery?: string;
     tagsMatchMode?: "any" | "all";
   } = {},
 ) =>
@@ -989,6 +997,7 @@ export const ensureUseDagServiceGetDagsUiData = (
       owners,
       paused,
       tags,
+      tagsAdvancedQuery,
       tagsMatchMode,
     }),
     queryFn: () =>
@@ -1005,6 +1014,7 @@ export const ensureUseDagServiceGetDagsUiData = (
         owners,
         paused,
         tags,
+        tagsAdvancedQuery,
         tagsMatchMode,
       }),
   });
