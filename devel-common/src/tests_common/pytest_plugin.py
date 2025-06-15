@@ -1963,8 +1963,13 @@ def mock_supervisor_comms():
     if not AIRFLOW_V_3_0_PLUS:
         yield None
         return
+
+    from airflow.sdk.execution_time.comms import CommsDecoder
+
     with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS",
+        create=True,
+        spec=CommsDecoder,
     ) as supervisor_comms:
         yield supervisor_comms
 
@@ -1991,7 +1996,6 @@ def mocked_parse(spy_agency):
                         id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1
                     ),
                     file="",
-                    requests_fd=0,
                 ),
                 "example_dag_id",
                 CustomOperator(task_id="hello"),
@@ -2198,7 +2202,6 @@ def create_runtime_ti(mocked_parse):
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),
-            requests_fd=0,
             ti_context=ti_context,
             start_date=start_date,  # type: ignore
         )

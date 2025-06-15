@@ -28,16 +28,14 @@ import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import suppress
 from datetime import datetime, timezone
-from io import FileIO
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Generic, Literal, TextIO, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
-import aiologic
 import attrs
 import lazy_object_proxy
 import structlog
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
+from pydantic import AwareDatetime, ConfigDict, Field, JsonValue
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -59,6 +57,7 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
+    CommsDecoder,
     DagRunStateResult,
     DeferTask,
     DRCount,
@@ -424,10 +423,9 @@ class RuntimeTaskInstance(TaskInstance):
 
         log.debug("Requesting first reschedule date from supervisor")
 
-        SUPERVISOR_COMMS.send_request(
-            log=log, msg=GetTaskRescheduleStartDate(ti_id=self.id, try_number=first_try_number)
+        response = SUPERVISOR_COMMS.send(
+            msg=GetTaskRescheduleStartDate(ti_id=self.id, try_number=first_try_number)
         )
-        response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, TaskRescheduleStartDate)
@@ -445,22 +443,17 @@ class RuntimeTaskInstance(TaskInstance):
         states: list[str] | None = None,
     ) -> int:
         """Return the number of task instances matching the given criteria."""
-        log = structlog.get_logger(logger_name="task")
-
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetTICount(
-                    dag_id=dag_id,
-                    map_index=map_index,
-                    task_ids=task_ids,
-                    task_group_id=task_group_id,
-                    logical_dates=logical_dates,
-                    run_ids=run_ids,
-                    states=states,
-                ),
-            )
-            response = SUPERVISOR_COMMS.get_message()
+        response = SUPERVISOR_COMMS.send(
+            GetTICount(
+                dag_id=dag_id,
+                map_index=map_index,
+                task_ids=task_ids,
+                task_group_id=task_group_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+                states=states,
+            ),
+        )
 
         if TYPE_CHECKING:
             assert isinstance(response, TICount)
@@ -477,21 +470,16 @@ class RuntimeTaskInstance(TaskInstance):
         run_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         """Return the task states matching the given criteria."""
-        log = structlog.get_logger(logger_name="task")
-
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetTaskStates(
-                    dag_id=dag_id,
-                    map_index=map_index,
-                    task_ids=task_ids,
-                    task_group_id=task_group_id,
-                    logical_dates=logical_dates,
-                    run_ids=run_ids,
-                ),
-            )
-            response = SUPERVISOR_COMMS.get_message()
+        response = SUPERVISOR_COMMS.send(
+            GetTaskStates(
+                dag_id=dag_id,
+                map_index=map_index,
+                task_ids=task_ids,
+                task_group_id=task_group_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+            ),
+        )
 
         if TYPE_CHECKING:
             assert isinstance(response, TaskStatesResult)
@@ -506,19 +494,14 @@ class RuntimeTaskInstance(TaskInstance):
         states: list[str] | None = None,
     ) -> int:
         """Return the number of DAG runs matching the given criteria."""
-        log = structlog.get_logger(logger_name="task")
-
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetDRCount(
-                    dag_id=dag_id,
-                    logical_dates=logical_dates,
-                    run_ids=run_ids,
-                    states=states,
-                ),
-            )
-            response = SUPERVISOR_COMMS.get_message()
+        response = SUPERVISOR_COMMS.send(
+            GetDRCount(
+                dag_id=dag_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+                states=states,
+            ),
+        )
 
         if TYPE_CHECKING:
             assert isinstance(response, DRCount)
@@ -528,10 +511,7 @@ class RuntimeTaskInstance(TaskInstance):
     @staticmethod
     def get_dagrun_state(dag_id: str, run_id: str) -> str:
         """Return the state of the DAG run with the given Run ID."""
-        log = structlog.get_logger(logger_name="task")
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
-            response = SUPERVISOR_COMMS.get_message()
+        response = SUPERVISOR_COMMS.send(msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
 
         if TYPE_CHECKING:
             assert isinstance(response, DagRunStateResult)
@@ -650,62 +630,6 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     )
 
 
-SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
-ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
-
-
-@attrs.define()
-class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
-    """Handle communication between the task in this process and the supervisor parent process."""
-
-    input: TextIO
-
-    request_socket: FileIO = attrs.field(init=False, default=None)
-
-    # We could be "clever" here and set the default to this based type parameters and a custom
-    # `__class_getitem__`, but that's a lot of code the one subclass we've got currently. So we'll just use a
-    # "sort of wrong default"
-    decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
-
-    lock: aiologic.Lock = attrs.field(factory=aiologic.Lock, repr=False)
-
-    def get_message(self) -> ReceiveMsgType:
-        """
-        Get a message from the parent.
-
-        This will block until the message has been received.
-        """
-        line = None
-
-        # TODO: Investigate why some empty lines are sent to the processes stdin.
-        #   That was highlighted when working on https://github.com/apache/airflow/issues/48183
-        #   and is maybe related to deferred/triggerer only context.
-        while not line:
-            line = self.input.readline()
-
-        try:
-            msg = self.decoder.validate_json(line)
-        except Exception:
-            structlog.get_logger(logger_name="CommsDecoder").exception("Unable to decode message", line=line)
-            raise
-
-        if isinstance(msg, StartupDetails):
-            # If we read a startup message, pull out the FDs we care about!
-            if msg.requests_fd > 0:
-                self.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
-        elif isinstance(msg, ErrorResponse) and msg.error == ErrorType.API_SERVER_ERROR:
-            structlog.get_logger(logger_name="task").error("Error response from the API Server")
-            raise AirflowRuntimeError(error=msg)
-
-        return msg
-
-    def send_request(self, log: Logger, msg: SendMsgType):
-        encoded_msg = msg.model_dump_json().encode() + b"\n"
-
-        log.debug("Sending request", json=encoded_msg)
-        self.request_socket.write(encoded_msg)
-
-
 # This global variable will be used by Connection/Variable/XCom classes, or other parts of the task's execution,
 # to send requests back to the supervisor process.
 #
@@ -725,31 +649,33 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
-    msg = SUPERVISOR_COMMS.get_message()
+    # The parent sends us a StartupDetails message un-prompted. After this, ever single message is only sent
+    # in response to us sending a request.
+    msg = SUPERVISOR_COMMS._get_response()
+
+    if not isinstance(msg, StartupDetails):
+        raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
 
     log = structlog.get_logger(logger_name="task")
+
+    # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
+    os_type = sys.platform
+    if os_type == "darwin":
+        log.debug("Mac OS detected, skipping setproctitle")
+    else:
+        from setproctitle import setproctitle
+
+        setproctitle(f"airflow worker -- {msg.ti.id}")
 
     try:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
 
-    if isinstance(msg, StartupDetails):
-        # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
-        os_type = sys.platform
-        if os_type == "darwin":
-            log.debug("Mac OS detected, skipping setproctitle")
-        else:
-            from setproctitle import setproctitle
-
-            setproctitle(f"airflow worker -- {msg.ti.id}")
-
-        with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
-            ti = parse(msg, log)
-            ti.log_url = get_log_url_from_ti(ti)
-        log.debug("DAG file parsed", file=msg.dag_rel_path)
-    else:
-        raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+    with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
+        ti = parse(msg, log)
+        ti.log_url = get_log_url_from_ti(ti)
+    log.debug("DAG file parsed", file=msg.dag_rel_path)
 
     return ti, ti.get_template_context(), log
 
@@ -797,7 +723,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
     if rendered_fields := _serialize_rendered_fields(ti.task):
         # so that we do not call the API unnecessarily
-        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
+        SUPERVISOR_COMMS.send(msg=SetRenderedFields(rendered_fields=rendered_fields))
 
     _validate_task_inlets_and_outlets(ti=ti, log=log)
 
@@ -817,8 +743,7 @@ def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -
     if not ti.task.inlets and not ti.task.outlets:
         return
 
-    SUPERVISOR_COMMS.send_request(msg=ValidateInletsAndOutlets(ti_id=ti.id), log=log)
-    inactive_assets_resp = SUPERVISOR_COMMS.get_message()
+    inactive_assets_resp = SUPERVISOR_COMMS.send(msg=ValidateInletsAndOutlets(ti_id=ti.id))
     if TYPE_CHECKING:
         assert isinstance(inactive_assets_resp, InactiveAssetsResult)
     if inactive_assets := inactive_assets_resp.inactive_assets:
@@ -914,7 +839,7 @@ def run(
     except DownstreamTasksSkipped as skip:
         log.info("Skipping downstream tasks.")
         tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
-        SUPERVISOR_COMMS.send_request(log=log, msg=SkipDownstreamTasks(tasks=tasks_to_skip))
+        SUPERVISOR_COMMS.send(msg=SkipDownstreamTasks(tasks=tasks_to_skip))
         msg, state = _handle_current_task_success(context, ti)
     except DagRunTriggerException as drte:
         msg, state = _handle_trigger_dag_run(drte, context, ti, log)
@@ -976,7 +901,7 @@ def run(
         error = e
     finally:
         if msg:
-            SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+            SUPERVISOR_COMMS.send(msg=msg)
 
     # Return the message to make unit tests easier too
     ti.state = state
@@ -1014,9 +939,8 @@ def _handle_trigger_dag_run(
 ) -> tuple[ToSupervisor, TaskInstanceState]:
     """Handle exception from TriggerDagRunOperator."""
     log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
-    SUPERVISOR_COMMS.send_request(
-        log=log,
-        msg=TriggerDagRun(
+    comms_msg = SUPERVISOR_COMMS.send(
+        TriggerDagRun(
             dag_id=drte.trigger_dag_id,
             run_id=drte.dag_run_id,
             logical_date=drte.logical_date,
@@ -1025,7 +949,6 @@ def _handle_trigger_dag_run(
         ),
     )
 
-    comms_msg = SUPERVISOR_COMMS.get_message()
     if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
         if drte.skip_when_already_exists:
             log.info(
@@ -1080,10 +1003,9 @@ def _handle_trigger_dag_run(
             )
             time.sleep(drte.poke_interval)
 
-            SUPERVISOR_COMMS.send_request(
-                log=log, msg=GetDagRunState(dag_id=drte.trigger_dag_id, run_id=drte.dag_run_id)
+            comms_msg = SUPERVISOR_COMMS.send(
+                GetDagRunState(dag_id=drte.trigger_dag_id, run_id=drte.dag_run_id)
             )
-            comms_msg = SUPERVISOR_COMMS.get_message()
             if TYPE_CHECKING:
                 assert isinstance(comms_msg, DagRunStateResult)
             if comms_msg.state in drte.failed_states:
@@ -1272,10 +1194,7 @@ def finalize(
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
         if ti.task.template_fields:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)),
-            )
+            SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
@@ -1316,9 +1235,11 @@ def finalize(
 
 
 def main():
-    # TODO: add an exception here, it causes an oof of a stack trace!
+    # TODO: add an exception here, it causes an oof of a stack trace if it happens to early!
+    log = structlog.get_logger(logger_name="task")
+
     global SUPERVISOR_COMMS
-    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
+    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
     try:
         ti, context, log = startup()
@@ -1329,11 +1250,9 @@ def main():
             state, msg, error = run(ti, context, log)
             finalize(ti, state, context, log, error)
     except KeyboardInterrupt:
-        log = structlog.get_logger(logger_name="task")
         log.exception("Ctrl-c hit")
         exit(2)
     except Exception:
-        log = structlog.get_logger(logger_name="task")
         log.exception("Top level error")
         exit(1)
     finally:
