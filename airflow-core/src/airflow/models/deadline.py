@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
@@ -143,7 +143,7 @@ class ReferenceModels:
         def reference_name(cls: Any) -> str:
             return cls.__name__
 
-        def evaluate_with(self, **kwargs: Any) -> datetime:
+        def evaluate_with(self, interval: timedelta, **kwargs: Any) -> datetime:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
@@ -155,7 +155,7 @@ class ReferenceModels:
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
                 self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
 
-            return self._evaluate_with(**filtered_kwargs)
+            return self._evaluate_with(**filtered_kwargs) + interval
 
         @abstractmethod
         def _evaluate_with(self, **kwargs: Any) -> datetime:
@@ -220,8 +220,11 @@ class ReferenceModels:
 
         required_kwargs = {"dag_id"}
 
-        def _evaluate_with(self, **kwargs: Any) -> datetime:
+        @provide_session
+        def _evaluate_with(self, session=NEW_SESSION, **kwargs: Any) -> datetime:
             from airflow.models import DagRun
+
+            session.flush()
 
             return _fetch_from_db(DagRun.queued_at, **kwargs)
 

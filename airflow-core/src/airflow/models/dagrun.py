@@ -67,9 +67,10 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import Log
+from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
+from airflow.models.deadline import ReferenceModels
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
@@ -424,6 +425,22 @@ class DagRun(Base, LoggingMixin):
     def get_state(self):
         return self._state
 
+    def _set_dagrun_queued_deadline(self):
+        if (
+            self.dag_model
+            and (deadline := self.dag_model.deadline)
+            and isinstance(deadline.reference, ReferenceModels.DagRunQueuedAtDeadline)
+        ):
+            Deadline.add_deadline(
+                Deadline(
+                    deadline=deadline.reference.evaluate_with(interval=deadline.interval, dag_id=self.dag_id),
+                    callback=deadline.callback,
+                    callback_kwargs=deadline.callback_kwargs or {},
+                    dag_id=self.dag_id,
+                    dagrun_id=self.id,
+                )
+            )
+
     def set_state(self, state: DagRunState) -> None:
         """
         Change the state of the DagRan.
@@ -497,6 +514,9 @@ class DagRun(Base, LoggingMixin):
         else:
             if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
+
+        if self._state == DagRunState.QUEUED:
+            self._set_dagrun_queued_deadline()
 
     @declared_attr
     def state(self):
