@@ -62,7 +62,18 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
 
-    def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
+    def __init__(
+        self,
+        local_executor: LocalExecutor | None = None,
+        kubernetes_executor: KubernetesExecutor | None = None,
+    ):
+        if AIRFLOW_V_3_0_PLUS or not local_executor or not kubernetes_executor:
+            raise RuntimeError(
+                f"{self.__class__.__name__} does not support Airflow 3.0+. See "
+                "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently"
+                " how to use multiple executors concurrently."
+            )
+
         super().__init__()
         self._job_id: int | str | None = None
         self.local_executor = local_executor
@@ -120,13 +131,6 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     def start(self) -> None:
         """Start local and kubernetes executor."""
-        if AIRFLOW_V_3_0_PLUS:
-            raise RuntimeError(
-                f"{self.__class__.__name__} does not support Airflow 3.0+. See "
-                "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently"
-                " how to use multiple executors concurrently."
-            )
-
         self.log.info("Starting local and Kubernetes Executor")
         self.local_executor.start()
         self.kubernetes_executor.start()
