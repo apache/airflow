@@ -258,6 +258,7 @@ def test_convert_pip_requirements_to_table(requirements: Iterable[str], markdown
 
 def test_validate_provider_info_with_schema():
     for provider in get_available_distributions():
+        print("Validating provider:", provider)
         validate_provider_info_with_runtime_schema(get_provider_info_dict(provider))
 
 
