@@ -75,17 +75,26 @@ class TestMessageQueueTrigger:
                 conn_id="kafka_multi_bootstraps",
                 conn_type="kafka",
                 extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9091,localhost:9092,localhost:9093", "group.id": "test_groups"}
+                    {
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "localhost:9091,localhost:9092,localhost:9093",
+                        "group.id": "test_groups",
+                    }
                 ),
             )
         )
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")
     @pytest.mark.parametrize(
         "kafka_config_id, topics, expected_uri",
         [
             ("kafka_d", ["test"], "kafka://localhost:9092/test"),
             ("kafka_d", ["test1", "test2"], "kafka://localhost:9092/test1,test2"),
-            ("kafka_multi_bootstraps", ["test1", "test2", "test3"], "kafka://localhost:9091,localhost:9092,localhost:9093/test1,test2,test3"),
+            (
+                "kafka_multi_bootstraps",
+                ["test1", "test2", "test3"],
+                "kafka://localhost:9091,localhost:9092,localhost:9093/test1,test2,test3",
+            ),
         ],
     )
     def test_queue_uri(self, kafka_config_id, topics, expected_uri):
@@ -122,7 +131,7 @@ class TestMessageQueueTrigger:
 
         classpath, kwargs = trigger.serialize()
 
-        assert classpath == "airflow.providers.apache.kafka.triggers.msg_queue.KafkaMessageQueueTrigger"
+        assert classpath == "airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger"
         assert kwargs == dict(
             kafka_config_id="kafka_d",
             apply_function="test.noop",
@@ -151,7 +160,6 @@ class TestMessageQueueTrigger:
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(1.0)
         assert task.done() is True
-        asyncio.get_event_loop().stop()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")
     @pytest.mark.asyncio
@@ -169,4 +177,3 @@ class TestMessageQueueTrigger:
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(1.0)
         assert task.done() is False
-        asyncio.get_event_loop().stop()

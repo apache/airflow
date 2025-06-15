@@ -37,9 +37,9 @@ trigger = MessageQueueTrigger(
 )
 
 # Define an asset that watches for messages on the queue
-asset = Asset("kafka_queue_asset", watchers=[AssetWatcher(name="kafka_watcher", trigger=trigger)])
+asset = Asset("kafka_queue_asset_2", watchers=[AssetWatcher(name="kafka_watcher_2", trigger=trigger)])
 
-with DAG(dag_id="example_kafka_watcher", schedule=[asset]) as dag:
+with DAG(dag_id="example_kafka_watcher_2", schedule=[asset]) as dag:
     EmptyOperator(task_id="task")
 # [END howto_trigger_message_queue]
 
