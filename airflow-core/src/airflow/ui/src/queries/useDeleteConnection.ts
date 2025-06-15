@@ -17,20 +17,24 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { useConnectionServiceDeleteConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
-const onError = () => {
-  toaster.create({
-    description: "Delete connection request failed.",
-    title: "Failed to delete the connection",
-    type: "error",
-  });
-};
-
 export const useDeleteConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
+  const { t: translate } = useTranslation(["admin", "common"]);
+
+  const onError = (error: Error) => {
+    toaster.create({
+      description: error.message,
+      title: translate("common:toaster.delete.error", {
+        resourceName: translate("admin:connections.connection_one"),
+      }),
+      type: "error",
+    });
+  };
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
@@ -38,8 +42,12 @@ export const useDeleteConnection = ({ onSuccessConfirm }: { onSuccessConfirm: ()
     });
 
     toaster.create({
-      description: "The connection deletion request was successful.",
-      title: "Connection Deleted Successfully",
+      description: translate("common:toaster.delete.success.description", {
+        resourceName: translate("admin:connections.connection_one"),
+      }),
+      title: translate("common:toaster.delete.success.title", {
+        resourceName: translate("admin:connections.connection_one"),
+      }),
       type: "success",
     });
 

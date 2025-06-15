@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-influxdb"
-version = "2.9.0"
+version = "2.9.1"
 description = "Provider package apache-airflow-providers-influxdb for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -59,7 +59,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.10.0",
     "influxdb-client>=1.19.0",
-    "requests>=2.31.0,<3",
+    "requests>=2.32.0,<3",
 ]
 
 [dependency-groups]
@@ -96,8 +96,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.9.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.9.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.9.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.9.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

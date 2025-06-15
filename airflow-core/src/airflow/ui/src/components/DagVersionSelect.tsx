@@ -91,7 +91,9 @@ export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: bo
         <Select.Content>
           {versionOptions.items.map((option) => (
             <Select.Item item={option} key={option.version.version_number}>
-              <Text>v{option.version.version_number}</Text>
+              <Text>
+                {translate("versionSelect.versionCode", { versionCode: option.version.version_number })}
+              </Text>
               <Time datetime={option.version.created_at} />
             </Select.Item>
           ))}

@@ -34,6 +34,11 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 3.0.3
+~~~~~~~~~~~~~
+
+  * The ``git`` binary was added to the image by default which is needed for the git provider to work.
+
 Airflow 3.0.1
 ~~~~~~~~~~~~~
 

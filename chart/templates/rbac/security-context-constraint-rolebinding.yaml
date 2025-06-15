@@ -90,4 +90,9 @@ subjects:
     name: {{ include "cleanup.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
+  {{- if .Values.dagProcessor.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "dagProcessor.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
 {{- end }}

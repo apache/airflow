@@ -17,11 +17,13 @@
  * under the License.
  */
 import { Box, Button, Heading, HStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 export const ExtraLinks = () => {
+  const { t: translate } = useTranslation();
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const { data } = useTaskInstanceServiceGetExtraLinks({
@@ -33,7 +35,7 @@ export const ExtraLinks = () => {
 
   return data && Object.keys(data.extra_links).length > 0 ? (
     <Box py={1}>
-      <Heading size="sm">Extra Links</Heading>
+      <Heading size="sm">{translate("dag.extraLinks")}</Heading>
       <HStack gap={2} py={2}>
         {Object.entries(data.extra_links).map(([key, value], _) =>
           value === null ? undefined : (

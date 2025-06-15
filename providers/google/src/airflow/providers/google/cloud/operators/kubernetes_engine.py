@@ -57,7 +57,6 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
     GKEOperationTrigger,
     GKEStartPodTrigger,
 )
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.timezone import utcnow
@@ -222,7 +221,6 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param name: (Deprecated) The name of the resource to delete, in this case cluster name
     :param api_version: The api version to use
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Interval size which defines how often operation status is checked.
@@ -241,7 +239,6 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         cluster_name: str | None = None,
-        name: str | None = None,
         api_version: str = "v2",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
@@ -251,35 +248,16 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         super().__init__(*args, **kwargs)
 
         self.location = location
-        self.cluster_name = cluster_name or name
+        self.cluster_name = cluster_name
         self.use_internal_ip = use_internal_ip
         self.use_dns_endpoint = use_dns_endpoint
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self._name = name
         self.api_version = api_version
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self._check_input()
-
-    @property
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        use_instead="cluster_name",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def name(self) -> str | None:
-        return self._name
-
-    @name.setter
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        use_instead="cluster_name",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def name(self, name: str) -> None:
-        self._name = name
 
     def _check_input(self) -> None:
         if not all([self.project_id, self.cluster_name, self.location]):
@@ -622,16 +600,10 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param regional: (Deprecated) The location param is region name.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
         Current default is `keep_pod`, but this will be changed in the next major release of this provider.
-    :param is_delete_operator_pod: (Deprecated) What to do when the pod reaches its final
-        state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod. Current default is False, but this will be
-        changed in the next major release of this provider.
-        Deprecated - use `on_finish_action` instead.
     :param deferrable: Run operator in the deferrable mode.
     """
 
@@ -651,30 +623,15 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        regional: bool | None = None,
         on_finish_action: str | None = None,
-        is_delete_operator_pod: bool | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         *args,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod is not None:
-            kwargs["on_finish_action"] = (
-                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
-            )
-        elif on_finish_action is not None:
+        if on_finish_action is not None:
             kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
         else:
-            warnings.warn(
-                f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
-                "Currently the default for this parameter is `keep_pod` but in a future release"
-                " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
-                " the future you will need to set `on_finish_action=keep_pod` explicitly.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            kwargs["on_finish_action"] = OnFinishAction.KEEP_POD
-
+            kwargs["on_finish_action"] = OnFinishAction.DELETE_POD
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.location = location
@@ -683,51 +640,12 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         self.use_internal_ip = use_internal_ip
         self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
-        self._regional = regional
-        if is_delete_operator_pod is not None:
-            self.is_delete_operator_pod = is_delete_operator_pod
         self.deferrable = deferrable
 
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
-
-    @property
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        use_instead="on_finish_action",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def is_delete_operator_pod(self) -> bool | None:
-        return self._is_delete_operator_pod
-
-    @is_delete_operator_pod.setter
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        use_instead="on_finish_action",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def is_delete_operator_pod(self, is_delete_operator_pod) -> None:
-        self._is_delete_operator_pod = is_delete_operator_pod
-
-    @property
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        reason="The parameter is not in actual use.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def regional(self) -> bool | None:
-        return self._regional
-
-    @regional.setter
-    @deprecated(
-        planned_removal_date="May 01, 2025",
-        reason="The parameter is not in actual use.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def regional(self, regional) -> None:
-        self._regional = regional
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None):
         """Redefine triggers which are being used in child classes."""

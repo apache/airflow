@@ -752,4 +752,4 @@ you to start a Kueue job in a Kubernetes cluster
 For further information, look at:
 
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
-* `Rub a Kubernetes job in Kueue <https://kueue.sigs.k8s.io/docs/tasks/run/jobs/>`__
+* `Run a Kubernetes job in Kueue <https://kueue.sigs.k8s.io/docs/tasks/run/jobs/>`__

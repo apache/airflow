@@ -17,7 +17,9 @@
  * under the License.
  */
 import { Box, Center, HStack, Spinner } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 import { LuFileUp } from "react-icons/lu";
 
@@ -33,25 +35,26 @@ type ImportVariablesFormProps = {
   readonly onClose: () => void;
 };
 
-const actionIfExistsOptions = [
+const actionIfExistsOptions = (translate: TFunction) => [
   {
-    description: "Fails the import if any existing variables are detected.",
-    title: "Fail",
+    description: translate("variables.import.options.fail.description"),
+    title: translate("variables.import.options.fail.title"),
     value: "fail",
   },
   {
-    description: "Overwrites the variable in case of a conflict.",
-    title: "Overwrite",
+    description: translate("variables.import.options.overwrite.description"),
+    title: translate("variables.import.options.overwrite.title"),
     value: "overwrite",
   },
   {
-    description: "Skips importing variables that already exist.",
-    title: "Skip",
+    description: translate("variables.import.options.skip.description"),
+    title: translate("variables.import.options.skip.title"),
     value: "skip",
   },
 ];
 
 const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
+  const { t: translate } = useTranslation("admin");
   const { error, isPending, mutate, setError } = useImportVariables({
     onSuccessConfirm: onClose,
   });
@@ -73,8 +76,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
       } catch {
         setError({
           body: {
-            detail:
-              'Error Parsing JSON File: Upload a JSON file containing variables (e.g., {"key": "value", ...}).',
+            detail: translate("variables.import.errorParsingJsonFile"),
           },
         });
         setFileContent(undefined);
@@ -125,7 +127,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         required
       >
         <FileUpload.Label fontSize="md" mb={3}>
-          Upload a JSON File{" "}
+          {translate("variables.import.upload")}
         </FileUpload.Label>
         <InputGroup
           endElement={
@@ -148,7 +150,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
           startElement={<LuFileUp />}
           w="full"
         >
-          <FileInput placeholder='Upload a JSON file containing variables (e.g., {"key": "value", ...})' />
+          <FileInput placeholder={translate("variables.import.uploadPlaceholder")} />
         </InputGroup>
         {isParsing ? (
           <Center mt={2}>
@@ -166,10 +168,10 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         }}
       >
         <RadioCardLabel fontSize="md" mb={3}>
-          Select Variable Conflict Resolution
+          {translate("variables.import.conflictResolution")}
         </RadioCardLabel>
         <HStack align="stretch">
-          {actionIfExistsOptions.map((item) => (
+          {actionIfExistsOptions(translate).map((item) => (
             <RadioCardItem
               description={item.description}
               key={item.value}
@@ -189,7 +191,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
           </Box>
         ) : undefined}
         <Button colorPalette="blue" disabled={!Boolean(fileContent) || isPending} onClick={onSubmit}>
-          <FiUploadCloud /> Import
+          <FiUploadCloud /> {translate("variables.import.button")}
         </Button>
       </Box>
     </>

@@ -59,7 +59,7 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
                   <Table.ColumnHeader colSpan={colSpan} key={id} whiteSpace="nowrap">
                     {isPlaceholder ? undefined : (
                       <Button
-                        aria-label="sort"
+                        aria-label={translate("sort")}
                         disabled={!canSort}
                         onClick={column.getToggleSortingHandler()}
                         variant="plain"

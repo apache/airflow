@@ -306,7 +306,7 @@ class TestPostConnection(TestConnectionEndpoint):
         assert response.status_code == 409
         response_json = response.json()
         assert "detail" in response_json
-        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
+        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(

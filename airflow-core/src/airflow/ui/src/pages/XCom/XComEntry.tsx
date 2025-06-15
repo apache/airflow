@@ -35,12 +35,16 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
   const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
+    deserialize: true,
     mapIndex,
     stringify: false,
     taskId,
     xcomKey,
   });
-  const valueFormatted = JSON.stringify(data?.value, undefined, 4);
+  // When deserialize=true, the API returns a stringified representation
+  // so we don't need to JSON.stringify it again
+  const valueFormatted =
+    typeof data?.value === "string" ? data.value : JSON.stringify(data?.value, undefined, 4);
 
   return isLoading ? (
     <Skeleton

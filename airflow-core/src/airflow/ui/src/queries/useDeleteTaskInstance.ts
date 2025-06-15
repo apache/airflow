@@ -45,12 +45,12 @@ export const useDeleteTaskInstance = ({
   taskId,
 }: DeleteTaskInstanceParams) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "dags"]);
 
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("dags:runAndTaskActions.delete.error", { type: "Task Instance" }),
+      title: translate("dags:runAndTaskActions.delete.error", { type: translate("taskInstance_one") }),
       type: "error",
     });
   };
@@ -67,8 +67,12 @@ export const useDeleteTaskInstance = ({
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      description: translate("dags:runAndTaskActions.delete.success.description", { type: "Task Instance" }),
-      title: translate("dags:runAndTaskActions.delete.success.title", { type: "Task Instance" }),
+      description: translate("dags:runAndTaskActions.delete.success.description", {
+        type: translate("taskInstance_one"),
+      }),
+      title: translate("dags:runAndTaskActions.delete.success.title", {
+        type: translate("taskInstance_one"),
+      }),
       type: "success",
     });
 

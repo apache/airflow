@@ -159,7 +159,7 @@ Here is the detailed set of options for the ``breeze testing providers-test`` co
 Using ``breeze testing task-sdk-tests`` command
 ...............................................
 
-The ``breeze testing task-sdk-tests`` command is  allows you to run tests for Task SDK without
+The ``breeze testing task-sdk-tests`` command allows you to run tests for Task SDK without
 initializing database. The Task SDK should not need database to be started so this acts as a
 good check to see if the Task SDK tests are working properly.
 

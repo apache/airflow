@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Text, Box, useDisclosure, Heading, Stack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { Dialog, Tooltip } from "src/components/ui";
 
@@ -44,6 +45,7 @@ export const TrimText = ({
   showTooltip = false,
   text,
 }: TrimTextProps) => {
+  const { t: translate } = useTranslation(["components"]);
   const safeText = text ?? "";
   const { isTrimmed, trimmedText } = trimText(safeText, charLimit);
 
@@ -70,7 +72,7 @@ export const TrimText = ({
       <Dialog.Root onOpenChange={onClose} open={isClickable ? open : undefined} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Details</Heading>
+            <Heading size="xl">{translate("trimText.details")}</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
@@ -100,14 +102,14 @@ export const TrimText = ({
                           color={isEmpty ? "gray.emphasized" : undefined}
                           fontWeight={isEmpty ? "bold" : "normal"}
                         >
-                          {isEmpty ? "Empty" : String(value)}
+                          {isEmpty ? translate("trimText.empty") : String(value)}
                         </Text>
                       </Box>
                     </Box>
                   );
                 })
               ) : (
-                <Text>No content available.</Text>
+                <Text>{translate("trimText.noContent")}</Text>
               )}
             </Stack>
           </Dialog.Body>

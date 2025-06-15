@@ -28,6 +28,12 @@ LocalKubernetes Executor
     or by installing Airflow with the ``cncf.kubernetes`` extras:
     ``pip install 'apache-airflow[cncf.kubernetes]'``.
 
+.. note::
+
+    ``LocalKubernetesExecutor`` is no longer supported starting from Airflow 3.0.0. You can use the
+    :ref:`Using Multiple Executors Concurrently <using-multiple-executors-concurrently>` feature instead,
+    which provides equivalent functionality in a more flexible manner.
+
 The :class:`~airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor.LocalKubernetesExecutor` allows users
 to simultaneously run a ``LocalExecutor`` and a ``KubernetesExecutor``.
 An executor is chosen to run a task based on the task's queue.

@@ -73,11 +73,22 @@ class EdgeExecutor(BaseExecutor):
         inspector = inspect(engine)
         edge_job_columns = None
         with contextlib.suppress(NoSuchTableError):
-            edge_job_columns = [column["name"] for column in inspector.get_columns("edge_job")]
+            edge_job_schema = inspector.get_columns("edge_job")
+            edge_job_columns = [column["name"] for column in edge_job_schema]
+            for column in edge_job_schema:
+                if column["name"] == "command":
+                    edge_job_command_len = column["type"].length
 
         # version 0.6.0rc1 added new column concurrency_slots
         if edge_job_columns and "concurrency_slots" not in edge_job_columns:
             EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
+
+        # version 1.1.0 the command column was changed to VARCHAR(2048)
+        elif edge_job_command_len and edge_job_command_len != 2048:
+            with Session(engine) as session:
+                query = "ALTER TABLE edge_job ALTER COLUMN command TYPE VARCHAR(2048);"
+                session.execute(text(query))
+                session.commit()
 
         edge_worker_columns = None
         with contextlib.suppress(NoSuchTableError):

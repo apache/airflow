@@ -22,6 +22,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLIENT_ID_KEY,
+    CONF_CLIENT_SECRET_KEY,
+    CONF_REALM_KEY,
+    CONF_SECTION_NAME,
+)
 
 from tests_common.test_utils.config import conf_vars
 
@@ -34,10 +40,10 @@ def client():
                 "core",
                 "auth_manager",
             ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
-            ("keycloak_auth_manager", "client_id"): "test",
-            ("keycloak_auth_manager", "client_secret"): "test",
-            ("keycloak_auth_manager", "realm"): "test",
-            ("keycloak_auth_manager", "base_url"): "http://host.docker.internal:48080",
+            (CONF_SECTION_NAME, CONF_CLIENT_ID_KEY): "test",
+            (CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY): "test",
+            (CONF_SECTION_NAME, CONF_REALM_KEY): "test",
+            (CONF_SECTION_NAME, "base_url"): "http://host.docker.internal:48080",
         }
     ):
         yield TestClient(create_app())

@@ -64,10 +64,10 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: P
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
         <Menu.Trigger asChild>
           <ActionButton
-            actionName={translate("dags:runAndTaskActions.markAs.button", { type: "Run" })}
+            actionName={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
             flexDirection="row-reverse"
             icon={<MdArrowDropDown />}
-            text={translate("dags:runAndTaskActions.markAs.button", { type: "Run" })}
+            text={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
             withText={withText}
           />
         </Menu.Trigger>

@@ -105,7 +105,8 @@ export const Code = () => {
             // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
             dagVersion !== undefined && dagVersion.bundle_version !== null ? (
               <Heading as="h4" fontSize="14px" size="md" wordBreak="break-word">
-                {translate("code.bundleVersion")}{" "}
+                {translate("dagDetails.bundleVersion")}
+                {": "}
                 {dagVersion.bundle_url === null ? (
                   dagVersion.bundle_version
                 ) : (

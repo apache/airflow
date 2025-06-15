@@ -318,7 +318,7 @@ def _render_openlineage_supported_classes_content():
                 db_type = (  # Extract db type from hook name
                     class_name.replace("RedshiftSQL", "Redshift")  # for RedshiftSQLHook
                     .replace("DatabricksSql", "Databricks")  # for DatabricksSqlHook
-                    .replace("SnowflakeSqlApi", "Snowflake")  # for SnowflakeSqlApiHook
+                    .replace("SnowflakeSqlApi", "SnowflakeApi")  # for SnowflakeSqlApiHook
                     .replace("Hook", "")  # for others like MySqlHook, TrinoHook etc.
                 )
                 db_hooks.append((db_type, class_path))
@@ -348,7 +348,7 @@ def _render_openlineage_supported_classes_content():
         # Below filters out providers with empty 'operators' and 'hooks'
         if details["hooks"] or details["operators"]
     }
-    db_hooks = sorted({db_type: hook for db_type, hook in db_hooks}.items(), key=lambda x: x[0])
+    db_hooks = sorted({hook: db_type for db_type, hook in db_hooks}.items(), key=lambda x: x[1])
 
     return _render_template(
         "openlineage.rst.jinja2",

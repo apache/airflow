@@ -18,12 +18,14 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
+import EditableMarkdownArea from "src/components/EditableMarkdownArea";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
@@ -38,20 +40,25 @@ export const Header = ({
   readonly isRefreshing?: boolean;
   readonly taskInstance: TaskInstanceResponse;
 }) => {
+  const { t: translate } = useTranslation();
   const containerRef = useRef<HTMLDivElement>();
   const containerWidth = useContainerWidth(containerRef);
 
   const stats = [
-    { label: "Operator", value: taskInstance.operator },
-    ...(taskInstance.map_index > -1 ? [{ label: "Map Index", value: taskInstance.rendered_map_index }] : []),
-    ...(taskInstance.try_number > 1 ? [{ label: "Try Number", value: taskInstance.try_number }] : []),
-    { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
-    { label: "End", value: <Time datetime={taskInstance.end_date} /> },
+    { label: translate("task.operator"), value: taskInstance.operator },
+    ...(taskInstance.map_index > -1
+      ? [{ label: translate("mapIndex"), value: taskInstance.rendered_map_index }]
+      : []),
+    ...(taskInstance.try_number > 1
+      ? [{ label: translate("tryNumber"), value: taskInstance.try_number }]
+      : []),
+    { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
+    { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
-      ? [{ label: "Duration", value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
+      ? [{ label: translate("duration"), value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
       : []),
     {
-      label: "DAG Version",
+      label: translate("taskInstance.dagVersion"),
       value: <DagVersion version={taskInstance.dag_version} />,
     },
   ];
@@ -87,17 +94,19 @@ export const Header = ({
       <HeaderCard
         actions={
           <>
-            <EditableMarkdownButton
-              header="Task Instance Note"
-              icon={<FiMessageSquare />}
-              isPending={isPending}
-              mdContent={note}
-              onConfirm={onConfirm}
-              placeholder="Add a note..."
-              setMdContent={setNote}
-              text={Boolean(taskInstance.note) ? "Note" : "Add a note"}
-              withText={containerWidth > 700}
-            />
+            {!Boolean(taskInstance.note) && (
+              <EditableMarkdownButton
+                header={translate("note.taskInstance")}
+                icon={<FiMessageSquare />}
+                isPending={isPending}
+                mdContent={note}
+                onConfirm={onConfirm}
+                placeholder={translate("note.placeholder")}
+                setMdContent={setNote}
+                text={translate("note.add")}
+                withText={containerWidth > 700}
+              />
+            )}
             <ClearTaskInstanceButton
               isHotkeyEnabled
               taskInstance={taskInstance}
@@ -117,6 +126,9 @@ export const Header = ({
         subTitle={<Time datetime={taskInstance.start_date} />}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
+      {Boolean(taskInstance.note) && (
+        <EditableMarkdownArea mdContent={note} onBlur={onConfirm} setMdContent={setNote} />
+      )}
     </Box>
   );
 };

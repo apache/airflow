@@ -17,6 +17,35 @@
   },
   "dag_one": "Dag",
   "dag_other": "Dagi",
+  "dagDetails": {
+    "catchup": "Nadrabianie zaległości",
+    "concurrency": "Współbieżność",
+    "dagRunTimeout": "Limit czasu wykonania Daga",
+    "defaultArgs": "Domyślne argumenty",
+    "description": "Opis",
+    "documentation": "Dokumentacja Daga",
+    "fileLocation": "Lokalizacja pliku",
+    "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
+    "lastExpired": "Ostatnio wygasły",
+    "lastParsed": "Ostatnia analiza",
+    "latestDagVersion": "Najnowsza wersja Daga",
+    "latestRun": "Ostatnie wykonanie",
+    "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
+    "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
+    "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
+    "nextRun": "Następne Wykonanie Daga",
+    "owner": "Właściciel",
+    "params": "Parametry",
+    "schedule": "Harmonogram",
+    "tags": "Etykiety"
+  },
+  "dagId": "Identyfikator Daga",
+  "dagRun": {
+    "conf": "Konfiguracja",
+    "dagVersions": "Wersje Daga",
+    "runAfter": "Wykonaj po",
+    "runType": "Typ wykonania"
+  },
   "dagRun_one": "Wykonanie Daga",
   "dagRun_other": "Wykonania Dagów",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
@@ -28,10 +57,7 @@
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
-  "duration": {
-    "label": "Czas trwania",
-    "seconds": "{{count}}s"
-  },
+  "duration": "Czas trwania",
   "endDate": "Data zakończenia",
   "expression": {
     "all": "Wszystkie",
@@ -62,7 +88,12 @@
     "security": "Bezpieczeństwo"
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
-  "operator": "Operator",
+  "note": {
+    "add": "Dodać notatkę",
+    "dagRun": "Notatki wykonania Daga",
+    "label": "Notatka",
+    "placeholder": "Dodaj notatkę..."
+  },
   "pools": {
     "deferred": "Odłożone",
     "open": "Otwarte",
@@ -79,6 +110,7 @@
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Akcje",
     "permissions": "Uprawnienia",
@@ -110,7 +142,6 @@
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
-    "duration": "Czas trwania",
     "filterByTag": "Filtruj Dagi według tagu",
     "filterColumns": "Filtruj kolumny tabeli",
     "filterReset_one": "Resetuj filtr",
@@ -126,12 +157,21 @@
     "tagPlaceholder": "Filtruj według etykiety",
     "to": "Do"
   },
+  "task": {
+    "lastInstance": "Ostatnia instancja",
+    "operator": "Operator",
+    "triggerRule": "Reguła wywołania"
+  },
   "task_one": "Zadanie",
   "task_other": "Zadania",
+  "taskId": "Identifikator Zadania",
+  "taskInstance": {
+    "dagVersion": "Wersja Daga",
+    "pool": "Pula"
+  },
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
   "timeRange": {
-    "duration": "Czas trwania",
     "last12Hours": "Ostatnie 12 godzin",
     "last24Hours": "Ostatnie 24 godziny",
     "lastHour": "Ostatnia godzina",
@@ -145,11 +185,10 @@
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
   "triggered": "Wywołany",
-  "triggerRule": "Reguła wywołania",
   "tryNumber": "Numer próby",
   "user": "Użytkownik",
   "wrap": {
-    "tooltip": "Wybierz w aby przełączyć zawijanie",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"
   }

@@ -332,6 +332,48 @@ class TestSnowflakeSqlApiOperator:
             operator.execute_complete(context=None, event=mock_event)
         mock_log_info.assert_called_with("%s completed successfully.", TASK_ID)
 
+    @pytest.mark.parametrize(
+        "mock_event",
+        [
+            None,
+            ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
+        ],
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    def test_snowflake_sql_api_execute_complete_reassigns_query_ids(self, mock_conn, mock_event):
+        """Tests execute_complete assert with successful message"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            deferrable=True,
+        )
+        expected_query_ids = mock_event["statement_query_ids"] if mock_event else []
+
+        assert operator.query_ids == []
+        assert operator._hook.query_ids == []
+
+        operator.execute_complete(context=None, event=mock_event)
+
+        assert operator.query_ids == expected_query_ids
+        assert operator._hook.query_ids == expected_query_ids
+
+    def test_snowflake_sql_api_caches_hook(self):
+        """Tests execute_complete assert with successful message"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            deferrable=True,
+        )
+        hook1 = operator._hook
+        hook2 = operator._hook
+        assert hook1 is hook2
+
     @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
     def test_snowflake_sql_api_execute_operator_failed_before_defer(
         self, mock_defer, mock_execute_query, mock_get_sql_api_query_status

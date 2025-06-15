@@ -17,19 +17,19 @@
  * under the License.
  */
 import { Box, Text, Button, useDisclosure, Skeleton } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceImportErrors } from "openapi/queries";
 import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
-import { pluralize } from "src/utils";
 
 import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 
 export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
-
+  const { t: translate } = useTranslation("admin");
   const { data, error, isLoading } = usePluginServiceImportErrors();
 
   const importErrorsCount = data?.total_entries ?? 0;
@@ -56,7 +56,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
           colorPalette="failed"
           height={7}
           onClick={onOpen}
-          title={pluralize("Plugin Import Error", importErrorsCount)}
+          title={translate("plugins.importError", { count: importErrorsCount })}
         >
           <LuPlug size="0.5rem" />
           {importErrorsCount}
@@ -75,7 +75,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
             {importErrorsCount}
           </StateBadge>
           <Box alignItems="center" display="flex" gap={1}>
-            <Text fontWeight="bold">Plugin Import Errors</Text>
+            <Text fontWeight="bold">{translate("plugins.importError", { count: importErrorsCount })}</Text>
             <FiChevronRight />
           </Box>
         </Button>

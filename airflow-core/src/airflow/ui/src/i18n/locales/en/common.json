@@ -7,6 +7,8 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "asset_one": "Asset",
+  "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
   "backfill_one": "Backfill",
@@ -15,8 +17,45 @@
     "auditLog": "Audit Log",
     "xcoms": "XComs"
   },
+  "createdAssetEvent_one": "Created Asset Event",
+  "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Catchup",
+    "concurrency": "Concurrency",
+    "dagRunTimeout": "Dag Run Timeout",
+    "defaultArgs": "Default Args",
+    "description": "Description",
+    "documentation": "Dag Documentation",
+    "fileLocation": "File Location",
+    "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
+    "lastExpired": "Last Expired",
+    "lastParsed": "Last Parsed",
+    "latestDagVersion": "Latest Dag Version",
+    "latestRun": "Latest Run",
+    "maxActiveRuns": "Max Active Runs",
+    "maxActiveTasks": "Max Active Tasks",
+    "maxConsecutiveFailedDagRuns": "Max Consecutive Failed Dag Runs",
+    "nextRun": "Next Run",
+    "owner": "Owner",
+    "params": "Params",
+    "schedule": "Schedule",
+    "tags": "Tags"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "Conf",
+    "dagVersions": "Dag Version(s)",
+    "dataIntervalEnd": "Data Interval End",
+    "dataIntervalStart": "Data Interval Start",
+    "lastSchedulingDecision": "Last Scheduling Decision",
+    "queuedAt": "Queued At",
+    "runAfter": "Run After",
+    "runType": "Run Type",
+    "sourceAssetEvent": "Source Asset Event",
+    "triggeredBy": "Triggered By"
+  },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "dagWarnings": "Dag warnings/errors",
@@ -28,11 +67,15 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
-  "duration": {
-    "label": "Duration",
-    "seconds": "{{count}}s"
-  },
+  "duration": "Duration",
   "endDate": "End Date",
+  "error": {
+    "back": "Back",
+    "defaultMessage": "An unexpected error occurred",
+    "home": "Home",
+    "notFound": "Page Not Found",
+    "title": "Error"
+  },
   "expression": {
     "all": "All",
     "and": "AND",
@@ -62,7 +105,13 @@
     "security": "Security"
   },
   "noItemsFound": "No {{modelName}} found",
-  "operator": "Operator",
+  "note": {
+    "add": "Add a note",
+    "dagRun": "Dag Run Note",
+    "label": "Note",
+    "placeholder": "Add a note...",
+    "taskInstance": "Task Instance Note"
+  },
   "pools": {
     "deferred": "Deferred",
     "open": "Open",
@@ -79,6 +128,7 @@
     "manual": "Manual",
     "scheduled": "Scheduled"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
@@ -87,6 +137,8 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "sourceAssetEvent_one": "Source Asset Event",
+  "sourceAssetEvent_other": "Source Asset Events",
   "startDate": "Start Date",
   "state": "State",
   "states": {
@@ -110,7 +162,6 @@
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
-    "duration": "Duration",
     "filterByTag": "Filter Dags by tag",
     "filterColumns": "Filter table columns",
     "filterReset_one": "Reset filter",
@@ -118,7 +169,6 @@
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
     "noTagsFound": "No tags found",
-    "reprocessBehavior": "Reprocess Behavior",
     "tagMode": {
       "all": "All",
       "any": "Any"
@@ -126,30 +176,95 @@
     "tagPlaceholder": "Filter by tag",
     "to": "To"
   },
+  "task": {
+    "documentation": "Task Documentation",
+    "lastInstance": "Last Instance",
+    "operator": "Operator",
+    "triggerRule": "Trigger Rule"
+  },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskId": "Task ID",
+  "taskInstance": {
+    "dagVersion": "Dag Version",
+    "executor": "Executor",
+    "executorConfig": "Executor Config",
+    "hostname": "Hostname",
+    "maxTries": "Max Tries",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Pool Slots",
+    "priorityWeight": "Priority Weight",
+    "queue": "Queue",
+    "queuedWhen": "Queued At",
+    "scheduledWhen": "Scheduled At",
+    "triggerer": {
+      "assigned": "Assigned triggerer",
+      "class": "Trigger class",
+      "createdAt": "Trigger creation time",
+      "id": "Trigger ID",
+      "latestHeartbeat": "Latest triggerer heartbeat",
+      "title": "Triggerer Info"
+    },
+    "unixname": "Unix Name"
+  },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
-    "duration": "Duration",
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
     "lastHour": "Last Hour",
     "pastWeek": "Past Week"
   },
-  "timezone": "timezone",
+  "timezone": "Timezone",
   "timezoneModal": {
     "current-timezone": "Current time in",
     "placeholder": "Select a timezone",
     "title": "Select Timezone",
     "utc": "UTC (Coordinated Universal Time)"
   },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Bulk Delete {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
+        "title": "Bulk Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "create": {
+      "error": "Create {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully created.",
+        "title": "Create {{resourceName}} Request Submitted"
+      }
+    },
+    "delete": {
+      "error": "Delete {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully deleted.",
+        "title": "Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "import": {
+      "error": "Import {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully imported.",
+        "title": "Import {{resourceName}} Request Submitted"
+      }
+    },
+    "update": {
+      "error": "Update {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{resourceName}} has been successfully updated.",
+        "title": "Update {{resourceName}} Request Submitted"
+      }
+    }
+  },
   "triggered": "Triggered",
-  "triggerRule": "Trigger Rule",
   "tryNumber": "Try Number",
   "user": "User",
   "wrap": {
-    "tooltip": "Press w to toggle wrap",
+    "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"
   }

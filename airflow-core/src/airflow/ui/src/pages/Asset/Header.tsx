@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -30,14 +31,16 @@ export const Header = ({
   readonly asset?: AssetResponse;
   readonly isRefreshing?: boolean;
 }) => {
+  const { t: translate } = useTranslation("assets");
+
   const stats = [
-    { label: "Group", value: asset?.group },
+    { label: translate("group"), value: asset?.group },
     {
-      label: "Producing Tasks",
+      label: translate("producingTasks"),
       value: <DependencyPopover dependencies={asset?.producing_tasks ?? []} type="Task" />,
     },
     {
-      label: "Consuming Dags",
+      label: translate("consumingDags"),
       value: <DependencyPopover dependencies={asset?.consuming_dags ?? []} type="Dag" />,
     },
   ];

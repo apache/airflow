@@ -4,62 +4,27 @@
     "delete": {
       "button": "Dag löschen",
       "warning": "Diese Aktion löscht alle Metadaten zu diesem Dag mit allen Läufen und Task Instanzen."
-    },
-    "trigger": {
-      "button": "Auslösen",
-      "triggerDag": "Dag auslösen"
     }
   },
   "filters": {
+    "allRunTypes": "Alle Arten von Läufen",
+    "allStates": "Alle Stati",
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
     }
   },
-  "list": {
-    "advancedSearch": "Erweiterte Suche",
-    "clearSearch": "Suche zurücksetzen",
-    "columns": {
-      "dagId": "Dag ID",
-      "lastDagRun": "Letzter Dag Lauf",
-      "nextDagRun": "Nächster Dag Lauf",
-      "schedule": "Zeitplan",
-      "tags": "Markierungen"
-    },
-    "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
-    "searchPlaceholder": "Dags suchen"
-  },
+  "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Keine Tasks gefunden.",
+      "title": "Betroffene Tasks: {{count}}"
+    },
     "clear": {
       "button": "{{type}} zurücksetzen",
       "buttonTooltip": "STRG+C zum Zurücksetzen tippen",
-      "dialog": {
-        "affectedTasks": {
-          "columns": {
-            "runId": "Lauf ID",
-            "state": "Status",
-            "taskId": "Task ID"
-          },
-          "noItemsFound": "Keine Tasks gefunden.",
-          "title": "Betroffene Tasks: {{count}}"
-        },
-        "confirm": "Bestätigen",
-        "note": {
-          "placeholder": "Eine Notiz hinzufügen...",
-          "title": "Notiz"
-        },
-        "options": {
-          "downstream": "Nachfolgende",
-          "existingTasks": "Bestehende Tasks bereinigen",
-          "future": "Zukünftige",
-          "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",
-          "past": "Vergangene",
-          "queueNew": "Neue Tasks einplanen",
-          "upstream": "Vorangegangene"
-        },
-        "title": "{{type}} bereinigen und neu planen"
-      }
+      "title": "{{type}} bereinigen und neu planen"
     },
     "delete": {
       "button": "{{type}} löschen",
@@ -80,32 +45,24 @@
         "failed": "STRG+F tippen um als fehlgeschlagen zu markieren",
         "success": "STRG+S tippen um als erfolgreich zu markieren"
       },
-      "dialog": {
-        "confirm": "Bestätigen",
-        "options": {
-          "downstream": "Nachfolgende",
-          "future": "Zukünftige",
-          "past": "Vergangene",
-          "upstream": "Vorangegangene"
-        },
-        "title": "{{type}} auf den Status {{state}} setzen"
-      }
+      "title": "{{type}} auf den Status {{state}} setzen"
+    },
+    "options": {
+      "downstream": "Nachfolgende",
+      "existingTasks": "Bestehende Tasks bereinigen",
+      "future": "Zukünftige",
+      "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",
+      "past": "Vergangene",
+      "queueNew": "Neue Tasks einplanen",
+      "upstream": "Vorangegangene"
     }
   },
-  "runs": {
-    "allRunTypes": "Alle Arten von Läufen",
-    "allStates": "Alle Stati",
-    "columns": {
-      "conf": "Dag Konfiguration",
-      "dagId": "Dag ID",
-      "dagVersions": "Dag Version",
-      "duration": "Laufzeit",
-      "endDate": "Enddatum",
-      "runAfter": "Gelaufen ab",
-      "runType": "Typ des Laufs",
-      "startDate": "Startdatum",
-      "state": "Status"
-    }
+  "search": {
+    "advanced": "Erweiterte Suche",
+    "clear": "Suche zurücksetzen",
+    "dags": "Dags suchen",
+    "hotkey": "+K",
+    "tasks": "Tasks suchen"
   },
   "sort": {
     "displayName": {
@@ -125,22 +82,5 @@
       "desc": "Sortiert nach nächstem Laufdatum (Letzter-Erster)"
     },
     "placeholder": "Sortieren nach"
-  },
-  "taskInstances": {
-    "allStates": "Alle Stati",
-    "columns": {
-      "dagId": "Dag ID",
-      "dagRun": "Dag Lauf",
-      "dagVersion": "Dag Version",
-      "duration": "Laufzeit",
-      "endDate": "Enddatum",
-      "operator": "Operator-Klasse",
-      "pool": "Pool",
-      "startDate": "Startdatum",
-      "state": "Status",
-      "taskId": "Task ID",
-      "tryNumber": "Versuch Nummer"
-    },
-    "searchPlaceholder": "Tasks suchen"
   }
 }

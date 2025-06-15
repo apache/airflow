@@ -1200,6 +1200,30 @@ class TestGCSHookUpload:
         upload_method.assert_called_once_with(testdata_string, content_type="text/plain", timeout=60)
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_upload_empty_filename(self, mock_service):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+
+        upload_method = mock_service.return_value.bucket.return_value.blob.return_value.upload_from_filename
+
+        self.gcs_hook.upload(test_bucket, test_object, filename="")
+
+        upload_method.assert_called_once_with(
+            filename="", content_type="application/octet-stream", timeout=60
+        )
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_upload_empty_data(self, mock_service):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+
+        upload_method = mock_service.return_value.bucket.return_value.blob.return_value.upload_from_string
+
+        self.gcs_hook.upload(test_bucket, test_object, data="")
+
+        upload_method.assert_called_once_with("", content_type="text/plain", timeout=60)
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_upload_data_bytes(self, mock_service, testdata_bytes):
         test_bucket = "test_bucket"
         test_object = "test_object"

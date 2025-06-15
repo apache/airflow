@@ -38,7 +38,7 @@ type Props = {
 };
 
 export const DagCard = ({ dag }: Props) => {
-  const { t: translate } = useTranslation(["dags", "common"]);
+  const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
 
   const refetchInterval = useAutoRefresh({ isPaused: dag.is_paused });
@@ -66,10 +66,10 @@ export const DagCard = ({ dag }: Props) => {
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>
-        <Stat label={translate("list.columns.schedule")}>
+        <Stat label={translate("dagDetails.schedule")}>
           <Schedule dag={dag} />
         </Stat>
-        <Stat label={translate("list.columns.lastDagRun")}>
+        <Stat label={translate("dagDetails.latestRun")}>
           {latestRun ? (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
@@ -85,7 +85,7 @@ export const DagCard = ({ dag }: Props) => {
             </Link>
           ) : undefined}
         </Stat>
-        <Stat label={translate("list.columns.nextDagRun")}>
+        <Stat label={translate("dagDetails.nextRun")}>
           {Boolean(dag.next_dagrun_run_after) ? (
             <DagRunInfo
               logicalDate={dag.next_dagrun_logical_date}

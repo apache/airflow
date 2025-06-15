@@ -47,11 +47,13 @@ const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskI
   return (
     <>
       <ActionButton
-        actionName={translate("dags:runAndTaskActions.delete.button", { type: "Task Instance" })}
+        actionName={translate("dags:runAndTaskActions.delete.button", {
+          type: translate("taskInstance_one"),
+        })}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text={translate("dags:runAndTaskActions.delete.button", { type: "Task Instance" })}
+        text={translate("dags:runAndTaskActions.delete.button", { type: translate("taskInstance_one") })}
         variant="solid"
         withText={withText}
       />
@@ -70,10 +72,14 @@ const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskI
         open={open}
         resourceName={translate("dags:runAndTaskActions.delete.dialog.resourceName", {
           id: taskInstance.task_id,
-          type: "Task Instance",
+          type: translate("taskInstance_one"),
         })}
-        title={translate("dags:runAndTaskActions.delete.dialog.title", { type: "Task Instance" })}
-        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", { type: "Task Instance" })}
+        title={translate("dags:runAndTaskActions.delete.dialog.title", {
+          type: translate("taskInstance_one"),
+        })}
+        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", {
+          type: translate("taskInstance_one"),
+        })}
       />
     </>
   );

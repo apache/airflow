@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+# [START dag_decorator_usage]
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -43,7 +44,6 @@ class GetRequestOperator(BaseOperator):
         return httpx.get(self.url).json()
 
 
-# [START dag_decorator_usage]
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),

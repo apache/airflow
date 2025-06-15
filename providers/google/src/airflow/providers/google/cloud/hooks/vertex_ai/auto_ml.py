@@ -185,42 +185,6 @@ class AutoMLHook(GoogleBaseHook, OperationHelper):
             model_encryption_spec_key_name=model_encryption_spec_key_name,
         )
 
-    @deprecated(
-        planned_removal_date="June 15, 2025",
-        category=AirflowProviderDeprecationWarning,
-        reason="Deprecation of AutoMLText API",
-    )
-    def get_auto_ml_text_training_job(
-        self,
-        display_name: str,
-        prediction_type: str,
-        multi_label: bool = False,
-        sentiment_max: int = 10,
-        project: str | None = None,
-        location: str | None = None,
-        labels: dict[str, str] | None = None,
-        training_encryption_spec_key_name: str | None = None,
-        model_encryption_spec_key_name: str | None = None,
-    ) -> AutoMLTextTrainingJob:
-        """
-        Return AutoMLTextTrainingJob object.
-
-        WARNING: Text creation API is deprecated since September 15, 2024
-        (https://cloud.google.com/vertex-ai/docs/tutorials/text-classification-automl/overview).
-        """
-        return AutoMLTextTrainingJob(
-            display_name=display_name,
-            prediction_type=prediction_type,
-            multi_label=multi_label,
-            sentiment_max=sentiment_max,
-            project=project,
-            location=location,
-            credentials=self.get_credentials(),
-            labels=labels,
-            training_encryption_spec_key_name=training_encryption_spec_key_name,
-            model_encryption_spec_key_name=model_encryption_spec_key_name,
-        )
-
     def get_auto_ml_video_training_job(
         self,
         display_name: str,

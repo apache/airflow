@@ -26,8 +26,16 @@ from fastapi import FastAPI
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.cli.cli_config import CLICommand, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLIENT_ID_KEY,
+    CONF_REALM_KEY,
+    CONF_SECTION_NAME,
+    CONF_SERVER_URL_KEY,
+)
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.utils.helpers import prune_dict
@@ -207,6 +215,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         return app
 
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """Vends CLI commands to be included in Airflow CLI."""
+        return [
+            GroupCommand(
+                name="keycloak-auth-manager",
+                help="Manage resources used by Keycloak auth manager",
+                subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
+            ),
+        ]
+
     def _is_authorized(
         self,
         *,
@@ -216,9 +235,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resource_id: str | None = None,
         attributes: dict[str, str | None] | None = None,
     ) -> bool:
-        client_id = conf.get("keycloak_auth_manager", "client_id")
-        realm = conf.get("keycloak_auth_manager", "realm")
-        server_url = conf.get("keycloak_auth_manager", "server_url")
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
         context_attributes = prune_dict(attributes or {})
         if resource_id:

@@ -27,6 +27,13 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.configuration import conf
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLIENT_ID_KEY,
+    CONF_CLIENT_SECRET_KEY,
+    CONF_REALM_KEY,
+    CONF_SECTION_NAME,
+    CONF_SERVER_URL_KEY,
+)
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 log = logging.getLogger(__name__)
@@ -73,10 +80,10 @@ def login_callback(request: Request):
 
 
 def _get_keycloak_client() -> KeycloakOpenID:
-    client_id = conf.get("keycloak_auth_manager", "client_id")
-    client_secret = conf.get("keycloak_auth_manager", "client_secret")
-    realm = conf.get("keycloak_auth_manager", "realm")
-    server_url = conf.get("keycloak_auth_manager", "server_url")
+    client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+    client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+    realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+    server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
     return KeycloakOpenID(
         server_url=server_url,

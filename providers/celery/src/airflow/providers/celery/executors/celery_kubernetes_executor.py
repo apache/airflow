@@ -26,7 +26,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
 
 try:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
@@ -73,7 +73,18 @@ class CeleryKubernetesExecutor(BaseExecutor):
     def kubernetes_queue(self) -> str:
         return conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
-    def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
+    def __init__(
+        self,
+        celery_executor: CeleryExecutor | None = None,
+        kubernetes_executor: KubernetesExecutor | None = None,
+    ):
+        if AIRFLOW_V_3_0_PLUS or not kubernetes_executor or not celery_executor:
+            raise RuntimeError(
+                f"{self.__class__.__name__} does not support Airflow 3.0+. See "
+                "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently"
+                " how to use multiple executors concurrently."
+            )
+
         super().__init__()
         self._job_id: int | str | None = None
         self.celery_executor = celery_executor

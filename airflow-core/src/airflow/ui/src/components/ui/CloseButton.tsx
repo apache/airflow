@@ -19,12 +19,17 @@
 import type { ButtonProps as ChakraCloseButtonProps } from "@chakra-ui/react";
 import { IconButton as ChakraIconButton } from "@chakra-ui/react";
 import { forwardRef } from "react";
+import { useTranslation } from "react-i18next";
 import { LuX } from "react-icons/lu";
 
 export type CloseButtonProps = {} & ChakraCloseButtonProps;
 
-export const CloseButton = forwardRef<HTMLButtonElement, CloseButtonProps>((props, ref) => (
-  <ChakraIconButton aria-label="Close" ref={ref} variant="ghost" {...props}>
-    {props.children ?? <LuX />}
-  </ChakraIconButton>
-));
+export const CloseButton = forwardRef<HTMLButtonElement, CloseButtonProps>((props, ref) => {
+  const { t: translate } = useTranslation(["components"]);
+
+  return (
+    <ChakraIconButton aria-label={translate("close")} ref={ref} variant="ghost" {...props}>
+      {props.children ?? <LuX />}
+    </ChakraIconButton>
+  );
+});

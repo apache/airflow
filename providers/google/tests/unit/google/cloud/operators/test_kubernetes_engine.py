@@ -695,88 +695,41 @@ class TestGKEStartPodOperator:
             )
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes",
+        "kwargs, expected_attributes",
         [
             (
-                True,
                 {"on_finish_action": "delete_succeeded_pod"},
                 {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
             ),
             (
-                # test that priority for deprecated param
-                True,
-                {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
-                {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
+                {"on_finish_action": "keep_pod"},
+                {"on_finish_action": OnFinishAction.KEEP_POD},
             ),
             (
-                # test default
-                True,
-                {},
-                {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
-            ),
-            (
-                False,
-                {"is_delete_operator_pod": True},
-                {"is_delete_operator_pod": True},
-            ),
-            (
-                False,
-                {"is_delete_operator_pod": False},
-                {"is_delete_operator_pod": False},
-            ),
-            (
-                # test default
-                False,
-                {},
-                {"is_delete_operator_pod": False},
+                {"on_finish_action": "delete_pod"},
+                {"on_finish_action": OnFinishAction.DELETE_POD},
             ),
         ],
     )
     def test_on_finish_action_handler(
         self,
-        compatible_kpo,
         kwargs,
         expected_attributes,
     ):
-        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
+        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"]})
         with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
-            if "is_delete_operator_pod" in kwargs:
-                with pytest.raises(AirflowProviderDeprecationWarning):
-                    GKEStartPodOperator(
-                        project_id=TEST_PROJECT_ID,
-                        location=TEST_LOCATION,
-                        cluster_name=GKE_CLUSTER_NAME,
-                        task_id=TEST_TASK_ID,
-                        name=K8S_POD_NAME,
-                        namespace=K8S_NAMESPACE,
-                        image=TEST_IMAGE,
-                        **kwargs,
-                    )
-            elif "on_finish_action" not in kwargs:
-                with pytest.raises(AirflowProviderDeprecationWarning):
-                    GKEStartPodOperator(
-                        project_id=TEST_PROJECT_ID,
-                        location=TEST_LOCATION,
-                        cluster_name=GKE_CLUSTER_NAME,
-                        task_id=TEST_TASK_ID,
-                        name=K8S_POD_NAME,
-                        namespace=K8S_NAMESPACE,
-                        image=TEST_IMAGE,
-                        **kwargs,
-                    )
-            else:
-                op = GKEStartPodOperator(
-                    project_id=TEST_PROJECT_ID,
-                    location=TEST_LOCATION,
-                    cluster_name=GKE_CLUSTER_NAME,
-                    task_id=TEST_TASK_ID,
-                    name=K8S_POD_NAME,
-                    namespace=K8S_NAMESPACE,
-                    image=TEST_IMAGE,
-                    **kwargs,
-                )
-                for expected_attr in expected_attributes:
-                    assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
+            op = GKEStartPodOperator(
+                project_id=TEST_PROJECT_ID,
+                location=TEST_LOCATION,
+                cluster_name=GKE_CLUSTER_NAME,
+                task_id=TEST_TASK_ID,
+                name=K8S_POD_NAME,
+                namespace=K8S_NAMESPACE,
+                image=TEST_IMAGE,
+                **kwargs,
+            )
+            for expected_attr in expected_attributes:
+                assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
 
     @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))

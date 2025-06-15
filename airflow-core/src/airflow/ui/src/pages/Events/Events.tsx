@@ -18,6 +18,7 @@
  */
 import { Box, ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useTranslation } from "react-i18next";
 import { MdCompress, MdExpand } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
@@ -36,12 +37,15 @@ type EventsColumn = {
   taskId?: string;
 };
 
-const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<ColumnDef<EventLogResponse>> => [
+const eventsColumn = (
+  { dagId, open, runId, taskId }: EventsColumn,
+  translate: (key: string) => string,
+): Array<ColumnDef<EventLogResponse>> => [
   {
     accessorKey: "when",
     cell: ({ row: { original } }) => <Time datetime={original.when} />,
     enableSorting: true,
-    header: "When",
+    header: translate("auditLog.columns.when"),
     meta: {
       skeletonWidth: 10,
     },
@@ -49,7 +53,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
   {
     accessorKey: "event",
     enableSorting: true,
-    header: "Event",
+    header: translate("auditLog.columns.event"),
     meta: {
       skeletonWidth: 10,
     },
@@ -57,7 +61,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
   {
     accessorKey: "owner",
     enableSorting: true,
-    header: "User",
+    header: translate("auditLog.columns.user"),
     meta: {
       skeletonWidth: 10,
     },
@@ -78,7 +82,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
       return undefined;
     },
     enableSorting: false,
-    header: "Extra",
+    header: translate("auditLog.columns.extra"),
     meta: {
       skeletonWidth: 200,
     },
@@ -89,7 +93,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
         {
           accessorKey: "dag_id",
           enableSorting: true,
-          header: "Dag ID",
+          header: translate("common:dagId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -101,7 +105,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
         {
           accessorKey: "run_id",
           enableSorting: true,
-          header: "Run ID",
+          header: translate("common:runId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -113,7 +117,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
         {
           accessorKey: "task_id",
           enableSorting: true,
-          header: "Task ID",
+          header: translate("common:taskId"),
           meta: {
             skeletonWidth: 10,
           },
@@ -122,7 +126,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
   {
     accessorKey: "map_index",
     enableSorting: false,
-    header: "Map Index",
+    header: translate("common:mapIndex"),
     meta: {
       skeletonWidth: 10,
     },
@@ -130,7 +134,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
   {
     accessorKey: "try_number",
     enableSorting: false,
-    header: "Try Number",
+    header: translate("common:tryNumber"),
     meta: {
       skeletonWidth: 10,
     },
@@ -138,6 +142,7 @@ const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<Colum
 ];
 
 export const Events = () => {
+  const { t: translate } = useTranslation("browse");
   const { dagId, runId, taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -162,22 +167,24 @@ export const Events = () => {
   return (
     <Box>
       <Flex alignItems="center" justifyContent="space-between">
-        <Heading>Audit Log Events</Heading>
+        {dagId === undefined && runId === undefined && taskId === undefined ? (
+          <Heading size="md">{translate("auditLog.title")}</Heading>
+        ) : undefined}
         <ButtonGroup attached mt="1" size="sm" variant="surface">
           <IconButton
-            aria-label="Expand all extra json"
+            aria-label={translate("auditLog.actions.expandAllExtra")}
             onClick={onOpen}
             size="sm"
-            title="Expand all extra json"
+            title={translate("auditLog.actions.expandAllExtra")}
             variant="surface"
           >
             <MdExpand />
           </IconButton>
           <IconButton
-            aria-label="Collapse all extra json"
+            aria-label={translate("auditLog.actions.collapseAllExtra")}
             onClick={onClose}
             size="sm"
-            title="Collapse all extra json"
+            title={translate("auditLog.actions.collapseAllExtra")}
             variant="surface"
           >
             <MdCompress />
@@ -186,13 +193,13 @@ export const Events = () => {
       </Flex>
       <ErrorAlert error={error} />
       <DataTable
-        columns={eventsColumn({ dagId, open, runId, taskId })}
+        columns={eventsColumn({ dagId, open, runId, taskId }, translate)}
         data={data ? data.event_logs : []}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="Event"
+        modelName={translate("auditLog.columns.event")}
         onStateChange={setTableURLState}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}

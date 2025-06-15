@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+7.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage support for DatabricksSQLStatementsOperator (#50891)``
+* ``feat: Add OpenLineage support for DatabricksCopyIntoOperator (#50821)``
+* ``Adding 'DatabricksSQLStatementSensor' Sensor with Deferrability (#49516)``
+
+Misc
+~~~~
+
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.4.0
 .....
 

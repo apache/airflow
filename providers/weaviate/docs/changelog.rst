@@ -20,6 +20,20 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add delete_by_property method in weaviate hook (#50735)``
+* ``Add batch_create_links method in weaviate hook (#50750)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix weaviate-cohere-integration-system-tests (#51467)``
+   * ``fix weaviate system test (#51240)``
+
 3.1.0
 .....
 

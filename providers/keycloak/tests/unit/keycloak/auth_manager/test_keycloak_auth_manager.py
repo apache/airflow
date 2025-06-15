@@ -35,6 +35,12 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLIENT_ID_KEY,
+    CONF_REALM_KEY,
+    CONF_SECTION_NAME,
+    CONF_SERVER_URL_KEY,
+)
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     RESOURCE_ID_ATTRIBUTE_NAME,
     KeycloakAuthManager,
@@ -48,9 +54,9 @@ from tests_common.test_utils.config import conf_vars
 def auth_manager():
     with conf_vars(
         {
-            ("keycloak_auth_manager", "client_id"): "client_id",
-            ("keycloak_auth_manager", "realm"): "realm",
-            ("keycloak_auth_manager", "server_url"): "server_url",
+            (CONF_SECTION_NAME, CONF_CLIENT_ID_KEY): "client_id",
+            (CONF_SECTION_NAME, CONF_REALM_KEY): "realm",
+            (CONF_SECTION_NAME, CONF_SERVER_URL_KEY): "server_url",
         }
     ):
         yield KeycloakAuthManager()
@@ -362,3 +368,6 @@ class TestKeycloakAuthManager:
         headers = auth_manager._get_headers("access_token")
         mock_requests.post.assert_called_once_with(token_url, data=payload, headers=headers)
         assert result == expected
+
+    def test_get_cli_commands_return_cli_commands(self, auth_manager):
+        assert len(auth_manager.get_cli_commands()) == 1

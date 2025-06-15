@@ -65,10 +65,12 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance, withT
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
         <Menu.Trigger asChild>
           <ActionButton
-            actionName={translate("dags:runAndTaskActions.markAs.button", { type: "Task Instance" })}
+            actionName={translate("dags:runAndTaskActions.markAs.button", {
+              type: translate("taskInstance_one"),
+            })}
             flexDirection="row-reverse"
             icon={<MdArrowDropDown />}
-            text={translate("dags:runAndTaskActions.markAs.button", { type: "Task Instance" })}
+            text={translate("dags:runAndTaskActions.markAs.button", { type: translate("taskInstance_one") })}
             withText={withText}
           />
         </Menu.Trigger>

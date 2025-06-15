@@ -33,6 +33,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
+    AIRFLOW_TASK_SDK_SOURCES_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
@@ -204,6 +205,7 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "task-sdk",
 ]
 
 
@@ -548,6 +550,19 @@ def get_airflow_version():
     return airflow_version
 
 
+def get_task_sdk_version():
+    task_sdk_init_py_file = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py"
+    task_sdk_version = "unknown"
+    with open(task_sdk_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                task_sdk_version = line.split()[2][1:-1]
+                break
+    if task_sdk_version == "unknown":
+        raise RuntimeError("Unable to determine Task SDK version")
+    return task_sdk_version
+
+
 @clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
@@ -722,9 +737,8 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.9",
-        "airflow-version": "3.0.1",
-        # TODO: Remove fab when we update to Airflow 3.0.2
-        "remove-providers": "cloudant fab",
+        "airflow-version": "3.0.2",
+        "remove-providers": "cloudant",
         "run-tests": "true",
     },
 ]

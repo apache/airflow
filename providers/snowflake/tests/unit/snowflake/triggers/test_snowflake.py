@@ -30,12 +30,13 @@ POLL_INTERVAL = 1.0
 LIFETIME = timedelta(minutes=59)
 RENEWAL_DELTA = timedelta(minutes=54)
 MODULE = "airflow.providers.snowflake"
+QUERY_IDS = ["uuid"]
 
 
 class TestSnowflakeSqlApiTrigger:
     TRIGGER = SnowflakeSqlApiTrigger(
         poll_interval=POLL_INTERVAL,
-        query_ids=["uuid"],
+        query_ids=QUERY_IDS,
         snowflake_conn_id="test_conn",
         token_life_time=LIFETIME,
         token_renewal_delta=RENEWAL_DELTA,
@@ -82,8 +83,8 @@ class TestSnowflakeSqlApiTrigger:
         Test SnowflakeSqlApiTrigger run method with success status and mock the get_sql_api_query_status
          result and  get_query_status to False.
         """
-        mock_get_query_status.return_value = {"status": "success", "statement_handles": ["uuid", "uuid1"]}
         statement_query_ids = ["uuid", "uuid1"]
+        mock_get_query_status.return_value = {"status": "success", "statement_handles": statement_query_ids}
         mock_get_sql_api_query_status_async.return_value = {
             "message": "Statement executed successfully.",
             "status": "success",
@@ -92,7 +93,7 @@ class TestSnowflakeSqlApiTrigger:
 
         generator = self.TRIGGER.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "success", "statement_query_ids": statement_query_ids}) == actual
+        assert TriggerEvent({"status": "success", "statement_query_ids": QUERY_IDS}) == actual
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")

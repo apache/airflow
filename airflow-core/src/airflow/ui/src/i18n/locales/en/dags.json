@@ -4,62 +4,28 @@
     "delete": {
       "button": "Delete Dag",
       "warning": "This will remove all metadata related to the Dag, including Runs and Tasks."
-    },
-    "trigger": {
-      "button": "Trigger",
-      "triggerDag": "Trigger Dag"
     }
   },
   "filters": {
+    "allRunTypes": "All Run Types",
+    "allStates": "All States",
     "paused": {
       "active": "Active",
       "all": "All",
       "paused": "Paused"
     }
   },
-  "list": {
-    "advancedSearch": "Advanced Search",
-    "clearSearch": "Clear search",
-    "columns": {
-      "dagId": "Dag ID",
-      "lastDagRun": "Last Dag Run",
-      "nextDagRun": "Next Dag Run",
-      "schedule": "Schedule",
-      "tags": "Tags"
-    },
-    "ownerLink": "Owner link for {{owner}}",
-    "searchPlaceholder": "Search Dags"
-  },
+  "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "No tasks found.",
+      "title": "Affected Tasks: {{count}}"
+    },
     "clear": {
       "button": "Clear {{type}}",
       "buttonTooltip": "Press shift+c to clear",
-      "dialog": {
-        "affectedTasks": {
-          "columns": {
-            "runId": "Run ID",
-            "state": "State",
-            "taskId": "Task ID"
-          },
-          "noItemsFound": "No tasks found.",
-          "title": "Affected Tasks: {{count}}"
-        },
-        "confirm": "Confirm",
-        "note": {
-          "placeholder": "Add a note...",
-          "title": "Note"
-        },
-        "options": {
-          "downstream": "Downstream",
-          "existingTasks": "Clear existing tasks",
-          "future": "Future",
-          "onlyFailed": "Clear only failed tasks",
-          "past": "Past",
-          "queueNew": "Queue up new tasks",
-          "upstream": "Upstream"
-        },
-        "title": "Clear {{type}}"
-      }
+      "error": "Failed to clear {{type}}",
+      "title": "Clear {{type}}"
     },
     "delete": {
       "button": "Delete {{type}}",
@@ -80,32 +46,24 @@
         "failed": "Press shift+f to mark as failed",
         "success": "Press shift+s to mark as success"
       },
-      "dialog": {
-        "confirm": "Confirm",
-        "options": {
-          "downstream": "Downstream",
-          "future": "Future",
-          "past": "Past",
-          "upstream": "Upstream"
-        },
-        "title": "Mark {{type}} as {{state}}"
-      }
+      "title": "Mark {{type}} as {{state}}"
+    },
+    "options": {
+      "downstream": "Downstream",
+      "existingTasks": "Clear existing tasks",
+      "future": "Future",
+      "onlyFailed": "Clear only failed tasks",
+      "past": "Past",
+      "queueNew": "Queue up new tasks",
+      "upstream": "Upstream"
     }
   },
-  "runs": {
-    "allRunTypes": "All Run Types",
-    "allStates": "All States",
-    "columns": {
-      "conf": "Conf",
-      "dagId": "Dag ID",
-      "dagVersions": "Dag Versions",
-      "duration": "Duration",
-      "endDate": "End Date",
-      "runAfter": "Run After",
-      "runType": "Run Type",
-      "startDate": "Start Date",
-      "state": "State"
-    }
+  "search": {
+    "advanced": "Advanced Search",
+    "clear": "Clear search",
+    "dags": "Search Dags",
+    "hotkey": "+K",
+    "tasks": "Search Tasks"
   },
   "sort": {
     "displayName": {
@@ -125,22 +83,5 @@
       "desc": "Sort by Next Dag Run (Latest-Earliest)"
     },
     "placeholder": "Sort by"
-  },
-  "taskInstances": {
-    "allStates": "All States",
-    "columns": {
-      "dagId": "Dag ID",
-      "dagRun": "Dag Run",
-      "dagVersion": "Dag Version",
-      "duration": "Duration",
-      "endDate": "End Date",
-      "operator": "Operator",
-      "pool": "Pool",
-      "startDate": "Start Date",
-      "state": "State",
-      "taskId": "Task ID",
-      "tryNumber": "Try Number"
-    },
-    "searchPlaceholder": "Search Tasks"
   }
 }
