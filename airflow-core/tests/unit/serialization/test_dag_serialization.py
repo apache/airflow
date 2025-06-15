@@ -386,7 +386,11 @@ def get_excluded_patterns() -> Generator[str, None, None]:
         if python_version in provider_info.get("excluded-python-versions"):
             provider_path = provider.replace(".", "/")
             yield f"providers/{provider_path}"
-
+    CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if CURRENT_PYTHON_VERSION == "3.13":
+        # We should remove google when ray is fixed to work with Python 3.13
+        yield "providers/google/tests/system/google/"
+        yield "providers/yandex/tests/system/yandex/"
 
 def collect_dags(dag_folder=None):
     """Collects DAGs to test."""
@@ -411,6 +415,7 @@ def collect_dags(dag_folder=None):
     excluded_patterns = [
         f"{AIRFLOW_REPO_ROOT_PATH}/{excluded_pattern}" for excluded_pattern in get_excluded_patterns()
     ]
+    print("Excluded patterns:", excluded_patterns)
     for pattern in patterns:
         for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
             if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
