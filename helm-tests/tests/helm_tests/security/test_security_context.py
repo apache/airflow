@@ -17,7 +17,11 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
+
+CTX_VALUE = {"allowPrivilegeEscalation": False}
+SECURITY_CONTEXTS = {"securityContexts": {"container": CTX_VALUE}}
 
 
 class TestSCBackwardsCompatibility:
@@ -286,22 +290,31 @@ class TestSecurityContext:
         assert default_ctx_value_pod_redis == jmespath.search("spec.template.spec.securityContext", docs[-1])
 
     # Test securityContexts for main containers
-    def test_main_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
-        security_context = {"securityContexts": {"container": ctx_value}}
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            SECURITY_CONTEXTS,
+            {"celery": SECURITY_CONTEXTS},
+            {
+                "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
+                "celery": SECURITY_CONTEXTS,
+            },
+        ],
+    )
+    def test_main_container_setting(self, workers_values):
         docs = render_chart(
             values={
-                "cleanup": {"enabled": True, **security_context},
-                "scheduler": {**security_context},
-                "webserver": {**security_context},
-                "workers": {**security_context},
-                "flower": {"enabled": True, **security_context},
-                "statsd": {**security_context},
-                "createUserJob": {**security_context},
-                "migrateDatabaseJob": {**security_context},
-                "triggerer": {**security_context},
-                "pgbouncer": {"enabled": True, **security_context},
-                "redis": {**security_context},
+                "cleanup": {"enabled": True, **SECURITY_CONTEXTS},
+                "scheduler": {**SECURITY_CONTEXTS},
+                "webserver": {**SECURITY_CONTEXTS},
+                "workers": workers_values,
+                "flower": {"enabled": True, **SECURITY_CONTEXTS},
+                "statsd": {**SECURITY_CONTEXTS},
+                "createUserJob": {**SECURITY_CONTEXTS},
+                "migrateDatabaseJob": {**SECURITY_CONTEXTS},
+                "triggerer": {**SECURITY_CONTEXTS},
+                "pgbouncer": {"enabled": True, **SECURITY_CONTEXTS},
+                "redis": {**SECURITY_CONTEXTS},
             },
             show_only=[
                 "templates/cleanup/cleanup-cronjob.yaml",
@@ -318,22 +331,32 @@ class TestSecurityContext:
             ],
         )
 
-        assert ctx_value == jmespath.search(
-            "spec.jobTemplate.spec.template.spec.containers[0].securityContext", docs[0]
+        assert (
+            jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].securityContext", docs[0])
+            == CTX_VALUE
         )
 
         for doc in docs[1:]:
-            assert ctx_value == jmespath.search("spec.template.spec.containers[0].securityContext", doc)
+            assert jmespath.search("spec.template.spec.containers[0].securityContext", doc) == CTX_VALUE
 
     # Test securityContexts for log-groomer-sidecar main container
-    def test_log_groomer_sidecar_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
-        spec = {"logGroomerSidecar": {"securityContexts": {"container": ctx_value}}}
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"logGroomerSidecar": SECURITY_CONTEXTS},
+            {"celery": {"logGroomerSidecar": SECURITY_CONTEXTS}},
+            {
+                "logGroomerSidecar": {"securityContexts": {"container": {"allowPrivilegeEscalation": True}}},
+                "celery": {"logGroomerSidecar": SECURITY_CONTEXTS},
+            },
+        ],
+    )
+    def test_log_groomer_sidecar_container_setting(self, workers_values):
         docs = render_chart(
             values={
-                "scheduler": {**spec},
-                "workers": {**spec},
-                "dagProcessor": {**spec},
+                "scheduler": {"logGroomerSidecar": SECURITY_CONTEXTS},
+                "workers": workers_values,
+                "dagProcessor": {"logGroomerSidecar": SECURITY_CONTEXTS},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -343,44 +366,64 @@ class TestSecurityContext:
         )
 
         for doc in docs:
-            assert ctx_value == jmespath.search("spec.template.spec.containers[1].securityContext", doc)
+            assert jmespath.search("spec.template.spec.containers[1].securityContext", doc) == CTX_VALUE
 
     # Test securityContexts for metrics-explorer main container
     def test_metrics_explorer_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
         docs = render_chart(
             values={
                 "pgbouncer": {
                     "enabled": True,
-                    "metricsExporterSidecar": {"securityContexts": {"container": ctx_value}},
+                    "metricsExporterSidecar": {"securityContexts": {"container": CTX_VALUE}},
                 },
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.containers[1].securityContext", docs[0])
+        assert jmespath.search("spec.template.spec.containers[1].securityContext", docs[0]) == CTX_VALUE
 
     # Test securityContexts for worker-kerberos main container
-    def test_worker_kerberos_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True, **SECURITY_CONTEXTS}},
+            {"celery": {"kerberosSidecar": {"enabled": True, **SECURITY_CONTEXTS}}},
+            {
+                "kerberosSidecar": {
+                    "enabled": True,
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
+                },
+                "celery": {"kerberosSidecar": {"enabled": True, **SECURITY_CONTEXTS}},
+            },
+        ],
+    )
+    def test_worker_kerberos_container_setting(self, workers_values):
         docs = render_chart(
             values={
-                "workers": {
-                    "kerberosSidecar": {"enabled": True, "securityContexts": {"container": ctx_value}}
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.containers[2].securityContext", docs[0])
+        assert jmespath.search("spec.template.spec.containers[2].securityContext", docs[0]) == CTX_VALUE
 
     # Test securityContexts for the wait-for-migrations init containers
-    def test_wait_for_migrations_init_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"waitForMigrations": SECURITY_CONTEXTS},
+            {"celery": {"waitForMigrations": SECURITY_CONTEXTS}},
+            {
+                "waitForMigrations": {"securityContexts": {"container": {"allowPrivilegeEscalation": True}}},
+                "celery": {"waitForMigrations": SECURITY_CONTEXTS},
+            },
+        ],
+    )
+    def test_wait_for_migrations_init_container_setting(self, workers_values):
         spec = {
             "waitForMigrations": {
                 "enabled": True,
-                "securityContexts": {"container": ctx_value},
+                **SECURITY_CONTEXTS,
             }
         }
         docs = render_chart(
@@ -388,7 +431,7 @@ class TestSecurityContext:
                 "scheduler": {**spec},
                 "webserver": {**spec},
                 "triggerer": {**spec},
-                "workers": {"waitForMigrations": {"securityContexts": {"container": ctx_value}}},
+                "workers": workers_values,
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -399,28 +442,45 @@ class TestSecurityContext:
         )
 
         for doc in docs:
-            assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", doc)
+            assert jmespath.search("spec.template.spec.initContainers[0].securityContext", doc) == CTX_VALUE
 
     # Test securityContexts for volume-permissions init container
-    def test_volume_permissions_init_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
-        docs = render_chart(
-            values={
-                "workers": {
-                    "persistence": {
-                        "enabled": True,
-                        "fixPermissions": True,
-                        "securityContexts": {"container": ctx_value},
-                    }
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"enabled": True, "fixPermissions": True, **SECURITY_CONTEXTS}},
+            {"celery": {"persistence": {"enabled": True, "fixPermissions": True, **SECURITY_CONTEXTS}}},
+            {
+                "persistence": {
+                    "enabled": True,
+                    "fixPermissions": True,
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
+                },
+                "celery": {"persistence": {"enabled": True, "fixPermissions": True, **SECURITY_CONTEXTS}},
             },
+        ],
+    )
+    def test_volume_permissions_init_container_setting(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[0])
+        assert jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[0]) == CTX_VALUE
 
     # Test securityContexts for main pods
-    def test_main_pod_setting(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"securityContexts": {"pod": {"runAsUser": 7000}}},
+            {"celery": {"securityContexts": {"pod": {"runAsUser": 7000}}}},
+            {
+                "securityContexts": {"pod": {"runAsUser": 1}},
+                "celery": {"securityContexts": {"pod": {"runAsUser": 7000}}},
+            },
+        ],
+    )
+    def test_main_pod_setting(self, workers_values):
         ctx_value = {"runAsUser": 7000}
         security_context = {"securityContexts": {"pod": ctx_value}}
         docs = render_chart(
@@ -428,7 +488,7 @@ class TestSecurityContext:
                 "cleanup": {"enabled": True, **security_context},
                 "scheduler": {**security_context},
                 "webserver": {**security_context},
-                "workers": {**security_context},
+                "workers": workers_values,
                 "flower": {"enabled": True, **security_context},
                 "statsd": {**security_context},
                 "createUserJob": {**security_context},
