@@ -73,14 +73,12 @@ export const useGridNavigation = ({ flatNodes, isGridFocused, runs }: UseGridNav
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      // 確保是方向鍵才檢查focus狀態
       const isArrowKey = ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "Enter"].includes(event.key);
 
       if (!isArrowKey || !isGridFocused) {
         return;
       }
 
-      // 立即阻止默認行為
       event.preventDefault();
       event.stopPropagation();
 
