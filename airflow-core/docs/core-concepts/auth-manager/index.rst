@@ -51,10 +51,7 @@ Provided by Airflow:
 
 * :doc:`simple/index`
 
-Provided by providers:
-
-* :doc:`apache-airflow-providers-fab:auth-manager/index`
-* :doc:`apache-airflow-providers-amazon:auth-manager/index`
+Provided by providers. The list of supported auth managers is available in :doc:`apache-airflow-providers:core-extensions/auth-managers`.
 
 Why pluggable auth managers?
 ----------------------------
