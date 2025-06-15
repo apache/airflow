@@ -23,6 +23,8 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
+from jwt import InvalidTokenError
+from keycloak import KeycloakOpenID
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -32,10 +34,12 @@ from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
+    CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
+from airflow.providers.keycloak.auth_manager.middleware import KeycloakRefreshTokenMiddleware
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.utils.helpers import prune_dict
@@ -213,6 +217,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         )
         app.include_router(login_router)
 
+        # Add the token refresh middleware
+        app.add_middleware(KeycloakRefreshTokenMiddleware, auth_manager=self)
+
         return app
 
     @staticmethod
@@ -282,3 +289,47 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
+
+    @classmethod
+    def _get_keycloak_client(cls) -> KeycloakOpenID:
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        return KeycloakOpenID(
+            server_url=server_url,
+            client_id=client_id,
+            client_secret_key=client_secret,
+            realm_name=realm,
+        )
+
+    def refresh_token(self, token: str) -> str | None:
+        """Refresh the access token for the user."""
+        client = self._get_keycloak_client()
+        try:
+            tokens = client.refresh_token(token)
+            log.info("Token refreshed successfully")
+            return tokens["access_token"]
+        except InvalidTokenError:
+            log.error("Invalid refresh token")
+            return None
+        except Exception as e:
+            log.error("Error refreshing token: %s", e)
+            return None
+
+    def get_user_from_code(self, code: str, redirect_uri: str) -> KeycloakAuthManagerUser:
+        client = self._get_keycloak_client()
+        tokens = client.token(
+            grant_type="authorization_code",
+            code=code,
+            redirect_uri=str(redirect_uri),
+        )
+        userinfo = client.userinfo(tokens["access_token"])
+        user = KeycloakAuthManagerUser(
+            user_id=userinfo["sub"],
+            name=userinfo["preferred_username"],
+            access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
+        )
+        return user
