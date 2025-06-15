@@ -19,8 +19,10 @@ from __future__ import annotations
 import pytest
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
-pytestmark = pytest.mark.db_test
+# pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.mock_plugin_manager(plugins=[])]
 
 mock_config_response = {
     "page_size": 100,
@@ -34,6 +36,7 @@ mock_config_response = {
     "dashboard_alert": [],
     "show_external_log_redirect": False,
     "external_log_name": None,
+    "plugins_extra_menu_items": [],
 }
 
 
@@ -65,6 +68,20 @@ class TestGetConfig:
 
         assert response.status_code == 200
         assert response.json() == mock_config_response
+
+    def test_should_include_plugin_menu_items(self, mock_config_data, test_client):
+        menu_items = [{"name": "Test", "href": "/test"}]
+        with mock_plugin_manager(
+            flask_appbuilder_menu_links=menu_items,
+            flask_appbuilder_views=[],
+            flask_blueprints=[],
+        ):
+            response = test_client.get("/config")
+
+        assert response.status_code == 200
+        assert response.json()["plugins_extra_menu_items"] == [
+            {"name": "Test", "href": "/test", "category": None}
+        ]
 
     def test_get_config_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/config")

@@ -21,36 +21,39 @@ import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
 import { Menu } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 
 import { NavButton } from "./NavButton";
 
 export const PluginMenus = () => {
   const { t: translate } = useTranslation("common");
-  const { data } = usePluginServiceGetPlugins();
+  const menuItems = useConfig("plugins_extra_menu_items");
 
-  const menuPlugins = data?.plugins.filter((plugin) => plugin.appbuilder_menu_items.length > 0);
-
-  if (data === undefined || menuPlugins === undefined) {
+  if (
+    !Array.isArray(menuItems) ||
+    !menuItems.every(
+      (item): item is AppBuilderMenuItemResponse => "name" in item && "href" in item && "category" in item,
+    )
+  ) {
     return undefined;
   }
 
   const categories: Record<string, Array<AppBuilderMenuItemResponse>> = {};
   const buttons: Array<AppBuilderMenuItemResponse> = [];
 
-  menuPlugins.forEach((plugin) => {
-    plugin.appbuilder_menu_items.forEach((mi) => {
-      if (mi.category !== null && mi.category !== undefined) {
-        categories[mi.category] = [...(categories[mi.category] ?? []), mi];
-      } else {
-        buttons.push(mi);
-      }
-    });
+  menuItems.forEach((mi) => {
+    if (mi.category !== null && mi.category !== undefined) {
+      const { category } = mi;
+
+      categories[category] = [...(categories[category] ?? []), mi];
+    } else {
+      buttons.push(mi);
+    }
   });
 
-  if (!buttons.length && !Object.keys(categories).length) {
+  if (buttons.length === 0 && Object.keys(categories).length === 0) {
     return undefined;
   }
 
