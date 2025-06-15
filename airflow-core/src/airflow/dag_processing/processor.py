@@ -101,6 +101,30 @@ ToDagProcessor = Annotated[
 ]
 
 
+def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
+    """
+    Pre-import Airflow modules found in the given file.
+
+    This prevents modules from being re-imported in each processing process,
+    saving CPU time and memory.
+
+    Args:
+        file_path: Path to the file to scan for imports
+        log: Logger instance to use for warnings
+
+    parsing_pre_import_modules:
+         default value is True
+    """
+    if not conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
+        return
+ 
+    for module in iter_airflow_imports(file_path):
+        try:
+            importlib.import_module(module)
+        except ModuleNotFoundError as e:
+            log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
+
+
 def _parse_file_entrypoint():
     import structlog
 
@@ -128,36 +152,10 @@ def _parse_file_entrypoint():
     result = _parse_file(msg, log)
     if result is not None:
         comms_decoder.send_request(log, result)
-
-
-def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
-    """
-    Pre-import Airflow modules found in the given file.
-
-    This prevents modules from being re-imported in each processing process,
-    saving CPU time and memory.
-
-    Args:
-        file_path: Path to the file to scan for imports
-        log: Logger instance to use for warnings
-
-    parsing_pre_import_modules:
-         default value is True
-    """
-    if not conf.getboolean("scheduler", "parsing_pre_import_modules", fallback=True):
-        return
-
-    for module in iter_airflow_imports(file_path):
-        try:
-            importlib.import_module(module)
-        except ModuleNotFoundError as e:
-            log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
-
+        
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
-
-    _pre_import_airflow_modules(msg.file, log)
 
     bag = DagBag(
         dag_folder=msg.file,
@@ -282,6 +280,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         client: Client,
         **kwargs,
     ) -> Self:
+        log = kwargs.get("logger")  
+
+        _pre_import_airflow_modules(path, log)
+
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc._on_child_started(callbacks, path, bundle_path)
         return proc
