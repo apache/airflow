@@ -26,7 +26,10 @@
     "noTryNumber": "No try number",
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})"
   },
-  "navigation":"Press arrow keys to navigate",
+  "navigation": {
+    "jump": "Jump: {{metaKey}}+{{arrow}}",
+    "navigation": "Navigation: {{arrow}}"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Failed Run",

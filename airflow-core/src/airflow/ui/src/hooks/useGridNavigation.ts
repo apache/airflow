@@ -73,7 +73,7 @@ export const useGridNavigation = ({ flatNodes, isGridFocused, runs }: UseGridNav
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      const isArrowKey = ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "Enter"].includes(event.key);
+      const isArrowKey = ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp"].includes(event.key);
 
       if (!isArrowKey || !isGridFocused) {
         return;
@@ -83,30 +83,26 @@ export const useGridNavigation = ({ flatNodes, isGridFocused, runs }: UseGridNav
       event.stopPropagation();
 
       const { runIndex, taskIndex } = getCurrentIndices();
+      const isQuickJump = event.metaKey || event.ctrlKey; // Command(Mac) or Ctrl(Windows)
       let newRunIndex = runIndex;
       let newTaskIndex = taskIndex;
 
       switch (event.key) {
         case "ArrowDown": {
-          newTaskIndex = Math.min(flatNodes.length - 1, taskIndex + 1);
+          newTaskIndex = isQuickJump ? flatNodes.length - 1 : Math.min(flatNodes.length - 1, taskIndex + 1);
           break;
         }
         case "ArrowLeft": {
-          newRunIndex = Math.min(runs.length - 1, runIndex + 1);
+          newRunIndex = isQuickJump ? runs.length - 1 : Math.min(runs.length - 1, runIndex + 1);
           break;
         }
         case "ArrowRight": {
-          newRunIndex = Math.max(0, runIndex - 1);
+          newRunIndex = isQuickJump ? 0 : Math.max(0, runIndex - 1);
           break;
         }
         case "ArrowUp": {
-          newTaskIndex = Math.max(0, taskIndex - 1);
+          newTaskIndex = isQuickJump ? 0 : Math.max(0, taskIndex - 1);
           break;
-        }
-        case "Enter": {
-          navigateToPosition(runIndex, taskIndex);
-
-          return;
         }
         default: {
           return;

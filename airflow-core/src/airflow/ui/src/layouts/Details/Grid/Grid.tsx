@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, IconButton } from "@chakra-ui/react";
+import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -27,6 +27,7 @@ import { Link, useParams } from "react-router-dom";
 import { useOpenGroups } from "src/context/openGroups";
 import { useGridNavigation } from "src/hooks/useGridNavigation";
 import { useGrid } from "src/queries/useGrid";
+import { getMetaKey } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -46,7 +47,7 @@ export const Grid = ({ limit }: Props) => {
   const { dagId = "" } = useParams();
   const gridRef = useRef<HTMLDivElement>(null);
   const [isGridFocused, setIsGridFocused] = useState(false);
-
+  const metaKey = getMetaKey();
   const { data: gridData, isLoading, runAfter } = useGrid(limit);
 
   const runs: Array<RunWithDuration> = useMemo(
@@ -136,7 +137,8 @@ export const Grid = ({ limit }: Props) => {
           top={50}
           zIndex={10}
         >
-          {translate("navigation")}
+          <Text>{translate("navigation.navigation", { arrow: "↑↓←→" })}</Text>
+          <Text>{translate("navigation.jump", { arrow: "↑↓←→", metaKey })}</Text>
         </Box>
       )}
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
