@@ -629,6 +629,7 @@ export type DAGRunResponse = {
   duration: number | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
+  deadlines: Array<DeadlineResponse> | null;
   run_after: string;
   last_scheduling_decision: string | null;
   run_type: DagRunType;
@@ -817,6 +818,18 @@ export type DagVersionResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = "asset conflict" | "non-existent pool";
+
+/**
+ * Deadline serializer for responses.
+ */
+export type DeadlineResponse = {
+  id: string;
+  deadline: string;
+  callback?: string | null;
+  callback_kwargs?: {
+    [key: string]: unknown;
+  } | null;
+};
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
