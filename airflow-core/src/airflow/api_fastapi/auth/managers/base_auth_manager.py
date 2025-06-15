@@ -132,6 +132,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
+    def refresh_token(self, token: str) -> str | None:
+        """
+        Refresh the JWT token.
+
+        This method is called when the JWT token is about to expire. It should return a new JWT token if the
+        user is still authenticated, or None if the user is not authenticated anymore.
+        """
+        return None
+
     @abstractmethod
     def is_authorized_configuration(
         self,
