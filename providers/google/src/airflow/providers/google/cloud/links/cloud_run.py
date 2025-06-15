@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module contains Google Cloud Run links."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -30,6 +32,38 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.xcom import XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+CLOUD_RUN_BASE_LINK = "/run"
+CLOUD_RUN_JOB_EXECUTION_LINK = (
+    CLOUD_RUN_BASE_LINK + "/jobs/execution/{region}/{execution_name}"
+    "?project={project_id}"
+)
+
+
+class CloudRunJobExecutionLink(BaseGoogleLink):
+    """Helper class for constructing Cloud Run Job Execution Link."""
+
+    name = "Cloud Run Job Execution"
+    key = "cloud_run_job_execution"
+    format_str = CLOUD_RUN_JOB_EXECUTION_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance: BaseOperator,
+        project_id: str,
+        region: str,
+        execution_name: str,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=CloudRunJobExecutionLink.key,
+            value={
+                "project_id": project_id,
+                "region": region,
+                "execution_name": execution_name,
+            },
+        )
 
 
 class CloudRunJobLoggingLink(BaseGoogleLink):
