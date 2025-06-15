@@ -889,6 +889,31 @@ jobs:
                   text: "🚨🕒 Scheduled CI Failure Alert (AMD) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
 
+  notify-slack-success:
+    name: "Notify Slack on Success"
+    needs:
+      - finalize-tests
+    if: github.event_name == 'schedule' && github.run_attempt == 1
+    runs-on: ["ubuntu-22.04"]
+    steps:
+      - name: Notify Slack
+        id: slack
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "✅Success for scheduled CI (AMD) on branch *${{ github.ref_name }}* ✅\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|Logs>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "✅Success for scheduled CI (AMD) on branch *${{ github.ref_name }}* ✅\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|Logs>"
+          # yamllint enable rule:line-length
+
+
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
