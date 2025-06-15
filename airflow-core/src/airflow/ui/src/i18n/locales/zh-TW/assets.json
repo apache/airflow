@@ -3,7 +3,7 @@
   "createEvent": {
     "button": "建立事件",
     "manual": {
-      "description": "直接建立資源事件",
+      "description": "手動建立資源事件",
       "extra": "資源事件額外資訊",
       "label": "手動"
     },
