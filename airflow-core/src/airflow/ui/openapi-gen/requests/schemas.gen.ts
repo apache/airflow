@@ -2500,6 +2500,17 @@ export const $DAGRunResponse = {
         },
       ],
     },
+    triggering_user: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Triggering User",
+    },
     conf: {
       anyOf: [
         {
@@ -2562,6 +2573,7 @@ export const $DAGRunResponse = {
     "run_type",
     "state",
     "triggered_by",
+    "triggering_user",
     "conf",
     "note",
     "dag_versions",

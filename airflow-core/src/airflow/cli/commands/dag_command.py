@@ -45,6 +45,7 @@ from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
@@ -72,6 +73,7 @@ def dag_trigger(args) -> None:
             run_id=args.run_id,
             conf=args.conf,
             logical_date=args.logical_date,
+            triggering_user=getuser(),
             replace_microseconds=args.replace_microseconds,
         )
         AirflowConsole().print_as(
