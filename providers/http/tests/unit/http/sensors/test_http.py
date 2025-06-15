@@ -265,6 +265,10 @@ class FakeSession:
         self.response = requests.Response()
         self.response.status_code = 200
         self.response._content = "apache/airflow".encode("ascii", "ignore")
+        self.proxies = None
+        self.stream = None
+        self.verify = False
+        self.cert = None
 
     def send(self, *args, **kwargs):
         return self.response
