@@ -18,9 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
-from airflow.decorators import task, task_group
-from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.operators.glue import (
@@ -36,6 +33,14 @@ from airflow.providers.amazon.aws.sensors.glue import (
     GlueDataQualityRuleRecommendationRunSensor,
     GlueDataQualityRuleSetEvaluationRunSensor,
 )
+
+try:
+    from airflow.sdk import DAG, chain, task, task_group
+except ImportError:
+    # Airflow 2.10 compat
+    from airflow.decorators import task, task_group
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

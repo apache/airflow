@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgeDisableRuleOperator,
     EventBridgeEnableRuleOperator,
@@ -27,6 +25,12 @@ from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgePutRuleOperator,
 )
 
+try:
+    from airflow.sdk import DAG, chain
+except ImportError:
+    # Airflow 2.10 compat
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_eventbridge"

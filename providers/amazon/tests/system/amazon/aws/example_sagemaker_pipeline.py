@@ -20,9 +20,6 @@ from datetime import datetime
 
 import boto3
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStartPipelineOperator,
     SageMakerStopPipelineOperator,
@@ -30,6 +27,14 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerPipelineSensor,
 )
+
+try:
+    from airflow.sdk import DAG, chain, task
+except ImportError:
+    # Airflow 2.10 compat
+    from airflow.decorators import task
+    from airflow.models.baseoperator import chain
+    from airflow.models.dag import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.example_sagemaker import delete_experiments
