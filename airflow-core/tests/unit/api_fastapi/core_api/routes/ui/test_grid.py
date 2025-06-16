@@ -42,6 +42,7 @@ pytestmark = pytest.mark.db_test
 DAG_ID = "test_dag"
 DAG_ID_2 = "test_dag_2"
 DAG_ID_3 = "test_dag_3"
+DAG_ID_4 = "test_dag_4"
 TASK_ID = "task"
 TASK_ID_2 = "task2"
 TASK_ID_3 = "task3"
@@ -59,11 +60,9 @@ GRID_RUN_1 = {
     "data_interval_start": "2024-11-29T00:00:00Z",
     "end_date": "2024-12-31T00:00:00Z",
     "logical_date": "2024-11-30T00:00:00Z",
-    "note": None,
-    "queued_at": None,
+    "run_after": "2024-11-30T00:00:00Z",
     "run_type": "scheduled",
     "start_date": "2016-01-01T00:00:00Z",
-    "run_after": "2024-11-30T00:00:00Z",
     "state": "success",
     "task_instances": [
         {
@@ -82,10 +81,6 @@ GRID_RUN_1 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 3,
             "task_id": "mapped_task_group",
@@ -107,10 +102,6 @@ GRID_RUN_1 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 2,
             "task_id": "task_group.inner_task_group",
@@ -132,10 +123,6 @@ GRID_RUN_1 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 5,
             "task_id": "task_group",
@@ -157,10 +144,6 @@ GRID_RUN_1 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 1,
             "task_id": "mapped_task_2",
@@ -182,10 +165,6 @@ GRID_RUN_1 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 3,
             "task_id": "mapped_task_group.subtask",
@@ -207,10 +186,6 @@ GRID_RUN_1 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 1,
             "task_id": "task",
@@ -232,10 +207,6 @@ GRID_RUN_1 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 2,
             "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
@@ -257,10 +228,6 @@ GRID_RUN_1 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 4,
             "task_id": "task_group.mapped_task",
@@ -275,8 +242,6 @@ GRID_RUN_2 = {
     "data_interval_start": "2024-11-29T00:00:00Z",
     "end_date": "2024-12-31T00:00:00Z",
     "logical_date": "2024-12-01T00:00:00Z",
-    "note": None,
-    "queued_at": None,
     "run_after": "2024-11-30T00:00:00Z",
     "run_type": "manual",
     "start_date": "2016-01-01T00:00:00Z",
@@ -299,8 +264,6 @@ GRID_RUN_2 = {
                 "upstream_failed": 0,
             },
             "end_date": "2024-12-30T01:02:03Z",
-            "note": None,
-            "queued_dttm": None,
             "start_date": "2024-12-30T01:00:00Z",
             "state": "running",
             "task_count": 3,
@@ -323,11 +286,6 @@ GRID_RUN_2 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
-            "state": None,
             "task_count": 2,
             "task_id": "task_group.inner_task_group",
             "try_number": 0,
@@ -348,11 +306,6 @@ GRID_RUN_2 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
-            "state": None,
             "task_count": 5,
             "task_id": "task_group",
             "try_number": 0,
@@ -373,11 +326,6 @@ GRID_RUN_2 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
-            "state": None,
             "task_count": 1,
             "task_id": "mapped_task_2",
             "try_number": 0,
@@ -399,8 +347,6 @@ GRID_RUN_2 = {
                 "upstream_failed": 0,
             },
             "end_date": "2024-12-30T01:02:03Z",
-            "note": None,
-            "queued_dttm": None,
             "start_date": "2024-12-30T01:00:00Z",
             "state": "running",
             "task_count": 3,
@@ -423,10 +369,6 @@ GRID_RUN_2 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
             "state": "success",
             "task_count": 1,
             "task_id": "task",
@@ -448,11 +390,6 @@ GRID_RUN_2 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
-            "state": None,
             "task_count": 2,
             "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
             "try_number": 0,
@@ -473,111 +410,9 @@ GRID_RUN_2 = {
                 "up_for_retry": 0,
                 "upstream_failed": 0,
             },
-            "end_date": None,
-            "note": None,
-            "queued_dttm": None,
-            "start_date": None,
-            "state": None,
             "task_count": 4,
             "task_id": "task_group.mapped_task",
             "try_number": 0,
-        },
-    ],
-}
-
-STRUCTURE = {
-    "edges": [],
-    "nodes": [
-        {
-            "asset_condition_type": None,
-            "children": [
-                {
-                    "asset_condition_type": None,
-                    "children": None,
-                    "id": "mapped_task_group.subtask",
-                    "is_mapped": True,
-                    "label": "subtask",
-                    "operator": "MockOperator",
-                    "setup_teardown_type": None,
-                    "tooltip": None,
-                    "type": "task",
-                },
-            ],
-            "id": "mapped_task_group",
-            "is_mapped": True,
-            "label": "mapped_task_group",
-            "operator": None,
-            "setup_teardown_type": None,
-            "tooltip": "",
-            "type": "task",
-        },
-        {
-            "asset_condition_type": None,
-            "children": None,
-            "id": "task",
-            "is_mapped": None,
-            "label": "task",
-            "operator": "EmptyOperator",
-            "setup_teardown_type": None,
-            "tooltip": None,
-            "type": "task",
-        },
-        {
-            "asset_condition_type": None,
-            "children": [
-                {
-                    "asset_condition_type": None,
-                    "children": [
-                        {
-                            "asset_condition_type": None,
-                            "children": None,
-                            "id": "task_group.inner_task_group.inner_task_group_sub_task",
-                            "is_mapped": True,
-                            "label": "inner_task_group_sub_task",
-                            "operator": "MockOperator",
-                            "setup_teardown_type": None,
-                            "tooltip": None,
-                            "type": "task",
-                        },
-                    ],
-                    "id": "task_group.inner_task_group",
-                    "is_mapped": False,
-                    "label": "inner_task_group",
-                    "operator": None,
-                    "setup_teardown_type": None,
-                    "tooltip": "",
-                    "type": "task",
-                },
-                {
-                    "asset_condition_type": None,
-                    "children": None,
-                    "id": "task_group.mapped_task",
-                    "is_mapped": True,
-                    "label": "mapped_task",
-                    "operator": "MockOperator",
-                    "setup_teardown_type": None,
-                    "tooltip": None,
-                    "type": "task",
-                },
-            ],
-            "id": "task_group",
-            "is_mapped": False,
-            "label": "task_group",
-            "operator": None,
-            "setup_teardown_type": None,
-            "tooltip": "",
-            "type": "task",
-        },
-        {
-            "asset_condition_type": None,
-            "children": None,
-            "id": "mapped_task_2",
-            "is_mapped": True,
-            "label": "mapped_task_2",
-            "operator": "MockOperator",
-            "setup_teardown_type": None,
-            "tooltip": None,
-            "type": "task",
         },
     ],
 }
@@ -692,6 +527,35 @@ def setup(dag_maker, session=None):
         ti.state = TaskInstanceState.SUCCESS
         ti.end_date = None
 
+    # DAG 4 for testing removed task
+    with dag_maker(dag_id=DAG_ID_4, serialized=True, session=session) as dag_4:
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        with TaskGroup(group_id=f"{TASK_GROUP_ID}-1") as tg1:
+            with TaskGroup(group_id=f"{TASK_GROUP_ID}-2") as tg2:
+                EmptyOperator(task_id="t3")
+                EmptyOperator(task_id="t4")
+                EmptyOperator(task_id="t5")
+            t6 = EmptyOperator(task_id="t6")
+            tg2 >> t6
+        t7 = EmptyOperator(task_id="t7")
+        t1 >> t2 >> tg1 >> t7
+
+    logical_date = timezone.datetime(2024, 11, 30)
+    data_interval = dag_4.timetable.infer_manual_data_interval(run_after=logical_date)
+    run_4 = dag_maker.create_dagrun(
+        run_id="run_4-1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date,
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+    for ti in run_4.task_instances:
+        ti.state = "success"
+    session.commit()
+
 
 @pytest.fixture(autouse=True)
 def _clean():
@@ -714,7 +578,6 @@ class TestGetGridDataEndpoint:
         response = test_client.get(f"/grid/{DAG_ID}")
         assert response.status_code == 200
         assert response.json() == {
-            "structure": STRUCTURE,
             "dag_runs": [GRID_RUN_1, GRID_RUN_2],
         }
 
@@ -724,7 +587,6 @@ class TestGetGridDataEndpoint:
             (
                 "logical_date",
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [
                         GRID_RUN_1,
                         GRID_RUN_2,
@@ -734,7 +596,6 @@ class TestGetGridDataEndpoint:
             (
                 "-logical_date",
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [
                         GRID_RUN_2,
                         GRID_RUN_1,
@@ -744,7 +605,6 @@ class TestGetGridDataEndpoint:
             (
                 "run_after",
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [
                         GRID_RUN_1,
                         GRID_RUN_2,
@@ -754,7 +614,6 @@ class TestGetGridDataEndpoint:
             (
                 "-run_after",
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [
                         GRID_RUN_2,
                         GRID_RUN_1,
@@ -775,7 +634,6 @@ class TestGetGridDataEndpoint:
                 "true",
                 "false",
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [
                         {
                             **GRID_RUN_1,
@@ -796,10 +654,6 @@ class TestGetGridDataEndpoint:
                                         "up_for_retry": 0,
                                         "upstream_failed": 0,
                                     },
-                                    "end_date": None,
-                                    "note": None,
-                                    "queued_dttm": None,
-                                    "start_date": None,
                                     "state": "success",
                                     "task_count": 3,
                                     "task_id": "mapped_task_group",
@@ -821,10 +675,6 @@ class TestGetGridDataEndpoint:
                                         "up_for_retry": 0,
                                         "upstream_failed": 0,
                                     },
-                                    "end_date": None,
-                                    "note": None,
-                                    "queued_dttm": None,
-                                    "start_date": None,
                                     "state": "success",
                                     "task_count": 3,
                                     "task_id": "mapped_task_group.subtask",
@@ -852,8 +702,6 @@ class TestGetGridDataEndpoint:
                                         "upstream_failed": 0,
                                     },
                                     "end_date": "2024-12-30T01:02:03Z",
-                                    "note": None,
-                                    "queued_dttm": None,
                                     "start_date": "2024-12-30T01:00:00Z",
                                     "state": "running",
                                     "task_count": 3,
@@ -877,8 +725,6 @@ class TestGetGridDataEndpoint:
                                         "upstream_failed": 0,
                                     },
                                     "end_date": "2024-12-30T01:02:03Z",
-                                    "note": None,
-                                    "queued_dttm": None,
                                     "start_date": "2024-12-30T01:00:00Z",
                                     "state": "running",
                                     "task_count": 3,
@@ -894,7 +740,6 @@ class TestGetGridDataEndpoint:
                 "false",
                 "true",
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [
                         {
                             **GRID_RUN_1,
@@ -915,10 +760,6 @@ class TestGetGridDataEndpoint:
                                         "up_for_retry": 0,
                                         "upstream_failed": 0,
                                     },
-                                    "end_date": None,
-                                    "note": None,
-                                    "queued_dttm": None,
-                                    "start_date": None,
                                     "state": "success",
                                     "task_count": 3,
                                     "task_id": "mapped_task_group",
@@ -940,10 +781,6 @@ class TestGetGridDataEndpoint:
                                         "up_for_retry": 0,
                                         "upstream_failed": 0,
                                     },
-                                    "end_date": None,
-                                    "note": None,
-                                    "queued_dttm": None,
-                                    "start_date": None,
                                     "state": "success",
                                     "task_count": 3,
                                     "task_id": "mapped_task_group.subtask",
@@ -971,8 +808,6 @@ class TestGetGridDataEndpoint:
                                         "upstream_failed": 0,
                                     },
                                     "end_date": "2024-12-30T01:02:03Z",
-                                    "note": None,
-                                    "queued_dttm": None,
                                     "start_date": "2024-12-30T01:00:00Z",
                                     "state": "running",
                                     "task_count": 3,
@@ -996,8 +831,6 @@ class TestGetGridDataEndpoint:
                                         "upstream_failed": 0,
                                     },
                                     "end_date": "2024-12-30T01:02:03Z",
-                                    "note": None,
-                                    "queued_dttm": None,
                                     "start_date": "2024-12-30T01:00:00Z",
                                     "state": "running",
                                     "task_count": 3,
@@ -1031,14 +864,12 @@ class TestGetGridDataEndpoint:
             (
                 1,
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [GRID_RUN_1],
                 },
             ),
             (
                 2,
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [GRID_RUN_1, GRID_RUN_2],
                 },
             ),
@@ -1058,7 +889,6 @@ class TestGetGridDataEndpoint:
                     "logical_date_lte": timezone.datetime(2024, 11, 30),
                 },
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [GRID_RUN_1],
                 },
             ),
@@ -1067,7 +897,7 @@ class TestGetGridDataEndpoint:
                     "logical_date_gte": timezone.datetime(2024, 10, 30),
                     "logical_date_lte": timezone.datetime(2024, 10, 30),
                 },
-                {"dag_runs": [], "structure": STRUCTURE},
+                {"dag_runs": []},
             ),
             (
                 {
@@ -1075,7 +905,6 @@ class TestGetGridDataEndpoint:
                     "run_after_lte": timezone.datetime(2024, 11, 30),
                 },
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [GRID_RUN_1, GRID_RUN_2],
                 },
             ),
@@ -1084,7 +913,7 @@ class TestGetGridDataEndpoint:
                     "run_after_gte": timezone.datetime(2024, 10, 30),
                     "run_after_lte": timezone.datetime(2024, 10, 30),
                 },
-                {"dag_runs": [], "structure": STRUCTURE},
+                {"dag_runs": []},
             ),
         ],
     )
@@ -1102,14 +931,12 @@ class TestGetGridDataEndpoint:
             (
                 ["manual"],
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [GRID_RUN_2],
                 },
             ),
             (
                 ["scheduled"],
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [GRID_RUN_1],
                 },
             ),
@@ -1140,20 +967,18 @@ class TestGetGridDataEndpoint:
             (
                 ["success"],
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [GRID_RUN_1],
                 },
             ),
             (
                 ["failed"],
                 {
-                    "structure": STRUCTURE,
                     "dag_runs": [GRID_RUN_2],
                 },
             ),
             (
                 ["running"],
-                {"dag_runs": [], "structure": STRUCTURE},
+                {"dag_runs": []},
             ),
         ],
     )
@@ -1194,22 +1019,6 @@ class TestGetGridDataEndpoint:
         assert response.status_code == 200
         assert response.json() == {
             "dag_runs": [],
-            "structure": {
-                "nodes": [
-                    {
-                        "asset_condition_type": None,
-                        "children": None,
-                        "id": "task2",
-                        "is_mapped": None,
-                        "label": "task2",
-                        "operator": "EmptyOperator",
-                        "setup_teardown_type": None,
-                        "tooltip": None,
-                        "type": "task",
-                    },
-                ],
-                "edges": [],
-            },
         }
 
     def test_should_response_200_with_deleted_task_and_taskgroup(self, session, test_client):
@@ -1225,68 +1034,15 @@ class TestGetGridDataEndpoint:
         response = test_client.get(f"/grid/{DAG_ID_3}")
         assert response.status_code == 200
         assert response.json() == {
-            "structure": {
-                "edges": [],
-                "nodes": [
-                    {
-                        "asset_condition_type": None,
-                        "children": None,
-                        "id": "task3",
-                        "is_mapped": None,
-                        "label": "task3",
-                        "operator": "EmptyOperator",
-                        "setup_teardown_type": None,
-                        "tooltip": None,
-                        "type": "task",
-                    },
-                    {
-                        "asset_condition_type": None,
-                        "children": None,
-                        "id": "task4",
-                        "is_mapped": None,
-                        "label": "task4",
-                        "operator": "EmptyOperator",
-                        "setup_teardown_type": None,
-                        "tooltip": None,
-                        "type": "task",
-                    },
-                    {
-                        "asset_condition_type": None,
-                        "children": [
-                            {
-                                "asset_condition_type": None,
-                                "children": None,
-                                "id": "task_group.inner_task",
-                                "is_mapped": None,
-                                "label": "inner_task",
-                                "operator": "EmptyOperator",
-                                "setup_teardown_type": None,
-                                "tooltip": None,
-                                "type": "task",
-                            },
-                        ],
-                        "id": "task_group",
-                        "is_mapped": False,
-                        "label": "task_group",
-                        "operator": None,
-                        "setup_teardown_type": None,
-                        "tooltip": "",
-                        "type": "task",
-                    },
-                ],
-            },
             "dag_runs": [
                 {
                     "dag_run_id": "run_3",
                     "data_interval_end": "2024-11-30T00:00:00Z",
                     "data_interval_start": "2024-11-29T00:00:00Z",
-                    "end_date": None,
                     "logical_date": "2024-11-30T00:00:00Z",
-                    "note": None,
                     "queued_at": "2024-12-31T00:00:00Z",
                     "run_after": "2024-11-30T00:00:00Z",
                     "run_type": "scheduled",
-                    "start_date": None,
                     "state": "queued",
                     "task_instances": [
                         {
@@ -1305,10 +1061,6 @@ class TestGetGridDataEndpoint:
                                 "up_for_retry": 0,
                                 "upstream_failed": 0,
                             },
-                            "end_date": None,
-                            "note": None,
-                            "queued_dttm": None,
-                            "start_date": None,
                             "state": "success",
                             "task_count": 1,
                             "task_id": "task_group",
@@ -1330,10 +1082,6 @@ class TestGetGridDataEndpoint:
                                 "up_for_retry": 0,
                                 "upstream_failed": 0,
                             },
-                            "end_date": None,
-                            "note": None,
-                            "queued_dttm": None,
-                            "start_date": None,
                             "state": "success",
                             "task_count": 1,
                             "task_id": "task3",
@@ -1355,10 +1103,6 @@ class TestGetGridDataEndpoint:
                                 "up_for_retry": 0,
                                 "upstream_failed": 0,
                             },
-                            "end_date": None,
-                            "note": None,
-                            "queued_dttm": None,
-                            "start_date": None,
                             "state": "success",
                             "task_count": 1,
                             "task_id": "task_group.inner_task",
@@ -1372,8 +1116,6 @@ class TestGetGridDataEndpoint:
                     "data_interval_start": "2024-11-29T00:00:00Z",
                     "end_date": "2024-12-31T00:00:00Z",
                     "logical_date": "2024-12-01T00:00:00Z",
-                    "note": None,
-                    "queued_at": None,
                     "run_after": "2024-11-30T00:00:00Z",
                     "run_type": "manual",
                     "start_date": "2024-11-30T00:00:00Z",
@@ -1395,10 +1137,6 @@ class TestGetGridDataEndpoint:
                                 "up_for_retry": 0,
                                 "upstream_failed": 0,
                             },
-                            "end_date": None,
-                            "note": None,
-                            "queued_dttm": None,
-                            "start_date": None,
                             "state": "success",
                             "task_count": 1,
                             "task_id": "task3",
@@ -1408,3 +1146,117 @@ class TestGetGridDataEndpoint:
                 },
             ],
         }
+
+    def test_get_dag_structure(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/structure/{DAG_ID}?limit=5")
+        assert response.status_code == 200
+        assert response.json() == [
+            {
+                "children": [{"id": "mapped_task_group.subtask", "is_mapped": True, "label": "subtask"}],
+                "id": "mapped_task_group",
+                "is_mapped": True,
+                "label": "mapped_task_group",
+            },
+            {"id": "task", "label": "task"},
+            {
+                "children": [
+                    {
+                        "children": [
+                            {
+                                "id": "task_group.inner_task_group.inner_task_group_sub_task",
+                                "is_mapped": True,
+                                "label": "inner_task_group_sub_task",
+                            }
+                        ],
+                        "id": "task_group.inner_task_group",
+                        "label": "inner_task_group",
+                    },
+                    {"id": "task_group.mapped_task", "is_mapped": True, "label": "mapped_task"},
+                ],
+                "id": "task_group",
+                "label": "task_group",
+            },
+            {"id": "mapped_task_2", "is_mapped": True, "label": "mapped_task_2"},
+        ]
+
+    def test_get_grid_runs(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
+        assert response.status_code == 200
+        assert response.json() == [
+            {
+                "dag_id": "test_dag",
+                "duration": 0,
+                "end_date": "2024-12-31T00:00:00Z",
+                "run_after": "2024-11-30T00:00:00Z",
+                "run_id": "run_1",
+                "run_type": "scheduled",
+                "start_date": "2016-01-01T00:00:00Z",
+                "state": "success",
+            },
+            {
+                "dag_id": "test_dag",
+                "duration": 0,
+                "end_date": "2024-12-31T00:00:00Z",
+                "run_after": "2024-11-30T00:00:00Z",
+                "run_id": "run_2",
+                "run_type": "manual",
+                "start_date": "2016-01-01T00:00:00Z",
+                "state": "failed",
+            },
+        ]
+
+    def test_grid_ti_summaries_group(self, session, test_client):
+        run_id = "run_4-1"
+        session.commit()
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/{run_id}")
+        assert response.status_code == 200
+        actual = response.json()
+        expected = {
+            "dag_id": "test_dag_4",
+            "run_id": "run_4-1",
+            "task_instances": [
+                {"state": "success", "task_id": "task_group"},
+                {"state": "success", "task_id": "t1"},
+                {"state": "success", "task_id": "t2"},
+                {"state": "success", "task_id": "t5"},
+                {"state": "success", "task_id": "task_group.t3"},
+                {"state": "success", "task_id": "task_group.t4"},
+                {"state": "success", "task_id": "task_group.t5"},
+            ],
+        }
+        for obj in actual, expected:
+            tis = obj["task_instances"]
+            tis[:] = sorted(tis, key=lambda x: x["task_id"])
+        assert actual == expected
+
+    def test_grid_ti_summaries_mapped(self, session, test_client):
+        run_id = "run_2"
+        session.commit()
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
+        assert response.status_code == 200
+        data = response.json()
+        actual = data["task_instances"]
+
+        def sort_dict(in_dict):
+            in_dict = sorted(in_dict, key=lambda x: x["task_id"])
+            out = []
+            for d in in_dict:
+                n = {k: d[k] for k in sorted(d, reverse=True)}
+                out.append(n)
+            return out
+
+        expected = [
+            {"task_id": "mapped_task_group", "state": "running"},
+            {"task_id": "task_group.inner_task_group"},
+            {"task_id": "task_group"},
+            {"task_id": "mapped_task_2"},
+            {"task_id": "mapped_task_group.subtask", "state": "running"},
+            {"task_id": "task", "state": "success"},
+            {"task_id": "task_group.inner_task_group.inner_task_group_sub_task"},
+            {"task_id": "task_group.mapped_task"},
+        ]
+        expected = sort_dict(expected)
+        actual = sort_dict(actual)
+        assert actual == expected

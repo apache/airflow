@@ -1259,3 +1259,68 @@ export const prefetchUseGridServiceGridData = (queryClient: QueryClient, { dagId
   runType?: string[];
   state?: string[];
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGridDataKeyFn({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }), queryFn: () => GridService.gridData({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }) });
+/**
+* Get Dag Structure
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.offset
+* @param data.limit
+* @param data.orderBy
+* @param data.runAfterGte
+* @param data.runAfterLte
+* @returns GridNodeResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });
+/**
+* Get Grid Runs
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.offset
+* @param data.limit
+* @param data.orderBy
+* @param data.runAfterGte
+* @param data.runAfterLte
+* @returns GridRunsResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });
+/**
+* Get Grid Ti Summaries
+* @param data The data for the request.
+* @param data.dagId
+* @param data.runId
+* @returns GridTISummaries Successful Response
+* @throws ApiError
+*/
+export const prefetchUseGridServiceGetGridTiSummaries = (queryClient: QueryClient, { dagId, runId }: {
+  dagId: string;
+  runId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) });
+/**
+* Get Latest Run
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const prefetchUseGridServiceGetLatestRun = (queryClient: QueryClient, { dagId }: {
+  dagId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }), queryFn: () => GridService.getLatestRun({ dagId }) });

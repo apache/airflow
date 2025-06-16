@@ -1259,3 +1259,68 @@ export const ensureUseGridServiceGridDataData = (queryClient: QueryClient, { dag
   runType?: string[];
   state?: string[];
 }) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGridDataKeyFn({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }), queryFn: () => GridService.gridData({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }) });
+/**
+* Get Dag Structure
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.offset
+* @param data.limit
+* @param data.orderBy
+* @param data.runAfterGte
+* @param data.runAfterLte
+* @returns GridNodeResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });
+/**
+* Get Grid Runs
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.offset
+* @param data.limit
+* @param data.orderBy
+* @param data.runAfterGte
+* @param data.runAfterLte
+* @returns GridRunsResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });
+/**
+* Get Grid Ti Summaries
+* @param data The data for the request.
+* @param data.dagId
+* @param data.runId
+* @returns GridTISummaries Successful Response
+* @throws ApiError
+*/
+export const ensureUseGridServiceGetGridTiSummariesData = (queryClient: QueryClient, { dagId, runId }: {
+  dagId: string;
+  runId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) });
+/**
+* Get Latest Run
+* Return unified dag structure for grid view.
+* @param data The data for the request.
+* @param data.dagId
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const ensureUseGridServiceGetLatestRunData = (queryClient: QueryClient, { dagId }: {
+  dagId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }), queryFn: () => GridService.getLatestRun({ dagId }) });
