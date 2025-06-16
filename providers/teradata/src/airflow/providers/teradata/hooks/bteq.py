@@ -171,7 +171,6 @@ class BteqHook(TtuHook):
                         bteq_session_encoding=bteq_session_encoding or "",
                         timeout_rc=timeout_rc or -1,
                     )
-                    self.log.info("Executing BTEQ command: %s", bteq_command_str)
 
                     exit_status, stdout, stderr = decrypt_remote_file_to_string(
                         ssh_client,
@@ -181,9 +180,6 @@ class BteqHook(TtuHook):
                     )
 
                     failure_message = None
-                    self.log.info("stdout : %s", stdout)
-                    self.log.info("stderr : %s", stderr)
-                    self.log.info("exit_status : %s", exit_status)
 
                     if "Failure" in stderr or "Error" in stderr:
                         failure_message = stderr
@@ -250,7 +246,6 @@ class BteqHook(TtuHook):
             bteq_session_encoding=bteq_session_encoding or "",
             timeout_rc=timeout_rc or -1,
         )
-        self.log.info("Executing BTEQ command: %s", bteq_command_str)
         process = subprocess.Popen(
             bteq_command_str,
             stdin=subprocess.PIPE,
@@ -260,9 +255,7 @@ class BteqHook(TtuHook):
             preexec_fn=os.setsid,
         )
         encode_bteq_script = bteq_script.encode(str(temp_file_read_encoding or "UTF-8"))
-        self.log.info("encode_bteq_script : %s", encode_bteq_script)
         stdout_data, _ = process.communicate(input=encode_bteq_script)
-        self.log.info("stdout_data : %s", stdout_data)
         try:
             # https://docs.python.org/3.10/library/subprocess.html#subprocess.Popen.wait  timeout is in seconds
             process.wait(timeout=timeout + 60)  # Adding 1 minute extra for BTEQ script timeout
@@ -278,7 +271,6 @@ class BteqHook(TtuHook):
         for line in stdout_data.splitlines():
             try:
                 decoded_line = line.decode("UTF-8").strip()
-                self.log.info("decoded_line : %s", decoded_line)
             except UnicodeDecodeError:
                 self.log.warning("Failed to decode line: %s", line)
             if "Failure" in decoded_line or "Error" in decoded_line:

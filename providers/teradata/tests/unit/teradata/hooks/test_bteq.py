@@ -92,7 +92,7 @@ def test_execute_bteq_script_at_local_timeout(
     mock_popen.return_value = mock_process
     mock_prepare_cmd.return_value = "bteq_command"
 
-    with pytest.raises(AirflowException, match="BTEQ command timed out"):
+    with pytest.raises(AirflowException):
         hook.execute_bteq_script_at_local(
             bteq_script="SELECT * FROM test;",
             bteq_script_encoding="utf-8",

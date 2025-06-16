@@ -117,11 +117,6 @@ class BteqOperator(BaseOperator):
             raise ValueError(
                 "BteqOperator requires either the 'sql' or 'file_path' parameter. Both are missing."
             )
-        self.log.info("=========================================================")
-        self.log.info("self.bteq_script_encoding: %s", self.bteq_script_encoding)
-        self.log.info("self.bteq_session_encoding: %s", self.bteq_session_encoding)
-        self.log.info("self.temp_file_read_encoding: %s", self.temp_file_read_encoding)
-        self.log.info("=========================================================")
 
         # Validate and set BTEQ session and script encoding
         if not self.bteq_session_encoding or self.bteq_session_encoding == "ASCII":
@@ -144,11 +139,6 @@ class BteqOperator(BaseOperator):
         elif self.bteq_script_encoding == "UTF16":
             self.temp_file_read_encoding = "UTF-16"
 
-        self.log.info("=========================================================")
-        self.log.info("self.bteq_script_encoding: %s", self.bteq_script_encoding)
-        self.log.info("self.bteq_session_encoding: %s", self.bteq_session_encoding)
-        self.log.info("self.temp_file_read_encoding: %s", self.temp_file_read_encoding)
-        self.log.info("=========================================================")
         if not self.remote_working_dir:
             self.remote_working_dir = "/tmp"
         # Handling execution on local:
@@ -157,7 +147,6 @@ class BteqOperator(BaseOperator):
                 bteq_script = prepare_bteq_script_for_local_execution(
                     sql=self.sql,
                 )
-                self.log.info("Executing BTEQ script with SQL content: %s", bteq_script)
                 return self._hook.execute_bteq_script(
                     bteq_script,
                     self.remote_working_dir,
@@ -192,7 +181,6 @@ class BteqOperator(BaseOperator):
                     conn=self._hook.get_conn(),
                     sql=self.sql,
                 )
-                self.log.info("Executing BTEQ script with SQL content: %s", bteq_script)
                 return self._hook.execute_bteq_script(
                     bteq_script,
                     self.remote_working_dir,
@@ -242,7 +230,6 @@ class BteqOperator(BaseOperator):
                     conn=self._hook.get_conn(),
                     sql=rendered_content,
                 )
-                self.log.info("Executing BTEQ script with SQL content: %s", bteq_script)
                 return self._hook.execute_bteq_script_at_remote(
                     bteq_script,
                     self.remote_working_dir,
@@ -272,7 +259,6 @@ class BteqOperator(BaseOperator):
             bteq_script = prepare_bteq_script_for_local_execution(
                 sql=rendered_content,
             )
-            self.log.info("Executing BTEQ script with SQL content: %s", bteq_script)
             result = self._hook.execute_bteq_script(
                 bteq_script,
                 self.remote_working_dir,
