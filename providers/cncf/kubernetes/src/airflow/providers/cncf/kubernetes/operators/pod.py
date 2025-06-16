@@ -718,7 +718,9 @@ class KubernetesPodOperator(BaseOperator):
             )
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
-            self.post_complete_action(pod=pod_to_clean, remote_pod=self.remote_pod, context=context, result=result)
+            self.post_complete_action(
+                pod=pod_to_clean, remote_pod=self.remote_pod, context=context, result=result
+            )
 
         if self.do_xcom_push:
             return result
@@ -858,6 +860,7 @@ class KubernetesPodOperator(BaseOperator):
         grab the latest logs and defer back to the trigger again.
         """
         self.pod = None
+        xcom_sidecar_output = None
         try:
             pod_name = event["name"]
             pod_namespace = event["namespace"]
@@ -930,9 +933,9 @@ class KubernetesPodOperator(BaseOperator):
         except TaskDeferred:
             raise
         finally:
-            self._clean(event, context)
+            self._clean(event, context, result=xcom_sidecar_output)
 
-    def _clean(self, event: dict[str, Any], context: Context) -> None:
+    def _clean(self, event: dict[str, Any], result: dict, context: Context) -> None:
         if event["status"] == "running":
             return
         istio_enabled = self.is_istio_enabled(self.pod)
@@ -956,6 +959,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod,
                 remote_pod=self.pod,
                 context=context,
+                result=result,
             )
 
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
@@ -985,7 +989,9 @@ class KubernetesPodOperator(BaseOperator):
                 e if not isinstance(e, ApiException) else e.reason,
             )
 
-    def post_complete_action(self, *, pod, remote_pod, context: Context, result: dict, **kwargs) -> None:
+    def post_complete_action(
+        self, *, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, context: Context, result: dict, **kwargs
+    ) -> None:
         """Actions that must be done after operator finishes logic of the deferrable_execution."""
         self.cleanup(
             pod=pod,
