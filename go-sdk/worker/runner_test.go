@@ -218,7 +218,7 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	// Since we heartbeat every 100ms and run for 1 second, we should expect 10 heartbeat calls. But allow +/-
 	// 1 due to timing imprecision
 	s.Assert().
-		True(callCount < 11 && callCount > 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", callCount))
+		True(callCount <= 11 && callCount >= 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", callCount))
 }
 
 func (s *WorkerSuite) TestTaskHeartbeatErrorStopsTaskAndLogs() {
