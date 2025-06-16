@@ -1677,6 +1677,20 @@ export const $DAGDetailsResponse = {
       ],
       title: "Description",
     },
+    deadline: {
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/DeadlineAlertResponse",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Deadline",
+    },
     timetable_summary: {
       anyOf: [
         {
@@ -1979,6 +1993,7 @@ export const $DAGDetailsResponse = {
     "relative_fileloc",
     "fileloc",
     "description",
+    "deadline",
     "timetable_summary",
     "timetable_description",
     "tags",
@@ -2117,6 +2132,20 @@ export const $DAGResponse = {
       ],
       title: "Description",
     },
+    deadline: {
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/DeadlineAlertResponse",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Deadline",
+    },
     timetable_summary: {
       anyOf: [
         {
@@ -2248,6 +2277,7 @@ export const $DAGResponse = {
     "relative_fileloc",
     "fileloc",
     "description",
+    "deadline",
     "timetable_summary",
     "timetable_description",
     "tags",
@@ -3163,6 +3193,40 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
+} as const;
+
+export const $DeadlineAlertResponse = {
+  properties: {
+    reference: {
+      type: "string",
+      title: "Reference",
+    },
+    interval: {
+      type: "string",
+      format: "duration",
+      title: "Interval",
+    },
+    callback: {
+      type: "string",
+      title: "Callback",
+    },
+    callback_kwargs: {
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Callback Kwargs",
+    },
+  },
+  type: "object",
+  required: ["reference", "interval", "callback"],
+  title: "DeadlineAlertResponse",
+  description: "Deadline alert serializer for responses.",
 } as const;
 
 export const $DeadlineResponse = {
@@ -6665,6 +6729,20 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Description",
     },
+    deadline: {
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/DeadlineAlertResponse",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Deadline",
+    },
     timetable_summary: {
       anyOf: [
         {
@@ -6815,6 +6893,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "relative_fileloc",
     "fileloc",
     "description",
+    "deadline",
     "timetable_summary",
     "timetable_description",
     "tags",

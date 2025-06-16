@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "15.1.0"
+version = "16.0.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -138,7 +138,7 @@ dependencies = [
     "PyOpenSSL>=23.0.0",
     "sqlalchemy-bigquery>=1.2.1",
     "sqlalchemy-spanner>=1.6.2",
-    "tenacity>=8.1.0",
+    "tenacity>=8.3.0",
     "immutabledict>=4.2.0",
     # types-protobuf 5.29.1.20250402 is a partial stub package, leading to mypy complaining
     "types-protobuf!=5.29.1.20250402,>=5.27.0",
@@ -261,8 +261,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/15.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/15.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/16.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/16.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

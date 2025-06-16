@@ -16,11 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from uuid import UUID
 
 from pydantic import AwareDatetime
 
 from airflow.api_fastapi.core_api.base import BaseModel
+
+
+class DeadlineAlertResponse(BaseModel):
+    """Deadline alert serializer for responses."""
+
+    reference: str
+    interval: timedelta
+    callback: str
+    callback_kwargs: dict | None = None
 
 
 class DeadlineResponse(BaseModel):
