@@ -331,8 +331,6 @@ def _fork_main(
     # Store original stderr for last-chance exception handling
     last_chance_stderr = _get_last_chance_stderr()
 
-    # os.environ["_AIRFLOW_SUPERVISOR_FD"] = str(requests.fileno())
-
     _reset_signals()
     if log_fd:
         _configure_logs_over_json_channel(log_fd)
@@ -561,14 +559,19 @@ class WatchedSubprocess:
             del self._open_sockets[sock]
 
     def send_msg(
-        self, msg: BaseModel | None, in_response_to: int, error: ErrorResponse | None = None, **dump_opts
+        self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
     ):
-        """Send the msg as a length-prefixed response frame."""
+        """
+        Send the msg as a length-prefixed response frame.
+
+        ``request_id`` is the ID that the client sent in it's request, and has no meaning to the server
+
+        """
         if msg:
-            frame = _ResponseFrame(id=in_response_to, body=msg.model_dump(**dump_opts))
+            frame = _ResponseFrame(id=request_id, body=msg.model_dump(**dump_opts))
         else:
             err_resp = error.model_dump() if error else None
-            frame = _ResponseFrame(id=in_response_to, error=err_resp)
+            frame = _ResponseFrame(id=request_id, error=err_resp)
 
         self.stdin.sendall(frame.as_bytes())
 
@@ -605,7 +608,7 @@ class WatchedSubprocess:
                             "detail": error_details,
                         },
                     ),
-                    in_response_to=request.id,
+                    request_id=request.id,
                 )
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
@@ -868,7 +871,7 @@ class ActivitySubprocess(WatchedSubprocess):
         log.debug("Sending", msg=msg)
 
         try:
-            self.send_msg(msg, in_response_to=0)
+            self.send_msg(msg, request_id=0)
         except (BrokenPipeError, ConnectionResetError):
             # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
             log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
@@ -1219,7 +1222,7 @@ class ActivitySubprocess(WatchedSubprocess):
             log.error("Unhandled request", msg=msg)
             self.send_msg(
                 None,
-                in_response_to=req_id,
+                request_id=req_id,
                 error=ErrorResponse(
                     error=ErrorType.API_SERVER_ERROR,
                     detail={"status_code": 400, "message": "Unhandled request"},
@@ -1227,7 +1230,7 @@ class ActivitySubprocess(WatchedSubprocess):
             )
             return
 
-        self.send_msg(resp, in_response_to=req_id, error=None, **dump_opts)
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
 
 def in_process_api_server():
@@ -1366,7 +1369,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         return client
 
     def send_msg(
-        self, msg: BaseModel | None, in_response_to: int, error: ErrorResponse | None = None, **dump_opts
+        self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
     ):
         """Override to use in-process comms."""
         self.comms.messages.append(msg)
@@ -1444,7 +1447,6 @@ def make_buffered_socket_reader(
             if len(buffer):
                 with suppress(StopIteration):
                     gen.send(buffer)
-            # Tell loop to close this selector
             return False
 
         buffer.extend(read_buffer[:n_received])

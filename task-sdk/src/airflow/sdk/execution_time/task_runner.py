@@ -649,7 +649,7 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
-    # The parent sends us a StartupDetails message un-prompted. After this, ever single message is only sent
+    # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
     msg = SUPERVISOR_COMMS._get_response()
 
@@ -1256,9 +1256,9 @@ def main():
     finally:
         # Ensure the request socket is closed on the child side in all circumstances
         # before the process fully terminates.
-        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.request_socket:
+        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
             with suppress(Exception):
-                SUPERVISOR_COMMS.request_socket.close()
+                SUPERVISOR_COMMS.socket.close()
 
 
 if __name__ == "__main__":

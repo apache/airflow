@@ -603,7 +603,6 @@ class TestDagFileProcessorManager:
 
         read_socket.settimeout(0.1)
         # Read response from the read end of the socket
-        read_socket.settimeout(0.1)
         frame_len = int.from_bytes(read_socket.recv(4), "big")
         bytes = read_socket.recv(frame_len)
         frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes)

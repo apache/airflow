@@ -101,7 +101,8 @@ def _msgpack_enc_hook(obj: Any) -> Any:
     import pendulum
 
     if isinstance(obj, pendulum.DateTime):
-        # convert the complex to a tuple of real, imag
+        # convert the pendulm Datetime subclass into a raw datetime so that msgspec can use it's native
+        # encoding
         return datetime(
             obj.year, obj.month, obj.day, obj.hour, obj.minute, obj.second, obj.microsecond, tzinfo=obj.tzinfo
         )
@@ -137,14 +138,14 @@ class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=
         self.req_encoder.encode_into(self, buffer, 4)
 
         n = len(buffer) - 4
-        if n > 2**32:
-            raise OverflowError("Cannot send messages larger than 4GiB")
+        if n >= 2**32:
+            raise OverflowError(f"Cannot send messages larger than 4GiB {n=}")
         buffer[:4] = n.to_bytes(4, byteorder="big")
 
         return buffer
 
 
-class _ResponseFrame(_RequestFrame, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
+class _ResponseFrame(_RequestFrame, frozen=True):
     id: int
     """
     The id of the request this is a response to
@@ -158,7 +159,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     """Handle communication between the task in this process and the supervisor parent process."""
 
     log: Logger = attrs.field(repr=False, factory=structlog.get_logger)
-    request_socket: socket = attrs.field(factory=lambda: socket(fileno=0))
+    socket: socket = attrs.field(factory=lambda: socket(fileno=0))
 
     resp_decoder: msgspec.msgpack.Decoder[_ResponseFrame] = attrs.field(
         factory=lambda: msgspec.msgpack.Decoder(_ResponseFrame), repr=False
@@ -178,7 +179,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
         bytes = frame.as_bytes()
 
-        self.request_socket.sendall(bytes)
+        self.socket.sendall(bytes)
 
         return self._get_response()
 
@@ -188,9 +189,9 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         This will block until the message has been received.
         """
-        if self.request_socket:
-            self.request_socket.setblocking(True)
-        len_bytes = self.request_socket.recv(4)
+        if self.socket:
+            self.socket.setblocking(True)
+        len_bytes = self.socket.recv(4)
 
         if len_bytes == b"":
             raise EOFError("Request socket closed before length")
@@ -198,13 +199,13 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         len = int.from_bytes(len_bytes, byteorder="big")
 
         buffer = bytearray(len)
-        nread = self.request_socket.recv_into(buffer)
+        nread = self.socket.recv_into(buffer)
         if nread != len:
             raise RuntimeError(
                 f"unable to read full response in child. (We read {nread}, but expected {len})"
             )
         if nread == 0:
-            raise EOFError("Request socket closed before response was complete")
+            raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
 
         return self.resp_decoder.decode(buffer)
 
