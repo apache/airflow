@@ -1,14 +1,14 @@
 {
   "backfill": {
     "affected_one": "ריצה אחת תופעל.",
-    "affected_other": "{{count}} ריצות יופעלו.",
+    "affected_other": "{{count}} ריצות תופעלנה.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "backwards": "הרץ לאחור",
     "dateRange": "טווח תאריכים",
     "dateRangeFrom": "מתאריך",
     "dateRangeTo": "עד תאריך",
     "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
-    "maxRuns": "מקסימום ריצות פעילות",
+    "maxRuns": "מספר ריצות מקבילות מירבי",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
     "selectDescription": "הרץ DAG זה עבור טווח תאריכים",
@@ -21,7 +21,7 @@
       }
     },
     "tooltip": "Backfill דורש לוח זמנים",
-    "unpause": "הפעל את {{dag_display_name}} בעת ההפעלה",
+    "unpause": "הפעל את {{dag_display_name}} בעת ההרצה",
     "validation": {
       "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",
       "startBeforeEnd": "תאריך התחלת מרווח הנתונים חייב להיות קטן או שווה לתאריך סיום מרווח הנתונים."
@@ -40,7 +40,7 @@
   "configForm": {
     "advancedOptions": "אפשרויות מתקדמות",
     "configJson": "הגדרות JSON",
-    "invalidJson": "פורמט JSON לא תקין: {{errorMessage}}"
+    "invalidJson": "מבנה ה-JSON אינו תקין: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "שגיאה אחת",
@@ -111,7 +111,7 @@
         "title": "ריצת DAG הופעלה"
       }
     },
-    "unpause": "הפעל את {{dagDisplayName}} בעת ההפעלה"
+    "unpause": "הפעל את {{dagDisplayName}} בעת ההרצה"
   },
   "trimText": {
     "details": "פרטים",
@@ -123,10 +123,10 @@
     "bundleName": "שם החבילה",
     "bundleVersion": "גרסת החבילה",
     "createdAt": "נוצר ב",
-    "versionId": "מזהה גרסא"
+    "versionId": "מזהה גרסה"
   },
   "versionSelect": {
     "dagVersion": "גרסת DAG",
-    "versionCode": "גרסא {{versionCode}}"
+    "versionCode": "גרסה {{versionCode}}"
   }
 }
