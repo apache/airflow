@@ -142,6 +142,7 @@ class TestHttpOperator:
         a dictionary that override previous' call parameters.
         """
         is_second_call: bool = False
+        extra_options_verify = extra_options["verify"]
 
         def pagination_function(response: Response) -> dict | None:
             """Paginated function which returns None at the second call."""
@@ -175,7 +176,7 @@ class TestHttpOperator:
         first_call = first_endpoint.request_history[0]
         assert first_call.headers.items() >= headers.items()
         assert first_call.body == RequestEncodingMixin._encode_params(data)
-        assert first_call.verify is extra_options["verify"]
+        assert first_call.verify == extra_options_verify
 
         # Ensure the second - paginated - call is made with parameters merged from the pagination function
         second_call = second_endpoint.request_history[0]

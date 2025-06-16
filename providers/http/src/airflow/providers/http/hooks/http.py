@@ -159,7 +159,7 @@ class HttpHook(BaseHook):
         connection = self.get_connection(self.http_conn_id)
         self._set_base_url(connection)
         session = self._configure_session_from_auth(session, connection)
-        if connection.extra:
+        if connection.extra or extra_options:
             session = self._configure_session_from_extra(session, connection, extra_options)
         session = self._configure_session_from_mount_adapters(session)
         if self.default_headers:
@@ -298,10 +298,10 @@ class HttpHook(BaseHook):
 
         settings = session.merge_environment_settings(
             prepped_request.url,
-            proxies=extra_options.get("proxies", {}),
-            stream=extra_options.get("stream", False),
-            verify=extra_options.get("verify"),
-            cert=extra_options.get("cert"),
+            proxies=session.proxies,
+            stream=session.stream,
+            verify=session.verify,
+            cert=session.cert,
         )
 
         # Send the request.
