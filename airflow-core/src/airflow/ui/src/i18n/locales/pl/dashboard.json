@@ -8,7 +8,7 @@
     "metaDatabase": "Baza Danych Meta",
     "scheduler": "Planer zadań",
     "status": "Stan",
-    "triggerer": "Wywoływacz",
+    "triggerer": "Cyngiel",
     "unhealthy": "Nieprawidłowy"
   },
   "history": "Historia",
@@ -30,7 +30,7 @@
     "activeDags": "Aktywne Dagi",
     "failedDags": "Nieudane Dagi",
     "queuedDags": "Zakolejkowane Dagi",
-    "runningDags": "Uruchomione Dagi",
+    "runningDags": "Wykonane Dagi",
     "stats": "Statystyki"
   },
   "uri": "Uri",
