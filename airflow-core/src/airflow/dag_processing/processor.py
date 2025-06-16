@@ -117,7 +117,7 @@ def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> No
     """
     if not conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
         return
- 
+
     for module in iter_airflow_imports(file_path):
         try:
             importlib.import_module(module)
@@ -152,7 +152,7 @@ def _parse_file_entrypoint():
     result = _parse_file(msg, log)
     if result is not None:
         comms_decoder.send_request(log, result)
-        
+
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
@@ -278,11 +278,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
+        logger: FilteringBoundLogger,
         **kwargs,
     ) -> Self:
-        log = kwargs.get("logger")  
-
-        _pre_import_airflow_modules(path, log)
+        _pre_import_airflow_modules(os.fspath(path), logger)
 
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc._on_child_started(callbacks, path, bundle_path)
