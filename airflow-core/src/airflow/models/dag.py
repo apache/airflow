@@ -87,6 +87,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
+from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.settings import json
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -1807,7 +1808,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             if isinstance(task, TaskGroup):
                 return task_group_map[task.group_id]
 
-            new_task = copy.deepcopy(task)
+            new_task = copy.copy(task)
 
             # Only overwrite the specific attributes we want to change
             new_task.task_id = task.task_id
@@ -1917,7 +1918,7 @@ class DagModel(Base):
     # Asset expression based on asset triggers
     asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # DAG deadline information
-    deadline = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    _deadline = Column("deadline", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view
@@ -2010,6 +2011,16 @@ class DagModel(Base):
             self.next_dagrun_data_interval_start = self.next_dagrun_data_interval_end = None
         else:
             self.next_dagrun_data_interval_start, self.next_dagrun_data_interval_end = value
+
+    @property
+    def deadline(self):
+        """Get the deserialized deadline alert."""
+        return DeadlineAlert.deserialize_deadline_alert(self._deadline) if self._deadline else None
+
+    @deadline.setter
+    def deadline(self, value):
+        """Set and serialize the deadline alert."""
+        self._deadline = None if value is None else value.serialize_deadline_alert()
 
     @property
     def timezone(self):

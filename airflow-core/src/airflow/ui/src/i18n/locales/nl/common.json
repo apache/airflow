@@ -22,6 +22,7 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API referentie"
   },
+  "duration": "Duur",
   "logout": "Uitloggen",
   "nav": {
     "admin": "Beheer",
@@ -61,7 +62,6 @@
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
-    "duration": "Duur",
     "last12Hours": "Laatste 12 uur",
     "last24Hours": "Laatste 24 uur",
     "lastHour": "Laatste uur",

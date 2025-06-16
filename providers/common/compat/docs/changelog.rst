@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``nit: Remove unreachable code (#51110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.7.0
 .....
 

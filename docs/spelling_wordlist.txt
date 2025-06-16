@@ -562,6 +562,7 @@ ds
 dsl
 Dsn
 dsn
+dst
 dts
 dttm
 dtypes
@@ -643,6 +644,7 @@ exc
 executables
 execvp
 exitcode
+expanduser
 explicit
 exportingmultiple
 ext
@@ -738,6 +740,7 @@ Gentner
 geq
 getattr
 getboolean
+getcwd
 getfqdn
 getframe
 getint
@@ -1048,6 +1051,7 @@ ListGenerator
 ListInfoTypesResponse
 ListModelsPager
 ListSecretsPager
+LiteralValue
 Liveness
 liveness
 livy
@@ -1793,6 +1797,7 @@ templatable
 templateable
 Templated
 templated
+templater
 Templating
 templating
 templatize
@@ -1969,6 +1974,7 @@ VideoIntelligenceServiceClient
 views
 virtualenv
 virtualenvs
+virtualized
 vm
 VolumeKmsKeyId
 VolumeMount
