@@ -29,7 +29,7 @@ export const useDeletePool = ({ onSuccessConfirm }: { onSuccessConfirm: () => vo
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("toaster.delete.error.title", {
+      title: translate("toaster.delete.error", {
         resourceName: translate("admin:pools.pool_one"),
       }),
       type: "error",

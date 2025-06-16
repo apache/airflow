@@ -45,7 +45,7 @@ export const usePatchDagRun = ({
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("toaster.update.error.title", {
+      title: translate("toaster.update.error", {
         resourceName: translate("dagRun_one"),
       }),
       type: "error",

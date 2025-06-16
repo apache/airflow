@@ -384,7 +384,7 @@ class _AssetRefResolutionMixin:
 
         if TYPE_CHECKING:
             assert isinstance(resp, AssetResult)
-        return Asset(**msg.model_dump(exclude={"type"}))
+        return Asset(**resp.model_dump(exclude={"type"}))
 
 
 @attrs.define

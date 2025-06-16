@@ -798,7 +798,7 @@ class TestWatchedSubprocess:
         proc.selector.select.return_value = []
 
         proc._exit_code = 0
-        # Create a dummy placeholder in the open socket weekref
+        # Create a fake placeholder in the open socket weakref
         proc._open_sockets[mocker.MagicMock()] = "test placeholder"
         proc._process_exit_monotonic = time.monotonic()
 
@@ -976,9 +976,11 @@ class TestWatchedSubprocessKill:
         mock_stdout_handler = mocker.Mock(return_value=False)  # Simulate EOF for stdout
         mock_stderr_handler = mocker.Mock(return_value=True)  # Continue processing for stderr
 
+        mock_on_close = mocker.Mock()
+
         # Mock selector to return events
-        mock_key_stdout = mocker.Mock(fileobj=mock_stdout, data=mock_stdout_handler)
-        mock_key_stderr = mocker.Mock(fileobj=mock_stderr, data=mock_stderr_handler)
+        mock_key_stdout = mocker.Mock(fileobj=mock_stdout, data=(mock_stdout_handler, mock_on_close))
+        mock_key_stderr = mocker.Mock(fileobj=mock_stderr, data=(mock_stderr_handler, mock_on_close))
         watched_subprocess.selector.select.return_value = [(mock_key_stdout, None), (mock_key_stderr, None)]
 
         # Mock to simulate process exited successfully
@@ -996,8 +998,7 @@ class TestWatchedSubprocessKill:
         mock_stderr_handler.assert_called_once_with(mock_stderr)
 
         # Validate unregistering and closing of EOF file object
-        watched_subprocess.selector.unregister.assert_called_once_with(mock_stdout)
-        mock_stdout.close.assert_called_once()
+        mock_on_close.assert_called_once_with(mock_stdout)
 
         # Validate that `_check_subprocess_exit` is called
         mock_process.wait.assert_called_once_with(timeout=0)
@@ -1801,7 +1802,7 @@ class TestHandleRequest:
         next(generator)
 
         msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
-        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg)
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
         generator.send(req_frame)
 
         # Read response from the read end of the socket
@@ -1891,9 +1892,9 @@ class TestInProcessTestSupervisor:
         """
 
         class MinimalSupervisor(InProcessTestSupervisor):
-            def _handle_request(self, msg, log):
+            def _handle_request(self, msg, log, req_id):
                 resp = VariableResult(key=msg.key, value="value")
-                self.send_msg(resp)
+                self.send_msg(resp, req_id)
 
         supervisor = MinimalSupervisor(
             id="test",
@@ -1907,9 +1908,8 @@ class TestInProcessTestSupervisor:
 
         test_msg = GetVariable(key="test_key")
 
-        comms.send_request(log=MagicMock(), msg=test_msg)
+        response = comms.send(test_msg)
 
         # Ensure we got back what we expect
-        response = comms.get_message()
         assert isinstance(response, VariableResult)
         assert response.value == "value"

@@ -828,7 +828,7 @@ class ActivitySubprocess(WatchedSubprocess):
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
 
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
-    # will kill the process. This is to handle temporary network issues etc. ensuring that the process
+    # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
     # does not hang around forever.
     failed_heartbeats: int = attrs.field(default=0, init=False)
 
@@ -1257,23 +1257,26 @@ def in_process_api_server():
     return api
 
 
-@attrs.define
+@attrs.define(kw_only=True)
 class InProcessSupervisorComms:
     """In-process communication handler that uses deques instead of sockets."""
 
+    log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
     supervisor: InProcessTestSupervisor
-    messages: deque[BaseModel] = attrs.field(factory=deque)
+    messages: deque[BaseModel | None] = attrs.field(factory=deque)
 
-    def get_message(self) -> BaseModel:
+    def _get_response(self) -> BaseModel | None:
         """Get a message from the supervisor. Blocks until a message is available."""
         return self.messages.popleft()
 
-    def send_request(self, log, msg: BaseModel):
+    def send(self, msg: BaseModel):
         """Send a request to the supervisor."""
-        log.debug("Sending request", msg=msg)
+        self.log.debug("Sending request", msg=msg)
 
         with set_supervisor_comms(None):
             self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+
+        return self._get_response()
 
 
 @attrs.define
@@ -1291,6 +1294,8 @@ class InProcessTestSupervisor(ActivitySubprocess):
     """A supervisor that runs tasks in-process for easier testing."""
 
     comms: InProcessSupervisorComms = attrs.field(init=False)
+
+    stdin: socket = attrs.field(init=False)
 
     @classmethod
     def start(  # type: ignore[override]

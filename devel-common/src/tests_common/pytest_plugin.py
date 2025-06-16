@@ -1956,7 +1956,7 @@ def override_caplog(request):
 
 
 @pytest.fixture
-def mock_supervisor_comms():
+def mock_supervisor_comms(monkeypatch):
     # for back-compat
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -1964,14 +1964,12 @@ def mock_supervisor_comms():
         yield None
         return
 
+    import airflow.sdk.execution_time.task_runner
     from airflow.sdk.execution_time.comms import CommsDecoder
 
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS",
-        create=True,
-        spec=CommsDecoder,
-    ) as supervisor_comms:
-        yield supervisor_comms
+    comms = mock.create_autospec(CommsDecoder)
+    monkeypatch.setattr(airflow.sdk.execution_time.task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+    yield comms
 
 
 @pytest.fixture

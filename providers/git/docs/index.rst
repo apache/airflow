@@ -72,7 +72,7 @@ apache-airflow-providers-git package
 `Distributed version control system (GIT) <https://git-scm.com/>`__
 
 
-Release: 0.0.2
+Release: 0.0.3
 
 Provider package
 ----------------

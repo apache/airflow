@@ -36,7 +36,7 @@ export const useDeleteDag = ({
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("toaster.delete.error.title", {
+      title: translate("toaster.delete.error", {
         resourceName: translate("dag_one"),
       }),
       type: "error",
