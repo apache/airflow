@@ -58,9 +58,9 @@
   "deleteActions": {
     "button": "Löschen",
     "modal": {
-      "confirmButton": "Ja, Löschen",
+      "confirmButton": "Ja, löschen",
       "secondConfirmMessage": "Diese Aktion kann nicht rückgängig gemacht werden. ",
-      "thirdConfirmMessage": "Sind Sie sicher?"
+      "thirdConfirmMessage": "Sind Sie sich sicher?"
     },
     "selected": "Ausgewählt",
     "tooltip": "Ausgewählte Verbindungen löschen"
@@ -73,7 +73,7 @@
     "columns": {
       "source": "Quelle"
     },
-    "importError_one": "Fehler beim Laden eines Plug-in",
+    "importError_one": "Fehler beim Laden eines Plug-ins",
     "importError_other": "Fehler beim Laden von Plug-ins",
     "searchPlaceholder": "Nach Datei suchen"
   },
@@ -82,11 +82,11 @@
     "deferredSlotsIncluded": "Delegierte Tasks einschließen",
     "delete": {
       "title": "Pool löschen",
-      "warning": "Dies wird alle Metadaten zu diesem Pool entfernen. Damit kann es eine Auswirkung auf Tasks geben, die diesen Pool nutzen."
+      "warning": "Dies wird alle Metadaten zu diesem Pool entfernen. Dies kann Tasks beeinträchtigen, die diesen Pool nutzen. Ein Task, der einem nicht existenten Pool zugewiesen ist, kann nicht geplant werden."
     },
     "edit": "Pool bearbeiten",
     "form": {
-      "checkbox": "Delegierte Tasks sollen in die Berechnung der Pool-Belegung mit einbezogen werden",
+      "checkbox": "Delegierte Tasks sollen in die Berechnung der Pool-Belegung berücksichtigt werden",
       "description": "Beschreibung",
       "includeDeferred": "Delegierte Tasks",
       "nameMaxLength": "Der Name kann maximal 256 Zeichen lang sein",
@@ -137,15 +137,15 @@
       "errorParsingJsonFile": "JSON-Datei kann nicht gelesen werden: Die Datei muss Schlüssel-/Wertpaare enthalten (z.B., {\"name\": \"wert\", ...}).",
       "options": {
         "fail": {
-          "description": "Import abbrechen, wenn eine Variable bereits besteht.",
+          "description": "Import abbrechen, wenn eine Variable mit dem gleichen Namen bereits existiert.",
           "title": "Abbrechen"
         },
         "overwrite": {
-          "description": "Variable überschreiben, die schon vor dem Import besteht.",
+          "description": "Variable überschreiben, wenn eine Variable mit dem gleichen Namen bereits existiert (der Wert der importierten Variable wird übernommen).",
           "title": "Überschreiben"
         },
         "skip": {
-          "description": "Bestehende Variablen werden übersprungen (und nicht verändert).",
+          "description": "Variable überspringen, wenn eine Variable mit dem gleichen Namen bereits existiert (der Wert der bestehenden Variable wird nicht verändert).",
           "title": "Überspringen"
         }
       },

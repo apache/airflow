@@ -199,10 +199,10 @@
     "queuedWhen": "Wartend seit",
     "scheduledWhen": "Geplant ab",
     "triggerer": {
-      "assigned": "Zugewiesener Abrufumgebung",
+      "assigned": "Zugewiesene Abrufumgebung",
       "class": "Abruf-Klasse",
       "createdAt": "Zeitpunkt der Erstellung",
-      "id": "Auslösungs ID",
+      "id": "Abrufungs ID",
       "latestHeartbeat": "Letztes Lebenszeichen",
       "title": "Abrufumgebungs-Information"
     },
@@ -228,35 +228,35 @@
       "error": "Massenlöschung von {{resourceName}} fehlgeschlagen",
       "success": {
         "description": "{{count}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
-        "title": "Massenlöschung von {{resourceName}} angestoßen"
+        "title": "Massenlöschung von {{resourceName}} gestartet"
       }
     },
     "create": {
       "error": "Erstellung von {{resourceName}} fehlgeschlagen",
       "success": {
         "description": "{{resourceName}} wurde erfolgreich erstellt.",
-        "title": "Erstellung von {{resourceName}} angestoßen"
+        "title": "Erstellung von {{resourceName}} gestartet"
       }
     },
     "delete": {
       "error": "Löschen von {{resourceName}} fehlgeschlagen",
       "success": {
         "description": "{{resourceName}} wurde erfolgreich gelöscht.",
-        "title": "Löschung von {{resourceName}} angestoßen"
+        "title": "Löschung von {{resourceName}} gestartet"
       }
     },
     "import": {
       "error": "Import von {{resourceName}} fehlgeschlagen",
       "success": {
         "description": "{{count}} {{resourceName}} wurden erfolgreich importiert.",
-        "title": "Import von {{resourceName}} angestoßen"
+        "title": "Import von {{resourceName}} gestartet"
       }
     },
     "update": {
       "error": "Aktualisierung von {{resourceName}} fehlgeschlagen",
       "success": {
         "description": "{{resourceName}} wurde erfolgreich aktualisiert.",
-        "title": "Aktualisierung von {{resourceName}} angestoßen"
+        "title": "Aktualisierung von {{resourceName}} gestartet"
       }
     }
   },

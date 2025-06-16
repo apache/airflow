@@ -24,7 +24,7 @@
   },
   "logs": {
     "noTryNumber": "Keine Versuchsnummer",
-    "viewInExternal": "Protokoll in {{name}} (attempt {{attempt}}) ansehen"
+    "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen"
   },
   "overview": {
     "buttons": {
@@ -75,7 +75,7 @@
       },
       "success": {
         "description": "Das Dag sollte gleich neu geparst sein.",
-        "title": "Anfrage zu Dag parsen erfolgreich eingestellt"
+        "title": "Anfrage zu Dag parsen erfolgreich gestartet"
       }
     }
   },
