@@ -141,7 +141,7 @@ class DagBundlesManager(LoggingMixin):
             from airflow.models.errors import ParseImportError
 
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
-            self.log.info("Deleted import errors for bundle %s which no longer exists", name)
+            self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
         if inactive_bundle_names and active_bundle_names:
             new_bundle_name = sorted(active_bundle_names)[0]
