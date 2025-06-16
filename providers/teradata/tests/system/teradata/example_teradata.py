@@ -55,11 +55,11 @@ with DAG(
     create_table = TeradataOperator(
         task_id="create_table",
         sql=r"""
-        CREATE TABLE Country (
-            country_id INTEGER,
-            name CHAR(25),
-            continent CHAR(25)
-        );
+        CREATE SET TABLE my_employees (
+          emp_id INT,
+          emp_name VARCHAR(100),
+          dept VARCHAR(50)
+        ) PRIMARY INDEX (emp_id);
         """,
     )
     # [END teradata_operator_howto_guide_create_table]
