@@ -73,7 +73,7 @@ connected.
 Step 2: Write Your Tasks with ``@task``
 ---------------------------------------
 
-With Taskflow, each task is just a regular Python function. You can use the ``@task`` decorator to turn it into a task
+With TaskFlow, each task is just a regular Python function. You can use the ``@task`` decorator to turn it into a task
 that Airflow can schedule and run. Here's the ``extract`` task:
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
@@ -174,7 +174,7 @@ Here's what the same DAG might have looked like using the traditional approach:
 .. note::
    This version produces the same result as the TaskFlow API example, but requires explicit management of ``XComs`` and task dependencies.
 
-The Taskflow Way
+The TaskFlow Way
 ''''''''''''''''
 
 Using TaskFlow, all of this is handled automatically.
@@ -240,7 +240,7 @@ Nice work! You've now written your first pipeline using the TaskFlow API. Curiou
 
 .. _advanced-taskflow-patterns:
 
-Advanced Taskflow Patterns
+Advanced TaskFlow Patterns
 --------------------------
 
 Once you're comfortable with the basics, here are a few powerful techniques you can try.
@@ -345,7 +345,7 @@ Mixing with Traditional Tasks
 You can combine decorated tasks with classic Operators. This is helpful when using community providers or when migrating
 incrementally to TaskFlow.
 
-You can chain Taskflow and traditional tasks using ``>>`` or pass data using the ``.output`` attribute.
+You can chain TaskFlow and traditional tasks using ``>>`` or pass data using the ``.output`` attribute.
 
 .. _taskflow/accessing_context_variables:
 
