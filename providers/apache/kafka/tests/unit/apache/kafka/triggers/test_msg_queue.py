@@ -123,7 +123,7 @@ class TestMessageQueueTrigger:
             apply_function="test.noop",
             topics=["noop"],
             apply_function_args=[1, 2],
-            apply_function_kwargs=dict(one=1, two=2),
+            apply_function_kwargs={"one": 1, "two": 2},
             poll_timeout=10,
             poll_interval=5,
         )
@@ -134,15 +134,15 @@ class TestMessageQueueTrigger:
         classpath, kwargs = trigger.serialize()
 
         assert classpath == "airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger"
-        assert kwargs == dict(
-            kafka_config_id="kafka_d",
-            apply_function="test.noop",
-            topics=["noop"],
-            apply_function_args=[1, 2],
-            apply_function_kwargs=dict(one=1, two=2),
-            poll_timeout=10,
-            poll_interval=5,
-        )
+        assert kwargs == {
+            "kafka_config_id": "kafka_d",
+            "apply_function": "test.noop",
+            "topics": ["noop"],
+            "apply_function_args": [1, 2],
+            "apply_function_kwargs": {"one": 1, "two": 2},
+            "poll_timeout": 10,
+            "poll_interval": 5,
+        }
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")
     @pytest.mark.asyncio
