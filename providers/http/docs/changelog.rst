@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Increasing task timeout by 2 seconds for more resilient runs (#50578)``
+
 5.3.0
 .....
 
