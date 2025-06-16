@@ -100,6 +100,7 @@ def test_execute_bteq_script_at_local_timeout(
             timeout_rc=None,
             bteq_quit_rc=0,
             bteq_session_encoding=None,
+            temp_file_read_encoding=None,
         )
 
 
@@ -138,6 +139,7 @@ def test_execute_bteq_script_at_local_success(
         timeout_rc=None,
         bteq_quit_rc=0,
         bteq_session_encoding=None,
+        temp_file_read_encoding=None,
     )
 
     mock_verify_bteq.assert_called_once()
@@ -192,6 +194,7 @@ def test_execute_bteq_script_at_local_failure_raises(
             timeout_rc=None,
             bteq_quit_rc=0,  # 1 is not allowed here
             bteq_session_encoding=None,
+            temp_file_read_encoding=None,
         )
 
 
@@ -249,6 +252,7 @@ def test_execute_bteq_script_at_remote_success(
         timeout_rc=None,
         bteq_session_encoding="utf-8",
         bteq_quit_rc=0,
+        temp_file_read_encoding=None,
     )
 
     # Assert mocks called as expected

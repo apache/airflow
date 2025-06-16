@@ -48,7 +48,7 @@ class TestBteqOperator:
 
         # Then
         mock_hook_init.assert_called_once_with(teradata_conn_id=teradata_conn_id, ssh_conn_id=None)
-        mock_execute_bteq.assert_called_once_with(sql + "\n.EXIT", "/tmp", "", 600, None, "", None)
+        mock_execute_bteq.assert_called_once_with(sql + "\n.EXIT", "/tmp", "", 600, None, "", None, "UTF-8")
         assert result == "BTEQ execution result"
 
     @mock.patch.object(BteqHook, "execute_bteq_script")
@@ -84,6 +84,7 @@ class TestBteqOperator:
             None,  # timeout_rc
             "",  # bteq_session_encoding
             None,  # bteq_quit_rc
+            "UTF-8",
         )
         assert result == expected_result
 
@@ -171,9 +172,7 @@ class TestBteqOperator:
             bteq_script_encoding="UTF-8",
             teradata_conn_id="td_conn",
         )
-        with pytest.raises(
-            ValueError, match="encoding is different from the specified BTEQ I/O encoding 'UTF-8'"
-        ):
+        with pytest.raises(ValueError, match="encoding is different from BTEQ I/O encoding"):
             op.execute({})
 
     @mock.patch("airflow.providers.teradata.operators.bteq.BteqHook.execute_bteq_script")
