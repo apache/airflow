@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-16T11:15:05.004057
+# This constraints file was automatically generated on 2025-06-16T16:20:27.293874
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -298,7 +298,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.16
 docutils==0.21.2
-duckdb==1.3.0
+duckdb==1.3.1
 durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
@@ -469,7 +469,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.11.0
 libcst==1.8.2
-limits==5.3.0
+limits==5.4.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.8.0
