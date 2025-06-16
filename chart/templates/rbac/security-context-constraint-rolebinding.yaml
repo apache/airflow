@@ -51,9 +51,16 @@ roleRef:
   kind: ClusterRole
   name: system:openshift:scc:anyuid
 subjects:
+  {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+  - kind: ServiceAccount
+    name: {{ include "apiServer.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
+  {{- if and .Values.webserver.enabled (semverCompare "<3.0.0" .Values.airflowVersion)}}
   - kind: ServiceAccount
     name: {{ include "webserver.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
+  {{- end }}
   {{- if $hasWorkers }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
@@ -62,7 +69,7 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-  {{- if and .Values.statsd.enabled }}
+  {{- if .Values.statsd.enabled }}
   - kind: ServiceAccount
     name: {{ include "statsd.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
@@ -72,7 +79,7 @@ subjects:
     name: {{ include "flower.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if and (semverCompare ">=2.2.0" .Values.airflowVersion) }}
+  {{- if (semverCompare ">=2.2.0" .Values.airflowVersion) }}
   - kind: ServiceAccount
     name: {{ include "triggerer.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
@@ -90,7 +97,7 @@ subjects:
     name: {{ include "cleanup.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if .Values.dagProcessor.enabled }}
+  {{- if eq (include "dagProcessor.enabled" .) "true" }}
   - kind: ServiceAccount
     name: {{ include "dagProcessor.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
