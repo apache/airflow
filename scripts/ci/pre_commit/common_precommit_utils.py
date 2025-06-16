@@ -24,7 +24,11 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
+from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
@@ -45,6 +49,56 @@ try:
     console = Console(width=400, color_system="standard")
 except ImportError:
     console = None  # type: ignore[assignment]
+
+
+@contextmanager
+def temporary_tsc_project(
+    tsconfig_path: Path, files: list[str]
+) -> Generator[_TemporaryFileWrapper, None, None]:
+    """
+    Create a temporary tsconfig.json file that extends the main tsconfig.json file.
+    This is needed to run TypeScript compiler with specific files included only
+    """
+    if not tsconfig_path.exists():
+        raise RuntimeError(f"Cannot find {tsconfig_path}")
+    temp_tsconfig_path = NamedTemporaryFile(mode="wt", suffix=".json", dir=tsconfig_path.parent, delete=True)
+    files_joined = ", ".join([f'"{file}"' for file in files])
+    content = f'{{"extends": "./{tsconfig_path.name}", "include": [{files_joined}]}}'
+    if console:
+        console.print(f"[magenta]Creating temporary tsconfig.json at {temp_tsconfig_path.name}[/]")
+        console.print(content)
+    else:
+        print(f"Creating temporary tsconfig.json at {temp_tsconfig_path.name}", file=sys.stderr)
+        print(content, file=sys.stderr)
+    temp_tsconfig_path.write(content)
+    temp_tsconfig_path.flush()
+    yield temp_tsconfig_path
+
+
+def run_command(*args, **kwargs) -> None:
+    """
+    Run command with given arguments and return the result.
+    """
+    cmd = " ".join([shlex.quote(arg) for arg in args[0]])
+    cwd = kwargs.get("cwd", os.getcwd())
+    text = f"Running command: `{cmd}` in directory: `{cwd}`"
+    if console:
+        console.print(f"[magenta]{text}[/]")
+    else:
+        print("#" * min(len(text), 200), file=sys.stderr)
+        print(text, file=sys.stderr)
+        print("#" * min(len(text), 200), file=sys.stderr)
+    time_start = time.time()
+    subprocess.check_call(*args, **kwargs)
+    time_end = time.time()
+    if console:
+        console.print(f"[green]After {text}[/]")
+        console.print(f"[green]Command finished in {time_end - time_start:.2f} seconds[/]")
+    else:
+        print("#" * min(len(text), 200), file=sys.stderr)
+        print(f"After {text}")
+        print(f"Command finished in {time_end - time_start:.2f} seconds", file=sys.stderr)
+        print("#" * min(len(text), 200), file=sys.stderr)
 
 
 def read_airflow_version() -> str:

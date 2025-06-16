@@ -152,10 +152,34 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 // TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't
 // start, but that it is logged
 func (s *WorkerSuite) TestStartContextErrorTaskDoesntStart() {
-	s.T().Skip("TODO: Not implemented yet")
+	s.T().Parallel()
+	id := uuid.New().String()
+	testWorkload := newTestWorkLoad(id, id[:8])
+
+	// Flag to see if the Task gets called
+	wasCalled := false
+
+	// Register a task that should NOT be called if everything works
+	s.worker.RegisterTaskWithName(testWorkload.TI.DagId, testWorkload.TI.TaskId, func() error {
+		wasCalled = true
+		return nil
+	})
+
+	// Setup the mock
+	s.ti.EXPECT().
+		Run(mock.Anything, uuid.MustParse(id), mock.Anything).
+		Return(nil, fmt.Errorf("simulated start context error"))
+
+	s.client.EXPECT().TaskInstances().Return(s.ti)
+
+	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
+
+	s.Error(err)
+	s.Contains(err.Error(), "simulated start context error")
+	s.False(wasCalled, "Task function should not be executed when start context fails")
 }
 
-// TestTaskPanicReportsFailedState tests that when the task/user code panics that we catch it and report thr
+// TestTaskPanicReportsFailedState tests that when the task/user code panics that we catch it and report the
 // error upstream
 func (s *WorkerSuite) TestTaskPanicReportsFailedState() {
 	s.T().Skip("TODO: Not implemented yet")
@@ -194,10 +218,10 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	// Since we heartbeat every 100ms and run for 1 second, we should expect 10 heartbeat calls. But allow +/-
 	// 1 due to timing imprecision
 	s.Assert().
-		True(callCount < 11 && callCount > 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", callCount))
+		True(callCount <= 11 && callCount >= 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", callCount))
 }
 
-func (s *WorkerSuite) TestTaskHeatbeatErrorStopsTaskAndLogs() {
+func (s *WorkerSuite) TestTaskHeartbeatErrorStopsTaskAndLogs() {
 	s.T().Skip("TODO: Not implemented yet")
 }
 

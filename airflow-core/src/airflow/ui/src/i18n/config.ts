@@ -34,13 +34,19 @@ import enComponents from "./locales/en/components.json";
 import enDag from "./locales/en/dag.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
+import heAdmin from "./locales/he/admin.json";
+import heAsset from "./locales/he/assets.json";
+import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
+import heComponents from "./locales/he/components.json";
 import heDashboard from "./locales/he/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
 import nlDashboard from "./locales/nl/dashboard.json";
 import plAdmin from "./locales/pl/admin.json";
+import plAssets from "./locales/pl/assets.json";
+import plBrowse from "./locales/pl/browse.json";
 import plCommon from "./locales/pl/common.json";
 import plComponents from "./locales/pl/components.json";
 import plDag from "./locales/pl/dag.json";
@@ -50,6 +56,8 @@ import zhTWAdmin from "./locales/zh-TW/admin.json";
 import zhTWAssets from "./locales/zh-TW/assets.json";
 import zhTWBrowse from "./locales/zh-TW/browse.json";
 import zhTWCommon from "./locales/zh-TW/common.json";
+import zhTWComponents from "./locales/zh-TW/components.json";
+import zhTWDag from "./locales/zh-TW/dag.json";
 import zhTWDags from "./locales/zh-TW/dags.json";
 import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 
@@ -89,7 +97,11 @@ const resources = {
     dashboard: enDashboard,
   },
   he: {
+    admin: heAdmin,
+    assets: heAsset,
+    browse: heBrowse,
     common: heCommon,
+    components: heComponents,
     dashboard: heDashboard,
   },
   ko: {
@@ -102,6 +114,8 @@ const resources = {
   },
   pl: {
     admin: plAdmin,
+    assets: plAssets,
+    browse: plBrowse,
     common: plCommon,
     components: plComponents,
     dag: plDag,
@@ -113,6 +127,8 @@ const resources = {
     assets: zhTWAssets,
     browse: zhTWBrowse,
     common: zhTWCommon,
+    components: zhTWComponents,
+    dag: zhTWDag,
     dags: zhTWDags,
     dashboard: zhTWDashboard,
   },
