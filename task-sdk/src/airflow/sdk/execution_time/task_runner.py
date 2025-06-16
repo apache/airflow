@@ -286,7 +286,7 @@ class RuntimeTaskInstance(TaskInstance):
         task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
         key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
-        include_prior_dates: bool = False,  # TODO: Add support for this
+        include_prior_dates: bool = False,
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
         default: Any = None,
@@ -939,8 +939,6 @@ def run(
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
-        # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
-        # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
