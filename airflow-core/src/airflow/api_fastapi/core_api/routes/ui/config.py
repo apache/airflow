@@ -59,12 +59,8 @@ def get_configs() -> ConfigResponse:
         "dashboard_alert": DASHBOARD_UIALERTS,
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
+        "plugins_extra_menu_items": plugins_manager.flask_appbuilder_menu_links or []
     }
-
-    additional_config["plugins_extra_menu_items"] = [
-        AppBuilderMenuItemResponse.model_validate(mi)
-        for mi in (plugins_manager.flask_appbuilder_menu_links or [])
-    ]
 
     config.update({key: value for key, value in additional_config.items()})
 

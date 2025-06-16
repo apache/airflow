@@ -20,7 +20,7 @@ import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiClipboard, FiZap } from "react-icons/fi";
 
-import { useDashboardServiceDagStats } from "openapi/queries";
+import { useAuthLinksServiceGetAuthMenus, useDashboardServiceDagStats } from "openapi/queries";
 import { useAutoRefresh } from "src/utils";
 
 import { DAGImportErrors } from "./DAGImportErrors";
@@ -32,6 +32,7 @@ export const Stats = () => {
   const { data: statsData, isLoading: isStatsLoading } = useDashboardServiceDagStats(undefined, {
     refetchInterval,
   });
+  const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
   const failedDagsCount = statsData?.failed_dag_count ?? 0;
   const queuedDagsCount = statsData?.queued_dag_count ?? 0;
   const runningDagsCount = statsData?.running_dag_count ?? 0;
@@ -59,7 +60,7 @@ export const Stats = () => {
 
         <DAGImportErrors />
 
-        <PluginImportErrors />
+        {authLinks?.authorized_menu_items.includes("Plugins") ? <PluginImportErrors /> : null}
 
         {queuedDagsCount > 0 ? (
           <StatsCard
