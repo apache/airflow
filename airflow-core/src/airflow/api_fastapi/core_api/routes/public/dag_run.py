@@ -324,6 +324,7 @@ def get_dag_runs(
                     "end_date",
                     "updated_at",
                     "conf",
+                    "duration",
                 ],
                 DagRun,
                 {"dag_run_id": "run_id"},

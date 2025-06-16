@@ -18,6 +18,9 @@
  */
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { PluginResponse } from "openapi/requests/types.gen";
@@ -26,33 +29,36 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { PluginImportErrors } from "./Dashboard/Stats/PluginImportErrors";
 
-const columns: Array<ColumnDef<PluginResponse>> = [
+const createColumns = (translate: TFunction): Array<ColumnDef<PluginResponse>> => [
   {
     accessorKey: "name",
     enableSorting: false,
-    header: "Name",
+    header: translate("columns.name"),
   },
   {
     accessorKey: "source",
     enableSorting: false,
-    header: "Source",
+    header: translate("plugins.columns.source"),
   },
 ];
 
 export const Plugins = () => {
+  const { t: translate } = useTranslation(["admin", "common"]);
   const { data, error } = usePluginServiceGetPlugins();
+
+  const columns = useMemo(() => createColumns(translate), [translate]);
 
   return (
     <Box p={2}>
       <HStack>
-        <Heading>Plugins</Heading>
+        <Heading>{translate("common:admin.Plugins")}</Heading>
         <PluginImportErrors iconOnly />
       </HStack>
       <DataTable
         columns={columns}
         data={data?.plugins ?? []}
         errorMessage={<ErrorAlert error={error} />}
-        modelName="Plugin"
+        modelName={translate("common:admin.Plugins")}
         total={data?.total_entries}
       />
     </Box>
