@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Extend SnowflakeHook OAuth implementation to support external IDPs and client_credentials grant (#51620)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: make query_ids in SnowflakeSqlApiOperator in deferrable mode consistent (#51542)``
+* ``fix: Duplicate region in Snowflake URI no longer breaks OpenLineage (#50831)``
+* ``Do not allow semicolons in CopyFromExternalStageToSnowflakeOperator fieldS (#51734)``
+
+Misc
+~~~~
+
+* ``Port ''ti.run'' to Task SDK execution path (#50141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.3.1
 .....
 

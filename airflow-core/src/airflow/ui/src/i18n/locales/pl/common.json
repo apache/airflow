@@ -7,6 +7,8 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "asset_one": "Zasób",
+  "asset_other": "Zasoby",
   "assetEvent_one": "Zdarzenie Zasobu",
   "assetEvent_other": "Zdarzenia Zasobów",
   "backfill_one": "Wypełnienie wsteczne",
@@ -15,8 +17,45 @@
     "auditLog": "Log audytu",
     "xcoms": "XComy"
   },
+  "createdAssetEvent_one": "Utworzone zdarzenie zasobu",
+  "createdAssetEvent_other": "Utworzone zdarzenia zasobów",
   "dag_one": "Dag",
   "dag_other": "Dagi",
+  "dagDetails": {
+    "catchup": "Nadrabianie zaległości",
+    "concurrency": "Współbieżność",
+    "dagRunTimeout": "Limit czasu wykonania Daga",
+    "defaultArgs": "Domyślne argumenty",
+    "description": "Opis",
+    "documentation": "Dokumentacja Daga",
+    "fileLocation": "Lokalizacja pliku",
+    "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
+    "lastExpired": "Ostatnio wygasły",
+    "lastParsed": "Ostatnia analiza",
+    "latestDagVersion": "Najnowsza wersja Daga",
+    "latestRun": "Ostatnie wykonanie",
+    "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
+    "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
+    "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
+    "nextRun": "Następne Wykonanie Daga",
+    "owner": "Właściciel",
+    "params": "Parametry",
+    "schedule": "Harmonogram",
+    "tags": "Etykiety"
+  },
+  "dagId": "Identyfikator Daga",
+  "dagRun": {
+    "conf": "Konfiguracja",
+    "dagVersions": "Wersje Daga",
+    "dataIntervalEnd": "Koniec interwału danych",
+    "dataIntervalStart": "Początek interwału danych",
+    "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
+    "queuedAt": "Zakolejkowano o",
+    "runAfter": "Wykonaj po",
+    "runType": "Typ wykonania",
+    "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
+    "triggeredBy": "Uruchomiony przez"
+  },
   "dagRun_one": "Wykonanie Daga",
   "dagRun_other": "Wykonania Dagów",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
@@ -28,11 +67,15 @@
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
-  "duration": {
-    "label": "Czas trwania",
-    "seconds": "{{count}}s"
-  },
+  "duration": "Czas trwania",
   "endDate": "Data zakończenia",
+  "error": {
+    "back": "Powrót",
+    "defaultMessage": "Wystąpił nieoczekiwany błąd",
+    "home": "Strona główna",
+    "notFound": "Nie znaleziono strony",
+    "title": "Błąd"
+  },
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",
@@ -62,7 +105,13 @@
     "security": "Bezpieczeństwo"
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
-  "operator": "Operator",
+  "note": {
+    "add": "Dodać notatkę",
+    "dagRun": "Notatki wykonania Daga",
+    "label": "Notatka",
+    "placeholder": "Dodaj notatkę...",
+    "taskInstance": "Notatka instancji zadania"
+  },
   "pools": {
     "deferred": "Odłożone",
     "open": "Otwarte",
@@ -74,11 +123,12 @@
   },
   "runId": "Identyfikator wykonania",
   "runTypes": {
-    "asset_triggered": "Wywołany Przez zasób",
+    "asset_triggered": "Uruchomiony przez zasób",
     "backfill": "Wypełnienie wsteczne",
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Akcje",
     "permissions": "Uprawnienia",
@@ -87,6 +137,8 @@
     "users": "Użytkownicy"
   },
   "selectLanguage": "Wybierz język",
+  "sourceAssetEvent_one": "Zdarzenie źródłowego zasobu",
+  "sourceAssetEvent_other": "Zdarzenia źródłowych zasobów",
   "startDate": "Data rozpoczęcia",
   "state": "Stan",
   "states": {
@@ -97,7 +149,7 @@
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",
-    "running": "Uruchomione",
+    "running": "Wykonane",
     "scheduled": "Zaplanowane",
     "skipped": "Pominięte",
     "success": "Sukces",
@@ -110,7 +162,6 @@
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
-    "duration": "Czas trwania",
     "filterByTag": "Filtruj Dagi według tagu",
     "filterColumns": "Filtruj kolumny tabeli",
     "filterReset_one": "Resetuj filtr",
@@ -118,7 +169,6 @@
     "from": "Od",
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "noTagsFound": "Nie znaleziono etykiet",
-    "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "tagMode": {
       "all": "Wszystkie",
       "any": "Dowolne"
@@ -126,12 +176,41 @@
     "tagPlaceholder": "Filtruj według etykiety",
     "to": "Do"
   },
+  "task": {
+    "documentation": "Dokumentacja zadania",
+    "lastInstance": "Ostatnia instancja zadania",
+    "operator": "Operator",
+    "triggerRule": "Reguła zależności"
+  },
   "task_one": "Zadanie",
   "task_other": "Zadania",
+  "taskId": "Identifikator Zadania",
+  "taskInstance": {
+    "dagVersion": "Wersja Daga",
+    "executor": "Wykonawca",
+    "executorConfig": "Konfiguracja wykonawcy",
+    "hostname": "Nazwa hosta",
+    "maxTries": "Maksymalna liczba prób",
+    "pid": "PID",
+    "pool": "Pula",
+    "poolSlots": "Sloty puli",
+    "priorityWeight": "Waga priorytetu",
+    "queue": "Kolejka",
+    "queuedWhen": "Zakolejkowano o",
+    "scheduledWhen": "Zaplanowano o",
+    "triggerer": {
+      "assigned": "Przypisany wyzwalacz",
+      "class": "Klasa wyzwalacza",
+      "createdAt": "Czas utworzenia wyzwalacza",
+      "id": "Identyfikator wyzwalacza",
+      "latestHeartbeat": "Ostatni heartbeat wyzwalacza",
+      "title": "Informacje o wyzwalaczu"
+    },
+    "unixname": "Nazwa użytkownika systemu Unix"
+  },
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
   "timeRange": {
-    "duration": "Czas trwania",
     "last12Hours": "Ostatnie 12 godzin",
     "last24Hours": "Ostatnie 24 godziny",
     "lastHour": "Ostatnia godzina",
@@ -144,12 +223,11 @@
     "title": "Wybierz strefę czasową",
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
-  "triggered": "Wywołany",
-  "triggerRule": "Reguła wywołania",
+  "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Użytkownik",
   "wrap": {
-    "tooltip": "Wybierz w aby przełączyć zawijanie",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"
   }

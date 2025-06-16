@@ -17,6 +17,39 @@
   },
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Nachgeholt",
+    "concurrency": "Parallelität",
+    "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
+    "defaultArgs": "Standard-Parameter",
+    "description": "Beschreibung",
+    "fileLocation": "Ablagepfad",
+    "hasTaskConcurrencyLimits": "Hat der Task Limitierungen zur Parallelität",
+    "lastExpired": "Letztmaliger Ablauf",
+    "lastParsed": "Letztmalig Eingelesen",
+    "latestDagVersion": "Letzte Dag Version",
+    "latestRun": "Letzter Lauf",
+    "maxActiveRuns": "Maximal aktive Läufe",
+    "maxActiveTasks": "Maximal aktive Tasks",
+    "maxConsecutiveFailedDagRuns": "Maximal fortlaufende fehlerhafte Dag Läufe",
+    "nextRun": "Nächster Lauf",
+    "owner": "Eigentümer",
+    "params": "Parameter",
+    "schedule": "Zeitplan",
+    "tags": "Markierungen"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "Konfiguration",
+    "dagVersions": "Dag Versionen",
+    "dataIntervalEnd": "Datenintervall Ende",
+    "dataIntervalStart": "Datenintervall Start",
+    "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "queuedAt": "Wartend seit",
+    "runAfter": "Gelaufen ab",
+    "runType": "Typ des Laufs",
+    "triggeredBy": "Angestoßen von"
+  },
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
   "dagWarnings": "Dag Warnungen und Fehler",
@@ -28,10 +61,7 @@
     "githubRepo": "GitHub Ablage",
     "restApiReference": "REST API Referenz"
   },
-  "duration": {
-    "label": "Laufzeit",
-    "seconds": "{{count}}s"
-  },
+  "duration": "Laufzeit",
   "endDate": "Enddatum",
   "expression": {
     "all": "Alle",
@@ -62,7 +92,13 @@
     "security": "Sicherheit"
   },
   "noItemsFound": "Kein Element vom Typ {{modelName}} gefunden",
-  "operator": "Operator",
+  "note": {
+    "add": "Eine Notiz hinzufügen",
+    "dagRun": "Notizen zum Dag Lauf",
+    "label": "Notiz",
+    "placeholder": "Eine Notiz hinzufügen...",
+    "taskInstance": "Notizen zu Task Instanzen"
+  },
   "pools": {
     "deferred": "Delegiert",
     "open": "Frei",
@@ -79,6 +115,7 @@
     "manual": "Manuell",
     "scheduled": "Geplant"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",
@@ -110,7 +147,6 @@
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
-    "duration": "Laufzeit",
     "filterByTag": "Dags nach Markierung filtern",
     "filterColumns": "Tabellenspalten filtern",
     "filterReset_one": "Filter zurücksetzen",
@@ -126,8 +162,19 @@
     "tagPlaceholder": "Dags nach Markierung filtern",
     "to": "Zu"
   },
+  "task": {
+    "lastInstance": "Letzte Task Instanz",
+    "operator": "Operator",
+    "triggerRule": "Auslöse-Regel"
+  },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskInstance": {
+    "dagVersion": "Dag Version",
+    "pid": "PID",
+    "pool": "Pool",
+    "queuedAt": "Wartend seit"
+  },
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
   "timeRange": {
@@ -145,11 +192,10 @@
     "utc": "UTC (Koordinierte Weltzeit)"
   },
   "triggered": "Angestoßen",
-  "triggerRule": "Auslöse-Regel",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
   "wrap": {
-    "tooltip": "Buchstabe w drücken um den Zeilenumbruch umzuschalten",
+    "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
     "unwrap": "Kein Zeilenumbruch",
     "wrap": "Zeilenumbruch"
   }

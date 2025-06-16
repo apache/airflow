@@ -17,6 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
+import { useTranslation } from "react-i18next";
 import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -28,16 +29,17 @@ import { getGroupTask } from "src/utils/groupTask";
 import { GroupTaskHeader } from "./GroupTaskHeader";
 import { Header } from "./Header";
 
-const tabs = [
-  { icon: <LuChartColumn />, label: "Overview", value: "" },
-  { icon: <MdOutlineTask />, label: "Task Instances", value: "task_instances" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
-];
-
 export const Task = () => {
+  const { t: translate } = useTranslation("dag");
   const { dagId = "", groupId, taskId } = useParams();
 
-  const displayTabs = groupId === undefined ? tabs : tabs.filter((tab) => tab.label !== "Events");
+  const tabs = [
+    { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
+    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "task_instances" },
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+  ];
+
+  const displayTabs = groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events");
 
   const {
     data: task,

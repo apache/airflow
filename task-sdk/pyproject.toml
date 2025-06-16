@@ -60,6 +60,10 @@ dependencies = [
     "psutil>=6.1.0",
     "structlog>=25.4.0",
     "retryhttp>=1.2.0,!=1.3.0",
+    # Requests is known to introduce breaking changes, so we pin it to a specific range
+    "requests>=2.31.0,<3",
+    "types-requests>=2.31.0",
+    "tenacity>=8.3.0",
 ]
 
 [project.urls]
@@ -136,7 +140,7 @@ codegen = [
     "datamodel-code-generator[http]==0.28.2",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "ruff==0.11.2",
+    "ruff==0.11.13",
     "rich>=12.4.4",
 ]
 dev = [

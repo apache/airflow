@@ -26,6 +26,53 @@
 Changelog
 ---------
 
+9.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'MessageDeduplicationId' support to 'SnsPublishOperator' (#51383)``
+* ``Add support for RequestPay=requester option in Amazon S3's Operators, Sensors and Triggers (#51098)``
+* ``Add AWS Lambda Executor (#50516)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Removed unnecessary 'aws_conn_id' param from operators constructors (#51236)``
+* ``Fix EcsRunTaskOperator reattach (#51412)``
+* ``Fix EKS token generation (#51333)``
+* ``Fix 'EksPodOperator' in deferrable mode (#51255)``
+* ``Rds Operator pass custom conn_id to superclass (#51196)``
+* ``Fix remote logging CloudWatch handler initialization and stream name assignment (#51022)``
+* ``Check 'is_mapped' to prevent 'operator_extra_links' property failing for Airflow 3. #50932``
+* ``Fix aws_conn_id defaulting after dag.test was updated to use TaskSDK. (#50515)``
+* ``AWS ECS Executor. Assign public ip defaults false (#50713)``
+
+Misc
+~~~~
+
+* ``Remove unused entries from 'DagAccessEntity' (#51174)``
+* ``Update Redshift cluster operator and sensor to inherit AwsBaseOperator (#51129)``
+* ``Remove Airflow 2 code path in executors (#51009)``
+* ``Move AWS auth dependencies to python3-saml extra (#50449)``
+* ``Bump some provider dependencies for faster resolution (#51727)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Add missing 'param' for waiter_max_attempts in EMR operator docstring (#51676)``
+* ``Update comment in CloudWatchRemoteLogIO (#51092)``
+* ``Use explicit directives instead of implicit syntax (#50870)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_bedrock_batch_inference' (#51413)``
+   * ``Fixed cross-merged tests that fail for Pytest 8.4.0 (#51366)``
+   * ``Allow test migration to pytest 8.4.0 (#51349)``
+   * ``Fix system test 'test_aws_auth_manager' (#51241)``
+   * ``Fix 'StopIteration' error in AWS System Test 'variable_fetcher' when using remote executor (#51127)``
+
 9.8.0
 .....
 

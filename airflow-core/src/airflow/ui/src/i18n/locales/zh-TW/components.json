@@ -1,0 +1,132 @@
+{
+  "backfill": {
+    "affected_one": "將會觸發 1 次執行。",
+    "affected_other": "將會觸發 {{count}} 次執行。",
+    "affectedNone": "沒有符合條件的執行。",
+    "backwards": "反向執行",
+    "dateRange": "日期範圍",
+    "dateRangeFrom": "從",
+    "dateRangeTo": "到",
+    "errorStartDateBeforeEndDate": "開始日期必須早於結束日期。",
+    "maxRuns": "活躍執行數上限",
+    "reprocessBehavior": "重新處理行為",
+    "run": "執行回填",
+    "selectDescription": "為指定的日期範圍補上 Dag 執行",
+    "selectLabel": "回填",
+    "title": "執行回填",
+    "toaster": {
+      "success": {
+        "description": "已成功觸發回填作業。",
+        "title": "已觸發 Dag 執行"
+      }
+    },
+    "tooltip": "回填功能需要 Dag 具有排程",
+    "unpause": "觸發時取消暫停 {{dag_display_name}}",
+    "validation": {
+      "datesRequired": "必須提供資料區間的開始與結束日期。",
+      "startBeforeEnd": "資料區間起始日期必須早於或等於結束日期。"
+    }
+  },
+  "banner": {
+    "backfillInProgress": "回填正在進行中",
+    "cancel": "取消回填",
+    "pause": "暫停回填",
+    "unpause": "取消暫停回填"
+  },
+  "clipboard": {
+    "copy": "複製"
+  },
+  "close": "關閉",
+  "configForm": {
+    "advancedOptions": "進階選項",
+    "configJson": "設定 JSON",
+    "invalidJson": "無效的 JSON 格式: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 個錯誤",
+    "errorAndWarning": "1 個錯誤與 {{warningText}}",
+    "warning_one": "1 個警告",
+    "warning_other": "{{count}} 個警告"
+  },
+  "durationChart": {
+    "duration": "持續時間 (秒)",
+    "lastDagRun_one": "最近 1 次 Dag 執行",
+    "lastDagRun_other": "最近 {{count}} 次 Dag 執行",
+    "lastTaskInstance_one": "最近 1 次任務實例",
+    "lastTaskInstance_other": "最近 {{count}} 次任務實例",
+    "queuedDuration": "排隊等候時間",
+    "runAfter": "最早可執行時間",
+    "runDuration": "執行持續時間"
+  },
+  "fileUpload": {
+    "files_other": "{{count}} 個檔案"
+  },
+  "flexibleForm": {
+    "placeholder": "請選擇一個值",
+    "placeholderArray": "請逐行輸入，每行輸入一個字串",
+    "placeholderExamples": "開始輸入以查看選項",
+    "placeholderMulti": "可選擇單一或多個值",
+    "validationErrorArrayNotArray": "值必須是陣列格式。",
+    "validationErrorArrayNotNumbers": "陣列中的所有元素都必須是數字。",
+    "validationErrorArrayNotObject": "陣列中的所有元素都必須是物件。",
+    "validationErrorRequired": "此為必填欄位"
+  },
+  "graph": {
+    "directionDown": "由上到下",
+    "directionLeft": "由右到左",
+    "directionRight": "由左到右",
+    "directionUp": "由下到上",
+    "downloadImage": "下載圖表圖片",
+    "downloadImageError": "下載圖表圖片失敗。",
+    "downloadImageErrorTitle": "下載失敗",
+    "otherDagRuns": "+ 其他 Dag 執行",
+    "taskCount_one": "1 個任務",
+    "taskCount_other": "{{count}} 個任務",
+    "taskGroup": "任務群組"
+  },
+  "limitedList": "+ 其他 {{count}} 項",
+  "logs": {
+    "file": "檔案",
+    "in": "在",
+    "line": "行"
+  },
+  "reparseDag": "重新解析 Dag",
+  "sortedAscending": "遞增排序",
+  "sortedDescending": "遞減排序",
+  "sortedUnsorted": "未排序",
+  "taskTries": "任務嘗試次數",
+  "toggleCardView": "顯示卡片視圖",
+  "toggleTableView": "顯示表格視圖",
+  "triggerDag": {
+    "button": "觸發",
+    "loading": "正在載入 Dag 資訊...",
+    "loadingFailed": "載入 Dag 資訊失敗，請重試。",
+    "runIdHelp": "選填 - 若未提供將會自動產生",
+    "selectDescription": "觸發此 Dag 單次執行",
+    "selectLabel": "單次執行",
+    "title": "觸發 Dag",
+    "toaster": {
+      "success": {
+        "description": "已成功觸發 Dag 執行。",
+        "title": "已觸發 Dag 執行"
+      }
+    },
+    "unpause": "觸發時取消暫停 {{dagDisplayName}}"
+  },
+  "trimText": {
+    "details": "詳細資訊",
+    "empty": "空的",
+    "noContent": "無可用內容。"
+  },
+  "versionDetails": {
+    "bundleLink": "套件包連結",
+    "bundleName": "套件包名稱",
+    "bundleVersion": "套件包版本",
+    "createdAt": "建立時間",
+    "versionId": "版本 ID"
+  },
+  "versionSelect": {
+    "dagVersion": "Dag 版本",
+    "versionCode": "v{{versionCode}}"
+  }
+}
