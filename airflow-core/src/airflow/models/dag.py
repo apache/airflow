@@ -1626,7 +1626,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if dag_deadline := self.get_dagrun_creation_deadlines():
             Deadline.add_deadline(
                 Deadline(
-                    deadline=dag_deadline.reference.evaluate_with(
+                    deadline_time=dag_deadline.reference.evaluate_with(
                         interval=dag_deadline.interval,
                         dag_id=self.dag_id,
                     ),
