@@ -1964,11 +1964,18 @@ def mock_supervisor_comms(monkeypatch):
         yield None
         return
 
-    import airflow.sdk.execution_time.task_runner
-    from airflow.sdk.execution_time.comms import CommsDecoder
+    from airflow.sdk.execution_time import comms, task_runner
 
-    comms = mock.create_autospec(CommsDecoder)
-    monkeypatch.setattr(airflow.sdk.execution_time.task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+    # Deal with TaskSDK 1.0/1.1 vs 1.2+. Annoying, and shouldn't need to exist once the separation between
+    # core and TaskSDK is finished
+    if CommsDecoder := getattr(comms, "CommsDecoder", None):
+        comms = mock.create_autospec(CommsDecoder)
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+    else:
+        CommsDecoder = getattr(task_runner, "CommsDecoder")
+        comms = mock.create_autospec(CommsDecoder)
+        comms.send = comms.get_response
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
     yield comms
 
 
