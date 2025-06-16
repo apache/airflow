@@ -1089,3 +1089,15 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{- define "dagProcessor.enabled" }}
+  {{- if semverCompare ">=2.3.0" .Values.airflowVersion -}}
+    {{- if eq .Values.dagProcessor.enabled nil -}}
+      {{ print (ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion)) -}}
+    {{- else -}}
+      {{- print .Values.dagProcessor.enabled -}}
+    {{- end -}}
+  {{- else -}}
+    {{ print false }}
+  {{- end -}}
+{{- end }}
