@@ -22,7 +22,6 @@ from fastapi import Depends, status
 
 from airflow import plugins_manager
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.plugins import AppBuilderMenuItemResponse
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_authenticated

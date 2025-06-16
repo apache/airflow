@@ -410,7 +410,6 @@ def initialize_airflow_tests(request):
 
 
 def _initialize_airflow_db(force_db_init: bool, airflow_home: str | Path):
-    # db_init_lock_file = Path(airflow_home).joinpath(".airflow_db_initialised")
     airflow_home = Path(airflow_home)
     airflow_home.mkdir(parents=True, exist_ok=True)
     db_init_lock_file = airflow_home.joinpath(".airflow_db_initialised")

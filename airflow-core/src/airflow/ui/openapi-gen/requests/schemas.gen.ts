@@ -6314,10 +6314,17 @@ export const $ConfigResponse = {
       title: "External Log Name",
     },
     plugins_extra_menu_items: {
-      items: {
-        $ref: "#/components/schemas/AppBuilderMenuItemResponse",
-      },
-      type: "array",
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/AppBuilderMenuItemResponse",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Plugins Extra Menu Items",
     },
   },
@@ -6333,7 +6340,6 @@ export const $ConfigResponse = {
     "test_connection",
     "dashboard_alert",
     "show_external_log_redirect",
-    "plugins_extra_menu_items",
   ],
   title: "ConfigResponse",
   description: "configuration serializer.",

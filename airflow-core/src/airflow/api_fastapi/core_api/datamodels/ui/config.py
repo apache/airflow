@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from airflow.api_fastapi.common.types import UIAlert
 from airflow.api_fastapi.core_api.datamodels.plugins import AppBuilderMenuItemResponse
