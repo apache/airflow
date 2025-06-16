@@ -419,7 +419,7 @@ def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
     w.sendall(bytes)
 
     decoder = comms.CommsDecoder[DagFileParseRequest, DagFileParsingResult](
-        request_socket=r,
+        socket=r,
         body_decoder=TypeAdapter[DagFileParseRequest](DagFileParseRequest),
     )
 

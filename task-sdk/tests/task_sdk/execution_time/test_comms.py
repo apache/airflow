@@ -71,7 +71,7 @@ class TestCommsDecoder:
         bytes = msgspec.msgpack.encode(_ResponseFrame(0, msg, None))
         w.sendall(len(bytes).to_bytes(4, byteorder="big") + bytes)
 
-        decoder = CommsDecoder(request_socket=r, log=None)
+        decoder = CommsDecoder(socket=r, log=None)
 
         msg = decoder._get_response()
         assert isinstance(msg, StartupDetails)
