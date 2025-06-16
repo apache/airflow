@@ -34,7 +34,7 @@ KafkaMessageQueueTrigger
 ----------------------------------
 
 The ``KafkaMessageQueueTrigger`` is a dedicated interface class for Kafka message queues that extends
-the common :class:`~airflow.providers.common.messaging.trigger.msg_queue.MessageQueueTrigger`. It is designed to work with the KafkaMessageQueueProvider and provides
+the common :class:`~airflow.providers.common.messaging.trigger.msg_queue.MessageQueueTrigger`. It is designed to work with the ``KafkaMessageQueueProvider`` and provides
 a more specific interface for Kafka message queue operations while leveraging the unified messaging framework.
 
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.triggers.msg_queue.KafkaMessageQueueTrigger`

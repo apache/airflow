@@ -24,10 +24,10 @@ from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTr
 
 class KafkaMessageQueueTrigger(MessageQueueTrigger):
     """
-    A dedicated trigger for Kafka message queues that extends MessageQueueTrigger.
+    A dedicated trigger for Kafka message queues that extends ``MessageQueueTrigger``.
 
-    This trigger extends the common MessageQueueTrigger and is designed to work
-    with the KafkaMessageQueueProvider. It provides a more specific interface
+    This trigger extends the common ``MessageQueueTrigger`` and is designed to work
+    with the ``KafkaMessageQueueProvider``. It provides a more specific interface
     for Kafka message queue operations while leveraging the unified messaging framework.
 
     :param topics: The topic (or topic regex) that should be searched for messages
