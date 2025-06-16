@@ -485,7 +485,7 @@ class DeadlineResponse(BaseModel):
     """
 
     id: Annotated[UUID, Field(title="Id")]
-    deadline: Annotated[datetime, Field(title="Deadline")]
+    deadline_time: Annotated[datetime, Field(title="Deadline Time")]
     callback: Annotated[str | None, Field(title="Callback")] = None
     callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
 

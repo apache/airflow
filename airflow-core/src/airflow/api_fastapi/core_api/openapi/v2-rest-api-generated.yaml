@@ -9175,10 +9175,10 @@ components:
           type: string
           format: uuid
           title: Id
-        deadline:
+        deadline_time:
           type: string
           format: date-time
-          title: Deadline
+          title: Deadline Time
         callback:
           anyOf:
           - type: string
@@ -9193,7 +9193,7 @@ components:
       type: object
       required:
       - id
-      - deadline
+      - deadline_time
       title: DeadlineResponse
       description: Deadline serializer for responses.
     DryRunBackfillCollectionResponse:

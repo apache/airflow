@@ -37,6 +37,6 @@ class DeadlineResponse(BaseModel):
     """Deadline serializer for responses."""
 
     id: UUID
-    deadline: AwareDatetime
+    deadline_time: AwareDatetime
     callback: str | None = None
     callback_kwargs: dict | None = None

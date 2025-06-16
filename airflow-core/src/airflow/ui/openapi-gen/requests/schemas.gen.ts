@@ -3236,10 +3236,10 @@ export const $DeadlineResponse = {
       format: "uuid",
       title: "Id",
     },
-    deadline: {
+    deadline_time: {
       type: "string",
       format: "date-time",
-      title: "Deadline",
+      title: "Deadline Time",
     },
     callback: {
       anyOf: [
@@ -3266,7 +3266,7 @@ export const $DeadlineResponse = {
     },
   },
   type: "object",
-  required: ["id", "deadline"],
+  required: ["id", "deadline_time"],
   title: "DeadlineResponse",
   description: "Deadline serializer for responses.",
 } as const;

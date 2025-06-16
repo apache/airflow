@@ -838,7 +838,7 @@ export type DeadlineAlertResponse = {
  */
 export type DeadlineResponse = {
   id: string;
-  deadline: string;
+  deadline_time: string;
   callback?: string | null;
   callback_kwargs?: {
     [key: string]: unknown;

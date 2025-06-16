@@ -109,7 +109,7 @@ def setup(request, dag_maker, session=None):
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
 
     deadline1 = Deadline(
-        deadline=LOGICAL_DATE1,
+        deadline_time=LOGICAL_DATE1,
         callback=TEST_CALLBACK_PATH,
         callback_kwargs=TEST_CALLBACK_KWARGS,
         dag_id=DAG1_ID,
