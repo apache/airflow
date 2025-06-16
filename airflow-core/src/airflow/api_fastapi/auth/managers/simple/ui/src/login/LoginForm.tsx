@@ -54,7 +54,7 @@ export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
             <Field.Root invalid={Boolean(fieldState.error)} required>
               <Field.Label>Username</Field.Label>
               {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-              <Input autoFocus={true} {...field} />
+              <Input autoFocus {...field} />
             </Field.Root>
           )}
           rules={{ required: true }}
