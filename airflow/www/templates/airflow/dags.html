@@ -127,7 +127,7 @@
     <div class="dags-table-header">
       <div class="form-group btn-group">
         <a
-          href="{{ url_for('Airflow.index', status='all', lastrun=request.args.get('lastrun', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          href="{{ url_for('Airflow.index', status='all', lastrun='reset_filter', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
           class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-default' }}"
           title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
         <a
