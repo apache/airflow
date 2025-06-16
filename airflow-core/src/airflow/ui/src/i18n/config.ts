@@ -45,6 +45,8 @@ import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
 import nlDashboard from "./locales/nl/dashboard.json";
 import plAdmin from "./locales/pl/admin.json";
+import plAssets from "./locales/pl/assets.json";
+import plBrowse from "./locales/pl/browse.json";
 import plCommon from "./locales/pl/common.json";
 import plComponents from "./locales/pl/components.json";
 import plDag from "./locales/pl/dag.json";
@@ -112,6 +114,8 @@ const resources = {
   },
   pl: {
     admin: plAdmin,
+    assets: plAssets,
+    browse: plBrowse,
     common: plCommon,
     components: plComponents,
     dag: plDag,
