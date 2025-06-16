@@ -113,6 +113,16 @@ annotations:
       links:
       - name: '#51080'
         url: https://github.com/apache/airflow/pull/51080
+    - description: 'Generate JWT secret during HELM install'
+      kind: changed
+      links:
+      - name: '#49923'
+        url: https://github.com/apache/airflow/pull/49923
+    - description: 'Always deploy JWT secret'
+      kind: changed
+      links:
+      - name: '#51799'
+        url: https://github.com/apache/airflow/pull/51799
     - description: 'Docs: Bump minimum helm version in docs'
       kind: changed
       links:

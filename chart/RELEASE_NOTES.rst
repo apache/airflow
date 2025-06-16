@@ -52,6 +52,8 @@ Bug Fixes
 - Add missing api server replicas parameter (#50814)
 - Fix FAB ``enable_proxy_fix`` default for Airflow 3 (#50056)
 - Add the dag processor ServiceAccount to SecurityContextConstraints role binding (#51080)
+- Generate JWT secret during HELM install (#49923)
+- Always deploy JWT secret (#51799)
 
 Doc only changes
 ^^^^^^^^^^^^^^^^
