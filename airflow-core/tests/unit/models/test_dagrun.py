@@ -1311,7 +1311,7 @@ class TestDagRun:
         # Refresh from DB to ensure we see the new deadline
         dag_run = session.get(DagRun, dag_run.id)
         assert len(dag_run.deadlines) == 1
-        assert dag_run.deadlines[0].deadline == dag_run.queued_at + interval
+        assert dag_run.deadlines[0].deadline_time == dag_run.queued_at + interval
 
 
 @pytest.mark.parametrize(

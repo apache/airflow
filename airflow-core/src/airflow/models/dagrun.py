@@ -433,7 +433,7 @@ class DagRun(Base, LoggingMixin):
         ):
             Deadline.add_deadline(
                 Deadline(
-                    deadline=deadline.reference.evaluate_with(interval=deadline.interval, dag_id=self.dag_id),
+                    deadline_time=deadline.reference.evaluate_with(interval=deadline.interval, dag_id=self.dag_id),
                     callback=deadline.callback,
                     callback_kwargs=deadline.callback_kwargs or {},
                     dag_id=self.dag_id,
