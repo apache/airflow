@@ -95,7 +95,7 @@ The default is 100 items, but you can change it using ``maximum_page_limit``  op
 section in the ``airflow.cfg`` file.
 
 Request Payload Considerations
------------------------------
+------------------------------
 
 When using REST APIs that accept data payloads (such as the Variables API), be mindful of the payload size.
 Large payloads (out of ordinary size, like a million bytes) can impact the performance of the Airflow webserver.
