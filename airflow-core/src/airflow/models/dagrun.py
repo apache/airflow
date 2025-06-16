@@ -67,10 +67,10 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import Deadline, Log
+from airflow.models import Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
-from airflow.models.deadline import ReferenceModels
+from airflow.models.deadline import Deadline, ReferenceModels
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
