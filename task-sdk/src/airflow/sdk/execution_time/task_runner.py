@@ -643,6 +643,14 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
+def __getattr__(name: str) -> CommsDecoder[ToTask, ToSupervisor]:
+    """Lazy initialization of supervisor comms."""
+    global SUPERVISOR_COMMS
+    if name == "SUPERVISOR_COMMS":
+        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=structlog.get_logger(logger_name="task"))
+        return SUPERVISOR_COMMS
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 # State machine!
 # 1. Start up (receive details from supervisor)
 # 2. Execution (run task code, possibly send requests)
