@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-16T16:20:27.293874
+# This constraints file was automatically generated on 2025-06-16T21:32:52.088665
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -80,7 +80,7 @@ aiosignal==1.3.2
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
-alembic==1.16.1
+alembic==1.16.2
 alibabacloud-adb20211201==3.1.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
@@ -402,7 +402,7 @@ h2==4.2.0
 hatch==1.14.1
 hatchling==1.27.0
 hdfs==2.7.3
-hf-xet==1.1.3
+hf-xet==1.1.4
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -521,7 +521,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.86.0
+openai==1.87.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
