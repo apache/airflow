@@ -356,6 +356,7 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/src/i18n/locales/de/|
+          ^airflow-core/src/airflow/ui/src/i18n/locales/fr/|
           ^airflow-core/src/airflow/ui/src/i18n/locales/pl/
         args:
           - --ignore-words=docs/spelling_wordlist.txt
