@@ -167,7 +167,7 @@ export const DagRuns = () => {
     {
       dagId: dagId ?? "~",
       endDateLte: endDate ?? undefined,
-      limit: pagination.pageSize,
+      limit: 123,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       runType: filteredType === null ? undefined : [filteredType],
