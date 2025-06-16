@@ -641,8 +641,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   deeply nested execution stack.
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
-log = structlog.get_logger(logger_name="task")
-SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]  # Will be initialized when needed
+SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 # State machine!
 # 1. Start up (receive details from supervisor)
@@ -656,13 +655,13 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
-        # re exec process
-        log.info("Using serialized startup message from environment")
+        # entrypoint of re-exec process
         msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
-        log.info("Trying to open in rexec", fd=msg)
+        log.info("Using serialized startup message from environment", msg=msg)
     else:
+        # normal entry point
         msg = SUPERVISOR_COMMS._get_response()
-        log.info("Received startup message", msg_type=type(msg).__name__)
+        log.info("Received startup message from supervisor", msg=msg)
 
     if not isinstance(msg, StartupDetails):
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
@@ -692,13 +691,16 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         run_as_user = None
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user:
-        # re-exec process
+        # enters here for re-exec process
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
-        # store statrup messgae
+        # store startup message in environment for re-exec process
         os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
         os.set_inheritable(SUPERVISOR_COMMS.request_socket.fileno(), True)
+
         log.info("Running command", command=["sudo", "-E", "-H", "-u", run_as_user, sys.executable, __file__])
         os.execvp("sudo", ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, __file__])
+
+        # ideally, we should never reach here, but if we do, we should return None, None, None
         return None, None, None
 
     return ti, ti.get_template_context(), log
