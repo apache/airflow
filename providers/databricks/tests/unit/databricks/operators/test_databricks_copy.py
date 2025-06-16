@@ -50,7 +50,7 @@ def test_copy_with_files():
         == f"""COPY INTO test
 FROM '{COPY_FILE_LOCATION}'
 FILEFORMAT = JSON
-FILES = ('file1','file2','file3')
+FILES = ARRAY('file1','file2','file3')
 FORMAT_OPTIONS ('dateFormat' = 'yyyy-MM-dd')
 """.strip()
     )
