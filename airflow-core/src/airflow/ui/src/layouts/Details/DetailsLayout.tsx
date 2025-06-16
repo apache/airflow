@@ -18,7 +18,7 @@
  */
 import { Box, HStack, Flex, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -36,6 +36,7 @@ import { Toaster } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { OpenGroupsProvider } from "src/context/openGroups";
+import { HasActiveRunContext } from "src/layouts/Details/context.ts";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Graph } from "./Graph";
@@ -53,6 +54,8 @@ type Props = {
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "" } = useParams();
+  const [hasActiveRun, setHasActiveRun] = useState(true);
+  const hasActiveRunValue = useMemo(() => ({ hasActiveRun, setHasActiveRun }), [hasActiveRun]);
 
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
@@ -68,76 +71,78 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
-    <OpenGroupsProvider dagId={dagId}>
-      <HStack justifyContent="space-between" mb={2}>
-        <DagBreadcrumb />
-        <Flex gap={1}>
-          <SearchDagsButton />
-          {dag === undefined ? undefined : <TriggerDAGButton dag={dag} />}
-        </Flex>
-      </HStack>
-      <Toaster />
-      <BackfillBanner dagId={dagId} />
-      <Box flex={1} minH={0}>
-        <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
-          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
-            <Box height="100%" overflowY="auto" position="relative" pr={2}>
-              <PanelButtons
-                dagView={dagView}
-                limit={limit}
-                panelGroupRef={panelGroupRef}
-                setDagView={setDagView}
-                setLimit={setLimit}
-              />
-              {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
-            </Box>
-          </Panel>
-          <PanelResizeHandle
-            className="resize-handle"
-            onDragging={(isDragging) => {
-              if (!isDragging) {
-                const zoom = getZoom();
-
-                void fitView({ maxZoom: zoom, minZoom: zoom });
-              }
-            }}
-          >
-            <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
-          </PanelResizeHandle>
-          <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
-            <Box display="flex" flexDirection="column" h="100%">
-              {children}
-              {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
-                <>
-                  <ActionButton
-                    actionName={translate("common:dagWarnings")}
-                    colorPalette={Boolean(error) ? "red" : "orange"}
-                    icon={<LuFileWarning />}
-                    margin="2"
-                    marginBottom="-1"
-                    onClick={onOpen}
-                    rounded="full"
-                    text={String(warningData?.total_entries ?? 0 + Number(error))}
-                    variant="solid"
-                  />
-
-                  <DAGWarningsModal
-                    error={error}
-                    onClose={onClose}
-                    open={open}
-                    warnings={warningData?.dag_warnings}
-                  />
-                </>
-              ) : undefined}
-              <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-              <NavTabs tabs={tabs} />
-              <Box h="100%" overflow="auto" px={2}>
-                <Outlet />
+    <HasActiveRunContext.Provider value={hasActiveRunValue}>
+      <OpenGroupsProvider dagId={dagId}>
+        <HStack justifyContent="space-between" mb={2}>
+          <DagBreadcrumb />
+          <Flex gap={1}>
+            <SearchDagsButton />
+            {dag === undefined ? undefined : <TriggerDAGButton dag={dag} />}
+          </Flex>
+        </HStack>
+        <Toaster />
+        <BackfillBanner dagId={dagId} />
+        <Box flex={1} minH={0}>
+          <PanelGroup autoSaveId={dagId} direction="horizontal" ref={panelGroupRef}>
+            <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
+              <Box height="100%" overflowY="auto" position="relative" pr={2}>
+                <PanelButtons
+                  dagView={dagView}
+                  limit={limit}
+                  panelGroupRef={panelGroupRef}
+                  setDagView={setDagView}
+                  setLimit={setLimit}
+                />
+                {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
               </Box>
-            </Box>
-          </Panel>
-        </PanelGroup>
-      </Box>
-    </OpenGroupsProvider>
+            </Panel>
+            <PanelResizeHandle
+              className="resize-handle"
+              onDragging={(isDragging) => {
+                if (!isDragging) {
+                  const zoom = getZoom();
+
+                  void fitView({ maxZoom: zoom, minZoom: zoom });
+                }
+              }}
+            >
+              <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
+            </PanelResizeHandle>
+            <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
+              <Box display="flex" flexDirection="column" h="100%">
+                {children}
+                {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
+                  <>
+                    <ActionButton
+                      actionName={translate("common:dagWarnings")}
+                      colorPalette={Boolean(error) ? "red" : "orange"}
+                      icon={<LuFileWarning />}
+                      margin="2"
+                      marginBottom="-1"
+                      onClick={onOpen}
+                      rounded="full"
+                      text={String(warningData?.total_entries ?? 0 + Number(error))}
+                      variant="solid"
+                    />
+
+                    <DAGWarningsModal
+                      error={error}
+                      onClose={onClose}
+                      open={open}
+                      warnings={warningData?.dag_warnings}
+                    />
+                  </>
+                ) : undefined}
+                <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+                <NavTabs tabs={tabs} />
+                <Box h="100%" overflow="auto" px={2}>
+                  <Outlet />
+                </Box>
+              </Box>
+            </Panel>
+          </PanelGroup>
+        </Box>
+      </OpenGroupsProvider>
+    </HasActiveRunContext.Provider>
   );
 };
