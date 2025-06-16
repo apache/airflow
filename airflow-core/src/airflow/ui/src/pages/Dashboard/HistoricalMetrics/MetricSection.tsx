@@ -17,11 +17,11 @@
  * under the License.
  */
 import { Box, Flex, HStack, VStack, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { capitalize } from "src/utils";
 
 const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
@@ -43,6 +43,7 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
   const remainingWidth = BAR_WIDTH - stateWidth;
 
   const searchParams = new URLSearchParams(`?state=${state}&start_date=${startDate}`);
+  const { t: translate } = useTranslation();
 
   if (endDate !== undefined) {
     searchParams.append("end_date", endDate);
@@ -58,12 +59,7 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
               {runs}
             </StateBadge>
           </RouterLink>
-          <Text>
-            {state
-              .split("_")
-              .map((st) => capitalize(st))
-              .join(" ")}
-          </Text>
+          <Text>{translate(`states.${state}`)}</Text>
         </HStack>
         <Text color="fg.muted"> {statePercent}% </Text>
       </Flex>

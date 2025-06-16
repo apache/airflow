@@ -69,6 +69,7 @@ admin_views: list[Any] | None = None
 flask_blueprints: list[Any] | None = None
 fastapi_apps: list[Any] | None = None
 fastapi_root_middlewares: list[Any] | None = None
+iframe_views: list[Any] | None = None
 menu_links: list[Any] | None = None
 flask_appbuilder_views: list[Any] | None = None
 flask_appbuilder_menu_links: list[Any] | None = None
@@ -90,6 +91,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "flask_blueprints",
     "fastapi_apps",
     "fastapi_root_middlewares",
+    "iframe_views",
     "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
@@ -154,6 +156,7 @@ class AirflowPlugin:
     flask_blueprints: list[Any] = []
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
+    iframe_views: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
@@ -365,8 +368,29 @@ def ensure_plugins_loaded():
         log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
 
 
+def initialize_ui_plugins():
+    """Collect extension points for the UI."""
+    global plugins
+    global iframe_views
+
+    if iframe_views is not None:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize UI plugin")
+
+    iframe_views = []
+
+    for plugin in plugins:
+        iframe_views.extend(plugin.iframe_views)
+
+
 def initialize_flask_plugins():
-    """Collect extension points for WEB UI."""
+    """Collect flask extension points for WEB UI (legacy)."""
     global plugins
     global flask_blueprints
     global flask_appbuilder_views
@@ -384,7 +408,7 @@ def initialize_flask_plugins():
     if plugins is None:
         raise AirflowPluginException("Can't load plugins.")
 
-    log.debug("Initialize Web UI plugin")
+    log.debug("Initialize legacy Web UI plugin")
 
     flask_blueprints = []
     flask_appbuilder_views = []
@@ -507,7 +531,7 @@ def integrate_macros_plugins() -> None:
     global plugins
     global macros_modules
 
-    from airflow.sdk.definitions import macros
+    from airflow.sdk.execution_time import macros
 
     if macros_modules is not None:
         return
@@ -525,7 +549,7 @@ def integrate_macros_plugins() -> None:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
-        macros_module = make_module(f"airflow.sdk.definitions.macros.{plugin.name}", plugin.macros)
+        macros_module = make_module(f"airflow.sdk.execution_time.macros.{plugin.name}", plugin.macros)
 
         if macros_module:
             macros_modules.append(macros_module)
@@ -560,6 +584,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
     integrate_macros_plugins()
     initialize_flask_plugins()
     initialize_fastapi_plugins()
+    initialize_ui_plugins()
     initialize_extra_operators_links_plugins()
     if not attrs_to_dump:
         attrs_to_dump = PLUGINS_ATTRIBUTES_TO_DUMP

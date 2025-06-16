@@ -17,18 +17,19 @@
  * under the License.
  */
 import { Box, Button, Skeleton, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
-import { pluralize } from "src/utils";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 import { StatsCard } from "./StatsCard";
 
 export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation("dashboard");
 
   const { data, error, isLoading } = useImportErrorServiceGetImportErrors();
   const importErrorsCount = data?.total_entries ?? 0;
@@ -51,7 +52,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           colorPalette="failed"
           height={7}
           onClick={onOpen}
-          title={pluralize("Dag Import Error", importErrorsCount)}
+          title={translate("importErrors.dagImportError", { count: importErrorsCount })}
         >
           <LuFileWarning size="0.5rem" />
           {importErrorsCount}
@@ -62,7 +63,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           count={importErrorsCount}
           icon={<LuFileWarning />}
           isLoading={isLoading}
-          label="Dag Import Errors"
+          label={translate("importErrors.dagImportError", { count: importErrorsCount })}
           onClick={onOpen}
         />
       )}

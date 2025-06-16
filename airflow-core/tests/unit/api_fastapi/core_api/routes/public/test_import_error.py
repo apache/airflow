@@ -56,8 +56,14 @@ def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
     orm_dag_bundle = DagBundleModel(name=bundle_name)
     session.merge(orm_dag_bundle)
     session.flush()
+    dag_model = DagModel(
+        fileloc=FILENAME1,
+        bundle_name=bundle_name,
+        relative_fileloc=FILENAME1,
+        dag_id="dag_id1",
+        is_paused=False,
+    )
 
-    dag_model = DagModel(fileloc=FILENAME1, bundle_name=bundle_name, dag_id="dag_id1", is_paused=False)
     session.add(dag_model)
     session.commit()
     return dag_model
@@ -70,8 +76,13 @@ def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
     orm_dag_bundle = DagBundleModel(name=bundle_name)
     session.merge(orm_dag_bundle)
     session.flush()
-
-    dag_model = DagModel(fileloc=FILENAME1, bundle_name=bundle_name, dag_id="dag_id4", is_paused=False)
+    dag_model = DagModel(
+        fileloc=FILENAME1,
+        bundle_name=bundle_name,
+        relative_fileloc=FILENAME1,
+        dag_id="dag_id4",
+        is_paused=False,
+    )
     session.add(dag_model)
     session.commit()
     return dag_model

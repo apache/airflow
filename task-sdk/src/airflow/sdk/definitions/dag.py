@@ -50,13 +50,13 @@ from airflow.exceptions import (
     ParamValidationError,
     TaskNotFound,
 )
-from airflow.models.deadline import DeadlineAlert
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.node import validate_key
-from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
+from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
@@ -278,7 +278,7 @@ class DAG:
     :param schedule: If provided, this defines the rules according to which DAG
         runs are scheduled. Possible values include a cron expression string,
         timedelta object, Timetable, or list of Asset objects.
-        See also :doc:`/howto/timetable`.
+        See also :external:doc:`howto/timetable`.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill. If this is not provided, backfilling must be done
         manually with an explicit time range.
@@ -352,7 +352,7 @@ class DAG:
     :param tags: List of tags to help filtering DAGs in the UI.
     :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
-        e.g: {"dag_owner": "https://airflow.apache.org/"}
+        e.g: ``{"dag_owner": "https://airflow.apache.org/"}``
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
     :param fail_fast: Fails currently running tasks when task in DAG fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
@@ -1014,7 +1014,7 @@ class DAG:
     def test(
         self,
         run_after: datetime | None = None,
-        logical_date: datetime | None = None,
+        logical_date: datetime | None | ArgNotSet = NOTSET,
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
@@ -1082,6 +1082,10 @@ class DAG:
 
         with exit_stack:
             self.validate()
+
+            # Allow users to explicitly pass None. If it isn't set, we default to current time.
+            logical_date = logical_date if not isinstance(logical_date, ArgNotSet) else timezone.utcnow()
+
             log.debug("Clearing existing task instances for logical date %s", logical_date)
             # TODO: Replace with calling client.dag_run.clear in Execution API at some point
             SchedulerDAG.clear_dags(
@@ -1193,7 +1197,7 @@ class DAG:
                                 ti.set_state(State.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", ti.task, ti.logical_date)
                             else:
-                                _run_task(ti=ti)
+                                _run_task(ti=ti, run_triggerer=True)
                         except Exception:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
@@ -1208,7 +1212,7 @@ class DAG:
         return dr
 
 
-def _run_task(*, ti):
+def _run_task(*, ti, run_triggerer=False):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1244,8 +1248,12 @@ def _run_task(*, ti):
             )
 
             msg = taskrun_result.msg
+            ti.set_state(taskrun_result.ti.state)
+            ti.task = taskrun_result.ti.task
 
-            if taskrun_result.ti.state == State.DEFERRED and isinstance(msg, DeferTask):
+            if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
+                from airflow.utils.session import create_session
+
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(State.QUEUED)
@@ -1254,11 +1262,15 @@ def _run_task(*, ti):
                 trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
                 event = _run_inline_trigger(trigger)
                 ti.next_method = msg.next_method
-                ti.next_kwargs = {"event": event.payload} if event else msg.kwargs
+                ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
-                ti.set_state(State.SUCCESS)
-            break
+                # Set the state to SCHEDULED so that the task can be resumed.
+                with create_session() as session:
+                    ti.state = State.SCHEDULED
+                    session.add(ti)
+
+            return taskrun_result
         except Exception:
             log.exception("[DAG TEST] Error running task %s", ti)
             if ti.state not in State.finished:

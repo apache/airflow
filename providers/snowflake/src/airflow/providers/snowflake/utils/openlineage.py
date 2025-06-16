@@ -52,7 +52,15 @@ def fix_account_name(name: str) -> str:
             account, region = spl
             cloud = "aws"
         else:
-            account, region, cloud = spl
+            # region can easily get duplicated without crashing snowflake, so we need to handle that as well
+            # eg. account_locator.europe-west3.gcp.europe-west3.gcp will be ok for snowflake
+            account, region, cloud, *rest = spl
+            rest = [x for x in rest if x not in (region, cloud)]
+            if rest:  # Not sure what could be left here, but leaving this just in case
+                log.warning(
+                    "Unexpected parts found in Snowflake uri hostname and will be ignored by OpenLineage: %s",
+                    rest,
+                )
         return f"{account}.{region}.{cloud}"
 
     # Check for existing accounts with cloud names
@@ -72,13 +80,16 @@ def fix_snowflake_sqlalchemy_uri(uri: str) -> str:
     """
     Fix snowflake sqlalchemy connection URI to OpenLineage structure.
 
-    Snowflake sqlalchemy connection URI has following structure:
+    Snowflake sqlalchemy connection URI has the following structure:
     'snowflake://<user_login_name>:<password>@<account_identifier>/<database_name>/<schema_name>?warehouse=<warehouse_name>&role=<role_name>'
     We want account identifier normalized. It can have two forms:
-    - newer, in form of <organization>-<id>. In this case we want to do nothing.
-    - older, composed of <id>-<region>-<cloud> where region and cloud can be
+    - newer, in form of <organization_id>-<account_id>. In this case we want to do nothing.
+    - older, composed of <account_locator>.<region>.<cloud> where region and cloud can be
     optional in some cases. If <cloud> is omitted, it's AWS.
     If region and cloud are omitted, it's AWS us-west-1
+
+    Current doc on Snowflake account identifiers:
+    https://docs.snowflake.com/en/user-guide/admin-account-identifier
     """
     try:
         parts = urlparse(uri)

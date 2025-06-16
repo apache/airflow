@@ -18,6 +18,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useVariableServiceGetVariablesKey, useVariableServicePostVariable } from "openapi/queries";
 import { toaster } from "src/components/ui";
@@ -26,15 +27,19 @@ import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableFo
 export const useAddVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
-
+  const { t: translate } = useTranslation(["common", "admin"]);
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
       queryKey: [useVariableServiceGetVariablesKey],
     });
 
     toaster.create({
-      description: "Variable has been added successfully",
-      title: "Variable Add Request Submitted",
+      description: translate("toaster.create.success.description", {
+        resourceName: translate("admin:variables.variable_one"),
+      }),
+      title: translate("toaster.create.success.title", {
+        resourceName: translate("admin:variables.variable_one"),
+      }),
       type: "success",
     });
 

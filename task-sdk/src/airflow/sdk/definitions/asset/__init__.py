@@ -86,6 +86,18 @@ class AssetUniqueKey(attrs.AttrsInstance):
     def to_str(self) -> str:
         return json.dumps(attrs.asdict(self))
 
+    @staticmethod
+    def from_profile(profile: AssetProfile) -> AssetUniqueKey:
+        if profile.name and profile.uri:
+            return AssetUniqueKey(name=profile.name, uri=profile.uri)
+
+        if name := profile.name:
+            return AssetUniqueKey(name=name, uri=name)
+        if uri := profile.uri:
+            return AssetUniqueKey(name=uri, uri=uri)
+
+        raise ValueError("name and uri cannot both be empty")
+
 
 @attrs.define(frozen=True)
 class AssetAliasUniqueKey:

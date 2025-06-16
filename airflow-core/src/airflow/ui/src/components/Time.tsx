@@ -50,7 +50,7 @@ const Time = ({ datetime, format = defaultFormat, showTooltip = true, ...rest }:
   const utcTime = time.tz("UTC").format(defaultFormatWithTZ);
 
   return (
-    <chakra.span {...rest}>
+    <chakra.span dir="ltr" {...rest}>
       <time
         dateTime={datetime}
         // show title if date is not UTC

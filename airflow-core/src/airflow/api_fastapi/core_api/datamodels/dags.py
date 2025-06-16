@@ -35,6 +35,7 @@ from pydantic import (
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.datamodels.deadline import DeadlineAlertResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
 
@@ -67,6 +68,7 @@ class DAGResponse(BaseModel):
     relative_fileloc: str | None
     fileloc: str
     description: str | None
+    deadline: list[DeadlineAlertResponse] | None
     timetable_summary: str | None
     timetable_description: str | None
     tags: list[DagTagResponse]
@@ -107,7 +109,7 @@ class DAGResponse(BaseModel):
     @property
     def file_token(self) -> str:
         """Return file token."""
-        serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
+        serializer = URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
         payload = {
             "bundle_name": self.bundle_name,
             "relative_fileloc": self.relative_fileloc,
