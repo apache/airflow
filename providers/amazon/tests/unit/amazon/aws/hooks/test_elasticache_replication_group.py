@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest import mock
 
 import pytest
 
@@ -46,7 +46,7 @@ class TestElastiCacheReplicationGroupHook:
     def setup_method(self):
         self.hook = ElastiCacheReplicationGroupHook()
         # noinspection PyPropertyAccess
-        self.hook.conn = Mock()
+        self.hook.conn = mock.Mock()
 
         # We need this for every test
         self.hook.conn.create_replication_group.return_value = {
@@ -94,7 +94,8 @@ class TestElastiCacheReplicationGroupHook:
         response = self.hook.is_replication_group_available(replication_group_id=self.REPLICATION_GROUP_ID)
         assert response in (True, False)
 
-    def test_wait_for_availability(self):
+    @mock.patch("time.sleep", return_value=None)
+    def test_wait_for_availability(self, time_mock):
         self._create_replication_group()
 
         # Test non availability
@@ -160,7 +161,8 @@ class TestElastiCacheReplicationGroupHook:
             self._raise_replication_group_not_found_exp(),
         ]
 
-    def test_wait_for_deletion(self):
+    @mock.patch("time.sleep", return_value=None)
+    def test_wait_for_deletion(self, time_mock):
         self._create_replication_group()
 
         self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect()
