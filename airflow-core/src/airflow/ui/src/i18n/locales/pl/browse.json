@@ -1,0 +1,23 @@
+{
+  "auditLog": {
+    "actions": {
+      "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
+      "expandAllExtra": "Rozwiń wszystkie dodatkowe dane JSON"
+    },
+    "columns": {
+      "event": "Zdarzenie",
+      "extra": "Dodatkowe",
+      "user": "Użytkownik",
+      "when": "Kiedy"
+    },
+    "title": "Dziennik audytu"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "DAG",
+      "key": "Klucz",
+      "value": "Wartość"
+    },
+    "title": "XCom"
+  }
+}

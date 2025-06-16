@@ -1,7 +1,7 @@
 {
   "backfill": {
-    "affected_one": "Zostanie wywołane 1 wykonanie.",
-    "affected_other": "Zostanie wywołanych {{count}} wykonań.",
+    "affected_one": "Dotyczy 1 wykonania.",
+    "affected_other": "Dotyczy {{count}} wykonań.",
     "affectedNone": "Brak wykonań spełniających wybrane kryteria.",
     "backwards": "Uruchom wstecz",
     "dateRange": "Zakres dat",
@@ -14,7 +14,7 @@
     "selectDescription": "Uruchom ten DAG dla zakresu dat",
     "selectLabel": "Wypełnienie wsteczne",
     "title": "Uruchom uzupełnienie wsteczne",
-    "unpause": "Wznów {{dag_display_name}} przy wywołaniu"
+    "unpause": "Wznów {{dag_display_name}} przy wykonaniu"
   },
   "banner": {
     "backfillInProgress": "Wypełnienie wsteczne w toku",
@@ -28,8 +28,7 @@
   "configForm": {
     "advancedOptions": "Zaawansowane opcje",
     "configJson": "Konfiguracja JSON",
-    "invalidJson": "Nieprawidłowy format JSON: {{errorMessage}}",
-    "unkownError": "Wystąpił nieznany błąd."
+    "invalidJson": "Nieprawidłowy format JSON: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 Błąd",
@@ -87,21 +86,26 @@
   "toggleCardView": "Pokaż widok kart",
   "toggleTableView": "Pokaż widok tabeli",
   "triggerDag": {
+    "button": "Uruchom Daga",
     "loading": "Ładowanie informacji o Dagach...",
     "loadingFailed": "Nie udało się załadować informacji o Dagach. Spróbuj ponownie.",
     "runIdHelp": "Opcjonalne - zostanie wygenerowane, jeśli nie podano",
     "selectDescription": "Wyzwól pojedyncze wykonanie tego Daga",
     "selectLabel": "Pojedyncze wykonanie",
-    "title": "Wywołaj DAGa",
-    "trigger": "Wywołaj",
-    "unpause": "Wznów {{dagDisplayName}} przy wywołaniu"
+    "title": "Uruchom Daga",
+    "unpause": "Wznów {{dagDisplayName}} przy wykonaniu"
+  },
+  "trimText": {
+    "details": "Szczegóły",
+    "empty": "Pusty",
+    "noContent": "Brak treści"
   },
   "versionDetails": {
     "bundleLink": "Link do pakietu",
     "bundleName": "Nazwa pakietu",
     "bundleVersion": "Wersja pakietu",
     "createdAt": "Utworzono",
-    "versionId": "ID wersji"
+    "versionId": "Identyfikator wersji"
   },
   "versionSelect": {
     "dagVersion": "Wersja DAG",
