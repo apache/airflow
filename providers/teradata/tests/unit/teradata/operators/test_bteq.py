@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import tempfile
 import unittest
 from unittest import mock
@@ -24,6 +25,8 @@ import pytest
 
 from airflow.providers.teradata.hooks.bteq import BteqHook
 from airflow.providers.teradata.operators.bteq import BteqOperator
+
+log = logging.getLogger(__name__)
 
 
 class TestBteqOperator:
@@ -211,11 +214,13 @@ class TestBteqOperator:
         op.on_kill()
         op._hook.on_kill.assert_called_once()
 
-    def test_on_kill_logs_if_no_hook(self, caplog):
+    def test_on_kill_logs_if_no_hook(self):
         op = BteqOperator(task_id="kill_no_hook", teradata_conn_id="td_conn")
         op._hook = None
-        op.on_kill()
-        assert "BteqHook was not initialized" in caplog.text
+
+        with mock.patch.object(op.log, "warning") as mock_log_info:
+            op.on_kill()
+            mock_log_info.assert_called_once_with("BteqHook was not initialized. Nothing to terminate.")
 
     @mock.patch("airflow.providers.teradata.operators.bteq.BteqHook.execute_bteq_script")
     @mock.patch("airflow.providers.teradata.operators.bteq.BteqHook.get_conn")
