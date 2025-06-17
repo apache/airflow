@@ -21,7 +21,7 @@ import type { MultiValue } from "chakra-react-select";
 import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useDagTagsInfinite } from "openapi/queries/customInfiniteQueries";
+import { useDagTagsInfinite } from "openapi/queries/useDagsInfinite";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
