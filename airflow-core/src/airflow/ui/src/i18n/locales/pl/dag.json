@@ -66,6 +66,19 @@
       "label": "Kierunek grafu"
     }
   },
+  "paramsFailed": "Nie udało się załadować parametrów",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Nie udało się przetworzyć żądania prztworzenia Daga. Mogą istnieć oczekujące żądania przetworznia Dagów.",
+        "title": "Nie udało się ponownie przetworzyć Daga"
+      },
+      "success": {
+        "description": "Dag zostanie wkrótce ponownie przetworzony.",
+        "title": "Żądanie ponownego przetworzenia Daga zostało pomyślnie wysłane"
+      }
+    }
+  },
   "tabs": {
     "assetEvents": "Zdarzenia zasobów",
     "auditLog": "Log audytu",
@@ -85,5 +98,13 @@
   "taskGroups": {
     "collapseAll": "Zwiń wszystkie grupy zadań",
     "expandAll": "Rozwiń wszystkie grupy zadań"
+  },
+  "taskLogs": {
+    "allLogLevels": "Wszystkie poziomy logów",
+    "allSources": "Wszystkie źródła",
+    "fullscreen": {
+      "button": "Pełny ekran",
+      "tooltip": "Naciśnij {{hotkey}}, aby przejść do pełnego ekranu"
+    }
   }
 }
