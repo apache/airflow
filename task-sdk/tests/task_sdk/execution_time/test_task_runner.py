@@ -644,6 +644,40 @@ def test_startup_and_run_dag_with_rtif(
     mock_supervisor_comms.assert_has_calls(expected_calls)
 
 
+def test_task_startup_with_user_impersonation(
+    mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+):
+    """Test startup of a task with run_as_user specified."""
+
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            print("Hi from CustomOperator!")
+
+    task = CustomOperator(task_id="impersonation_task", run_as_user="airflowuser")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="impersonation_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+    mocked_parse(what, "basic_dag", task)
+
+    time_machine.move_to(instant, tick=False)
+
+    mock_supervisor_comms._get_response.return_value = what
+
+    startup()
+
+
 @pytest.mark.parametrize(
     ["command", "rendered_command"],
     [
