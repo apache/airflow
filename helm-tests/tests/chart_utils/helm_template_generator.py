@@ -36,7 +36,7 @@ api_client = ApiClient()
 
 CHART_DIR = Path(__file__).resolve().parents[3] / "chart"
 
-DEFAULT_KUBERNETES_VERSION = "1.29.1"
+DEFAULT_KUBERNETES_VERSION = "1.30.13"
 BASE_URL_SPEC = (
     f"https://api.github.com/repos/yannh/kubernetes-json-schema/contents/"
     f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"

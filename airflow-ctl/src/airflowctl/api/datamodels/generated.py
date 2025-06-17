@@ -468,6 +468,17 @@ class DagWarningType(str, Enum):
     NON_EXISTENT_POOL = "non-existent pool"
 
 
+class DeadlineAlertResponse(BaseModel):
+    """
+    Deadline alert serializer for responses.
+    """
+
+    reference: Annotated[str, Field(title="Reference")]
+    interval: Annotated[timedelta, Field(title="Interval")]
+    callback: Annotated[str, Field(title="Callback")]
+    callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
+
+
 class DryRunBackfillResponse(BaseModel):
     """
     Backfill serializer for responses in dry-run mode.
@@ -1215,6 +1226,7 @@ class DAGDetailsResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
+    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
@@ -1271,6 +1283,7 @@ class DAGResponse(BaseModel):
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
+    deadline: Annotated[list[DeadlineAlertResponse] | None, Field(title="Deadline")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
@@ -1314,6 +1327,7 @@ class DAGRunResponse(BaseModel):
     queued_at: Annotated[datetime | None, Field(title="Queued At")] = None
     start_date: Annotated[datetime | None, Field(title="Start Date")] = None
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    duration: Annotated[float | None, Field(title="Duration")] = None
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[datetime, Field(title="Run After")]

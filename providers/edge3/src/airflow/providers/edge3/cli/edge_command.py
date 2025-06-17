@@ -262,9 +262,26 @@ def list_edge_workers(args) -> None:
         "worker_name",
         "state",
         "queues",
+        "jobs_active",
+        "concurrency",
+        "free_concurrency",
         "maintenance_comment",
     ]
-    all_hosts = [{f: host.__getattribute__(f) for f in fields} for host in all_hosts_iter]
+
+    all_hosts = []
+    for host in all_hosts_iter:
+        host_data = {
+            f: getattr(host, f, None) for f in fields if f not in ("concurrency", "free_concurrency")
+        }
+        try:
+            sysinfo = json.loads(host.sysinfo or "{}")
+            host_data["concurrency"] = sysinfo.get("concurrency")
+            host_data["free_concurrency"] = sysinfo.get("free_concurrency")
+        except (json.JSONDecodeError, TypeError):
+            host_data["concurrency"] = None
+            host_data["free_concurrency"] = None
+        all_hosts.append(host_data)
+
     AirflowConsole().print_as(data=all_hosts, output=args.output)
 
 
