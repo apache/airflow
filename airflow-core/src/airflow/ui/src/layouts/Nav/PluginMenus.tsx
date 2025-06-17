@@ -32,9 +32,11 @@ export const PluginMenus = () => {
   const menuItems = useConfig("plugins_extra_menu_items");
 
   if (
+    !menuItems ||
     !Array.isArray(menuItems) ||
     !menuItems.every(
-      (item): item is AppBuilderMenuItemResponse => "name" in item && "href" in item && "category" in item,
+      (item: Record<string, unknown>): item is AppBuilderMenuItemResponse =>
+        "name" in item && "href" in item && "category" in item,
     )
   ) {
     return undefined;

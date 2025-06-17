@@ -36,4 +36,4 @@ class ConfigResponse(BaseModel):
     dashboard_alert: list[UIAlert]
     show_external_log_redirect: bool
     external_log_name: str | None = None
-    plugins_extra_menu_items: list[AppBuilderMenuItemResponse] | None = None
+    plugins_extra_menu_items: list[AppBuilderMenuItemResponse] = []
