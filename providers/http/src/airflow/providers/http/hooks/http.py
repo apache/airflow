@@ -81,6 +81,21 @@ def _process_extra_options_from_connection(conn: Connection, extra_options: dict
     return extra
 
 
+def _default_response_maker(response: Response | list[Response]) -> Callable:
+    """
+    Create a default response maker function based on the type of response.
+
+    :param response: The response object or list of response objects.
+    :return: A function that returns response text(s).
+    """
+    if isinstance(response, Response):
+        response_object = response  # Makes mypy happy
+        return lambda: response_object.text
+
+    response_list: list[Response] = response  # Makes mypy happy
+    return lambda: [entry.text for entry in response_list]
+
+
 class HttpHook(BaseHook):
     """
     Interact with HTTP servers.
