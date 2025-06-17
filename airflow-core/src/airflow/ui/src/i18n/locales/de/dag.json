@@ -1,10 +1,16 @@
 {
   "allRuns": "Alle Läufe",
+  "blockingDeps": {
+    "dependency": "Abhängigkeiten",
+    "reason": "Grund",
+    "title": "Abhängigkeiten die die Planung des Task blockieren"
+  },
   "code": {
     "bundleUrl": "Bündel Url",
     "noCode": "Kein Programmcode gefunden",
     "parsedAt": "Eingelesen um:"
   },
+  "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
       "resetToLatest": "Auf Letzten zurücksetzen",
@@ -16,15 +22,22 @@
       "dagDocs": "Dag Dokumentation"
     }
   },
+  "logs": {
+    "noTryNumber": "Keine Versuchsnummer",
+    "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Fehlgeschlagener Lauf",
       "failedRun_other": "Fehlgeschlagene Läufe",
       "failedTask_one": "Fehlgeschlagener Task",
-      "failedTask_other": "Fehlgeschlagene Tasks"
+      "failedTask_other": "Fehlgeschlagene Tasks",
+      "failedTaskInstance_one": "Fehlgeschlagene Task Instanz",
+      "failedTaskInstance_other": "Fehlgeschlagene Task Instanzen"
     },
     "charts": {
-      "assetEvent": "Erstelltes Datenset-Ereignis"
+      "assetEvent_one": "Erstelltes Datenset-Ereignis",
+      "assetEvent_other": "Erstellte Datenset-Ereignisse"
     },
     "failedLogs": {
       "title": "Protokolle kürzlich fehlgeschlagener Tasks",
@@ -53,17 +66,45 @@
       "label": "Richtung des Graph"
     }
   },
+  "paramsFailed": "Laden der Parameter fehlgeschlagen",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Die Anfrage zum Parsen des Dag ist fehlgeschlagen. Eventuell gibt es schon bestehende Anfragen.",
+        "title": "Neues Parsen des Dag fehlgeschlagen"
+      },
+      "success": {
+        "description": "Das Dag sollte gleich neu geparst sein.",
+        "title": "Anfrage zu Dag parsen erfolgreich gestartet"
+      }
+    }
+  },
   "tabs": {
+    "assetEvents": "Ereignisse zu Datensets (Asset)",
+    "auditLog": "Prüf-Log",
     "backfills": "Auffüllungen",
     "code": "Programmcode",
     "details": "Details",
-    "events": "Ereignisse",
+    "logs": "Protokolle",
+    "mappedTaskInstances_one": "Task Instanz [{{count}}]",
+    "mappedTaskInstances_other": "Task Instanzen [{{count}}]",
     "overview": "Übersicht",
+    "renderedTemplates": "Ausgefüllte Vorlagen",
     "runs": "Läufe",
-    "tasks": "Tasks"
+    "taskInstances": "Task Instanzen",
+    "tasks": "Tasks",
+    "xcom": "Task Kommunikation (XComs)"
   },
   "taskGroups": {
     "collapseAll": "Alle Task-Gruppen einklappen",
     "expandAll": "Alle Task-Gruppen aufklappen"
+  },
+  "taskLogs": {
+    "allLogLevels": "Alle Protokoll-Stufen",
+    "allSources": "Alle Quellen",
+    "fullscreen": {
+      "button": "Vollbild",
+      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
+    }
   }
 }

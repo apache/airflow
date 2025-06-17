@@ -7,6 +7,8 @@
     "Providers": "Providers",
     "Variables": "Variablen"
   },
+  "asset_one": "Datenset (Asset)",
+  "asset_other": "Datensets (Assets)",
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
   "assetEvent_other": "Ereignisse zu Datensets (Asset)",
   "backfill_one": "Auffüllung",
@@ -15,6 +17,8 @@
     "auditLog": "Prüf-Log",
     "xcoms": "Task Kommunikation (XComs)"
   },
+  "createdAssetEvent_one": "Erstelltes Ereignis zu Datenset (Asset)",
+  "createdAssetEvent_other": "Erstellte Ereignisse zu Datensets (Assets)",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -23,6 +27,7 @@
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
     "description": "Beschreibung",
+    "documentation": "Dag Dokumentation",
     "fileLocation": "Ablagepfad",
     "hasTaskConcurrencyLimits": "Hat der Task Limitierungen zur Parallelität",
     "lastExpired": "Letztmaliger Ablauf",
@@ -48,6 +53,7 @@
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
+    "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
     "triggeredBy": "Angestoßen von"
   },
   "dagRun_one": "Dag Lauf",
@@ -63,6 +69,13 @@
   },
   "duration": "Laufzeit",
   "endDate": "Enddatum",
+  "error": {
+    "back": "Zurück",
+    "defaultMessage": "Ein unerwarteter Fehler ist aufgetreten",
+    "home": "Start",
+    "notFound": "Seite nicht gefunden",
+    "title": "Fehler"
+  },
   "expression": {
     "all": "Alle",
     "and": "UND",
@@ -124,6 +137,8 @@
     "users": "Benutzer"
   },
   "selectLanguage": "Sprache wählen",
+  "sourceAssetEvent_one": "Urspung des Datenset (Asset) Ereignisses",
+  "sourceAssetEvent_other": "Urspung der Datenset (Asset) Ereignisse",
   "startDate": "Startdatum",
   "state": "Status",
   "states": {
@@ -154,7 +169,6 @@
     "from": "Von",
     "maxActiveRuns": "Maximal aktive Läufe",
     "noTagsFound": "Keine Markierungen gefunden",
-    "reprocessBehavior": "Verhalten beim Wiederverarbeiten",
     "tagMode": {
       "all": "Alle",
       "any": "Einer"
@@ -163,22 +177,40 @@
     "to": "Zu"
   },
   "task": {
+    "documentation": "Task Dokumentation",
     "lastInstance": "Letzte Task Instanz",
     "operator": "Operator",
     "triggerRule": "Auslöse-Regel"
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
+    "executor": "Ausführungsumgebung",
+    "executorConfig": "Konfiguration der Ausführungsumgebung",
+    "hostname": "Hostname",
+    "maxTries": "Maximale Versuche",
     "pid": "PID",
     "pool": "Pool",
-    "queuedAt": "Wartend seit"
+    "poolSlots": "Pool Belegung",
+    "priorityWeight": "Priorität",
+    "queue": "Warteschlange",
+    "queuedWhen": "Wartend seit",
+    "scheduledWhen": "Geplant ab",
+    "triggerer": {
+      "assigned": "Zugewiesene Abrufumgebung",
+      "class": "Abruf-Klasse",
+      "createdAt": "Zeitpunkt der Erstellung",
+      "id": "Abrufungs ID",
+      "latestHeartbeat": "Letztes Lebenszeichen",
+      "title": "Abrufumgebungs-Information"
+    },
+    "unixname": "Unix Name"
   },
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
   "timeRange": {
-    "duration": "Laufzeit",
     "last12Hours": "Letzte 12 Stunden",
     "last24Hours": "Letzte 24 Stunden",
     "lastHour": "Letzte Stunde",
@@ -190,6 +222,43 @@
     "placeholder": "Wählen Sie eine Zeitzone",
     "title": "Auswahl der Zeitzone",
     "utc": "UTC (Koordinierte Weltzeit)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Massenlöschung von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{count}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
+        "title": "Massenlöschung von {{resourceName}} gestartet"
+      }
+    },
+    "create": {
+      "error": "Erstellung von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{resourceName}} wurde erfolgreich erstellt.",
+        "title": "Erstellung von {{resourceName}} gestartet"
+      }
+    },
+    "delete": {
+      "error": "Löschen von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{resourceName}} wurde erfolgreich gelöscht.",
+        "title": "Löschung von {{resourceName}} gestartet"
+      }
+    },
+    "import": {
+      "error": "Import von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{count}} {{resourceName}} wurden erfolgreich importiert.",
+        "title": "Import von {{resourceName}} gestartet"
+      }
+    },
+    "update": {
+      "error": "Aktualisierung von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{resourceName}} wurde erfolgreich aktualisiert.",
+        "title": "Aktualisierung von {{resourceName}} gestartet"
+      }
+    }
   },
   "triggered": "Angestoßen",
   "tryNumber": "Versuch Nummer",

@@ -21,6 +21,8 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
 import deAdmin from "./locales/de/admin.json";
+import deAssets from "./locales/de/assets.json";
+import deBrowse from "./locales/de/browse.json";
 import deCommon from "./locales/de/common.json";
 import deComponents from "./locales/de/components.json";
 import deDag from "./locales/de/dag.json";
@@ -81,6 +83,8 @@ export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "as
 const resources = {
   de: {
     admin: deAdmin,
+    assets: deAssets,
+    browse: deBrowse,
     common: deCommon,
     components: deComponents,
     dag: deDag,
