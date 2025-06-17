@@ -24,8 +24,8 @@ import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownArea from "src/components/EditableMarkdownArea";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
+import EditableMarkdownNotes from "src/components/EditableMarkdownNotes";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
@@ -125,7 +125,12 @@ export const Header = ({
         title={<Time datetime={dagRun.run_after} />}
       />
       {Boolean(dagRun.note) && (
-        <EditableMarkdownArea mdContent={note} onBlur={onConfirm} setMdContent={setNote} />
+        <EditableMarkdownNotes
+          header={translate("note.label")}
+          mdContent={note}
+          onConfirm={onConfirm}
+          setMdContent={setNote}
+        />
       )}
     </Box>
   );
