@@ -22,15 +22,7 @@ from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequen
 from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Protocol,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 import sqlparse
@@ -425,7 +417,6 @@ class DbApiHook(BaseHook):
         df_type: Literal["pandas"] = "pandas",
         **kwargs: Any,
     ) -> PandasDataFrame: ...
-
     @overload
     def get_df(
         self,
@@ -522,7 +513,6 @@ class DbApiHook(BaseHook):
         df_type: Literal["pandas"] = "pandas",
         **kwargs,
     ) -> Generator[PandasDataFrame, None, None]: ...
-
     @overload
     def get_df_by_chunks(
         self,

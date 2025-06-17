@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.typing_compat import TypeAlias
     from airflow.utils.log.file_task_handler import LogHandlerOutputStream, LogMetadata
 
@@ -49,8 +50,11 @@ class TaskLogReader:
     """Number of empty loop iterations before stopping the stream"""
 
     def read_log_chunks(
-        self, ti: TaskInstance, try_number: int | None, metadata: LogMetadata
-    ) -> tuple[LogHandlerOutputStream, LogMetadata]:
+        self,
+        ti: TaskInstance | TaskInstanceHistory,
+        try_number: int | None,
+        metadata: LogMetadata,
+    ) -> tuple[LogMessages, LogMetadata]:
         """
         Read chunks of Task Instance logs.
 
@@ -72,8 +76,11 @@ class TaskLogReader:
         return self.log_handler.read(ti, try_number, metadata)
 
     def read_log_stream(
-        self, ti: TaskInstance, try_number: int | None, metadata: LogMetadata
-    ) -> LogReaderOutputStream:
+        self,
+        ti: TaskInstance | TaskInstanceHistory,
+        try_number: int | None,
+        metadata: LogMetadata,
+    ) -> Iterator[str]:
         """
         Continuously read log to the end.
 
@@ -144,7 +151,7 @@ class TaskLogReader:
     @provide_session
     def render_log_filename(
         self,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstanceHistory,
         try_number: int | None = None,
         *,
         session: Session = NEW_SESSION,

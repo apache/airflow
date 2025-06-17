@@ -1702,35 +1702,35 @@
 <!-- deadline -->
 <g id="node31" class="node">
 <title>deadline</title>
-<polygon fill="none" stroke="black" points="1785,-2192.5 1785,-2220.5 2054,-2220.5 2054,-2192.5 1785,-2192.5"/>
-<text text-anchor="start" x="1881.5" y="-2203.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">deadline</text>
-<polygon fill="none" stroke="black" points="1785,-2167.5 1785,-2192.5 2054,-2192.5 2054,-2167.5 1785,-2167.5"/>
-<text text-anchor="start" x="1790" y="-2177.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="1803" y="-2177.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1808" y="-2177.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1860" y="-2177.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1785,-2142.5 1785,-2167.5 2054,-2167.5 2054,-2142.5 1785,-2142.5"/>
-<text text-anchor="start" x="1790" y="-2152.3" font-family="Helvetica,sans-Serif" font-size="14.00">callback</text>
-<text text-anchor="start" x="1847" y="-2152.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1852" y="-2152.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(500)]</text>
-<text text-anchor="start" x="1973" y="-2152.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1785,-2117.5 1785,-2142.5 2054,-2142.5 2054,-2117.5 1785,-2117.5"/>
-<text text-anchor="start" x="1790" y="-2127.3" font-family="Helvetica,sans-Serif" font-size="14.00">callback_kwargs</text>
-<text text-anchor="start" x="1903" y="-2127.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1908" y="-2127.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<polygon fill="none" stroke="black" points="1785,-2092.5 1785,-2117.5 2054,-2117.5 2054,-2092.5 1785,-2092.5"/>
-<text text-anchor="start" x="1790" y="-2102.3" font-family="Helvetica,sans-Serif" font-size="14.00">dag_id</text>
-<text text-anchor="start" x="1836" y="-2102.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1841" y="-2102.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<polygon fill="none" stroke="black" points="1785,-2067.5 1785,-2092.5 2054,-2092.5 2054,-2067.5 1785,-2067.5"/>
-<text text-anchor="start" x="1790" y="-2077.3" font-family="Helvetica,sans-Serif" font-size="14.00">dagrun_id</text>
-<text text-anchor="start" x="1860" y="-2077.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1865" y="-2077.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<polygon fill="none" stroke="black" points="1785,-2042.5 1785,-2067.5 2054,-2067.5 2054,-2042.5 1785,-2042.5"/>
-<text text-anchor="start" x="1790" y="-2052.3" font-family="Helvetica,sans-Serif" font-size="14.00">deadline</text>
-<text text-anchor="start" x="1850" y="-2052.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1855" y="-2052.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1951" y="-2052.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1777,-2192.5 1777,-2220.5 2061,-2220.5 2061,-2192.5 1777,-2192.5"/>
+<text text-anchor="start" x="1881" y="-2203.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">deadline</text>
+<polygon fill="none" stroke="black" points="1777,-2167.5 1777,-2192.5 2061,-2192.5 2061,-2167.5 1777,-2167.5"/>
+<text text-anchor="start" x="1782" y="-2177.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
+<text text-anchor="start" x="1795" y="-2177.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1800" y="-2177.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
+<text text-anchor="start" x="1852" y="-2177.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1777,-2142.5 1777,-2167.5 2061,-2167.5 2061,-2142.5 1777,-2142.5"/>
+<text text-anchor="start" x="1782" y="-2152.3" font-family="Helvetica,sans-Serif" font-size="14.00">callback</text>
+<text text-anchor="start" x="1839" y="-2152.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1844" y="-2152.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(500)]</text>
+<text text-anchor="start" x="1965" y="-2152.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1777,-2117.5 1777,-2142.5 2061,-2142.5 2061,-2117.5 1777,-2117.5"/>
+<text text-anchor="start" x="1782" y="-2127.3" font-family="Helvetica,sans-Serif" font-size="14.00">callback_kwargs</text>
+<text text-anchor="start" x="1895" y="-2127.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1900" y="-2127.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="1777,-2092.5 1777,-2117.5 2061,-2117.5 2061,-2092.5 1777,-2092.5"/>
+<text text-anchor="start" x="1782" y="-2102.3" font-family="Helvetica,sans-Serif" font-size="14.00">dag_id</text>
+<text text-anchor="start" x="1828" y="-2102.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1833" y="-2102.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<polygon fill="none" stroke="black" points="1777,-2067.5 1777,-2092.5 2061,-2092.5 2061,-2067.5 1777,-2067.5"/>
+<text text-anchor="start" x="1782" y="-2077.3" font-family="Helvetica,sans-Serif" font-size="14.00">dagrun_id</text>
+<text text-anchor="start" x="1852" y="-2077.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1857" y="-2077.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<polygon fill="none" stroke="black" points="1777,-2042.5 1777,-2067.5 2061,-2067.5 2061,-2042.5 1777,-2042.5"/>
+<text text-anchor="start" x="1782" y="-2052.3" font-family="Helvetica,sans-Serif" font-size="14.00">deadline_time</text>
+<text text-anchor="start" x="1879" y="-2052.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1884" y="-2052.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="1980" y="-2052.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dag&#45;&#45;deadline -->
 <g id="edge26" class="edge">

@@ -54,10 +54,10 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Pr
     >
       <Box>
         <ActionButton
-          actionName={translate("dags:runAndTaskActions.clear.button", { type: "Run" })}
+          actionName={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
           icon={<CgRedo />}
           onClick={onOpen}
-          text={translate("dags:runAndTaskActions.clear.button", { type: "Run" })}
+          text={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
           withText={withText}
         />
 

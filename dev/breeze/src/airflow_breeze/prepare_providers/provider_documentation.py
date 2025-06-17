@@ -739,8 +739,8 @@ def _is_test_or_example_dag_only_changes(commit_hash: str) -> bool:
 
         for file_path in changed_files:
             if not (
-                re.match(r"airflow/providers/[^/]+/tests/", file_path)
-                or re.match(r"airflow/providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", file_path)
+                re.match(r"providers/[^/]+/tests/", file_path)
+                or re.match(r"providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", file_path)
             ):
                 return False
         return True
