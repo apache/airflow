@@ -164,13 +164,11 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
 ### 6.1. Approval of ownership candidates
 
 - The designated code owner, should post a thread to the dev list, requesting the approval of:
-  - Themselves as the code owner in the suggested locale. If they are a translation sponsor, they should indicate it as well.
-  - Other code owner(s) in the suggested locale, if applicable.
-  - The identity of the translation owner(s) in the suggested locale (which could be themselves as well)
-- When introducing a new locale, the thread should announce that on the same thread (including a link to the PR)
+  - Introducing a new locale (including a link to the PR)
+  - Translation owner(s) in the suggested locale for non committer candidates. (sponsored)
 - Within the thread, the code owner should demonstrate that the translation owner is suitable for the role, according to the requirements in section 5.3.
-- Approval of a code owner who is also the translation owner can be done by a lazy consensus.
 - Approval of any translation owner who is not a committer requires at least one binding vote of 1 PMC member, and no objections from other committers/PMC.
+- Approval of any translation owner who is also a code owner (committer) do not need to be voted on.
 
 ### 6.2. Approval of a new locale
 
