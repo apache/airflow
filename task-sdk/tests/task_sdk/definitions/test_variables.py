@@ -51,7 +51,7 @@ class TestVariables:
     )
     def test_var_get(self, deserialize_json, value, expected_value, mock_supervisor_comms):
         var_result = VariableResult(key="my_key", value=value)
-        mock_supervisor_comms.get_message.return_value = var_result
+        mock_supervisor_comms.send.return_value = var_result
 
         var = Variable.get(key="my_key", deserialize_json=deserialize_json)
         assert var is not None
@@ -83,8 +83,7 @@ class TestVariables:
         if serialize_json:
             expected_value = json.dumps(value, indent=2)
 
-        mock_supervisor_comms.send_request.assert_called_once_with(
-            log=mock.ANY,
+        mock_supervisor_comms.send.assert_called_once_with(
             msg=PutVariable(
                 key=key, value=expected_value, description=description, serialize_json=serialize_json
             ),

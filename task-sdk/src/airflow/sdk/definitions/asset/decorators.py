@@ -69,18 +69,16 @@ class _AssetMainOperator(PythonOperator):
         )
 
     def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
-        import structlog
-
         from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetByName
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        log = structlog.get_logger(logger_name=self.__class__.__qualname__)
-
         def _fetch_asset(name: str) -> Asset:
-            SUPERVISOR_COMMS.send_request(log, GetAssetByName(name=name))
-            if isinstance(msg := SUPERVISOR_COMMS.get_message(), ErrorResponse):
-                raise AirflowRuntimeError(msg)
-            return Asset(**msg.model_dump(exclude={"type"}))
+            resp = SUPERVISOR_COMMS.send(GetAssetByName(name=name))
+            if resp is None:
+                raise RuntimeError("Empty non-error response received")
+            if isinstance(resp, ErrorResponse):
+                raise AirflowRuntimeError(resp)
+            return Asset(**resp.model_dump(exclude={"type"}))
 
         value: Any
         for key, param in inspect.signature(self.python_callable).parameters.items():
