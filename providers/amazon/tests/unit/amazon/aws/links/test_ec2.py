@@ -32,7 +32,7 @@ class TestEC2InstanceLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "eu-west-1",
@@ -66,7 +66,7 @@ class TestEC2InstanceDashboardLink(BaseAwsLinksTestCase):
     def test_extra_link(self, mock_supervisor_comms):
         instance_list = ",:".join(self.INSTANCE_IDS)
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=self.link_class.key,
                 value={
                     "region_name": "eu-west-1",
