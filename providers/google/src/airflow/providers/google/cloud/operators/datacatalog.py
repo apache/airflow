@@ -32,6 +32,7 @@ from google.cloud.datacatalog import (
     TagTemplateField,
 )
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
 from airflow.providers.google.cloud.links.datacatalog import (
     DataCatalogEntryGroupLink,
@@ -39,6 +40,7 @@ from airflow.providers.google.cloud.links.datacatalog import (
     DataCatalogTagTemplateLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -48,6 +50,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogCreateEntryOperator(GoogleCloudBaseOperator):
     """
     Creates an entry.
@@ -166,6 +175,13 @@ class CloudDataCatalogCreateEntryOperator(GoogleCloudBaseOperator):
         return Entry.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogCreateEntryGroupOperator(GoogleCloudBaseOperator):
     """
     Creates an EntryGroup.
@@ -279,6 +295,14 @@ class CloudDataCatalogCreateEntryGroupOperator(GoogleCloudBaseOperator):
         return EntryGroup.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator, "
+    "airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogCreateTagOperator(GoogleCloudBaseOperator):
     """
     Creates a tag on an entry.
@@ -415,6 +439,13 @@ class CloudDataCatalogCreateTagOperator(GoogleCloudBaseOperator):
         return Tag.to_dict(tag)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogCreateTagTemplateOperator(GoogleCloudBaseOperator):
     """
     Creates a tag template.
@@ -525,6 +556,14 @@ class CloudDataCatalogCreateTagTemplateOperator(GoogleCloudBaseOperator):
         return TagTemplate.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator, "
+    "airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogCreateTagTemplateFieldOperator(GoogleCloudBaseOperator):
     r"""
     Creates a field in a tag template.
@@ -644,6 +683,13 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(GoogleCloudBaseOperator):
         return TagTemplateField.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogDeleteEntryOperator(GoogleCloudBaseOperator):
     """
     Deletes an existing entry.
@@ -729,6 +775,13 @@ class CloudDataCatalogDeleteEntryOperator(GoogleCloudBaseOperator):
             self.log.info("Entry doesn't exists. Skipping.")
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryGroupOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogDeleteEntryGroupOperator(GoogleCloudBaseOperator):
     """
     Deletes an EntryGroup.
@@ -811,6 +864,13 @@ class CloudDataCatalogDeleteEntryGroupOperator(GoogleCloudBaseOperator):
             self.log.info("Entry doesn't exists. skipping")
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogDeleteTagOperator(GoogleCloudBaseOperator):
     """
     Deletes a tag.
@@ -901,6 +961,13 @@ class CloudDataCatalogDeleteTagOperator(GoogleCloudBaseOperator):
             self.log.info("Entry doesn't exists. skipping")
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteAspectTypeOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogDeleteTagTemplateOperator(GoogleCloudBaseOperator):
     """
     Deletes a tag template and all tags using the template.
@@ -988,6 +1055,13 @@ class CloudDataCatalogDeleteTagTemplateOperator(GoogleCloudBaseOperator):
             self.log.info("Tag Template doesn't exists. skipping")
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogDeleteTagTemplateFieldOperator(GoogleCloudBaseOperator):
     """
     Deletes a field in a tag template and all uses of that field.
@@ -1078,6 +1152,13 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(GoogleCloudBaseOperator):
             self.log.info("Tag Template field doesn't exists. skipping")
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogGetEntryOperator(GoogleCloudBaseOperator):
     """
     Gets an entry.
@@ -1170,6 +1251,13 @@ class CloudDataCatalogGetEntryOperator(GoogleCloudBaseOperator):
         return Entry.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryGroupOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogGetEntryGroupOperator(GoogleCloudBaseOperator):
     """
     Gets an entry group.
@@ -1264,6 +1352,13 @@ class CloudDataCatalogGetEntryGroupOperator(GoogleCloudBaseOperator):
         return EntryGroup.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetAspectTypeOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogGetTagTemplateOperator(GoogleCloudBaseOperator):
     """
     Gets a tag template.
@@ -1350,6 +1445,13 @@ class CloudDataCatalogGetTagTemplateOperator(GoogleCloudBaseOperator):
         return TagTemplate.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogListTagsOperator(GoogleCloudBaseOperator):
     """
     Lists the tags on an Entry.
@@ -1450,6 +1552,13 @@ class CloudDataCatalogListTagsOperator(GoogleCloudBaseOperator):
         return [Tag.to_dict(item) for item in result]
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogLookupEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogLookupEntryOperator(GoogleCloudBaseOperator):
     r"""
     Get an entry by target resource name.
@@ -1541,6 +1650,13 @@ class CloudDataCatalogLookupEntryOperator(GoogleCloudBaseOperator):
         return Entry.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogRenameTagTemplateFieldOperator(GoogleCloudBaseOperator):
     """
     Renames a field in a tag template.
@@ -1638,6 +1754,13 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogSearchEntriesOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogSearchCatalogOperator(GoogleCloudBaseOperator):
     r"""
     Searches Data Catalog for multiple resources like entries, tags that match a query.
@@ -1748,6 +1871,13 @@ class CloudDataCatalogSearchCatalogOperator(GoogleCloudBaseOperator):
         return [SearchCatalogResult.to_dict(item) for item in result]
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogUpdateEntryOperator(GoogleCloudBaseOperator):
     """
     Updates an existing entry.
@@ -1858,6 +1988,13 @@ class CloudDataCatalogUpdateEntryOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogUpdateTagOperator(GoogleCloudBaseOperator):
     """
     Updates an existing tag.
@@ -1972,6 +2109,13 @@ class CloudDataCatalogUpdateTagOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogUpdateTagTemplateOperator(GoogleCloudBaseOperator):
     """
     Updates a tag template.
@@ -2081,6 +2225,13 @@ class CloudDataCatalogUpdateTagTemplateOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class CloudDataCatalogUpdateTagTemplateFieldOperator(GoogleCloudBaseOperator):
     """
     Updates a field in a tag template. This method cannot be used to update the field type.
