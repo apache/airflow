@@ -818,7 +818,7 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for kerberosSidecar on container level
+    # Detailed default security context for kerberos init container on container level
     securityContexts:
       container: {}
 
