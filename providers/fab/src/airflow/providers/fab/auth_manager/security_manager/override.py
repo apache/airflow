@@ -784,12 +784,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         parsed_werkzeug_version = Version(werkzeug_version)
         if parsed_werkzeug_version < Version("3.0.0"):
+            app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "pbkdf2:sha256")
             app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
                 "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
             )
         else:
+            app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "scrypt")
             app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "scrypt:32768:8:1$wiDa0ruWlIPhp9LM$6e409d093e62ad54df2af895d0e125b05ff6cf6414"
