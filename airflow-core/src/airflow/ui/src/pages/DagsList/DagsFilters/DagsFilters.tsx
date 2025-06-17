@@ -21,7 +21,7 @@ import type { MultiValue } from "chakra-react-select";
 import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useDagServiceGetDagTagsInfinite } from "openapi/queries/customInfiniteQueries";
+import { useDagTagsInfinite } from "openapi/queries/customInfiniteQueries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
@@ -68,7 +68,7 @@ export const DagsFilters = () => {
 
   const [pattern, setPattern] = useState("");
 
-  const { data, fetchNextPage, fetchPreviousPage } = useDagServiceGetDagTagsInfinite({
+  const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({
     limit: 10,
     orderBy: "name",
     tagNamePattern: pattern,
