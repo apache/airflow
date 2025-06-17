@@ -68,7 +68,7 @@ class TestCloudRunJobLoggingLink:
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task, log_uri=TEST_LOG_URI)
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="key",
                 value=TEST_LOG_URI,
             )

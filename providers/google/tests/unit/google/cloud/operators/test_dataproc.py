@@ -1136,7 +1136,7 @@ def test_create_cluster_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Cluster"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="key",
             value="",
         )
@@ -1146,7 +1146,7 @@ def test_create_cluster_operator_extra_links(
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="key",
             value={"cluster_id": "cluster_name", "project_id": "test-project", "region": "test-location"},
         )
@@ -2021,7 +2021,7 @@ def test_submit_job_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Job"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_job",
             value="",
         )
@@ -2032,7 +2032,7 @@ def test_submit_job_operator_extra_links(
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_job",
             value=DATAPROC_JOB_EXPECTED,
         )
@@ -2237,7 +2237,7 @@ def test_update_cluster_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Cluster"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_cluster",
             value="",
         )
@@ -2247,7 +2247,7 @@ def test_update_cluster_operator_extra_links(
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_cluster",
             value=DATAPROC_CLUSTER_EXPECTED,
         )
@@ -2463,7 +2463,7 @@ def test_instantiate_workflow_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Workflow"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value="",
         )
@@ -2472,7 +2472,7 @@ def test_instantiate_workflow_operator_extra_links(
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value=DATAPROC_WORKFLOW_EXPECTED,
         )
@@ -3148,7 +3148,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value="",
         )
@@ -3157,7 +3157,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED
         )
 

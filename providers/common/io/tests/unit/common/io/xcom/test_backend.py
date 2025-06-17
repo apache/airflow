@@ -106,9 +106,7 @@ class TestXComObjectStorageBackend:
         if AIRFLOW_V_3_0_PLUS:
             # When using XComObjectStorageBackend, the value is stored in the db is serialized with json dumps
             # so we need to mimic that same behavior below.
-            mock_supervisor_comms.get_message.return_value = XComResult(
-                key="return_value", value={"key": "value"}
-            )
+            mock_supervisor_comms.send.return_value = XComResult(key="return_value", value={"key": "value"})
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
@@ -169,7 +167,7 @@ class TestXComObjectStorageBackend:
         assert p.exists() is True
 
         if AIRFLOW_V_3_0_PLUS:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=XCOM_RETURN_KEY, value={"key": "bigvaluebigvaluebigvalue" * 100}
             )
 
@@ -213,7 +211,12 @@ class TestXComObjectStorageBackend:
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            path = mock_supervisor_comms.send_request.call_args_list[-1].kwargs["msg"].value
+            if hasattr(mock_supervisor_comms, "send_request"):
+                # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
+                last_call = mock_supervisor_comms.send_request.call_args_list[-1]
+            else:
+                last_call = mock_supervisor_comms.send.call_args_list[-1]
+            path = (last_call.kwargs.get("msg") or last_call.args[0]).value
             XComModel.set(
                 key=XCOM_RETURN_KEY,
                 value=path,
@@ -251,7 +254,7 @@ class TestXComObjectStorageBackend:
         assert p.exists() is True
 
         if AIRFLOW_V_3_0_PLUS:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
             )
         value = XCom.get_value(
@@ -261,7 +264,7 @@ class TestXComObjectStorageBackend:
         assert value
 
         if AIRFLOW_V_3_0_PLUS:
-            mock_supervisor_comms.get_message.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
+            mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
             XCom.delete(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
@@ -356,7 +359,7 @@ class TestXComObjectStorageBackend:
         assert data.endswith(".gz")
 
         if AIRFLOW_V_3_0_PLUS:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
             )
 

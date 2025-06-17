@@ -665,7 +665,7 @@ class TestDbtCloudRunJobOperator:
         ti.xcom_push(key="job_run_url", value=_run_response["data"]["href"])
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="job_run_url",
                 value=EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
                     account_id=account_id or DEFAULT_ACCOUNT_ID,

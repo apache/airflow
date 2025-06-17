@@ -1956,17 +1956,27 @@ def override_caplog(request):
 
 
 @pytest.fixture
-def mock_supervisor_comms():
+def mock_supervisor_comms(monkeypatch):
     # for back-compat
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     if not AIRFLOW_V_3_0_PLUS:
         yield None
         return
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
+
+    from airflow.sdk.execution_time import comms, task_runner
+
+    # Deal with TaskSDK 1.0/1.1 vs 1.2+. Annoying, and shouldn't need to exist once the separation between
+    # core and TaskSDK is finished
+    if CommsDecoder := getattr(comms, "CommsDecoder", None):
+        comms = mock.create_autospec(CommsDecoder)
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+    else:
+        CommsDecoder = getattr(task_runner, "CommsDecoder")
+        comms = mock.create_autospec(CommsDecoder)
+        comms.send = comms.get_message
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+    yield comms
 
 
 @pytest.fixture
@@ -1991,7 +2001,6 @@ def mocked_parse(spy_agency):
                         id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1
                     ),
                     file="",
-                    requests_fd=0,
                 ),
                 "example_dag_id",
                 CustomOperator(task_id="hello"),
@@ -2200,9 +2209,10 @@ def create_runtime_ti(mocked_parse):
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),
-            requests_fd=0,
             ti_context=ti_context,
             start_date=start_date,  # type: ignore
+            # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
+            **({"requests_fd": 0} if "requests_fd" in StartupDetails.model_fields else {}),  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)

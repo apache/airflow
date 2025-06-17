@@ -28,6 +28,7 @@ from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
 from datetime import datetime
+from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict, Union
 
@@ -43,6 +44,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.sdk.execution_time.comms import (
+    CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
     DRCount,
@@ -58,6 +60,7 @@ from airflow.sdk.execution_time.comms import (
     TICount,
     VariableResult,
     XComResult,
+    _RequestFrame,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
@@ -70,8 +73,6 @@ from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
-    from socket import socket
-
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
@@ -181,7 +182,6 @@ class messages:
     class StartTriggerer(BaseModel):
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
-        requests_fd: int
         type: Literal["StartTriggerer"] = "StartTriggerer"
 
     class TriggerStateChanges(BaseModel):
@@ -295,7 +295,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     """
     TriggerRunnerSupervisor is responsible for monitoring the subprocess and marshalling DB access.
 
-    This class (which runs in the main process) is responsible for querying the DB, sending RunTrigger
+    This class (which runs in the main/sync process) is responsible for querying the DB, sending RunTrigger
     workload messages to the subprocess, and collecting results and updating them in the DB.
     """
 
@@ -342,8 +342,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     ):
         proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
-        msg = messages.StartTriggerer(requests_fd=proc._requests_fd)
-        proc.send_msg(msg)
+        msg = messages.StartTriggerer()
+        proc.send_msg(msg, request_id=0)
         return proc
 
     @functools.cached_property
@@ -355,7 +355,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
         return client
 
-    def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:  # type: ignore[override]
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
             TaskStatesResponse,
@@ -454,8 +454,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
-        if resp:
-            self.send_msg(resp, **dump_opts)
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
@@ -628,7 +627,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             ),
         )
 
-    def _process_log_messages_from_subprocess(self) -> Generator[None, bytes, None]:
+    def _process_log_messages_from_subprocess(self) -> Generator[None, bytes | bytearray, None]:
         import msgspec
         from structlog.stdlib import NAME_TO_LEVEL
 
@@ -691,14 +690,60 @@ class TriggerDetails(TypedDict):
     events: int
 
 
+@attrs.define(kw_only=True)
+class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
+    _async_writer: asyncio.StreamWriter = attrs.field(alias="async_writer")
+    _async_reader: asyncio.StreamReader = attrs.field(alias="async_reader")
+
+    body_decoder: TypeAdapter[ToTriggerRunner] = attrs.field(
+        factory=lambda: TypeAdapter(ToTriggerRunner), repr=False
+    )
+
+    _lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
+
+    def _read_frame(self):
+        from asgiref.sync import async_to_sync
+
+        return async_to_sync(self._aread_frame)()
+
+    def send(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
+        from asgiref.sync import async_to_sync
+
+        return async_to_sync(self.asend)(msg)
+
+    async def _aread_frame(self):
+        len_bytes = await self._async_reader.readexactly(4)
+        len = int.from_bytes(len_bytes, byteorder="big")
+        if len >= 2**32:
+            raise OverflowError(f"Refusing to receive messages larger than 4GiB {len=}")
+
+        buffer = await self._async_reader.readexactly(len)
+        return self.resp_decoder.decode(buffer)
+
+    async def _aget_response(self, expect_id: int) -> ToTriggerRunner | None:
+        frame = await self._aread_frame()
+        if frame.id != expect_id:
+            # Given the lock we take out in `asend`, this _shouldn't_ be possible, but I'd rather fail with
+            # this explicit error return the wrong type of message back to a Trigger
+            raise RuntimeError(f"Response read out of order! Got {frame.id=}, {expect_id=}")
+        return self._from_frame(frame)
+
+    async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
+        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
+        bytes = frame.as_bytes()
+
+        async with self._lock:
+            self._async_writer.write(bytes)
+
+            return await self._aget_response(frame.id)
+
+
 class TriggerRunner:
     """
     Runtime environment for all triggers.
 
-    Mainly runs inside its own thread, where it hands control off to an asyncio
-    event loop, but is also sometimes interacted with from the main thread
-    (where all the DB queries are done). All communication between threads is
-    done via Deques.
+    Mainly runs inside its own process, where it hands control off to an asyncio
+    event loop. All communication between this and it's (sync) supervisor is done via sockets
     """
 
     # Maps trigger IDs to their running tasks and other info
@@ -726,10 +771,7 @@ class TriggerRunner:
     # TODO: connect this to the parent process
     log: FilteringBoundLogger = structlog.get_logger()
 
-    requests_sock: asyncio.StreamWriter
-    response_sock: asyncio.StreamReader
-
-    decoder: TypeAdapter[ToTriggerRunner]
+    comms_decoder: TriggerCommsDecoder
 
     def __init__(self):
         super().__init__()
@@ -740,7 +782,6 @@ class TriggerRunner:
         self.events = deque()
         self.failed_triggers = deque()
         self.job_id = None
-        self.decoder = TypeAdapter(ToTriggerRunner)
 
     def run(self):
         """Sync entrypoint - just run a run in an async loop."""
@@ -796,35 +837,20 @@ class TriggerRunner:
         """
         from airflow.sdk.execution_time import task_runner
 
-        loop = asyncio.get_event_loop()
+        # Yes, we read and write to stdin! It's a socket, not a normal stdin.
+        reader, writer = await asyncio.open_connection(sock=socket(fileno=0))
 
-        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
-            input=sys.stdin,
-            decoder=self.decoder,
+        self.comms_decoder = TriggerCommsDecoder(
+            async_writer=writer,
+            async_reader=reader,
         )
 
-        task_runner.SUPERVISOR_COMMS = comms_decoder
+        task_runner.SUPERVISOR_COMMS = self.comms_decoder
 
-        async def connect_stdin() -> asyncio.StreamReader:
-            reader = asyncio.StreamReader()
-            protocol = asyncio.StreamReaderProtocol(reader)
-            await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-            return reader
+        msg = await self.comms_decoder._aget_response(expect_id=0)
 
-        self.response_sock = await connect_stdin()
-
-        line = await self.response_sock.readline()
-
-        msg = self.decoder.validate_json(line)
         if not isinstance(msg, messages.StartTriggerer):
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
-
-        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
-        writer_transport, writer_protocol = await loop.connect_write_pipe(
-            lambda: asyncio.streams.FlowControlMixin(loop=loop),
-            comms_decoder.request_socket,
-        )
-        self.requests_sock = asyncio.streams.StreamWriter(writer_transport, writer_protocol, None, loop)
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
@@ -934,8 +960,6 @@ class TriggerRunner:
         return finished_ids
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]):
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
         # Copy out of our deques in threadsafe manner to sync state with parent
         events_to_send = []
         while self.events:
@@ -961,19 +985,17 @@ class TriggerRunner:
         if not finished_ids:
             msg.finished = None
 
-        # Block triggers from making any requests for the duration of this
-        async with SUPERVISOR_COMMS.lock:
-            # Tell the monitor that we've finished triggers so it can update things
-            self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
-            line = await self.response_sock.readline()
-
-        if line == b"":  # EoF received!
+        # Tell the monitor that we've finished triggers so it can update things
+        try:
+            resp = await self.comms_decoder.asend(msg)
+        except asyncio.IncompleteReadError:
             if task := asyncio.current_task():
                 task.cancel("EOF - shutting down")
+                return
+            raise
 
-        resp = self.decoder.validate_json(line)
         if not isinstance(resp, messages.TriggerStateSync):
-            raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got f{type(msg)}")
+            raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got {type(msg)}")
         self.to_create.extend(resp.to_create)
         self.to_cancel.extend(resp.to_cancel)
 
