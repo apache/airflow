@@ -25,11 +25,11 @@ import {
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 
-import { useDagServiceGetDagTags } from "openapi/queries";
+import { useDagTagsInfinite } from "openapi/queries/useDagsInfinite";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 import { StateBadge } from "src/components/StateBadge";
@@ -64,8 +64,12 @@ export const DagsFilters = () => {
   const isFailed = state === "failed";
   const isSuccess = state === "success";
 
-  const { data } = useDagServiceGetDagTags({
+  const [pattern, setPattern] = useState("");
+
+  const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({
+    limit: 10,
     orderBy: "name",
+    tagNamePattern: pattern,
   });
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -132,6 +136,7 @@ export const DagsFilters = () => {
     searchParams.delete(TAGS_PARAM);
 
     setSearchParams(searchParams);
+    setPattern("");
   };
 
   let filterCount = 0;
@@ -222,11 +227,20 @@ export const DagsFilters = () => {
             isMulti
             noOptionsMessage={() => "No tags found"}
             onChange={handleSelectTagsChange}
+            onInputChange={(newValue) => setPattern(newValue)}
+            onMenuScrollToBottom={() => {
+              void fetchNextPage();
+            }}
+            onMenuScrollToTop={() => {
+              void fetchPreviousPage();
+            }}
             options={
-              data?.tags.map((tag) => ({
-                label: tag,
-                value: tag,
-              })) ?? []
+              data?.pages.flatMap((response) =>
+                response.tags.map((tag) => ({
+                  label: tag,
+                  value: tag,
+                })),
+              ) ?? []
             }
             placeholder="Filter by tag"
             value={selectedTags.map((tag) => ({
