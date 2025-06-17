@@ -331,8 +331,6 @@ def _fork_main(
     # Store original stderr for last-chance exception handling
     last_chance_stderr = _get_last_chance_stderr()
 
-    # os.environ["_AIRFLOW_SUPERVISOR_FD"] = str(requests.fileno())
-
     _reset_signals()
     if log_fd:
         _configure_logs_over_json_channel(log_fd)
@@ -612,7 +610,6 @@ class WatchedSubprocess:
                     ),
                     request_id=request.id,
                 )
-                return
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         raise NotImplementedError()
@@ -1375,8 +1372,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
     ):
         """Override to use in-process comms."""
-        if msg is not None:
-            self.comms.messages.append(msg)
+        self.comms.messages.append(msg)
 
     @property
     def final_state(self):
