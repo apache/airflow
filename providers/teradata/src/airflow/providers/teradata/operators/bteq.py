@@ -107,8 +107,8 @@ class BteqOperator(BaseOperator):
         self.bteq_session_encoding = bteq_session_encoding
         self.bteq_script_encoding = bteq_script_encoding
         self.bteq_quit_rc = bteq_quit_rc
-        self._hook: BteqHook = BteqHook(teradata_conn_id=self.teradata_conn_id, ssh_conn_id=self.ssh_conn_id)
-        self._ssh_hook: SSHHook | None = SSHHook(ssh_conn_id=self.ssh_conn_id) if self.ssh_conn_id else None
+        self._hook: BteqHook | None = None
+        self._ssh_hook: SSHHook | None = None
         self.temp_file_read_encoding = "UTF-8"
 
     def execute(self, context: Context) -> int | None:
@@ -117,6 +117,8 @@ class BteqOperator(BaseOperator):
             raise ValueError(
                 "BteqOperator requires either the 'sql' or 'file_path' parameter. Both are missing."
             )
+        self._hook = BteqHook(teradata_conn_id=self.teradata_conn_id, ssh_conn_id=self.ssh_conn_id)
+        self._ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id) if self.ssh_conn_id else None
 
         # Validate and set BTEQ session and script encoding
         if not self.bteq_session_encoding or self.bteq_session_encoding == "ASCII":
@@ -226,24 +228,25 @@ class BteqOperator(BaseOperator):
                 rendered_content = original_content
                 if contains_template(original_content):
                     rendered_content = self.render_template(original_content, context)
-                bteq_script = prepare_bteq_script_for_remote_execution(
-                    conn=self._hook.get_conn(),
-                    sql=rendered_content,
-                )
-                return self._hook.execute_bteq_script_at_remote(
-                    bteq_script,
-                    self.remote_working_dir,
-                    self.bteq_script_encoding,
-                    self.timeout,
-                    self.timeout_rc,
-                    self.bteq_session_encoding,
-                    self.bteq_quit_rc,
-                    self.temp_file_read_encoding,
-                )
-        else:
-            raise ValueError(
-                "Please provide a valid file path for the BTEQ script to be executed on the remote machine."
-            )
+                if self._hook:
+                    bteq_script = prepare_bteq_script_for_remote_execution(
+                        conn=self._hook.get_conn(),
+                        sql=rendered_content,
+                    )
+                    return self._hook.execute_bteq_script_at_remote(
+                        bteq_script,
+                        self.remote_working_dir,
+                        self.bteq_script_encoding,
+                        self.timeout,
+                        self.timeout_rc,
+                        self.bteq_session_encoding,
+                        self.bteq_quit_rc,
+                        self.temp_file_read_encoding,
+                    )
+            return None
+        raise ValueError(
+            "Please provide a valid file path for the BTEQ script to be executed on the remote machine."
+        )
 
     def _handle_local_bteq_file(
         self,
@@ -259,17 +262,18 @@ class BteqOperator(BaseOperator):
             bteq_script = prepare_bteq_script_for_local_execution(
                 sql=rendered_content,
             )
-            result = self._hook.execute_bteq_script(
-                bteq_script,
-                self.remote_working_dir,
-                self.bteq_script_encoding,
-                self.timeout,
-                self.timeout_rc,
-                self.bteq_session_encoding,
-                self.bteq_quit_rc,
-                self.temp_file_read_encoding,
-            )
-            return result
+            if self._hook:
+                result = self._hook.execute_bteq_script(
+                    bteq_script,
+                    self.remote_working_dir,
+                    self.bteq_script_encoding,
+                    self.timeout,
+                    self.timeout_rc,
+                    self.bteq_session_encoding,
+                    self.bteq_quit_rc,
+                    self.temp_file_read_encoding,
+                )
+                return result
         return None
 
     def on_kill(self) -> None:
