@@ -1957,12 +1957,17 @@ def override_caplog(request):
 
 @pytest.fixture
 def mock_supervisor_comms(monkeypatch):
-    # for back-compat
+    import socket
+
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     if not AIRFLOW_V_3_0_PLUS:
         yield None
         return
+
+    # Patch socket(fileno=0) before anything touches CommsDecoder
+    dummy_sock, _ = socket.socketpair()
+    monkeypatch.setattr("airflow.sdk.execution_time.comms.socket", lambda fileno: dummy_sock)
 
     from airflow.sdk.execution_time import comms, task_runner
 
