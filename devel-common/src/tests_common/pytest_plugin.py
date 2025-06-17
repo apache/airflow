@@ -2006,7 +2006,8 @@ def mocked_parse(spy_agency):
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
             task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]
+            # Fixture only helps in regular base operator tasks, so mypy is wrong here
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
         else:
             dag = task.dag
         if what.ti_context.dag_run.conf:
@@ -2141,8 +2142,9 @@ def create_runtime_ti(mocked_parse):
 
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+            # Fixture only helps in regular base operator tasks, so mypy is wrong here
             task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
 
         data_interval_start = None
         data_interval_end = None
