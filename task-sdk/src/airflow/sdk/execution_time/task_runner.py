@@ -286,7 +286,7 @@ class RuntimeTaskInstance(TaskInstance):
         task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
         key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
-        include_prior_dates: bool = False,  # TODO: Add support for this
+        include_prior_dates: bool = False,
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
         default: Any = None,
@@ -675,7 +675,6 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     if not isinstance(msg, StartupDetails):
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
-
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -900,8 +899,6 @@ def run(
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
-        # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
-        # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
@@ -1294,9 +1291,9 @@ def main():
     finally:
         # Ensure the request socket is closed on the child side in all circumstances
         # before the process fully terminates.
-        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.request_socket:
+        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
             with suppress(Exception):
-                SUPERVISOR_COMMS.request_socket.close()
+                SUPERVISOR_COMMS.socket.close()
 
 
 if __name__ == "__main__":

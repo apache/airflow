@@ -265,7 +265,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
             bundle_path=bundle_path,
             callback_requests=callbacks,
         )
-        self.send_msg(msg, in_response_to=0)
+        self.send_msg(msg, request_id=0)
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:  # type: ignore[override]
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
@@ -298,14 +298,14 @@ class DagFileProcessorProcess(WatchedSubprocess):
             log.error("Unhandled request", msg=msg)
             self.send_msg(
                 None,
-                in_response_to=req_id,
+                request_id=req_id,
                 error=ErrorResponse(
                     detail={"status_code": 400, "message": "Unhandled request"},
                 ),
             )
             return
 
-        self.send_msg(resp, in_response_to=req_id, error=None, **dump_opts)
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
     @property
     def is_ready(self) -> bool:

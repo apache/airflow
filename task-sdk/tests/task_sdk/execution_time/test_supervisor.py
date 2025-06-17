@@ -1777,8 +1777,7 @@ class TestHandleRequest:
         # and deserialize it to the correct message type
 
         if frame.body is not None:
-            # Using BytesIO to simulate a readable stream for CommsDecoder.
-            decoder = CommsDecoder(request_socket=None).body_decoder
+            decoder = CommsDecoder(socket=None).body_decoder
             assert decoder.validate_python(frame.body) == mock_response
 
     def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
@@ -1824,7 +1823,7 @@ class TestHandleRequest:
         }
 
         # Verify the error can be decoded correctly
-        comms = CommsDecoder(request_socket=None)
+        comms = CommsDecoder(socket=None)
         with pytest.raises(AirflowRuntimeError) as exc_info:
             comms._from_frame(frame)
 

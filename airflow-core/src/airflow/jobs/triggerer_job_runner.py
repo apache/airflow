@@ -343,7 +343,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
         msg = messages.StartTriggerer()
-        proc.send_msg(msg, in_response_to=0)
+        proc.send_msg(msg, request_id=0)
         return proc
 
     @functools.cached_property
@@ -454,7 +454,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
-        self.send_msg(resp, in_response_to=req_id, error=None, **dump_opts)
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
@@ -714,6 +714,8 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
     async def _aread_frame(self):
         len_bytes = await self._async_reader.readexactly(4)
         len = int.from_bytes(len_bytes, byteorder="big")
+        if len >= 2**32:
+            raise OverflowError(f"Refusing to receive messages larger than 4GiB {len=}")
 
         buffer = await self._async_reader.readexactly(len)
         return self.resp_decoder.decode(buffer)

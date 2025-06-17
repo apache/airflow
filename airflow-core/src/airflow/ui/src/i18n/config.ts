@@ -38,12 +38,15 @@ import heAdmin from "./locales/he/admin.json";
 import heAsset from "./locales/he/assets.json";
 import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
+import heComponents from "./locales/he/components.json";
 import heDashboard from "./locales/he/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
 import nlDashboard from "./locales/nl/dashboard.json";
 import plAdmin from "./locales/pl/admin.json";
+import plAssets from "./locales/pl/assets.json";
+import plBrowse from "./locales/pl/browse.json";
 import plCommon from "./locales/pl/common.json";
 import plComponents from "./locales/pl/components.json";
 import plDag from "./locales/pl/dag.json";
@@ -98,6 +101,7 @@ const resources = {
     assets: heAsset,
     browse: heBrowse,
     common: heCommon,
+    components: heComponents,
     dashboard: heDashboard,
   },
   ko: {
@@ -110,6 +114,8 @@ const resources = {
   },
   pl: {
     admin: plAdmin,
+    assets: plAssets,
+    browse: plBrowse,
     common: plCommon,
     components: plComponents,
     dag: plDag,

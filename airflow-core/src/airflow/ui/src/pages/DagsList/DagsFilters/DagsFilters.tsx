@@ -33,6 +33,7 @@ import { TagFilter } from "./TagFilter";
 
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
+  OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
   TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
@@ -89,7 +90,7 @@ export const DagsFilters = () => {
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
-      searchParams.delete("offset");
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -106,7 +107,7 @@ export const DagsFilters = () => {
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
-      searchParams.delete("offset");
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -126,7 +127,7 @@ export const DagsFilters = () => {
       if (tags.length < 2) {
         searchParams.delete(TAGS_MATCH_MODE_PARAM);
       }
-      searchParams.delete("offset");
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [searchParams, setSearchParams],
