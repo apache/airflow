@@ -21,7 +21,6 @@ import pytest
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
-# pytestmark = pytest.mark.db_test
 pytestmark = [pytest.mark.db_test, pytest.mark.mock_plugin_manager(plugins=[])]
 
 mock_config_response = {
