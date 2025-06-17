@@ -30,7 +30,7 @@
     "documentation": "Documentation du Dag",
     "fileLocation": "Emplacement du fichier",
     "hasTaskConcurrencyLimits": "Limites de concurrence par tâche",
-    "lastExpired": "Date d'experiration",
+    "lastExpired": "Date d'expiration",
     "lastParsed": "Dernière analyse",
     "latestDagVersion": "Dernière version du Dag",
     "latestRun": "Dernière exécution",
@@ -77,10 +77,10 @@
     "title": "Erreur"
   },
   "expression": {
-    "all": "TOUS",
-    "and": "ET",
+    "all": "Tous",
+    "and": "Et",
     "any": "N'importe lequel",
-    "or": "OU"
+    "or": "Ou"
   },
   "logicalDate": "Date logique",
   "logout": "Déconnexion",
@@ -114,9 +114,9 @@
   },
   "pools": {
     "deferred": "Différé",
-    "open": "Ouvert",
-    "pools_one": "pool",
-    "pools_other": "pools",
+    "open": "Libre",
+    "pools_one": "Pool",
+    "pools_other": "Pools",
     "queued": "En file",
     "running": "En cours",
     "scheduled": "Planifié"
@@ -194,7 +194,7 @@
     "pid": "PID",
     "pool": "Pool",
     "poolSlots": "Slots de pool",
-    "priorityWeight": "Poids de priorité",
+    "priorityWeight": "Poids de la priorité",
     "queue": "File",
     "queuedWhen": "Mis en file à",
     "scheduledWhen": "Planifié à",

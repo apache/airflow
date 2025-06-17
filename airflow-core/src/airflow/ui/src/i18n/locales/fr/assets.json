@@ -1,5 +1,5 @@
 {
-  "consumingDags": "Dag consomatteurs",
+  "consumingDags": "Dags consomatteurs",
   "createEvent": {
     "button": "Créer un événement",
     "manual": {
@@ -11,7 +11,7 @@
       "description": "Déclencher le Dag en amont de cet asset",
       "descriptionWithDag": "Déclencher le Dag en amont de cet asset : {{dagName}}",
       "label": "Matérialiser",
-      "unpauseDag": "Sortir de pause {{dagName}} lors du déclenchement"
+      "unpauseDag": "Réactiver {{dagName}} lors du déclenchement"
     },
     "success": {
       "manualDescription": "La création manuelle de l'événement a été réussie.",

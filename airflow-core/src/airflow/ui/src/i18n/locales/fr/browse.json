@@ -5,7 +5,7 @@
       "expandAllExtra": "Ouvrir tous les extra json"
     },
     "columns":{
-      "event": "Event",
+      "event": "Événement",
       "extra": "Extra",
       "user": "Utilisateur",
       "when": "Quand"

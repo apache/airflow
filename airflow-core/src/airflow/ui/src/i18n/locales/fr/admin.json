@@ -14,8 +14,8 @@
   "connections":{
     "add":"Ajouter une Connexion",
     "columns":{
-      "connectionId": "Connexion ID",
-      "connectionType": "Connexion Type",
+      "connectionId": "ID de la connexion",
+      "connectionType": "Type de la connexion",
       "host": "Hôte",
       "port": "Port"
     },
@@ -30,19 +30,19 @@
     },
     "edit": "Modifier la Connexion",
     "form":{
-      "connectionIdRequired": "Connexion ID est requis",
-      "connectionIdRequirement": "Connexion ID ne peut pas contenir uniquement des espaces",
-      "connectionTypeRequired": "Le type de connexion est requis",
+      "connectionIdRequired": "L'ID de la connexion est requis",
+      "connectionIdRequirement": "L'ID de la connexion ne peut pas contenir uniquement des espaces",
+      "connectionTypeRequired": "Le type de la connexion est requis",
       "extraFields": "Champs Supplémentaires",
       "extraFieldsJson": "Champs Supplémentaires JSON",
-      "helperText": "Le type de connexion est manquant ? Assurez-vous d'avoir installé le package Airflow Providers correspondant.",
+      "helperText": "Le type de la connexion est manquant ? Assurez-vous d'avoir installé le package Airflow Providers correspondant.",
       "selectConnectionType": "Sélectionner le Type de Connexion",
       "standardFields": "Champs Standards"
     },
     "noRowMessage": "Aucune connexion trouvée",
-    "searchPlaceholder": "Rechercher Connexions",
-    "test": "Test de Connexion",
-    "testDisabled": "Test de connexion désactivé. Veuillez contacter un administrateur pour l'activer.",
+    "searchPlaceholder": "Rechercher les connexions",
+    "test": "Test la connexion",
+    "testDisabled": "Le test de connexion est désactivé. Veuillez contacter un administrateur pour l'activer.",
     "typeMeta": {
       "error": "Échec de la récupération des métadonnées du type de connexion",
       "standardFields": {
@@ -86,8 +86,7 @@
     },
     "edit": "Modifier la Pool",
     "form": {
-      "checkbox": "Check to include deferred tasks when calculating open pool slots",
-      "checkbox": "Cochez pour inclure les tâches différées lors du calcul des slots ouverts de la pool",
+      "checkbox": "Cochez pour inclure les tâches différées lors du calcul des slots libres de la pool",
       "description": "Description",
       "includeDeferred": "Inclure les Tâches Différées",
       "nameMaxLength": "Le nom peut contenir un maximum de 250 caractères",
@@ -106,14 +105,14 @@
   },
   "providers": {
     "columns": {
-      "packageName": "Nom du Package",
+      "packageName": "Nom du paquet",
       "version": "Version"
     }
   },
   "variables": {
     "add": "Ajouter une Variable",
     "columns": {
-      "isEncrypted": "Est Chiffrée"
+      "isEncrypted": "Est chiffrée"
     },
     "delete": {
       "deleteVariable_one": "Supprimer 1 Variable",
@@ -142,7 +141,7 @@
           "title": "Échouer"
         },
         "overwrite": {
-          "description": "Écrase la variable en cas de conflit.",
+          "description": "Écraser la variable en cas de conflit.",
           "title": "Écraser"
         },
         "skip": {
