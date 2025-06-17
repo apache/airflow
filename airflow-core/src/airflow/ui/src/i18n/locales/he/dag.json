@@ -7,7 +7,7 @@
   },
   "code": {
     "bundleUrl": "כתובת החבילה",
-    "noCode": "לא נמצא קוד תכנות",
+    "noCode": "לא נמצא קוד",
     "parsedAt": "נקרא בשעה:"
   },
   "extraLinks": "קישורים נוספים",
@@ -36,8 +36,8 @@
       "failedTaskInstance_other": "מופעי משימות שנכשלו"
     },
     "charts": {
-      "assetEvent_one": "אירוע משאב שנוצר",
-      "assetEvent_other": "אירועי משאבים שנוצרו"
+      "assetEvent_one": "אירוע בנכס שנוצר",
+      "assetEvent_other": "אירועי בנכסים שנוצרו"
     },
     "failedLogs": {
       "title": "רישומים אחרונים של משימות שנכשלו",
