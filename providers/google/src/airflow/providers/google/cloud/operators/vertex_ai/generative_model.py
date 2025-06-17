@@ -39,8 +39,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
         to the Vertex AI PaLM API, in order to elicit a specific response (templated).
-    :param pretrained_model: By default uses the pre-trained model `textembedding-gecko`,
-        optimized for performing text embeddings.
+    :param pretrained_model: Required. Model, optimized for performing text embeddings.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -60,7 +59,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         prompt: str,
-        pretrained_model: str = "textembedding-gecko",
+        pretrained_model: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -107,7 +106,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
     :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
     :param system_instruction: Optional. An instruction given to the model to guide its behavior.
-    :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+    :param pretrained_model: Required. Model,
         supporting prompts with text-only input, including natural language
         tasks, multi-turn text and code chat, and code generation. It can
         output text and code.
@@ -134,7 +133,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
         system_instruction: str | None = None,
-        pretrained_model: str = "gemini-pro",
+        pretrained_model: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -278,10 +277,9 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         service belongs to (templated).
     :param contents: Required. The multi-part content of a message that a user or a program
         gives to the generative model, in order to elicit a specific response.
-    :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
-        supporting prompts with text-only input, including natural language
-        tasks, multi-turn text and code chat, and code generation. It can
-        output text and code.
+    :param pretrained_model: Required. Model, supporting prompts with text-only input,
+        including natural language tasks, multi-turn text and code chat,
+        and code generation. It can output text and code.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -301,7 +299,7 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         contents: list,
-        pretrained_model: str = "gemini-pro",
+        pretrained_model: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

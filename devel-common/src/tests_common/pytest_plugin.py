@@ -1959,6 +1959,7 @@ def override_caplog(request):
 def mock_supervisor_comms(monkeypatch):
     import socket
 
+    # for back-compat
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     if not AIRFLOW_V_3_0_PLUS:
@@ -1979,7 +1980,7 @@ def mock_supervisor_comms(monkeypatch):
     else:
         CommsDecoder = getattr(task_runner, "CommsDecoder")
         comms = mock.create_autospec(CommsDecoder)
-        comms.send = comms.get_response
+        comms.send = comms.get_message
         monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
     yield comms
 
@@ -2020,7 +2021,8 @@ def mocked_parse(spy_agency):
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
             task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]
+            # Fixture only helps in regular base operator tasks, so mypy is wrong here
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
         else:
             dag = task.dag
         if what.ti_context.dag_run.conf:
@@ -2155,8 +2157,9 @@ def create_runtime_ti(mocked_parse):
 
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+            # Fixture only helps in regular base operator tasks, so mypy is wrong here
             task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
 
         data_interval_start = None
         data_interval_end = None
@@ -2214,6 +2217,8 @@ def create_runtime_ti(mocked_parse):
             bundle_info=BundleInfo(name="anything", version="any"),
             ti_context=ti_context,
             start_date=start_date,  # type: ignore
+            # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
+            **({"requests_fd": 0} if "requests_fd" in StartupDetails.model_fields else {}),  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)

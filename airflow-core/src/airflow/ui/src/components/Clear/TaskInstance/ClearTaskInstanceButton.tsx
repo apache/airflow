@@ -48,7 +48,7 @@ const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withTe
   return (
     <Tooltip
       closeDelay={100}
-      content={translate("runAndTaskActions.clear.buttonTooltip")}
+      content={translate("dags:runAndTaskActions.clear.buttonTooltip")}
       disabled={!isHotkeyEnabled}
       openDelay={100}
     >
