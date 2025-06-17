@@ -155,7 +155,7 @@ export const renderStructuredLog = ({
         <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
           {translate("components:logs.file")}{" "}
           <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
-          {translate("components:logs.line")} {frame.lineno} {translate("components:logs.in")} {frame.name}
+          {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
         </chakra.p>
       ));
 

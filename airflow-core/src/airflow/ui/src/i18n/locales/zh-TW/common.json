@@ -179,7 +179,7 @@
   "task": {
     "documentation": "任務文件",
     "lastInstance": "最後實例",
-    "operator": "operator",
+    "operator": "任務操作器",
     "triggerRule": "觸發規則"
   },
   "task_one": "任務",
