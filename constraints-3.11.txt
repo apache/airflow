@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-17T02:38:27.727905
+# This constraints file was automatically generated on 2025-06-17T14:06:04.494448
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -65,7 +65,7 @@ SecretStorage==3.3.3
 Sphinx==8.2.3
 WTForms==3.2.1
 Werkzeug==2.2.3
-a2wsgi==1.10.8
+a2wsgi==1.10.9
 adal==1.2.7
 adlfs==2024.12.0
 aenum==3.1.16
@@ -201,7 +201,7 @@ azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==23.4.0
+azure-mgmt-resource==24.0.0
 azure-mgmt-storage==23.0.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
@@ -286,9 +286,9 @@ et_xmlfile==2.0.0
 eventlet==0.40.0
 execnet==2.1.1
 executing==2.2.0
-facebook_business==22.0.5
+facebook_business==23.0.0
 fastapi-cli==0.0.7
-fastapi==0.115.12
+fastapi==0.115.13
 fastavro==1.11.1
 fasteners==0.19
 fastjsonschema==2.21.1
@@ -499,7 +499,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.87.0
+openai==1.88.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -508,7 +508,7 @@ openlineage-integration-common==1.33.0
 openlineage-python==1.33.0
 openlineage_sql==1.33.0
 openpyxl==3.1.5
-opensearch-py==2.8.0
+opensearch-py==3.0.0
 opentelemetry-api==1.27.0
 opentelemetry-exporter-otlp-proto-common==1.27.0
 opentelemetry-exporter-otlp-proto-grpc==1.27.0

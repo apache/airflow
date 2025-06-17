@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-17T02:29:09.186866
+# This constraints file was automatically generated on 2025-06-17T13:56:34.198915
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -43,7 +43,7 @@ SecretStorage==3.3.3
 Sphinx==8.2.3
 WTForms==3.2.1
 Werkzeug==2.2.3
-a2wsgi==1.10.8
+a2wsgi==1.10.9
 adal==1.2.7
 adlfs==2024.12.0
 aenum==3.1.16
@@ -78,7 +78,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.9.0
-apache-beam==2.59.0
+apache-beam==2.65.0
 apispec==6.8.2
 apprise==1.9.3
 argcomplete==3.6.2
@@ -114,7 +114,7 @@ azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==23.4.0
+azure-mgmt-resource==24.0.0
 azure-mgmt-storage==23.0.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
@@ -153,7 +153,7 @@ click-plugins==1.1.1
 click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
-cloudpickle==2.2.1
+cloudpickle==3.1.1
 cohere==5.15.0
 colorama==0.4.6
 colorful==0.5.6
@@ -197,9 +197,9 @@ et_xmlfile==2.0.0
 eventlet==0.40.0
 execnet==2.1.1
 executing==2.2.0
-facebook_business==22.0.5
+facebook_business==23.0.0
 fastapi-cli==0.0.7
-fastapi==0.115.12
+fastapi==0.115.13
 fastavro==1.11.1
 fasteners==0.19
 fastjsonschema==2.21.1
@@ -282,7 +282,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.73.0
+grpcio==1.65.5
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.16.0
@@ -410,7 +410,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.87.0
+openai==1.88.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -419,7 +419,7 @@ openlineage-integration-common==1.33.0
 openlineage-python==1.33.0
 openlineage_sql==1.33.0
 openpyxl==3.1.5
-opensearch-py==2.8.0
+opensearch-py==3.0.0
 opentelemetry-api==1.27.0
 opentelemetry-exporter-otlp-proto-common==1.27.0
 opentelemetry-exporter-otlp-proto-grpc==1.27.0
