@@ -51,7 +51,7 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     {{- with .Values.labels }}
-      {{- toYaml . | nindent 4 }}
+      {{- tpl (toYaml .) $ | nindent 4 }}
     {{- end }}
   {{- if .Values.workers.annotations }}
   annotations: {{- toYaml .Values.workers.annotations | nindent 4 }}
@@ -90,7 +90,7 @@ spec:
         component: worker
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.workers.labels) }}
-          {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
+          {{- tpl (mustMerge .Values.workers.labels .Values.labels | toYaml) $ | nindent 8 }}
         {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
