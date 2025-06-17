@@ -76,8 +76,7 @@
   "limitedList": "+{{count}} mehr",
   "logs": {
     "file": "Datei",
-    "in": "in",
-    "line": "Zeile"
+    "location": "Zeile {{line}} in {{name}}"
   },
   "reparseDag": "Dag neu parsen",
   "sortedAscending": "aufsteigend sortier",
