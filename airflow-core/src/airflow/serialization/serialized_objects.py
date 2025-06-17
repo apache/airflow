@@ -2166,16 +2166,14 @@ class LazyDeserializedDAG(pydantic.BaseModel):
                     if isinstance(obj, of_type):
                         yield task["task_id"], obj
 
-    def get_run_data_interval(self, run: DagRun) -> DataInterval:
+    def get_run_data_interval(self, run: DagRun) -> DataInterval | None:
         """Get the data interval of this run."""
         if run.dag_id is not None and run.dag_id != self.dag_id:
             raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {run.dag_id}")
 
         data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
-        # the older implementation has call to infer_automated_data_interval if data_interval is None, do we want to keep that or raise
-        # an exception?
-        if data_interval is None:
-            raise ValueError(f"Cannot calculate data interval for run {run}")
+        if data_interval is None and run.logical_date is not None:
+            data_interval = self._real_dag.timetable.infer_manual_data_interval(run_after=run.logical_date)
 
         return data_interval
 
