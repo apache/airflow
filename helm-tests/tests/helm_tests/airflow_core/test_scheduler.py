@@ -26,26 +26,44 @@ class TestScheduler:
     """Tests scheduler."""
 
     @pytest.mark.parametrize(
-        "executor, persistence, kind",
+        "executor, workers_values, kind",
         [
-            ("CeleryExecutor", False, "Deployment"),
-            ("CeleryExecutor", True, "Deployment"),
-            ("CeleryKubernetesExecutor", True, "Deployment"),
-            ("CeleryExecutor,KubernetesExecutor", True, "Deployment"),
-            ("KubernetesExecutor", True, "Deployment"),
-            ("LocalKubernetesExecutor", False, "Deployment"),
-            ("LocalKubernetesExecutor", True, "StatefulSet"),
-            ("LocalExecutor", True, "StatefulSet"),
-            ("LocalExecutor,KubernetesExecutor", True, "StatefulSet"),
-            ("LocalExecutor", False, "Deployment"),
+            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
+            ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ("CeleryExecutor", {"persistence": {"enabled": True}}, "Deployment"),
+            ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
+            ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
+            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
+            ("CeleryExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
+            (
+                "CeleryExecutor,KubernetesExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                "Deployment",
+            ),
+            ("KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
+            ("KubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
+            ("LocalKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
+            ("LocalKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ("LocalKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            ("LocalKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            ("LocalExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            ("LocalExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            ("LocalExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            (
+                "LocalExecutor,KubernetesExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                "StatefulSet",
+            ),
+            ("LocalExecutor", {"persistence": {"enabled": False}}, "Deployment"),
+            ("LocalExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
         ],
     )
-    def test_scheduler_kind(self, executor, persistence, kind):
+    def test_scheduler_kind(self, executor, workers_values, kind):
         """Test scheduler kind is StatefulSet only with a local executor & worker persistence is enabled."""
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"persistence": {"enabled": persistence}},
+                "workers": workers_values,
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -638,38 +656,108 @@ class TestScheduler:
         assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "executor, persistence, update_strategy, expected_update_strategy",
+        "executor, workers_values, update_strategy, expected_update_strategy",
         [
-            ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
-            ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
-            ("LocalKubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
-            ("LocalExecutor,KubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            (
+                "CeleryExecutor",
+                {"persistence": {"enabled": False}},
+                {"rollingUpdate": {"partition": 0}},
+                None,
+            ),
+            (
+                "CeleryExecutor",
+                {"celery": {"persistence": {"enabled": False}}},
+                {"rollingUpdate": {"partition": 0}},
+                None,
+            ),
+            ("CeleryExecutor", {"persistence": {"enabled": True}}, {"rollingUpdate": {"partition": 0}}, None),
+            (
+                "CeleryExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                {"rollingUpdate": {"partition": 0}},
+                None,
+            ),
             (
                 "LocalKubernetesExecutor",
-                True,
+                {"persistence": {"enabled": False}},
+                {"rollingUpdate": {"partition": 0}},
+                None,
+            ),
+            (
+                "LocalKubernetesExecutor",
+                {"celery": {"persistence": {"enabled": False}}},
+                {"rollingUpdate": {"partition": 0}},
+                None,
+            ),
+            (
+                "LocalExecutor,KubernetesExecutor",
+                {"persistence": {"enabled": False}},
+                {"rollingUpdate": {"partition": 0}},
+                None,
+            ),
+            (
+                "LocalExecutor,KubernetesExecutor",
+                {"celery": {"persistence": {"enabled": False}}},
+                {"rollingUpdate": {"partition": 0}},
+                None,
+            ),
+            (
+                "LocalKubernetesExecutor",
+                {"persistence": {"enabled": True}},
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
+            (
+                "LocalKubernetesExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
                 {"rollingUpdate": {"partition": 0}},
                 {"rollingUpdate": {"partition": 0}},
             ),
             (
                 "LocalExecutor,KubernetesExecutor",
-                True,
+                {"persistence": {"enabled": True}},
                 {"rollingUpdate": {"partition": 0}},
                 {"rollingUpdate": {"partition": 0}},
             ),
-            ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
-            ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
-            ("LocalExecutor", True, None, None),
-            ("LocalExecutor,KubernetesExecutor", True, None, None),
+            (
+                "LocalExecutor,KubernetesExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
+            ("LocalExecutor", {"persistence": {"enabled": False}}, {"rollingUpdate": {"partition": 0}}, None),
+            (
+                "LocalExecutor",
+                {"celery": {"persistence": {"enabled": False}}},
+                {"rollingUpdate": {"partition": 0}},
+                None,
+            ),
+            (
+                "LocalExecutor",
+                {"persistence": {"enabled": True}},
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
+            (
+                "LocalExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
+            ("LocalExecutor", {"persistence": {"enabled": True}}, None, None),
+            ("LocalExecutor", {"celery": {"persistence": {"enabled": True}}}, None, None),
+            ("LocalExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, None, None),
+            ("LocalExecutor,KubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, None, None),
         ],
     )
     def test_scheduler_update_strategy(
-        self, executor, persistence, update_strategy, expected_update_strategy
+        self, executor, workers_values, update_strategy, expected_update_strategy
     ):
         """UpdateStrategy should only be used when we have a local executor and workers.persistence."""
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"persistence": {"enabled": persistence}},
+                "workers": workers_values,
                 "scheduler": {"updateStrategy": update_strategy},
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -678,30 +766,79 @@ class TestScheduler:
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
     @pytest.mark.parametrize(
-        "executor, persistence, strategy, expected_strategy",
+        "executor, workers_values, strategy, expected_strategy",
         [
-            ("LocalExecutor", False, None, None),
-            ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
-            ("LocalExecutor", True, {"type": "Recreate"}, None),
-            ("LocalKubernetesExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
-            ("LocalKubernetesExecutor", True, {"type": "Recreate"}, None),
-            ("CeleryExecutor", True, None, None),
-            ("CeleryExecutor", False, None, None),
-            ("CeleryExecutor", True, {"type": "Recreate"}, {"type": "Recreate"}),
+            ("LocalExecutor", {"persistence": {"enabled": False}}, None, None),
+            ("LocalExecutor", {"celery": {"persistence": {"enabled": False}}}, None, None),
+            (
+                "LocalExecutor",
+                {"persistence": {"enabled": False}},
+                {"type": "Recreate"},
+                {"type": "Recreate"},
+            ),
+            (
+                "LocalExecutor",
+                {"celery": {"persistence": {"enabled": False}}},
+                {"type": "Recreate"},
+                {"type": "Recreate"},
+            ),
+            ("LocalExecutor", {"persistence": {"enabled": True}}, {"type": "Recreate"}, None),
+            ("LocalExecutor", {"celery": {"persistence": {"enabled": True}}}, {"type": "Recreate"}, None),
+            (
+                "LocalKubernetesExecutor",
+                {"persistence": {"enabled": False}},
+                {"type": "Recreate"},
+                {"type": "Recreate"},
+            ),
+            (
+                "LocalKubernetesExecutor",
+                {"celery": {"persistence": {"enabled": False}}},
+                {"type": "Recreate"},
+                {"type": "Recreate"},
+            ),
+            ("LocalKubernetesExecutor", {"persistence": {"enabled": True}}, {"type": "Recreate"}, None),
+            (
+                "LocalKubernetesExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                {"type": "Recreate"},
+                None,
+            ),
+            ("CeleryExecutor", {"persistence": {"enabled": True}}, None, None),
+            ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, None, None),
+            ("CeleryExecutor", {"persistence": {"enabled": False}}, None, None),
+            ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, None, None),
             (
                 "CeleryExecutor",
-                False,
+                {"persistence": {"enabled": True}},
+                {"type": "Recreate"},
+                {"type": "Recreate"},
+            ),
+            (
+                "CeleryExecutor",
+                {"celery": {"persistence": {"enabled": True}}},
+                {"type": "Recreate"},
+                {"type": "Recreate"},
+            ),
+            (
+                "CeleryExecutor",
+                {"persistence": {"enabled": False}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (
+                "CeleryExecutor",
+                {"celery": {"persistence": {"enabled": False}}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
         ],
     )
-    def test_scheduler_strategy(self, executor, persistence, strategy, expected_strategy):
+    def test_scheduler_strategy(self, executor, workers_values, strategy, expected_strategy):
         """Strategy should be used when we aren't using both a local executor and workers.persistence."""
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"persistence": {"enabled": persistence}},
+                "workers": workers_values,
                 "scheduler": {"strategy": strategy},
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -822,9 +959,20 @@ class TestScheduler:
                 c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
             ]
 
-    def test_persistence_volume_annotations(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"annotations": {"foo": "bar"}}},
+            {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
+            {
+                "persistence": {"annotations": {"bar": "foo"}},
+                "celery": {"persistence": {"annotations": {"foo": "bar"}}},
+            },
+        ],
+    )
+    def test_persistence_volume_annotations(self, workers_values):
         docs = render_chart(
-            values={"executor": "LocalExecutor", "workers": {"persistence": {"annotations": {"foo": "bar"}}}},
+            values={"executor": "LocalExecutor", "workers": workers_values},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
@@ -874,15 +1022,27 @@ class TestScheduler:
         assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
 
-    def test_scheduler_template_storage_class_name(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class", "enabled": True}},
+            {
+                "celery": {
+                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class", "enabled": True}
+                }
+            },
+            {
+                "persistence": {"storageClassName": "storage-class"},
+                "celery": {
+                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class", "enabled": True}
+                },
+            },
+        ],
+    )
+    def test_scheduler_template_storage_class_name(self, workers_values):
         docs = render_chart(
             values={
-                "workers": {
-                    "persistence": {
-                        "storageClassName": "{{ .Release.Name }}-storage-class",
-                        "enabled": True,
-                    }
-                },
+                "workers": workers_values,
                 "logs": {"persistence": {"enabled": False}},
                 "executor": "LocalExecutor",
             },
@@ -893,16 +1053,39 @@ class TestScheduler:
             == "release-name-storage-class"
         )
 
-    def test_persistent_volume_claim_retention_policy(self):
-        docs = render_chart(
-            values={
-                "executor": "LocalExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "persistence": {
+                    "enabled": True,
+                    "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
+                }
+            },
+            {
+                "celery": {
+                    "persistence": {
+                        "enabled": True,
+                        "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
+                    }
+                }
+            },
+            {
+                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "None"}},
+                "celery": {
                     "persistence": {
                         "enabled": True,
                         "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
                     }
                 },
+            },
+        ],
+    )
+    def test_persistent_volume_claim_retention_policy(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )

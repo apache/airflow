@@ -103,6 +103,88 @@ class TestServiceAccountAnnotations:
             ),
             (
                 {
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "celery": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-celery-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "missing",
+                            },
+                        },
+                        "celery": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-celery-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "kubernetes": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "missing",
+                            },
+                        },
+                        "kubernetes": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
                     "flower": {
                         "enabled": True,
                         "serviceAccount": {
@@ -299,6 +381,39 @@ class TestServiceAccountAnnotations:
                 "workers": {
                     "podAnnotations": {
                         "example": "worker",
+                    },
+                },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "worker",
+            },
+        ),
+        (
+            {
+                "workers": {
+                    "celery": {
+                        "podAnnotations": {
+                            "example": "worker",
+                        },
+                    },
+                },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "worker",
+            },
+        ),
+        (
+            {
+                "workers": {
+                    "podAnnotations": {
+                        "example": "missing",
+                    },
+                    "celery": {
+                        "podAnnotations": {
+                            "example": "worker",
+                        },
                     },
                 },
             },
