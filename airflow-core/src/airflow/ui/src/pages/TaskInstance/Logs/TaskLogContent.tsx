@@ -82,10 +82,17 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         <VStack alignItems="flex-start" gap={0} h={`${rowVirtualizer.getTotalSize()}px`}>
           {rowVirtualizer.getVirtualItems().map((virtualRow) => (
             <Box
+              _ltr={{
+                left: 0,
+                right: "auto",
+              }}
+              _rtl={{
+                left: "auto",
+                right: 0,
+              }}
               data-index={virtualRow.index}
               data-testid={`virtualized-item-${virtualRow.index}`}
               key={virtualRow.key}
-              left={0}
               position="absolute"
               ref={rowVirtualizer.measureElement}
               top={0}
