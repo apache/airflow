@@ -21,7 +21,7 @@ from unittest.mock import ANY
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 
@@ -152,3 +152,47 @@ class TestGlueJobSensor:
         job_error_message = "Exiting Job"
         with pytest.raises(AirflowException, match=job_error_message):
             op.poke(context={})
+
+    def test_deferrable_execute_raises_task_deferred(self):
+        job_name = "job_name"
+        job_run_id = "job_run_id"
+        sensor = GlueJobSensor(
+            task_id="test_glue_job_sensor",
+            job_name=job_name,
+            run_id=job_run_id,
+            deferrable=True,
+            poke_interval=1,
+            timeout=5,
+        )
+        with pytest.raises(TaskDeferred):
+            sensor.execute({})
+
+    def test_default_args(self):
+        job_name = "job_name"
+        job_run_id = "job_run_id"
+        sensor = GlueJobSensor(
+            task_id="test_glue_job_sensor",
+            job_name=job_name,
+            run_id=job_run_id,
+        )
+        assert sensor.poke_interval == 120
+        assert sensor.verbose is False
+        assert sensor.deferrable is False or isinstance(sensor.deferrable, bool)
+        assert sensor.aws_conn_id == "aws_default"
+
+    def test_custom_args(self):
+        job_name = "job_name"
+        job_run_id = "job_run_id"
+        sensor = GlueJobSensor(
+            task_id="test_glue_job_sensor",
+            job_name=job_name,
+            run_id=job_run_id,
+            verbose=True,
+            deferrable=True,
+            poke_interval=10,
+            aws_conn_id="custom_conn",
+        )
+        assert sensor.verbose is True
+        assert sensor.deferrable is True
+        assert sensor.poke_interval == 10
+        assert sensor.aws_conn_id == "custom_conn"

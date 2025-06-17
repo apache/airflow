@@ -38,7 +38,8 @@ class GlueJobCompleteTrigger(BaseTrigger):
     :param job_name: glue job name
     :param run_id: the ID of the specific run to watch for that job
     :param verbose: whether to print the job's logs in airflow logs or not
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param aws_conn_id: The Airflow connection used for AWS credentials
+    :param job_poll_interval: The interval in which to poll the status of a job
     """
 
     def __init__(
