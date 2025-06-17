@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -54,7 +54,7 @@ class TaskLogReader:
         ti: TaskInstance | TaskInstanceHistory,
         try_number: int | None,
         metadata: LogMetadata,
-    ) -> tuple[LogMessages, LogMetadata]:
+    ) -> tuple[LogHandlerOutputStream, LogMetadata]:
         """
         Read chunks of Task Instance logs.
 

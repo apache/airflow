@@ -121,12 +121,17 @@ def get_log(
     )
     ti = session.scalar(query)
     if ti is None:
-        query = select(TaskInstanceHistory).where(
-            TaskInstanceHistory.task_id == task_id,
-            TaskInstanceHistory.dag_id == dag_id,
-            TaskInstanceHistory.run_id == dag_run_id,
-            TaskInstanceHistory.map_index == map_index,
-            TaskInstanceHistory.try_number == try_number,
+        query = (
+            select(TaskInstanceHistory)
+            .where(
+                TaskInstanceHistory.task_id == task_id,
+                TaskInstanceHistory.dag_id == dag_id,
+                TaskInstanceHistory.run_id == dag_run_id,
+                TaskInstanceHistory.map_index == map_index,
+                TaskInstanceHistory.try_number == try_number,
+            )
+            .options(joinedload(TaskInstanceHistory.dag_run))
+            # we need to joinedload the dag_run, since FileTaskHandler._render_filename needs ti.dag_run
         )
         ti = session.scalar(query)
 
