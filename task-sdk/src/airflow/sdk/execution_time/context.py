@@ -138,7 +138,7 @@ def _get_connection(conn_id: str) -> Connection:
                 type(secrets_backend).__name__,
             )
 
-    if len(backends):
+    if backends:
         log.debug(
             "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
             conn_id=conn_id,
@@ -193,7 +193,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 type(secrets_backend).__name__,
             )
 
-    if len(backends):
+    if backends:
         log.debug(
             "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
             key=key,
