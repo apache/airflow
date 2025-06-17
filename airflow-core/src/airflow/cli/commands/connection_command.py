@@ -33,9 +33,9 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import is_stdout, print_export_output
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk import BaseHook
 from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
@@ -375,7 +375,8 @@ def connections_test(args) -> None:
         raise SystemExit(1)
 
     print("\nTesting...")
-    status, message = conn.test_connection()
+    # TODO: Revisit this
+    status, message = conn.test_connection()  # type: ignore
     if status is True:
         console.print("[bold green]\nConnection success!\n")
     else:

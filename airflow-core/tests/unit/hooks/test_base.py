@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowNotFoundException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, GetConnection
 

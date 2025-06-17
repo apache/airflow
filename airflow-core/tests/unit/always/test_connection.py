@@ -29,8 +29,8 @@ import sqlalchemy
 from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
+from airflow.sdk import BaseHook
 
 sqlite = pytest.importorskip("airflow.providers.sqlite.hooks.sqlite")
 

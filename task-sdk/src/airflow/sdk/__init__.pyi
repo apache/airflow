@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.sdk.bases.hook import BaseHook as BaseHook
 from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
 from airflow.sdk.bases.operator import (
     BaseOperator as BaseOperator,
@@ -61,6 +62,7 @@ __all__ = [
     "AssetAll",
     "AssetAny",
     "AssetWatcher",
+    "BaseHook",
     "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
