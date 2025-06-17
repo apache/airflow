@@ -202,7 +202,7 @@ def get_dag_run_dict(run: DagRun):
         "deadlines": [
             {
                 "id": str(each.id),
-                "deadline": from_datetime_to_zulu_without_ms(each.deadline),
+                "deadline_time": from_datetime_to_zulu_without_ms(each.deadline),
                 "callback": each.callback,
                 "callback_kwargs": each.callback_kwargs,
             }
@@ -231,7 +231,7 @@ class TestGetDagRun:
                 [
                     {
                         "id": "",
-                        "deadline": LOGICAL_DATE1,
+                        "deadline_time": LOGICAL_DATE1,
                         "callback": TEST_CALLBACK_PATH,
                         "callback_kwargs": TEST_CALLBACK_KWARGS,
                     }
@@ -280,8 +280,8 @@ class TestGetDagRun:
         assert body["triggered_by"] == triggered_by.value
         assert body["note"] == dag_run_note
         if deadlines:
-            assert [i["deadline"] for i in body["deadlines"]] == [
-                from_datetime_to_zulu_without_ms(i["deadline"]) for i in deadlines
+            assert [i["deadline_time"] for i in body["deadlines"]] == [
+                from_datetime_to_zulu_without_ms(i["deadline_time"]) for i in deadlines
             ]
             assert [i["callback"] for i in body["deadlines"]] == [i["callback"] for i in deadlines]
             assert [i["callback_kwargs"] for i in body["deadlines"]] == [
