@@ -160,7 +160,7 @@ export const renderStructuredLog = ({
       ));
 
       return (
-        <chakra.details key={error.exc_type} ml="20em" open={true}>
+        <chakra.details key={error.exc_type} ms="20em" open={true}>
           <chakra.summary data-testid={`summary-${error.exc_type}`}>
             <chakra.span color="fg.info" cursor="pointer">
               {error.exc_type}: {error.exc_value}
@@ -203,9 +203,9 @@ export const renderStructuredLog = ({
         style={{
           display: "inline-block",
           flexShrink: 0,
-          marginRight: "10px",
-          paddingRight: "5px",
-          textAlign: "right",
+          marginInlineEnd: "10px",
+          paddingInlineEnd: "5px",
+          textAlign: "end",
           userSelect: "none",
           WebkitUserSelect: "none",
           width: "3em",
