@@ -70,9 +70,8 @@ class BaseXCom:
             map_index=map_index,
         )
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=SetXCom(
+        SUPERVISOR_COMMS.send(
+            SetXCom(
                 key=key,
                 value=value,
                 dag_id=dag_id,
@@ -107,9 +106,8 @@ class BaseXCom:
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=SetXCom(
+        SUPERVISOR_COMMS.send(
+            SetXCom(
                 key=key,
                 value=value,
                 dag_id=dag_id,
@@ -181,23 +179,16 @@ class BaseXCom:
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
-        # we need to make sure that we "atomically" send a request and get the response to that
-        # back so that two triggers don't end up interleaving requests and create a possible
-        # race condition where the wrong trigger reads the response.
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
-                    key=key,
-                    dag_id=dag_id,
-                    task_id=task_id,
-                    run_id=run_id,
-                    map_index=map_index,
-                ),
-            )
+        msg = SUPERVISOR_COMMS.send(
+            GetXCom(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            ),
+        )
 
-            msg = SUPERVISOR_COMMS.get_message()
         if not isinstance(msg, XComResult):
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
@@ -241,23 +232,16 @@ class BaseXCom:
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
-        # we need to make sure that we "atomically" send a request and get the response to that
-        # back so that two triggers don't end up interleaving requests and create a possible
-        # race condition where the wrong trigger reads the response.
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
-                    key=key,
-                    dag_id=dag_id,
-                    task_id=task_id,
-                    run_id=run_id,
-                    map_index=map_index,
-                    include_prior_dates=include_prior_dates,
-                ),
-            )
-            msg = SUPERVISOR_COMMS.get_message()
+        msg = SUPERVISOR_COMMS.send(
+            GetXCom(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                include_prior_dates=include_prior_dates,
+            ),
+        )
 
         if not isinstance(msg, XComResult):
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
@@ -322,9 +306,8 @@ class BaseXCom:
             map_index=map_index,
         )
         cls.purge(xcom_result)  # type: ignore[call-arg]
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=DeleteXCom(
+        SUPERVISOR_COMMS.send(
+            DeleteXCom(
                 key=key,
                 dag_id=dag_id,
                 task_id=task_id,
