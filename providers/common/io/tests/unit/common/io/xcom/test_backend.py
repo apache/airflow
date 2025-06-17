@@ -211,7 +211,11 @@ class TestXComObjectStorageBackend:
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            last_call = mock_supervisor_comms.send.call_args_list[-1]
+            if hasattr(mock_supervisor_comms, "send_request"):
+                # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
+                last_call = mock_supervisor_comms.send_request.call_args_list[-1]
+            else:
+                last_call = mock_supervisor_comms.send.call_args_list[-1]
             path = (last_call.kwargs.get("msg") or last_call.args[0]).value
             XComModel.set(
                 key=XCOM_RETURN_KEY,

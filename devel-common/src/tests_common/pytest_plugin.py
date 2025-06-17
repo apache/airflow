@@ -2211,6 +2211,8 @@ def create_runtime_ti(mocked_parse):
             bundle_info=BundleInfo(name="anything", version="any"),
             ti_context=ti_context,
             start_date=start_date,  # type: ignore
+            # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
+            **({"requests_fd": 0} if "requests_fd" in StartupDetails.model_fields else {}),  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)
