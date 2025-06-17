@@ -42,14 +42,13 @@ if TYPE_CHECKING:
     from itsdangerous import URLSafeSerializer
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.sdk import Context
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
-    from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
+    from airflow.sdk.bases.operator import BaseOperator, BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import DagRunProtocol
@@ -2006,7 +2005,8 @@ def mocked_parse(spy_agency):
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
             task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]
+            # Fixture only helps in regular base operator tasks, so mypy is wrong here
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
         else:
             dag = task.dag
         if what.ti_context.dag_run.conf:
@@ -2141,8 +2141,9 @@ def create_runtime_ti(mocked_parse):
 
         if not task.has_dag():
             dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+            # Fixture only helps in regular base operator tasks, so mypy is wrong here
             task.dag = dag  # type: ignore[assignment]
-            task = dag.task_dict[task.task_id]
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
 
         data_interval_start = None
         data_interval_end = None
