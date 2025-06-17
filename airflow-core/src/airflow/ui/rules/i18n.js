@@ -159,6 +159,9 @@ export const i18nRules = {
   files: ["public/i18n/locales/**/*.json"],
   languageOptions: {
     parser: jsoncParser,
+    parserOptions: {
+      extraFileExtensions: [".json"],
+    },
   },
   plugins: {
     [i18nNamespace]: i18nPlugin,
