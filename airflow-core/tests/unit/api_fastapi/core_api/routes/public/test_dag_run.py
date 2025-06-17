@@ -202,7 +202,7 @@ def get_dag_run_dict(run: DagRun):
         "deadlines": [
             {
                 "id": str(each.id),
-                "deadline_time": from_datetime_to_zulu_without_ms(each.deadline),
+                "deadline_time": from_datetime_to_zulu_without_ms(each.deadline_time),
                 "callback": each.callback,
                 "callback_kwargs": each.callback_kwargs,
             }
