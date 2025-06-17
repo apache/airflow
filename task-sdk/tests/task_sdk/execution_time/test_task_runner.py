@@ -644,11 +644,11 @@ def test_startup_and_run_dag_with_rtif(
     mock_supervisor_comms.assert_has_calls(expected_calls)
 
 
-def test_task_startup_with_user_impersonation(
-    mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+@patch("os.execvp")
+@patch("os.set_inheritable")
+def test_user_impersonation_env_and_execvp(
+    mock_set_inheritable, mock_execvp, mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
 ):
-    """Test startup of a task with run_as_user specified."""
-
     class CustomOperator(BaseOperator):
         def execute(self, context):
             print("Hi from CustomOperator!")
@@ -669,13 +669,24 @@ def test_task_startup_with_user_impersonation(
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
     )
-    mocked_parse(what, "basic_dag", task)
 
+    mocked_parse(what, "basic_dag", task)
     time_machine.move_to(instant, tick=False)
 
     mock_supervisor_comms._get_response.return_value = what
+    mock_supervisor_comms.socket.fileno.return_value = 42
 
-    startup()
+    with mock.patch.dict(os.environ, {}, clear=True):
+        startup()
+
+        assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
+        assert "_AIRFLOW__STARTUP_MSG" in os.environ
+
+        mock_set_inheritable.assert_called_once_with(42, True)
+        expected_suffix = "src/airflow/sdk/execution_time/task_runner.py"
+        actual_cmd = mock_execvp.call_args.args[1]
+        assert actual_cmd[:5] == ["sudo", "-E", "-H", "-u", "airflowuser"]
+        assert actual_cmd[-1].endswith(expected_suffix)
 
 
 @pytest.mark.parametrize(

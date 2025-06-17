@@ -670,7 +670,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         log.info("Using serialized startup message from environment", msg=msg)
     else:
         # normal entry point
-        msg = SUPERVISOR_COMMS._get_response()
+        msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
         log.info("Received startup message from supervisor", msg=msg)
 
     if not isinstance(msg, StartupDetails):
@@ -704,7 +704,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
         # store startup message in environment for re-exec process
         os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
-        os.set_inheritable(SUPERVISOR_COMMS.request_socket.fileno(), True)
+        os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
 
         log.info("Running command", command=["sudo", "-E", "-H", "-u", run_as_user, sys.executable, __file__])
         os.execvp("sudo", ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, __file__])
