@@ -529,10 +529,6 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.operators.compute"],
             },
             {
-                "integration-name": "Google Data Catalog",
-                "python-modules": ["airflow.providers.google.cloud.operators.datacatalog"],
-            },
-            {
                 "integration-name": "Google Dataflow",
                 "python-modules": ["airflow.providers.google.cloud.operators.dataflow"],
             },
@@ -864,10 +860,6 @@ def get_provider_info():
                     "airflow.providers.google.cloud.hooks.compute",
                     "airflow.providers.google.cloud.hooks.compute_ssh",
                 ],
-            },
-            {
-                "integration-name": "Google Data Catalog",
-                "python-modules": ["airflow.providers.google.cloud.hooks.datacatalog"],
             },
             {
                 "integration-name": "Google Dataflow",
@@ -1414,9 +1406,6 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink",
-            "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink",
-            "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryLink",
-            "airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocListLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocClusterLink",
