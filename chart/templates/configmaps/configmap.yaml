@@ -47,7 +47,7 @@ data:
   {{- end -}}
   # These are system-specified config overrides.
   airflow.cfg: |-
-    {{- range $section, $settings := .Values.config }}
+    {{- range $section, $settings := $config }}
     [{{ $section }}]
     {{- range $key, $val := $settings }}
     {{ $key }} = {{ tpl ($val | toString) $Global }}
