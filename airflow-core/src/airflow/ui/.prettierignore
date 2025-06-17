@@ -6,3 +6,4 @@ dist/
 coverage/*
 .pnpm-store
 src/i18n/locales/*
+openapi-gen/
