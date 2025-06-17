@@ -46,30 +46,42 @@ Step 2: Clean and back up your existing Airflow Instance
   ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
 
-Step 3: DAG Authors - Check your Airflow DAGs for compatibility
+Step 3: Dag Authors - Check your Airflow dags for compatibility
 ----------------------------------------------------------------
 
-To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_.
+To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules.
+The rules AIR301 and AIR302 indicate breaking changes in Airflow 3, while AIR311 and AIR312 highlight changes that are not currently breaking but are strongly recommended for updates.
 
-The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.6``. The below example demonstrates how to check
+The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.13``. The below example demonstrates how to check
 for dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --preview
+    ruff check dags/ --select AIR301 --preview
 
 To preview the recommended fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --show-fixes --preview
+    ruff check dags/ --select AIR301 --show-fixes --preview
 
 Some changes can be automatically fixed. To do so, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --fix --preview
+    ruff check dags/ --select AIR301 --fix --preview
 
+
+Some of the fixes are marked as unsafe. Unsafe fixes usually do not break dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
+To trigger these fixes, run the following command:
+
+.. code-block:: bash
+
+    ruff check dags/ --select AIR301 --fix --unsafe-fixes --preview
+
+.. note::
+
+    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to `from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
 
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
@@ -81,8 +93,14 @@ Step 4: Install the Standard Providers
 - For convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
+Step 5: Review custom operators for direct db access
+----------------------------------------------------
 
-Step 5: Deployment Managers - Upgrade your Airflow Instance
+- In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
+  If you have custom operators, review the code to make sure there are no direct db access.
+  You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+
+Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
 
 For an easier and safer upgrade process, we have also created a utility to upgrade your Airflow instance configuration.
@@ -113,7 +131,7 @@ If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Fl
 them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
 Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
 
-Step 6: Changes to your startup scripts
+Step 7: Changes to your startup scripts
 ---------------------------------------
 
 In Airflow 3, the Webserver has become a generic API server. The API server can be started up using the following command:

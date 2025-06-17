@@ -46,39 +46,39 @@ def s3mock():
 
 @pytest.mark.db_test
 class TestS3RemoteLogIO:
-    @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_log_template, tmp_path_factory, session):
-        self.remote_log_base = "s3://bucket/remote/log/location"
-        self.remote_log_location = "s3://bucket/remote/log/location/1.log"
-        self.remote_log_key = "remote/log/location/1.log"
-        self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
-        create_log_template("{try_number}.log")
-        self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
-        # Verify the hook now with the config override
-        self.subject = self.s3_task_handler.io
-        assert self.subject.hook is not None
+        with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
+            self.remote_log_base = "s3://bucket/remote/log/location"
+            self.remote_log_location = "s3://bucket/remote/log/location/1.log"
+            self.remote_log_key = "remote/log/location/1.log"
+            self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
+            create_log_template("{try_number}.log")
+            self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
+            # Verify the hook now with the config override
+            self.subject = self.s3_task_handler.io
+            assert self.subject.hook is not None
 
-        date = datetime(2016, 1, 1)
-        self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
-        task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
-        if AIRFLOW_V_3_0_PLUS:
-            dag_run = DagRun(
-                dag_id=self.dag.dag_id,
-                logical_date=date,
-                run_id="test",
-                run_type="manual",
-            )
-        else:
-            dag_run = DagRun(
-                dag_id=self.dag.dag_id,
-                execution_date=date,
-                run_id="test",
-                run_type="manual",
-            )
-        session.add(dag_run)
-        session.commit()
-        session.refresh(dag_run)
+            date = datetime(2016, 1, 1)
+            self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
+            task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_run = DagRun(
+                    dag_id=self.dag.dag_id,
+                    logical_date=date,
+                    run_id="test",
+                    run_type="manual",
+                )
+            else:
+                dag_run = DagRun(
+                    dag_id=self.dag.dag_id,
+                    execution_date=date,
+                    run_id="test",
+                    run_type="manual",
+                )
+            session.add(dag_run)
+            session.commit()
+            session.refresh(dag_run)
 
         self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
@@ -166,56 +166,56 @@ class TestS3RemoteLogIO:
 
 @pytest.mark.db_test
 class TestS3TaskHandler:
-    @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_log_template, tmp_path_factory, session):
-        self.remote_log_base = "s3://bucket/remote/log/location"
-        self.remote_log_location = "s3://bucket/remote/log/location/1.log"
-        self.remote_log_key = "remote/log/location/1.log"
-        self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
-        create_log_template("{try_number}.log")
-        self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
-        # Verify the hook now with the config override
-        assert self.s3_task_handler.io.hook is not None
+        with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
+            self.remote_log_base = "s3://bucket/remote/log/location"
+            self.remote_log_location = "s3://bucket/remote/log/location/1.log"
+            self.remote_log_key = "remote/log/location/1.log"
+            self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
+            create_log_template("{try_number}.log")
+            self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
+            # Verify the hook now with the config override
+            assert self.s3_task_handler.io.hook is not None
 
-        date = datetime(2016, 1, 1)
-        self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
-        task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
-        if AIRFLOW_V_3_0_PLUS:
-            dag_run = DagRun(
-                dag_id=self.dag.dag_id,
-                logical_date=date,
-                run_id="test",
-                run_type="manual",
-            )
-        else:
-            dag_run = DagRun(
-                dag_id=self.dag.dag_id,
-                execution_date=date,
-                run_id="test",
-                run_type="manual",
-            )
-        session.add(dag_run)
-        session.commit()
-        session.refresh(dag_run)
+            date = datetime(2016, 1, 1)
+            self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
+            task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_run = DagRun(
+                    dag_id=self.dag.dag_id,
+                    logical_date=date,
+                    run_id="test",
+                    run_type="manual",
+                )
+            else:
+                dag_run = DagRun(
+                    dag_id=self.dag.dag_id,
+                    execution_date=date,
+                    run_id="test",
+                    run_type="manual",
+                )
+            session.add(dag_run)
+            session.commit()
+            session.refresh(dag_run)
 
-        self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
-        self.ti.dag_run = dag_run
-        self.ti.try_number = 1
-        self.ti.state = State.RUNNING
-        session.add(self.ti)
-        session.commit()
+            self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
+            self.ti.dag_run = dag_run
+            self.ti.try_number = 1
+            self.ti.state = State.RUNNING
+            session.add(self.ti)
+            session.commit()
 
-        self.conn = boto3.client("s3")
-        self.conn.create_bucket(Bucket="bucket")
-        yield
+            self.conn = boto3.client("s3")
+            self.conn.create_bucket(Bucket="bucket")
+            yield
 
-        self.dag.clear()
+            self.dag.clear()
 
-        session.query(DagRun).delete()
-        if self.s3_task_handler.handler:
-            with contextlib.suppress(Exception):
-                os.remove(self.s3_task_handler.handler.baseFilename)
+            session.query(DagRun).delete()
+            if self.s3_task_handler.handler:
+                with contextlib.suppress(Exception):
+                    os.remove(self.s3_task_handler.handler.baseFilename)
 
     def test_set_context_raw(self):
         self.ti.raw = True

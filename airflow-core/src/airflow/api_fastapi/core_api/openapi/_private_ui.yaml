@@ -94,13 +94,13 @@ paths:
                 title: Response Hook Meta Data
       security:
       - OAuth2PasswordBearer: []
-  /ui/dags/recent_dag_runs:
+  /ui/dags:
     get:
       tags:
-      - Dags
-      summary: Recent Dag Runs
-      description: Get recent DAG runs.
-      operationId: recent_dag_runs
+      - DAG
+      summary: Get Dags
+      description: Get DAGs with recent DagRun.
+      operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -211,6 +211,13 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: dag_id
+          title: Order By
       responses:
         '200':
           description: Successful Response
@@ -396,8 +403,8 @@ paths:
     get:
       tags:
       - Backfill
-      summary: List Backfills
-      operationId: list_backfills
+      summary: List Backfills Ui
+      operationId: list_backfills_ui
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -761,12 +768,6 @@ components:
         default_wrap:
           type: boolean
           title: Default Wrap
-        audit_view_excluded_events:
-          type: string
-          title: Audit View Excluded Events
-        audit_view_included_events:
-          type: string
-          title: Audit View Included Events
         test_connection:
           type: string
           title: Test Connection
@@ -792,8 +793,6 @@ components:
       - enable_swagger_ui
       - require_confirmation_dag_change
       - default_wrap
-      - audit_view_excluded_events
-      - audit_view_included_events
       - test_connection
       - dashboard_alert
       - show_external_log_redirect
@@ -900,6 +899,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
         data_interval_start:
           anyOf:
           - type: string
@@ -962,6 +966,7 @@ components:
       - queued_at
       - start_date
       - end_date
+      - duration
       - data_interval_start
       - data_interval_end
       - run_after
@@ -1085,6 +1090,13 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        deadline:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -1175,6 +1187,7 @@ components:
       - relative_fileloc
       - fileloc
       - description
+      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -1314,6 +1327,31 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineAlertResponse:
+      properties:
+        reference:
+          type: string
+          title: Reference
+        interval:
+          type: string
+          format: duration
+          title: Interval
+        callback:
+          type: string
+          title: Callback
+        callback_kwargs:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Callback Kwargs
+      type: object
+      required:
+      - reference
+      - interval
+      - callback
+      title: DeadlineAlertResponse
+      description: Deadline alert serializer for responses.
     EdgeResponse:
       properties:
         source_id:

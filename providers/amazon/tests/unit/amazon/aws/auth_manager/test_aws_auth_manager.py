@@ -486,7 +486,18 @@ class TestAwsAuthManager:
             ]
             + [
                 {"method": "GET", "details": DagDetails(id="dag_1"), "access_entity": dag_access_entity}
-                for dag_access_entity in DagAccessEntity
+                for dag_access_entity in (
+                    DagAccessEntity.AUDIT_LOG,
+                    DagAccessEntity.CODE,
+                    DagAccessEntity.DEPENDENCIES,
+                    DagAccessEntity.RUN,
+                    DagAccessEntity.TASK,
+                    DagAccessEntity.TASK_INSTANCE,
+                    DagAccessEntity.TASK_LOGS,
+                    DagAccessEntity.VERSION,
+                    DagAccessEntity.WARNING,
+                    DagAccessEntity.XCOM,
+                )
             ],
             user=mock,
         )
@@ -518,11 +529,9 @@ class TestAwsAuthManager:
                     DagAccessEntity.CODE.value,
                     DagAccessEntity.DEPENDENCIES.value,
                     DagAccessEntity.RUN.value,
-                    DagAccessEntity.SLA_MISS.value,
                     DagAccessEntity.TASK.value,
                     DagAccessEntity.TASK_INSTANCE.value,
                     DagAccessEntity.TASK_LOGS.value,
-                    DagAccessEntity.TASK_RESCHEDULE.value,
                     DagAccessEntity.VERSION.value,
                     DagAccessEntity.WARNING.value,
                     DagAccessEntity.XCOM.value,

@@ -224,6 +224,10 @@ short ``provider id`` (might be multiple of them).
 
      breeze build-docs <provider id> <provider id>
 
+To build documentation for Task SDK package, use the below command
+.. code-block:: bash
+     breeze build-docs task-sdk
+
 or you can use package filter. The filters are glob pattern matching full
 package names and can be used to select more than one package with single filter.
 
@@ -442,7 +446,7 @@ Breeze uses docker images heavily and those images are rebuild periodically and 
 images in docker cache. This might cause extra disk usage. Also running various docker compose commands
 (for example running tests with ``breeze testing core-tests``) might create additional docker networks that might
 prevent new networks from being created. Those networks are not removed automatically by docker-compose.
-Also Breeze uses it's own cache to keep information about all images.
+Also Breeze uses its own cache to keep information about all images.
 
 All those unused images, networks and cache can be removed by running ``breeze cleanup`` command. By default
 it will not remove the most recent images that you might need to run breeze commands, but you
@@ -461,7 +465,7 @@ These are all available flags of ``cleanup`` command:
 Database and config volumes in Breeze
 -------------------------------------
 
-Breeze keeps data for all it's integration, database, configuration in named docker volumes.
+Breeze keeps data for all its integration, database, configuration in named docker volumes.
 Those volumes are persisted until ``breeze down`` command. You can also preserve the volumes by adding
 flag ``--preserve-volumes`` when you run the command. Then, next time when you start Breeze,
 it will have the data pre-populated.

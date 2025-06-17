@@ -29,12 +29,13 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1744792091
+source-date-epoch: 1749897313
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 16.0.0
   - 15.1.0
   - 15.0.1
   - 15.0.0
@@ -1089,6 +1090,10 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.azure_blob_to_gcs
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/azure_blob_to_gcs.rst
+  - source-integration-name: Hypertext Transfer Protocol (HTTP)
+    target-integration-name: Google Cloud Storage (GCS)
+    python-module: airflow.providers.google.cloud.transfers.http_to_gcs
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/http_to_gcs.rst
 
 connection-types:
   - hook-class-name: airflow.providers.google.common.hooks.base_google.GoogleBaseHook
@@ -1107,6 +1112,8 @@ connection-types:
     connection-type: leveldb
   - hook-class-name: airflow.providers.google.ads.hooks.ads.GoogleAdsHook
     connection-type: google_ads
+  - hook-class-name: airflow.providers.google.cloud.hooks.looker.LookerHook
+    connection-type: gcp_looker
 
 extra-links:
   - airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink

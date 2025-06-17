@@ -495,9 +495,21 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         return textwrap.dedent(inspect.getsource(self.python_callable))
 
     def _write_args(self, file: Path):
+        def resolve_proxies(obj):
+            """Recursively replaces lazy_object_proxy.Proxy instances with their resolved values."""
+            if isinstance(obj, lazy_object_proxy.Proxy):
+                return obj.__wrapped__  # force evaluation
+            if isinstance(obj, dict):
+                return {k: resolve_proxies(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [resolve_proxies(v) for v in obj]
+            return obj
+
         if self.op_args or self.op_kwargs:
             self.log.info("Use %r as serializer.", self.serializer)
-            file.write_bytes(self.pickling_library.dumps({"args": self.op_args, "kwargs": self.op_kwargs}))
+            file.write_bytes(
+                self.pickling_library.dumps({"args": self.op_args, "kwargs": resolve_proxies(self.op_kwargs)})
+            )
 
     def _write_string_args(self, file: Path):
         file.write_text("\n".join(map(str, self.string_args)))

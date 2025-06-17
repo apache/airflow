@@ -40,6 +40,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunStateResponse,
     DagRunType,
+    InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstanceState,
     TaskStatesResponse,
@@ -58,6 +59,8 @@ from airflow.sdk.api.datamodels._generated import (
     VariablePostBody,
     VariableResponse,
     XComResponse,
+    XComSequenceIndexResponse,
+    XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -103,7 +106,6 @@ def get_json_error(response: httpx.Response):
     """Raise a ServerResponseError if we can extract error info from the error."""
     err = ServerResponseError.from_response(response)
     if err:
-        log.warning("Server error", detail=err.detail)
         raise err
 
 
@@ -171,10 +173,6 @@ class TaskInstanceOperations:
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def heartbeat(self, id: uuid.UUID, pid: int):
-        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
-        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
-
     def defer(self, id: uuid.UUID, msg):
         """Tell the API server that this TI has been deferred."""
         body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
@@ -188,6 +186,10 @@ class TaskInstanceOperations:
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def heartbeat(self, id: uuid.UUID, pid: int):
+        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
+        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
 
     def skip_downstream_tasks(self, id: uuid.UUID, msg: SkipDownstreamTasks):
         """Tell the API server to skip the downstream tasks of this TI."""
@@ -271,6 +273,11 @@ class TaskInstanceOperations:
 
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
+
+    def validate_inlets_and_outlets(self, id: uuid.UUID) -> InactiveAssetsResponse:
+        """Validate whether there're inactive assets in inlets and outlets of a given task instance."""
+        resp = self.client.get(f"task-instances/{id}/validate-inlets-and-outlets")
+        return InactiveAssetsResponse.model_validate_json(resp.read())
 
 
 class ConnectionOperations:
@@ -443,10 +450,9 @@ class XComOperations:
         task_id: str,
         key: str,
         offset: int,
-    ) -> XComResponse | ErrorResponse:
-        params = {"offset": offset}
+    ) -> XComSequenceIndexResponse | ErrorResponse:
         try:
-            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.error(
@@ -470,7 +476,27 @@ class XComOperations:
                     },
                 )
             raise
-        return XComResponse.model_validate_json(resp.read())
+        return XComSequenceIndexResponse.model_validate_json(resp.read())
+
+    def get_sequence_slice(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        start: int | None,
+        stop: int | None,
+        step: int | None,
+    ) -> XComSequenceSliceResponse:
+        params = {}
+        if start is not None:
+            params["start"] = start
+        if stop is not None:
+            params["stop"] = stop
+        if step is not None:
+            params["step"] = step
+        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice", params=params)
+        return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
 class AssetOperations:

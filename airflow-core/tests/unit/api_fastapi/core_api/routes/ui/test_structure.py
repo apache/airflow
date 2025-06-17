@@ -25,18 +25,21 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.models import DagBag
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
+from airflow.sdk import Metadata, task
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
+from airflow.utils import timezone
 
-from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
 DAG_ID = "dag_with_multiple_versions"
 DAG_ID_EXTERNAL_TRIGGER = "external_trigger"
+DAG_ID_RESOLVED_ASSET_ALIAS = "dag_with_resolved_asset_alias"
 LATEST_VERSION_DAG_RESPONSE: dict = {
     "edges": [],
     "nodes": [
@@ -95,8 +98,10 @@ def examples_dag_bag() -> DagBag:
 @pytest.fixture(autouse=True)
 def clean():
     clear_db_runs()
+    clear_db_assets()
     yield
     clear_db_runs()
+    clear_db_assets()
 
 
 @pytest.fixture
@@ -115,7 +120,7 @@ def asset3() -> Dataset:
 
 
 @pytest.fixture
-def make_dag(dag_maker, session, time_machine, asset1: Asset, asset2: Asset, asset3: Dataset) -> None:
+def make_dags(dag_maker, session, time_machine, asset1: Asset, asset2: Asset, asset3: Dataset) -> None:
     with dag_maker(
         dag_id=DAG_ID_EXTERNAL_TRIGGER,
         serialized=True,
@@ -123,7 +128,6 @@ def make_dag(dag_maker, session, time_machine, asset1: Asset, asset2: Asset, ass
         start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
     ):
         TriggerDagRunOperator(task_id="trigger_dag_run_operator", trigger_dag_id=DAG_ID)
-
     dag_maker.sync_dagbag_to_db()
 
     with dag_maker(
@@ -138,7 +142,45 @@ def make_dag(dag_maker, session, time_machine, asset1: Asset, asset2: Asset, ass
             >> ExternalTaskSensor(task_id="external_task_sensor", external_dag_id=DAG_ID)
             >> EmptyOperator(task_id="task_2")
         )
+    dag_maker.sync_dagbag_to_db()
 
+    with dag_maker(
+        dag_id=DAG_ID_RESOLVED_ASSET_ALIAS,
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+
+        @task(outlets=[AssetAlias("example-alias-resolved")])
+        def task_1(**context):
+            yield Metadata(
+                asset=Asset("resolved_example_asset_alias"),
+                extra={"k": "v"},  # extra has to be provided, can be {}
+                alias=AssetAlias("example-alias-resolved"),
+            )
+
+        task_1() >> EmptyOperator(task_id="task_2")
+
+    dr = dag_maker.create_dagrun()
+    asset_alias = session.scalar(
+        select(AssetAliasModel).where(AssetAliasModel.name == "example-alias-resolved")
+    )
+    asset_model = AssetModel(name="resolved_example_asset_alias")
+    session.add(asset_model)
+    session.flush()
+    asset_alias.assets.append(asset_model)
+    asset_alias.asset_events.append(
+        AssetEvent(
+            id=1,
+            timestamp=timezone.parse("2021-01-01T00:00:00"),
+            asset_id=asset_model.id,
+            source_dag_id=DAG_ID_RESOLVED_ASSET_ALIAS,
+            source_task_id="task_1",
+            source_run_id=dr.run_id,
+            source_map_index=-1,
+        )
+    )
+    session.commit()
     dag_maker.sync_dagbag_to_db()
 
 
@@ -151,17 +193,17 @@ def _fetch_asset_id(asset: Asset, session: Session) -> str:
 
 
 @pytest.fixture
-def asset1_id(make_dag, asset1, session: Session) -> str:
+def asset1_id(make_dags, asset1, session: Session) -> str:
     return _fetch_asset_id(asset1, session)
 
 
 @pytest.fixture
-def asset2_id(make_dag, asset2, session) -> str:
+def asset2_id(make_dags, asset2, session) -> str:
     return _fetch_asset_id(asset2, session)
 
 
 @pytest.fixture
-def asset3_id(make_dag, asset3, session) -> str:
+def asset3_id(make_dags, asset3, session) -> str:
     return _fetch_asset_id(asset3, session)
 
 
@@ -296,13 +338,13 @@ class TestStructureDataEndpoint:
             ),
         ],
     )
-    @pytest.mark.usefixtures("make_dag")
+    @pytest.mark.usefixtures("make_dags")
     def test_should_return_200(self, test_client, params, expected):
         response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
-    @pytest.mark.usefixtures("make_dag")
+    @pytest.mark.usefixtures("make_dags")
     def test_should_return_200_with_asset(self, test_client, asset1_id, asset2_id, asset3_id):
         params = {
             "dag_id": DAG_ID,
@@ -310,6 +352,20 @@ class TestStructureDataEndpoint:
         }
         expected = {
             "edges": [
+                {
+                    "is_setup_teardown": None,
+                    "label": None,
+                    "source_id": "external_task_sensor",
+                    "target_id": "task_2",
+                    "is_source_asset": None,
+                },
+                {
+                    "is_setup_teardown": None,
+                    "label": None,
+                    "source_id": "task_1",
+                    "target_id": "external_task_sensor",
+                    "is_source_asset": None,
+                },
                 {
                     "is_setup_teardown": None,
                     "label": None,
@@ -355,21 +411,7 @@ class TestStructureDataEndpoint:
                 {
                     "is_setup_teardown": None,
                     "label": None,
-                    "source_id": "external_task_sensor",
-                    "target_id": "task_2",
-                    "is_source_asset": None,
-                },
-                {
-                    "is_setup_teardown": None,
-                    "label": None,
                     "source_id": "task_1",
-                    "target_id": "external_task_sensor",
-                    "is_source_asset": None,
-                },
-                {
-                    "is_setup_teardown": None,
-                    "label": None,
-                    "source_id": "task_2",
                     "target_id": f"asset:{asset3_id}",
                     "is_source_asset": None,
                 },
@@ -482,6 +524,75 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "asset-alias",
+                    "operator": None,
+                    "asset_condition_type": None,
+                },
+            ],
+        }
+
+        response = test_client.get("/structure/structure_data", params=params)
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    @pytest.mark.usefixtures("make_dags")
+    def test_should_return_200_with_resolved_asset_alias_attached_to_the_corrrect_producing_task(
+        self, test_client, session
+    ):
+        resolved_asset = session.scalar(
+            session.query(AssetModel).filter_by(name="resolved_example_asset_alias")
+        )
+        params = {
+            "dag_id": DAG_ID_RESOLVED_ASSET_ALIAS,
+            "external_dependencies": True,
+        }
+        expected = {
+            "edges": [
+                {
+                    "source_id": "task_1",
+                    "target_id": "task_2",
+                    "is_setup_teardown": None,
+                    "label": None,
+                    "is_source_asset": None,
+                },
+                {
+                    "source_id": "task_1",
+                    "target_id": f"asset:{resolved_asset.id}",
+                    "is_setup_teardown": None,
+                    "label": None,
+                    "is_source_asset": None,
+                },
+            ],
+            "nodes": [
+                {
+                    "id": "task_1",
+                    "label": "task_1",
+                    "type": "task",
+                    "children": None,
+                    "is_mapped": None,
+                    "tooltip": None,
+                    "setup_teardown_type": None,
+                    "operator": "@task",
+                    "asset_condition_type": None,
+                },
+                {
+                    "id": "task_2",
+                    "label": "task_2",
+                    "type": "task",
+                    "children": None,
+                    "is_mapped": None,
+                    "tooltip": None,
+                    "setup_teardown_type": None,
+                    "operator": "EmptyOperator",
+                    "asset_condition_type": None,
+                },
+                {
+                    "id": f"asset:{resolved_asset.id}",
+                    "label": "resolved_example_asset_alias",
+                    "type": "asset",
+                    "children": None,
+                    "is_mapped": None,
+                    "tooltip": None,
+                    "setup_teardown_type": None,
                     "operator": None,
                     "asset_condition_type": None,
                 },

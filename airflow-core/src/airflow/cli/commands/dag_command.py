@@ -252,6 +252,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "next_dagrun_data_interval_end": None,
         "next_dagrun_logical_date": None,
         "next_dagrun_run_after": None,
+        "deadline": None,
     }
 
 

@@ -43,7 +43,7 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
   const remainingWidth = BAR_WIDTH - stateWidth;
 
   const searchParams = new URLSearchParams(`?state=${state}&start_date=${startDate}`);
-  const { t: translate } = useTranslation("dashboard");
+  const { t: translate } = useTranslation();
 
   if (endDate !== undefined) {
     searchParams.append("end_date", endDate);

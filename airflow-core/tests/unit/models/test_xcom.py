@@ -46,8 +46,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-class CustomXCom(BaseXCom):
-    orm_deserialize_value = mock.Mock()
+class CustomXCom(BaseXCom): ...
 
 
 @pytest.fixture(autouse=True)

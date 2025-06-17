@@ -35,6 +35,7 @@ from http import HTTPStatus
 from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
+    BinaryIO,
     Callable,
     ClassVar,
     NoReturn,
@@ -60,7 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TaskStatesResponse,
     VariableResponse,
-    XComResponse,
+    XComSequenceIndexResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -87,6 +88,8 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
+    GetXComSequenceSlice,
+    InactiveAssetsResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -100,9 +103,12 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
+    ValidateInletsAndOutlets,
     VariableResult,
     XComCountResponse,
     XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.secrets_masker import mask_secret
 
@@ -124,6 +130,7 @@ HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeo
 MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
+SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout")
 
 SERVER_TERMINATED = "SERVER_TERMINATED"
 
@@ -351,6 +358,13 @@ def _fork_main(
             sys.stderr.flush()
         with suppress(ValueError, OSError):
             last_chance_stderr.flush()
+
+        # Explicitly close the child-end of our supervisor sockets so
+        # the parent sees EOF on both "requests" and "logs" channels.
+        with suppress(OSError):
+            os.close(log_fd)
+        with suppress(OSError):
+            os.close(child_stdin.fileno())
         os._exit(n)
 
     if hasattr(atexit, "_clear"):
@@ -423,6 +437,8 @@ class WatchedSubprocess:
 
     _num_open_sockets: int = 4
     _exit_code: int | None = attrs.field(default=None, init=False)
+    _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
+    _fd_to_socket_type: dict[int, str] = attrs.field(factory=dict, init=False)
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector, repr=False)
 
@@ -506,6 +522,14 @@ class WatchedSubprocess:
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
+
+        # Track socket types for debugging
+        self._fd_to_socket_type = {
+            stdout.fileno(): "stdout",
+            stderr.fileno(): "stderr",
+            requests.fileno(): "requests",
+            logs.fileno(): "logs",
+        }
 
         target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
         if self.subprocess_logs_to_stdout:
@@ -592,6 +616,28 @@ class WatchedSubprocess:
                 # else we get unclosed socket warnings, and likely leaking FDs too
                 sock._sock.close()
             sock.close()
+
+    def _cleanup_open_sockets(self):
+        """Force-close any sockets that never reported EOF."""
+        # In extremely busy environments the selector can fail to deliver a
+        # final read event before the subprocess exits. Without closing these
+        # sockets the supervisor would wait forever thinking they are still
+        # active. This cleanup ensures we always release resources and exit.
+        stuck_sockets = []
+        for key in list(self.selector.get_map().values()):
+            socket_type = self._fd_to_socket_type.get(key.fd, f"unknown-{key.fd}")
+            stuck_sockets.append(f"{socket_type}({key.fd})")
+            with suppress(Exception):
+                self.selector.unregister(key.fileobj)
+            with suppress(Exception):
+                key.fileobj.close()  # type: ignore[union-attr]
+
+        if stuck_sockets:
+            log.warning("Force-closed stuck sockets", pid=self.pid, sockets=stuck_sockets)
+
+        self.selector.close()
+        self._close_unused_sockets(self.stdin)
+        self._num_open_sockets = 0
 
     def kill(
         self,
@@ -685,7 +731,9 @@ class WatchedSubprocess:
         :param expect_signal: Signal not to log if the task exits with this code.
         :returns: The process exit code, or None if it's still alive
         """
-        events = self.selector.select(timeout=max_wait_time)
+        # Ensure minimum timeout to prevent CPU spike with tight loop when timeout is 0 or negative
+        timeout = max(0.01, max_wait_time)
+        events = self.selector.select(timeout=timeout)
         for key, _ in events:
             # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
             socket_handler = key.data
@@ -724,6 +772,7 @@ class WatchedSubprocess:
             if raise_on_timeout:
                 raise
         else:
+            self._process_exit_monotonic = time.monotonic()
             self._close_unused_sockets(self.stdin)
             # Put a message in the viewable task logs
 
@@ -897,6 +946,18 @@ class ActivitySubprocess(WatchedSubprocess):
             # This listens for activity (e.g., subprocess output) on registered file objects
             alive = self._service_subprocess(max_wait_time=max_wait_time) is None
 
+            if self._exit_code is not None and self._num_open_sockets > 0:
+                if (
+                    self._process_exit_monotonic
+                    and time.monotonic() - self._process_exit_monotonic > SOCKET_CLEANUP_TIMEOUT
+                ):
+                    log.debug(
+                        "Forcefully closing remaining sockets",
+                        open_sockets=self._num_open_sockets,
+                        pid=self.pid,
+                    )
+                    self._cleanup_open_sockets()
+
             if alive:
                 # We don't need to heartbeat if the process has shutdown, as we are just finishing of reading the
                 # logs
@@ -1047,16 +1108,21 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result
         elif isinstance(msg, GetXComCount):
-            len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=len)
+            xcom_count = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp = XComCountResponse(len=xcom_count)
         elif isinstance(msg, GetXComSequenceItem):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
             )
-            if isinstance(xcom, XComResponse):
-                resp = XComResult.from_xcom_response(xcom)
+            if isinstance(xcom, XComSequenceIndexResponse):
+                resp = XComSequenceIndexResult.from_response(xcom)
             else:
                 resp = xcom
+        elif isinstance(msg, GetXComSequenceSlice):
+            xcoms = self.client.xcoms.get_sequence_slice(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.start, msg.stop, msg.step
+            )
+            resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, DeferTask):
             self._terminal_state = TaskInstanceState.DEFERRED
             self._rendered_map_index = msg.rendered_map_index
@@ -1152,6 +1218,10 @@ class ActivitySubprocess(WatchedSubprocess):
             )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
+        elif isinstance(msg, ValidateInletsAndOutlets):
+            inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
+            resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
+            dump_opts = {"exclude_unset": True}
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -1496,6 +1566,7 @@ def supervise(
 
     # TODO: Use logging providers to handle the chunked upload for us etc.
     logger: FilteringBoundLogger | None = None
+    log_file_descriptor: BinaryIO | TextIO | None = None
     if log_path:
         # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
         # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
@@ -1506,9 +1577,11 @@ def supervise(
 
         pretty_logs = False
         if pretty_logs:
-            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("a", buffering=1))
+            log_file_descriptor = log_file.open("a", buffering=1)
+            underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
         else:
-            underlying_logger = structlog.BytesLogger(log_file.open("ab"))
+            log_file_descriptor = log_file.open("ab")
+            underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
@@ -1533,4 +1606,6 @@ def supervise(
     exit_code = process.wait()
     end = time.monotonic()
     log.info("Task finished", exit_code=exit_code, duration=end - start, final_state=process.final_state)
+    if log_path and log_file_descriptor:
+        log_file_descriptor.close()
     return exit_code

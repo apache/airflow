@@ -23,8 +23,8 @@ Airflow has feature that allows to integrate a custom UI along with its
 core UI using the Plugin manager.
 
 Plugins integrate with the Airflow core RestAPI. In this plugin,
-two object references are derived from the base class ``airflow.plugins_manager.AirflowPlugin``.
-They are fastapi_apps and fastapi_root_middlewares.
+three object references are derived from the base class ``airflow.plugins_manager.AirflowPlugin``.
+They are fastapi_apps, fastapi_root_middlewares and iframe_views.
 
 Using fastapi_apps in Airflow plugin, the core RestAPI can be extended
 to support extra endpoints to serve custom static file or any other json/application responses.
@@ -37,7 +37,12 @@ functionality to the entire FastAPI application, including core endpoints.
 In this object reference, the list of dictionaries with Middleware factories object,
 initialization parameters and some metadata information like the name are passed on.
 
-Information and code samples to register ``fastapi_apps`` and ``fastapi_root_middlewares`` are
+Using iframe_views in Airflow plugin, allows to register custom views that are rendered in iframes in
+the Airflow UI. This is useful for integrating external applications or custom dashboards into the Airflow UI.
+In this object reference, the list of dictionaries with the view name, iframe src (templatable), destination and
+optional parameters like the icon and url_route are passed on.
+
+Information and code samples to register ``fastapi_apps``, ``fastapi_root_middlewares`` and ``iframe_views`` are
 available in :doc:`plugin </administration-and-deployment/plugins>`.
 
 Support for Airflow 2 plugins

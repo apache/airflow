@@ -47,9 +47,10 @@ if TYPE_CHECKING:
 
     from sqlalchemy.engine.base import Engine
 
-    from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstancekey import TaskInstanceKey
 
+    # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
+    CommandType = Sequence[str]
     # Task tuple to send to be executed
     TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
@@ -72,11 +73,22 @@ class EdgeExecutor(BaseExecutor):
         inspector = inspect(engine)
         edge_job_columns = None
         with contextlib.suppress(NoSuchTableError):
-            edge_job_columns = [column["name"] for column in inspector.get_columns("edge_job")]
+            edge_job_schema = inspector.get_columns("edge_job")
+            edge_job_columns = [column["name"] for column in edge_job_schema]
+            for column in edge_job_schema:
+                if column["name"] == "command":
+                    edge_job_command_len = column["type"].length
 
         # version 0.6.0rc1 added new column concurrency_slots
         if edge_job_columns and "concurrency_slots" not in edge_job_columns:
             EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
+
+        # version 1.1.0 the command column was changed to VARCHAR(2048)
+        elif edge_job_command_len and edge_job_command_len != 2048:
+            with Session(engine) as session:
+                query = "ALTER TABLE edge_job ALTER COLUMN command TYPE VARCHAR(2048);"
+                session.execute(text(query))
+                session.commit()
 
         edge_worker_columns = None
         with contextlib.suppress(NoSuchTableError):
@@ -108,7 +120,7 @@ class EdgeExecutor(BaseExecutor):
         Store queued_tasks in own var to be able to access this in execute_async function.
         """
         self.edge_queued_tasks = deepcopy(self.queued_tasks)
-        super()._process_tasks(task_tuples)
+        super()._process_tasks(task_tuples)  # type: ignore[misc]
 
     @provide_session
     def execute_async(
@@ -122,10 +134,11 @@ class EdgeExecutor(BaseExecutor):
         """Execute asynchronously. Airflow 2.10 entry point to execute a task."""
         # Use of a temponary trick to get task instance, will be changed with Airflow 3.0.0
         # code works together with _process_tasks overwrite to get task instance.
-        task_instance = self.edge_queued_tasks[key][3]  # TaskInstance in fourth element
+        # TaskInstance in fourth element
+        task_instance = self.edge_queued_tasks[key][3]  # type: ignore[index]
         del self.edge_queued_tasks[key]
 
-        self.validate_airflow_tasks_run_command(command)
+        self.validate_airflow_tasks_run_command(command)  # type: ignore[attr-defined]
         session.add(
             EdgeJobModel(
                 dag_id=key.dag_id,

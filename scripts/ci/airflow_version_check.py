@@ -45,9 +45,10 @@ def check_airflow_version(airflow_version: Version) -> tuple[str, bool]:
     returns: tuple containing the version and a boolean indicating if it's latest.
     """
     latest = False
-    url = "https://pypi.org/pypi/apache-airflow/json"
     try:
-        response = requests.get(url)
+        response = requests.get(
+            "https://pypi.org/pypi/apache-airflow/json", headers={"User-Agent": "Python requests"}
+        )
         response.raise_for_status()
         data = response.json()
         latest_version = Version(data["info"]["version"])

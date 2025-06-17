@@ -24,6 +24,7 @@ import { afterEach, describe, it, vi, expect } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
+import "../../i18n/config";
 import { DagCard } from "./DagCard";
 
 const mockDag = {
@@ -32,6 +33,7 @@ const mockDag = {
   bundle_version: "1",
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
+  deadline: null,
   description: null,
   file_token: "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
   fileloc: "/files/dags/nested_task_groups.py",
