@@ -40,9 +40,13 @@ metadata:
 data:
   {{/*- Set a default for core.execution_api_server_url pointing to the api-server service if it's not set -*/}}
   {{- if semverCompare ">=3.0.0" .Values.airflowVersion -}}
+    {{- $basePath := "" -}}
     {{- $config := merge .Values.config ( dict  "core" dict )}}
     {{- if not (hasKey $config.core "execution_api_server_url") -}}
-      {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s-api-server:%d/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer))  -}}
+      {{-  if (and $config.api $config.api.base_url) -}}
+        {{- with urlParse $config.api.base_url }}{{ $basePath = (trimSuffix "/" .path) }}{{ end }}
+      {{- end -}}
+      {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s-api-server:%d%s/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer) $basePath)  -}}
     {{- end -}}
   {{- end -}}
   # These are system-specified config overrides.

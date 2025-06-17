@@ -240,3 +240,65 @@ metadata:
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
         expected_line = f"standalone_dag_processor = {str(enabled).lower()}"
         assert expected_line in cfg.splitlines()
+
+    @pytest.mark.parametrize(
+        "airflow_version, base_url, execution_api_server_url, expected_execution_url",
+        [
+            (
+                "3.0.0",
+                None,
+                None,
+                "http://release-name-api-server:8080/execution",
+            ),
+            (
+                "2.9.0",
+                None,
+                None,
+                None,
+            ),
+            (
+                "3.0.0",
+                "http://example.com",
+                None,
+                "http://release-name-api-server:8080/execution",
+            ),
+            (
+                "3.0.0",
+                "http://example.com/airflow",
+                None,
+                "http://release-name-api-server:8080/airflow/execution",
+            ),
+            (
+                "3.0.0",
+                "http://example.com/airflow",
+                "http://service:9090/execution/",
+                "http://service:9090/execution/",
+            ),
+        ],
+    )
+    def test_execution_api_server_url(
+        self, airflow_version, base_url, execution_api_server_url, expected_execution_url
+    ):
+        config_overrides = {}
+        if base_url:
+            config_overrides["api"] = {"base_url": base_url}
+
+        if execution_api_server_url:
+            config_overrides["core"] = {"execution_api_server_url": execution_api_server_url}
+
+        configmap = render_chart(
+            values={"airflowVersion": airflow_version, "config": config_overrides},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        # config is the jmespath search for the data["airflow.cfg"] in the configmap
+        config = jmespath.search('data.["airflow.cfg"]', configmap[0])
+        assert config is not None, "Configmap data for airflow.cfg should not be None"
+        assert len(config) > 0, "Configmap data for airflow.cfg should not be empty"
+
+        if expected_execution_url is not None:
+            assert f"\nexecution_api_server_url = {expected_execution_url}" in config[0]
+        else:
+            assert "execution_api_server_url" not in config[0], (
+                "execution_api_server_url should not be set for Airflow 2.x versions"
+            )
