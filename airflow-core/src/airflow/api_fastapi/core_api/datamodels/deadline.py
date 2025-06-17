@@ -14,3 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from datetime import timedelta
+
+from airflow.api_fastapi.core_api.base import BaseModel
+
+
+class DeadlineAlertResponse(BaseModel):
+    """Deadline alert serializer for responses."""
+
+    reference: str
+    interval: timedelta
+    callback: str
+    callback_kwargs: dict | None = None

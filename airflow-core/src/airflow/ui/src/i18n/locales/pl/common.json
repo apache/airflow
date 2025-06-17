@@ -7,6 +7,8 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "asset_one": "Zasób",
+  "asset_other": "Zasoby",
   "assetEvent_one": "Zdarzenie Zasobu",
   "assetEvent_other": "Zdarzenia Zasobów",
   "backfill_one": "Wypełnienie wsteczne",
@@ -15,6 +17,8 @@
     "auditLog": "Log audytu",
     "xcoms": "XComy"
   },
+  "createdAssetEvent_one": "Utworzone zdarzenie zasobu",
+  "createdAssetEvent_other": "Utworzone zdarzenia zasobów",
   "dag_one": "Dag",
   "dag_other": "Dagi",
   "dagDetails": {
@@ -43,8 +47,14 @@
   "dagRun": {
     "conf": "Konfiguracja",
     "dagVersions": "Wersje Daga",
+    "dataIntervalEnd": "Koniec interwału danych",
+    "dataIntervalStart": "Początek interwału danych",
+    "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
+    "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
-    "runType": "Typ wykonania"
+    "runType": "Typ wykonania",
+    "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
+    "triggeredBy": "Uruchomiony przez"
   },
   "dagRun_one": "Wykonanie Daga",
   "dagRun_other": "Wykonania Dagów",
@@ -59,6 +69,13 @@
   },
   "duration": "Czas trwania",
   "endDate": "Data zakończenia",
+  "error": {
+    "back": "Powrót",
+    "defaultMessage": "Wystąpił nieoczekiwany błąd",
+    "home": "Strona główna",
+    "notFound": "Nie znaleziono strony",
+    "title": "Błąd"
+  },
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",
@@ -92,7 +109,8 @@
     "add": "Dodać notatkę",
     "dagRun": "Notatki wykonania Daga",
     "label": "Notatka",
-    "placeholder": "Dodaj notatkę..."
+    "placeholder": "Dodaj notatkę...",
+    "taskInstance": "Notatka instancji zadania"
   },
   "pools": {
     "deferred": "Odłożone",
@@ -105,7 +123,7 @@
   },
   "runId": "Identyfikator wykonania",
   "runTypes": {
-    "asset_triggered": "Wywołany Przez zasób",
+    "asset_triggered": "Uruchomiony przez zasób",
     "backfill": "Wypełnienie wsteczne",
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
@@ -119,6 +137,8 @@
     "users": "Użytkownicy"
   },
   "selectLanguage": "Wybierz język",
+  "sourceAssetEvent_one": "Zdarzenie źródłowego zasobu",
+  "sourceAssetEvent_other": "Zdarzenia źródłowych zasobów",
   "startDate": "Data rozpoczęcia",
   "state": "Stan",
   "states": {
@@ -129,7 +149,7 @@
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",
-    "running": "Uruchomione",
+    "running": "Wykonane",
     "scheduled": "Zaplanowane",
     "skipped": "Pominięte",
     "success": "Sukces",
@@ -149,7 +169,6 @@
     "from": "Od",
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "noTagsFound": "Nie znaleziono etykiet",
-    "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "tagMode": {
       "all": "Wszystkie",
       "any": "Dowolne"
@@ -158,16 +177,36 @@
     "to": "Do"
   },
   "task": {
-    "lastInstance": "Ostatnia instancja",
+    "documentation": "Dokumentacja zadania",
+    "lastInstance": "Ostatnia instancja zadania",
     "operator": "Operator",
-    "triggerRule": "Reguła wywołania"
+    "triggerRule": "Reguła zależności"
   },
   "task_one": "Zadanie",
   "task_other": "Zadania",
   "taskId": "Identifikator Zadania",
   "taskInstance": {
     "dagVersion": "Wersja Daga",
-    "pool": "Pula"
+    "executor": "Wykonawca",
+    "executorConfig": "Konfiguracja wykonawcy",
+    "hostname": "Nazwa hosta",
+    "maxTries": "Maksymalna liczba prób",
+    "pid": "PID",
+    "pool": "Pula",
+    "poolSlots": "Sloty puli",
+    "priorityWeight": "Waga priorytetu",
+    "queue": "Kolejka",
+    "queuedWhen": "Zakolejkowano o",
+    "scheduledWhen": "Zaplanowano o",
+    "triggerer": {
+      "assigned": "Przypisany wyzwalacz",
+      "class": "Klasa wyzwalacza",
+      "createdAt": "Czas utworzenia wyzwalacza",
+      "id": "Identyfikator wyzwalacza",
+      "latestHeartbeat": "Ostatni heartbeat wyzwalacza",
+      "title": "Informacje o wyzwalaczu"
+    },
+    "unixname": "Nazwa użytkownika systemu Unix"
   },
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
@@ -184,7 +223,44 @@
     "title": "Wybierz strefę czasową",
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
-  "triggered": "Wywołany",
+  "toaster": {
+    "bulkDelete": {
+      "error": "Nie udało się wykonać żądania masowego usunięcia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "title": "Wysłano żądanie masowego usunięcia {{resourceName}}"
+      }
+    },
+    "create": {
+      "error": "Nie udało się wykonać żądania utworzenia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie utworzono {{resourceName}}.",
+        "title": "Wysłano żądanie utworzenia {{resourceName}}"
+      }
+    },
+    "delete": {
+      "error": "Nie udało się wykonać żądania usunięcia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie usunięto {{resourceName}}.",
+        "title": "Wysłano żądanie usunięcia {{resourceName}}"
+      }
+    },
+    "import": {
+      "error": "Nie udało się wykonać żądania importu {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie zaimportowano {{count}} {{resourceName}}.",
+        "title": "Wysłano żądanie importu {{resourceName}}"
+      }
+    },
+    "update": {
+      "error": "Nie udało się wykonać żądania aktualizacji {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie zaktualizowano {{resourceName}}.",
+        "title": "Wysłano żądanie aktualizacji {{resourceName}}"
+      }
+    }
+  },
+  "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Użytkownik",
   "wrap": {

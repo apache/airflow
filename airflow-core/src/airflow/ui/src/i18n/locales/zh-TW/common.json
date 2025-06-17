@@ -67,7 +67,7 @@
     "githubRepo": "GitHub 倉庫",
     "restApiReference": "REST API 參考"
   },
-  "duration": "時間範圍",
+  "duration": "執行時間",
   "endDate": "結束日期",
   "error": {
     "back": "返回",
@@ -179,7 +179,7 @@
   "task": {
     "documentation": "任務文件",
     "lastInstance": "最後實例",
-    "operator": "運算子",
+    "operator": "任務操作器",
     "triggerRule": "觸發規則"
   },
   "task_one": "任務",

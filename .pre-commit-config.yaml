@@ -263,7 +263,13 @@ repos:
         exclude: ^providers/ssh/docs/connections/ssh\.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^airflow-core/docs/img/.*\.dot|^airflow-core/docs/img/.*\.sha256|.*/dist/.*|LICENSES-ui\.txt$
+        exclude: >
+          (?x)
+          ^airflow-core/docs/img/.*\.dot|
+          ^airflow-core/docs/img/.*\.sha256|
+          .*/dist/.*|
+          LICENSES-ui\.txt$|
+          .*/openapi-gen/.*
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
       - id: check-executables-have-shebangs
@@ -275,7 +281,11 @@ repos:
           ^scripts/ci/docker-compose/gremlin/.
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^airflow-core/docs/img/.*\.dot$|^dev/breeze/doc/images/output.*$
+        exclude: >
+          (?x)
+          ^airflow-core/docs/img/.*\.dot$|
+          ^dev/breeze/doc/images/output.*$|
+          ^.*/openapi-gen/.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
         args:
@@ -1283,6 +1293,40 @@ repos:
         files: ^go-sdk/
         types: [go]
         language: golang
+      - id: ts-compile-lint-ui
+        name: Compile / format / lint UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        files: |
+          (?x)
+          ^airflow-core/src/airflow/ui/.*\.(js|ts|tsx|yaml|css|json)|
+          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
+        exclude: |
+          (?x)
+          ^airflow-core/src/airflow/ui/node-modules/.*|
+          ^airflow-core/src/airflow/ui/.pnpm-store
+        entry: ./scripts/ci/pre_commit/ts_compile_lint_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
+      - id: ts-compile-lint-simple-auth-manager-ui
+        name: Compile / format / lint simple auth manager UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        files: |
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)|
+          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
+        exclude: |
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/node-modules/.*|
+          ^airflow-core/src/airflow/api_fastapi/.pnpm-store
+        entry: ./scripts/ci/pre_commit/ts_compile_lint_simple_auth_manager_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -1405,20 +1449,6 @@ repos:
         files: ^airflow-core/src/airflow/ui/src/i18n/locales/.*\.json
         entry: ./scripts/ci/pre_commit/check_i18n_json.py
         additional_dependencies: ['rich>=12.4.4']
-        pass_filenames: false
-      - id: ts-compile-format-lint-ui
-        name: Compile / format / lint UI
-        description: TS types generation / ESLint / Prettier new UI files
-        language: node
-        types_or: [javascript, ts, tsx, yaml, css, json]
-        files: |
-          (?x)
-          ^airflow-core/src/airflow/ui/|
-          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
-        entry: ./scripts/ci/pre_commit/compile_lint_ui.py
-        additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: false
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files

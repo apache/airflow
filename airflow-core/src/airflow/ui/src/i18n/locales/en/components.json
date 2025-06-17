@@ -87,8 +87,7 @@
   "limitedList": "+{{count}} more",
   "logs": {
     "file": "File",
-    "in": "in",
-    "line": "line"
+    "location": "line {{line}} in {{name}}"
   },
   "reparseDag": "Reparse Dag",
   "sortedAscending": "sorted ascending",
