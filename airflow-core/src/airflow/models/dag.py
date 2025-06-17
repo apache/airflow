@@ -465,13 +465,12 @@ class DAG(TaskSDKDag, LoggingMixin):
                     )
 
     def get_dagrun_creation_deadlines(self) -> DeadlineAlert | None:
-        """If the DAG has a deadline related to DagRun, return it; else return None."""
-        if (
-            not (deadline := self.deadline)
-            or type(deadline.reference) not in DeadlineReference.TYPES.DAGRUN_CREATED
+        """If the DAG has a deadline related to DagRun creation, return it; else return None."""
+        if (deadline := self.deadline) and isinstance(
+            deadline.reference, DeadlineReference.TYPES.DAGRUN_CREATED
         ):
-            return None
-        return deadline
+            return deadline
+        return None
 
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):
