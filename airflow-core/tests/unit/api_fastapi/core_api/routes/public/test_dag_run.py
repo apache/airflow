@@ -38,12 +38,7 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
-from tests_common.test_utils.db import (
-    clear_db_dags,
-    clear_db_logs,
-    clear_db_runs,
-    clear_db_serialized_dags,
-)
+from tests_common.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -1569,7 +1564,7 @@ class TestTriggerDagRun:
         assert response.status_code == 409
         response_json = response.json()
         assert "detail" in response_json
-        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
+        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_null_logical_date(self, test_client):
