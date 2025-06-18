@@ -169,7 +169,7 @@ class TestGlueJobSensor:
             sensor.execute({})
 
     @mock.patch.object(GlueJobSensor, "defer")
-    def test_max_retries_and_timeout(self, mock_defer):
+    def test_default_timeout(self, mock_defer):
         mock_defer.side_effect = TaskDeferred(trigger=mock.Mock(), method_name="execute_complete")
         sensor = GlueJobSensor(
             task_id="test_glue_job_sensor",
