@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urljoin
 
 import requests
@@ -26,6 +26,7 @@ from fastapi import FastAPI
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli.cli_config import CLICommand, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -54,7 +55,6 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.api_fastapi.common.types import MenuItem
 
 log = logging.getLogger(__name__)
 
@@ -198,7 +198,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def filter_authorized_menu_items(
         self, menu_items: list[MenuItem], *, user: KeycloakAuthManagerUser
     ) -> list[MenuItem]:
-        return menu_items
+        authorized_menus = self._is_batch_authorized(
+            permissions=[(cast("ResourceMethod", "MENU"), menu_item.value) for menu_item in menu_items],
+            user=user,
+        )
+        return [MenuItem(menu[1]) for menu in authorized_menus]
 
     def get_fastapi_app(self) -> FastAPI | None:
         from airflow.providers.keycloak.auth_manager.routes.login import login_router
@@ -260,6 +264,33 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
+    def _is_batch_authorized(
+        self,
+        *,
+        permissions: list[tuple[ResourceMethod, str]],
+        user: KeycloakAuthManagerUser,
+    ) -> set[tuple[ResourceMethod, str]]:
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        resp = requests.post(
+            self._get_token_url(server_url, realm),
+            data=self._get_batch_payload(client_id, permissions),
+            headers=self._get_headers(user.access_token),
+        )
+
+        if resp.status_code == 200:
+            return {(perm["scopes"][0], perm["rsname"]) for perm in resp.json()}
+        if resp.status_code == 403:
+            return set()
+        if resp.status_code == 400:
+            error = json.loads(resp.text)
+            raise AirflowException(
+                f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
+            )
+        raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
+
     @staticmethod
     def _get_token_url(server_url, realm):
         return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
@@ -273,6 +304,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         }
         if attributes:
             payload["context"] = {"attributes": attributes}
+
+        return payload
+
+    @staticmethod
+    def _get_batch_payload(client_id: str, permissions: list[tuple[ResourceMethod, str]]):
+        payload: dict[str, Any] = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
+            "audience": client_id,
+            "permission": [f"{permission[1]}#{permission[0]}" for permission in permissions],
+            "response_mode": "permissions",
+        }
 
         return payload
 
