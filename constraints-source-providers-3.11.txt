@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-16T21:19:58.524690
+# This constraints file was automatically generated on 2025-06-18T17:16:37.500980
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -27,7 +27,7 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Js2Py==0.74
 Mako==1.3.10
-Markdown==3.8
+Markdown==3.8.1
 MarkupSafe==3.0.2
 PyAthena==3.14.1
 PyGithub==2.6.1
@@ -44,7 +44,7 @@ SecretStorage==3.3.3
 Sphinx==8.2.3
 WTForms==3.2.1
 Werkzeug==2.2.3
-a2wsgi==1.10.8
+a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2024.12.0
 aiobotocore==2.23.0
@@ -83,7 +83,7 @@ apispec==6.8.2
 apprise==1.9.3
 argcomplete==3.6.2
 arro3-core==0.5.1
-asana==5.1.0
+asana==5.2.0
 asgiref==3.8.1
 asn1crypto==1.5.1
 astroid==3.3.10
@@ -102,7 +102,7 @@ azure-core==1.34.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.23.0
-azure-keyvault-secrets==4.9.0
+azure-keyvault-secrets==4.10.0
 azure-kusto-data==5.0.3
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
@@ -112,7 +112,7 @@ azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==23.4.0
+azure-mgmt-resource==24.0.0
 azure-mgmt-storage==23.0.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
@@ -194,9 +194,9 @@ et_xmlfile==2.0.0
 eventlet==0.40.0
 execnet==2.1.1
 executing==2.2.0
-facebook_business==22.0.5
+facebook_business==23.0.0
 fastapi-cli==0.0.7
-fastapi==0.115.12
+fastapi==0.115.13
 fastavro==1.11.1
 fasteners==0.19
 fastjsonschema==2.21.1
@@ -286,7 +286,7 @@ h2==4.2.0
 hatch==1.14.1
 hatchling==1.27.0
 hdfs==2.7.3
-hf-xet==1.1.3
+hf-xet==1.1.4
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -385,7 +385,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.4.4
+multidict==6.5.0
 mypy-boto3-appflow==1.38.0
 mypy-boto3-rds==1.38.35
 mypy-boto3-redshift-data==1.38.0
@@ -403,18 +403,18 @@ networkx==3.5
 nh3==0.2.21
 nodeenv==1.9.1
 numpy==1.26.4
-oauthlib==3.2.2
+oauthlib==3.3.0
 objsize==0.7.1
-openai==1.87.0
+openai==1.88.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.33.0
-openlineage-python==1.33.0
-openlineage_sql==1.33.0
+openlineage-integration-common==1.34.0
+openlineage-python==1.34.0
+openlineage_sql==1.34.0
 openpyxl==3.1.5
-opensearch-py==2.8.0
+opensearch-py==3.0.0
 opentelemetry-api==1.27.0
 opentelemetry-exporter-otlp-proto-common==1.27.0
 opentelemetry-exporter-otlp-proto-grpc==1.27.0
@@ -445,16 +445,15 @@ pdpyras==5.4.1
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
-pinecone-plugin-assistant==1.7.0
 pinecone-plugin-interface==0.0.7
-pinecone==7.0.2
+pinecone==7.0.1
 pinotdb==5.6.0
 pipdeptree==2.26.1
 platformdirs==4.3.8
 pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
-polars==1.30.0
+polars==1.31.0
 portalocker==2.10.1
 pprintpp==0.4.0
 pre-commit-uv==4.1.4
@@ -510,7 +509,7 @@ pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.7.0
-pytest==8.4.0
+pytest==8.4.1
 python-arango==8.2.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
@@ -634,7 +633,7 @@ tornado==6.5.1
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
-trino==0.334.0
+trino==0.335.0
 trove-classifiers==2025.5.9.12
 twine==6.1.0
 typer==0.16.0
@@ -666,7 +665,7 @@ tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.2.0
-urllib3==2.4.0
+urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.0
 uv==0.7.8
@@ -692,7 +691,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.12
-ydb==3.21.4
+ydb==3.21.5
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
