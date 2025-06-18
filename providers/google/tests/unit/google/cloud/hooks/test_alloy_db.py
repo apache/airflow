@@ -58,7 +58,7 @@ HOOK_PATH = "airflow.providers.google.cloud.hooks.alloy_db.{}"
 
 class TestAlloyDbHook:
     def setup_method(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection"):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection"):
             self.hook = AlloyDbHook(
                 gcp_conn_id=TEST_GCP_CONN_ID,
             )

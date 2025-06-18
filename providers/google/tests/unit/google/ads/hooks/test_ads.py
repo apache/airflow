@@ -46,7 +46,7 @@ EXTRAS_DEVELOPER_TOKEN = {
     params=[EXTRAS_DEVELOPER_TOKEN, EXTRAS_SERVICE_ACCOUNT], ids=["developer_token", "service_account"]
 )
 def mock_hook(request):
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+    with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection") as conn:
         hook = GoogleAdsHook(api_version=API_VERSION)
         conn.return_value.extra_dejson = request.param
         yield hook
@@ -61,7 +61,7 @@ def mock_hook(request):
     ids=["developer_token", "service_account", "empty"],
 )
 def mock_hook_for_authentication_method(request):
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+    with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection") as conn:
         hook = GoogleAdsHook(api_version=API_VERSION)
         conn.return_value.extra_dejson = request.param["input"]
         yield hook, request.param["expected_result"]

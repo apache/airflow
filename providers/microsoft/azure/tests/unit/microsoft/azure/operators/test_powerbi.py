@@ -85,7 +85,7 @@ IN_PROGRESS_REFRESH_DETAILS = {
 
 
 class TestPowerBIDatasetRefreshOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection)
     def test_execute_wait_for_termination_with_deferrable(self, connection):
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
@@ -98,7 +98,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
         assert isinstance(exc.value.trigger, PowerBITrigger)
         assert exc.value.trigger.dataset_refresh_id is None
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_refresh_status_success(self, connection):
         """Assert that get_refresh_status log success message"""
         operator = PowerBIDatasetRefreshOperator(

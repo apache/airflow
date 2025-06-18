@@ -36,7 +36,7 @@ SERVICE_ACCOUNT_AUTH_KEY_JSON = """{"id":"my_id", "service_account_id":"my_sa1",
 
 class TestYandexCloudYqHook:
     def _init_hook(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection") as mock_get_connection:
             mock_get_connection.return_value = self.connection
             self.hook = YQHook(default_folder_id="my_folder_id")
 

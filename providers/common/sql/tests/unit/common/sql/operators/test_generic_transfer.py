@@ -255,7 +255,7 @@ class TestGenericTransfer:
         assert operator.insert_args == {"commit_every": 5000, "executemany": True, "replace": True}
 
     def test_non_paginated_read(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=self.get_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=self.get_connection):
             with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=self.get_hook):
                 operator = GenericTransfer(
                     task_id="transfer_table",
@@ -283,7 +283,7 @@ class TestGenericTransfer:
         https://medium.com/apache-airflow/transfering-data-from-sap-hana-to-mssql-using-the-airflow-generictransfer-d29f147a9f1f
         """
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=self.get_connection):
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=self.get_connection):
             with mock.patch("airflow.hooks.base.BaseHook.get_hook", side_effect=self.get_hook):
                 operator = GenericTransfer(
                     task_id="transfer_table",

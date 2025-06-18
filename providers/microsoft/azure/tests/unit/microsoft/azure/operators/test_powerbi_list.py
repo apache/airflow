@@ -69,7 +69,7 @@ DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
 class TestPowerBIDatasetListOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_dataset_list_success(self, connection):
         """Assert that get_dataset_list log success message"""
         operator = PowerBIDatasetListOperator(
@@ -149,7 +149,7 @@ class TestPowerBIDatasetListOperator(Base):
 
 
 class TestPowerBIWorkspaceListOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_workspace_list_success(self, connection):
         """Assert that get_workspace_list log success message"""
         operator = PowerBIWorkspaceListOperator(

@@ -25,7 +25,7 @@ from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
 
 class TestJenkinsHook:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_client_created_default_http(self, get_connection_mock):
         """tests `init` method to validate http client creation when all parameters are passed"""
         default_connection_id = "jenkins_default"
@@ -47,7 +47,7 @@ class TestJenkinsHook:
         assert hook.jenkins_server is not None
         assert hook.jenkins_server.server == complete_url
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_client_created_default_https(self, get_connection_mock):
         """tests `init` method to validate https client creation when all
         parameters are passed"""
@@ -71,7 +71,7 @@ class TestJenkinsHook:
         assert hook.jenkins_server.server == complete_url
 
     @pytest.mark.parametrize("param_building", [True, False])
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     @mock.patch("jenkins.Jenkins.get_job_info")
     @mock.patch("jenkins.Jenkins.get_build_info")
     def test_get_build_building_state(

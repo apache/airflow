@@ -1536,7 +1536,7 @@ class TestBaseSQLOperatorSubClass:
     @pytest.mark.parametrize(
         "operator_class", [NewStyleBaseSQLOperatorSubClass, OldStyleBaseSQLOperatorSubClass]
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_new_style_subclass(self, mock_get_connection, operator_class):
         from airflow.providers.common.sql.hooks.sql import DbApiHook
 

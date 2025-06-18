@@ -89,7 +89,7 @@ def powerbi_workspace_list_trigger(timeout=TIMEOUT) -> PowerBIWorkspaceListTrigg
 
 
 class TestPowerBITrigger:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection", side_effect=get_airflow_connection)
     def test_powerbi_trigger_serialization(self, connection):
         """Asserts that the PowerBI Trigger correctly serializes its arguments and classpath."""
         powerbi_trigger = PowerBITrigger(

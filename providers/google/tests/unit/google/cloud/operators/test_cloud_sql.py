@@ -791,7 +791,7 @@ class TestCloudSqlQueryValidation:
             ),
         ],
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_create_operator_with_wrong_parameters(
         self,
         get_connection,
@@ -816,7 +816,7 @@ class TestCloudSqlQueryValidation:
         err = ctx.value
         assert message in str(err)
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.sdk.bases.hook.BaseHook.get_connection")
     def test_create_operator_with_too_long_unix_socket_path(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
