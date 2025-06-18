@@ -192,7 +192,7 @@ class TestHttpHook:
             assert conn.headers.get("verify") is None
             assert conn.proxies == {}
             assert conn.stream is False
-            assert conn.verify is False
+            assert conn.verify is False  # TODO: Check this
             assert conn.cert is None
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
             assert conn.trust_env is True
@@ -655,9 +655,11 @@ class TestHttpHook:
             }
         )()
 
-        actual = _process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+        actual_non_session_extra, actual_session_extra = _process_extra_options_from_connection(
+            conn=conn, extra_options=extra_options
+        )
 
-        assert extra_options == {
+        assert actual_session_extra == {
             "cert": "cert.crt",
             "stream": True,
             "proxy": proxy,
@@ -667,7 +669,7 @@ class TestHttpHook:
             "max_redirects": 3,
             "trust_env": False,
         }
-        assert actual == {"bearer": "test"}
+        assert actual_non_session_extra == {"bearer": "test"}
 
 
 class TestHttpAsyncHook:
