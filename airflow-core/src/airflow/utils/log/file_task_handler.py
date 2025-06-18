@@ -299,6 +299,29 @@ def _add_log_from_parsed_log_streams_to_heap(
             del parsed_log_streams[idx]
 
 
+def _flush_logs_out_of_heap(
+    heap: list[tuple[int, StructuredLogMessage]],
+    flush_size: int,
+    last_log_container: list[StructuredLogMessage | None],
+) -> Generator[StructuredLogMessage, None, None]:
+    """
+    Flush logs out of the heap, deduplicating them based on the last log.
+
+    :param heap: heap to flush logs from
+    :param flush_size: number of logs to flush
+    :param last_log_container: a container to store the last log, to avoid duplicate logs
+    :return: a generator that yields deduplicated logs
+    """
+    last_log = last_log_container[0]
+    for _ in range(flush_size):
+        sort_key, line = heapq.heappop(heap)
+        if line != last_log or _is_sort_key_with_default_timestamp(sort_key):  # dedupe
+            yield line
+        last_log = line
+    # update the last log container with the last log
+    last_log_container[0] = last_log
+
+
 def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
     """
     Merge parsed log streams using K-way merge.
@@ -325,24 +348,16 @@ def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
     }
 
     # keep adding records from logs until all logs are empty
-    last = None
+    last_log_container: list[StructuredLogMessage | None] = [None]
     while parsed_log_streams:
         _add_log_from_parsed_log_streams_to_heap(heap, parsed_log_streams)
 
         # yield HALF_HEAP_DUMP_SIZE records when heap size exceeds HEAP_DUMP_SIZE
         if len(heap) >= HEAP_DUMP_SIZE:
-            for _ in range(HALF_HEAP_DUMP_SIZE):
-                sort_key, line = heapq.heappop(heap)
-                if line != last or _is_sort_key_with_default_timestamp(sort_key):  # dedupe
-                    yield line
-                last = line
+            yield from _flush_logs_out_of_heap(heap, HALF_HEAP_DUMP_SIZE, last_log_container)
 
     # yield remaining records
-    for _ in range(len(heap)):
-        sort_key, line = heapq.heappop(heap)
-        if line != last or _is_sort_key_with_default_timestamp(sort_key):  # dedupe
-            yield line
-        last = line
+    yield from _flush_logs_out_of_heap(heap, len(heap), last_log_container)
     # free memory
     del heap
     del parsed_log_streams

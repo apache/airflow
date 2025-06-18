@@ -27,6 +27,7 @@ import re
 from http import HTTPStatus
 from importlib import reload
 from pathlib import Path
+from typing import cast
 from unittest import mock
 from unittest.mock import patch
 
@@ -55,6 +56,7 @@ from airflow.utils.log.file_task_handler import (
     _add_log_from_parsed_log_streams_to_heap,
     _create_sort_key,
     _fetch_logs_from_service,
+    _flush_logs_out_of_heap,
     _interleave_logs,
     _is_logs_stream_like,
     _is_sort_key_with_default_timestamp,
@@ -901,6 +903,92 @@ def test__add_log_from_parsed_log_streams_to_heap():
         _, log = heapq.heappop(heap)
         actual_logs.append(log.event)
     assert actual_logs == expected_logs
+
+
+@pytest.mark.parametrize(
+    "heap_setup, flush_size, last_log, expected_events",
+    [
+        pytest.param(
+            [("msg1", "2023-01-01"), ("msg2", "2023-01-02")],
+            2,
+            None,
+            ["msg1", "msg2"],
+            id="exact_size_flush",
+        ),
+        pytest.param(
+            [
+                ("msg1", "2023-01-01"),
+                ("msg2", "2023-01-02"),
+                ("msg3", "2023-01-03"),
+                ("msg3", "2023-01-03"),
+                ("msg5", "2023-01-05"),
+            ],
+            5,
+            None,
+            ["msg1", "msg2", "msg3", "msg5"],  # msg3 is deduplicated, msg5 has default timestamp
+            id="flush_with_duplicates",
+        ),
+        pytest.param(
+            [("msg1", "2023-01-01"), ("msg1", "2023-01-01"), ("msg2", "2023-01-02")],
+            3,
+            "msg1",
+            ["msg2"],  # The last_log is "msg1", so any duplicates of "msg1" should be skipped
+            id="flush_with_last_log",
+        ),
+        pytest.param(
+            [("msg1", "DEFAULT"), ("msg1", "DEFAULT"), ("msg2", "DEFAULT")],
+            3,
+            "msg1",
+            [
+                "msg1",
+                "msg1",
+                "msg2",
+            ],  # All messages have default timestamp, so they should be flushed even if last_log is "msg1"
+            id="flush_with_default_timestamp_and_last_log",
+        ),
+        pytest.param(
+            [("msg1", "2023-01-01"), ("msg2", "2023-01-02"), ("msg3", "2023-01-03")],
+            2,
+            None,
+            ["msg1", "msg2"],  # Only the first two messages should be flushed
+            id="flush_size_smaller_than_heap",
+        ),
+    ],
+)
+def test__flush_logs_out_of_heap(heap_setup, flush_size, last_log, expected_events):
+    """Test the _flush_logs_out_of_heap function with different scenarios."""
+
+    # Create structured log messages from the test setup
+    heap = []
+    messages = {}
+    for i, (event, timestamp_str) in enumerate(heap_setup):
+        if timestamp_str == "DEFAULT":
+            timestamp = DEFAULT_SORT_DATETIME
+        else:
+            timestamp = pendulum.parse(timestamp_str)
+
+        msg = StructuredLogMessage(event=event, timestamp=timestamp)
+        messages[event] = msg
+        heapq.heappush(heap, (_create_sort_key(msg.timestamp, i), msg))
+
+    # Set last_log if specified in the test case
+    last_log_obj = messages.get(last_log) if last_log is not None else None
+    last_log_container = [last_log_obj]
+
+    # Run the function under test
+    result = list(_flush_logs_out_of_heap(heap, flush_size, last_log_container))
+
+    # Verify the results
+    assert len(result) == len(expected_events)
+    assert len(heap) == (len(heap_setup) - flush_size)
+    for i, expected_event in enumerate(expected_events):
+        assert result[i].event == expected_event, f"result = {result}, expected_event = {expected_events}"
+
+    # verify that the last log is updated correctly
+    last_log_obj = last_log_container[0]
+    assert last_log_obj is not None
+    last_log_obj = cast("StructuredLogMessage", last_log_obj)
+    assert last_log_obj.event == expected_events[-1]
 
 
 def test_interleave_interleaves():
