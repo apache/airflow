@@ -34,7 +34,8 @@ export const PluginMenus = () => {
 
   const menuPlugins = data?.plugins.filter((plugin) => plugin.appbuilder_menu_items.length > 0);
   const iframePlugins =
-    data?.plugins.flatMap((plugin) => plugin.iframe_views).filter((view) => view.destination === "nav") ?? [];
+    data?.plugins.flatMap((plugin) => plugin.external_views).filter((view) => view.destination === "nav") ??
+    [];
 
   // Only show iframe plugins in menu if there are more than 2
   const menuIframePlugins = iframePlugins.length > 2 ? iframePlugins : [];

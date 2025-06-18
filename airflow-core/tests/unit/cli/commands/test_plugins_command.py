@@ -90,13 +90,15 @@ class TestPluginsCommand:
                         "name": "Name of the Middleware",
                     }
                 ],
-                "iframe_views": [
+                "external_views": [
                     {
                         "destination": "nav",
                         "icon": "https://example.com/icon.svg",
+                        "dark_mode_icon": "https://example.com/dark_icon.svg",
                         "name": "Test IFrame Plugin",
-                        "src": "https://www.google.com",
-                        "url_route": "/test_iframe_plugin",
+                        "href": "https://www.google.com",
+                        "url_route": "test_iframe_plugin",
+                        "category": "browse",
                     },
                 ],
                 "appbuilder_views": [
