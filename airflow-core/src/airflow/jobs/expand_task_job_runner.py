@@ -28,6 +28,7 @@ from airflow.models import DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.policies import task_instance_mutation_hook
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.utils.context import Context
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session, NEW_SESSION
@@ -48,15 +49,14 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         self,
         job: Job,
         task: MappedOperator,
-        run_id: str,
+        context: Context,
         dag_version_id: DagVersion,
     ) -> None:
         super().__init__(job)
-        self.job.dag_id = task.dag_id
+        task.operator_class = import_string(f"{task._task_module}.{task._task_type}")
+        self.context = {**context, **{"task": task}}
+        self.job.dag_id = self.dag_id
         self.job.job_type = self.job_type
-        self.task = task
-        self.task.operator_class = import_string(f"{task._task_module}.{task._task_type}")
-        self.run_id = run_id
         self.dag_version_id = dag_version_id
 
     @property
@@ -65,19 +65,23 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
     @property
     def dag_id(self) -> str:
-        return self.task.dag_id
+        return self.context["dag"].dag_id
+
+    @property
+    def task(self) -> MappedOperator:
+        return self.context["task"]
 
     @property
     def task_id(self) -> str:
         return self.task.task_id
 
+    @property
+    def run_id(self) -> str:
+        return self.context["run_id"]
+
     def expand_input(self, session: Session) -> Iterator[dict]:
         self.log.info("expand_input: %s", self.task.expand_input)
-        context = {
-            "task": self.task,
-            "run_id": self.run_id,
-        }
-        return iter(self.task.expand_input.resolve(context, session))
+        return iter(self.task.expand_input.resolve(self.context, session))
 
     def expand_task(self, task_instance: TaskInstance, mapped_kwargs) -> TaskInstance:
         self.log.info("expand task: %s", task_instance.map_index)
@@ -179,6 +183,5 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
 
         return task_instances
 
-    def _execute(self) -> int | None:
-        with create_session() as session:
-            return len(self.expand_tasks(expand_input=self.expand_input(session=session), job_id=self.job_id, session=session))
+    def _execute(self, session: Session) -> int | None:
+        return len(self.expand_tasks(expand_input=self.expand_input(session=session), job_id=self.job_id, session=session))

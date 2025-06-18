@@ -34,6 +34,8 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
+
+from airflow.models.deferred_iterable import DeferredIterable
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -230,14 +232,25 @@ class MSGraphAsyncOperator(BaseOperator):
                     self.trigger_next_link(
                         response=response, method_name=self.execute_complete.__name__, context=context
                     )
-                except TaskDeferred as exception:
+                except TaskDeferred as task_deferred:
+                    self.log.debug("streaming: %s", self.streaming)
+
+                    if self.streaming:
+                        return DeferredIterable(
+                            results=result,
+                            trigger=task_deferred.trigger,
+                            operator=self,
+                            next_method=self.execute_complete.__name__,
+                            context=context,
+                        )
+
                     self.append_result(
                         results=results,
                         result=result,
                         append_result_as_list_if_absent=True,
                     )
                     self.push_xcom(context=context, value=results)
-                    raise exception
+                    raise task_deferred
 
                 if not results:
                     return result

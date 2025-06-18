@@ -23,6 +23,7 @@ import collections.abc
 import enum
 import logging
 from collections.abc import Collection, Iterable, Sequence
+from itertools import islice
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
@@ -140,7 +141,7 @@ class TaskMap(TaskInstanceDependencies):
         :return: The newly created mapped task instances (if any) in ascending
             order by map index, and the maximum map index value.
         """
-        from airflow.jobs.expand_task_job_runner import TaskExpansionJobRunner
+        from airflow.jobs.expand_task_job_runner import TaskExpansionJobRunner, task_expansion_batch_size
         from airflow.models.baseoperator import BaseOperator as DBBaseOperator
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance
@@ -171,25 +172,23 @@ class TaskMap(TaskInstanceDependencies):
         all_expanded_tis: list[TaskInstance] = []
 
         if isinstance(task, MappedOperator) and unmapped_ti:
+            context = unmapped_ti.get_template_context(session=session)
             job = Job()
             job_runner = TaskExpansionJobRunner(
                 job=job,
                 task=task,
-                run_id=run_id,
+                context=context,
                 dag_version_id=dag_version_id,
             )
-            mapped_kwargs = next(job_runner.expand_input(session=session), None)
-            unmapped_ti.map_index = 0
-            unmapped_ti = job_runner.expand_task(unmapped_ti, mapped_kwargs)
-            task_instance_mutation_hook(unmapped_ti)
-            session.merge(unmapped_ti)
-            session.flush()
-            all_expanded_tis.append(unmapped_ti)
+            all_expanded_tis.extend(job_runner.expand_tasks(
+                expand_input=islice(job_runner.expand_input(session=session), task_expansion_batch_size),
+                session=session)
+            )
             total_expanded_ti_count = len(all_expanded_tis)
 
             task.log.info("total_expanded_ti_count: %s", total_expanded_ti_count)
 
-            run_job_async(job=job, execute_callable=job_runner._execute, session=session)
+            run_job_async(job=job, execute_callable=job_runner._execute)
         else:
             try:
                 total_length: int | None = DBBaseOperator.get_mapped_ti_count(task, run_id, session=session)
