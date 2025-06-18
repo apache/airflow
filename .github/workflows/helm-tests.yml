@@ -133,7 +133,7 @@ jobs:
       - name: "Test helm chart issue generation"
         run: >
           breeze release-management generate-issue-content-helm-chart --limit-pr-count 2
-          --previous_version helm-chart/1.15.0 --current-version helm-chart/1.16.0 --verbose
+          --previous-release helm-chart/1.15.0 --current-release helm-chart/1.16.0 --verbose
       - name: "Upload Helm artifacts"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
