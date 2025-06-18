@@ -73,7 +73,7 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        return self.log_handler.read(ti, try_number, metadata)
+        return self.log_handler.read(ti, try_number, metadata=metadata)
 
     def read_log_stream(
         self,
@@ -92,7 +92,8 @@ class TaskLogReader:
             try_number = ti.try_number
 
         for key in ("end_of_log", "max_offset", "offset", "log_pos"):
-            metadata.pop(key, None)
+            # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations
+            metadata.pop(key, None)  # type: ignore[misc]
         empty_iterations = 0
 
         while True:
@@ -115,7 +116,8 @@ class TaskLogReader:
                         yield "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n"
                         return
             else:
-                metadata.clear()
+                # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations
+                metadata.clear()  # type: ignore[attr-defined]
                 metadata.update(out_metadata)
                 return
 

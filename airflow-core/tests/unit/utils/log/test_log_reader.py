@@ -214,9 +214,9 @@ class TestLogView:
         # https://github.com/python/cpython/issues/77848
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, {"end_of_log": True}),
-                mock.call(self.ti, 1, {"end_of_log": True}),
-                mock.call(self.ti, 1, {"end_of_log": True}),
+                mock.call(self.ti, 1, metadata={"end_of_log": True}),
+                mock.call(self.ti, 1, metadata={"end_of_log": True}),
+                mock.call(self.ti, 1, metadata={"end_of_log": True}),
             ],
             any_order=False,
         )
@@ -238,7 +238,7 @@ class TestLogView:
 
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 3, {"end_of_log": True}),
+                mock.call(self.ti, 3, metadata={"end_of_log": True}),
             ],
             any_order=False,
         )

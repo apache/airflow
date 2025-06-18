@@ -99,7 +99,8 @@ class LogStreamAccumulator:
             os.remove(self._tmpfile.name)
             self._tmpfile = None
 
-    def get_total_lines(self) -> int:
+    @property
+    def total_lines(self) -> int:
         """
         Return the total number of lines captured from the stream.
 
@@ -108,7 +109,8 @@ class LogStreamAccumulator:
         """
         return self._disk_lines + len(self._buffer)
 
-    def get_stream(self) -> StructuredLogStream:
+    @property
+    def stream(self) -> StructuredLogStream:
         """
         Return the original stream of logs and clean up resources.
 

@@ -103,11 +103,11 @@ class TestLogStreamAccumulator:
         ],
     )
     def test_get_stream(self, structured_logs, threshold):
-        """Test that get_stream returns all logs regardless of whether they were flushed to disk."""
+        """Test that stream property returns all logs regardless of whether they were flushed to disk."""
 
         tmpfile_name = None
         with LogStreamAccumulator(structured_logs, threshold) as accumulator:
-            out_stream = accumulator.get_stream()
+            out_stream = accumulator.stream
 
             # Check if the temporary file was created
             if threshold < LOG_COUNT:
@@ -132,7 +132,7 @@ class TestLogStreamAccumulator:
             pytest.param(3, 2, 18, id="multiple_flushes_needed"),
         ],
     )
-    def test_get_total_lines(self, structured_logs, threshold, expected_buffer_size, expected_disk_lines):
+    def test_total_lines(self, structured_logs, threshold, expected_buffer_size, expected_disk_lines):
         """Test that LogStreamAccumulator correctly counts lines across buffer and disk."""
 
         with LogStreamAccumulator(structured_logs, threshold) as accumulator:
@@ -140,10 +140,10 @@ class TestLogStreamAccumulator:
             assert len(accumulator._buffer) == expected_buffer_size
             assert accumulator._disk_lines == expected_disk_lines
             # Validate the log stream and line counts
-            self.validate_log_stream(accumulator.get_stream())
+            self.validate_log_stream(accumulator.stream)
 
     def test__cleanup(self, structured_logs):
-        """Test that cleanup happens when get_stream() is fully consumed, not on context exit."""
+        """Test that cleanup happens when stream property is fully consumed, not on context exit."""
 
         accumulator = LogStreamAccumulator(structured_logs, 5)
         with mock.patch.object(accumulator, "_cleanup") as mock_cleanup:
@@ -152,7 +152,7 @@ class TestLogStreamAccumulator:
                 mock_cleanup.assert_not_called()
 
                 # Get the stream but don't iterate through it yet
-                stream = accumulator.get_stream()
+                stream = accumulator.stream
                 mock_cleanup.assert_not_called()
 
                 # Now iterate through the stream

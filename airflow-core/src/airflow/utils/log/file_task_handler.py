@@ -30,11 +30,12 @@ from enum import Enum
 from itertools import chain
 from pathlib import Path
 from types import GeneratorType
-from typing import IO, TYPE_CHECKING, Any, Callable, Optional, Union, cast
+from typing import IO, TYPE_CHECKING, Callable, Optional, TypedDict, Union, cast
 from urllib.parse import urljoin
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, ValidationError
+from typing_extensions import NotRequired
 
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
@@ -69,12 +70,6 @@ LogMessages: TypeAlias = list[str]
 """The legacy format of log messages, represented as a single string blob to be parsed later."""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
-LogMetadata: TypeAlias = dict[str, Any]
-"""Metadata about the log fetching process, including `end_of_log` and `log_pos`.
-
-- `end_of_log`: Boolean. Indicates if the log has ended.
-- `log_pos`: Integer. The absolute character position up to which the log was retrieved across all sources.
-"""
 RawLogStream: TypeAlias = Generator[str, None, None]
 """Raw log stream, containing unparsed log lines."""
 LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages]
@@ -101,6 +96,13 @@ LegacyProvidersLogType: TypeAlias = Union[list["StructuredLogMessage"], str, lis
 
 
 logger = logging.getLogger(__name__)
+
+
+class LogMetadata(TypedDict):
+    """Metadata about the log fetching process, including `end_of_log` and `log_pos`."""
+
+    end_of_log: bool
+    log_pos: NotRequired[int]
 
 
 class StructuredLogMessage(BaseModel):
@@ -363,9 +365,9 @@ def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
     del parsed_log_streams
 
 
-def _is_logs_stream_like(log):
+def _is_logs_stream_like(log) -> bool:
     """Check if the logs are stream-like."""
-    return isinstance(log, chain) or isinstance(log, GeneratorType)
+    return isinstance(log, (chain, GeneratorType))
 
 
 def _get_compatible_log_stream(
@@ -377,10 +379,9 @@ def _get_compatible_log_stream(
     :param log_messages: List of legacy log message strings.
     :return: A generator that yields interleaved log lines.
     """
-    log_streams: list[RawLogStream] = []
-    for log_message in log_messages:
-        # Append the log stream to the list
-        log_streams.append(_stream_lines_by_chunk(io.StringIO(log_message)))
+    log_streams: list[RawLogStream] = [
+        _stream_lines_by_chunk(io.StringIO(log_message)) for log_message in log_messages
+    ]
 
     for log_stream in log_streams:
         yield from log_stream
@@ -585,7 +586,7 @@ class FileTaskHandler(logging.Handler):
         served_logs: list[RawLogStream] = []
         with suppress(NotImplementedError):
             sources, logs = self._read_remote_logs(ti, try_number, metadata)
-            if not len(logs):
+            if not logs:
                 remote_logs = []
             elif isinstance(logs, list) and isinstance(logs[0], str):
                 # If the logs are in legacy format, convert them to a generator of log lines
@@ -646,8 +647,8 @@ class FileTaskHandler(logging.Handler):
         )
 
         with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
-            log_pos = stream_accumulator.get_total_lines()
-            out_stream = stream_accumulator.get_stream()
+            log_pos = stream_accumulator.total_lines
+            out_stream = stream_accumulator.stream
 
             # skip log stream until the last position
             if metadata and "log_pos" in metadata:
