@@ -56,17 +56,17 @@ export const Overview = () => {
     state: ["failed"],
   });
 
+  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
-    limit: 124,
+    limit,
     runAfterGte: startDate,
     runAfterLte: endDate,
     state: ["failed"],
   });
-  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
-  const { data: gridRuns, isLoading: isLoadingRuns } = useGridRuns(limit);
+  const { data: gridRuns, isLoading: isLoadingRuns } = useGridRuns({ limit });
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
-    limit: 6,
+    limit,
     orderBy: assetSortBy,
     sourceDagId: dagId,
     timestampGte: startDate,

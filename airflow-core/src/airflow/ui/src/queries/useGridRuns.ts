@@ -21,7 +21,7 @@ import { useParams } from "react-router-dom";
 import { useGridServiceGetGridRuns } from "openapi/queries";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-export const useGridRuns = (limit: number) => {
+export const useGridRuns = ({ limit }: { limit: number }) => {
   const { dagId = "" } = useParams();
   // const [runAfter, setRunAfter] = useState<string | undefined>();
 

@@ -50,7 +50,7 @@ export const Grid = ({ limit }: Props) => {
   const { openGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
 
-  const { data: gridRuns, isLoading } = useGridRuns(limit);
+  const { data: gridRuns, isLoading } = useGridRuns({ limit });
 
   useEffect(() => {
     const hasActive = gridRuns?.some((run) => isStatePending(run.state));
