@@ -51,9 +51,9 @@
     "options": {
       "downstream": "במורד הזרם",
       "existingTasks": "נקה משימות קיימות",
-      "future": "עתיד",
+      "future": "בעתיד",
       "onlyFailed": "נקה משימות שנכשלו בלבד",
-      "past": "עבר",
+      "past": "בעבר",
       "queueNew": "תזמן משימות חדשות",
       "upstream": "במעלה הזרם"
     }
