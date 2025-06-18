@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-17T14:08:18.529691
+# This constraints file was automatically generated on 2025-06-18T02:39:36.013531
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -74,7 +74,6 @@ aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
 aiohttp==3.12.13
 aioitertools==0.12.0
-aiologic==0.14.0
 aiomysql==0.2.0
 aioresponses==0.7.8
 aiosignal==1.3.2
@@ -169,7 +168,7 @@ apispec==6.8.2
 apprise==1.9.3
 argcomplete==3.6.2
 arro3-core==0.5.1
-asana==5.1.0
+asana==5.2.0
 asgiref==3.8.1
 asn1crypto==1.5.1
 astroid==3.3.10
@@ -476,7 +475,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.4.4
+multidict==6.5.0
 mypy-boto3-appflow==1.38.0
 mypy-boto3-rds==1.38.35
 mypy-boto3-redshift-data==1.38.0
@@ -494,7 +493,7 @@ networkx==3.5
 nh3==0.2.21
 nodeenv==1.9.1
 numpy==1.26.4
-oauthlib==3.2.2
+oauthlib==3.3.0
 objsize==0.7.1
 openai==1.88.0
 openapi-schema-validator==0.6.3
@@ -619,7 +618,7 @@ pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.0.0
 qdrant-client==1.14.3
-ray==2.47.0
+ray==2.47.1
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
@@ -726,7 +725,7 @@ tornado==6.5.1
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
-trino==0.334.0
+trino==0.335.0
 trove-classifiers==2025.5.9.12
 twine==6.1.0
 typer==0.16.0
