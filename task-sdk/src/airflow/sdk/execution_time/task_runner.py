@@ -644,15 +644,6 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 
-def __getattr__(name: str) -> CommsDecoder[ToTask, ToSupervisor]:
-    """Lazy initialization of supervisor comms."""
-    global SUPERVISOR_COMMS
-    if name == "SUPERVISOR_COMMS":
-        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=structlog.get_logger(logger_name="task"))
-        return SUPERVISOR_COMMS
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
 # State machine!
 # 1. Start up (receive details from supervisor)
 # 2. Execution (run task code, possibly send requests)
@@ -706,8 +697,18 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
         os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
 
-        log.info("Running command", command=["sudo", "-E", "-H", "-u", run_as_user, sys.executable, __file__])
-        os.execvp("sudo", ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, __file__])
+        # Import main directly from the module instead of re-executing the file.
+        # This ensures that when other parts modules import
+        # airflow.sdk.execution_time.task_runner, they get the same module instance
+        # with the properly initialized SUPERVISOR_COMMS global variable.
+        # If we re-executed the script, it would load as __main__ and future
+        # imports would get a fresh copy without the initialized globals.
+        rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
+        log.info(
+            "Running command",
+            command=["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code],
+        )
+        os.execvp("sudo", ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code])
 
         # ideally, we should never reach here, but if we do, we should return None, None, None
         return None, None, None
