@@ -138,7 +138,7 @@ Hooks
 
 Hooks are interfaces to external platforms and databases, implementing a common
 interface when possible and acting as building blocks for operators. All hooks
-are derived from :class:`~airflow.hooks.base.BaseHook`.
+are derived from :class:`~airflow.sdk.bases.hook.BaseHook`.
 
 Airflow has a set of Hooks that are considered public. You are free to extend their functionality
 by extending them:
