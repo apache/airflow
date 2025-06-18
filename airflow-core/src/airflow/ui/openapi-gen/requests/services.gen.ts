@@ -1518,7 +1518,6 @@ export class DagService {
    * Get Dags
    * Get all DAGs.
    * @param data The data for the request.
-   * @param data.favorites
    * @param data.limit
    * @param data.offset
    * @param data.tags
@@ -1535,6 +1534,7 @@ export class DagService {
    * @param data.dagRunEndDateLte
    * @param data.dagRunState
    * @param data.orderBy
+   * @param data.isFavorite
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1543,7 +1543,6 @@ export class DagService {
       method: "GET",
       url: "/api/v2/dags",
       query: {
-        favorites: data.favorites,
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
@@ -1560,6 +1559,7 @@ export class DagService {
         dag_run_end_date_lte: data.dagRunEndDateLte,
         dag_run_state: data.dagRunState,
         order_by: data.orderBy,
+        is_favorite: data.isFavorite,
       },
       errors: {
         401: "Unauthorized",
@@ -1763,6 +1763,7 @@ export class DagService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        409: "Conflict",
         422: "Validation Error",
       },
     });

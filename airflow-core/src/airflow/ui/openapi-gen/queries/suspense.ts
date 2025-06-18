@@ -930,7 +930,6 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
- * @param data.favorites
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -947,6 +946,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * @param data.dagRunEndDateLte
  * @param data.dagRunState
  * @param data.orderBy
+ * @param data.isFavorite
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -964,7 +964,7 @@ export const useDagServiceGetDagsSuspense = <
     dagRunStartDateLte,
     dagRunState,
     excludeStale,
-    favorites,
+    isFavorite,
     lastDagRunState,
     limit,
     offset,
@@ -982,7 +982,7 @@ export const useDagServiceGetDagsSuspense = <
     dagRunStartDateLte?: string;
     dagRunState?: string[];
     excludeStale?: boolean;
-    favorites?: boolean;
+    isFavorite?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -1006,7 +1006,7 @@ export const useDagServiceGetDagsSuspense = <
         dagRunStartDateLte,
         dagRunState,
         excludeStale,
-        favorites,
+        isFavorite,
         lastDagRunState,
         limit,
         offset,
@@ -1028,7 +1028,7 @@ export const useDagServiceGetDagsSuspense = <
         dagRunStartDateLte,
         dagRunState,
         excludeStale,
-        favorites,
+        isFavorite,
         lastDagRunState,
         limit,
         offset,

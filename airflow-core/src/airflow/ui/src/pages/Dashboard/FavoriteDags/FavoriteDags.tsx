@@ -34,7 +34,7 @@ export const FavoriteDags = () => {
   const location = useLocation();
 
   const { t: translate } = useTranslation("dashboard");
-  const { data: favorites } = useDagServiceGetDags({ favorites: true });
+  const { data: favorites } = useDagServiceGetDags({ isFavorite: true });
 
   useEffect(() => {
     void queryClient.refetchQueries({ queryKey: ["DagServiceGetDags"] });
@@ -71,7 +71,7 @@ export const FavoriteDags = () => {
         <>
           <SimpleGrid alignItems="end" columnGap={1} columns={10} rowGap={4}>
             {visibleFavorites.map((dag) => (
-              <FavoriteDagCard dagId={dag.dag_id} key={dag.dag_id} />
+              <FavoriteDagCard dagId={dag.dag_id} dagName={dag.dag_display_name} key={dag.dag_id} />
             ))}
           </SimpleGrid>
 

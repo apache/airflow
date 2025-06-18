@@ -38,6 +38,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
     QueryExcludeStaleFilter,
+    QueryFavoriteFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -116,18 +117,11 @@ def get_dags(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     user: GetUserDep,
-    favorites: Annotated[bool | None, Query()] = None,
+    is_favorite: QueryFavoriteFilter,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
-    if favorites is True:
-        user_id = user.get_id()
-        query = (
-            select(DagModel)
-            .join(DagFavorite, DagModel.dag_id == DagFavorite.dag_id)
-            .where(DagFavorite.user_id == user_id)
-        )
-    else:
-        query = select(DagModel)
+    is_favorite.user_id = user.get_id()
+    query = is_favorite.to_orm(select(DagModel))
 
     max_run_id_query = (  # ordering by id will not always be "latest run", but it's a simplifying assumption
         select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
@@ -361,7 +355,7 @@ def patch_dags(
 @dags_router.post(
     "/{dag_id}/favorite",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="POST")), Depends(action_logging())],
+    dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
 )
 def favorite_dag(
     dag_id: str,
@@ -375,15 +369,14 @@ def favorite_dag(
 
     user_id = user.get_id()
     session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
-    session.commit()
 
     return DAGResponse.model_validate(dag)
 
 
 @dags_router.post(
     "/{dag_id}/unfavorite",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="POST")), Depends(action_logging())],
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
 )
 def unfavorite_dag(
     dag_id: str,
@@ -396,13 +389,23 @@ def unfavorite_dag(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
 
     user_id = user.get_id()
+
+    favorite_exists = session.execute(
+        select(DagFavorite).where(
+            DagFavorite.dag_id == dag_id,
+            DagFavorite.user_id == user_id,
+        )
+    ).first()
+
+    if not favorite_exists:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="DAG is not marked as favorite")
+
     session.execute(
         delete(DagFavorite).where(
             DagFavorite.dag_id == dag_id,
             DagFavorite.user_id == user_id,
         )
     )
-    session.commit()
 
     return DAGResponse.model_validate(dag)
 

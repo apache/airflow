@@ -591,7 +591,7 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunStartDateLte,
     dagRunState,
     excludeStale,
-    favorites,
+    isFavorite,
     lastDagRunState,
     limit,
     offset,
@@ -609,7 +609,7 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunStartDateLte?: string;
     dagRunState?: string[];
     excludeStale?: boolean;
-    favorites?: boolean;
+    isFavorite?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -632,7 +632,7 @@ export const UseDagServiceGetDagsKeyFn = (
       dagRunStartDateLte,
       dagRunState,
       excludeStale,
-      favorites,
+      isFavorite,
       lastDagRunState,
       limit,
       offset,
