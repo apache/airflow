@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from gremlin_python.driver.client import Client
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection

@@ -27,7 +27,7 @@ from __future__ import annotations
 import analytics
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 
 class SegmentHook(BaseHook):

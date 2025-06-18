@@ -27,7 +27,7 @@ from datetime import datetime
 from time import sleep
 
 from airflow.exceptions import AirflowNotFoundException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 from airflow.utils.trigger_rule import TriggerRule
 
 try:

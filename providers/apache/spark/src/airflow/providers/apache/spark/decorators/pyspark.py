@@ -33,9 +33,9 @@ else:
     )
 
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
 from airflow.providers.common.compat.standard.operators import PythonOperator
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

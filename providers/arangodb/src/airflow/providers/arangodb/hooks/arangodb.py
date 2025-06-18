@@ -32,7 +32,7 @@ from arango.exceptions import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from arango.database import StandardDatabase

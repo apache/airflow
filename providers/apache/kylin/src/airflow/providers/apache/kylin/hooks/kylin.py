@@ -20,7 +20,7 @@ from __future__ import annotations
 from kylinpy import exceptions, kylinpy
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 
 class KylinHook(BaseHook):

@@ -26,7 +26,7 @@ import oss2
 from oss2.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection

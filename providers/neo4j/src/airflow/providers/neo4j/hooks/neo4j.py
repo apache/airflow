@@ -24,7 +24,7 @@ from urllib.parse import urlsplit
 
 from neo4j import Driver, GraphDatabase
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection

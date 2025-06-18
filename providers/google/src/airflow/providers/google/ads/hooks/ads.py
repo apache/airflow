@@ -28,8 +28,8 @@ from google.ads.googleads.errors import GoogleAdsException
 from google.auth.exceptions import GoogleAuthError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from google.ads.googleads.v19.services.services.customer_service import CustomerServiceClient

@@ -21,12 +21,12 @@ from typing import Any
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 from azure.mgmt.storage import StorageManagementClient
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
+from airflow.sdk import BaseHook
 
 
 class AzureContainerVolumeHook(BaseHook):

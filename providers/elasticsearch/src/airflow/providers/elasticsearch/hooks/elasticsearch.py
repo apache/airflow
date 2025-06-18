@@ -25,8 +25,8 @@ from urllib import parse
 
 from elasticsearch import Elasticsearch
 
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse

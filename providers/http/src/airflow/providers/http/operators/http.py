@@ -26,9 +26,9 @@ from requests import Response
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.http.triggers.http import HttpTrigger
+from airflow.sdk import BaseHook
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:

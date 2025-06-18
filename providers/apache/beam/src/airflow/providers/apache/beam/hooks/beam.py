@@ -36,8 +36,8 @@ from typing import TYPE_CHECKING, Callable
 from packaging.version import Version
 
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     import logging

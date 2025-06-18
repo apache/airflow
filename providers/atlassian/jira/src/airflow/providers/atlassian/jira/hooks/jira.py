@@ -24,7 +24,7 @@ from typing import Any
 from atlassian import Jira
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 
 class JiraHook(BaseHook):

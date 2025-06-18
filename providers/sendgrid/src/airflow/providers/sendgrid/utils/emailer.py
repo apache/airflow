@@ -39,7 +39,7 @@ from sendgrid.helpers.mail import (
     SandBoxMode,
 )
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 from airflow.utils.email import get_email_address_list
 
 log = logging.getLogger(__name__)

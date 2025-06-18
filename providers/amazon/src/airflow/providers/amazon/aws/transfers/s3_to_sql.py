@@ -22,9 +22,9 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Callable
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

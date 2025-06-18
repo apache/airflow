@@ -38,9 +38,9 @@ import csv
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.sdk import BaseHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
 

@@ -24,7 +24,7 @@ from papermill.engines import NBClientEngine
 from papermill.utils import merge_kwargs, remove_args
 from traitlets import Unicode
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 JUPYTER_KERNEL_SHELL_PORT = 60316
 JUPYTER_KERNEL_IOPUB_PORT = 60317

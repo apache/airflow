@@ -22,9 +22,9 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.openfaas.hooks.openfaas import OpenFaasHook
+from airflow.sdk import BaseHook
 
 FUNCTION_NAME = "function_name"
 

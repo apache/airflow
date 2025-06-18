@@ -50,8 +50,8 @@ from tenacity import (
 
 from airflow import __version__
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection

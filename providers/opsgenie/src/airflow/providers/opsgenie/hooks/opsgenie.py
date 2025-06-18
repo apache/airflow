@@ -29,7 +29,7 @@ from opsgenie_sdk import (
     SuccessResponse,
 )
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 
 class OpsgenieAlertHook(BaseHook):

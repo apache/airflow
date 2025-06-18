@@ -21,8 +21,8 @@ from operator import itemgetter
 from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.sdk import BaseHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:

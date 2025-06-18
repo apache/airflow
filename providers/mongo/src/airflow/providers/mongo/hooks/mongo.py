@@ -28,7 +28,7 @@ from pymongo import MongoClient, ReplaceOne
 from pymongo.errors import CollectionInvalid
 
 from airflow.exceptions import AirflowConfigException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from types import TracebackType

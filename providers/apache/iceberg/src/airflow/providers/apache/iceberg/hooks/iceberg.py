@@ -21,7 +21,7 @@ from typing import Any
 import requests
 from requests import HTTPError
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 TOKENS_ENDPOINT = "oauth/tokens"
 

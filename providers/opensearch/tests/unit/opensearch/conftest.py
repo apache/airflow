@@ -20,8 +20,8 @@ from typing import Any
 
 import pytest
 
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.sdk import BaseHook
 from airflow.utils import db
 
 try:

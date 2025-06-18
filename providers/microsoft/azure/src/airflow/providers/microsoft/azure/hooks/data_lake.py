@@ -33,13 +33,13 @@ from azure.storage.filedatalake import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
+from airflow.sdk import BaseHook
 
 Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential]
 

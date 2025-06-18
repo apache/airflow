@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from zenpy import Zenpy
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from zenpy.lib.api import BaseApi

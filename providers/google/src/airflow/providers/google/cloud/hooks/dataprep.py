@@ -28,7 +28,7 @@ import requests
 from requests import HTTPError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 
 def _get_field(extras: dict, field_name: str) -> str | None:

@@ -30,7 +30,7 @@ from google.auth.transport import (
 )
 
 from airflow.exceptions import AirflowConfigException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 
 class GrpcHook(BaseHook):

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple
 
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 
 class AccessKeyCredentials(NamedTuple):

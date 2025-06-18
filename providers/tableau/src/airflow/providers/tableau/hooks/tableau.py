@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from tableauserverclient import Pager, Server, TableauAuth
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 if TYPE_CHECKING:
     from tableauserverclient.server import Auth
