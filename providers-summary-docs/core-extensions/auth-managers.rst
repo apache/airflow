@@ -22,7 +22,7 @@ This is a summary of all Apache Airflow Community provided implementations of au
 exposed via community-managed providers.
 
 Airflow can be extended by providers with auth managers. Each provider can define their own auth manager,
-that can be configured to handle user authentication and authorizations of their actions (UI an API).
+that can be configured to handle user authentication and authorizations of their actions (UI and API).
 
 The auth managers are explained in
 :doc:`apache-airflow:core-concepts/auth-manager/index` and you can also see those
