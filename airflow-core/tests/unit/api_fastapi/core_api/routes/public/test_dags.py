@@ -21,7 +21,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
@@ -277,7 +277,7 @@ class TestGetDags(TestDagEndpoint):
     def test_get_dags_filter_favorites(
         self, session, test_client, setup_favorites, expected_total_entries, expected_ids
     ):
-        """Test filtering DAGs by favorites=true."""
+        """Test filtering DAGs by is_favorite=true."""
         session.query(DagFavorite).delete()
         session.commit()
 
@@ -285,7 +285,7 @@ class TestGetDags(TestDagEndpoint):
             session.add(DagFavorite(user_id="test", dag_id=dag_id))
         session.commit()
 
-        response = test_client.get("/dags", params={"favorites": True})
+        response = test_client.get("/dags", params={"is_favorite": True})
 
         assert response.status_code == 200
         body = response.json()
@@ -451,6 +451,13 @@ class TestFavoriteDag(TestDagEndpoint):
         response = unauthorized_test_client.post(f"/dags/{DAG1_ID}/favorite")
         assert response.status_code == 403
 
+    def test_favoriting_already_favorited_dag_returns_409(self, test_client):
+        response = test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 200
+
+        response = test_client.post(f"/dags/{DAG1_ID}/favorite")
+        assert response.status_code == 409
+
 
 class TestUnfavoriteDag(TestDagEndpoint):
     """Unit tests for unfavoriting a DAG."""
@@ -486,6 +493,15 @@ class TestUnfavoriteDag(TestDagEndpoint):
     def test_unfavorite_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.post(f"/dags/{DAG1_ID}/unfavorite")
         assert response.status_code == 403
+
+    def test_unfavoriting_dag_that_is_not_favorite_returns_409(self, test_client, session):
+        session.execute(
+            delete(DagFavorite).where(DagFavorite.dag_id == DAG1_ID, DagFavorite.user_id == "test")
+        )
+        session.commit()
+
+        response = test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+        assert response.status_code == 409
 
 
 class TestDagDetails(TestDagEndpoint):

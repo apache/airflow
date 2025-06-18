@@ -2262,7 +2262,7 @@ export type GetDagsData = {
     dagRunStartDateLte?: string | null;
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
-    favorites?: boolean | null;
+    isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
@@ -4385,6 +4385,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
                  * Validation Error
                  */
                 422: HTTPValidationError;

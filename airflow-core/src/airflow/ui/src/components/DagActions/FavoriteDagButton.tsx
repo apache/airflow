@@ -34,7 +34,7 @@ type FavoriteDagButtonProps = {
 
 export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
-  const { data: favorites, refetch } = useDagServiceGetDags({ favorites: true });
+  const { data: favorites, refetch } = useDagServiceGetDags({ isFavorite: true });
 
   const isFavorite = useMemo(
     () => favorites?.dags.some((fav) => fav.dag_id === dagId) ?? false,

@@ -287,17 +287,6 @@ class CreateAssetEventsBody(BaseModel):
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
-class DAGFavoriteBody(BaseModel):
-    """
-    Dag Serializer for updatable bodies.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    is_favorite: Annotated[bool, Field(title="Is Favorite")]
-
-
 class DAGPatchBody(BaseModel):
     """
     Dag Serializer for updatable bodies.
