@@ -651,18 +651,17 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
-    # The parent sends us a StartupDetails message un-prompted. After this, ever single message is only sent
+    # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
     log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
         # entrypoint of re-exec process
         msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
-        log.info("Using serialized startup message from environment", msg=msg)
+        log.debug("Using serialized startup message from environment", msg=msg)
     else:
         # normal entry point
         msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
-        log.info("Received startup message from supervisor", msg=msg)
 
     if not isinstance(msg, StartupDetails):
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
@@ -701,7 +700,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         # This ensures that when other parts modules import
         # airflow.sdk.execution_time.task_runner, they get the same module instance
         # with the properly initialized SUPERVISOR_COMMS global variable.
-        # If we re-executed the script, it would load as __main__ and future
+        # If we re-executed the module with `python -m`, it would load as __main__ and future
         # imports would get a fresh copy without the initialized globals.
         rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
         log.info(
