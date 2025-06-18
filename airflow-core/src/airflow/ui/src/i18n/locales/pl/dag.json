@@ -1,10 +1,16 @@
 {
   "allRuns": "Wszystkie wykonania",
+  "blockingDeps": {
+    "dependency": "Zależność",
+    "reason": "Powód",
+    "title": "Zależności blokujące zaplanowanie zadania"
+  },
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
     "noCode": "Nie znaleziono kodu",
     "parsedAt": "Przeanalizowano o:"
   },
+  "extraLinks": "Dodatkowe linki",
   "grid": {
     "buttons": {
       "resetToLatest": "Przywróć do najnowszego",
@@ -16,15 +22,22 @@
       "dagDocs": "Dokumentacja Daga"
     }
   },
+  "logs": {
+    "noTryNumber": "Brak numeru próby",
+    "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Nieudane wykonanie",
       "failedRun_other": "Nieudane wykonania",
       "failedTask_one": "Nieudane zadanie",
-      "failedTask_other": "Nieudane zadania"
+      "failedTask_other": "Nieudane zadania",
+      "failedTaskInstance_one": "Nieudana instancja zadania",
+      "failedTaskInstance_other": "Nieudane instancje zadań"
     },
     "charts": {
-      "assetEvent": "Utworzono zdarzenie zasobu"
+      "assetEvent_one": "Utworzone zdarzenie zasobu",
+      "assetEvent_other": "Utworzone zdarzenia zasobów"
     },
     "failedLogs": {
       "title": "Ostatnie logi nieudanych zadań",
@@ -53,17 +66,45 @@
       "label": "Kierunek grafu"
     }
   },
+  "paramsFailed": "Nie udało się załadować parametrów",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Nie udało się przetworzyć żądania prztworzenia Daga. Mogą istnieć oczekujące żądania przetworznia Dagów.",
+        "title": "Nie udało się ponownie przetworzyć Daga"
+      },
+      "success": {
+        "description": "Dag zostanie wkrótce ponownie przetworzony.",
+        "title": "Żądanie ponownego przetworzenia Daga zostało pomyślnie wysłane"
+      }
+    }
+  },
   "tabs": {
+    "assetEvents": "Zdarzenia zasobów",
+    "auditLog": "Log audytu",
     "backfills": "Wypełnienia wsteczne",
     "code": "Kod",
     "details": "Szczegóły",
-    "events": "Zdarzenia",
+    "logs": "Logi",
+    "mappedTaskInstances_one": "Instancja zadania [{{count}}]",
+    "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
     "overview": "Przegląd",
-    "runs": "Uruchomienia",
-    "tasks": "Zadania"
+    "renderedTemplates": "Wyrenderowane szablony",
+    "runs": "Wykonania",
+    "taskInstances": "Instancje zadań",
+    "tasks": "Zadania",
+    "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Zwiń wszystkie grupy zadań",
     "expandAll": "Rozwiń wszystkie grupy zadań"
+  },
+  "taskLogs": {
+    "allLogLevels": "Wszystkie poziomy logów",
+    "allSources": "Wszystkie źródła",
+    "fullscreen": {
+      "button": "Pełny ekran",
+      "tooltip": "Naciśnij {{hotkey}}, aby przejść do pełnego ekranu"
+    }
   }
 }

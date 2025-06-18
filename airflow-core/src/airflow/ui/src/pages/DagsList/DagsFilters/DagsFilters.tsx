@@ -18,10 +18,10 @@
  */
 import { Box, HStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useDagServiceGetDagTags } from "openapi/queries";
+import { useDagTagsInfinite } from "openapi/queries/useDagsInfinite";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
@@ -33,6 +33,7 @@ import { TagFilter } from "./TagFilter";
 
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
+  OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
   TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
@@ -66,8 +67,12 @@ export const DagsFilters = () => {
   const isFailed = state === "failed";
   const isSuccess = state === "success";
 
-  const { data } = useDagServiceGetDagTags({
+  const [pattern, setPattern] = useState("");
+
+  const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({
+    limit: 10,
     orderBy: "name",
+    tagNamePattern: pattern,
   });
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -89,7 +94,7 @@ export const DagsFilters = () => {
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
-      searchParams.delete("offset");
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -106,7 +111,7 @@ export const DagsFilters = () => {
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
-      searchParams.delete("offset");
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -126,7 +131,7 @@ export const DagsFilters = () => {
       if (tags.length < 2) {
         searchParams.delete(TAGS_MATCH_MODE_PARAM);
       }
-      searchParams.delete("offset");
+      searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
     [searchParams, setSearchParams],
@@ -139,6 +144,7 @@ export const DagsFilters = () => {
     searchParams.delete(TAGS_MATCH_MODE_PARAM);
 
     setSearchParams(searchParams);
+    setPattern("");
   };
 
   const handleTagModeChange = useCallback(
@@ -169,11 +175,18 @@ export const DagsFilters = () => {
           showPaused={showPaused}
         />
         <TagFilter
+          onMenuScrollToBottom={() => {
+            void fetchNextPage();
+          }}
+          onMenuScrollToTop={() => {
+            void fetchPreviousPage();
+          }}
           onSelectTagsChange={handleSelectTagsChange}
           onTagModeChange={handleTagModeChange}
+          onUpdate={setPattern}
           selectedTags={selectedTags}
           tagFilterMode={tagFilterMode}
-          tags={data?.tags ?? []}
+          tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
         />
       </HStack>
       <Box>
