@@ -57,7 +57,7 @@ CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 DEFAULT_SORT_DATETIME = pendulum.datetime(2000, 1, 1)
 DEFAULT_SORT_TIMESTAMP = int(DEFAULT_SORT_DATETIME.timestamp() * 1000)
 SORT_KEY_OFFSET = 10000000
-"""An offset used by the _sort_key utility.
+"""An offset used by the _create_sort_key utility.
 
 Assuming 50 characters per line, an offset of 10,000,000 can represent approximately 500 MB of file data, which is sufficient for use as a constant.
 """
@@ -109,7 +109,7 @@ class StructuredLogMessage(BaseModel):
     timestamp: datetime | None = None
     event: str
 
-    # Collisions of _sort_key may occur due to duplicated messages. If this happens, the heap will use the second element,
+    # Collisions of sort_key may occur due to duplicated messages. If this happens, the heap will use the second element,
     # which is the StructuredLogMessage for comparison. Therefore, we need to define a comparator for it.
     def __lt__(self, other: StructuredLogMessage) -> bool:
         return self.sort_key < other.sort_key
@@ -245,9 +245,9 @@ def _log_stream_to_parsed_log_stream(
         idx += 1
 
 
-def _sort_key(timestamp: datetime | None, line_num: int) -> int:
+def _create_sort_key(timestamp: datetime | None, line_num: int) -> int:
     """
-    Generate a sort key for log record, to be used in K-way merge.
+    Create a sort key for log record, to be used in K-way merge.
 
     :param timestamp: timestamp of the log line
     :param line_num: line number of the log line
@@ -292,7 +292,7 @@ def _add_log_from_parsed_log_streams_to_heap(
         record = cast("ParsedLog", record)
         timestamp, line_num, line = record
         # take int as sort key to avoid overhead of memory usage
-        heapq.heappush(heap, (_sort_key(timestamp, line_num), line))
+        heapq.heappush(heap, (_create_sort_key(timestamp, line_num), line))
     # remove empty log stream from the dict
     if log_stream_to_remove is not None:
         for idx in log_stream_to_remove:

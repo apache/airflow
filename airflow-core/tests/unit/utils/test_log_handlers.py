@@ -53,12 +53,12 @@ from airflow.utils.log.file_task_handler import (
     ParsedLogStream,
     StructuredLogMessage,
     _add_log_from_parsed_log_streams_to_heap,
+    _create_sort_key,
     _fetch_logs_from_service,
     _interleave_logs,
     _is_logs_stream_like,
     _is_sort_key_with_default_timestamp,
     _log_stream_to_parsed_log_stream,
-    _sort_key,
     _stream_lines_by_chunk,
 )
 from airflow.utils.log.logging_mixin import set_context
@@ -775,7 +775,7 @@ def test__log_stream_to_parsed_log_stream():
 
 def test__sort_key():
     # assert _sort_key should return int
-    assert isinstance(_sort_key(pendulum.parse("2022-11-16T00:05:54.278000-08:00"), 10), int)
+    assert isinstance(_create_sort_key(pendulum.parse("2022-11-16T00:05:54.278000-08:00"), 10), int)
 
 
 @pytest.mark.parametrize(
@@ -802,7 +802,7 @@ def test__sort_key():
     ],
 )
 def test__is_sort_key_with_default_timestamp(timestamp, line_num, expected):
-    assert _is_sort_key_with_default_timestamp(_sort_key(timestamp, line_num)) == expected
+    assert _is_sort_key_with_default_timestamp(_create_sort_key(timestamp, line_num)) == expected
 
 
 @pytest.mark.parametrize(
