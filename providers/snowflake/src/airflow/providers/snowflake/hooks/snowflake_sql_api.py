@@ -25,11 +25,18 @@ from typing import Any
 
 import aiohttp
 import requests
-import tenacity
 from aiohttp import ClientConnectionError, ClientResponseError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from requests.exceptions import ConnectionError, HTTPError, Timeout
+from tenacity import (
+    AsyncRetrying,
+    Retrying,
+    before_sleep_log,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -86,10 +93,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
         self.retry_config = {
-            "retry": tenacity.retry_if_exception(self._should_retry_on_error),
-            "wait": tenacity.wait_exponential(multiplier=1, min=1, max=60),
-            "stop": tenacity.stop_after_attempt(5),
-            "before_sleep": tenacity.before_sleep_log(self.log, log_level=20),  # INFO level
+            "retry": retry_if_exception(self._should_retry_on_error),
+            "wait": wait_exponential(multiplier=1, min=1, max=60),
+            "stop": stop_after_attempt(5),
+            "before_sleep": before_sleep_log(self.log, log_level=20),  # INFO level
             "reraise": True,
         }
         if api_retry_args:
@@ -358,19 +365,17 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param data: (Optional) The data to include in the API call.
         :return: The response object from the API call.
         """
-
-        @tenacity.retry(**self.retry_config)  # type: ignore
-        def _make_request():
-            if method.upper() in ("GET", "POST"):
-                response = requests.request(
-                    method=method.lower(), url=url, headers=headers, params=params, json=json
-                )
-            else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
-            response.raise_for_status()
-            return response.status_code, response.json()
-
-        return _make_request()
+        with requests.Session() as session:
+            for attempt in Retrying(**self.retry_config):  # type: ignore
+                with attempt:
+                    if method.upper() in ("GET", "POST"):
+                        response = session.request(
+                            method=method.lower(), url=url, headers=headers, params=params, json=json
+                        )
+                    else:
+                        raise ValueError(f"Unsupported HTTP method: {method}")
+                    response.raise_for_status()
+                    return response.status_code, response.json()
 
     async def _make_api_call_with_retries_async(self, method, url, headers, params=None):
         """
@@ -383,20 +388,16 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param url: The URL for the API endpoint.
         :param headers: The headers to include in the API call.
         :param params: (Optional) The query parameters to include in the API call.
-        :param data: (Optional) The data to include in the API call.
         :return: The response object from the API call.
         """
-
-        @tenacity.retry(**self.retry_config)  # type: ignore
-        async def _make_request():
-            async with aiohttp.ClientSession(headers=headers) as session:
-                if method.upper() == "GET":
-                    async with session.get(url, params=params) as response:
-                        response.raise_for_status()
-                        # Return status and json content for async processing
-                        content = await response.json()
-                        return response.status, content
-                else:
-                    raise ValueError(f"Unsupported HTTP method: {method}")
-
-        return await _make_request()
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async for attempt in AsyncRetrying(**self.retry_config):  # type: ignore
+                with attempt:
+                    if method.upper() == "GET":
+                        async with session.request(method=method.lower(), url=url, params=params) as response:
+                            response.raise_for_status()
+                            # Return status and json content for async processing
+                            content = await response.json()
+                            return response.status, content
+                    else:
+                        raise ValueError(f"Unsupported HTTP method: {method}")
