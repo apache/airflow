@@ -966,6 +966,19 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"state": State.RUNNING},
+                    {"state": State.QUEUED},
+                    {"state": State.SUCCESS},
+                    {"state": State.NONE},
+                ],
+                False,
+                ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"state": ["no_status"]},
+                1,
+                id="test no_status state filter",
+            ),
+            pytest.param(
+                [
                     {"state": State.NONE},
                     {"state": State.NONE},
                     {"state": State.NONE},
