@@ -7,32 +7,117 @@
     "Providers": "حُزم",
     "Variables": "متغيرات"
   },
+  "asset_few": "واقعة",
+  "asset_many": "واقعات",
   "asset_one": "واقعة",
   "asset_other": "واقعات",
+  "asset_two": "واقعتان",
+  "asset_zero": "لا توجد واقعات",
+  "assetEvent_few": "واقعة اصل",
+  "assetEvent_many": "واقعات اصل",
   "assetEvent_one": "واقعة اصل",
   "assetEvent_other": "واقعات اصل",
+  "assetEvent_two": "واقعتان اصل",
+  "assetEvent_zero": "لا توجد واقعات اصل",
+  "backfill_few": "إعادة ملء",
+  "backfill_many": "إعادات ملء",
   "backfill_one": "إعادة ملء",
   "backfill_other": "إعادات ملء",
+  "backfill_two": "إعادتان ملء",
+  "backfill_zero": "لا توجد إعادات ملء",
   "browse": {
     "auditLog": "سجل المراجعة",
     "xcoms": "(XComs) إكس كوم"
   },
+  "collapseDetailsPanel": "طي لوحة التفاصيل",
+  "createdAssetEvent_few": "تم إنشاء واقعات اصل",
+  "createdAssetEvent_many": "تم إنشاء واقعات اصل",
   "createdAssetEvent_one": "تم إنشاء واقعة اصل",
   "createdAssetEvent_other": "تم إنشاء واقعات اصل",
+  "createdAssetEvent_two": "تم إنشاء واقعتان اصل",
+  "createdAssetEvent_zero": "لم يتم إنشاء واقعات اصل",
+  "dag_few": "Dag",
+  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
-  "dagRun_one": "مثيل تشغيل لDAG",
+  "dag_two": "اثنان Dag",
+  "dag_zero": "لا توجد Dags",
+  "dagDetails": {
+    "catchup": "إلحاق",
+    "concurrency": "تزامن",
+    "dagRunTimeout": "مهلة تشغيل Dag",
+    "defaultArgs": "متغيرات افتراضية",
+    "description": "وصف",
+    "documentation": "توثيق Dag",
+    "fileLocation": "موقع الملف",
+    "hasTaskConcurrencyLimits": "لديه حدود تزامن المهام",
+    "lastExpired": "انتهت صلاحيته آخر مرة في",
+    "lastParsed": "تم تحليله آخر مرة في",
+    "latestDagVersion": "أحدث إصدار لDag",
+    "latestRun": "أحدث تشغيل",
+    "maxActiveRuns": "الحد الأقصى للتشغيلات النشطة",
+    "maxActiveTasks": "الحد الأقصى للمهام النشطة",
+    "maxConsecutiveFailedDagRuns": "الحد الأقصى للتشغيلات الفاشلة المتتالية لDag",
+    "nextRun": "التشغيل التالي",
+    "owner": "مالك",
+    "params": "متغيرات",
+    "schedule": "توقيت",
+    "tags": "وسوم"
+  },
+  "dagId": "معرف Dag",
+  "dagRun": {
+    "conf": "تكوين",
+    "dagVersions": "إصدار(ات) Dag",
+    "dataIntervalEnd": "نهاية فترة البيانات",
+    "dataIntervalStart": "بداية فترة البيانات",
+    "lastSchedulingDecision": "آخر قرار جدولة",
+    "queuedAt": "في الطابور في",
+    "runAfter": "تشغيل بعد",
+    "runType": "نوع التشغيل",
+    "sourceAssetEvent": "واقعة الاصل المصدر",
+    "triggeredBy": "تم إطلاقه بواسطة",
+    "triggeringUser": "المستخدم المحفز"
+  },
+  "dagRun_few": "مثيل تشغيل لDag",
+  "dagRun_many": "مثيلات تشغيل لDag",
+  "dagRun_one": "مثيل تشغيل لDag",
   "dagRun_other": "مثيل تشغيلات لDag",
+  "dagRun_two": "مثيلان تشغيل لDag",
+  "dagRun_zero": "لا توجد مثيلات تشغيل لDag",
+  "dagWarnings": "تحذيرات Dag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
+  "direction": "اتجاه",
   "docs": {
     "documentation": "توثيق",
     "githubRepo": "مستودع GitHub",
     "restApiReference": "مرجع REST API"
   },
   "duration": "المدة",
+  "endDate": "تاريخ الانتهاء",
+  "error": {
+    "back": "رجوع",
+    "defaultMessage": "حدث خطأ غير متوقع",
+    "home": "الصفحة الرئيسية",
+    "notFound": "غير موجود",
+    "title": "خطأ"
+  },
+  "expand":{
+    "collapse": "طي",
+    "expand": "توسيع",
+    "hotkey": "e",
+    "tooltip": "اضغط {{hotkey}} للتبديل"
+  },
+  "expression": {
+    "all": "الكل",
+    "and": "و",
+    "any": "أي",
+    "or": "أو"
+  },
+  "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
   "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
+  "mapIndex": "فهرس الخريطة",
   "modal": {
     "cancel": "إلغاء",
     "confirm": "تأكيد",
@@ -48,25 +133,46 @@
     "dags": "Dags",
     "docs": "وثائق",
     "home": "الصفحة الرئيسية",
+    "legacyFabViews": "مشاهدات قديمة",
     "plugins": "إضافات",
     "security": "الأمان"
   },
   "noItemsFound": "لم يتم العثور على {{modelName}}",
+  "note": {
+    "add": "إضافة",
+    "dagRun": "تشغيل Dag",
+    "label": "وسم",
+    "placeholder": "نصر نائب",
+    "taskInstance": "مثيل المهمة"
+  },
   "pools": {
     "deferred": "مؤجل",
     "open": "مفتوح",
+    "pools_few": "مجمع",
+    "pools_many": "مجمعات",
     "pools_one": "مجمع",
     "pools_other": "مجمعات",
+    "pools_two": "مجمعان",
+    "pools_zero": "لا توجد مجمعات",
     "queued": "في الانتظار",
     "running": "قيد التشغيل",
     "scheduled": "مجدول"
   },
+  "runId": "معرف التشغيل",
   "runTypes": {
     "asset_triggered": "مُشغل بواسطة الأصل",
     "backfill": "تعبئة رجعية",
     "manual": "يدوي",
     "scheduled": "مجدول"
   },
+  "scroll": {
+    "direction": {
+      "bottom": "الأسفل",
+      "top": "الأعلى"
+    },
+    "tooltip": "اضغط {{hotkey}} للتمرير إلى {{direction}}"
+  },
+  "seconds": "ثواني",
   "security": {
     "actions": "إجراءات",
     "permissions": "صلاحيات",
@@ -75,6 +181,20 @@
     "users": "مستخدمون"
   },
   "selectLanguage": "اختيار اللغة",
+  "showDetailsPanel": "إظهار لوحة التفاصيل",
+  "source": {
+    "hide": "إخفاء المصدر",
+    "hotkey": "s",
+    "show": "إظهار المصدر"
+  },
+  "sourceAssetEvent_few": "واقعة اصل المصدر",
+  "sourceAssetEvent_many": "واقعات اصل المصدر",
+  "sourceAssetEvent_one": "واقعة اصل المصدر",
+  "sourceAssetEvent_other": "واقعات اصل المصدر",
+  "sourceAssetEvent_two": "واقعتان اصل المصدر",
+  "sourceAssetEvent_zero": "لا توجد واقعات اصل المصدر",
+  "startDate": "تاريخ البدء",
+  "state": "حالة",
   "states": {
     "deferred": "مؤجل",
     "failed": "فشِل",
@@ -94,27 +214,78 @@
   "switchToDarkMode": "تبديل إلى الوضع الداكن",
   "switchToLightMode": "تبديل إلى الوضع الفاتح",
   "table": {
+    "completedAt": "اكتمل في",
+    "createdAt": "تم الإنشاء في",
     "filterByTag": "تصفية الDags حسب الوسم",
     "filterColumns": "تصفية أعمدة الجدول",
-    "filters": {
-      "filter_one": "فلتر",
-      "filter_other": "فلاتر",
-      "reset": "مسح الفلاتر"
-    },
+    "filterReset_few": "مسح الفلاتر",
+    "filterReset_many": "مسح الفلاتر",
+    "filterReset_one": "مسح الفلتر",
+    "filterReset_other": "مسح الفلاتر",
+    "filterReset_two": "مسح الفلترين",
+    "filterReset_zero": "لا توجد فلاتر لمسحها",
+    "from": "من",
+    "maxActiveRuns": "الحد الأقصى لتشغيل النشطة",
     "noTagsFound": "لم يتم العثور على وسوم",
     "tagMode": {
       "all": "الكل",
       "any": "اي شيء"
     },
-    "tagPlaceholder": "تصفية حسب الوسم"
+    "tagPlaceholder": "تصفية حسب الوسم",
+    "to": "إلى"
   },
+  "task": {
+    "documentation": "توثيق المهمة",
+    "lastInstance": "آخر مثيل",
+    "operator": "مشغل",
+    "triggerRule": "قاعدة التشغيل"
+  },
+  "task_few": "مهمة",
+  "task_many": "مهام",
+  "task_one": "مهمة",
+  "task_other": "مهام",
+  "task_two": "مهمتان",
+  "task_zero": "لا توجد مهام",
+  "taskId": "معرف المهمة",
+  "taskInstance": {
+    "dagVersion": "إصدار Dag",
+    "executor": "منفذ",
+    "executorConfig": "تكوين المنفذ",
+    "hostname": "اسم المضيف",
+    "maxTries": "الحد الأقصى للمحاولات",
+    "pid": "معرف العملية",
+    "pool": "مجموعة الموارد",
+    "poolSlots": "حصص مجموعة الموارد",
+    "priorityWeight": "وزن الأولوية",
+    "queue": "طابور",
+    "queuedWhen": "في الطابور",
+    "scheduledWhen": "مجدول في",
+    "triggerer": {
+      "assigned": "مُطلِق مُخصص",
+      "class": "فئة المُطلِق",
+      "createdAt": "تاريخ إنشاء المُطلِق",
+      "id": "معرف المُطلِق",
+      "latestHeartbeat": "آخر نبضة للمُطلِق",
+      "title": "معلومات المُطلِق"
+    },
+    "unixname": "اسم المستخدم يونكس"
+  },
+  "taskInstance_few": "مثيل المهمة",
+  "taskInstance_many": "مثيلات المهمة",
   "taskInstance_one": "مثيل المهمة",
-  "taskInstance_other": "مثيلات المهام",
+  "taskInstance_other": "مثيلات المهمة",
+  "taskInstance_two": "مثيلان المهمة",
+  "taskInstance_zero": "لا توجد مثيلات المهمة",
   "timeRange": {
     "last12Hours": "آخر 12 ساعة",
     "last24Hours": "آخر 24 ساعة",
     "lastHour": "الساعة الماضية",
     "pastWeek": "الأسبوع الماضي"
+  },
+  "timestamp": {
+    "hide": "إخفاء الأختام الزمنية",
+    "hotkey": "t",
+    "show": "إظهار الأختام الزمنية"
   },
   "timezone": "المنطقة الزمنية",
   "timezoneModal": {
@@ -123,6 +294,51 @@
     "title": "اختيار المنطقة الزمنية",
     "utc": "UTC (التوقيت العالمي المنسق)"
   },
+  "toaster": {
+    "bulkDelete": {
+      "error": "فشل طلب الحذف المجمع ل{{resourceName}}",
+      "success": {
+        "description": "تم حذف {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "title": "تم إرسال طلب الحذف المجمع ل{{resourceName}}"
+      }
+    },
+    "create": {
+      "error": "فشل طلب إنشاء {{resourceName}}",
+      "success": {
+        "description": "تم إنشاء {{resourceName}} بنجاح.",
+        "title": "تم إرسال طلب إنشاء {{resourceName}}"
+      }
+    },
+    "delete": {
+      "error": "فشل طلب حذف {{resourceName}}",
+      "success": {
+        "description": "تم حذف {{resourceName}} بنجاح.",
+        "title": "تم إرسال طلب حذف {{resourceName}}"
+      }
+    },
+    "import": {
+      "error": "فشل طلب استيراد {{resourceName}}",
+      "success": {
+        "description": "تم استيراد {{count}} {{resourceName}} بنجاح.",
+        "title": "تم إرسال طلب استيراد {{resourceName}}"
+      }
+    },
+    "update": {
+      "error": "فشل طلب تحديث {{resourceName}}",
+      "success": {
+        "description": "تم تحديث {{resourceName}} بنجاح.",
+        "title": "تم إرسال طلب تحديث {{resourceName}}"
+      }
+    }
+  },
+  "total": "الإجمالي {{state}}",
   "triggered": "مُشغل",
-  "user": "المستخدم"
+  "tryNumber": "محاولة رقم",
+  "user": "مستخدم",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "اضغط {{hotkey}} لتبديل الالتفاف",
+    "unwrap": "إلغاء التفاف",
+    "wrap": "التفاف"
+  }
 }

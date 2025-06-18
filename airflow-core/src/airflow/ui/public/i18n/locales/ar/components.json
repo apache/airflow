@@ -1,17 +1,24 @@
 {
   "backfill": {
+    "affected_few": "{{count}} مهمة ستُشغّل.",
+    "affected_many": "{{count}} مهام ستُشغّل.",
     "affected_one": "مهمة واحدة ستُشغّل.",
     "affected_other": "{{count}} مهام ستُشغّل.",
+    "affected_two": "مهمتان ستُشغّلان.",
+    "affected_zero": "لا توجد مهام ستُشغَّل.",
     "affectedNone": "لا توجد مهام تطابق المعايير المحددة.",
+    "allRuns": "جميع التشغيلات",
     "backwards": "تشغيل رجعي",
     "dateRange": "نطاق التاريخ",
     "dateRangeFrom": "من",
     "dateRangeTo": "إلى",
     "errorStartDateBeforeEndDate": "يجب أن يكون تاريخ البدء قبل تاريخ الانتهاء",
     "maxRuns": "الحد الأقصى للتشغيلات النشطة",
+    "missingAndErroredRuns": "تشغيلات مفقودة وخاطئة",
+    "missingRuns": "تشغيلات مفقودة",
     "reprocessBehavior": "اعادة معالجة السلوك",
     "run": "تشغيل التعبئة الرجعية",
-    "selectDescription": "تشغيل هذا DAG لنطاق من التواريخ",
+    "selectDescription": "تشغيل هذا Dag لنطاق من التواريخ",
     "selectLabel": "تعبئة رجعية",
     "title": "تشغيل التعبئة الرجعية",
     "toaster": {
@@ -43,23 +50,45 @@
     "invalidJson": "تنسيق JSON غير صالح: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_one": "1 خطأ",
+    "error_few": "خطأ",
+    "error_many": "أخطاء",
+    "error_one": "خطأ",
+    "error_other": "أخطاء",
+    "error_two": "خطأان",
+    "error_zero": "لا توجد أخطاء",
     "errorAndWarning": "1 خطأ و{{warningText}}",
+    "warning_few": "{{count}} تحذير",
+    "warning_many": "{{count}} تحذيرات",
     "warning_one": "1 تحذير",
-    "warning_other": "{{count}} تحذيرات"
+    "warning_other": "{{count}} تحذيرات",
+    "warning_two": "تحذيران",
+    "warning_zero": "لا توجد تحذيرات"
   },
   "durationChart": {
     "duration": "المدة (بالثواني)",
-    "lastDagRun_one": "آخر تشغيل DAG",
-    "lastDagRun_other": "آخر {{count}} تشغيلات DAG",
+    "lastDagRun_few": "آخر {{count}} تشغيل Dag",
+    "lastDagRun_many": "آخر {{count}} تشغيلات Dag",
+    "lastDagRun_one": "آخر تشغيل Dag",
+    "lastDagRun_other": "آخر {{count}} تشغيلات Dag",
+    "lastDagRun_two": "آخر تشغيلين Dag",
+    "lastDagRun_zero": "لا توجد تشغيلات Dag",
+    "lastTaskInstance_few": "آخر {{count}} مثيل مهمة",
+    "lastTaskInstance_many": "آخر {{count}} مثيلات مهمة",
     "lastTaskInstance_one": "آخر مثيل مهمة",
-    "lastTaskInstance_other": "آخر {{count}} مثيلات المهام",
+    "lastTaskInstance_other": "آخر {{count}} مثيلات مهمة",
+    "lastTaskInstance_two": "آخر مثيلين مهمة",
+    "lastTaskInstance_zero": "لا توجد مثيلات مهمة",
     "queuedDuration": "مدة الانتظار في الطابور",
     "runAfter": "تشغيل بعد",
     "runDuration": "مدة التشغيل"
   },
   "fileUpload": {
-    "files_other": "{{count}} ملفات"
+    "files_few": "{{count}} ملف",
+    "files_many": "{{count}} ملفات",
+    "files_one": "ملف",
+    "files_other": "{{count}} ملفات",
+    "files_two": "ملفان",
+    "files_zero": "لا توجد ملفات"
   },
   "flexibleForm": {
     "placeholder": "اختر قيمة",
@@ -79,9 +108,13 @@
     "downloadImage": "تحميل صورة الرسم البياني",
     "downloadImageError": "فشل تحميل صورة الرسم البياني.",
     "downloadImageErrorTitle": "فشل التحميل",
-    "otherDagRuns": "+تشغيلات DAG أخرى",
+    "otherDagRuns": "+تشغيلات Dag أخرى",
+    "taskCount_few": "{{count}} مهمة",
+    "taskCount_many": "{{count}} مهام",
     "taskCount_one": "{{count}} مهمة",
     "taskCount_other": "{{count}} مهام",
+    "taskCount_two": "{{count}} مهمتان",
+    "taskCount_zero": "لا توجد مهام",
     "taskGroup": "مجموعة المهام"
   },
   "limitedList": "+{{count}} المزيد",
@@ -89,7 +122,7 @@
     "file": "ملف",
     "location": "سطر {{line}} في {{name}}"
   },
-  "reparseDag": "إعادة تحليل DAG",
+  "reparseDag": "إعادة تحليل Dag",
   "sortedAscending": "الترتيب تصاعدي",
   "sortedDescending": "الترتيب تنازلي",
   "sortedUnsorted": "غير مرتب",
@@ -98,16 +131,16 @@
   "toggleTableView": "عرض الجدول",
   "triggerDag": {
     "button": "تشغيل",
-    "loading": "جارٍ تحميل معلومات DAG...",
-    "loadingFailed": "فشل تحميل معلومات DAG. يرجى المحاولة مرة أخرى.",
+    "loading": "جارٍ تحميل معلومات Dag...",
+    "loadingFailed": "فشل تحميل معلومات Dag. يرجى المحاولة مرة أخرى.",
     "runIdHelp": "اختياري - سيتم توليده تلقائيًا إذا لم يتم توفيره.",
-    "selectDescription": "تشغيل عملية واحدة من هذا DAG",
+    "selectDescription": "تشغيل عملية واحدة من هذا Dag",
     "selectLabel": "تشغيلة واحدة",
-    "title": "تشغيل DAG",
+    "title": "تشغيل Dag",
     "toaster": {
       "success": {
-        "description": "تم تشغيل عملية DAG بنجاح.",
-        "title": "تم تشغيل DAG"
+        "description": "تم تشغيل عملية Dag بنجاح.",
+        "title": "تم تشغيل Dag"
       }
     },
     "unpause": "إلغاء إيقاف {{dagDisplayName}} عند التشغيل"
@@ -125,7 +158,7 @@
     "versionId": "معرف الإصدار"
   },
   "versionSelect": {
-    "dagVersion": "إصدار DAG",
+    "dagVersion": "إصدار Dag",
     "versionCode": "v{{versionCode}}"
   }
 }
