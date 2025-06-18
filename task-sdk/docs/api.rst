@@ -61,6 +61,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.PokeReturnValue
 
+.. autoapiclass:: airflow.sdk.BaseHook
+
 Connections & Variables
 -----------------------
 .. autoapiclass:: airflow.sdk.Connection
