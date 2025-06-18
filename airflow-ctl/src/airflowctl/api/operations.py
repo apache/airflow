@@ -148,19 +148,26 @@ class BaseOperations:
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
     def return_all_entries(
-        self, *, path: str, total_entries: int, data_model, offset=0, limit: int = 50, params={}, **kwargs
+        self,
+        *,
+        path: str,
+        total_entries: int,
+        data_model,
+        entry_list: list,
+        offset=0,
+        limit: int = 50,
+        params=None,
+        **kwargs,
     ) -> list | ServerResponseError:
         params.update(**kwargs)
-        entry_list = []
         try:
-            if total_entries == 0:
-                return [data_model.model_validate_json(self.response.content)]
             while offset < total_entries:
                 params.update({"offset": offset})
                 self.response = self.client.get(path, params=params)
                 entry = data_model.model_validate_json(self.response.content)
                 offset = offset + limit  # default limit params = 50
                 entry_list.append(entry)
+
             return entry_list
         except ServerResponseError as e:
             raise e
@@ -614,11 +621,19 @@ class PoolsOperations(BaseOperations):
         """List all pools."""
         try:
             self.response = self.client.get("pools")
-            total_entries = PoolCollectionResponse.model_validate_json(self.response.content).total_entries
+            primary_data = PoolCollectionResponse.model_validate_json(self.response.content)
+            entry_list = []
+            entry_list.append(primary_data)
+            total_entries = primary_data.total_entries
+            limit = 50  # default
+            if total_entries < limit:
+                return entry_list
             return super().return_all_entries(
                 path="pools",
                 total_entries=total_entries,
+                limit=9,
                 data_model=PoolCollectionResponse,
+                entry_list=entry_list,
             )
         except ServerResponseError as e:
             raise e
@@ -683,13 +698,18 @@ class VariablesOperations(BaseOperations):
         """List all variables."""
         try:
             self.response = self.client.get("variables")
-            total_entries = VariableCollectionResponse.model_validate_json(
-                self.response.content
-            ).total_entries
+            primary_data = VariableCollectionResponse.model_validate_json(self.response.content)
+            entry_list = []
+            entry_list.append(primary_data)
+            total_entries = primary_data.total_entries
+            limit = 50
+            if total_entries < limit:
+                return entry_list
             return super().return_all_entries(
                 path="variables",
                 total_entries=total_entries,
                 data_model=VariableCollectionResponse,
+                entry_list=entry_list,
             )
         except ServerResponseError as e:
             raise e
