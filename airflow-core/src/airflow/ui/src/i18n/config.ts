@@ -20,7 +20,17 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
+import arAdmin from "./locales/ar/admin.json";
+import arAssets from "./locales/ar/assets.json";
+import arBrowse from "./locales/ar/browse.json";
+import arCommon from "./locales/ar/common.json";
+import arComponents from "./locales/ar/components.json";
+import arDag from "./locales/ar/dag.json";
+import arDags from "./locales/ar/dags.json";
+import arDashboard from "./locales/ar/dashboard.json";
 import deAdmin from "./locales/de/admin.json";
+import deAssets from "./locales/de/assets.json";
+import deBrowse from "./locales/de/browse.json";
 import deCommon from "./locales/de/common.json";
 import deComponents from "./locales/de/components.json";
 import deDag from "./locales/de/dag.json";
@@ -35,8 +45,11 @@ import enDag from "./locales/en/dag.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
 import heAdmin from "./locales/he/admin.json";
+import heAsset from "./locales/he/assets.json";
 import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
+import heComponents from "./locales/he/components.json";
+import heDag from "./locales/he/dag.json";
 import heDashboard from "./locales/he/dashboard.json";
 import hiAdmin from "./locales/hi/admin.json";
 import hiAssets from "./locales/hi/assets.json";
@@ -51,6 +64,8 @@ import koDashboard from "./locales/ko/dashboard.json";
 import nlCommon from "./locales/nl/common.json";
 import nlDashboard from "./locales/nl/dashboard.json";
 import plAdmin from "./locales/pl/admin.json";
+import plAssets from "./locales/pl/assets.json";
+import plBrowse from "./locales/pl/browse.json";
 import plCommon from "./locales/pl/common.json";
 import plComponents from "./locales/pl/components.json";
 import plDag from "./locales/pl/dag.json";
@@ -69,6 +84,7 @@ import zhTWDashboard from "./locales/zh-TW/dashboard.json";
 // import Backend from 'i18next-http-backend';
 
 export const supportedLanguages = [
+  { code: "ar", flag: "🇸🇦", name: "العربية" },
   { code: "de", flag: "🇩🇪", name: "Deutsch" },
   { code: "en", flag: "🇺🇸", name: "English" },
   { code: "he", flag: "🇮🇱", name: "עברית" },
@@ -83,8 +99,20 @@ export const defaultLanguage = "en";
 export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets"] as const;
 
 const resources = {
+  ar: {
+    admin: arAdmin,
+    assets: arAssets,
+    browse: arBrowse,
+    common: arCommon,
+    components: arComponents,
+    dag: arDag,
+    dags: arDags,
+    dashboard: arDashboard,
+  },
   de: {
     admin: deAdmin,
+    assets: deAssets,
+    browse: deBrowse,
     common: deCommon,
     components: deComponents,
     dag: deDag,
@@ -103,8 +131,11 @@ const resources = {
   },
   he: {
     admin: heAdmin,
+    assets: heAsset,
     browse: heBrowse,
     common: heCommon,
+    components: heComponents,
+    dag: heDag,
     dashboard: heDashboard,
   },
   hi: {
@@ -127,6 +158,8 @@ const resources = {
   },
   pl: {
     admin: plAdmin,
+    assets: plAssets,
+    browse: plBrowse,
     common: plCommon,
     components: plComponents,
     dag: plDag,

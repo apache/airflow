@@ -3,7 +3,7 @@
   "createEvent": {
     "button": "Create Event",
     "manual": {
-      "description": "Directly create an Asset Event",
+      "description": "Manually create an Asset Event",
       "extra": "Asset Event Extra",
       "label": "Manual"
     },

@@ -77,7 +77,7 @@ apache-airflow-providers-neo4j package
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 3.9.0
+Release: 3.9.1
 
 Provider package
 ----------------
@@ -101,5 +101,5 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
-``neo4j``           ``>=4.2.1``
+``neo4j``           ``>=5.20.0``
 ==================  ==================
