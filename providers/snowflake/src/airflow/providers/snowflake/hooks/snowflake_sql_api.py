@@ -93,6 +93,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.snowflake_conn_id = snowflake_conn_id
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
+
+        super().__init__(snowflake_conn_id, *args, **kwargs)
+        self.private_key: Any = None
+
         self.retry_config = {
             "retry": retry_if_exception(self._should_retry_on_error),
             "wait": wait_exponential(multiplier=1, min=1, max=60),
@@ -102,9 +106,6 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         if api_retry_args:
             self.retry_config.update(api_retry_args)
-
-        super().__init__(snowflake_conn_id, *args, **kwargs)
-        self.private_key: Any = None
 
     def get_private_key(self) -> None:
         """Get the private key from snowflake connection."""
