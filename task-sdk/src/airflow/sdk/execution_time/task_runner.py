@@ -98,6 +98,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
+from airflow.utils.platform import getuser
 from airflow.utils.timezone import coerce_datetime
 
 if TYPE_CHECKING:
@@ -688,7 +689,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         "core", "default_impersonation", fallback=None
     )
 
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user:
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
         # enters here for re-exec process
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
         # store startup message in environment for re-exec process
