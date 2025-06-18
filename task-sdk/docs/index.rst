@@ -89,4 +89,5 @@ Refer to :doc:`api` for the complete reference of all decorators and classes.
   :hidden:
 
   examples
+  dynamic-task-mapping
   api
