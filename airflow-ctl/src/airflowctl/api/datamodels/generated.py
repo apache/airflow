@@ -479,6 +479,17 @@ class DeadlineAlertResponse(BaseModel):
     callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
 
 
+class DeadlineResponse(BaseModel):
+    """
+    Deadline serializer for responses.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    deadline_time: Annotated[datetime, Field(title="Deadline Time")]
+    callback: Annotated[str | None, Field(title="Callback")] = None
+    callback_kwargs: Annotated[dict[str, Any] | None, Field(title="Callback Kwargs")] = None
+
+
 class DryRunBackfillResponse(BaseModel):
     """
     Backfill serializer for responses in dry-run mode.
@@ -1345,6 +1356,7 @@ class DAGRunResponse(BaseModel):
     duration: Annotated[float | None, Field(title="Duration")] = None
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    deadlines: Annotated[list[DeadlineResponse] | None, Field(title="Deadlines")] = None
     run_after: Annotated[datetime, Field(title="Run After")]
     last_scheduling_decision: Annotated[datetime | None, Field(title="Last Scheduling Decision")] = None
     run_type: DagRunType

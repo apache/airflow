@@ -632,6 +632,7 @@ export type DAGRunResponse = {
   duration: number | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
+  deadlines: Array<DeadlineResponse> | null;
   run_after: string;
   last_scheduling_decision: string | null;
   run_type: DagRunType;
@@ -828,6 +829,18 @@ export type DeadlineAlertResponse = {
   reference: string;
   interval: string;
   callback: string;
+  callback_kwargs?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * Deadline serializer for responses.
+ */
+export type DeadlineResponse = {
+  id: string;
+  deadline_time: string;
+  callback?: string | null;
   callback_kwargs?: {
     [key: string]: unknown;
   } | null;

@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionRespo
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.deadline import Deadline
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -75,6 +76,9 @@ LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
 DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
+TEST_CALLBACK_PATH = f"{__name__}.test_callback"
+TEST_CALLBACK_KWARGS = {"to": "admin@airflow.com"}
+
 
 DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
 
@@ -103,6 +107,16 @@ def setup(request, dag_maker, session=None):
     )
 
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
+
+    deadline1 = Deadline(
+        deadline_time=LOGICAL_DATE1,
+        callback=TEST_CALLBACK_PATH,
+        callback_kwargs=TEST_CALLBACK_KWARGS,
+        dag_id=DAG1_ID,
+        dagrun_id=dag_run1.id,
+    )
+
+    Deadline.add_deadline(deadline1)
 
     for task in [task1, task2]:
         ti = dag_run1.get_task_instance(task_id=task.task_id)
@@ -161,6 +175,13 @@ def get_dag_versions_dict(dag_versions: list[DagVersion]) -> list[dict]:
     ]
 
 
+def convert_instrumented_list_to_dict(lst):
+    result = [obj.__dict__ for obj in lst]
+    for obj in result:
+        obj.pop("_sa_instance_state", None)
+    return result
+
+
 def get_dag_run_dict(run: DagRun):
     return {
         "bundle_version": None,
@@ -178,6 +199,15 @@ def get_dag_run_dict(run: DagRun):
         "last_scheduling_decision": (
             from_datetime_to_zulu(run.last_scheduling_decision) if run.last_scheduling_decision else None
         ),
+        "deadlines": [
+            {
+                "id": str(each.id),
+                "deadline_time": from_datetime_to_zulu_without_ms(each.deadline_time),
+                "callback": each.callback,
+                "callback_kwargs": each.callback_kwargs,
+            }
+            for each in run.deadlines
+        ],
         "run_type": run.run_type,
         "state": run.state,
         "triggered_by": run.triggered_by.value,
@@ -189,7 +219,7 @@ def get_dag_run_dict(run: DagRun):
 
 class TestGetDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
+        "dag_id, run_id, state, run_type, triggered_by, dag_run_note, deadlines",
         [
             (
                 DAG1_ID,
@@ -198,6 +228,14 @@ class TestGetDagRun:
                 DAG1_RUN1_RUN_TYPE,
                 DAG1_RUN1_TRIGGERED_BY,
                 DAG1_RUN1_NOTE,
+                [
+                    {
+                        "id": "",
+                        "deadline_time": LOGICAL_DATE1,
+                        "callback": TEST_CALLBACK_PATH,
+                        "callback_kwargs": TEST_CALLBACK_KWARGS,
+                    }
+                ],
             ),
             (
                 DAG1_ID,
@@ -205,6 +243,7 @@ class TestGetDagRun:
                 DAG1_RUN2_STATE,
                 DAG1_RUN2_RUN_TYPE,
                 DAG1_RUN2_TRIGGERED_BY,
+                None,
                 None,
             ),
             (
@@ -214,6 +253,7 @@ class TestGetDagRun:
                 DAG2_RUN1_RUN_TYPE,
                 DAG2_RUN1_TRIGGERED_BY,
                 None,
+                None,
             ),
             (
                 DAG2_ID,
@@ -222,11 +262,14 @@ class TestGetDagRun:
                 DAG2_RUN2_RUN_TYPE,
                 DAG2_RUN2_TRIGGERED_BY,
                 None,
+                None,
             ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_get_dag_run(self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note):
+    def test_get_dag_run(
+        self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note, deadlines
+    ):
         response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
         assert response.status_code == 200
         body = response.json()
@@ -236,6 +279,14 @@ class TestGetDagRun:
         assert body["run_type"] == run_type
         assert body["triggered_by"] == triggered_by.value
         assert body["note"] == dag_run_note
+        if deadlines:
+            assert [i["deadline_time"] for i in body["deadlines"]] == [
+                from_datetime_to_zulu_without_ms(i["deadline_time"]) for i in deadlines
+            ]
+            assert [i["callback"] for i in body["deadlines"]] == [i["callback"] for i in deadlines]
+            assert [i["callback_kwargs"] for i in body["deadlines"]] == [
+                i["callback_kwargs"] for i in deadlines
+            ]
 
     def test_get_dag_run_not_found(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
@@ -1313,6 +1364,7 @@ class TestTriggerDagRun:
             "logical_date": expected_logical_date,
             "run_after": fixed_now.replace("+00:00", "Z"),
             "start_date": None,
+            "deadlines": [],
             "duration": None,
             "state": "queued",
             "data_interval_end": expected_data_interval_end,
@@ -1504,6 +1556,7 @@ class TestTriggerDagRun:
             "queued_at": now,
             "start_date": None,
             "end_date": None,
+            "deadlines": [],
             "duration": None,
             "run_after": now,
             "data_interval_start": now,
@@ -1592,6 +1645,7 @@ class TestTriggerDagRun:
             "run_after": mock.ANY,
             "start_date": None,
             "end_date": None,
+            "deadlines": [],
             "duration": None,
             "data_interval_start": mock.ANY,
             "data_interval_end": mock.ANY,
