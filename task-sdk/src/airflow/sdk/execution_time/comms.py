@@ -180,6 +180,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         bytes = frame.as_bytes()
 
         self.socket.sendall(bytes)
+
         return self._get_response()
 
     def _read_frame(self):

@@ -684,8 +684,10 @@ def test_user_impersonation_env_and_execvp(
 
         mock_set_inheritable.assert_called_once_with(42, True)
         actual_cmd = mock_execvp.call_args.args[1]
+
         assert actual_cmd[:5] == ["sudo", "-E", "-H", "-u", "airflowuser"]
-        assert actual_cmd[-1] == "from airflow.sdk.execution_time.task_runner import main; main()"
+        assert "python -c" in actual_cmd[5] + " " + actual_cmd[6]
+        assert actual_cmd[7] == "from airflow.sdk.execution_time.task_runner import main; main()"
 
 
 @pytest.mark.parametrize(

@@ -40,7 +40,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowConfigException, AirflowInactiveAssetInInletOrOutletException
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -684,10 +684,9 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         ti.log_url = get_log_url_from_ti(ti)
     log.debug("DAG file parsed", file=msg.dag_rel_path)
 
-    try:
-        run_as_user = getattr(ti.task, "run_as_user", None) or conf.get("core", "default_impersonation")
-    except AirflowConfigException:
-        run_as_user = None
+    run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
+        "core", "default_impersonation", fallback=None
+    )
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user:
         # enters here for re-exec process
