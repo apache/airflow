@@ -75,6 +75,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     :param token_life_time: lifetime of the JWT Token in timedelta
     :param token_renewal_delta: Renewal time of the JWT Token in timedelta
     :param deferrable: Run operator in the deferrable mode.
+    :param api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
     """
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minute lifetime
