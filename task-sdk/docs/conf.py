@@ -58,7 +58,7 @@ autodoc_typehints = "description"
 autoapi_file_patterns = ["*.pyi", "*.py"]
 
 html_theme = "sphinx_airflow_theme"
-html_sidebars = {"**": ["globaltoc.html", "searchbox.html"]}
+html_sidebars = {"**": ["localtoc.html", "globaltoc.html", "searchbox.html", "relations.html"]}
 
 
 global_substitutions = {
