@@ -1134,5 +1134,54 @@ class TriggerRunner:
         Uses a cache dictionary to speed up lookups after the first time.
         """
         if classpath not in self.trigger_cache:
-            self.trigger_cache[classpath] = import_string(classpath)
+            self.trigger_cache[classpath] = self.import_classpath_maybe_zip(classpath)
         return self.trigger_cache[classpath]
+
+    def clear_sys_modules_from_zip_info(self, zip_file):
+        """
+        Clear the import cache (sys.modules) of the modules found in zip_file.
+
+        This is done so that triggers from different versions of a dag, with
+        different versions of the same library are imported correctly.
+
+        If this is not performed then the triggerer process can (will) load
+        the wrong version of the library from the cache.
+        """
+        with zipfile.ZipFile(zip_file) as zf:
+            for zip_info in zf.infolist():
+                p = Path(zip_info.filename)
+                if p.suffix == ".py":
+                    d = os.path.dirname(p)
+                    if d:
+                        module1 = d.replace(os.sep, ".")
+                        module2 = f"{module1}.{p.stem}"
+                        if sys.modules.pop(module1, None):
+                            self.log.info("Removed %s from sys.modules", module1)
+                        if sys.modules.pop(module2, None):
+                            self.log.info("Removed %s from sys.modules", module2)
+                    else:
+                        if sys.modules.pop(p.stem, None)
+                            self.log.info("Removed %s from sys.modules", p.stem)
+
+    def import_classpath_maybe_zip(self, classpath):
+        """
+        Get a trigger class by its classpath.
+
+        classpath could be of the following forms:
+        1) path.to.my.class
+        2) /path/to/dags/dag.zip:path.to.my.class
+        """
+        if classpath.find(":") >= 0 and ".zip" in classpath:
+            [zip_file, classname] = classpath.split(":")
+
+            self.clear_sys_modules_from_zip_info(zip_file)
+
+            try:
+                sys.path.insert(0, zip_file)
+                return import_string(classname)
+            except Exception:
+                raise
+            finally:
+                sys.path.remove(zip_file)
+        else:
+            return import_string(classpath)
