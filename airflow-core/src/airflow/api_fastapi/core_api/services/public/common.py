@@ -28,6 +28,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
     BulkCreateAction,
     BulkDeleteAction,
+    BulkDeleteWithEntityAction,
     BulkResponse,
     BulkUpdateAction,
     T,
@@ -55,6 +56,8 @@ class BulkService(Generic[T], ABC):
                 self.handle_bulk_update(action, results[action.action.value])  # type: ignore
             elif action.action == BulkAction.DELETE:
                 self.handle_bulk_delete(action, results[action.action.value])  # type: ignore
+            elif action.action == BulkAction.DELETE_WITH_ENTITY:
+                self.handle_bulk_delete_with_entity(action, results[action.action.value])  # type: ignore
 
         return BulkResponse(**results)
 
@@ -71,4 +74,11 @@ class BulkService(Generic[T], ABC):
     @abstractmethod
     def handle_bulk_delete(self, action: BulkDeleteAction[T], results: BulkActionResponse) -> None:
         """Bulk delete entities."""
-        raise NotImplementedError
+        pass
+
+    @abstractmethod
+    def handle_bulk_delete_with_entity(
+        self, action: BulkDeleteWithEntityAction[T], results: BulkActionResponse
+    ) -> None:
+        """Bulk delete entities with entity."""
+        pass
