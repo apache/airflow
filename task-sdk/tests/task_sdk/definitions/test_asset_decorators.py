@@ -285,7 +285,6 @@ class Test_AssetMainOperator:
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
         assert op._definition_name == "example_asset_func"
 
-    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     def test_determine_kwargs(
         self,
         mock_supervisor_comms,
@@ -334,7 +333,6 @@ class Test_AssetMainOperator:
             mock.call.get_message(),
         ]
 
-    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     def test_determine_kwargs_defaults(
         self,
         mock_supervisor_comms,
