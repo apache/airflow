@@ -336,7 +336,7 @@ class TestSerializedDagModel:
         last_updated = sdm1.last_updated
         # new task
         PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="dag_maker")
         sdm2 = SDM.get(dag.dag_id, session=session)
 
         assert sdm2.dag_hash != dag_hash  # first recorded serdag
@@ -353,7 +353,7 @@ class TestSerializedDagModel:
         assert session.query(DagVersion).count() == 1
         # new task
         PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="dag_maker")
 
         assert session.query(DagVersion).count() == 2
         assert session.query(SDM).count() == 2

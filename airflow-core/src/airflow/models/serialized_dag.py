@@ -426,7 +426,7 @@ class SerializedDagModel(Base):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
 
-        if dag_version and (not dag_version.task_instances and dag_version.bundle_name != bundle_name):
+        if dag_version and (not dag_version.task_instances or dag_version.bundle_name != bundle_name):
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
