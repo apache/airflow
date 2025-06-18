@@ -644,6 +644,91 @@ def test_startup_and_run_dag_with_rtif(
     mock_supervisor_comms.assert_has_calls(expected_calls)
 
 
+@patch("os.execvp")
+@patch("os.set_inheritable")
+def test_task_run_with_user_impersonation(
+    mock_set_inheritable, mock_execvp, mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+):
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            print("Hi from CustomOperator!")
+
+    task = CustomOperator(task_id="impersonation_task", run_as_user="airflowuser")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="impersonation_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    mocked_parse(what, "basic_dag", task)
+    time_machine.move_to(instant, tick=False)
+
+    mock_supervisor_comms._get_response.return_value = what
+    mock_supervisor_comms.socket.fileno.return_value = 42
+
+    with mock.patch.dict(os.environ, {}, clear=True):
+        startup()
+
+        assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
+        assert "_AIRFLOW__STARTUP_MSG" in os.environ
+
+        mock_set_inheritable.assert_called_once_with(42, True)
+        actual_cmd = mock_execvp.call_args.args[1]
+
+        assert actual_cmd[:5] == ["sudo", "-E", "-H", "-u", "airflowuser"]
+        assert "python -c" in actual_cmd[5] + " " + actual_cmd[6]
+        assert actual_cmd[7] == "from airflow.sdk.execution_time.task_runner import main; main()"
+
+
+@patch("airflow.sdk.execution_time.task_runner.getuser")
+def test_task_run_with_user_impersonation_default_user(
+    mock_get_user, mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+):
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            print("Hi from CustomOperator!")
+
+    task = CustomOperator(task_id="impersonation_task", run_as_user="default_user")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="impersonation_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    mocked_parse(what, "basic_dag", task)
+    time_machine.move_to(instant, tick=False)
+
+    mock_supervisor_comms._get_response.return_value = what
+    mock_supervisor_comms.socket.fileno.return_value = 42
+    mock_get_user.return_value = "default_user"
+
+    with mock.patch.dict(os.environ, {}, clear=True):
+        startup()
+
+        assert "_AIRFLOW__REEXECUTED_PROCESS" not in os.environ
+        assert "_AIRFLOW__STARTUP_MSG" not in os.environ
+
+
 @pytest.mark.parametrize(
     ["command", "rendered_command"],
     [
