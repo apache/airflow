@@ -765,6 +765,20 @@ class TaskDependencyResponse(BaseModel):
     reason: Annotated[str, Field(title="Reason")]
 
 
+class TaskInletAssetReference(BaseModel):
+    """
+    Task inlet reference serializer for assets.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    created_at: Annotated[datetime, Field(title="Created At")]
+    updated_at: Annotated[datetime, Field(title="Updated At")]
+
+
 class TaskInstanceState(str, Enum):
     """
     All possible states that a Task Instance can be in.
@@ -1039,8 +1053,9 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
-    consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
+    scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
+    consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
     last_asset_event: LastAssetEventResponse | None = None
 
