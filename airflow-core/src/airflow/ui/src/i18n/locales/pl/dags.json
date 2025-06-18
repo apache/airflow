@@ -24,6 +24,7 @@
     "clear": {
       "button": "Wyczyść {{type}}",
       "buttonTooltip": "Użyj shift+c żeby wyczyścić",
+      "error": "Nie udało się wyczyścić {{type}}",
       "title": "Wyczyść {{type}}"
     },
     "delete": {

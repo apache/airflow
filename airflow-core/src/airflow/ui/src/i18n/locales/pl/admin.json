@@ -19,6 +19,8 @@
       "host": "Host",
       "port": "Port"
     },
+    "connection_one": "Połączenie",
+    "connection_other": "Połączenia",
     "delete": {
       "deleteConnection_one": "Usuń 1 połączenie",
       "deleteConnection_other": "Usuń {{count}} połączenia",
@@ -40,7 +42,18 @@
     "noRowMessage": "Nie znaleziono połączeń",
     "searchPlaceholder": "Szukaj połączeń",
     "test": "Test połączenia",
-    "testDisabled": "Testowanie połączeń wyłączone. Skontaktuj się z administratorem, aby je włączyć."
+    "testDisabled": "Testowanie połączeń wyłączone. Skontaktuj się z administratorem, aby je włączyć.",
+    "typeMeta": {
+      "error": "Nie udało się pobrać metadanych typu połączenia",
+      "standardFields": {
+        "description": "Opis",
+        "host": "Host",
+        "login": "Login",
+        "password": "Hasło",
+        "port": "Port",
+        "url_schema": "Schemat"
+      }
+    }
   },
   "deleteActions": {
     "button": "Usuń",
@@ -49,7 +62,8 @@
       "secondConfirmMessage": "Ta akcja jest nieodwracalna.",
       "thirdConfirmMessage": "Czy na pewno chcesz kontynuować?"
     },
-    "selected": "Wybrano"
+    "selected": "Wybrano",
+    "tooltip": "Usuń wybrane połączenia"
   },
   "formActions": {
     "reset": "Resetuj",
@@ -80,6 +94,8 @@
       "slots": "Miejsca"
     },
     "noPoolsFound": "Nie znaleziono pul",
+    "pool_one": "Pula",
+    "pool_other": "Pule",
     "searchPlaceholder": "Szukaj pul",
     "sort": {
       "asc": "Nazwa (A-Z)",
@@ -103,10 +119,12 @@
       "deleteVariable_other": "Usuń {{count}} zmienne",
       "firstConfirmMessage_one": "Zamierzasz usunąć następującą zmienną:",
       "firstConfirmMessage_other": "Zamierzasz usunąć następujące zmienne:",
-      "title": "Usuń zmienną"
+      "title": "Usuń zmienną",
+      "tooltip": "Usuń wybrane zmienne"
     },
     "edit": "Edytuj zmienną",
     "export": "Eksportuj",
+    "exportTooltip": "Eksportuj zmienne",
     "form": {
       "invalidJson": "Nieprawidłowy JSON",
       "keyMaxLength": "Klucz może zawierać maksymalnie 250 znaków",
@@ -136,6 +154,8 @@
       "uploadPlaceholder": "Prześlij plik JSON zawierający zmienne (np. {\"key\": \"value\", ...})"
     },
     "noRowsMessage": "Nie znaleziono zmiennych",
-    "searchPlaceholder": "Szukaj kluczy"
+    "searchPlaceholder": "Szukaj kluczy",
+    "variable_one": "Zmienna",
+    "variable_other": "Zmienne"
   }
 }

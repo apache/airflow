@@ -285,7 +285,6 @@ class Test_AssetMainOperator:
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
         assert op._definition_name == "example_asset_func"
 
-    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     def test_determine_kwargs(
         self,
         mock_supervisor_comms,
@@ -295,7 +294,7 @@ class Test_AssetMainOperator:
             example_asset_func_with_valid_arg_as_inlet_asset
         )
 
-        mock_supervisor_comms.get_message.side_effect = [
+        mock_supervisor_comms.send.side_effect = [
             AssetResult(
                 name="example_asset_func",
                 uri="s3://bucket/object",
@@ -326,15 +325,11 @@ class Test_AssetMainOperator:
         }
 
         assert mock_supervisor_comms.mock_calls == [
-            mock.call.send_request(mock.ANY, GetAssetByName(name="example_asset_func")),
-            mock.call.get_message(),
-            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_1")),
-            mock.call.get_message(),
-            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_2")),
-            mock.call.get_message(),
+            mock.call.send(GetAssetByName(name="example_asset_func")),
+            mock.call.send(GetAssetByName(name="inlet_asset_1")),
+            mock.call.send(GetAssetByName(name="inlet_asset_2")),
         ]
 
-    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     def test_determine_kwargs_defaults(
         self,
         mock_supervisor_comms,
@@ -342,7 +337,7 @@ class Test_AssetMainOperator:
     ):
         asset_definition = asset(schedule=None)(example_asset_func_with_valid_arg_as_inlet_asset_and_default)
 
-        mock_supervisor_comms.get_message.side_effect = [
+        mock_supervisor_comms.send.side_effect = [
             AssetResult(name="inlet_asset_1", uri="s3://bucket/object1", group="asset", extra=None),
         ]
 
@@ -360,6 +355,5 @@ class Test_AssetMainOperator:
         }
 
         assert mock_supervisor_comms.mock_calls == [
-            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_1")),
-            mock.call.get_message(),
+            mock.call.send(GetAssetByName(name="inlet_asset_1")),
         ]

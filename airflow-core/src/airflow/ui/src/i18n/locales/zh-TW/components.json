@@ -87,8 +87,7 @@
   "limitedList": "+ 其他 {{count}} 項",
   "logs": {
     "file": "檔案",
-    "in": "在",
-    "line": "行"
+    "location": "第 {{line}} 行，位於 {{name}}"
   },
   "reparseDag": "重新解析 Dag",
   "sortedAscending": "遞增排序",

@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
@@ -60,11 +62,22 @@ class TestTranslationLegacyDatasetLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
+
+        link.persist(
+            context={"ti": ti, "task": ti.task},
+            dataset_id=DATASET,
+            project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
+        )
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="key",
-                value={"location": ti.task.location, "dataset_id": DATASET, "project_id": GCP_PROJECT_ID},
+                value={
+                    "location": ti.task.location,
+                    "dataset_id": DATASET,
+                    "project_id": GCP_PROJECT_ID,
+                },
             )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
@@ -83,9 +96,10 @@ class TestTranslationDatasetListLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, project_id=GCP_PROJECT_ID)
+        link.persist(context={"ti": ti, "task": ti.task}, project_id=GCP_PROJECT_ID)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="key",
                 value={
                     "project_id": GCP_PROJECT_ID,
@@ -113,15 +127,21 @@ class TestTranslationLegacyModelLink:
         )
         session.add(ti)
         session.commit()
+        task = mock.MagicMock()
+        task.extra_links_params = {
+            "dataset_id": DATASET,
+            "model_id": MODEL,
+            "project_id": GCP_PROJECT_ID,
+            "location": GCP_LOCATION,
+        }
         link.persist(
-            context={"ti": ti},
-            task_instance=ti.task,
+            context={"ti": ti, "task": task},
             dataset_id=DATASET,
             model_id=MODEL,
             project_id=GCP_PROJECT_ID,
         )
-        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+        if mock_supervisor_comms:
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="key",
                 value={
                     "location": ti.task.location,
@@ -130,7 +150,7 @@ class TestTranslationLegacyModelLink:
                     "project_id": GCP_PROJECT_ID,
                 },
             )
-        actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+        actual_url = link.get_link(operator=task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
@@ -152,13 +172,21 @@ class TestTranslationLegacyModelTrainLink:
         )
         session.add(ti)
         session.commit()
+        task = mock.MagicMock()
+        task.extra_links_params = {
+            "dataset_id": DATASET,
+            "project_id": GCP_PROJECT_ID,
+            "location": GCP_LOCATION,
+        }
         link.persist(
-            context={"ti": ti},
-            task_instance=ti.task,
+            context={"ti": ti, "task": task},
+            dataset_id=DATASET,
             project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
         )
-        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+
+        if mock_supervisor_comms:
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="key",
                 value={
                     "location": ti.task.location,
@@ -166,5 +194,5 @@ class TestTranslationLegacyModelTrainLink:
                     "project_id": GCP_PROJECT_ID,
                 },
             )
-        actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+        actual_url = link.get_link(operator=task, ti_key=ti.key)
         assert actual_url == expected_url

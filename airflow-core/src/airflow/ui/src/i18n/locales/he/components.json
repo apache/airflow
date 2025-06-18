@@ -87,8 +87,7 @@
   "limitedList": "+ {{count}} נוספים",
   "logs": {
     "file": "קובץ",
-    "in": "ב",
-    "line": "שורה"
+    "location": "שורה {{line}} ב{{name}}"
   },
   "reparseDag": "נתח DAG מחדש",
   "sortedAscending": "ממוין בסדר עולה",

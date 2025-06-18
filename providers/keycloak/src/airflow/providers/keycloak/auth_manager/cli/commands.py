@@ -23,6 +23,7 @@ from typing import get_args
 from keycloak import KeycloakAdmin, KeycloakError
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
@@ -70,7 +71,7 @@ def create_permissions_command(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def create_all_command(args):
-    """Create Keycloak auth manager scopes in Keycloak."""
+    """Create all Keycloak auth manager entities in Keycloak."""
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
@@ -115,12 +116,11 @@ def _create_scopes(client: KeycloakAdmin, client_uuid: str):
 
 
 def _create_resources(client: KeycloakAdmin, client_uuid: str):
-    # Fetch existing scopes
     all_scopes = client.get_client_authz_scopes(client_uuid)
     scopes = [
         {"id": scope["id"], "name": scope["name"]}
         for scope in all_scopes
-        if scope["name"] in get_args(ResourceMethod)
+        if scope["name"] in ["GET", "POST", "PUT", "DELETE"]
     ]
 
     for resource in KeycloakResource:
@@ -128,6 +128,19 @@ def _create_resources(client: KeycloakAdmin, client_uuid: str):
             client_id=client_uuid,
             payload={
                 "name": resource.value,
+                "scopes": scopes,
+            },
+            skip_exists=True,
+        )
+
+    # Create menu item resources
+    scopes = [{"id": scope["id"], "name": scope["name"]} for scope in all_scopes if scope["name"] == "MENU"]
+
+    for item in MenuItem:
+        client.create_client_authz_resource(
+            client_id=client_uuid,
+            payload={
+                "name": item.value,
                 "scopes": scopes,
             },
             skip_exists=True,

@@ -223,6 +223,43 @@
     "title": "Wybierz strefę czasową",
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Nie udało się wykonać żądania masowego usunięcia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "title": "Wysłano żądanie masowego usunięcia {{resourceName}}"
+      }
+    },
+    "create": {
+      "error": "Nie udało się wykonać żądania utworzenia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie utworzono {{resourceName}}.",
+        "title": "Wysłano żądanie utworzenia {{resourceName}}"
+      }
+    },
+    "delete": {
+      "error": "Nie udało się wykonać żądania usunięcia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie usunięto {{resourceName}}.",
+        "title": "Wysłano żądanie usunięcia {{resourceName}}"
+      }
+    },
+    "import": {
+      "error": "Nie udało się wykonać żądania importu {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie zaimportowano {{count}} {{resourceName}}.",
+        "title": "Wysłano żądanie importu {{resourceName}}"
+      }
+    },
+    "update": {
+      "error": "Nie udało się wykonać żądania aktualizacji {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie zaktualizowano {{resourceName}}.",
+        "title": "Wysłano żądanie aktualizacji {{resourceName}}"
+      }
+    }
+  },
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Użytkownik",

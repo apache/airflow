@@ -1,0 +1,110 @@
+{
+  "allRuns": "جميع التشغيلات",
+  "blockingDeps": {
+    "dependency": "التبعية",
+    "reason": "السبب",
+    "title": "التبعيات التي تمنع جدولة المهمة"
+  },
+  "code": {
+    "bundleUrl": "حزمة URL",
+    "noCode": "'لا توجد 'كود",
+    "parsedAt": "تم تحليلها في:"
+  },
+  "extraLinks": "روابط إضافية",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "إعادة تعيين إلى الأحدث",
+      "toggleGroup": "تفعيل المجموعة"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "وثائق DAG"
+    }
+  },
+  "logs": {
+    "noTryNumber": "لا يوجد رقم محاولة",
+    "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "فشل تشغيل",
+      "failedRun_other": "فشل تشغيلات",
+      "failedTask_one": "فشل مهمة",
+      "failedTask_other": "فشل مهام",
+      "failedTaskInstance_one": "فشل مثيل مهمة",
+      "failedTaskInstance_other": "فشل مثيلات المهام"
+    },
+    "charts": {
+      "assetEvent_one": "تم إنشاء حدث أصل",
+      "assetEvent_other": "تم إنشاء أحداث أصل"
+    },
+    "failedLogs": {
+      "title": "سجلات المهام الفاشلة الأخيرة",
+      "viewFullLogs": "عرض السجلات الكاملة"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "خيارات",
+      "showGraph": "عرض الرسم البياني",
+      "showGrid": "عرض الشبكة"
+    },
+    "dagRuns": {
+      "label": "عدد تشغيلات DAG"
+    },
+    "dependencies": {
+      "label": "التبعيات",
+      "options": {
+        "allDagDependencies": "جميع تبعيات DAG",
+        "externalConditions": "الشروط الخارجية",
+        "onlyTasks": "المهام فقط"
+      },
+      "placeholder": "التبعيات"
+    },
+    "graphDirection": {
+      "label": "اتجاه الرسم البياني"
+    }
+  },
+  "paramsFailed": "فشل في تحميل المعلمات",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "فشل في إعادة تحليل DAG. يمكن أن يكون بسبب تحليل جاري حالياً",
+        "title": "فشل في إعادة تحليل DAG"
+      },
+      "success": {
+        "description": "Dag سوف يعاد تحليله قريباً.",
+        "title": "تم إعادة تحليل DAG بنجاح"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "أحداث الأصول",
+    "auditLog": "سجل التدقيق",
+    "backfills": "التعبئة الرجعية",
+    "code": "الكود",
+    "details": "التفاصيل",
+    "logs": "السجلات",
+    "mappedTaskInstances_one": "مثيل مهمة [{{count}}]",
+    "mappedTaskInstances_other": "مثيلات المهام [{{count}}]",
+    "overview": "نظرة عامة",
+    "renderedTemplates": "القوالب المعروضة",
+    "runs": "تشغيلات",
+    "taskInstances": "مثيلات المهام",
+    "tasks": "المهام",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "طي جميع مجموعات المهام",
+    "expandAll": "توسيع جميع مجموعات المهام"
+  },
+  "taskLogs": {
+    "allLogLevels": "جميع مستويات السجل",
+    "allSources": "جميع المصادر",
+    "fullscreen": {
+      "button": "ملء الشاشة",
+      "tooltip": "اضغط على {{hotkey}} للدخول إلى وضع ملء الشاشة"
+    }
+  }
+}

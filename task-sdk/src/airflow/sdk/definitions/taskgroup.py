@@ -663,7 +663,7 @@ class MappedTaskGroup(TaskGroup):
 
 def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
-    from airflow.sdk.definitions.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sensors.base import BaseSensorOperator
 

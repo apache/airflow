@@ -37,20 +37,21 @@ class TestCloudRunJobLoggingLink:
     def test_class_attributes(self):
         assert CloudRunJobLoggingLink.key == "log_uri"
         assert CloudRunJobLoggingLink.name == "Cloud Run Job Logging"
+        assert CloudRunJobLoggingLink.format_str == "{log_uri}"
 
     def test_persist(self):
-        mock_context, mock_task_instance = mock.MagicMock(), mock.MagicMock()
+        mock_context = mock.MagicMock()
+        mock_context["ti"] = mock.MagicMock()
+        mock_context["task"] = mock.MagicMock()
 
         CloudRunJobLoggingLink.persist(
             context=mock_context,
-            task_instance=mock_task_instance,
             log_uri=TEST_LOG_URI,
         )
 
-        mock_task_instance.xcom_push.assert_called_once_with(
-            mock_context,
+        mock_context["ti"].xcom_push.assert_called_once_with(
             key=CloudRunJobLoggingLink.key,
-            value=TEST_LOG_URI,
+            value={"log_uri": TEST_LOG_URI},
         )
 
     @pytest.mark.db_test
@@ -66,11 +67,13 @@ class TestCloudRunJobLoggingLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, log_uri=TEST_LOG_URI)
-        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+
+        link.persist(context={"ti": ti, "task": ti.task}, log_uri=TEST_LOG_URI)
+
+        if mock_supervisor_comms:
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="key",
-                value=TEST_LOG_URI,
+                value={"log_uri": TEST_LOG_URI},
             )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == TEST_LOG_URI

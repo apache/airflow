@@ -19,6 +19,14 @@
 
 Google Cloud Data Catalog Operators
 =======================================
+.. _datacatalog-deprecation-warning:
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog.
+    The Data Catalog operators replacement can be found at `airflow.providers.google.cloud.operators.dataplex`
+    For further understanding please refer to the `official guide <https://cloud.google.com/dataplex/docs/transition-to-dataplex-catalog>`__.
+    Mapping between entities from Data Catalog and Dataplex Universal Catalog presented in table
+    `Mapping between Data Catalog and Dataplex Universal Catalog <https://cloud.google.com/dataplex/docs/transition-to-dataplex-catalog#preparatory-phase>`__
+    under `Learn more about simultaneous availability of Data Catalog metadata in Dataplex Universal Catalog` block.
 
 The `Data Catalog <https://cloud.google.com/data-catalog>`__ is a fully managed and scalable metadata
 management service that allows organizations to quickly discover, manage and understand all their data in
@@ -40,6 +48,12 @@ Prerequisite Tasks
 Managing an entries
 ^^^^^^^^^^^^^^^^^^^
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator` or
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogLookupEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.Entry` for representing entry
 
 .. contents::
@@ -52,6 +66,12 @@ Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.Entry` for repr
 Getting an entry
 """"""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator` or
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogLookupEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 Getting an entry is performed with the
 :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryOperator` and
 :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogLookupEntryOperator`
@@ -59,31 +79,13 @@ operators.
 
 The ``CloudDataCatalogGetEntryOperator`` use Project ID, Entry Group ID, Entry ID to get the entry.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_get_entry]
-    :end-before: [END howto_operator_gcp_datacatalog_get_entry]
-
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryOperator`
 parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_get_entry_result]
-    :end-before: [END howto_operator_gcp_datacatalog_get_entry_result]
-
 The ``CloudDataCatalogLookupEntryOperator`` use the resource name to get the entry.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_lookup_entry_linked_resource]
-    :end-before: [END howto_operator_gcp_datacatalog_lookup_entry_linked_resource]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogLookupEntryOperator`
@@ -91,25 +93,18 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_lookup_entry_result]
-    :end-before: [END howto_operator_gcp_datacatalog_lookup_entry_result]
-
 .. _howto/operator:CloudDataCatalogCreateEntryOperator:
 
 Creating an entry
 """""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator`
 operator create the entry.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_entry_gcs]
-    :end-before: [END howto_operator_gcp_datacatalog_create_entry_gcs]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator`
@@ -119,25 +114,18 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created entry ID can be read with the ``entry_id`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_entry_gcs_result]
-    :end-before: [END howto_operator_gcp_datacatalog_create_entry_gcs_result]
-
 .. _howto/operator:CloudDataCatalogUpdateEntryOperator:
 
 Updating an entry
 """""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateEntryOperator`
 operator update the entry.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_update_entry]
-    :end-before: [END howto_operator_gcp_datacatalog_update_entry]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateEntryOperator`
@@ -148,14 +136,13 @@ parameters which allows you to dynamically determine values.
 Deleting a entry
 """"""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator`
 operator delete the entry.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_delete_entry]
-    :end-before: [END howto_operator_gcp_datacatalog_delete_entry]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator`
@@ -165,6 +152,11 @@ parameters which allows you to dynamically determine values.
 
 Managing a entry groups
 ^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
 
 Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.Entry` for representing a entry groups.
 
@@ -177,14 +169,13 @@ Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.Entry` for repr
 Creating an entry group
 """""""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryGroupOperator`
 operator create the entry group.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_entry_group]
-    :end-before: [END howto_operator_gcp_datacatalog_create_entry_group]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryGroupOperator`
@@ -194,25 +185,18 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created entry group ID can be read with the ``entry_group_id`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_entry_group_result]
-    :end-before: [END howto_operator_gcp_datacatalog_create_entry_group_result]
-
 .. _howto/operator:CloudDataCatalogGetEntryGroupOperator:
 
 Getting an entry group
 """"""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryGroupOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryGroupOperator`
 operator get the entry group.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_get_entry_group]
-    :end-before: [END howto_operator_gcp_datacatalog_get_entry_group]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryGroupOperator`
@@ -220,25 +204,18 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_get_entry_group_result]
-    :end-before: [END howto_operator_gcp_datacatalog_get_entry_group_result]
-
 .. _howto/operator:CloudDataCatalogDeleteEntryGroupOperator:
 
 Deleting an entry group
 """""""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryGroupOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator`
 operator delete the entry group.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_entries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_delete_entry_group]
-    :end-before: [END howto_operator_gcp_datacatalog_delete_entry_group]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator`
@@ -248,6 +225,11 @@ parameters which allows you to dynamically determine values.
 
 Managing tag templates
 ^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
 
 Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplate` for representing a tag templates.
 
@@ -260,14 +242,13 @@ Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplate` fo
 Creating a tag template
 """""""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateOperator`
 operator get the tag template.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_tag_template]
-    :end-before: [END howto_operator_gcp_datacatalog_create_tag_template]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateOperator`
@@ -277,25 +258,18 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created tag template ID can be read with the ``tag_template_id`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_tag_template_result]
-    :end-before: [END howto_operator_gcp_datacatalog_create_tag_template_result]
-
 .. _howto/operator:CloudDataCatalogDeleteTagTemplateOperator:
 
 Deleting a tag template
 """""""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator`
 operator delete the tag template.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_delete_tag_template]
-    :end-before: [END howto_operator_gcp_datacatalog_delete_tag_template]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator`
@@ -307,14 +281,13 @@ parameters which allows you to dynamically determine values.
 Getting a tag template
 """"""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetTagTemplateOperator`
 operator get the tag template.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_get_tag_template]
-    :end-before: [END howto_operator_gcp_datacatalog_get_tag_template]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetTagTemplateOperator`
@@ -322,25 +295,18 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_get_tag_template_result]
-    :end-before: [END howto_operator_gcp_datacatalog_get_tag_template_result]
-
 .. _howto/operator:CloudDataCatalogUpdateTagTemplateOperator:
 
 Updating a tag template
 """""""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateOperator`
 operator update the tag template.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_update_tag_template]
-    :end-before: [END howto_operator_gcp_datacatalog_update_tag_template]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateOperator`
@@ -350,6 +316,12 @@ parameters which allows you to dynamically determine values.
 
 Managing tags
 ^^^^^^^^^^^^^
+
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator` or
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
 
 Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.Tag` for representing a tag.
 
@@ -362,14 +334,14 @@ Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.Tag` for repres
 Creating a tag on an entry
 """"""""""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator` or
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagOperator`
 operator get the tag template.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tags.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_tag]
-    :end-before: [END howto_operator_gcp_datacatalog_create_tag]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagOperator`
@@ -379,25 +351,18 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created tag ID can be read with the ``tag_id`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tags.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_tag_result]
-    :end-before: [END howto_operator_gcp_datacatalog_create_tag_result]
-
 .. _howto/operator:CloudDataCatalogUpdateTagOperator:
 
 Updating a tag
 """"""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagOperator`
 operator update the tag template.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tags.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_update_tag]
-    :end-before: [END howto_operator_gcp_datacatalog_update_tag]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagOperator`
@@ -408,14 +373,13 @@ parameters which allows you to dynamically determine values.
 Deleting a tag
 """"""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator`
 operator delete the tag template.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tags.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_delete_tag]
-    :end-before: [END howto_operator_gcp_datacatalog_delete_tag]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator`
@@ -426,14 +390,13 @@ parameters which allows you to dynamically determine values.
 Listing tags on an entry
 """"""""""""""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogListTagsOperator`
 operator get list of the tags on the entry.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tags.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_list_tags]
-    :end-before: [END howto_operator_gcp_datacatalog_list_tags]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogListTagsOperator`
@@ -441,17 +404,16 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tags.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_list_tags_result]
-    :end-before: [END howto_operator_gcp_datacatalog_list_tags_result]
-
-
 .. _howto/operator:CloudDataCatalogTagTemplateFieldssOperators:
 
 Managing a tag template fields
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator` or
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
 
 Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplateField` for representing a tag template fields.
 
@@ -464,14 +426,14 @@ Operators uses a :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplateFiel
 Creating a field
 """"""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator` or
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateFieldOperator`
 operator get the tag template field.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_tag_template_field]
-    :end-before: [END howto_operator_gcp_datacatalog_create_tag_template_field]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateFieldOperator`
@@ -481,25 +443,18 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created field ID can be read with the ``tag_template_field_id`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_create_tag_template_field_result]
-    :end-before: [END howto_operator_gcp_datacatalog_create_tag_template_field_result]
-
 .. _howto/operator:CloudDataCatalogRenameTagTemplateFieldOperator:
 
 Renaming a field
 """"""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogRenameTagTemplateFieldOperator`
 operator rename the tag template field.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_rename_tag_template_field]
-    :end-before: [END howto_operator_gcp_datacatalog_rename_tag_template_field]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogRenameTagTemplateFieldOperator`
@@ -510,14 +465,13 @@ parameters which allows you to dynamically determine values.
 Updating a field
 """"""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateFieldOperator`
 operator get the tag template field.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_update_tag_template_field]
-    :end-before: [END howto_operator_gcp_datacatalog_update_tag_template_field]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateFieldOperator`
@@ -529,14 +483,13 @@ parameters which allows you to dynamically determine values.
 Deleting a field
 """"""""""""""""
 
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
+
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator`
 operator delete the tag template field.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_tag_templates.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_delete_tag_template_field]
-    :end-before: [END howto_operator_gcp_datacatalog_delete_tag_template_field]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator`
@@ -546,30 +499,23 @@ parameters which allows you to dynamically determine values.
 .. _howto/operator:CloudDataCatalogSearchCatalogOperator:
 
 Search resources
-^^^^^^^^^^^^^^^^
+""""""""""""""""
+
+.. warning::
+    The Data Catalog will be discontinued on January 30, 2026 in favor of Dataplex Universal Catalog. Please use
+    :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogSearchEntriesOperator`.
+    For more information please check this :ref:`section <datacatalog-deprecation-warning>`.
 
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogSearchCatalogOperator`
 operator searches Data Catalog for multiple resources like entries, tags that match a query.
 
 The ``query`` parameters should defined using `search syntax <https://cloud.google.com/data-catalog/docs/how-to/search-reference>`__.
 
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_search_catalog.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_search_catalog]
-    :end-before: [END howto_operator_gcp_datacatalog_search_catalog]
-
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogSearchCatalogOperator`
 parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
-
-.. exampleinclude:: /../../google/tests/system/google/datacatalog/example_datacatalog_search_catalog.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_datacatalog_search_catalog_result]
-    :end-before: [END howto_operator_gcp_datacatalog_search_catalog_result]
 
 Reference
 ^^^^^^^^^

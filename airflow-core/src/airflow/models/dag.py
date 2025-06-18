@@ -1756,7 +1756,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         of_type: type[AssetT] = Asset,  # type: ignore[assignment]
     ) -> Generator[tuple[str, AssetT], None, None]:
         for task in self.task_dict.values():
-            directions = ("inlets",) if inlets else ()
+            directions: tuple[str, ...] = ("inlets",) if inlets else ()
             if outlets:
                 directions += ("outlets",)
             for direction in directions:
@@ -1966,6 +1966,10 @@ class DagModel(Base):
         cascade="all, delete, delete-orphan",
     )
     schedule_assets = association_proxy("schedule_asset_references", "asset")
+    task_inlet_asset_references = relationship(
+        "TaskInletAssetReference",
+        cascade="all, delete, delete-orphan",
+    )
     task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",

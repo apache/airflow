@@ -70,8 +70,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "google" = [
-    'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
-    'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
+    'apache-beam[gcp]>=2.60.0',
 ]
 "common.compat" = [
     "apache-airflow-providers-common-compat"

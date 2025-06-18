@@ -27,6 +27,7 @@
 - [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
   - [Upload Public keys to id.apache.org and GitHub](#upload-public-keys-to-idapacheorg-and-github)
   - [Configure PyPI uploads](#configure-pypi-uploads)
+  - [Setup and authorize Github client](#setup-and-authorize-github-client)
   - [Hardware used to prepare and verify the packages](#hardware-used-to-prepare-and-verify-the-packages)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -197,6 +198,11 @@ uv tool install twine
 - Set proper permissions for the pypirc file:
 `$ chmod 600 ~/.pypirc`
 
+
+## Setup and authorize Github client
+
+Breeze can not install Github client for you thus it is required to set it manually.
+Follow instructions listed in `Prerequisites <dev/breeze/doc/01_installation.rst#The ``gh`` cli needed for release managers>`_ to install GitHub client.
 
 ## Hardware used to prepare and verify the packages
 

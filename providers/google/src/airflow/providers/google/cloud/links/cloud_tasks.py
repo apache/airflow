@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
-    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 CLOUD_TASKS_BASE_LINK = "/cloudtasks"
@@ -51,18 +50,12 @@ class CloudTasksQueueLink(BaseGoogleLink):
         parts = queue_name.split("/")
         return parts[1], parts[3], parts[5]
 
-    @staticmethod
-    def persist(
-        operator_instance: BaseOperator,
-        context: Context,
-        queue_name: str | None,
-    ):
-        project_id, location, queue_id = CloudTasksQueueLink.extract_parts(queue_name)
-        operator_instance.xcom_push(
-            context,
-            key=CloudTasksQueueLink.key,
-            value={"project_id": project_id, "location": location, "queue_id": queue_id},
-        )
+    @classmethod
+    def persist(cls, context: Context, **value):
+        queue_name = value.get("queue_name")
+        project_id, location, queue_id = cls.extract_parts(queue_name)
+
+        super().persist(context, project_id=project_id, location=location, queue_id=queue_id)
 
 
 class CloudTasksLink(BaseGoogleLink):
@@ -71,15 +64,3 @@ class CloudTasksLink(BaseGoogleLink):
     name = "Cloud Tasks"
     key = "cloud_task"
     format_str = CLOUD_TASKS_LINK
-
-    @staticmethod
-    def persist(
-        operator_instance: BaseOperator,
-        context: Context,
-        project_id: str | None,
-    ):
-        operator_instance.xcom_push(
-            context,
-            key=CloudTasksLink.key,
-            value={"project_id": project_id},
-        )

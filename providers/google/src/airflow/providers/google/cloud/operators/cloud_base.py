@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.models import BaseOperator
@@ -36,3 +38,21 @@ class GoogleCloudBaseOperator(BaseOperator):
         """
         memo[id(DEFAULT)] = DEFAULT
         return super().__deepcopy__(memo)
+
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        """
+        Override this method to include parameters for link formatting in extra links.
+
+        For example; most of the links on the Google provider require `project_id` and `location` in the Link.
+        To be not repeat; you can override this function and return something like the following:
+
+        .. code-block:: python
+
+            {
+                "project_id": self.project_id,
+                "location": self.location,
+            }
+
+        """
+        return {}

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from sqlalchemy import delete
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag_version import DagVersion
@@ -136,6 +138,10 @@ class DagBundlesManager(LoggingMixin):
             bundle.active = False
             inactive_bundle_names.append(name)
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
+            from airflow.models.errors import ParseImportError
+
+            session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
+            self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
         if inactive_bundle_names and active_bundle_names:
             new_bundle_name = sorted(active_bundle_names)[0]

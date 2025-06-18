@@ -406,7 +406,8 @@ EXAMPLE_CONTEXT = {
         map_index=1,
         logical_date=dt.datetime(2024, 11, 11),
         dag_run=MagicMock(logical_date=dt.datetime(2024, 11, 11), clear_number=0),
-    )
+    ),
+    "task": mock.MagicMock(),
 }
 OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG = {
     "url": "https://some-custom.url",
@@ -459,13 +460,13 @@ class DataprocTestBase:
 
     def setup_method(self):
         self.mock_ti = MagicMock()
-        self.mock_context = {"ti": self.mock_ti}
+        self.mock_context = {"ti": self.mock_ti, "task": self.mock_ti.task}
         self.extra_links_manager_mock = Mock()
         self.extra_links_manager_mock.attach_mock(self.mock_ti, "ti")
 
     def tearDown(self):
         self.mock_ti = MagicMock()
-        self.mock_context = {"ti": self.mock_ti}
+        self.mock_context = {"ti": self.mock_ti, "task": self.mock_ti.task}
         self.extra_links_manager_mock = Mock()
         self.extra_links_manager_mock.attach_mock(self.mock_ti, "ti")
 
@@ -496,13 +497,14 @@ class DataprocClusterTestBase(DataprocTestBase):
         super().setup_class()
         if AIRFLOW_V_3_0_PLUS:
             cls.extra_links_expected_calls_base = [
-                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
+                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED),
             ]
         else:
             cls.extra_links_expected_calls_base = [
-                call.ti.xcom_push(
-                    key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED, execution_date=None
-                )
+                call.ti.task.extra_links_params.__bool__(),
+                call.ti.task.extra_links_params.keys(),
+                call.ti.task.extra_links_params.keys().__iter__(),
+                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED),
             ]
 
 
@@ -818,7 +820,6 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="dataproc_cluster",
                 value=DATAPROC_CLUSTER_EXPECTED,
-                execution_date=None,
             )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
@@ -874,7 +875,6 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="dataproc_cluster",
                 value=DATAPROC_CLUSTER_EXPECTED,
-                execution_date=None,
             )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
@@ -1136,7 +1136,7 @@ def test_create_cluster_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Cluster"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="key",
             value="",
         )
@@ -1146,7 +1146,7 @@ def test_create_cluster_operator_extra_links(
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="key",
             value={"cluster_id": "cluster_name", "project_id": "test-project", "region": "test-location"},
         )
@@ -1271,12 +1271,7 @@ class TestDataprocClusterDeleteOperator:
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
-        if AIRFLOW_V_3_0_PLUS:
-            xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
-        else:
-            xcom_push_call = call.ti.xcom_push(
-                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
-            )
+        xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
         wait_for_job_call = call.hook().wait_for_job(
             job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT, timeout=None
         )
@@ -1322,12 +1317,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             job_id=TEST_JOB_ID, project_id=GCP_PROJECT, region=GCP_REGION, timeout=None
         )
 
-        if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
-        else:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
-            )
+        self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_async(self, mock_hook):
@@ -1365,12 +1355,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
         mock_hook.return_value.wait_for_job.assert_not_called()
 
-        if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
-        else:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
-            )
+        self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
@@ -1481,7 +1466,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
                 try_number=1,
                 map_index=1,
                 logical_date=dt.datetime(2024, 11, 11),
-            )
+            ),
+            "task": MagicMock(),
         }
 
         mock_ol_accessible.return_value = True
@@ -2021,7 +2007,7 @@ def test_submit_job_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Job"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_job",
             value="",
         )
@@ -2032,7 +2018,7 @@ def test_submit_job_operator_extra_links(
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_job",
             value=DATAPROC_JOB_EXPECTED,
         )
@@ -2089,17 +2075,10 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         # Test whether the xcom push happens before updating the cluster
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="dataproc_cluster",
-                value=DATAPROC_CLUSTER_EXPECTED,
-            )
-        else:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="dataproc_cluster",
-                value=DATAPROC_CLUSTER_EXPECTED,
-                execution_date=None,
-            )
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key="dataproc_cluster",
+            value=DATAPROC_CLUSTER_EXPECTED,
+        )
 
     def test_missing_region_parameter(self):
         with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'region'"):
@@ -2237,7 +2216,7 @@ def test_update_cluster_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Cluster"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_cluster",
             value="",
         )
@@ -2247,7 +2226,7 @@ def test_update_cluster_operator_extra_links(
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_cluster",
             value=DATAPROC_CLUSTER_EXPECTED,
         )
@@ -2463,7 +2442,7 @@ def test_instantiate_workflow_operator_extra_links(
     assert operator_extra_link.name == "Dataproc Workflow"
 
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value="",
         )
@@ -2472,7 +2451,7 @@ def test_instantiate_workflow_operator_extra_links(
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value=DATAPROC_WORKFLOW_EXPECTED,
         )
@@ -3148,7 +3127,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow",
             value="",
         )
@@ -3157,7 +3136,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
+        mock_supervisor_comms.send.return_value = XComResult(
             key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED
         )
 

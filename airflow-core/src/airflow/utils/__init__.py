@@ -15,3 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+
+def _deprecate_this_module(message: str, **shims: tuple[str, str]):
+    import warnings
+
+    from airflow.exceptions import RemovedInAirflow4Warning
+
+    warnings.warn(message, RemovedInAirflow4Warning, stacklevel=3)
+
+    def __getattr__(name: str):
+        try:
+            impa, attr = shims[name]
+        except KeyError:
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
+        return getattr(__import__(impa), attr)
+
+    return __getattr__

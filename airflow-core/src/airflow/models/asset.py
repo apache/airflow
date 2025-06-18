@@ -194,7 +194,7 @@ class AssetAliasModel(Base):
         secondary=asset_alias_asset_event_association_table,
         back_populates="source_aliases",
     )
-    consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
+    scheduled_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
 
     @classmethod
     def from_public(cls, obj: AssetAlias) -> AssetAliasModel:
@@ -272,8 +272,9 @@ class AssetModel(Base):
 
     active = relationship("AssetActive", uselist=False, viewonly=True, back_populates="asset")
 
-    consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
+    scheduled_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
+    consuming_tasks = relationship("TaskInletAssetReference", back_populates="asset")
     triggers = relationship("Trigger", secondary=asset_trigger_association_table, back_populates="assets")
 
     __tablename__ = "asset"
@@ -478,7 +479,7 @@ class DagScheduleAssetAliasReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    asset_alias = relationship("AssetAliasModel", back_populates="consuming_dags")
+    asset_alias = relationship("AssetAliasModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_alias_references")
 
     __tablename__ = "dag_schedule_asset_alias_reference"
@@ -520,7 +521,7 @@ class DagScheduleAssetReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    asset = relationship("AssetModel", back_populates="consuming_dags")
+    asset = relationship("AssetModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_references")
 
     queue_records = relationship(
@@ -609,6 +610,50 @@ class TaskOutletAssetReference(Base):
         args = []
         for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class TaskInletAssetReference(Base):
+    """References from a task to an asset that it references as an inlet."""
+
+    asset_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    asset = relationship("AssetModel", back_populates="consuming_tasks")
+
+    __tablename__ = "task_inlet_asset_reference"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (asset_id,),
+            ["asset.id"],
+            name="tiar_asset_fkey",
+            ondelete="CASCADE",
+        ),
+        PrimaryKeyConstraint(asset_id, dag_id, task_id, name="tiar_pkey"),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=["dag.dag_id"],
+            name="tiar_dag_id_fkey",
+            ondelete="CASCADE",
+        ),
+        Index("idx_task_inlet_asset_reference_dag_id", dag_id),
+    )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return (
+            self.asset_id == other.asset_id and self.dag_id == other.dag_id and self.task_id == other.task_id
+        )
+
+    def __hash__(self):
+        return hash(self.__mapper__.primary_key)
+
+    def __repr__(self):
+        args = (f"{(attr := x.name)}={getattr(self, attr)!r}" for x in self.__mapper__.primary_key)
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 

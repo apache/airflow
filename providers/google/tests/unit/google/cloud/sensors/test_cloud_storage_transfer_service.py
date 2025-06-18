@@ -62,7 +62,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
 
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
         result = op.poke(context)
 
         mock_tool.return_value.list_transfer_operations.assert_called_once_with(
@@ -96,7 +96,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
 
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
         result = op.poke(context)
 
         mock_tool.return_value.list_transfer_operations.assert_called_once_with(
@@ -118,7 +118,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
 
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
 
         result = op.poke(context)
 
@@ -162,7 +162,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
             expected_statuses=GcpTransferOperationStatus.SUCCESS,
         )
 
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
 
         result = op.poke(context)
         assert not result
@@ -214,7 +214,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
             expected_statuses=expected_status,
         )
 
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
 
         result = op.poke(context)
         assert not result
@@ -240,7 +240,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
         )
 
         mock_hook.operations_contain_expected_statuses.return_value = True
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
 
         op.execute(context)
         assert not mock_defer.called
@@ -258,7 +258,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
         )
 
         mock_hook.operations_contain_expected_statuses.return_value = False
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
 
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context)
@@ -273,7 +273,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
             deferrable=True,
         )
 
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
 
         with pytest.raises(AirflowException):
             op.execute_complete(context=context, event={"status": "error", "message": "test failure message"})
@@ -287,6 +287,6 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
             deferrable=True,
         )
 
-        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None}))}
+        context = {"ti": (mock.Mock(**{"xcom_push.return_value": None})), "task": mock.MagicMock()}
 
         op.execute_complete(context=context, event={"status": "success", "operations": []})

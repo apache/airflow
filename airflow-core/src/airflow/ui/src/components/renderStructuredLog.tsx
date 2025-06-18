@@ -155,12 +155,12 @@ export const renderStructuredLog = ({
         <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
           {translate("components:logs.file")}{" "}
           <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
-          {translate("components:logs.line")} {frame.lineno} {translate("components:logs.in")} {frame.name}
+          {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
         </chakra.p>
       ));
 
       return (
-        <chakra.details key={error.exc_type} ml="20em" open={true}>
+        <chakra.details key={error.exc_type} ms="20em" open={true}>
           <chakra.summary data-testid={`summary-${error.exc_type}`}>
             <chakra.span color="fg.info" cursor="pointer">
               {error.exc_type}: {error.exc_value}
@@ -203,9 +203,9 @@ export const renderStructuredLog = ({
         style={{
           display: "inline-block",
           flexShrink: 0,
-          marginRight: "10px",
-          paddingRight: "5px",
-          textAlign: "right",
+          marginInlineEnd: "10px",
+          paddingInlineEnd: "5px",
+          textAlign: "end",
           userSelect: "none",
           WebkitUserSelect: "none",
           width: "3em",

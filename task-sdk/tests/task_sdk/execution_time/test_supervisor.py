@@ -27,13 +27,14 @@ import signal
 import socket
 import sys
 import time
-from io import BytesIO
 from operator import attrgetter
+from random import randint
 from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import httpx
+import msgspec
 import psutil
 import pytest
 from pytest_unordered import unordered
@@ -56,6 +57,7 @@ from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
@@ -97,17 +99,16 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
+    _RequestFrame,
+    _ResponseFrame,
 )
 from airflow.sdk.execution_time.supervisor import (
-    BUFFER_SIZE,
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
-    mkpipe,
     set_supervisor_comms,
     supervise,
 )
-from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
 
 if TYPE_CHECKING:
@@ -136,18 +137,25 @@ def local_dag_bundle_cfg(path, name="my-bundle"):
     }
 
 
+@pytest.fixture
+def client_with_ti_start(make_ti_context):
+    client = MagicMock(spec=sdk_client.Client)
+    client.task_instances.start.return_value = make_ti_context()
+    return client
+
+
 @pytest.mark.usefixtures("disable_capturing")
 class TestWatchedSubprocess:
     @pytest.fixture(autouse=True)
     def disable_log_upload(self, spy_agency):
         spy_agency.spy_on(ActivitySubprocess._upload_logs, call_original=False)
 
-    def test_reading_from_pipes(self, captured_logs, time_machine):
+    def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
 
-            # Ensure we follow the "protocol" and get the startup message before we do anything
-            sys.stdin.readline()
+            # Ensure we follow the "protocol" and get the startup message before we do anything else
+            CommsDecoder()._get_response()
 
             import logging
             import warnings
@@ -180,7 +188,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
             ),
-            client=MagicMock(spec=sdk_client.Client),
+            client=client_with_ti_start,
             target=subprocess_main,
         )
 
@@ -228,12 +236,12 @@ class TestWatchedSubprocess:
             ]
         )
 
-    def test_subprocess_sigkilled(self):
+    def test_subprocess_sigkilled(self, client_with_ti_start):
         main_pid = os.getpid()
 
         def subprocess_main():
             # Ensure we follow the "protocol" and get the startup message before we do anything
-            sys.stdin.readline()
+            CommsDecoder()._get_response()
 
             assert os.getpid() != main_pid
             os.kill(os.getpid(), signal.SIGKILL)
@@ -248,7 +256,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
             ),
-            client=MagicMock(spec=sdk_client.Client),
+            client=client_with_ti_start,
             target=subprocess_main,
         )
 
@@ -285,7 +293,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
 
         def subprocess_main():
-            sys.stdin.readline()
+            CommsDecoder()._get_response()
 
             for _ in range(5):
                 print("output", flush=True)
@@ -314,7 +322,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
 
         def subprocess_main():
-            sys.stdin.readline()
+            CommsDecoder()._get_response()
 
             for _ in range(5):
                 print("output", flush=True)
@@ -340,7 +348,7 @@ class TestWatchedSubprocess:
         assert proc.wait() == 0
         spy_agency.assert_spy_not_called(heartbeat_spy)
 
-    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, make_ti_context):
+    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
@@ -355,11 +363,6 @@ class TestWatchedSubprocess:
             try_number=1,
         )
 
-        # Create a mock client to assert calls to the client
-        # We assume the implementation of the client is correct and only need to check the calls
-        mock_client = mocker.Mock(spec=sdk_client.Client)
-        mock_client.task_instances.start.return_value = make_ti_context()
-
         bundle_info = BundleInfo(name="my-bundle", version=None)
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             exit_code = supervise(
@@ -368,7 +371,7 @@ class TestWatchedSubprocess:
                 token="",
                 server="",
                 dry_run=True,
-                client=mock_client,
+                client=client_with_ti_start,
                 bundle_info=bundle_info,
             )
             assert exit_code == 0, captured_logs
@@ -498,7 +501,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.0)
 
         def subprocess_main():
-            sys.stdin.readline()
+            CommsDecoder()._get_response()
             sleep(5)
             # Shouldn't get here
             exit(5)
@@ -611,7 +614,6 @@ class TestWatchedSubprocess:
             stdin=mocker.MagicMock(),
             client=client,
             process=mock_process,
-            requests_fd=-1,
         )
 
         time_now = tz.datetime(2024, 11, 28, 12, 0, 0)
@@ -701,7 +703,6 @@ class TestWatchedSubprocess:
             stdin=mocker.Mock(),
             process=mocker.Mock(),
             client=mocker.Mock(),
-            requests_fd=-1,
         )
 
         # Set the terminal state and task end datetime
@@ -738,7 +739,7 @@ class TestWatchedSubprocess:
             ),
         ),
     )
-    def test_exit_by_signal(self, monkeypatch, signal_to_raise, log_pattern, cap_structlog):
+    def test_exit_by_signal(self, signal_to_raise, log_pattern, cap_structlog, client_with_ti_start):
         def subprocess_main():
             import faulthandler
             import os
@@ -748,7 +749,7 @@ class TestWatchedSubprocess:
                 faulthandler.disable()
 
             # Ensure we follow the "protocol" and get the startup message before we do anything
-            sys.stdin.readline()
+            CommsDecoder()._get_response()
 
             os.kill(os.getpid(), signal_to_raise)
 
@@ -762,7 +763,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
             ),
-            client=MagicMock(spec=sdk_client.Client),
+            client=client_with_ti_start,
             target=subprocess_main,
         )
 
@@ -791,26 +792,26 @@ class TestWatchedSubprocess:
             stdin=mocker.MagicMock(),
             client=mocker.MagicMock(),
             process=mock_process,
-            requests_fd=-1,
         )
 
         proc.selector = mocker.MagicMock()
         proc.selector.select.return_value = []
 
         proc._exit_code = 0
-        proc._num_open_sockets = 1
+        # Create a fake placeholder in the open socket weakref
+        proc._open_sockets[mocker.MagicMock()] = "test placeholder"
         proc._process_exit_monotonic = time.monotonic()
 
         mocker.patch.object(
             ActivitySubprocess,
             "_cleanup_open_sockets",
-            side_effect=lambda: setattr(proc, "_num_open_sockets", 0),
+            side_effect=lambda: setattr(proc, "_open_sockets", {}),
         )
 
         time_machine.shift(2)
 
         proc._monitor_subprocess()
-        assert proc._num_open_sockets == 0
+        assert len(proc._open_sockets) == 0
 
 
 class TestWatchedSubprocessKill:
@@ -829,7 +830,6 @@ class TestWatchedSubprocessKill:
             stdin=mocker.Mock(),
             client=mocker.Mock(),
             process=mock_process,
-            requests_fd=-1,
         )
         # Mock the selector
         mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
@@ -888,7 +888,7 @@ class TestWatchedSubprocessKill:
             ),
         ],
     )
-    def test_kill_escalation_path(self, signal_to_send, exit_after, mocker, captured_logs, monkeypatch):
+    def test_kill_escalation_path(self, signal_to_send, exit_after, captured_logs, client_with_ti_start):
         def subprocess_main():
             import signal
 
@@ -905,7 +905,7 @@ class TestWatchedSubprocessKill:
             signal.signal(signal.SIGINT, _handler)
             signal.signal(signal.SIGTERM, _handler)
             try:
-                sys.stdin.readline()
+                CommsDecoder()._get_response()
                 print("Ready")
                 sleep(10)
             except Exception as e:
@@ -919,7 +919,7 @@ class TestWatchedSubprocessKill:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
-            client=MagicMock(spec=sdk_client.Client),
+            client=client_with_ti_start,
             target=subprocess_main,
         )
 
@@ -976,9 +976,11 @@ class TestWatchedSubprocessKill:
         mock_stdout_handler = mocker.Mock(return_value=False)  # Simulate EOF for stdout
         mock_stderr_handler = mocker.Mock(return_value=True)  # Continue processing for stderr
 
+        mock_on_close = mocker.Mock()
+
         # Mock selector to return events
-        mock_key_stdout = mocker.Mock(fileobj=mock_stdout, data=mock_stdout_handler)
-        mock_key_stderr = mocker.Mock(fileobj=mock_stderr, data=mock_stderr_handler)
+        mock_key_stdout = mocker.Mock(fileobj=mock_stdout, data=(mock_stdout_handler, mock_on_close))
+        mock_key_stderr = mocker.Mock(fileobj=mock_stderr, data=(mock_stderr_handler, mock_on_close))
         watched_subprocess.selector.select.return_value = [(mock_key_stdout, None), (mock_key_stderr, None)]
 
         # Mock to simulate process exited successfully
@@ -996,8 +998,7 @@ class TestWatchedSubprocessKill:
         mock_stderr_handler.assert_called_once_with(mock_stderr)
 
         # Validate unregistering and closing of EOF file object
-        watched_subprocess.selector.unregister.assert_called_once_with(mock_stdout)
-        mock_stdout.close.assert_called_once()
+        mock_on_close.assert_called_once_with(mock_stdout)
 
         # Validate that `_check_subprocess_exit` is called
         mock_process.wait.assert_called_once_with(timeout=0)
@@ -1073,16 +1074,15 @@ class TestWatchedSubprocessKill:
 class TestHandleRequest:
     @pytest.fixture
     def watched_subprocess(self, mocker):
-        read_end, write_end = mkpipe(remote_read=True)
+        read_end, write_end = socket.socketpair()
 
         subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
-            stdin=write_end,  # this is the writer side
+            stdin=write_end,
             client=mocker.Mock(),
             process=mocker.Mock(),
-            requests_fd=-1,
         )
 
         return subprocess, read_end
@@ -1091,7 +1091,7 @@ class TestHandleRequest:
     @pytest.mark.parametrize(
         [
             "message",
-            "expected_buffer",
+            "expected_body",
             "client_attr_path",
             "method_arg",
             "method_kwarg",
@@ -1101,7 +1101,7 @@ class TestHandleRequest:
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),
-                b'{"conn_id":"test_conn","conn_type":"mysql","type":"ConnectionResult"}\n',
+                {"conn_id": "test_conn", "conn_type": "mysql", "type": "ConnectionResult"},
                 "connections.get",
                 ("test_conn",),
                 {},
@@ -1111,7 +1111,12 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetConnection(conn_id="test_conn"),
-                b'{"conn_id":"test_conn","conn_type":"mysql","password":"password","type":"ConnectionResult"}\n',
+                {
+                    "conn_id": "test_conn",
+                    "conn_type": "mysql",
+                    "password": "password",
+                    "type": "ConnectionResult",
+                },
                 "connections.get",
                 ("test_conn",),
                 {},
@@ -1121,7 +1126,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetConnection(conn_id="test_conn"),
-                b'{"conn_id":"test_conn","conn_type":"mysql","schema":"mysql","type":"ConnectionResult"}\n',
+                {"conn_id": "test_conn", "conn_type": "mysql", "schema": "mysql", "type": "ConnectionResult"},
                 "connections.get",
                 ("test_conn",),
                 {},
@@ -1131,7 +1136,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetVariable(key="test_key"),
-                b'{"key":"test_key","value":"test_value","type":"VariableResult"}\n',
+                {"key": "test_key", "value": "test_value", "type": "VariableResult"},
                 "variables.get",
                 ("test_key",),
                 {},
@@ -1141,7 +1146,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 PutVariable(key="test_key", value="test_value", description="test_description"),
-                b"",
+                None,
                 "variables.set",
                 ("test_key", "test_value", "test_description"),
                 {},
@@ -1151,7 +1156,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 DeleteVariable(key="test_key"),
-                b'{"ok":true,"type":"OKResponse"}\n',
+                {"ok": True, "type": "OKResponse"},
                 "variables.delete",
                 ("test_key",),
                 {},
@@ -1161,7 +1166,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 DeferTask(next_method="execute_callback", classpath="my-classpath"),
-                b"",
+                None,
                 "task_instances.defer",
                 (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
                 {},
@@ -1174,7 +1179,7 @@ class TestHandleRequest:
                     reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
                     end_date=timezone.parse("2024-10-31T12:00:00Z"),
                 ),
-                b"",
+                None,
                 "task_instances.reschedule",
                 (
                     TI_ID,
@@ -1190,7 +1195,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
+                {"key": "test_key", "value": "test_value", "type": "XComResult"},
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
@@ -1202,7 +1207,7 @@ class TestHandleRequest:
                 GetXCom(
                     dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key", map_index=2
                 ),
-                b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
+                {"key": "test_key", "value": "test_value", "type": "XComResult"},
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", 2, False),
                 {},
@@ -1212,7 +1217,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                b'{"key":"test_key","value":null,"type":"XComResult"}\n',
+                {"key": "test_key", "value": None, "type": "XComResult"},
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
@@ -1228,7 +1233,7 @@ class TestHandleRequest:
                     key="test_key",
                     include_prior_dates=True,
                 ),
-                b'{"key":"test_key","value":null,"type":"XComResult"}\n',
+                {"key": "test_key", "value": None, "type": "XComResult"},
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", None, True),
                 {},
@@ -1244,7 +1249,7 @@ class TestHandleRequest:
                     key="test_key",
                     value='{"key": "test_key", "value": {"key2": "value2"}}',
                 ),
-                b"",
+                None,
                 "xcoms.set",
                 (
                     "test_dag",
@@ -1269,7 +1274,7 @@ class TestHandleRequest:
                     value='{"key": "test_key", "value": {"key2": "value2"}}',
                     map_index=2,
                 ),
-                b"",
+                None,
                 "xcoms.set",
                 (
                     "test_dag",
@@ -1295,7 +1300,7 @@ class TestHandleRequest:
                     map_index=2,
                     mapped_length=3,
                 ),
-                b"",
+                None,
                 "xcoms.set",
                 (
                     "test_dag",
@@ -1319,15 +1324,9 @@ class TestHandleRequest:
                     key="test_key",
                     map_index=2,
                 ),
-                b"",
+                None,
                 "xcoms.delete",
-                (
-                    "test_dag",
-                    "test_run",
-                    "test_task",
-                    "test_key",
-                    2,
-                ),
+                ("test_dag", "test_run", "test_task", "test_key", 2),
                 {},
                 OKResponse(ok=True),
                 None,
@@ -1337,7 +1336,7 @@ class TestHandleRequest:
             # if it can handle TaskState message
             pytest.param(
                 TaskState(state=TaskInstanceState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
-                b"",
+                None,
                 "",
                 (),
                 {},
@@ -1349,7 +1348,7 @@ class TestHandleRequest:
                 RetryTask(
                     end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test retry task"
                 ),
-                b"",
+                None,
                 "task_instances.retry",
                 (),
                 {
@@ -1363,7 +1362,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
-                b"",
+                None,
                 "task_instances.set_rtif",
                 (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
                 {},
@@ -1373,7 +1372,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetAssetByName(name="asset"),
-                b'{"name":"asset","uri":"s3://bucket/obj","group":"asset","type":"AssetResult"}\n',
+                {"name": "asset", "uri": "s3://bucket/obj", "group": "asset", "type": "AssetResult"},
                 "assets.get",
                 [],
                 {"name": "asset"},
@@ -1383,7 +1382,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetAssetByUri(uri="s3://bucket/obj"),
-                b'{"name":"asset","uri":"s3://bucket/obj","group":"asset","type":"AssetResult"}\n',
+                {"name": "asset", "uri": "s3://bucket/obj", "group": "asset", "type": "AssetResult"},
                 "assets.get",
                 [],
                 {"uri": "s3://bucket/obj"},
@@ -1393,11 +1392,17 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),
-                (
-                    b'{"asset_events":'
-                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
-                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
-                ),
+                {
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                            "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                            "created_dagruns": [],
+                        }
+                    ],
+                    "type": "AssetEventsResult",
+                },
                 "asset_events.get",
                 [],
                 {"uri": "s3://bucket/obj", "name": "test"},
@@ -1416,11 +1421,17 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetAssetEventByAsset(uri="s3://bucket/obj", name=None),
-                (
-                    b'{"asset_events":'
-                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
-                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
-                ),
+                {
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                            "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                            "created_dagruns": [],
+                        }
+                    ],
+                    "type": "AssetEventsResult",
+                },
                 "asset_events.get",
                 [],
                 {"uri": "s3://bucket/obj", "name": None},
@@ -1439,11 +1450,17 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetAssetEventByAsset(uri=None, name="test"),
-                (
-                    b'{"asset_events":'
-                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
-                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
-                ),
+                {
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                            "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                            "created_dagruns": [],
+                        }
+                    ],
+                    "type": "AssetEventsResult",
+                },
                 "asset_events.get",
                 [],
                 {"uri": None, "name": "test"},
@@ -1462,11 +1479,17 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetAssetEventByAssetAlias(alias_name="test_alias"),
-                (
-                    b'{"asset_events":'
-                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
-                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
-                ),
+                {
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                            "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                            "created_dagruns": [],
+                        }
+                    ],
+                    "type": "AssetEventsResult",
+                },
                 "asset_events.get",
                 [],
                 {"alias_name": "test_alias"},
@@ -1485,7 +1508,10 @@ class TestHandleRequest:
             ),
             pytest.param(
                 ValidateInletsAndOutlets(ti_id=TI_ID),
-                b'{"inactive_assets":[{"name":"asset_name","uri":"asset_uri","type":"asset"}],"type":"InactiveAssetsResult"}\n',
+                {
+                    "inactive_assets": [{"name": "asset_name", "uri": "asset_uri", "type": "asset"}],
+                    "type": "InactiveAssetsResult",
+                },
                 "task_instances.validate_inlets_and_outlets",
                 (TI_ID,),
                 {},
@@ -1499,7 +1525,7 @@ class TestHandleRequest:
                 SucceedTask(
                     end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
                 ),
-                b"",
+                None,
                 "task_instances.succeed",
                 (),
                 {
@@ -1515,11 +1541,13 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetPrevSuccessfulDagRun(ti_id=TI_ID),
-                (
-                    b'{"data_interval_start":"2025-01-10T12:00:00Z","data_interval_end":"2025-01-10T14:00:00Z",'
-                    b'"start_date":"2025-01-10T12:00:00Z","end_date":"2025-01-10T14:00:00Z",'
-                    b'"type":"PrevSuccessfulDagRunResult"}\n'
-                ),
+                {
+                    "data_interval_start": timezone.parse("2025-01-10T12:00:00Z"),
+                    "data_interval_end": timezone.parse("2025-01-10T14:00:00Z"),
+                    "start_date": timezone.parse("2025-01-10T12:00:00Z"),
+                    "end_date": timezone.parse("2025-01-10T14:00:00Z"),
+                    "type": "PrevSuccessfulDagRunResult",
+                },
                 "task_instances.get_previous_successful_dagrun",
                 (TI_ID,),
                 {},
@@ -1540,7 +1568,7 @@ class TestHandleRequest:
                     logical_date=timezone.datetime(2025, 1, 1),
                     reset_dag_run=True,
                 ),
-                b'{"ok":true,"type":"OKResponse"}\n',
+                {"ok": True, "type": "OKResponse"},
                 "dag_runs.trigger",
                 ("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
                 {},
@@ -1549,8 +1577,9 @@ class TestHandleRequest:
                 id="dag_run_trigger",
             ),
             pytest.param(
+                # TODO: This should be raise an exception, not returning an ErrorResponse. Fix this before PR
                 TriggerDagRun(dag_id="test_dag", run_id="test_run"),
-                b'{"error":"DAGRUN_ALREADY_EXISTS","detail":null,"type":"ErrorResponse"}\n',
+                {"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
                 "dag_runs.trigger",
                 ("test_dag", "test_run", None, None, False),
                 {},
@@ -1560,7 +1589,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetDagRunState(dag_id="test_dag", run_id="test_run"),
-                b'{"state":"running","type":"DagRunStateResult"}\n',
+                {"state": "running", "type": "DagRunStateResult"},
                 "dag_runs.get_state",
                 ("test_dag", "test_run"),
                 {},
@@ -1570,7 +1599,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetTaskRescheduleStartDate(ti_id=TI_ID),
-                b'{"start_date":"2024-10-31T12:00:00Z","type":"TaskRescheduleStartDate"}\n',
+                {"start_date": timezone.parse("2024-10-31T12:00:00Z"), "type": "TaskRescheduleStartDate"},
                 "task_instances.get_reschedule_start_date",
                 (TI_ID, 1),
                 {},
@@ -1580,7 +1609,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetTICount(dag_id="test_dag", task_ids=["task1", "task2"]),
-                b'{"count":2,"type":"TICount"}\n',
+                {"count": 2, "type": "TICount"},
                 "task_instances.get_count",
                 (),
                 {
@@ -1598,7 +1627,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetDRCount(dag_id="test_dag", states=["success", "failed"]),
-                b'{"count":2,"type":"DRCount"}\n',
+                {"count": 2, "type": "DRCount"},
                 "dag_runs.get_count",
                 (),
                 {
@@ -1613,7 +1642,10 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetTaskStates(dag_id="test_dag", task_group_id="test_group"),
-                b'{"task_states":{"run_id":{"task1":"success","task2":"failed"}},"type":"TaskStatesResult"}\n',
+                {
+                    "task_states": {"run_id": {"task1": "success", "task2": "failed"}},
+                    "type": "TaskStatesResult",
+                },
                 "task_instances.get_task_states",
                 (),
                 {
@@ -1636,7 +1668,7 @@ class TestHandleRequest:
                     task_id="test_task",
                     offset=0,
                 ),
-                b'{"root":"test_value","type":"XComSequenceIndexResult"}\n',
+                {"root": "test_value", "type": "XComSequenceIndexResult"},
                 "xcoms.get_sequence_item",
                 ("test_dag", "test_run", "test_task", "test_key", 0),
                 {},
@@ -1645,6 +1677,7 @@ class TestHandleRequest:
                 id="get_xcom_seq_item",
             ),
             pytest.param(
+                # TODO: This should be raise an exception, not returning an ErrorResponse. Fix this before PR
                 GetXComSequenceItem(
                     key="test_key",
                     dag_id="test_dag",
@@ -1652,7 +1685,7 @@ class TestHandleRequest:
                     task_id="test_task",
                     offset=2,
                 ),
-                b'{"error":"XCOM_NOT_FOUND","detail":null,"type":"ErrorResponse"}\n',
+                {"error": "XCOM_NOT_FOUND", "detail": None, "type": "ErrorResponse"},
                 "xcoms.get_sequence_item",
                 ("test_dag", "test_run", "test_task", "test_key", 2),
                 {},
@@ -1670,7 +1703,7 @@ class TestHandleRequest:
                     stop=None,
                     step=None,
                 ),
-                b'{"root":["foo","bar"],"type":"XComSequenceSliceResult"}\n',
+                {"root": ["foo", "bar"], "type": "XComSequenceSliceResult"},
                 "xcoms.get_sequence_slice",
                 ("test_dag", "test_run", "test_task", "test_key", None, None, None),
                 {},
@@ -1687,7 +1720,7 @@ class TestHandleRequest:
         mocker,
         time_machine,
         message,
-        expected_buffer,
+        expected_body,
         client_attr_path,
         method_arg,
         method_kwarg,
@@ -1715,8 +1748,9 @@ class TestHandleRequest:
         generator = watched_subprocess.handle_requests(log=mocker.Mock())
         # Initialize the generator
         next(generator)
-        msg = message.model_dump_json().encode() + b"\n"
-        generator.send(msg)
+
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=message.model_dump())
+        generator.send(req_frame)
 
         if mask_secret_args:
             mock_mask_secret.assert_called_with(*mask_secret_args)
@@ -1729,33 +1763,22 @@ class TestHandleRequest:
 
         # Read response from the read end of the socket
         read_socket.settimeout(0.1)
-        val = b""
-        try:
-            while not val.endswith(b"\n"):
-                chunk = read_socket.recv(BUFFER_SIZE)
-                if not chunk:
-                    break
-                val += chunk
-        except (BlockingIOError, TimeoutError, socket.timeout):
-            # no response written, valid for some message types like setters and TI operations.
-            pass
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes)
+
+        assert frame.id == req_frame.id
 
         # Verify the response was added to the buffer
-        assert val == expected_buffer
+        assert frame.body == expected_body
 
         # Verify the response is correctly decoded
         # This is important because the subprocess/task runner will read the response
         # and deserialize it to the correct message type
 
-        # Only decode the buffer if it contains data. An empty buffer implies no response was written.
-        if not val and (mock_response and not isinstance(mock_response, OKResponse)):
-            pytest.fail("Expected a response, but got an empty buffer.")
-
-        if val:
-            # Using BytesIO to simulate a readable stream for CommsDecoder.
-            input_stream = BytesIO(val)
-            decoder = CommsDecoder(input=input_stream)
-            assert decoder.get_message() == mock_response
+        if frame.body is not None:
+            decoder = CommsDecoder(socket=None).body_decoder
+            assert decoder.validate_python(frame.body) == mock_response
 
     def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
         """Test that API server errors are properly handled and sent back to the task."""
@@ -1777,28 +1800,32 @@ class TestHandleRequest:
 
         next(generator)
 
-        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")).model_dump_json().encode() + b"\n"
-        generator.send(msg)
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
 
-        # Read response directly from the reader socket
+        # Read response from the read end of the socket
         read_socket.settimeout(0.1)
-        val = b""
-        try:
-            while not val.endswith(b"\n"):
-                val += read_socket.recv(4096)
-        except (BlockingIOError, TimeoutError):
-            pass
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes)
 
-        assert val == (
-            b'{"error":"API_SERVER_ERROR","detail":{"status_code":500,"message":"API Server Error",'
-            b'"detail":{"detail":"Internal Server Error"}},"type":"ErrorResponse"}\n'
-        )
+        assert frame.id == req_frame.id
+
+        assert frame.error == {
+            "error": "API_SERVER_ERROR",
+            "detail": {
+                "status_code": 500,
+                "message": "API Server Error",
+                "detail": {"detail": "Internal Server Error"},
+            },
+            "type": "ErrorResponse",
+        }
 
         # Verify the error can be decoded correctly
-        input_stream = BytesIO(val)
-        decoder = CommsDecoder(input=input_stream)
+        comms = CommsDecoder(socket=None)
         with pytest.raises(AirflowRuntimeError) as exc_info:
-            decoder.get_message()
+            comms._from_frame(frame)
 
         assert exc_info.value.error.error == ErrorType.API_SERVER_ERROR
         assert exc_info.value.error.detail == {
@@ -1864,14 +1891,13 @@ class TestInProcessTestSupervisor:
         """
 
         class MinimalSupervisor(InProcessTestSupervisor):
-            def _handle_request(self, msg, log):
+            def _handle_request(self, msg, log, req_id):
                 resp = VariableResult(key=msg.key, value="value")
-                self.send_msg(resp)
+                self.send_msg(resp, req_id)
 
         supervisor = MinimalSupervisor(
             id="test",
             pid=123,
-            requests_fd=-1,
             process=MagicMock(),
             process_log=MagicMock(),
             client=MagicMock(),
@@ -1881,9 +1907,8 @@ class TestInProcessTestSupervisor:
 
         test_msg = GetVariable(key="test_key")
 
-        comms.send_request(log=MagicMock(), msg=test_msg)
+        response = comms.send(test_msg)
 
         # Ensure we got back what we expect
-        response = comms.get_message()
         assert isinstance(response, VariableResult)
         assert response.value == "value"
