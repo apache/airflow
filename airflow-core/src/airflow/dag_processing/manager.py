@@ -394,7 +394,7 @@ class DagFileProcessorManager(LoggingMixin):
             # to EOF case
             try:
                 need_more = socket_handler(key.fileobj)
-            except BrokenPipeError:
+            except (BrokenPipeError, ConnectionResetError):
                 need_more = False
             if not need_more:
                 self.selector.unregister(key.fileobj)
