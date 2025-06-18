@@ -94,7 +94,7 @@ class TestAssetManager:
 
         asm = AssetModel(uri="test://asset1/", name="test_asset_uri", group="asset")
         session.add(asm)
-        asm.consuming_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
         session.execute(delete(AssetDagRunQueue))
         session.flush()
 
@@ -116,7 +116,7 @@ class TestAssetManager:
 
         asam = AssetAliasModel(name="test_alias_name", group="test")
         session.add(asam)
-        asam.consuming_dags = [
+        asam.scheduled_dags = [
             DagScheduleAssetAliasReference(alias_id=asam.id, dag_id=dag.dag_id)
             for dag in (consumer_dag_1, consumer_dag_2)
         ]
@@ -164,7 +164,7 @@ class TestAssetManager:
 
         asm = AssetModel(uri="test://asset1/", name="test_asset_1", group="asset")
         session.add(asm)
-        asm.consuming_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
         session.flush()
 
         asset_manager.register_asset_change(task_instance=mock_task_instance, asset=asset, session=session)

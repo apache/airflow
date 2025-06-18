@@ -40,8 +40,8 @@ export const Header = ({
       value: <DependencyPopover dependencies={asset?.producing_tasks ?? []} type="Task" />,
     },
     {
-      label: translate("consumingDags"),
-      value: <DependencyPopover dependencies={asset?.consuming_dags ?? []} type="Dag" />,
+      label: translate("scheduledDags"),
+      value: <DependencyPopover dependencies={asset?.scheduled_dags ?? []} type="Dag" />,
     },
   ];
 
