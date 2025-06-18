@@ -308,9 +308,9 @@ class FabAuthManager(BaseAuthManager[User]):
 
         There are multiple scenarios:
 
-        1. ``dag_access`` is not provided which means the user wants to access the DAG itself and not a sub
+        1. ``access_entity`` is not provided which means the user wants to access the DAG itself and not a sub
         entity (e.g. DAG runs).
-        2. ``dag_access`` is provided which means the user wants to access a sub entity of the DAG
+        2. ``access_entity`` is provided which means the user wants to access a sub entity of the DAG
         (e.g. DAG runs).
 
             a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity.
