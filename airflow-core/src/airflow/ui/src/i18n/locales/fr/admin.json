@@ -9,7 +9,7 @@
     "columns":{
       "section": "Section"
     },
-    "title": "Airflow Configuration"
+    "title": "Configuration d'Airflow"
   },
   "connections":{
     "add":"Ajouter une Connexion",
@@ -78,22 +78,22 @@
     "searchPlaceholder": "Rechercher par fichier"
   },
   "pools": {
-    "add": "Ajouter une Pool",
+    "add": "Ajouter un Pool",
     "deferredSlotsIncluded": "Slots Différés Inclus",
     "delete":{
-      "title": "Supprimer la Pool",
-      "warning": "Cela supprimera toutes les métadonnées liées à la pool et peut affecter les tâches utilisant cette pool."
+      "title": "Supprimer le Pool",
+      "warning": "Cela supprimera toutes les métadonnées liées au pool et peut affecter les tâches utilisant ce pool."
     },
-    "edit": "Modifier la Pool",
+    "edit": "Modifier le Pool",
     "form": {
-      "checkbox": "Cochez pour inclure les tâches différées lors du calcul des slots libres de la pool",
+      "checkbox": "Cochez pour inclure les tâches différées lors du calcul des slots libres du pool",
       "description": "Description",
       "includeDeferred": "Inclure les Tâches Différées",
       "nameMaxLength": "Le nom peut contenir un maximum de 250 caractères",
       "nameRequired": "Le nom est requis",
       "slots": "Slots"
     },
-    "noPoolsFound": "Aucune pool trouvée",
+    "noPoolsFound": "Aucun pool trouvé",
     "pool_one": "Pool",
     "pool_other": "Pools",
     "searchPlaceholder": "Rechercher des Pools",
