@@ -21,7 +21,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
@@ -43,6 +45,13 @@ TAG_TEMPLATE_LINK = (
 )
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataCatalogEntryGroupLink(BaseGoogleLink):
     """Helper class for constructing Data Catalog Entry Group Link."""
 
@@ -65,6 +74,13 @@ class DataCatalogEntryGroupLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryLink",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataCatalogEntryLink(BaseGoogleLink):
     """Helper class for constructing Data Catalog Entry Link."""
 
@@ -93,6 +109,13 @@ class DataCatalogEntryLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="January 30, 2026",
+    use_instead="airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypeLink",
+    reason="The Data Catalog will be discontinued on January 30, 2026 "
+    "in favor of Dataplex Universal Catalog.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataCatalogTagTemplateLink(BaseGoogleLink):
     """Helper class for constructing Data Catalog Tag Template Link."""
 
