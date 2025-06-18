@@ -33,7 +33,6 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
@@ -434,14 +433,12 @@ class TestGetAssets(TestAssets):
         assert expected_assets == asset_urls
 
     @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
+    @pytest.mark.usefixtures("testing_dag_bundle")
     @provide_session
     def test_filter_assets_by_dag_ids_works(self, test_client, dag_ids, expected_num, session):
         session.query(DagModel).delete()
         session.commit()
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
+        bundle_name = "testing"
 
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
@@ -474,16 +471,14 @@ class TestGetAssets(TestAssets):
         "dag_ids, uri_pattern,expected_num",
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
+    @pytest.mark.usefixtures("testing_dag_bundle")
     @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
         self, test_client, dag_ids, uri_pattern, expected_num, session
     ):
         session.query(DagModel).delete()
         session.commit()
-        bundle_name = "dags-folder"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
+        bundle_name = "testing"
 
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")

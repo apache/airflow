@@ -618,15 +618,10 @@ class TestDBCleanup:
             confirm_mock.assert_not_called()
 
 
+@pytest.mark.usefixtures("testing_dag_bundle")
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
-        # First ensure the bundle exists
-        from airflow.models.dagbundle import DagBundleModel
-
-        session.merge(DagBundleModel(name="dags-folder"))
-        session.flush()
-
-        dag = DagModel(dag_id=f"test-dag_{uuid4()}", bundle_name="dags-folder")
+        dag = DagModel(dag_id=f"test-dag_{uuid4()}", bundle_name="testing")
         session.add(dag)
         for num in range(num_tis):
             start_date = base_date.add(days=num)

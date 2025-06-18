@@ -34,7 +34,6 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dagbundle import DagBundleModel
 from airflow.sdk.definitions.asset import Asset
 
 from unit.listeners import asset_listener
@@ -85,14 +84,12 @@ class TestAssetManager:
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_register_asset_change(self, session, dag_maker, mock_task_instance):
         asset_manager = AssetManager()
 
         asset = Asset(uri="test://asset1", name="test_asset_uri", group="asset")
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
+        bundle_name = "testing"
 
         dag1 = DagModel(dag_id="dag1", is_stale=False, bundle_name=bundle_name)
         dag2 = DagModel(dag_id="dag2", is_stale=False, bundle_name=bundle_name)
@@ -111,12 +108,10 @@ class TestAssetManager:
         assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.usefixtures("clear_assets")
     def test_register_asset_change_with_alias(self, session, dag_maker, mock_task_instance):
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
+        bundle_name = "testing"
 
         consumer_dag_1 = DagModel(
             dag_id="conumser_1", bundle_name=bundle_name, is_stale=False, fileloc="dag1.py"
@@ -168,15 +163,13 @@ class TestAssetManager:
         assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 0
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_register_asset_change_notifies_asset_listener(self, session, mock_task_instance):
         asset_manager = AssetManager()
         asset_listener.clear()
         get_listener_manager().add_listener(asset_listener)
 
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
+        bundle_name = "testing"
 
         asset = Asset(uri="test://asset1", name="test_asset_1")
         dag1 = DagModel(dag_id="dag3", bundle_name=bundle_name)

@@ -25,7 +25,6 @@ from airflow import settings
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
@@ -229,6 +228,7 @@ class TestGetTask(TestTaskEndpoint):
             expected["task_display_name"] = task_id
             assert response.json() == expected
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_should_respond_200_serialized(self, test_client, testing_dag_bundle):
         # Get the dag out of the dagbag before we patch it to an empty one
 
@@ -237,16 +237,13 @@ class TestGetTask(TestTaskEndpoint):
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
             task1 >> task2
-        bundle_name = "test_bundle"
         session = settings.Session()
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
+        bundle_name = "testing"
         dag_model = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
         session.merge(dag_model)
         session.flush()
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag

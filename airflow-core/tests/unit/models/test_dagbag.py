@@ -37,7 +37,6 @@ from sqlalchemy import select
 from airflow import settings
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -586,6 +585,7 @@ class TestDagBag:
 
         assert dagbag.process_file(None) == []
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_unknown_dags(self):
         """
         Test that dag_ids not passed into deactivate_unknown_dags
@@ -595,7 +595,7 @@ class TestDagBag:
         dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        bundle_name = "dags-folder"
+        bundle_name = "testing"
 
         model_before = DagModel(
             dag_id=dag_id,
@@ -603,8 +603,6 @@ class TestDagBag:
             is_stale=False,
         )
         with create_session() as session:
-            session.merge(DagBundleModel(name=bundle_name))
-            session.flush()
             session.merge(model_before)
             session.flush()
 
@@ -705,6 +703,7 @@ with airflow.DAG(
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_dag_with_dag_serialization(self):
         """
         Test that Serialized DAG is updated in DagBag when it is updated in
@@ -712,11 +711,8 @@ with airflow.DAG(
         """
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
-            bundle_name = "dags-folder"
             session = settings.Session()
-
-            session.merge(DagBundleModel(name=bundle_name))
-            session.flush()
+            bundle_name = "testing"
             dag_model = DagModel(
                 dag_id=example_bash_op_dag.dag_id,
                 bundle_name=bundle_name,
@@ -744,7 +740,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
             DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name=bundle_name)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
@@ -758,6 +754,7 @@ with airflow.DAG(
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_dag_refresh_race_condition(self, session, testing_dag_bundle):
         """
         Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
@@ -767,9 +764,7 @@ with airflow.DAG(
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
-            bundle_name = "dags-folder"
-            session.merge(DagBundleModel(name=bundle_name))
-            session.flush()
+            bundle_name = "testing"
             dag_model = DagModel(
                 dag_id=example_bash_op_dag.dag_id,
                 bundle_name=bundle_name,
@@ -778,7 +773,7 @@ with airflow.DAG(
             session.flush()
 
             DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name=bundle_name)
 
         # deserialize the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
@@ -804,7 +799,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
             DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name=bundle_name)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
@@ -816,6 +811,7 @@ with airflow.DAG(
         assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_update_time > ser_dag_update_time
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_collect_dags_from_db(self, testing_dag_bundle):
         """DAGs are collected from Database"""
         db.clear_db_dags()
@@ -824,9 +820,7 @@ with airflow.DAG(
         example_dags = dagbag.dags
 
         session = settings.Session()
-        bundle_name = "dags-folder"
-        session.merge(DagBundleModel(name=bundle_name))
-        session.flush()
+        bundle_name = "testing"
 
         for dag in example_dags.values():
             # Create DagModel with bundle_name before syncing

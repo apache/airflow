@@ -29,7 +29,6 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionRespo
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
-from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -1228,11 +1227,9 @@ class TestClearDagRun:
 
 
 class TestTriggerDagRun:
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def _dags_for_trigger_tests(self, session=None):
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
+        bundle_name = "testing"
 
         inactive_dag = DagModel(
             dag_id="inactive",

@@ -57,7 +57,6 @@ from airflow.models.dag import (
     ExecutorLoader,
     get_asset_triggered_next_run_info,
 )
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -552,17 +551,14 @@ class TestDag:
         )
         assert dagrun is not None
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dagtag_repr(self):
         clear_db_dags()
         dag = DAG("dag-test-dagtag", schedule=None, start_date=DEFAULT_DATE, tags=["tag-1", "tag-2"])
         session = settings.Session()
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             is_stale=False,
         )
         session.add(orm_dag)
@@ -952,6 +948,7 @@ class TestDag:
         dag = DAG("test_dag2", schedule=None, max_consecutive_failed_dag_runs=2)
         assert dag.max_consecutive_failed_dag_runs == 2
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_existing_dag_is_paused_after_limit(self, testing_dag_bundle):
         def add_failed_dag_run(dag, id, logical_date):
             dr = dag.create_dagrun(
@@ -973,10 +970,7 @@ class TestDag:
         op1 = BashOperator(task_id="task", bash_command="exit 1;")
         dag.add_task(op1)
         session = settings.Session()
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
+        bundle_name = "testing"
         orm_dag = DagModel(
             dag_id=dag.dag_id,
             bundle_name=bundle_name,
@@ -1132,6 +1126,7 @@ class TestDag:
             dag_run.handle_dag_callback(dag=dag, success=True)
 
     @pytest.mark.parametrize("catchup,expected_next_dagrun", [(True, DEFAULT_DATE), (False, None)])
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_next_dagrun_after_fake_scheduled_previous(self, catchup, expected_next_dagrun):
         """
         Test scheduling a dag where there is a prior DagRun
@@ -1144,13 +1139,9 @@ class TestDag:
         dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=DEFAULT_DATE))
 
         session = settings.Session()
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             is_stale=False,
         )
         session.add(orm_dag)
@@ -1181,6 +1172,7 @@ class TestDag:
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + delta
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_schedule_dag_once(self):
         """
         Tests scheduling a dag scheduled for @once - should be scheduled the first time
@@ -1192,13 +1184,9 @@ class TestDag:
         dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE))
 
         session = settings.Session()
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             is_stale=False,
         )
         session.add(orm_dag)
@@ -1296,17 +1284,14 @@ class TestDag:
         assert hash(dag_diff_name) != hash(dag)
         assert hash(dag_subclass) != hash(dag)
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_paused_dag_ids(self):
         dag_id = "test_get_paused_dag_ids"
         dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
         session = settings.Session()
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             is_stale=False,
             is_paused=True,  # Set is_paused to match DAG's is_paused_upon_creation
         )
@@ -2061,6 +2046,7 @@ my_postgres_conn:
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dag_owner_links(self):
         dag = DAG(
             "dag",
@@ -2069,13 +2055,9 @@ my_postgres_conn:
             owner_links={"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"},
         )
         session = settings.Session()
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             is_stale=False,
         )
         session.add(orm_dag)
@@ -2128,18 +2110,15 @@ class TestDagModel:
     def teardown_method(self):
         self._clean()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dags_needing_dagruns_not_too_early(self):
         dag = DAG(dag_id="far_future_dag", schedule=None, start_date=timezone.datetime(2038, 1, 1))
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
-        bundle_name = "test_bundle"
-        orm_dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(orm_dag_bundle)
-        session.flush()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name=bundle_name,
+            bundle_name="testing",
             max_active_tasks=1,
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
@@ -2273,6 +2252,7 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == ["consumer"]
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_max_active_runs_not_none(self):
         dag = DAG(
             dag_id="test_max_active_runs_not_none",
@@ -2282,10 +2262,9 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
-        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="test_bundle",
+            bundle_name="testing",
             has_task_concurrency_limits=False,
             next_dagrun=None,
             next_dagrun_create_after=None,
@@ -2293,8 +2272,6 @@ class TestDagModel:
         )
         # assert max_active_runs updated
         assert orm_dag.max_active_runs == 16
-        session.merge(orm_dag_bundle)
-        session.flush()
         session.add(orm_dag)
         session.flush()
         assert orm_dag.max_active_runs is not None
@@ -2302,6 +2279,7 @@ class TestDagModel:
         session.rollback()
         session.close()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dags_needing_dagruns_only_unpaused(self):
         """
         We should never create dagruns for unpaused DAGs
@@ -2310,17 +2288,14 @@ class TestDagModel:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         session = settings.Session()
-        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="test_bundle",
+            bundle_name="testing",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_stale=False,
         )
-        session.merge(orm_dag_bundle)
-        session.flush()
         session.merge(orm_dag)
         session.flush()
 
@@ -2339,6 +2314,7 @@ class TestDagModel:
         session.rollback()
         session.close()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_dags_needing_dagruns_doesnot_send_dagmodel_with_import_errors(self, session):
         """
         We check that has_import_error is false for dags
@@ -2347,18 +2323,15 @@ class TestDagModel:
         dag = DAG(dag_id="test_dags", schedule=None, start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
-        orm_dag_bundle = DagBundleModel(name="test_bundle")
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            bundle_name="test_bundle",
+            bundle_name="testing",
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_stale=False,
         )
         assert not orm_dag.has_import_errors
-        session.merge(orm_dag_bundle)
-        session.flush()
         session.merge(orm_dag)
         session.flush()
 
@@ -2377,6 +2350,7 @@ class TestDagModel:
         session.rollback()
         session.close()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_relative_fileloc(self, session):
         rel_path = "test_assets.py"
         bundle_path = TEST_DAGS_FOLDER
@@ -2385,9 +2359,7 @@ class TestDagModel:
 
         dag = bag.get_dag("dag_with_skip_task")
 
-        bundle_name = "dag_maker"
-        session.merge(DagBundleModel(name=bundle_name))
-        session.flush()
+        bundle_name = "testing"
 
         dag_model = DagModel(
             dag_id=dag.dag_id,
@@ -2411,11 +2383,10 @@ class TestDagModel:
         assert sdm.dag.fileloc == str(file_path)
         assert sdm.dag.relative_fileloc == str(rel_path)
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test__processor_dags_folder(self, session, testing_dag_bundle):
         """Only populated after deserializtion"""
         bundle_name = "testing"
-        session.merge(DagBundleModel(name=bundle_name))
-        session.flush()
 
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = "/abc/test.py"
