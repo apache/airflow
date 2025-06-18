@@ -24,9 +24,10 @@ import { RecentRuns } from "src/pages/DagsList/RecentRuns";
 
 type FavoriteDagProps = {
   readonly dagId: string;
+  readonly dagName: string;
 };
 
-export const FavoriteDagCard = ({ dagId }: FavoriteDagProps) => {
+export const FavoriteDagCard = ({ dagId, dagName }: FavoriteDagProps) => {
   const { data } = useDagServiceRecentDagRuns({
     dagIds: [dagId],
     dagRunsLimit: 5,
@@ -52,7 +53,7 @@ export const FavoriteDagCard = ({ dagId }: FavoriteDagProps) => {
             <VStack>
               <RecentRuns latestRuns={latestRuns} />
               <Text _hover={{ textDecoration: "underline" }} fontSize="sm" textAlign="left">
-                {dagId}
+                {dagName}
               </Text>
             </VStack>
           </Box>

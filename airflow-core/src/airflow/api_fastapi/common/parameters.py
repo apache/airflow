@@ -34,7 +34,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, or_
+from sqlalchemy import Column, and_, case, func, or_, select
 from sqlalchemy.inspection import inspect
 
 from airflow.api_fastapi.core_api.base import OrmClause
@@ -48,6 +48,7 @@ from airflow.models.asset import (
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
@@ -107,6 +108,33 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
     @classmethod
     def depends(cls, offset: NonNegativeInt = 0) -> OffsetFilter:
         return cls().set_value(offset)
+
+
+class _FavoriteFilter(BaseParam[bool]):
+    """Filter DAGs by favorite status."""
+
+    user_id: str
+
+    def to_orm(self, select_stmt: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select_stmt
+
+        if self.value:
+            select_stmt = select_stmt.join(DagFavorite, DagFavorite.dag_id == DagModel.dag_id).where(
+                DagFavorite.user_id == self.user_id
+            )
+        else:
+            select_stmt = select_stmt.where(
+                ~select(DagFavorite)
+                .where((DagFavorite.dag_id == DagModel.dag_id) & (DagFavorite.user_id == self.user_id))
+                .exists()
+            )
+
+        return select_stmt
+
+    @classmethod
+    def depends(cls, is_favorite: bool | None = Query(None)) -> _FavoriteFilter:
+        return cls().set_value(is_favorite)
 
 
 class _ExcludeStaleFilter(BaseParam[bool]):
@@ -526,6 +554,7 @@ QueryPausedFilter = Annotated[
     FilterParam[bool | None],
     Depends(filter_param_factory(DagModel.is_paused, bool | None, filter_name="paused")),
 ]
+QueryFavoriteFilter = Annotated[_FavoriteFilter, Depends(_FavoriteFilter.depends)]
 QueryExcludeStaleFilter = Annotated[_ExcludeStaleFilter, Depends(_ExcludeStaleFilter.depends)]
 QueryDagIdPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern"))
