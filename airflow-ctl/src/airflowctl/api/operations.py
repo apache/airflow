@@ -73,6 +73,8 @@ from airflowctl.api.datamodels.generated import (
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflowctl.api.client import Client
 
 log = structlog.get_logger(logger_name=__name__)
@@ -152,14 +154,16 @@ class BaseOperations:
         *,
         path: str,
         total_entries: int,
-        data_model,
+        data_model: type[BaseModel],
         entry_list: list,
-        offset=0,
+        offset: int = 0,
         limit: int = 50,
-        params=None,
+        params: dict | None = None,
         **kwargs,
     ) -> list | ServerResponseError:
-        params.update(**kwargs)
+        if params is None:
+            params = {}
+        params.update({"limit": limit}, **kwargs)
         try:
             while offset < total_entries:
                 params.update({"offset": offset})
@@ -631,7 +635,6 @@ class PoolsOperations(BaseOperations):
             return super().return_all_entries(
                 path="pools",
                 total_entries=total_entries,
-                limit=9,
                 data_model=PoolCollectionResponse,
                 entry_list=entry_list,
             )
