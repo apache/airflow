@@ -150,7 +150,6 @@ class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):
             )
             FileDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 uri=f"{self.target_bucket_name}/{self.target_filename}",
                 project_id=cloud_storage_hook.project_id,
             )

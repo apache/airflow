@@ -166,6 +166,13 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         self.log.info("Running Pipeline job")
         pipeline_job_obj: PipelineJob = self.hook.submit_pipeline_job(
@@ -189,7 +196,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         pipeline_job_id = pipeline_job_obj.job_id
         self.log.info("Pipeline job was created. Job id: %s", pipeline_job_id)
         self.xcom_push(context, key="pipeline_job_id", value=pipeline_job_id)
-        VertexAIPipelineJobLink.persist(context=context, task_instance=self, pipeline_id=pipeline_job_id)
+        VertexAIPipelineJobLink.persist(context=context, pipeline_id=pipeline_job_id)
 
         if self.deferrable:
             pipeline_job_obj.wait_for_resource_creation()
@@ -280,6 +287,13 @@ class GetPipelineJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = PipelineJobHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -296,9 +310,7 @@ class GetPipelineJobOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            VertexAIPipelineJobLink.persist(
-                context=context, task_instance=self, pipeline_id=self.pipeline_job_id
-            )
+            VertexAIPipelineJobLink.persist(context=context, pipeline_id=self.pipeline_job_id)
             self.log.info("Pipeline job was gotten.")
             return types.PipelineJob.to_dict(result)
         except NotFound:
@@ -412,6 +424,13 @@ class ListPipelineJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = PipelineJobHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -428,7 +447,7 @@ class ListPipelineJobOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIPipelineJobListLink.persist(context=context, task_instance=self)
+        VertexAIPipelineJobListLink.persist(context=context)
         return [types.PipelineJob.to_dict(result) for result in results]
 
 

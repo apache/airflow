@@ -1,79 +1,271 @@
 {
   "admin": {
-    "Config": "קונפיגורציות",
+    "Config": "הגדרות",
     "Connections": "חיבורים",
     "Plugins": "תוספים",
     "Pools": "מאגר משאבים",
     "Providers": "חבילות עזר",
     "Variables": "משתנים"
   },
-  "assetEvent_one": "אירוע בנכס בודד (Asset)",
-  "assetEvent_other": "אירוע בנכס אחר (Asset)",
+  "asset_one": "נכס",
+  "asset_other": "נכסים",
+  "assetEvent_one": "אירוע נכס",
+  "assetEvent_other": "אירועי נכסים",
+  "backfill_one": "השלמה למפרע",
+  "backfill_other": "השלמות למפרע",
   "browse": {
     "auditLog": "יומן מערכת",
-    "xcoms": "(XComs) אקסקום"
+    "xcoms": "XComs"
+  },
+  "createdAssetEvent_one": "אירוע נכס שנוצר",
+  "createdAssetEvent_other": "אירועי נכס שנוצרו",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "השלמה אוטומטית",
+    "concurrency": "מספר הרצות מקבילות",
+    "dagRunTimeout": "זמן תפוגה להרצת Dag",
+    "defaultArgs": "פרמטרי ברירת מחדל",
+    "description": "תיאור",
+    "documentation": "תיעוד Dag",
+    "fileLocation": "מיקום קובץ",
+    "hasTaskConcurrencyLimits": "מגבלות ריצה מקבילה",
+    "lastExpired": "פג תוקף לאחרונה",
+    "lastParsed": "ניתוח אחרון",
+    "latestDagVersion": "גרסת Dag אחרונה",
+    "latestRun": "הרצה אחרונה",
+    "maxActiveRuns": "מספר מרבי של הרצות פעילות",
+    "maxActiveTasks": "מספר מרבי של משימות פעילות",
+    "maxConsecutiveFailedDagRuns": "מספר מרבי של כשלונות רצופים",
+    "nextRun": "ההרצה הבאה",
+    "owner": "בעלים",
+    "params": "פרמטרים",
+    "schedule": "תזמון",
+    "tags": "תגיות"
+  },
+  "dagId": "מזהה Dag",
+  "dagRun": {
+    "conf": "תצורה",
+    "dagVersions": "גרסאות Dag",
+    "dataIntervalEnd": "סיום מקטע נתונים",
+    "dataIntervalStart": "תחילת מקטע נתונים",
+    "lastSchedulingDecision": "החלטת תזמון אחרונה",
+    "queuedAt": "זמן כניסה לתור",
+    "runAfter": "זמן ההרצה מוקדם ביותר",
+    "runType": "סוג הרצה",
+    "sourceAssetEvent": "אירוע נכס מקור",
+    "triggeredBy": "הופעל על-ידי"
   },
   "dagRun_one": "הרצת Dag",
-  "dagRun_other": "הרצות Dags",
+  "dagRun_other": "הרצת Dag",
+  "dagWarnings": "אזהרות/שגיאות Dag",
   "defaultToGraphView": "תצוגת גרף כברירת מחדל",
   "defaultToGridView": "תצוגת רשת כברירת מחדל",
+  "direction": "כיוון",
   "docs": {
-    "documentation": "דוקומנטציה",
-    "githubRepo": "GitHub Repo",
-    "restApiReference": "REST API תיעוד"
+    "documentation": "תיעוד",
+    "githubRepo": "מאגר GitHub",
+    "restApiReference": "תיעוד REST API"
   },
   "duration": "משך זמן",
-  "language": {
-    "chinese": "סינית מסורתית",
-    "english": "אנגלית",
-    "german": "גרמנית",
-    "korean": "קוריאנית",
-    "select": "בחר"
+  "endDate": "תאריך סיום",
+  "error": {
+    "back": "חזור",
+    "defaultMessage": "התרחשה שגיאה בלתי צפויה",
+    "home": "דף הבית",
+    "notFound": "הדף לא נמצא",
+    "title": "שגיאה"
   },
+  "expression": {
+    "all": "הכל",
+    "and": "וגם",
+    "any": "כלשהו",
+    "or": "או"
+  },
+  "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
+  "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
+  "mapIndex": "אינדקס מיפוי",
+  "modal": {
+    "cancel": "ביטול",
+    "confirm": "אישור",
+    "delete": {
+      "button": "מחק",
+      "confirmation": "האם אתה בטוח שברצונך למחוק את {{resourceName}}? פעולה זו אינה הפיכה"
+    }
+  },
   "nav": {
     "admin": "ניהול",
-    "assets": "נכסים (Assets)",
+    "assets": "נכסים",
     "browse": "עיון",
+    "dags": "Dags",
     "docs": "תיעוד",
     "home": "דף הבית",
-    "plugins": "תוספים"
+    "plugins": "תוספים",
+    "security": "אבטחה"
+  },
+  "noItemsFound": "לא נמצאו {{modelName}}",
+  "note": {
+    "add": "הוסף הערה",
+    "dagRun": "הערת הרצת Dag",
+    "label": "הערה",
+    "placeholder": "הוסף הערה...",
+    "taskInstance": "הערת משימה"
   },
   "pools": {
-    "deferred": "בהמתנה עד קיום תנאי",
+    "deferred": "נדחה לתזמון עתידי",
     "open": "פתוח",
-    "pools_one": "מאגר",
-    "pools_other": "מאגרים",
-    "queued": "בהמתנה למשאבים",
-    "running": "בריצה",
-    "scheduled": "בתזמון"
+    "pools_one": "מאגר משאבים",
+    "pools_other": "מאגרי משאבים",
+    "queued": "בתור",
+    "running": "בביצוע",
+    "scheduled": "מתוזמן"
   },
+  "runId": "מזהה הרצה",
+  "runTypes": {
+    "asset_triggered": "הופעל על-ידי נכס",
+    "backfill": "השלמה למפרע",
+    "manual": "הפעלה ידנית",
+    "scheduled": "מתוזמן"
+  },
+  "seconds": "{{count}} שניות",
+  "security": {
+    "actions": "פעולות",
+    "permissions": "הרשאות",
+    "resources": "משאבים",
+    "roles": "תפקידים",
+    "users": "משתמשים"
+  },
+  "selectLanguage": "בחר שפה",
+  "sourceAssetEvent_one": "אירוע נכס מקור",
+  "sourceAssetEvent_other": "אירועי נכס מקור",
+  "startDate": "תאריך התחלה",
+  "state": "מצב",
   "states": {
-    "deferred": "בהמתנה עד קיום תנאי",
-    "failed": "כשלון",
-    "no_status": "ללא סטאטוס",
-    "queued": "בהמתנה למשאבי ריצה",
+    "deferred": "נדחה",
+    "failed": "נכשל",
+    "no_status": "ללא סטטוס",
+    "none": "ללא סטטוס",
+    "queued": "בתור",
     "removed": "הוסר",
-    "restarting": "בהפעלה מחדש",
-    "running": "בריצה",
-    "scheduled": "בהמתנה לתזמון",
+    "restarting": "מופעל מחדש",
+    "running": "בביצוע",
+    "scheduled": "מתוזמן",
     "skipped": "דולג",
-    "success": "הצלחה",
-    "up_for_reschedule": "בהמתנה לתזמון פנימי",
-    "up_for_retry": "בהמתנה לניסיון נוסף",
-    "upstream_failed": "תלויות נכשלו"
+    "success": "הצליח",
+    "up_for_reschedule": "ממתין לתזמון מחדש",
+    "up_for_retry": "ממתין לניסיון חוזר",
+    "upstream_failed": "משימות קודמות נכשלו"
   },
-  "switchToDarkMode": "החלף למצב כהה",
-  "switchToLightMode": "החלף למצב בהיר",
+  "switchToDarkMode": "עבור למצב כהה",
+  "switchToLightMode": "עבור למצב בהיר",
+  "table": {
+    "completedAt": "הושלם בתאריך",
+    "createdAt": "נוצר בתאריך",
+    "filterByTag": "סנן לפי תגית",
+    "filterColumns": "סנן עמודות",
+    "filterReset_one": "אפס מסנן",
+    "filterReset_other": "אפס מסננים",
+    "from": "מ-",
+    "maxActiveRuns": "מספר הרצות פעילות מרבי",
+    "noTagsFound": "לא נמצאו תגיות",
+    "tagMode": {
+      "all": "הכל",
+      "any": "כלשהו"
+    },
+    "tagPlaceholder": "סנן לפי תגית",
+    "to": "עד"
+  },
+  "task": {
+    "documentation": "תיעוד משימה",
+    "lastInstance": "משימה אחרונה",
+    "operator": "אופרטור",
+    "triggerRule": "כלל הפעלה"
+  },
+  "task_one": "משימה",
+  "task_other": "משימות",
+  "taskId": "מזהה משימה",
+  "taskInstance": {
+    "dagVersion": "גרסת Dag",
+    "executor": "מבצע",
+    "executorConfig": "הגדרות מבצע",
+    "hostname": "שם מארח",
+    "maxTries": "מספר נסיונות מרבי",
+    "pid": "מזהה תהליך",
+    "pool": "מאגר משאבים",
+    "poolSlots": "מכסת משאבים",
+    "priorityWeight": "משקל עדיפות",
+    "queue": "תור",
+    "queuedWhen": "זמן כניסה לתור",
+    "scheduledWhen": "מועד תזמון",
+    "triggerer": {
+      "assigned": "מפעיל מוקצה",
+      "class": "סוג מפעיל",
+      "createdAt": "זמן יצירת מפעיל",
+      "id": "מזהה מפעיל",
+      "latestHeartbeat": "עדכון חיים אחרון",
+      "title": "פרטי מפעיל"
+    },
+    "unixname": "שם משתמש Unix"
+  },
   "taskInstance_one": "משימה בודדת",
-  "taskInstance_other": "משימה אחרת",
+  "taskInstance_other": "משימות",
   "timeRange": {
     "last12Hours": "12 השעות האחרונות",
     "last24Hours": "24 השעות האחרונות",
     "lastHour": "השעה האחרונה",
     "pastWeek": "השבוע האחרון"
   },
-  "timezone": "איזור זמן",
-  "triggered": "טריגרר",
-  "user": "משתמש"
+  "timezone": "אזור זמן",
+  "timezoneModal": {
+    "current-timezone": "אזור זמן נוכחי",
+    "placeholder": "חפש אזור זמן",
+    "title": "בחר אזור זמן",
+    "utc": "UTC"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "שגיאה במחיקה מרובה של {{resourceName}}",
+      "success": {
+        "description": "נמחקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "title": "בקשת מחיקה מרובה של {{resourceName}} נשלחה"
+      }
+    },
+    "create": {
+      "error": "שגיאה ביצירת {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} נוצר בהצלחה",
+        "title": "בקשת יצירת {{resourceName}} נשלחה"
+      }
+    },
+    "delete": {
+      "error": "שגיאה במחיקת {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} נמחק בהצלחה",
+        "title": "בקשת מחיקת {{resourceName}} נשלחה"
+      }
+    },
+    "import": {
+      "error": "שגיאה בייבוא {{resourceName}}",
+      "success": {
+        "description": "יובאו בהצלחה {{count}} {{resourceName}}",
+        "title": "בקשת ייבוא {{resourceName}} נשלחה"
+      }
+    },
+    "update": {
+      "error": "שגיאה בעדכון {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} עודכן בהצלחה",
+        "title": "בקשת עדכון {{resourceName}} נשלחה"
+      }
+    }
+  },
+  "triggered": "הופעל",
+  "tryNumber": "מספר ניסיון",
+  "user": "משתמש",
+  "wrap": {
+    "tooltip": "לחץ {{hotkey}} להפעלת/כיבוי גלישת טקסט",
+    "unwrap": "בטל גלישת טקסט",
+    "wrap": "הפעל גלישת טקסט"
+  }
 }
