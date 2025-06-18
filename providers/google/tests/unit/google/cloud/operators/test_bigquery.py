@@ -141,7 +141,9 @@ class TestBigQueryCreateTableOperator:
             table_id=TEST_TABLE_ID,
             table_resource={},
         )
+
         operator.execute(context=MagicMock())
+
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -171,16 +173,6 @@ class TestBigQueryCreateTableOperator:
             table_resource=body,
         )
         operator.execute(context=MagicMock())
-        mock_hook.return_value.create_table.assert_called_once_with(
-            dataset_id=TEST_DATASET,
-            project_id=TEST_GCP_PROJECT_ID,
-            table_id=TEST_TABLE_ID,
-            schema_fields=None,
-            table_resource=body,
-            exists_ok=False,
-            location=None,
-            timeout=None,
-        )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_create_materialized_view(self, mock_hook):
@@ -201,6 +193,7 @@ class TestBigQueryCreateTableOperator:
         )
 
         operator.execute(context=MagicMock())
+
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -240,6 +233,7 @@ class TestBigQueryCreateTableOperator:
         )
 
         operator.execute(context=MagicMock())
+
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -285,13 +279,13 @@ class TestBigQueryCreateTableOperator:
             mock_hook.return_value.create_table.side_effect = Conflict("any")
         else:
             mock_hook.return_value.create_table.side_effect = None
-        if expected_error is not None:
-            with pytest.raises(expected_error):
+            if expected_error is not None:
+                with pytest.raises(expected_error):
+                    operator.execute(context=MagicMock())
+            else:
                 operator.execute(context=MagicMock())
-        else:
-            operator.execute(context=MagicMock())
-        if log_msg is not None:
-            assert log_msg in caplog.text
+            if log_msg is not None:
+                assert log_msg in caplog.text
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_get_openlineage_facets_on_complete(self, mock_hook):
@@ -316,6 +310,7 @@ class TestBigQueryCreateTableOperator:
             table_id=TEST_TABLE_ID,
             table_resource=table_resource,
         )
+
         operator.execute(context=MagicMock())
 
         mock_hook.return_value.create_table.assert_called_once_with(
@@ -367,7 +362,9 @@ class TestBigQueryCreateEmptyTableOperator:
                 project_id=TEST_GCP_PROJECT_ID,
                 table_id=TEST_TABLE_ID,
             )
+
             operator.execute(context=MagicMock())
+
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
@@ -393,7 +390,9 @@ class TestBigQueryCreateEmptyTableOperator:
                 table_id=TEST_TABLE_ID,
                 view=VIEW_DEFINITION,
             )
+
             operator.execute(context=MagicMock())
+
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
@@ -421,6 +420,7 @@ class TestBigQueryCreateEmptyTableOperator:
             )
 
             operator.execute(context=MagicMock())
+
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,

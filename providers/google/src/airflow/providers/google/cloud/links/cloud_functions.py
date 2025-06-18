@@ -19,14 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
-
 
 CLOUD_FUNCTIONS_BASE_LINK = "https://console.cloud.google.com/functions"
 
@@ -44,20 +37,6 @@ class CloudFunctionsDetailsLink(BaseGoogleLink):
     key = "cloud_functions_details"
     format_str = CLOUD_FUNCTIONS_DETAILS_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        function_name: str,
-        location: str,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=CloudFunctionsDetailsLink.key,
-            value={"function_name": function_name, "location": location, "project_id": project_id},
-        )
-
 
 class CloudFunctionsListLink(BaseGoogleLink):
     """Helper class for constructing Cloud Functions Details Link."""
@@ -65,15 +44,3 @@ class CloudFunctionsListLink(BaseGoogleLink):
     name = "Cloud Functions List"
     key = "cloud_functions_list"
     format_str = CLOUD_FUNCTIONS_LIST_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=CloudFunctionsDetailsLink.key,
-            value={"project_id": project_id},
-        )

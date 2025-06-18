@@ -373,7 +373,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=table_obj_api_repr["tableReference"]["datasetId"],
                 project_id=table_obj_api_repr["tableReference"]["projectId"],
                 table_id=table_obj_api_repr["tableReference"]["tableId"],

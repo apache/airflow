@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import google.api_core.exceptions
 
@@ -142,6 +142,13 @@ class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -155,7 +162,7 @@ class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
                 "The instance '%s' already exists in this project. Consider it as created",
                 self.instance_id,
             )
-            BigtableInstanceLink.persist(context=context, task_instance=self)
+            BigtableInstanceLink.persist(context=context)
             return
         try:
             hook.create_instance(
@@ -171,7 +178,7 @@ class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
                 cluster_storage_type=self.cluster_storage_type,
                 timeout=self.timeout,
             )
-            BigtableInstanceLink.persist(context=context, task_instance=self)
+            BigtableInstanceLink.persist(context=context)
         except google.api_core.exceptions.GoogleAPICallError as e:
             self.log.error("An error occurred. Exiting.")
             raise e
@@ -240,6 +247,13 @@ class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -258,7 +272,7 @@ class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
                 instance_labels=self.instance_labels,
                 timeout=self.timeout,
             )
-            BigtableInstanceLink.persist(context=context, task_instance=self)
+            BigtableInstanceLink.persist(context=context)
         except google.api_core.exceptions.GoogleAPICallError as e:
             self.log.error("An error occurred. Exiting.")
             raise e
@@ -414,6 +428,13 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
                 return False
         return True
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -431,7 +452,7 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
                 initial_split_keys=self.initial_split_keys,
                 column_families=self.column_families,
             )
-            BigtableTablesLink.persist(context=context, task_instance=self)
+            BigtableTablesLink.persist(context=context)
         except google.api_core.exceptions.AlreadyExists:
             if not self._compare_column_families(hook, instance):
                 raise AirflowException(
@@ -575,6 +596,14 @@ class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationM
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "cluster_id": self.cluster_id,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -586,7 +615,7 @@ class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationM
 
         try:
             hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)
-            BigtableClusterLink.persist(context=context, task_instance=self)
+            BigtableClusterLink.persist(context=context)
         except google.api_core.exceptions.NotFound:
             raise AirflowException(
                 f"Dependency: cluster '{self.cluster_id}' does not exist for instance '{self.instance_id}'."

@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 
 MLENGINE_BASE_LINK = "https://console.cloud.google.com/ai-platform"
 MLENGINE_MODEL_DETAILS_LINK = MLENGINE_BASE_LINK + "/models/{model_id}/versions?project={project_id}"
@@ -44,19 +38,6 @@ class MLEngineModelLink(BaseGoogleLink):
     key = "ml_engine_model"
     format_str = MLENGINE_MODEL_DETAILS_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        model_id: str,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=MLEngineModelLink.key,
-            value={"model_id": model_id, "project_id": project_id},
-        )
-
 
 class MLEngineModelsListLink(BaseGoogleLink):
     """Helper class for constructing ML Engine link."""
@@ -64,18 +45,6 @@ class MLEngineModelsListLink(BaseGoogleLink):
     name = "MLEngine Models List"
     key = "ml_engine_models_list"
     format_str = MLENGINE_MODELS_LIST_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=MLEngineModelsListLink.key,
-            value={"project_id": project_id},
-        )
 
 
 class MLEngineJobDetailsLink(BaseGoogleLink):
@@ -85,19 +54,6 @@ class MLEngineJobDetailsLink(BaseGoogleLink):
     key = "ml_engine_job_details"
     format_str = MLENGINE_JOB_DETAILS_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        job_id: str,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=MLEngineJobDetailsLink.key,
-            value={"job_id": job_id, "project_id": project_id},
-        )
-
 
 class MLEngineModelVersionDetailsLink(BaseGoogleLink):
     """Helper class for constructing ML Engine link."""
@@ -106,20 +62,6 @@ class MLEngineModelVersionDetailsLink(BaseGoogleLink):
     key = "ml_engine_version_details"
     format_str = MLENGINE_MODEL_VERSION_DETAILS_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        model_id: str,
-        project_id: str,
-        version_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=MLEngineModelVersionDetailsLink.key,
-            value={"model_id": model_id, "project_id": project_id, "version_id": version_id},
-        )
-
 
 class MLEngineJobSListLink(BaseGoogleLink):
     """Helper class for constructing ML Engine link."""
@@ -127,15 +69,3 @@ class MLEngineJobSListLink(BaseGoogleLink):
     name = "MLEngine Jobs List"
     key = "ml_engine_jobs_list"
     format_str = MLENGINE_JOBS_LIST_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=MLEngineJobSListLink.key,
-            value={"project_id": project_id},
-        )

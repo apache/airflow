@@ -472,7 +472,7 @@ def test_async_create_build_correct_logging_should_execute_successfully(
 
     with mock.patch.object(ti.task.log, "info") as mock_log_info:
         ti.task.execute_complete(
-            context={"ti": ti},
+            context={"ti": ti, "task": ti.task},
             event={
                 "instance": TEST_BUILD_INSTANCE,
                 "status": "success",

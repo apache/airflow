@@ -60,18 +60,6 @@ class CloudStorageTransferListLink(BaseGoogleLink):
     key = "cloud_storage_transfer"
     format_str = CLOUD_STORAGE_TRANSFER_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=CloudStorageTransferListLink.key,
-            value={"project_id": project_id},
-        )
-
 
 class CloudStorageTransferJobLink(BaseGoogleLink):
     """Helper class for constructing Storage Transfer Job Link."""
@@ -79,22 +67,6 @@ class CloudStorageTransferJobLink(BaseGoogleLink):
     name = "Cloud Storage Transfer Job"
     key = "cloud_storage_transfer_job"
     format_str = CLOUD_STORAGE_TRANSFER_JOB_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        project_id: str,
-        job_name: str,
-    ):
-        job_name = job_name.split("/")[1] if job_name else ""
-
-        context["ti"].xcom_push(
-            key=CloudStorageTransferJobLink.key,
-            value={
-                "project_id": project_id,
-                "transfer_job": job_name,
-            },
-        )
 
 
 class CloudStorageTransferDetailsLink(BaseGoogleLink):
@@ -105,20 +77,21 @@ class CloudStorageTransferDetailsLink(BaseGoogleLink):
     format_str = CLOUD_STORAGE_TRANSFER_OPERATION_LINK
 
     @staticmethod
-    def persist(
-        task_instance,
-        context: Context,
-        project_id: str,
-        operation_name: str,
-    ):
-        transfer_operation, transfer_job = CloudStorageTransferLinkHelper.extract_parts(operation_name)
+    def extract_parts(operation_name: str | None):
+        if not operation_name:
+            return "", ""
+        transfer_operation = operation_name.split("/")[1]
+        transfer_job = operation_name.split("-")[1]
+        return transfer_operation, transfer_job
 
-        task_instance.xcom_push(
+    @classmethod
+    def persist(cls, context: Context, **value):
+        operation_name = value.get("operation_name")
+        transfer_operation, transfer_job = cls.extract_parts(operation_name)
+
+        super().persist(
             context,
-            key=CloudStorageTransferDetailsLink.key,
-            value={
-                "project_id": project_id,
-                "transfer_job": transfer_job,
-                "transfer_operation": transfer_operation,
-            },
+            project_id=value.get("project_id"),
+            transfer_job=transfer_job,
+            transfer_operation=transfer_operation,
         )

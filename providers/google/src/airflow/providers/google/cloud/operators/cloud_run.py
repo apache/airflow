@@ -317,7 +317,6 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if self.operation.metadata.log_uri:
             CloudRunJobLoggingLink.persist(
                 context=context,
-                task_instance=self,
                 log_uri=self.operation.metadata.log_uri,
             )
 

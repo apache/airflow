@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -85,6 +85,13 @@ class CreateDatasetOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -107,7 +114,7 @@ class CreateDatasetOperator(GoogleCloudBaseOperator):
         self.log.info("Dataset was created. Dataset id: %s", dataset_id)
 
         self.xcom_push(context, key="dataset_id", value=dataset_id)
-        VertexAIDatasetLink.persist(context=context, task_instance=self, dataset_id=dataset_id)
+        VertexAIDatasetLink.persist(context=context, dataset_id=dataset_id)
         return dataset
 
 
@@ -160,6 +167,13 @@ class GetDatasetOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -177,7 +191,7 @@ class GetDatasetOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            VertexAIDatasetLink.persist(context=context, task_instance=self, dataset_id=self.dataset_id)
+            VertexAIDatasetLink.persist(context=context, dataset_id=self.dataset_id)
             self.log.info("Dataset was gotten.")
             return Dataset.to_dict(dataset_obj)
         except NotFound:
@@ -451,6 +465,12 @@ class ListDatasetsOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = DatasetHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -468,7 +488,7 @@ class ListDatasetsOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIDatasetListLink.persist(context=context, task_instance=self)
+        VertexAIDatasetListLink.persist(context=context)
         return [Dataset.to_dict(result) for result in results]
 
 

@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
 
 STACKDRIVER_BASE_LINK = "/monitoring/alerting"
 STACKDRIVER_NOTIFICATIONS_LINK = STACKDRIVER_BASE_LINK + "/notifications?project={project_id}"
@@ -39,18 +33,6 @@ class StackdriverNotificationsLink(BaseGoogleLink):
     key = "stackdriver_notifications"
     format_str = STACKDRIVER_NOTIFICATIONS_LINK
 
-    @staticmethod
-    def persist(
-        operator_instance: BaseOperator,
-        context: Context,
-        project_id: str | None,
-    ):
-        operator_instance.xcom_push(
-            context,
-            key=StackdriverNotificationsLink.key,
-            value={"project_id": project_id},
-        )
-
 
 class StackdriverPoliciesLink(BaseGoogleLink):
     """Helper class for constructing Stackdriver Policies Link."""
@@ -58,15 +40,3 @@ class StackdriverPoliciesLink(BaseGoogleLink):
     name = "Cloud Monitoring Policies"
     key = "stackdriver_policies"
     format_str = STACKDRIVER_POLICIES_LINK
-
-    @staticmethod
-    def persist(
-        operator_instance: BaseOperator,
-        context: Context,
-        project_id: str | None,
-    ):
-        operator_instance.xcom_push(
-            context,
-            key=StackdriverPoliciesLink.key,
-            value={"project_id": project_id},
-        )

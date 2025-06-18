@@ -51,19 +51,15 @@ class KubernetesEngineClusterLink(BaseGoogleLink):
     key = "kubernetes_cluster_conf"
     format_str = KUBERNETES_CLUSTER_LINK
 
-    @staticmethod
-    def persist(context: Context, task_instance, cluster: dict | Cluster | None):
+    @classmethod
+    def persist(cls, context: Context, **value):
+        cluster = value.get("cluster")
         if isinstance(cluster, dict):
             cluster = Cluster.from_json(json.dumps(cluster))
 
-        task_instance.xcom_push(
+        super().persist(
             context=context,
-            key=KubernetesEngineClusterLink.key,
-            value={
-                "location": task_instance.location,
-                "cluster_name": cluster.name,  # type: ignore
-                "project_id": task_instance.project_id,
-            },
+            cluster_name=cluster.name,
         )
 
 
@@ -74,23 +70,6 @@ class KubernetesEnginePodLink(BaseGoogleLink):
     key = "kubernetes_pod_conf"
     format_str = KUBERNETES_POD_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=KubernetesEnginePodLink.key,
-            value={
-                "location": task_instance.location,
-                "cluster_name": task_instance.cluster_name,
-                "namespace": task_instance.pod.metadata.namespace,
-                "pod_name": task_instance.pod.metadata.name,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class KubernetesEngineJobLink(BaseGoogleLink):
     """Helper class for constructing Kubernetes Engine Job Link."""
@@ -99,23 +78,6 @@ class KubernetesEngineJobLink(BaseGoogleLink):
     key = "kubernetes_job_conf"
     format_str = KUBERNETES_JOB_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=KubernetesEngineJobLink.key,
-            value={
-                "location": task_instance.location,
-                "cluster_name": task_instance.cluster_name,
-                "namespace": task_instance.job.metadata.namespace,
-                "job_name": task_instance.job.metadata.name,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class KubernetesEngineWorkloadsLink(BaseGoogleLink):
     """Helper class for constructing Kubernetes Engine Workloads Link."""
@@ -123,19 +85,3 @@ class KubernetesEngineWorkloadsLink(BaseGoogleLink):
     name = "Kubernetes Workloads"
     key = "kubernetes_workloads_conf"
     format_str = KUBERNETES_WORKLOADS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=KubernetesEngineWorkloadsLink.key,
-            value={
-                "location": task_instance.location,
-                "cluster_name": task_instance.cluster_name,
-                "namespace": task_instance.namespace,
-                "project_id": task_instance.project_id,
-            },
-        )

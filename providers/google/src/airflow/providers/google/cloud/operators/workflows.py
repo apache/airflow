@@ -147,7 +147,6 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
 
         WorkflowsWorkflowDetailsLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             project_id=self.project_id or hook.project_id,
@@ -235,7 +234,6 @@ class WorkflowsUpdateWorkflowOperator(GoogleCloudBaseOperator):
 
         WorkflowsWorkflowDetailsLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             project_id=self.project_id or hook.project_id,
@@ -368,7 +366,6 @@ class WorkflowsListWorkflowsOperator(GoogleCloudBaseOperator):
 
         WorkflowsListOfWorkflowsLink.persist(
             context=context,
-            task_instance=self,
             project_id=self.project_id or hook.project_id,
         )
 
@@ -434,7 +431,6 @@ class WorkflowsGetWorkflowOperator(GoogleCloudBaseOperator):
 
         WorkflowsWorkflowDetailsLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             project_id=self.project_id or hook.project_id,
@@ -509,7 +505,6 @@ class WorkflowsCreateExecutionOperator(GoogleCloudBaseOperator):
 
         WorkflowsExecutionLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             execution_id=execution_id,
@@ -582,7 +577,6 @@ class WorkflowsCancelExecutionOperator(GoogleCloudBaseOperator):
 
         WorkflowsExecutionLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             execution_id=self.execution_id,
@@ -661,7 +655,6 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
 
         WorkflowsWorkflowDetailsLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             project_id=self.project_id or hook.project_id,
@@ -737,7 +730,6 @@ class WorkflowsGetExecutionOperator(GoogleCloudBaseOperator):
 
         WorkflowsExecutionLink.persist(
             context=context,
-            task_instance=self,
             location_id=self.location,
             workflow_id=self.workflow_id,
             execution_id=self.execution_id,

@@ -173,7 +173,6 @@ class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
         if self.audio.uri:
             FileDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 # Slice from: "gs://{BUCKET_NAME}/{FILE_NAME}" to: "{BUCKET_NAME}/{FILE_NAME}"
                 uri=self.audio.uri[5:],
                 project_id=self.project_id or translate_hook.project_id,

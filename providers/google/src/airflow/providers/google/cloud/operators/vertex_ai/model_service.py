@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -161,6 +161,13 @@ class GetModelOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = ModelServiceHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -180,7 +187,7 @@ class GetModelOperator(GoogleCloudBaseOperator):
             self.log.info("Model found. Model ID: %s", self.model_id)
 
             self.xcom_push(context, key="model_id", value=self.model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=self.model_id)
+            VertexAIModelLink.persist(context=context, model_id=self.model_id)
             return Model.to_dict(model)
         except NotFound:
             self.log.info("The Model ID %s does not exist.", self.model_id)
@@ -257,7 +264,12 @@ class ExportModelOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
-            VertexAIModelExportLink.persist(context=context, task_instance=self)
+            VertexAIModelExportLink.persist(
+                context=context,
+                output_config=self.output_config,
+                model_id=self.model_id,
+                project_id=self.project_id,
+            )
             self.log.info("Model was exported.")
         except NotFound:
             self.log.info("The Model ID %s does not exist.", self.model_id)
@@ -335,6 +347,12 @@ class ListModelsOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = ModelServiceHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -352,7 +370,7 @@ class ListModelsOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIModelListLink.persist(context=context, task_instance=self)
+        VertexAIModelListLink.persist(context=context)
         return [Model.to_dict(result) for result in results]
 
 
@@ -407,6 +425,13 @@ class UploadModelOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = ModelServiceHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -429,7 +454,7 @@ class UploadModelOperator(GoogleCloudBaseOperator):
         self.log.info("Model was uploaded. Model ID: %s", model_id)
 
         self.xcom_push(context, key="model_id", value=model_id)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        VertexAIModelLink.persist(context=context, model_id=model_id)
         return model_resp
 
 
@@ -553,6 +578,13 @@ class SetDefaultVersionOnModelOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = ModelServiceHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -571,7 +603,7 @@ class SetDefaultVersionOnModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=self.model_id)
+        VertexAIModelLink.persist(context=context, model_id=self.model_id)
         return Model.to_dict(updated_model)
 
 
@@ -627,6 +659,13 @@ class AddVersionAliasesOnModelOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = ModelServiceHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -645,7 +684,7 @@ class AddVersionAliasesOnModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=self.model_id)
+        VertexAIModelLink.persist(context=context, model_id=self.model_id)
         return Model.to_dict(updated_model)
 
 
@@ -701,6 +740,13 @@ class DeleteVersionAliasesOnModelOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         hook = ModelServiceHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -721,7 +767,7 @@ class DeleteVersionAliasesOnModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=self.model_id)
+        VertexAIModelLink.persist(context=context, model_id=self.model_id)
         return Model.to_dict(updated_model)
 
 
