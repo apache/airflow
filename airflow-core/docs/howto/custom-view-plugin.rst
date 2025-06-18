@@ -38,8 +38,7 @@ In this object reference, the list of dictionaries with Middleware factories obj
 initialization parameters and some metadata information like the name are passed on.
 
 Using external_views in Airflow plugin, allows to register custom views that are rendered in iframes or external link
-in the Airflow UI. This is useful for integrating external applications or custom dashboards into the Airflow UI, or link to
-external resources from the nav bar.
+in the Airflow UI. This is useful for integrating external applications or custom dashboards into the Airflow UI.
 In this object reference, the list of dictionaries with the view name, iframe src (templatable), destination and
 optional parameters like the icon and url_route are passed on.
 
