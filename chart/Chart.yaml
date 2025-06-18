@@ -123,6 +123,21 @@ annotations:
       links:
       - name: '#51799'
         url: https://github.com/apache/airflow/pull/51799
+    - description: 'Add missing ``workers.kerberosInitContainer`` configuration in values'
+      kind: changed
+      links:
+      - name: '#51405'
+        url: https://github.com/apache/airflow/pull/51405
+    - description: 'Truncate the executor label length'
+      kind: changed
+      links:
+      - name: '#51817'
+        url: https://github.com/apache/airflow/pull/51817
+    - description: 'Fix execution_api_server_url when base_url has a subpath'
+      kind: changed
+      links:
+      - name: '#51454
+        url: https://github.com/apache/airflow/pull/51454
     - description: 'Docs: Bump minimum helm version in docs'
       kind: changed
       links:
