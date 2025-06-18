@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-06-18T02:28:11.492958
+# This constraints file was automatically generated on 2025-06-18T07:57:01.232888
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -514,7 +514,7 @@ pytest-rerunfailures==15.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.7.0
-pytest==8.4.0
+pytest==8.4.1
 python-arango==8.2.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
