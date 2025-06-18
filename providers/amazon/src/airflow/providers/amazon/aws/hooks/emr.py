@@ -311,6 +311,24 @@ class EmrServerlessHook(AwsBaseHook):
 
         return count
 
+    def cancel_job(self, application_id: str, job_run_id: str) -> None:
+        """
+        Cancel a specific EMR Serverless job run.
+
+        :param application_id: The ID of the EMR Serverless application
+        :param job_run_id: The ID of the job run to cancel
+        :raises AirflowException: If cancellation fails
+        """
+        try:
+            self.log.info("Cancelling EMR Serverless job %s in application %s", job_run_id, application_id)
+            response = self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_run_id)
+            http_code = response["ResponseMetadata"]["HTTPStatusCode"]
+            if http_code != 200:
+                raise AirflowException(f"Failed to cancel job run {job_run_id}: HTTP {http_code}")
+            self.log.info("Cancelled EMR Serverless job run %s successfully", job_run_id)
+        except ClientError as e:
+            raise AirflowException(f"Error cancelling EMR Serverless job run {job_run_id}: {e}")
+
 
 def is_connection_being_updated_exception(exception: BaseException) -> bool:
     return (
