@@ -387,7 +387,7 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
-        exclude_operation_names = ["LoginOperations"]
+        exclude_operation_names = ["LoginOperations", "VersionOperations"]
         exclude_method_names = [
             "error",
             "__init__",
@@ -609,10 +609,12 @@ def merge_commands(
         List of merged commands.
     """
     merge_command_map = {}
+    new_commands: list[CLICommand] = []
     for command in commands_will_be_merged:
+        if isinstance(command, ActionCommand):
+            new_commands.append(command)
         if isinstance(command, GroupCommand):
             merge_command_map[command.name] = command
-    new_commands: list[CLICommand] = []
     merged_commands = []
     # Common commands
     for command in base_commands:
@@ -720,6 +722,13 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    ActionCommand(
+        name="version",
+        help="Show version information",
+        description="Show version information",
+        func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
+        args=(),
     ),
     GroupCommand(
         name="variables",
