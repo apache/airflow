@@ -28,3 +28,15 @@ The ``AwaitMessageTrigger`` is a trigger that will consume messages polled from 
 If the callable returns any data, a TriggerEvent is raised.
 
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger`.
+
+
+KafkaMessageQueueTrigger
+----------------------------------
+
+The ``KafkaMessageQueueTrigger`` is a dedicated interface class for Kafka message queues that extends
+the common :class:`~airflow.providers.common.messaging.trigger.msg_queue.MessageQueueTrigger`. It is designed to work with the ``KafkaMessageQueueProvider`` and provides
+a more specific interface for Kafka message queue operations while leveraging the unified messaging framework.
+
+For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.triggers.msg_queue.KafkaMessageQueueTrigger`
+
+For how to use the trigger, refer to the documentation of the :ref:`Apache Kafka Message Queue Trigger <howto/triggers:KafkaMessageQueueTrigger>`
