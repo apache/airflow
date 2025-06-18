@@ -192,7 +192,7 @@ class TestHttpHook:
             assert conn.headers.get("verify") is None
             assert conn.proxies == {}
             assert conn.stream is False
-            assert conn.verify is False  # TODO: Check this
+            assert conn.verify is False
             assert conn.cert is None
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
             assert conn.trust_env is True
