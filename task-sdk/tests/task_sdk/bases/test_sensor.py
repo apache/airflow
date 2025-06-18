@@ -205,7 +205,7 @@ class TestBaseSensor:
         time_machine.coordinates.shift(sensor.poke_interval)
 
         # Mocking values from DB/API-server
-        mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(start_date=date1)
+        mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=date1)
         state, msg, error = run_task(task=sensor, context_update={"task_reschedule_count": 1})
 
         assert state == State.FAILED
@@ -227,7 +227,7 @@ class TestBaseSensor:
         time_machine.coordinates.shift(sensor.poke_interval)
 
         # Mocking values from DB/API-server
-        mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(start_date=date1)
+        mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=date1)
         state, msg, _ = run_task(task=sensor, context_update={"task_reschedule_count": 1})
         assert state == State.SKIPPED
 
@@ -254,7 +254,7 @@ class TestBaseSensor:
             return (timezone.utcnow() - task_start_date).total_seconds()
 
         new_interval = 0
-        mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(start_date=task_start_date)
+        mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=task_start_date)
 
         # loop poke returns false
         for _poke_count in range(1, false_count + 1):
@@ -516,9 +516,9 @@ class TestBaseSensor:
             # For timeout calculation, we need to use the first reschedule date
             # This ensures the timeout is calculated from the start of the task
             if test_state["first_reschedule_date"] is None:
-                mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(start_date=None)
+                mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=None)
             else:
-                mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(
+                mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(
                     start_date=test_state["first_reschedule_date"]
                 )
 

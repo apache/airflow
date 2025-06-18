@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import google.api_core.exceptions
 from google.cloud.bigtable import enums
@@ -89,6 +89,13 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "instance_id": self.instance_id,
+            "project_id": self.project_id,
+        }
+
     def poke(self, context: Context) -> bool:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -119,5 +126,5 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
             return False
 
         self.log.info("Table '%s' is replicated.", self.table_id)
-        BigtableTablesLink.persist(context=context, task_instance=self)
+        BigtableTablesLink.persist(context=context)
         return True

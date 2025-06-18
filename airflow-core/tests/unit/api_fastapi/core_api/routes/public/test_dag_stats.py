@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -46,9 +47,11 @@ class TestDagStatsEndpoint:
         clear_db_dags()
         clear_db_serialized_dags()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
     def _create_dag_and_runs(self, session=None):
-        bundle_name = "testing"
+        bundle_name = "test_bundle"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
 
         dag_1 = DagModel(
             dag_id=DAG1_ID,

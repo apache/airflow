@@ -22,6 +22,7 @@ import pytest
 
 from airflow.models import DagModel
 from airflow.models.backfill import Backfill
+from airflow.models.dagbundle import DagBundleModel
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
@@ -56,10 +57,12 @@ def clean_db():
 
 
 class TestBackfillEndpoint:
-    @pytest.mark.usefixtures("testing_dag_bundle")
     @provide_session
     def _create_dag_models(self, *, count=3, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
-        bundle_name = "testing"
+        bundle_name = "dags-folder"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
 
         dags = []
         for num in range(1, count + 1):

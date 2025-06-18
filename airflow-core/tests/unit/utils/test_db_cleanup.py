@@ -32,6 +32,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
@@ -618,10 +619,12 @@ class TestDBCleanup:
             confirm_mock.assert_not_called()
 
 
-@pytest.mark.usefixtures("testing_dag_bundle")
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
-        dag = DagModel(dag_id=f"test-dag_{uuid4()}", bundle_name="testing")
+        session.merge(DagBundleModel(name="dags-folder"))
+        session.flush()
+
+        dag = DagModel(dag_id=f"test-dag_{uuid4()}", bundle_name="dags-folder")
         session.add(dag)
         for num in range(num_tis):
             start_date = base_date.add(days=num)

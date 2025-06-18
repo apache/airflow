@@ -23,6 +23,7 @@ from unittest.mock import Mock, call, patch
 import pytest
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli import cli_parser
 from airflow.providers.keycloak.auth_manager.cli.commands import (
     _create_admin_permission,
@@ -116,7 +117,7 @@ class TestCommands:
     def test_create_resources(self, mock_get_client):
         client = Mock()
         mock_get_client.return_value = client
-        scopes = [{"id": "1", "name": "GET"}]
+        scopes = [{"id": "1", "name": "GET"}, {"id": "2", "name": "MENU"}]
 
         client.get_clients.return_value = [
             {"id": "dummy-id", "clientId": "dummy-client"},
@@ -148,7 +149,21 @@ class TestCommands:
                     client_id="test-id",
                     payload={
                         "name": resource.value,
-                        "scopes": scopes,
+                        "scopes": [{"id": "1", "name": "GET"}],
+                    },
+                    skip_exists=True,
+                )
+            )
+        client.create_client_authz_resource.assert_has_calls(calls)
+
+        calls = []
+        for item in MenuItem:
+            calls.append(
+                call(
+                    client_id="test-id",
+                    payload={
+                        "name": item.value,
+                        "scopes": [{"id": "2", "name": "MENU"}],
                     },
                     skip_exists=True,
                 )

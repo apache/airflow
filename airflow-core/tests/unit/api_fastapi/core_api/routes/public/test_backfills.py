@@ -27,6 +27,7 @@ from sqlalchemy import and_, func, select
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.dag import DAG
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
@@ -90,14 +91,18 @@ def to_iso(val):
 
 
 class TestBackfillEndpoint:
-    @pytest.mark.usefixtures("testing_dag_bundle")
     @provide_session
     def _create_dag_models(self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
+        bundle_name = "dags-folder"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(orm_dag_bundle)
+        session.flush()
+
         dags = []
         for num in range(1, count + 1):
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
-                bundle_name="testing",
+                bundle_name=bundle_name,
                 fileloc=f"/tmp/dag_{num}.py",
                 is_stale=False,
                 timetable_summary="0 0 * * *",
