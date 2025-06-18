@@ -14,3 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import rich
+
+from airflowctl import __version__ as airflowctl_version
+from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def version_info(arg, api_client=NEW_API_CLIENT):
+    """Get version information."""
+    version_response = api_client.version.get()
+    version_dict = version_response.model_dump()
+    version_dict["airflowctl_version"] = airflowctl_version
+    rich.print(version_dict)

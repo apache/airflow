@@ -14,7 +14,18 @@
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
     "selectLabel": "Auffüllen",
     "title": "Auffüllung starten",
-    "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten"
+    "toaster": {
+      "success": {
+        "description": "Auffüllungsaufträge wurden erfolgreich angestoßen.",
+        "title": "Auffüllung gestartet"
+      }
+    },
+    "tooltip": "Auffüllung benötigt eine Zeitplanung",
+    "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten",
+    "validation": {
+      "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",
+      "startBeforeEnd": "Das Startdatum muss vor oder auf dem Enddatum liegen."
+    }
   },
   "banner": {
     "backfillInProgress": "Auffüllung läuft",
@@ -25,11 +36,11 @@
   "clipboard": {
     "copy": "Kopieren"
   },
+  "close": "Schließen",
   "configForm": {
     "advancedOptions": "Erweiterte Optionen",
     "configJson": "JSON der Konfiguration",
-    "invalidJson": "Ungültiges JSON Format: {{errorMessage}}",
-    "unkownError": "Ein unbekannter Fehler ist aufgetreten."
+    "invalidJson": "Ungültiges JSON Format: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 Fehler",
@@ -76,8 +87,7 @@
   "limitedList": "+{{count}} mehr",
   "logs": {
     "file": "Datei",
-    "in": "in",
-    "line": "Zeile"
+    "location": "Zeile {{line}} in {{name}}"
   },
   "reparseDag": "Dag neu parsen",
   "sortedAscending": "aufsteigend sortier",
@@ -94,7 +104,18 @@
     "selectDescription": "Einen einzelnen Lauf dieses Dag auslösen",
     "selectLabel": "Einzelner Lauf",
     "title": "Dag Auslösen",
+    "toaster": {
+      "success": {
+        "description": "Dag-Lauf wurde erfolgreich ausgelöst.",
+        "title": "Dag-Lauf ausgelöst"
+      }
+    },
     "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
+  },
+  "trimText": {
+    "details": "Details",
+    "empty": "Leer",
+    "noContent": "Kein Inhalt verfügbar."
   },
   "versionDetails": {
     "bundleLink": "Bündel-Link",
