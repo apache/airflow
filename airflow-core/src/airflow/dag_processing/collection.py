@@ -52,6 +52,7 @@ from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
+from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
@@ -493,7 +494,7 @@ class DagModelOperation(NamedTuple):
                 )
 
             if dag.deadline is not None:
-                dm.deadline = dag.deadline
+                dm.deadline = DeadlineAlert.deserialize_deadline_alert(dag.deadline)
 
             if hasattr(dag, "has_task_concurrency_limits"):
                 dm.has_task_concurrency_limits = dag.has_task_concurrency_limits
