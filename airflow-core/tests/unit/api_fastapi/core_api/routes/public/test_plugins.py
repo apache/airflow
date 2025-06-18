@@ -68,6 +68,45 @@ class TestGetPlugins:
         assert body["total_entries"] == expected_total_entries
         assert [plugin["name"] for plugin in body["plugins"]] == expected_names
 
+    def test_external_views_model_validator(self, test_client):
+        response = test_client.get("plugins")
+        body = response.json()
+
+        test_plugin = next((plugin for plugin in body["plugins"] if plugin["name"] == "test_plugin"), None)
+        assert test_plugin is not None
+        assert test_plugin["external_views"] == [
+            # external_views
+            {
+                "name": "Test IFrame Plugin",
+                "href": "https://www.google.com",
+                "icon": "https://example.com/icon.svg",
+                "dark_mode_icon": "https://example.com/dark_icon.svg",
+                "url_route": "test_iframe_plugin",
+                "destination": "nav",
+                "category": "browse",
+            },
+            # appbuilder_menu_items
+            {
+                "category": "Search",
+                "dark_mode_icon": None,
+                "destination": None,
+                "href": "https://www.google.com",
+                "icon": None,
+                "name": "Google",
+                "url_route": None,
+            },
+            {
+                "category": None,
+                "dark_mode_icon": None,
+                "destination": None,
+                "href": "https://www.apache.org/",
+                "icon": None,
+                "label": "The Apache Software Foundation",
+                "name": "apache",
+                "url_route": None,
+            },
+        ]
+
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/plugins")
         assert response.status_code == 401
