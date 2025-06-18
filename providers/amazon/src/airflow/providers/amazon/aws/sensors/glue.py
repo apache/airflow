@@ -54,7 +54,7 @@ class GlueJobSensor(AwsBaseSensor[GlueJobHook]):
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param poke_interval: Polling period in seconds to check for the status of the job. (default: 120)
-    :param max_retries: Number of times before returning the current state. (default: 60)
+
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or

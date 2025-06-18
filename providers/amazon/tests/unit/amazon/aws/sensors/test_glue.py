@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import ANY
 
@@ -167,6 +168,21 @@ class TestGlueJobSensor:
         with pytest.raises(TaskDeferred):
             sensor.execute({})
 
+    @mock.patch.object(GlueJobSensor, "defer")
+    def test_max_retries_and_timeout(self, mock_defer):
+        mock_defer.side_effect = TaskDeferred(trigger=mock.Mock(), method_name="execute_complete")
+        sensor = GlueJobSensor(
+            task_id="test_glue_job_sensor",
+            job_name="job_name",
+            run_id="job_run_id",
+            deferrable=True,
+            poke_interval=5,
+        )
+        with pytest.raises(TaskDeferred):
+            sensor.execute({})
+        assert mock_defer.call_args[1]["timeout"] == timedelta(days=7)
+        mock_defer.assert_called_once()
+
     def test_default_args(self):
         job_name = "job_name"
         job_run_id = "job_run_id"
@@ -191,8 +207,10 @@ class TestGlueJobSensor:
             deferrable=True,
             poke_interval=10,
             aws_conn_id="custom_conn",
+            timeout=120,
         )
         assert sensor.verbose is True
         assert sensor.deferrable is True
         assert sensor.poke_interval == 10
         assert sensor.aws_conn_id == "custom_conn"
+        assert sensor.timeout == 120
