@@ -27,12 +27,13 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionResponse,
     BulkCreateAction,
     BulkDeleteAction,
+    BulkDeleteWithEntityAction,
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolBody,
 )
-from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.common import BulkService, add_not_supported_error
 from airflow.models.pool import Pool
 
 
@@ -147,3 +148,8 @@ class BulkPoolService(BulkService[PoolBody]):
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+
+    def handle_bulk_delete_with_entity(
+        self, action: BulkDeleteWithEntityAction[PoolBody], results: BulkActionResponse
+    ) -> None:
+        add_not_supported_error(results, action.action, "Pools")

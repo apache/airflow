@@ -38,7 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
 from airflow.api_fastapi.core_api.security import GetUserDep
-from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.common import BulkService, add_not_supported_error
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI
@@ -196,12 +196,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkTaskInstanceBody], results: BulkActionResponse
     ) -> None:
-        results.errors.append(
-            {
-                "error": "Task instances bulk create is not supported",
-                "status_code": status.HTTP_405_METHOD_NOT_ALLOWED,
-            }
-        )
+        add_not_supported_error(results, action.action, "Task instances")
 
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkTaskInstanceBody], results: BulkActionResponse

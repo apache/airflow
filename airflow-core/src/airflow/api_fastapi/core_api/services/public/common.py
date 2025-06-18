@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic
 
+from fastapi import status
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -74,11 +75,22 @@ class BulkService(Generic[T], ABC):
     @abstractmethod
     def handle_bulk_delete(self, action: BulkDeleteAction[T], results: BulkActionResponse) -> None:
         """Bulk delete entities."""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def handle_bulk_delete_with_entity(
         self, action: BulkDeleteWithEntityAction[T], results: BulkActionResponse
     ) -> None:
         """Bulk delete entities with entity."""
-        pass
+        raise NotImplementedError
+
+
+def add_not_supported_error(
+    results: BulkActionResponse,
+    operation: BulkAction,
+    entity_type: str,
+) -> None:
+    error_message = f"{entity_type} bulk {operation.value} is not supported"
+    status_code = status.HTTP_405_METHOD_NOT_ALLOWED
+
+    results.errors.append({"error": error_message, "status_code": status_code})
