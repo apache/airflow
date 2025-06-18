@@ -564,7 +564,7 @@ class TestEmrServerlessStartJobOperator:
         operator.job_id = job_run_id
         failed_event = {
             "status": "error",
-            "job_id": job_run_id,
+            "job_details": {"application_id": application_id, "job_id": job_run_id},
         }
 
         mock_context = mock.MagicMock()
