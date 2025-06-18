@@ -123,12 +123,6 @@ class DAGPatchBody(StrictBaseModel):
     is_paused: bool
 
 
-class DAGFavoriteBody(StrictBaseModel):
-    """Dag Serializer for updatable bodies."""
-
-    is_favorite: bool
-
-
 class DAGCollectionResponse(BaseModel):
     """DAG Collection serializer for responses."""
 
