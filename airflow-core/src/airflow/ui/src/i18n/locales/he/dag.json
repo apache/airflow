@@ -85,7 +85,6 @@
     "backfills": "השלמות רטרואקטיביות",
     "code": "קוד תכנות",
     "details": "פרטים",
-    "events": "אירועים",
     "logs": "רישומים",
     "mappedTaskInstances_one": "מופע משימה [{{count}}]",
     "mappedTaskInstances_other": "מופעי משימות [{{count}}]",

@@ -50,6 +50,7 @@ import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
 import heComponents from "./locales/he/components.json";
 import heDag from "./locales/he/dag.json";
+import heDags from "./locales/he/dags.json";
 import heDashboard from "./locales/he/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
@@ -127,6 +128,7 @@ const resources = {
     common: heCommon,
     components: heComponents,
     dag: heDag,
+    dags: heDags,
     dashboard: heDashboard,
   },
   ko: {
