@@ -122,9 +122,11 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         verbose: bool = False,
         replace_script_file: bool = False,
         update_config: bool = False,
-        job_poll_interval: int | float = 6,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
         stop_job_run_on_kill: bool = False,
         sleep_before_return: int = 0,
+        job_poll_interval: int | float = 6,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -147,6 +149,8 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         self.update_config = update_config
         self.replace_script_file = replace_script_file
         self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.job_poll_interval = job_poll_interval
         self.stop_job_run_on_kill = stop_job_run_on_kill
         self._job_run_id: str | None = None
@@ -231,7 +235,8 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
                     run_id=self._job_run_id,
                     verbose=self.verbose,
                     aws_conn_id=self.aws_conn_id,
-                    job_poll_interval=self.job_poll_interval,
+                    waiter_delay=int(self.waiter_delay),
+                    waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
             )

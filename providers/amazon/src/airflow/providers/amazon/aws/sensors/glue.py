@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
@@ -54,6 +53,7 @@ class GlueJobSensor(AwsBaseSensor[GlueJobHook]):
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param poke_interval: Polling period in seconds to check for the status of the job. (default: 120)
+    :param max_retries: Number of times before returning the current state. (default: 60)
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
@@ -81,6 +81,7 @@ class GlueJobSensor(AwsBaseSensor[GlueJobHook]):
         verbose: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poke_interval: int = 120,
+        max_retries: int = 60,
         aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
@@ -90,6 +91,7 @@ class GlueJobSensor(AwsBaseSensor[GlueJobHook]):
         self.verbose = verbose
         self.deferrable = deferrable
         self.poke_interval = poke_interval
+        self.max_retries = max_retries
         self.aws_conn_id = aws_conn_id
         self.next_log_tokens = GlueJobHook.LogContinuationTokens()
 
@@ -101,10 +103,10 @@ class GlueJobSensor(AwsBaseSensor[GlueJobHook]):
                     run_id=self.run_id,
                     verbose=self.verbose,
                     aws_conn_id=self.aws_conn_id,
-                    job_poll_interval=self.poke_interval,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_retries,
                 ),
                 method_name="execute_complete",
-                timeout=timedelta(seconds=self.timeout),
             )
         else:
             super().execute(context=context)
