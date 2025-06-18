@@ -13,8 +13,12 @@
   },
   "history": "التاريخ",
   "importErrors": {
-    "dagImportError_one": "خطأ في استيراد Dag",
+    "dagImportError_few": "أخطاء في استيراد Dag",
+    "dagImportError_many": "أخطاء في استيراد Dag",
+    "dagImportError_one": "خطأ واحد في استيراد Dag",
     "dagImportError_other": "أخطاء في استيراد Dag",
+    "dagImportError_two": "خطأان في استيراد Dag",
+    "dagImportError_zero": "لا توجد أخطاء في استيراد Dag",
     "searchByFile": "البحث بالملف",
     "timestamp": "الختم الزمني"
   },
