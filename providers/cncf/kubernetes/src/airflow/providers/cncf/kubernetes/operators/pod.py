@@ -796,11 +796,13 @@ class KubernetesPodOperator(BaseOperator):
         del self.pod_manager
 
     def execute_async(self, context: Context) -> None:
-        self.pod_request_obj = self.build_pod_request_obj(context)
-        self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
-            pod_request_obj=self.pod_request_obj,
-            context=context,
-        )
+        if self.pod_request_obj is None:
+            self.pod_request_obj = self.build_pod_request_obj(context)
+        if self.pod is None:
+            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                pod_request_obj=self.pod_request_obj,
+                context=context,
+            )
         if self.callbacks:
             pod = self.find_pod(self.pod.metadata.namespace, context=context)
             for callback in self.callbacks:
