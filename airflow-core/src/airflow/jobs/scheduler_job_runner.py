@@ -1591,7 +1591,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             )
                         ),
                         AssetEvent.source_aliases.any(
-                            AssetAliasModel.consuming_dags.any(
+                            AssetAliasModel.scheduled_dags.any(
                                 DagScheduleAssetAliasReference.dag_id == dag.dag_id
                             )
                         ),
