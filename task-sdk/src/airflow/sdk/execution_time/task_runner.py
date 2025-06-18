@@ -703,11 +703,12 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         # If we re-executed the module with `python -m`, it would load as __main__ and future
         # imports would get a fresh copy without the initialized globals.
         rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
+        cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
         log.info(
             "Running command",
-            command=["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code],
+            command=cmd,
         )
-        os.execvp("sudo", ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code])
+        os.execvp("sudo", cmd)
 
         # ideally, we should never reach here, but if we do, we should return None, None, None
         return None, None, None
