@@ -254,7 +254,6 @@ class TestSnowflakeSqlApiHook:
         query_ids = hook.execute_query(sql, statement_count)
         assert query_ids == expected_query_ids
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
         new_callable=PropertyMock,
@@ -272,11 +271,11 @@ class TestSnowflakeSqlApiHook:
         )
 
         mock_requests.codes.ok = 200
-        mock_requests.post.side_effect = [
+        mock_requests.request.side_effect = [
             create_successful_response_mock(expected_response),
         ]
         status_code_mock = mock.PropertyMock(return_value=200)
-        type(mock_requests.post.return_value).status_code = status_code_mock
+        type(mock_requests.request.return_value).status_code = status_code_mock
 
         hook = SnowflakeSqlApiHook("mock_conn_id")
         query_ids = hook.execute_query(sql, statement_count)
@@ -288,7 +287,7 @@ class TestSnowflakeSqlApiHook:
             {"statementHandle": "uuid"},
             ["uuid"],
         )
-        mock_requests.post.side_effect = [
+        mock_requests.request.side_effect = [
             create_successful_response_mock(expected_response),
         ]
         query_ids = hook.execute_query(sql, statement_count)
