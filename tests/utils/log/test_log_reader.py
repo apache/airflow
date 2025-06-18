@@ -242,7 +242,7 @@ class TestLogView:
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
         assert list(log_stream) == [
             "\nhello\n",
-            "\n(Log stream stopped - End of log marker not found, so logs may be incomplete)\n",
+            "\n(Log stream stopped - End of log marker not found; logs may be incomplete.)\n",
         ]
         assert mock_read.call_count == 6
 

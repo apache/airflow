@@ -95,17 +95,19 @@ class TaskLogReader:
                     not metadata["end_of_log"]
                     and ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
                 ):
-                    if not logs[0]:
+                    if logs[0]:
+                        empty_iterations = 0
+                    else:
                         # we did not receive any logs in this loop
                         # sleeping to conserve resources / limit requests on external services
                         time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
                         empty_iterations += 1
                         if empty_iterations >= self.STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS:
                             # we have not received any logs for a while, so we stop the stream
-                            yield "\n(Log stream stopped - End of log marker not found, so logs may be incomplete)\n"
-                            break
+                            yield "\n(Log stream stopped - End of log marker not found; logs may be incomplete.)\n"
+                            return
                 else:
-                    break
+                    return
 
     @cached_property
     def log_handler(self):
