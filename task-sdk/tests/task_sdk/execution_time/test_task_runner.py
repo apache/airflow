@@ -683,10 +683,9 @@ def test_user_impersonation_env_and_execvp(
         assert "_AIRFLOW__STARTUP_MSG" in os.environ
 
         mock_set_inheritable.assert_called_once_with(42, True)
-        expected_suffix = "src/airflow/sdk/execution_time/task_runner.py"
         actual_cmd = mock_execvp.call_args.args[1]
         assert actual_cmd[:5] == ["sudo", "-E", "-H", "-u", "airflowuser"]
-        assert actual_cmd[-1].endswith(expected_suffix)
+        assert actual_cmd[-1] == "from airflow.sdk.execution_time.task_runner import main; main()"
 
 
 @pytest.mark.parametrize(
