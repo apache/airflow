@@ -27,7 +27,11 @@ from __future__ import annotations
 import analytics
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 
 class SegmentHook(BaseHook):

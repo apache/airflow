@@ -25,7 +25,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     import jinja2

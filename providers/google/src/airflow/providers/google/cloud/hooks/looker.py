@@ -29,7 +29,11 @@ from looker_sdk.sdk.api40 import methods as methods40
 from packaging.version import parse as parse_version
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.version import version
 
 if TYPE_CHECKING:

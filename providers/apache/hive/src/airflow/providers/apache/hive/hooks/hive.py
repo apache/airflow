@@ -40,7 +40,11 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
 

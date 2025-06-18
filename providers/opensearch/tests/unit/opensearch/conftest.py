@@ -21,7 +21,11 @@ from typing import Any
 import pytest
 
 from airflow.models import Connection
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils import db
 
 try:

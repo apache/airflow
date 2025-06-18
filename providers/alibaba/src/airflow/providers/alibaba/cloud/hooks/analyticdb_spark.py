@@ -34,7 +34,11 @@ from alibabacloud_adb20211201.models import (
 from alibabacloud_tea_openapi.models import Config
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

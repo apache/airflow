@@ -24,7 +24,11 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.openfaas.hooks.openfaas import OpenFaasHook
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 FUNCTION_NAME = "function_name"
 

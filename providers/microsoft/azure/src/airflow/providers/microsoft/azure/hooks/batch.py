@@ -30,7 +30,11 @@ from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
 )
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils import timezone
 
 if TYPE_CHECKING:

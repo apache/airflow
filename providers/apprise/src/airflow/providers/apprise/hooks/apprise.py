@@ -24,7 +24,10 @@ from typing import TYPE_CHECKING, Any
 import apprise
 from apprise import AppriseConfig, NotifyFormat, NotifyType
 
-from airflow.sdk import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from apprise import AppriseAttachment

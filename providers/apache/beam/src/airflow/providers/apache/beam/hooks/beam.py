@@ -37,7 +37,11 @@ from packaging.version import Version
 
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     import logging

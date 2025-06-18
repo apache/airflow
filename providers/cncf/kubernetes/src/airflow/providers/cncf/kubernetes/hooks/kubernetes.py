@@ -44,7 +44,11 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_completed,
     container_is_running,
 )
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils import yaml
 
 if TYPE_CHECKING:

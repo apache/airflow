@@ -39,7 +39,11 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
     get_sync_default_azure_credential,
 )
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential]
 

@@ -29,7 +29,11 @@ from facebook_business.adobjects.adreportrun import AdReportRun
 from facebook_business.api import FacebookAdsApi
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from facebook_business.adobjects.adsinsights import AdsInsights

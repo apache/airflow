@@ -50,7 +50,11 @@ from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
 )
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase

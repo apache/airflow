@@ -21,7 +21,10 @@ from typing import Any
 
 from confluent_kafka.admin import AdminClient
 
-from airflow.sdk import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 
 class KafkaBaseHook(BaseHook):

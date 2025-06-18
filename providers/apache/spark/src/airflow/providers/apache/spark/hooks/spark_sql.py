@@ -21,7 +21,11 @@ import subprocess
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection

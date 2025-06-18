@@ -36,7 +36,11 @@ from sqlalchemy.orm import make_transient
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils import db
 from airflow.utils.db import merge_conn
 

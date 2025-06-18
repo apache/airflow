@@ -42,7 +42,11 @@ from airflow.exceptions import (
 )
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:

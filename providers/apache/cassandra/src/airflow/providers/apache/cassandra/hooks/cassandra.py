@@ -31,7 +31,10 @@ from cassandra.policies import (
     WhiteListRoundRobinPolicy,
 )
 
-from airflow.sdk import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]

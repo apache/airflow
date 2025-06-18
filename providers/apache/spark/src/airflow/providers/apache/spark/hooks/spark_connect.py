@@ -20,7 +20,10 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import quote, urlparse, urlunparse
 
-from airflow.sdk import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

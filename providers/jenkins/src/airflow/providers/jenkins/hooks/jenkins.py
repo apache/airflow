@@ -21,7 +21,10 @@ from typing import Any
 
 import jenkins
 
-from airflow.sdk import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 
 class JenkinsHook(BaseHook):

@@ -32,7 +32,11 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse

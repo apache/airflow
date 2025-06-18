@@ -24,7 +24,10 @@ from collections.abc import Iterator
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
 
-from airflow.sdk import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 SubprocessResult = namedtuple("SubprocessResult", ["exit_code", "output"])
 

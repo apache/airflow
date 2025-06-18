@@ -24,7 +24,11 @@ from typing import TYPE_CHECKING
 from github import Github as GithubClient
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 
 class GithubHook(BaseHook):

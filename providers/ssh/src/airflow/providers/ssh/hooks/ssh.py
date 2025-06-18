@@ -33,7 +33,11 @@ from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.platform import getuser
 from airflow.utils.types import NOTSET, ArgNotSet
 

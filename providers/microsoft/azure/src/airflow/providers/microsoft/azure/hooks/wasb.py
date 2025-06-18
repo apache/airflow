@@ -52,7 +52,11 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from azure.storage.blob._models import BlobProperties

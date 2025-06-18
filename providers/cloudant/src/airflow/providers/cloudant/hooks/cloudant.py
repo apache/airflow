@@ -28,7 +28,11 @@ else:
     from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     from airflow.models import Connection

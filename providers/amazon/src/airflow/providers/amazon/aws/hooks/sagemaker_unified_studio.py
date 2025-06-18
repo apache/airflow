@@ -26,7 +26,11 @@ from sagemaker_studio.sagemaker_studio_api import SageMakerStudioAPI
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 
 class SageMakerNotebookHook(BaseHook):

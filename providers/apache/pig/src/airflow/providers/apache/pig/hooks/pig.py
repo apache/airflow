@@ -22,7 +22,11 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 
 class PigCliHook(BaseHook):

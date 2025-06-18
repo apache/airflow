@@ -22,7 +22,10 @@ import ftplib  # nosec: B402
 import logging
 from typing import Any, Callable
 
-from airflow.sdk import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 logger = logging.getLogger(__name__)
 

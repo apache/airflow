@@ -55,7 +55,11 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:

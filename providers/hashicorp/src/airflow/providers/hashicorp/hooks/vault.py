@@ -28,7 +28,11 @@ from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
 )
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:

@@ -31,7 +31,11 @@ from typing_extensions import NotRequired
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.slack.utils import ConnectionExtraConfig
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:

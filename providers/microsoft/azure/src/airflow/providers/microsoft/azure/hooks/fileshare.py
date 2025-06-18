@@ -25,7 +25,11 @@ from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_sync_default_azure_credential,
 )
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 
 class AzureFileShareHook(BaseHook):

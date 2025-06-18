@@ -31,7 +31,10 @@ from influxdb_client import InfluxDBClient
 from influxdb_client.client.write.point import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-from airflow.sdk import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 if TYPE_CHECKING:
     import pandas as pd

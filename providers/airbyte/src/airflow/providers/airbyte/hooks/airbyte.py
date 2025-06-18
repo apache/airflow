@@ -26,7 +26,11 @@ from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, Sch
 from requests import Session
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 
 T = TypeVar("T", bound=Any)
 

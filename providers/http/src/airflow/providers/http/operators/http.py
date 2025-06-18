@@ -28,7 +28,11 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.triggers.http import HttpTrigger
-from airflow.sdk import BaseHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
