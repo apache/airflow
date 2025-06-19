@@ -1966,7 +1966,7 @@ def override_caplog(request):
         airflow.logging_config.configure_logging()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_supervisor_comms(monkeypatch):
     # for back-compat
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -1988,6 +1988,54 @@ def mock_supervisor_comms(monkeypatch):
         comms.send = comms.get_message
         monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
     yield comms
+
+
+@pytest.fixture(autouse=True)
+def mock_convert_db_merge_conn_to_supervisor_comms(monkeypatch):
+    """
+    Fixture to automatically intercept database connection setup and convert it to task SDK communication.
+
+    This fixture automatically patches `db.merge_conn()` calls to use the task SDK `SUPERVISOR_COMMS`
+    communication mechanism instead. Useful for testing providers that traditionally rely on database
+    to create connections and test things like hooks, for example.
+
+    The fixture works by:
+    1. Intercepting all `db.merge_conn(Connection(...))` calls during tests
+    2. Converting each `Connection` object to a `ConnectionResult` object with the same properties
+    3. Setting up `SUPERVISOR_COMMS.send.return_value` to return the `ConnectionResult`
+    """
+
+    from airflow.sdk.execution_time import task_runner
+
+    # Deal with TaskSDK 1.0/1.1 vs 1.2+. Annoying, and shouldn't need to exist once the separation between
+    # core and TaskSDK is finished
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
+        yield
+        return
+
+    from airflow.sdk.execution_time.comms import ConnectionResult
+    from airflow.utils import db
+
+    original_merge_conn = db.merge_conn
+
+    def replace_db_connection_with_sdk_connection_result(connection, session=None):
+        """Intercepts `db.merge_conn` and creates a ConnectionResult to send through SUPERVISOR_COMMS."""
+        conn_result = ConnectionResult(
+            conn_id=connection.conn_id,
+            conn_type=connection.conn_type,
+            host=connection.host or None,
+            login=connection.login or None,
+            password=connection.password or None,
+            schema_=connection.schema or None,
+            port=connection.port,
+            extra=connection.extra or None,
+        )
+
+        task_runner.SUPERVISOR_COMMS.send.return_value = conn_result
+
+    monkeypatch.setattr(db, "merge_conn", replace_db_connection_with_sdk_connection_result)
+    yield
+    monkeypatch.setattr(db, "merge_conn", original_merge_conn)
 
 
 @pytest.fixture
