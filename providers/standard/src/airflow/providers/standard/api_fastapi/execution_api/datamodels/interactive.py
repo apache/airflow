@@ -31,4 +31,4 @@ class InteractiveResponse(BaseModel):
     """Response for InteractiveResponse."""
 
     ti_id: UUID
-    content: str
+    content: str | None

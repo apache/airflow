@@ -26,7 +26,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
 
-def fetch_response_content(ti_id: UUID) -> str:
+def fetch_response_content(ti_id: UUID) -> str | None:
     response = SUPERVISOR_COMMS.send(msg=FetchInteractiveResponse(ti_id=ti_id))
 
     if TYPE_CHECKING:
