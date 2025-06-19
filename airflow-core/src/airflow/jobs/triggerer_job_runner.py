@@ -44,7 +44,6 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.sdk.execution_time.comms import (
-    AddInteractiveResponse,
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
@@ -451,8 +450,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
-        elif isinstance(msg, AddInteractiveResponse):
-            resp = self.client.interactive_responses.write_response(ti_id=msg.ti_id, content=msg.content)
         elif isinstance(msg, FetchInteractiveResponse):
             api_resp = self.client.interactive_responses.get_response(ti_id=msg.ti_id)
             resp = InteractiveResponseResult.from_api_response(interactive_response=api_resp)
