@@ -394,7 +394,7 @@ class TestDagFileProcessor:
 
     def test__pre_import_airflow_modules_when_disabled(self, mock_logger):
         with (
-            patch("airflow.configuration.conf.getboolean", return_value=False),
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "false"}),
             patch("airflow.dag_processing.processor.iter_airflow_imports") as mock_iter,
         ):
             _pre_import_airflow_modules("test.py", mock_logger)
@@ -404,7 +404,7 @@ class TestDagFileProcessor:
 
     def test__pre_import_airflow_modules_when_enabled(self, mock_logger):
         with (
-            patch("airflow.configuration.conf.getboolean", return_value=True),
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch("airflow.dag_processing.processor.iter_airflow_imports", return_value=["airflow.models"]),
             patch("airflow.dag_processing.processor.importlib.import_module") as mock_import,
         ):
@@ -415,7 +415,7 @@ class TestDagFileProcessor:
 
     def test__pre_import_airflow_modules_warns_on_missing_module(self, mock_logger):
         with (
-            patch("airflow.configuration.conf.getboolean", return_value=True),
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch(
                 "airflow.dag_processing.processor.iter_airflow_imports", return_value=["non_existent_module"]
             ),
@@ -433,7 +433,7 @@ class TestDagFileProcessor:
 
     def test__pre_import_airflow_modules_partial_success_and_warning(self, mock_logger):
         with (
-            patch("airflow.configuration.conf.getboolean", return_value=True),
+            env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
             patch(
                 "airflow.dag_processing.processor.iter_airflow_imports",
                 return_value=["airflow.models", "non_existent_module"],
