@@ -188,8 +188,6 @@ class TestFileTaskLogHandler:
         assert hasattr(file_handler, "read")
         log, metadata = file_handler.read(ti, 1)
         assert isinstance(metadata, dict)
-        # Update regex pattern to match the structlog format - just check for the word "test"
-        # in the log events since structlog format is different from the old format
         log_events = events(log)
 
         # We should expect our log line from the callable above to appear in
