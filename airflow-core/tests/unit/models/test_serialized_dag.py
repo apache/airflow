@@ -329,8 +329,6 @@ class TestSerializedDagModel:
     def test_new_dag_versions_are_not_created_if_no_dagruns(self, dag_maker, session):
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda: None)
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
         assert session.query(SDM).count() == 1
         sdm1 = SDM.get(dag.dag_id, session=session)
         dag_hash = sdm1.dag_hash
@@ -338,7 +336,7 @@ class TestSerializedDagModel:
         last_updated = sdm1.last_updated
         # new task
         PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="dag_maker")
         sdm2 = SDM.get(dag.dag_id, session=session)
 
         assert sdm2.dag_hash != dag_hash  # first recorded serdag
@@ -350,14 +348,12 @@ class TestSerializedDagModel:
     def test_new_dag_versions_are_created_if_there_is_a_dagrun(self, dag_maker, session):
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda: None)
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
         dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
         assert session.query(SDM).count() == 1
         assert session.query(DagVersion).count() == 1
         # new task
         PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="dag_maker")
 
         assert session.query(DagVersion).count() == 2
         assert session.query(SDM).count() == 2
@@ -503,7 +499,26 @@ class TestSerializedDagModel:
 
         did_write = SDM.write_dag(
             dag,
-            bundle_name="testing",
+            bundle_name="dag_maker",
             min_update_interval=min_update_interval,
         )
         assert did_write is should_write
+
+    def test_new_dag_version_created_when_bundle_name_changes_and_hash_unchanged(self, dag_maker, session):
+        """Test that new dag_version is created if bundle_name changes but DAG is unchanged."""
+        # Create and write initial DAG
+        initial_bundle = "bundleA"
+        with dag_maker("test_dag_update_bundle", bundle_name=initial_bundle) as dag:
+            EmptyOperator(task_id="task1")
+
+        # Create TIs
+        dag_maker.create_dagrun(run_id="test_run")
+
+        assert session.query(DagVersion).count() == 1
+
+        # Write the same DAG (no changes, so hash is the same) with a new bundle_name
+        new_bundle = "bundleB"
+        SDM.write_dag(dag, bundle_name=new_bundle)
+
+        # There should now be two versions of the DAG
+        assert session.query(DagVersion).count() == 2

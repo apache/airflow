@@ -112,7 +112,7 @@ class TestGetDAGSource:
         assert response.headers["Content-Type"].startswith("application/json")
 
     @pytest.mark.parametrize("accept", ["application/json", "text/plain"])
-    def test_should_respond_200_version(self, test_client, accept, session, test_dag, testing_dag_bundle):
+    def test_should_respond_200_version(self, test_client, accept, session, test_dag):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         test_dag.create_dagrun(
             run_id="test1",
@@ -123,7 +123,7 @@ class TestGetDAGSource:
         )
         # force reserialization
         test_dag.doc_md = "new doc"
-        SerializedDagModel.write_dag(test_dag, bundle_name="testing")
+        SerializedDagModel.write_dag(test_dag, bundle_name="dags-folder")
         dagcode = (
             session.query(DagCode)
             .filter(DagCode.fileloc == test_dag.fileloc)

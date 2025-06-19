@@ -27,10 +27,8 @@ import pytest
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
-from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles
@@ -141,12 +139,9 @@ def clear_db():
 
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
-def test_sync_bundles_to_db(clear_db, dag_maker, session):
+def test_sync_bundles_to_db(clear_db, session):
     def _get_bundle_names_and_active():
         return session.query(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name).all()
-
-    def _get_dag_version_bundle_names():
-        return session.query(DagVersion.dag_id, DagVersion.bundle_name).all()
 
     # Initial add
     with patch.dict(
@@ -155,10 +150,6 @@ def test_sync_bundles_to_db(clear_db, dag_maker, session):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
-
-    # Create DAG version with 'my-test-bundle'
-    with dag_maker(dag_id="test_dag", schedule=None):
-        EmptyOperator(task_id="mytask")
 
     session.add(
         ParseImportError(
@@ -173,15 +164,11 @@ def test_sync_bundles_to_db(clear_db, dag_maker, session):
     manager = DagBundlesManager()
     manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [
-        ("dag_maker", False),
         ("dags-folder", True),
         ("my-test-bundle", False),
     ]
     # Since my-test-bundle is inactive, the associated import errors should be deleted
     assert session.query(ParseImportError).count() == 0
-
-    # Check that the DAG version bundle_name got auto-updated to active one
-    assert _get_dag_version_bundle_names() == [("test_dag", "dags-folder")]
 
     # Re-enable one that reappears in config
     with patch.dict(
@@ -190,11 +177,9 @@ def test_sync_bundles_to_db(clear_db, dag_maker, session):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [
-        ("dag_maker", False),
         ("dags-folder", False),
         ("my-test-bundle", True),
     ]
-    assert _get_dag_version_bundle_names() == [("test_dag", "my-test-bundle")]
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})

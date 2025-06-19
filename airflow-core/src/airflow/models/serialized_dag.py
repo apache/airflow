@@ -416,11 +416,16 @@ class SerializedDagModel(Base):
         serialized_dag_hash = session.scalars(
             select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
         ).first()
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
 
-        if serialized_dag_hash is not None and serialized_dag_hash == new_serialized_dag.dag_hash:
+        if (
+            serialized_dag_hash == new_serialized_dag.dag_hash
+            and dag_version
+            and dag_version.bundle_name == bundle_name
+        ):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+
         if dag_version and not dag_version.task_instances:
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
