@@ -70,7 +70,9 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     InactiveAssetsResult,
     RescheduleTask,
+    ResendLoggingFD,
     RetryTask,
+    SentFDs,
     SetRenderedFields,
     SkipDownstreamTasks,
     StartupDetails,
@@ -659,6 +661,18 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
         # entrypoint of re-exec process
         msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
+
+        logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
+        if isinstance(logs, SentFDs):
+            from airflow.sdk.log import configure_logging
+
+            log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
+            configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
+        else:
+            print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
+
+        # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
+        # on stdout
         log.debug("Using serialized startup message from environment", msg=msg)
     else:
         # normal entry point
