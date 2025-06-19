@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import importlib
 import pickle
+import sys
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import requests
@@ -30,7 +32,6 @@ from requests.structures import CaseInsensitiveDict
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.operator_helpers import determine_kwargs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
@@ -237,7 +238,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         For example, ``run(json=obj)`` is passed as
         ``aiohttp.ClientSession().get(json=obj)``.
         2XX or 3XX status codes
-    :param response_check: method that evaluates whether the API response
+    :param response_check_path: path to method that evaluates whether the API response
         passes the conditions set by the user to trigger DAGs
     """
 
@@ -250,10 +251,10 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
-        response_check: Callable[..., bool] | None = None,
+        response_check_path: str | None = None,
     ):
         super().__init__(http_conn_id, auth_type, method, endpoint, headers, data, extra_options)
-        self.response_check = response_check
+        self.response_check_path = response_check_path
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpEventTrigger arguments and classpath."""
@@ -267,7 +268,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
                 "headers": self.headers,
                 "data": self.data,
                 "extra_options": self.extra_options,
-                "response_check": self.response_check,
+                "response_check_path": self.response_check_path,
             },
         )
 
@@ -277,7 +278,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         try:
             while True:
                 response = await super()._get_response(hook)
-                if not self.response_check or self._run_response_check(response):
+                if not self.response_check_path or self._run_response_check(response):
                     break
             yield TriggerEvent(
                 {
@@ -286,9 +287,16 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
                 }
             )
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})
+            self.log.error("status: error, message: %s" % str(e))
+
+    def _import_from_response_check_path(self):
+        module_path, func_name = self.response_check_path.rsplit(".", 1)
+        if module_path in sys.modules:
+            module = importlib.reload(sys.modules[module_path])
+        module = importlib.import_module(module_path)
+        return getattr(module, func_name)
 
     def _run_response_check(self, response) -> bool:
         """Run the response_check callable provided by the user."""
-        kwargs = determine_kwargs(self.response_check, [response], {})
-        return self.response_check(response, **kwargs)
+        response_check = self._import_from_response_check_path()
+        return response_check(response)
