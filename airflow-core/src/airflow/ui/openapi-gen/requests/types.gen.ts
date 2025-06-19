@@ -5,7 +5,7 @@
  */
 export type AppBuilderMenuItemResponse = {
     name: string;
-    href?: string | null;
+    href: string;
     category?: string | null;
     [key: string]: unknown | string;
 };
@@ -881,9 +881,11 @@ export type ExternalViewResponse = {
     dark_mode_icon?: string | null;
     url_route?: string | null;
     category?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | null;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     [key: string]: unknown | string;
 };
+
+export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
 
 /**
  * Extra Links Response.

@@ -65,7 +65,7 @@ class AppBuilderMenuItemResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     name: str
-    href: str | None = None
+    href: str
     category: str | None = None
 
 
@@ -80,7 +80,7 @@ class ExternalViewResponse(BaseModel):
     dark_mode_icon: str | None = None
     url_route: str | None = None
     category: str | None = None
-    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] | None = None
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance"] = "nav"
 
 
 class PluginResponse(BaseModel):

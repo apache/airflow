@@ -7,14 +7,7 @@ export const $AppBuilderMenuItemResponse = {
             title: 'Name'
         },
         href: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
             title: 'Href'
         },
         category: {
@@ -31,7 +24,7 @@ export const $AppBuilderMenuItemResponse = {
     },
     additionalProperties: true,
     type: 'object',
-    required: ['name'],
+    required: ['name', 'href'],
     title: 'AppBuilderMenuItemResponse',
     description: 'Serializer for AppBuilder Menu Item responses.'
 } as const;
@@ -3324,16 +3317,10 @@ export const $ExternalViewResponse = {
             title: 'Category'
         },
         destination: {
-            anyOf: [
-                {
-                    type: 'string',
-                    enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance']
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Destination'
+            type: 'string',
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance'],
+            title: 'Destination',
+            default: 'nav'
         }
     },
     additionalProperties: true,
