@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
+from airflow.serialization.typing import is_pydantic_model
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     - version number
     - is_serialized flag (True if handled)
     """
-    if not _is_pydantic_model(o):
+    if not is_pydantic_model(o):
         return "", "", 0, False
 
     model = cast("BaseModel", o)  # for mypy
@@ -53,12 +54,13 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return data, qualname(o), __version__, True
 
 
-def deserialize(cls: type, version: int, data: object):
+def deserialize(cls: type, version: int, data: dict):
     """
-    Deserialize a dictionary into a Pydantic model instance.
+    Deserialize a Pydantic class.
 
-    This function is used as a generic deserializer for all subclasses of BaseModel.
-    It requires serde.py to fallback from the actual model class name to this handler.
+    Pydantic models can be serialized into a Python dictionary via `pydantic.main.BaseModel.model_dump`
+    and the dictionary can be deserialized through `pydantic.main.BaseModel.model_validate`. This function
+    can deserialize arbitrary Pydantic models that are in `allowed_deserialization_classes`.
 
     :param cls: The actual model class
     :param version: Serialization version (must not exceed __version__)
@@ -67,16 +69,11 @@ def deserialize(cls: type, version: int, data: object):
     """
     if version > __version__:
         raise TypeError(f"Serialized version {version} is newer than the supported version {__version__}")
-    print(cls)
-    if not _is_pydantic_model(cls):
+
+    if not is_pydantic_model(cls):
         # no deserializer available
         raise TypeError(f"No deserializer found for {qualname(cls)}")
 
     # Perform validation-based reconstruction
     model = cast("BaseModel", cls)  # for mypy
     return model.model_validate(data)
-
-
-def _is_pydantic_model(cls: Any) -> bool:
-    """Return True if the class is a pydantic.main.BaseModel or its subclasses."""
-    return hasattr(cls, "__pydantic_fields__") and hasattr(cls, "__pydantic_validator__")
