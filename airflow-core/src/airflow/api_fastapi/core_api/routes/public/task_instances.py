@@ -17,7 +17,8 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, cast
+from collections.abc import Sequence
+from typing import Annotated, Any, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
@@ -49,6 +50,7 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
@@ -194,9 +196,10 @@ def get_mapped_task_instances(
             error_message = f"Task id {task_id} is not mapped"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
-    task_instance_select, total_entries = paginated_select(
-        statement=query,
-        filters=[
+    if state.value is not None and None in state.value:
+        filters = [state, pool, queue, executor, version_number]
+    else:
+        filters = [
             run_after_range,
             logical_date_range,
             start_date_range,
@@ -208,7 +211,10 @@ def get_mapped_task_instances(
             queue,
             executor,
             version_number,
-        ],
+        ]
+    task_instance_select, total_entries = paginated_select(
+        statement=query,
+        filters=cast("Sequence[OrmClause[Any]]", filters),
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -460,9 +466,19 @@ def get_task_instances(
             )
         query = query.where(TI.run_id == dag_run_id)
 
-    task_instance_select, total_entries = paginated_select(
-        statement=query,
-        filters=[
+    if state.value is not None and None in state.value:
+        filters = [
+            state,
+            pool,
+            queue,
+            executor,
+            task_id,
+            task_display_name_pattern,
+            version_number,
+            readable_ti_filter,
+        ]
+    else:
+        filters = [
             run_after_range,
             logical_date_range,
             start_date_range,
@@ -477,7 +493,10 @@ def get_task_instances(
             task_display_name_pattern,
             version_number,
             readable_ti_filter,
-        ],
+        ]
+    task_instance_select, total_entries = paginated_select(
+        statement=query,
+        filters=cast("Sequence[OrmClause[Any]]", filters),
         order_by=order_by,
         offset=offset,
         limit=limit,
