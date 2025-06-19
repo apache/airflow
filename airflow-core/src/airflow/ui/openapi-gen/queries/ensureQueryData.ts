@@ -296,6 +296,21 @@ export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, {
   updatedAtLte?: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }) });
 /**
+* Watch Dag Run Until Finished
+* Watch a dag run until it reaches a finished state (e.g. success or failed).
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.interval
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagRunServiceWatchDagRunUntilFinishedData = (queryClient: QueryClient, { dagId, dagRunId, interval }: {
+  dagId: string;
+  dagRunId: string;
+  interval: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceWatchDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval }), queryFn: () => DagRunService.watchDagRunUntilFinished({ dagId, dagRunId, interval }) });
+/**
 * Get Dag Source
 * Get source code using file token.
 * @param data The data for the request.

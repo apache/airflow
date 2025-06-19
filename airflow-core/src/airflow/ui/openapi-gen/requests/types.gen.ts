@@ -2216,6 +2216,14 @@ export type TriggerDagRunData = {
 
 export type TriggerDagRunResponse = DAGRunResponse;
 
+export type WatchDagRunUntilFinishedData = {
+    dagId: string;
+    dagRunId: string;
+    interval: number;
+};
+
+export type WatchDagRunUntilFinishedResponse = unknown;
+
 export type GetListDagRunsBatchData = {
     dagId: "~";
     requestBody: DAGRunsBatchBody;
@@ -3972,6 +3980,33 @@ export type $OpenApiTs = {
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/watch': {
+        get: {
+            req: WatchDagRunUntilFinishedData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

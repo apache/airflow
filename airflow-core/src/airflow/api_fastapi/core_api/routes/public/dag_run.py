@@ -17,11 +17,14 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncGenerator
 from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -59,6 +62,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchStates,
     DAGRunResponse,
     DAGRunsBatchBody,
+    DAGRunWatchResult,
     TriggerDAGRunPostBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
@@ -76,7 +80,8 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
-from airflow.utils.state import DagRunState
+from airflow.utils.session import create_session_async
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 log = structlog.get_logger(__name__)
@@ -436,6 +441,39 @@ def trigger_dag_run(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     except ParamValidationError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+
+async def _watch_dagrun(dag_id: str, run_id: str, interval: float) -> AsyncGenerator[str, None]:
+    async with create_session_async() as session:
+        dag_run = await session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=run_id))
+    yield DAGRunWatchResult.model_validate(dag_run, from_attributes=True).model_dump_json()
+    yield "\n"
+    while dag_run.state not in State.finished_dr_states:
+        await asyncio.sleep(interval)
+        async with create_session_async() as session:
+            dag_run = await session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=run_id))
+        yield DAGRunWatchResult.model_validate(dag_run, from_attributes=True).model_dump_json()
+        yield "\n"
+
+
+@dag_run_router.get(
+    "/{dag_run_id}/watch",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
+)
+def watch_dag_run_until_finished(
+    dag_id: str,
+    dag_run_id: str,
+    interval: Annotated[float, Query(gt=0.0)],
+    session: SessionDep,
+):
+    "Watch a dag run until it reaches a finished state (e.g. success or failed)."
+    if not session.scalar(select(1).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
+        )
+    return StreamingResponse(_watch_dagrun(dag_id, dag_run_id, interval))
 
 
 @dag_run_router.post(

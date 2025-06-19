@@ -1621,3 +1621,45 @@ class TestTriggerDagRun:
             "conf": {},
             "note": None,
         }
+
+
+class TestWatchDagRun:
+    # The way we init async engine does not work well with FastAPI app init.
+    # Creating the engine implicitly creates an event loop, which Airflow does
+    # once for the entire process; creating the FastAPI app also does, but our
+    # test setup does it once for each test. I don't know how to properly fix
+    # this without rewriting how Airflow does db; re-configuring the db for each
+    # test at least makes the tests run correctly.
+    @pytest.fixture(autouse=True)
+    def reconfigure_async_db_engine(self):
+        from airflow.settings import _configure_async_session
+
+        _configure_async_session()
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/watch?interval=1")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/watch?interval=1")
+        assert response.status_code == 403
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/does-not-exist/watch?interval=1")
+        assert response.status_code == 404
+
+    def test_should_respond_422_without_interval_param(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/watch")
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "run_id, state",
+        [(DAG1_RUN1_ID, DAG1_RUN1_STATE), (DAG1_RUN2_ID, DAG1_RUN2_STATE)],
+    )
+    def test_should_respond_200_immediately_for_finished_run(self, test_client, run_id, state):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{run_id}/watch?interval=100")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, dict)
+        assert sorted(data) == ["duration", "state"]
+        assert data["state"] == state

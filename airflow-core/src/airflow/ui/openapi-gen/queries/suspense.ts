@@ -296,6 +296,21 @@ export const useDagRunServiceGetDagRunsSuspense = <TData = Common.DagRunServiceG
   updatedAtLte?: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }, queryKey), queryFn: () => DagRunService.getDagRuns({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }) as TData, ...options });
 /**
+* Watch Dag Run Until Finished
+* Watch a dag run until it reaches a finished state (e.g. success or failed).
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.interval
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceWatchDagRunUntilFinishedSuspense = <TData = Common.DagRunServiceWatchDagRunUntilFinishedDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, interval }: {
+  dagId: string;
+  dagRunId: string;
+  interval: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagRunServiceWatchDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval }, queryKey), queryFn: () => DagRunService.watchDagRunUntilFinished({ dagId, dagRunId, interval }) as TData, ...options });
+/**
 * Get Dag Source
 * Get source code using file token.
 * @param data The data for the request.
