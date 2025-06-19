@@ -2467,38 +2467,17 @@ def testing_dag_bundle():
 
 
 @pytest.fixture
-def create_conn(monkeypatch):
+def create_connection_without_db(monkeypatch):
     """
-    Fixture to create connections using either using task SDK SUPERVISOR_COMMS or `db.merge_conn`.
+    Fixture to create connections for tests without using the database.
 
-    This fixture provides a function that creates connections using the task SDK
-    communication mechanism instead of `db.merge_conn` when possible. It automatically
-    converts Connection objects to ConnectionResult objects and patches
-    SUPERVISOR_COMMS.send.return_value.
+    This fixture uses monkeypatch to set the appropriate AIRFLOW_CONN_{conn_id} environment variable.
     """
-    from airflow.sdk.execution_time import task_runner
-
-    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
-        from airflow.utils import db
-
-        return db.merge_conn
-
-    from airflow.sdk.execution_time.comms import ConnectionResult
 
     def _create_conn(connection, session=None):
-        """Create connection using TaskSDK SUPERVISOR_COMMS."""
+        """Create connection using environment variable."""
 
-        conn_result = ConnectionResult(
-            conn_id=connection.conn_id,
-            conn_type=connection.conn_type,
-            host=connection.host or None,
-            login=connection.login or None,
-            password=connection.password or None,
-            schema_=connection.schema or None,
-            port=connection.port,
-            extra=connection.extra or None,
-        )
-
-        task_runner.SUPERVISOR_COMMS.send.return_value = conn_result
+        env_var_name = f"AIRFLOW_CONN_{connection.conn_id.upper()}"
+        monkeypatch.setenv(env_var_name, connection.get_uri())
 
     return _create_conn

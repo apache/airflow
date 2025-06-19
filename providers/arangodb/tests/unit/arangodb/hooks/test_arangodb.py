@@ -32,8 +32,8 @@ arangodb_client_mock = Mock(name="arangodb_client_for_test")
 
 class TestArangoDBHook:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="arangodb_default",
                 conn_type="arangodb",

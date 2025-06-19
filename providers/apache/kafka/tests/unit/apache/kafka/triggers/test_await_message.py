@@ -59,8 +59,8 @@ class MockedConsumer:
 
 class TestTrigger:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",

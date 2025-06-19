@@ -68,8 +68,8 @@ zero_events: list = []
 
 class TestDatadogSensor:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="datadog_default",
                 conn_type="datadog",

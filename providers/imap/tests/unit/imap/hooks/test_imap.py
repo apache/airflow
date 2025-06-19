@@ -121,10 +121,10 @@ class TestImapHook:
     @patch(imaplib_string)
     @patch("ssl.create_default_context")
     def test_connect_and_disconnect_imap_ssl_context_from_extra(
-        self, create_default_context, mock_imaplib, create_conn
+        self, create_default_context, mock_imaplib, create_connection_without_db
     ):
         mock_conn = _create_fake_imap(mock_imaplib)
-        create_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="imap_ssl_context_from_extra",
                 conn_type="imap",

@@ -36,8 +36,8 @@ def _apply_function(message):
 @pytest.mark.integration("kafka")
 class TestTrigger:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="trigger.await_message.test.integration.test_1",
                 conn_type="kafka",

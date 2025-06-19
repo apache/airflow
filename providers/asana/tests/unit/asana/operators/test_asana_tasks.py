@@ -46,11 +46,11 @@ class TestAsanaTaskOperators:
     """
 
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
+    def setup_connections(self, create_connection_without_db):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=args)
         self.dag = dag
-        create_conn(Connection(conn_id="asana_test", conn_type="asana", password="test"))
+        create_connection_without_db(Connection(conn_id="asana_test", conn_type="asana", password="test"))
 
     @patch("airflow.providers.asana.hooks.asana.TasksApi", autospec=True, return_value=asana_tasks_api_mock)
     def test_asana_create_task_operator(self, mock_tasks_api):

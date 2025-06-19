@@ -34,10 +34,12 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 class TestLivySensor:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
+    def setup_connections(self, create_connection_without_db):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
-        create_conn(Connection(conn_id="livyunittest", conn_type="livy", host="http://localhost:8998"))
+        create_connection_without_db(
+            Connection(conn_id="livyunittest", conn_type="livy", host="http://localhost:8998")
+        )
 
     @pytest.mark.parametrize(
         "batch_state", [pytest.param(bs, id=bs.name) for bs in BatchState if bs in LivyHook.TERMINAL_STATES]

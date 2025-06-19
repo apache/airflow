@@ -36,11 +36,11 @@ arangodb_hook_mock = Mock(name="arangodb_hook_for_test", **{"query.return_value.
 
 class TestAQLSensor:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
+    def setup_connections(self, create_connection_without_db):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.dag = dag
-        create_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="arangodb_default",
                 conn_type="arangodb",

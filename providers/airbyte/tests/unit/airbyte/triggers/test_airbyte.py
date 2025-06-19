@@ -39,8 +39,10 @@ class TestAirbyteSyncTrigger:
     POLL_INTERVAL = 3.0
 
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(Connection(conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte"))
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte")
+        )
 
     def test_serialization(self):
         """Assert TestAirbyteSyncTrigger correctly serializes its arguments and classpath."""

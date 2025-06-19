@@ -69,8 +69,10 @@ class TestSparkSqlHook:
         clear_db_connections(add_default_connections_back=False)
 
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(Connection(conn_id="spark_default", conn_type="spark", host="yarn://yarn-master"))
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(conn_id="spark_default", conn_type="spark", host="yarn://yarn-master")
+        )
 
     @classmethod
     def teardown_class(cls) -> None:

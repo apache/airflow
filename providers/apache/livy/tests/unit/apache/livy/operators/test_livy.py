@@ -40,10 +40,10 @@ LOG_RESPONSE = {"total": 3, "log": ["first_line", "second_line", "third_line"]}
 
 class TestLivyOperator:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
+    def setup_connections(self, create_connection_without_db):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
-        create_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="livyunittest", conn_type="livy", host="localhost:8998", port="8998", schema="http"
             )

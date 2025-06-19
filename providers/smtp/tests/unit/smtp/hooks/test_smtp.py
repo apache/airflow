@@ -222,7 +222,7 @@ class TestSmtpHook:
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
     def test_send_mime_ssl_extra_none_context(
-        self, create_default_context, mock_smtp, mock_smtp_ssl, create_conn
+        self, create_default_context, mock_smtp, mock_smtp_ssl, create_connection_without_db
     ):
         mock_smtp_ssl.return_value = Mock()
         conn = Connection(
@@ -234,7 +234,7 @@ class TestSmtpHook:
             port=465,
             extra=json.dumps(dict(use_ssl=True, ssl_context="none", from_email="from")),
         )
-        create_conn(conn)
+        create_connection_without_db(conn)
         with SmtpHook(smtp_conn_id="smtp_ssl_extra") as smtp_hook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
@@ -245,7 +245,7 @@ class TestSmtpHook:
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
     def test_send_mime_ssl_extra_default_context(
-        self, create_default_context, mock_smtp, mock_smtp_ssl, create_conn
+        self, create_default_context, mock_smtp, mock_smtp_ssl, create_connection_without_db
     ):
         mock_smtp_ssl.return_value = Mock()
         conn = Connection(
@@ -257,7 +257,7 @@ class TestSmtpHook:
             port=465,
             extra=json.dumps(dict(use_ssl=True, ssl_context="default", from_email="from")),
         )
-        create_conn(conn)
+        create_connection_without_db(conn)
         with SmtpHook() as smtp_hook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
@@ -269,7 +269,9 @@ class TestSmtpHook:
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
-    def test_send_mime_default_context(self, create_default_context, mock_smtp, mock_smtp_ssl, create_conn):
+    def test_send_mime_default_context(
+        self, create_default_context, mock_smtp, mock_smtp_ssl, create_connection_without_db
+    ):
         mock_smtp_ssl.return_value = Mock()
         conn = Connection(
             conn_id="smtp_ssl_extra",
@@ -280,7 +282,7 @@ class TestSmtpHook:
             port=465,
             extra=json.dumps(dict(use_ssl=True, from_email="from")),
         )
-        create_conn(conn)
+        create_connection_without_db(conn)
         with SmtpHook() as smtp_hook:
             smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called

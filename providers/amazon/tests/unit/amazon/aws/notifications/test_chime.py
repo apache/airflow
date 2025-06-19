@@ -32,8 +32,8 @@ pytestmark = pytest.mark.db_test
 class TestChimeNotifier:
     # Chime webhooks can't really have a default connection, so we need to create one for tests.
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="default-chime-webhook",
                 conn_type="chime",

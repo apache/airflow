@@ -30,8 +30,8 @@ client_config = {"socket.timeout.ms": 1000, "bootstrap.servers": "broker:29092",
 @pytest.mark.integration("kafka")
 class TestKafkaAdminClientHook:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",

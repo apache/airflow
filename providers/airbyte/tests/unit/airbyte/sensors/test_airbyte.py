@@ -46,8 +46,10 @@ class TestAirbyteJobSensor:
         return response
 
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="http://test-airbyte"))
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="http://test-airbyte")
+        )
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
     def test_done(self, mock_get_job):

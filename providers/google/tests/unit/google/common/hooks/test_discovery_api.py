@@ -30,7 +30,7 @@ pytestmark = pytest.mark.db_test
 
 class TestGoogleDiscoveryApiHook:
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
+    def setup_connections(self, create_connection_without_db):
         db.merge_conn(
             Connection(
                 conn_id="google_test",

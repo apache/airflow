@@ -40,9 +40,9 @@ class TestProduceToTopic:
     """
 
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
+    def setup_connections(self, create_connection_without_db):
         group = "operator.producer.test.integration.test_1"
-        create_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_default",
                 conn_type="kafka",

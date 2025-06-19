@@ -40,9 +40,9 @@ class TestAirbyteTriggerSyncOp:
 
     @mock.patch("airbyte_api.jobs.Jobs.create_job")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job", return_value=None)
-    def test_execute(self, mock_wait_for_job, mock_submit_sync_connection, create_conn):
+    def test_execute(self, mock_wait_for_job, mock_submit_sync_connection, create_connection_without_db):
         conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
-        create_conn(conn)
+        create_connection_without_db(conn)
         mock_response = mock.Mock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
@@ -70,9 +70,9 @@ class TestAirbyteTriggerSyncOp:
         )
 
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job")
-    def test_on_kill(self, mock_cancel_job, create_conn):
+    def test_on_kill(self, mock_cancel_job, create_connection_without_db):
         conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
-        create_conn(conn)
+        create_connection_without_db(conn)
 
         op = AirbyteTriggerSyncOperator(
             task_id="test_Airbyte_op",

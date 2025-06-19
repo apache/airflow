@@ -32,8 +32,8 @@ class TestZendeskHook:
     conn_id = "zendesk_conn_id_test"
 
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_conn):
-        create_conn(
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=self.conn_id,
                 conn_type="zendesk",
