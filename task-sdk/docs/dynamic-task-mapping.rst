@@ -32,8 +32,9 @@ Map over a Python list directly in the DAG:
 
 .. code-block:: python
 
-   from airflow.sdk import DAG, task
    from datetime import datetime
+
+   from airflow.sdk import DAG, task
 
 
    @task
