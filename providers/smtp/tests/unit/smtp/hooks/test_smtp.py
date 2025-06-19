@@ -28,7 +28,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.smtp.hooks.smtp import SmtpHook
-from airflow.utils import db
 from airflow.utils.session import create_session
 
 pytestmark = pytest.mark.db_test
@@ -53,8 +52,9 @@ def _create_fake_smtp(mock_smtplib, use_ssl=True):
 
 
 class TestSmtpHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="smtp_default",
                 conn_type="smtp",
@@ -65,7 +65,7 @@ class TestSmtpHook:
                 extra=json.dumps(dict(from_email="from")),
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="smtp_nonssl",
                 conn_type="smtp",

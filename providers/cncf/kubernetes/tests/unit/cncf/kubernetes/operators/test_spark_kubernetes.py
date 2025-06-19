@@ -231,11 +231,12 @@ def create_context(task):
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
 class TestSparkKubernetesOperatorCreateApplication:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",

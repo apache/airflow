@@ -23,7 +23,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
-from airflow.utils import db
 
 pytestmark = pytest.mark.db_test
 
@@ -31,7 +30,7 @@ pytestmark = pytest.mark.db_test
 class TestGoogleDiscoveryApiHook:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="google_test",
                 conn_type="google_cloud_platform",

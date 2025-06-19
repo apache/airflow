@@ -29,7 +29,6 @@ from airflow.models import Connection
 
 # Import Operator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.utils import db
 
 log = logging.getLogger(__name__)
 
@@ -57,9 +56,10 @@ class TestConsumeFromTopic:
     test ConsumeFromTopicOperator
     """
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         for num in (1, 2, 3):
-            db.merge_conn(
+            create_connection_without_db(
                 Connection(
                     conn_id=f"operator.consumer.test.integration.test_{num}",
                     conn_type="kafka",
