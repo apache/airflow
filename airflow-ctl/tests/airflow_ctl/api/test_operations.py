@@ -21,9 +21,11 @@ import datetime
 import json
 import uuid
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from pydantic import BaseModel
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
@@ -90,6 +92,7 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+from airflowctl.api.operations import BaseOperations
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -106,6 +109,11 @@ def make_api_client(
     return Client(base_url=base_url, transport=transport, token=token, kind=kind)
 
 
+class HelloCollectionResponse(BaseModel):
+    hello: list[str]
+    total_entries: int
+
+
 class TestBaseOperations:
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
@@ -113,6 +121,52 @@ class TestBaseOperations:
             AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
             client.connections.get("1")
+
+    @pytest.mark.parametrize(
+        "total_entries, offset, limit, expected_response",
+        [
+            (0, 0, 50, [HelloCollectionResponse(hello=[], total_entries=0)]),
+            (1, 0, 50, [HelloCollectionResponse(hello=["hello"], total_entries=1)]),
+            (3, 2, 50, [HelloCollectionResponse(hello=["hello"], total_entries=3)]),
+            (
+                20,
+                5,
+                5,
+                [
+                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
+                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
+                    (HelloCollectionResponse(hello=["hello"], total_entries=20)),
+                ],
+            ),
+            (2, 3, 50, []),
+        ],
+    )
+    def test_return_all_entries(self, total_entries, limit, offset, expected_response):
+        mock_operation = MagicMock(spec=BaseOperations)
+        mocked_response = []
+        if offset < total_entries:
+            while offset < total_entries:
+                response = HelloCollectionResponse(hello=["hello"], total_entries=total_entries)
+                mocked_response.append(response)
+                offset += limit
+            mock_operation.return_all_entries.return_value = mocked_response
+        elif offset == total_entries:
+            mocked_response.append(HelloCollectionResponse(hello=[], total_entries=0))
+            mock_operation.return_all_entries.return_value = mocked_response
+        else:
+            mock_operation.return_all_entries.return_value = mocked_response
+
+        assert (
+            mock_operation.return_all_entries(
+                path="",
+                total_entries=total_entries,
+                data_model=HelloCollectionResponse,
+                entry_list=[],
+                offset=offset,
+                limit=limit,
+            )
+            == expected_response
+        )
 
 
 class TestAssetsOperations:
@@ -975,7 +1029,9 @@ class TestPoolsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.list()
-        assert response == self.pool_response_collection
+        pool_collection_response_list = []
+        pool_collection_response_list.append(self.pool_response_collection)
+        assert response == pool_collection_response_list
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1078,7 +1134,9 @@ class TestVariablesOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.variables.list()
-        assert response == self.variable_collection_response
+        variable_response = []
+        variable_response.append(self.variable_collection_response)
+        assert response == variable_response
 
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
