@@ -1254,6 +1254,13 @@ running the tests from there, after manually downgrading the dependencies:
     cd airflow-core
     uv sync --resolution lowest-direct
 
+or run --force-lowest-dependencies switch directly from the breeze command line:
+
+.. code-block:: bash
+
+    breeze shell --force-lowest-dependencies --test-type "Core"
+
+
 The way it works - after you enter breeze container, you run the uv-sync in the airflow-core
 folder to downgrade the dependencies to the lowest version that is compatible
 with the dependencies specified in airflow-core dependencies. You will see it in the output of the breeze
@@ -1289,6 +1296,13 @@ manually downgrading dependencies for the provider and running the tests after t
     breeze shell
     cd providers/PROVIDER_ID
     uv sync --resolution lowest-direct
+
+
+or run --force-lowest-dependencies switch directly from the breeze command line:
+
+.. code-block:: bash
+
+    breeze shell --force-lowest-dependencies --test-type "Providers[google]"
 
 Similarly as in case of "Core" tests, the dependencies will be downgraded to the lowest version that is
 compatible with the dependencies specified in the provider dependencies and you will see the list of

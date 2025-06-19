@@ -68,6 +68,7 @@ from airflow_breeze.commands.common_package_installation_options import (
 )
 from airflow_breeze.commands.release_management_commands import option_distribution_format
 from airflow_breeze.global_constants import (
+    ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
@@ -516,6 +517,15 @@ option_test_type_providers_group = click.option(
     envvar="TEST_TYPE",
     show_default=True,
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.PROVIDERS]),
+)
+option_test_type = click.option(
+    "--test-type",
+    help="Type for shell tests to run - used when forcing "
+    "lowest dependencies to determine which distribution to force lowest dependencies for",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=NotVerifiedBetterChoice([*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()]),
 )
 option_test_type_helm = click.option(
     "--test-type",
