@@ -52,6 +52,7 @@ OLD_TYPE = "__type"
 OLD_SOURCE = "__source"
 OLD_DATA = "__var"
 OLD_DICT = "dict"
+PYDANTIC_MODEL_QUALNAME = "pydantic.main.BaseModel"
 
 DEFAULT_VERSION = 0
 
@@ -66,28 +67,6 @@ _extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
 _builtin_collections = (frozenset, list, set, tuple)  # dict is treated specially.
-
-
-def _is_namedtuple(cls: Any) -> bool:
-    """
-    Return True if the class is a namedtuple.
-
-    Checking is done by attributes as it is significantly faster than
-    using isinstance.
-    """
-    return hasattr(cls, "_asdict") and hasattr(cls, "_fields") and hasattr(cls, "_field_defaults")
-
-
-def _is_pydantic_model(cls: Any) -> bool:
-    """
-    Return True if the class is a pydantic.main.BaseModel.
-
-    Checking is done by attributes as it is significantly faster than
-    using isinstance.
-    """
-    # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
-    # __pydantic_validator__ is an internal validator object, always set after model build
-    return hasattr(cls, "__pydantic_fields__") and hasattr(cls, "__pydantic_validator__")
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
@@ -169,7 +148,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
     if _is_pydantic_model(o):
         # to match the generic Pydantic serializer and deserializer in _serializers and _deserializers
-        qn = "pydantic.main.BaseModel"
+        qn = PYDANTIC_MODEL_QUALNAME
         # the actual Pydantic model class to encode
         classname = qualname(o)
 
@@ -284,12 +263,10 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     # registered deserializer
     if classname in _deserializers:
-        return _deserializers[classname].deserialize(classname, version, deserialize(value))
+        return _deserializers[classname].deserialize(cls, version, deserialize(value))
     if _is_pydantic_model(cls):
-        if "pydantic.main.BaseModel" in _deserializers:
-            return _deserializers["pydantic.main.BaseModel"].deserialize(
-                classname, version, deserialize(value), cls
-            )
+        if PYDANTIC_MODEL_QUALNAME in _deserializers:
+            return _deserializers[PYDANTIC_MODEL_QUALNAME].deserialize(cls, version, deserialize(value))
 
     # class has deserialization function
     if hasattr(cls, "deserialize"):
@@ -363,6 +340,28 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
     s += ")"
 
     return s
+
+
+def _is_namedtuple(cls: Any) -> bool:
+    """
+    Return True if the class is a namedtuple.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    return hasattr(cls, "_asdict") and hasattr(cls, "_fields") and hasattr(cls, "_field_defaults")
+
+
+def _is_pydantic_model(cls: Any) -> bool:
+    """
+    Return True if the class is a pydantic.main.BaseModel.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    # __pydantic_fields__ is always present on Pydantic V2 models and is a dict[str, FieldInfo]
+    # __pydantic_validator__ is an internal validator object, always set after model build
+    return hasattr(cls, "__pydantic_fields__") and hasattr(cls, "__pydantic_validator__")
 
 
 def _register():

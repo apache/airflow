@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from airflow.utils.module_loading import qualname
 
@@ -55,7 +55,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return data, qualname(o), __version__, True
 
 
-def deserialize(classname: str, version: int, data: dict, cls: Any | None = None):
+def deserialize(cls: type, version: int, data: dict):
     from pyiceberg.catalog import load_catalog
     from pyiceberg.table import Table
 
@@ -64,7 +64,7 @@ def deserialize(classname: str, version: int, data: dict, cls: Any | None = None
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
 
-    if classname == qualname(Table):
+    if cls is Table:
         fernet = get_fernet()
         properties = {}
         for k, v in data["catalog_properties"].items():
@@ -73,4 +73,4 @@ def deserialize(classname: str, version: int, data: dict, cls: Any | None = None
         catalog = load_catalog(data["identifier"][0], **properties)
         return catalog.load_table((data["identifier"][1], data["identifier"][2]))
 
-    raise TypeError(f"do not know how to deserialize {classname}")
+    raise TypeError(f"do not know how to deserialize {qualname(cls)}")
