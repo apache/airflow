@@ -354,13 +354,13 @@ labelPRBasedOnFilePath:
     - airflow-core/src/airflow/ui/public/i18n/locales/en/*
 
   translation:ar:
-    - airflow-core/src/airflow/ui/src/i18n/locales/ar/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/ar/*
 
   translation:de:
     - airflow-core/src/airflow/ui/public/i18n/locales/de/*
 
   translation:fr:
-    - airflow-core/src/airflow/ui/src/i18n/locales/fr/*
+    - airflow-core/src/airflow/ui/public/i18n/locales/fr/*
 
   translation:he:
     - airflow-core/src/airflow/ui/public/i18n/locales/he/*
