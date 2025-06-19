@@ -1,0 +1,110 @@
+{
+  "allRuns": "Tous les Runs",
+  "blockingDeps": {
+    "dependency": "Dépendance",
+    "reason": "Raison",
+    "title": "Dépendances bloquant la planification de la tâche"
+  },
+  "code": {
+    "bundleUrl": "URL du bundle",
+    "noCode": "Aucun code trouvé",
+    "parsedAt": "Analysé le :"
+  },
+  "extraLinks": "Liens supplémentaires",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Réinitialiser à la dernière version",
+      "toggleGroup": "Afficher/Masquer le groupe"
+    }
+  },
+  "header": {
+    "buttons": {
+      "dagDocs": "Documentation du DAG"
+    }
+  },
+  "logs": {
+    "noTryNumber": "Aucun essai",
+    "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Run échoué",
+      "failedRun_other": "Runs échoués",
+      "failedTask_one": "Tâche échouée",
+      "failedTask_other": "Tâches échouées",
+      "failedTaskInstance_one": "Task Instance échouée",
+      "failedTaskInstance_other": "Task Instances échouées"
+    },
+    "charts": {
+      "assetEvent_one": "Événement d'actif créé",
+      "assetEvent_other": "Événements d'actif créés"
+    },
+    "failedLogs": {
+      "title": "Journaux des tâches échouées récemment",
+      "viewFullLogs": "Voir les journaux complets"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Options",
+      "showGraph": "Afficher le graphe",
+      "showGrid": "Afficher la grille"
+    },
+    "dagRuns": {
+      "label": "Nombre de Runs du DAG"
+    },
+    "dependencies": {
+      "label": "Dépendances",
+      "options": {
+        "allDagDependencies": "Toutes les dépendances du DAG",
+        "externalConditions": "Conditions externes",
+        "onlyTasks": "Tâches uniquement"
+      },
+      "placeholder": "Dépendances"
+    },
+    "graphDirection": {
+      "label": "Orientation du graphe"
+    }
+  },
+  "paramsFailed": "Échec du chargement des paramètres",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "La demande d'analyse du DAG a échoué. Il se peut qu'il y ait encore des demandes en attente.",
+        "title": "Échec de l'analyse du DAG"
+      },
+      "success": {
+        "description": "Le DAG devrait être analysé sous peu.",
+        "title": "Demande d'analyse soumise avec succès"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Événements d'actifs",
+    "auditLog": "Journal d'audit",
+    "backfills": "Rattrappages",
+    "code": "Code",
+    "details": "Détails",
+    "logs": "Journaux",
+    "mappedTaskInstances_one": "Task Instance [{{count}}]",
+    "mappedTaskInstances_other": "Task Instances [{{count}}]",
+    "overview": "Aperçu",
+    "renderedTemplates": "Modèles rendus",
+    "runs": "Runs",
+    "taskInstances": "Task Instances",
+    "tasks": "Tâches",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Réduire tous les groupes de tâches",
+    "expandAll": "Développer tous les groupes de tâches"
+  },
+  "taskLogs": {
+    "allLogLevels": "Tous les niveaux de journalisation",
+    "allSources": "Toutes les sources",
+    "fullscreen": {
+      "button": "Plein écran",
+      "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
+    }
+  }
+}

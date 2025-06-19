@@ -1,0 +1,271 @@
+{
+  "admin": {
+    "Config": "Configuration",
+    "Connections": "Connexions",
+    "Plugins": "Plugins",
+    "Pools": "Pools",
+    "Providers": "Providers",
+    "Variables": "Variables"
+  },
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "assetEvent_one": "Événement d'Asset",
+  "assetEvent_other": "Événements d'Asset",
+  "backfill_one": "Rattrapage",
+  "backfill_other": "Rattrapages",
+  "browse": {
+    "auditLog": "Journal d'audit",
+    "xcoms": "XComs"
+  },
+  "createdAssetEvent_one": "Événement d'Asset créé",
+  "createdAssetEvent_other": "Événements d'Asset créés",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Rattrapage",
+    "concurrency": "Concurrence",
+    "dagRunTimeout": "Délai d'exécution du Dag",
+    "defaultArgs": "Arguments par défaut",
+    "description": "Description",
+    "documentation": "Documentation du Dag",
+    "fileLocation": "Emplacement du fichier",
+    "hasTaskConcurrencyLimits": "Limites de concurrence par tâche",
+    "lastExpired": "Date d'expiration",
+    "lastParsed": "Dernière analyse",
+    "latestDagVersion": "Dernière version du Dag",
+    "latestRun": "Dernière exécution",
+    "maxActiveRuns": "Exécutions actives max.",
+    "maxActiveTasks": "Tâches actives max.",
+    "maxConsecutiveFailedDagRuns": "Échecs consécutifs max.",
+    "nextRun": "Prochaine exécution",
+    "owner": "Propriétaire",
+    "params": "Paramètres",
+    "schedule": "Planification",
+    "tags": "Tags"
+  },
+  "dagId": "ID du Dag",
+  "dagRun": {
+    "conf": "Configuration",
+    "dagVersions": "Version(s) du Dag",
+    "dataIntervalEnd": "Fin de l'intervalle de données",
+    "dataIntervalStart": "Début de l'intervalle de données",
+    "lastSchedulingDecision": "Dernière décision de planification",
+    "queuedAt": "Mis en file à",
+    "runAfter": "Exécuté après",
+    "runType": "Type d'exécution",
+    "sourceAssetEvent": "Événement d'Asset source",
+    "triggeredBy": "Déclenché par"
+  },
+  "dagRun_one": "Exécution de Dag",
+  "dagRun_other": "Exécutions de Dag",
+  "dagWarnings": "Avertissements/erreurs du Dag",
+  "defaultToGraphView": "Vue par défaut : graphe",
+  "defaultToGridView": "Vue par défaut : grille",
+  "direction": "Direction",
+  "docs": {
+    "documentation": "Documentation",
+    "githubRepo": "Repo GitHub",
+    "restApiReference": "Référence API REST"
+  },
+  "duration": "Durée",
+  "endDate": "Date de fin",
+  "error": {
+    "back": "Retour",
+    "defaultMessage": "Une erreur inattendue est survenue",
+    "home": "Accueil",
+    "notFound": "Page introuvable",
+    "title": "Erreur"
+  },
+  "expression": {
+    "all": "Tous",
+    "and": "Et",
+    "any": "N'importe lequel",
+    "or": "Ou"
+  },
+  "logicalDate": "Date logique",
+  "logout": "Déconnexion",
+  "logoutConfirmation": "Vous êtes sur le point de vous déconnecter de l'application.",
+  "mapIndex": "Map Index",
+  "modal": {
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "delete": {
+      "button": "Supprimer",
+      "confirmation": "Êtes-vous sûr de vouloir supprimer {{resourceName}} ? Cette action est irréversible."
+    }
+  },
+  "nav": {
+    "admin": "Admin",
+    "assets": "Assets",
+    "browse": "Parcourir",
+    "dags": "Dags",
+    "docs": "Docs",
+    "home": "Accueil",
+    "plugins": "Plugins",
+    "security": "Sécurité"
+  },
+  "noItemsFound": "Aucun {{modelName}} trouvé",
+  "note": {
+    "add": "Ajouter une note",
+    "dagRun": "Note d'exécution du Run",
+    "label": "Note",
+    "placeholder": "Ajouter une note...",
+    "taskInstance": "Note de Task Instance"
+  },
+  "pools": {
+    "deferred": "Différé",
+    "open": "Libre",
+    "pools_one": "Pool",
+    "pools_other": "Pools",
+    "queued": "En file",
+    "running": "En cours",
+    "scheduled": "Planifié"
+  },
+  "runId": "ID d'exécution",
+  "runTypes": {
+    "asset_triggered": "Déclenché par Asset",
+    "backfill": "Rattrapage",
+    "manual": "Manuel",
+    "scheduled": "Planifié"
+  },
+  "seconds": "{{count}}s",
+  "security": {
+    "actions": "Actions",
+    "permissions": "Permissions",
+    "resources": "Ressources",
+    "roles": "Rôles",
+    "users": "Utilisateurs"
+  },
+  "selectLanguage": "Choisir la langue",
+  "sourceAssetEvent_one": "Événement source",
+  "sourceAssetEvent_other": "Événements sources",
+  "startDate": "Date de début",
+  "state": "État",
+  "states": {
+    "deferred": "Différé",
+    "failed": "Échoué",
+    "no_status": "Aucun statut",
+    "none": "Aucun statut",
+    "queued": "En file",
+    "removed": "Supprimé",
+    "restarting": "Redémarrage",
+    "running": "En cours",
+    "scheduled": "Planifié",
+    "skipped": "Ignoré",
+    "success": "Succès",
+    "up_for_reschedule": "À replanifier",
+    "up_for_retry": "À réessayer",
+    "upstream_failed": "Échec en amont"
+  },
+  "switchToDarkMode": "Passer en mode sombre",
+  "switchToLightMode": "Passer en mode clair",
+  "table": {
+    "completedAt": "Terminé à",
+    "createdAt": "Créé à",
+    "filterByTag": "Filtrer les Dags par tag",
+    "filterColumns": "Filtrer les colonnes du tableau",
+    "filterReset_one": "Réinitialiser le filtre",
+    "filterReset_other": "Réinitialiser les filtres",
+    "from": "De",
+    "maxActiveRuns": "Exécutions actives max.",
+    "noTagsFound": "Aucun tag trouvé",
+    "tagMode": {
+      "all": "Tous",
+      "any": "N'importe lequel"
+    },
+    "tagPlaceholder": "Filtrer par tag",
+    "to": "À"
+  },
+  "task": {
+    "documentation": "Documentation de la tâche",
+    "lastInstance": "Dernière instance",
+    "operator": "Opérateur",
+    "triggerRule": "Règle de déclenchement"
+  },
+  "task_one": "Tâche",
+  "task_other": "Tâches",
+  "taskId": "ID de la tâche",
+  "taskInstance": {
+    "dagVersion": "Version du Dag",
+    "executor": "Exécuteur",
+    "executorConfig": "Configuration de l'exécuteur",
+    "hostname": "Nom d'hôte",
+    "maxTries": "Essais max.",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Slots de pool",
+    "priorityWeight": "Poids de la priorité",
+    "queue": "File",
+    "queuedWhen": "Mis en file à",
+    "scheduledWhen": "Planifié à",
+    "triggerer": {
+      "assigned": "Déclencheur assigné",
+      "class": "Classe de déclencheur",
+      "createdAt": "Heure de création du déclencheur",
+      "id": "ID du déclencheur",
+      "latestHeartbeat": "Dernier battement du déclencheur",
+      "title": "Infos sur le déclencheur"
+    },
+    "unixname": "Nom Unix"
+  },
+  "taskInstance_one": "Instance de tâche",
+  "taskInstance_other": "Instances de tâche",
+  "timeRange": {
+    "last12Hours": "12 dernières heures",
+    "last24Hours": "24 dernières heures",
+    "lastHour": "Dernière heure",
+    "pastWeek": "Dernière semaine"
+  },
+  "timezone": "Fuseau horaire",
+  "timezoneModal": {
+    "current-timezone": "Heure actuelle dans",
+    "placeholder": "Choisir un fuseau horaire",
+    "title": "Choisir un fuseau horaire",
+    "utc": "UTC (Temps universel coordonné)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Échec de la suppression en masse de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} ont été supprimés avec succès. Clés : {{keys}}",
+        "title": "Requête de suppression en masse de {{resourceName}} soumise"
+      }
+    },
+    "create": {
+      "error": "Échec de la création de {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} a été créé avec succès.",
+        "title": "Requête de création de {{resourceName}} soumise"
+      }
+    },
+    "delete": {
+      "error": "Échec de la suppression de {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} a été supprimé avec succès.",
+        "title": "Requête de suppression de {{resourceName}} soumise"
+      }
+    },
+    "import": {
+      "error": "Échec de l'importation de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} ont été importés avec succès.",
+        "title": "Requête d'importation de {{resourceName}} soumise"
+      }
+    },
+    "update": {
+      "error": "Échec de la mise à jour de {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} a été mis à jour avec succès.",
+        "title": "Requête de mise à jour de {{resourceName}} soumise"
+      }
+    }
+  },
+  "triggered": "Déclenché",
+  "tryNumber": "Numéro de l'essai",
+  "user": "Utilisateur",
+  "wrap": {
+    "tooltip": "Appuyez sur {{hotkey}} pour activer/désactiver le retour à la ligne",
+    "unwrap": "Désactiver le retour à la ligne",
+    "wrap": "Activer le retour à la ligne"
+  }
+}
