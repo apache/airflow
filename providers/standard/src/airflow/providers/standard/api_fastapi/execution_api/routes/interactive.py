@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 from uuid import UUID
@@ -68,37 +67,3 @@ def get_response(
         ti_id=task_instance_id,
         content=content,
     )
-
-
-@router.post(
-    "/{task_instance_id}/response",
-    status_code=status.HTTP_200_OK,
-)
-def write_response(
-    task_instance_id: UUID,
-    content: str,
-    session: SessionDep,
-) -> None:
-    """Write an InteractiveResponse."""
-    ti_id_str = str(task_instance_id)
-    bind_contextvars(ti_id=ti_id_str)
-
-    ti = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if not ti:
-        log.error("Task Instance not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
-        )
-
-    existing_response = select(InteractiveResponseModel).where(ti_id=ti_id_str)
-    if existing_response:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, f"Interactive Response exists for task task_instance id {ti_id_str}"
-        )
-
-    interactive_response = InteractiveResponseModel(content=content, task_instance=ti, ti_id=ti_id_str)
-    session.add(interactive_response)

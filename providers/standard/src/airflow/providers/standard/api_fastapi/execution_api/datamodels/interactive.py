@@ -21,13 +21,6 @@ from uuid import UUID
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class AddInteractiveResponsePayload(BaseModel):
-    """Schema for adding an InteractiveResponse for a specific task InteractiveResponse."""
-
-    ti_id: UUID
-    content_to_add: str
-
-
 class FetchInteractiveResponsePayload(BaseModel):
     """Schema for fetching an InteractiveResponse for a specific task instance."""
 

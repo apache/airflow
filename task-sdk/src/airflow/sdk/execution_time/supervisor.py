@@ -65,7 +65,6 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
-    AddInteractiveResponse,
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
@@ -74,7 +73,6 @@ from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
-    FetchInteractiveResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -92,11 +90,9 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     InactiveAssetsResult,
-    InteractiveResponseResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
-    ResendLoggingFD,
     RetryTask,
     SentFDs,
     SetRenderedFields,
@@ -1227,17 +1223,6 @@ class ActivitySubprocess(WatchedSubprocess):
             inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
             resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
             dump_opts = {"exclude_unset": True}
-        elif isinstance(msg, ResendLoggingFD):
-            # We need special handling here!
-            if send_fds is not None:
-                self._send_new_log_fd(req_id)
-                # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
-                return
-        elif isinstance(msg, AddInteractiveResponse):
-            resp = self.client.interactive_responses.write_response(ti_id=msg.ti_id, content=msg.content)
-        elif isinstance(msg, FetchInteractiveResponse):
-            api_resp = self.client.interactive_responses.get_response(ti_id=msg.ti_id)
-            resp = InteractiveResponseResult.from_api_response(interactive_response=api_resp)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

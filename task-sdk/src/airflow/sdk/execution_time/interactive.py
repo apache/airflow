@@ -20,17 +20,10 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from airflow.sdk.execution_time.comms import (
-    AddInteractiveResponse,
     FetchInteractiveResponse,
     InteractiveResponseResult,
 )
 from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-
-def write_response(*, ti_id: UUID, content: str) -> None:
-    SUPERVISOR_COMMS.send(
-        msg=AddInteractiveResponse(ti_id=ti_id, content=content),
-    )
 
 
 def fetch_response_content(ti_id: UUID) -> str:
