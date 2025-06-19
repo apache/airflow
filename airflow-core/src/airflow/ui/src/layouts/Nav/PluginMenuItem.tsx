@@ -45,7 +45,7 @@ export const PluginMenuItem = ({ href, icon, name, topLevel = false, url_route: 
       />
     ) : (
       <Box alignItems="center" display="flex" gap={2} outline="none" px={2}>
-        <Link aria-label={name} href={href} px={2} rel="noopener noreferrer" target="_blank" width="100%">
+        <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank" width="100%">
           {name}
         </Link>
       </Box>

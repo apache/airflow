@@ -201,7 +201,7 @@ definitions in Airflow.
         # the context variables available will be different, i.e a subset of (DAG_ID, RUN_ID, TASK_ID, MAP_INDEX).
         "href": "https://example.com/{DAG_ID}/{RUN_ID}/{TASK_ID}",
         # Destination of the iframe view. This is used to determine where the iframe will be loaded in the UI.
-        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"]
+        # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"], default to "nav".
         "destination": "dag_run",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
