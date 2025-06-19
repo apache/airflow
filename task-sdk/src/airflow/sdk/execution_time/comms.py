@@ -64,7 +64,6 @@ from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
 from airflow.providers.standard.api_fastapi.execution_api.datamodels.interactive import (
-    AddInteractiveResponsePayload,
     FetchInteractiveResponsePayload,
     InteractiveResponse,
 )
@@ -845,10 +844,6 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
-class AddInteractiveResponse(AddInteractiveResponsePayload):
-    type: Literal["AddInteractiveResponsePayload"] = "AddInteractiveResponsePayload"
-
-
 class FetchInteractiveResponse(FetchInteractiveResponsePayload):
     type: Literal["FetchInteractiveResponsePayload"] = "FetchInteractiveResponsePayload"
 
@@ -901,7 +896,6 @@ ToSupervisor = Annotated[
         DeleteVariable,
         ResendLoggingFD,
         # interactive repsonse from standard provider
-        AddInteractiveResponse,
         FetchInteractiveResponse,
     ],
     Field(discriminator="type"),
