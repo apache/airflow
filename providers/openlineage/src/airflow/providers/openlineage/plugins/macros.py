@@ -120,6 +120,7 @@ def lineage_root_run_id(task_instance: TaskInstance):
         clear_number=_get_dag_run_clear_number(task_instance),
     )
 
+
 def _get_dag_run_clear_number(task_instance: TaskInstance):
     # todo: remove when min airflow version >= 3.0
     if AIRFLOW_V_3_0_PLUS:
@@ -130,8 +131,6 @@ def _get_dag_run_clear_number(task_instance: TaskInstance):
             dag_run = context["dag_run"]
         return dag_run.clear_number
     return task_instance.dag_run.clear_number
-
-
 
 
 def _get_logical_date(task_instance):
