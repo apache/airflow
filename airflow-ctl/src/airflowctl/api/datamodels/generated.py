@@ -21,7 +21,7 @@ class AppBuilderMenuItemResponse(BaseModel):
         extra="allow",
     )
     name: Annotated[str, Field(title="Name")]
-    href: Annotated[str | None, Field(title="Href")] = None
+    href: Annotated[str, Field(title="Href")]
     category: Annotated[str | None, Field(title="Category")] = None
 
 
@@ -536,7 +536,7 @@ class ExternalViewResponse(BaseModel):
     dark_mode_icon: Annotated[str | None, Field(title="Dark Mode Icon")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
-    destination: Annotated[Destination | None, Field(title="Destination")] = None
+    destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
 
 class ExtraLinkCollectionResponse(BaseModel):

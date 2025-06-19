@@ -207,10 +207,11 @@ definitions in Airflow.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
         "dark_mode_icon": "https://example.com/dark_icon.svg",
-        # Optional parameters, relative URL location for the iframe rendering. If not provided, external view will be rendeded as an external link. Shouldn
+        # Optional parameters, relative URL location for the iframe rendering. If not provided, external view will be rendeded as an external link. Should
         # not contain a leading slash.
         "url_route": "my_iframe_view",
-        # Optional category, only relevant for destination "nav". This is used to group the external links in the navigation bar.
+        # Optional category, only relevant for destination "nav". This is used to group the external links in the navigation bar.  We will match the existing
+        # menus of ["browse", "docs", "admin", "user"] and if there's no match then create a new menu.
         "category": "browse",
     }
 

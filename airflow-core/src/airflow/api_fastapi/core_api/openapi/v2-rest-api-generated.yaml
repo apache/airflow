@@ -7029,9 +7029,7 @@ components:
           type: string
           title: Name
         href:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Href
         category:
           anyOf:
@@ -7042,6 +7040,7 @@ components:
       type: object
       required:
       - name
+      - href
       title: AppBuilderMenuItemResponse
       description: Serializer for AppBuilder Menu Item responses.
     AppBuilderViewResponse:
@@ -9322,16 +9321,15 @@ components:
           - type: 'null'
           title: Category
         destination:
-          anyOf:
-          - type: string
-            enum:
-            - nav
-            - dag
-            - dag_run
-            - task
-            - task_instance
-          - type: 'null'
+          type: string
+          enum:
+          - nav
+          - dag
+          - dag_run
+          - task
+          - task_instance
           title: Destination
+          default: nav
       additionalProperties: true
       type: object
       required:
