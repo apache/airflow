@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, run_job_async
 from airflow.models import DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.policies import task_instance_mutation_hook
@@ -188,3 +188,13 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
                 expand_input=self.expand_input(session=session), job_id = self.job_id, session = session
             )
         )
+
+
+def _run_task_expansion_job(args) -> None:
+    job_runner = TaskExpansionJobRunner(
+        job=Job(),
+        task=args.task,
+        context=args.context,
+        dag_version_id=args.dag_version_id,
+    )
+    run_job_async(job=job_runner.job, execute_callable=job_runner._execute)

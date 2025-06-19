@@ -353,7 +353,7 @@ def run_job(
     """
     job.prepare_for_execution(session=session)
     try:
-        return execute_job(job, execute_callable=execute_callable)
+        return execute_job(job, execute_callable=execute_callable, session=session)
     finally:
         job.complete_execution(session=session)
 
@@ -375,7 +375,7 @@ def run_job_async(
         with create_session(scoped=False) as session:
             job.prepare_for_execution(session=session)
             try:
-                return execute_job(job, execute_callable, session)
+                return execute_job(job, execute_callable=execute_callable, session=session)
             finally:
                 job.complete_execution(session=session)
 
