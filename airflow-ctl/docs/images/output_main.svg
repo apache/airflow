@@ -1,4 +1,4 @@
-<svg class="rich-terminal" viewBox="0 0 994 660.0" xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 994 684.4" xmlns="http://www.w3.org/2000/svg">
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
@@ -110,6 +110,9 @@
             </clipPath>
 <clipPath id="terminal-101498644-line-23">
     <rect x="0" y="562.7" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-264886119-line-24">
+    <rect x="0" y="587.1" width="976" height="24.65"/>
             </clipPath>
     </defs>
 
