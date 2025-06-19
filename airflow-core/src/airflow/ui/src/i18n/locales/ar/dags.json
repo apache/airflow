@@ -4,63 +4,28 @@
     "delete": {
       "button": "حذف الDag",
       "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بالDag، بما في ذلك التشغيلات والمهام."
-    },
-    "trigger": {
-      "button": "تشغيل",
-      "triggerDag": "تشغيل الDag"
     }
   },
   "filters": {
+    "allRunTypes": "جميع أنواع التشغيلات",
+    "allStates": "جميع الحالات",
     "paused": {
       "active": "مفعّل",
       "all": "الكل",
       "paused": "متوقف"
     }
   },
-  "list": {
-    "advancedSearch": "بحث متقدم",
-    "clearSearch": "مسح البحث",
-    "columns": {
-      "dagId": "معرّف الDag",
-      "lastDagRun": "آخر تشغيل لـDag",
-      "nextDagRun": "التشغيل التالي لـDag",
-      "schedule": "الجدولة",
-      "tags": "العلامات"
-    },
-    "ownerLink": "رابط المالك لـ{{owner}}",
-    "searchPlaceholder": "البحث في الDags"
-  },
+  "ownerLink": "رابط المالك لـ{{owner}}",
   "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "لم يتم العثور على مهام.",
+      "title": "المهام المتأثرة: {{count}}"
+    },
     "clear": {
       "button": "مسح {{type}}",
       "buttonTooltip": "اضغط shift+c للمسح",
-      "dialog": {
-        "affectedTasks": {
-          "columns": {
-            "mapIndex": "فهرس الخريطة",
-            "runId": "معرف التشغيل",
-            "state": "الحالة",
-            "taskId": "معرف المهمة"
-          },
-          "noItemsFound": "لم يتم العثور على مهام.",
-          "title": "المهام المتأثرة: {{count}}"
-        },
-        "confirm": "تأكيد",
-        "note": {
-          "placeholder": "أضف ملاحظة...",
-          "title": "ملاحظة"
-        },
-        "options": {
-          "downstream": "المهام اللاحقة",
-          "existingTasks": "مسح المهام الحالية",
-          "future": "المستقبل",
-          "onlyFailed": "مسح المهام الفاشلة فقط",
-          "past": "الماضي",
-          "queueNew": "إضافة مهام جديدة للانتظار",
-          "upstream": "المهام السابقة"
-        },
-        "title": "مسح {{type}}"
-      }
+      "error": "حدث خطأ أثناء المسح {{type}}",
+      "title": "مسح {{type}}"
     },
     "delete": {
       "button": "حذف {{type}}",
@@ -81,31 +46,24 @@
         "failed": "اضغط shift+f لتمييز كفاشل",
         "success": "اضغط shift+s لتمييز كناجح"
       },
-      "dialog": {
-        "confirm": "تأكيد",
-        "options": {
-          "downstream": "المهام اللاحقة",
-          "future": "المهام المستقبلية",
-          "past": "المهام الماضية",
-          "upstream": "المهام السابقة"
-        },
-        "title": "تمييز {{type}} كـ {{state}}"
-      }
+      "title": "تمييز {{type}} كـ{{state}}"
+    },
+    "options": {
+      "downstream": "المهام اللاحقة",
+      "existingTasks": "مسح المهام الحالية",
+      "future": "المستقبل",
+        "onlyFailed": "مسح المهام الفاشلة فقط",
+        "past": "الماضي",
+        "queueNew": "إضافة مهام جديدة للانتظار",
+            "upstream": "المهام السابقة"
     }
   },
-  "runs": {
-   "allRunTypes": "جميع أنواع التشغيل",
-   "allStates": "جميع الحالات",
-   "columns": {
-     "dagId": "معرف الDag",
-     "dagVersions": "إصدارات الDag",
-     "duration": "المدة",
-     "endDate": "تاريخ الانتهاء",
-     "runAfter": "التشغيل بعد",
-     "runType": "نوع التشغيل",
-     "startDate": "تاريخ البدء",
-     "state": "الحالة"
-   }
+  "search": {
+     "advanced": "بحث متقدم",
+     "clear": " مسح",
+     "dags": "ابحث عن Dags",
+     "hotkey": "+K",
+     "tasks": "ابحث عن مهام"
   },
   "sort": {
     "displayName": {
@@ -125,23 +83,5 @@
       "desc": "الترتيب حسب التشغيل التالي (الأحدث-الأقدم)"
     },
     "placeholder": "الترتيب حسب"
-  },
-  "taskInstances": {
-    "allStates": "جميع الحالات",
-    "columns": {
-      "dagId": "معرّف الDag",
-      "dagRun": "تشغيل الDag",
-      "dagVersion": "اصدار الDag",
-      "duration": "المدة",
-      "endDate": "تاريخ الانتهاء",
-      "mapIndex": "فهرس الخريطة",
-      "operator": "المشغل",
-      "pool": "المجمع",
-      "startDate": "تاريخ البدء",
-      "state": "الحالة",
-      "taskId": "معرف المهمة",
-      "tryNumber": "رقم المحاولة"
-    },
-    "searchPlaceholder": "البحث في المهام"
   }
 }
