@@ -598,20 +598,19 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{/* Create the name of the webserver service account to use */}}
 {{- define "webserver.serviceAccountName" -}}
-  {{- if .Values.webserver.serviceAccount.create }}
-    {{- default (printf "%s-webserver" (include "airflow.serviceAccountName" .)) .Values.webserver.serviceAccount.name }}
-  {{- else }}
-    {{- default "default" .Values.webserver.serviceAccount.name }}
-  {{- end }}
+ {{- if .Values.webserver.serviceAccount.create }}
+   {{ default (printf "%s-webserver" (include "airflow.serviceAccountName" .)) .Values.webserver.serviceAccount.name }}
+ {{- else }}
+   {{- tpl .Values.webserver.serviceAccount.name . }}
+ {{- end }}
 {{- end }}
-
 
 {{/* Create the name of the RPC server service account to use */}}
 {{- define "rpcServer.serviceAccountName" -}}
   {{- if .Values._rpcServer.serviceAccount.create }}
-    {{- default (printf "%s-rpc-server" (include "airflow.serviceAccountName" .)) .Values._rpcServer.serviceAccount.name }}
+    {{ default (printf "%s-rpc-server" (include "airflow.serviceAccountName" .)) .Values._rpcServer.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values._rpcServer.serviceAccount.name }}
+    {{- tpl .Values._rpcServer.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -620,7 +619,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.redis.serviceAccount.create }}
     {{- default (printf "%s-redis" (include "airflow.serviceAccountName" .)) .Values.redis.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.redis.serviceAccount.name }}
+    {{- tpl .Values.redis.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -629,7 +628,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.flower.serviceAccount.create }}
     {{- default (printf "%s-flower" (include "airflow.serviceAccountName" .)) .Values.flower.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.flower.serviceAccount.name }}
+    {{- tpl .Values.flower.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -638,7 +637,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.scheduler.serviceAccount.create }}
     {{- default (printf "%s-scheduler" (include "airflow.serviceAccountName" .)) .Values.scheduler.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.scheduler.serviceAccount.name }}
+    {{- tpl .Values.scheduler.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -647,7 +646,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.statsd.serviceAccount.create }}
     {{- default (printf "%s-statsd" (include "airflow.serviceAccountName" .)) .Values.statsd.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.statsd.serviceAccount.name }}
+    {{- tpl .Values.statsd.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -656,7 +655,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.createUserJob.serviceAccount.create }}
     {{- default (printf "%s-create-user-job" (include "airflow.serviceAccountName" .)) .Values.createUserJob.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.createUserJob.serviceAccount.name }}
+    {{- tpl .Values.createUserJob.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -665,7 +664,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.migrateDatabaseJob.serviceAccount.create }}
     {{- default (printf "%s-migrate-database-job" (include "airflow.serviceAccountName" .)) .Values.migrateDatabaseJob.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.migrateDatabaseJob.serviceAccount.name }}
+    {{- tpl .Values.migrateDatabaseJob.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -674,7 +673,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.workers.serviceAccount.create }}
     {{- default (printf "%s-worker" (include "airflow.serviceAccountName" .)) .Values.workers.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.workers.serviceAccount.name }}
+    {{- tpl .Values.workers.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -683,7 +682,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.triggerer.serviceAccount.create }}
     {{- default (printf "%s-triggerer" (include "airflow.serviceAccountName" .)) .Values.triggerer.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.triggerer.serviceAccount.name }}
+    {{- tpl .Values.triggerer.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -692,7 +691,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.dagProcessor.serviceAccount.create }}
     {{- default (printf "%s-dag-processor" (include "airflow.serviceAccountName" .)) .Values.dagProcessor.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.dagProcessor.serviceAccount.name }}
+    {{- tpl .Values.dagProcessor.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -701,7 +700,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.pgbouncer.serviceAccount.create }}
     {{- default (printf "%s-pgbouncer" (include "airflow.serviceAccountName" .)) .Values.pgbouncer.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.pgbouncer.serviceAccount.name }}
+    {{- tpl .Values.pgbouncer.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -710,7 +709,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.cleanup.serviceAccount.create }}
     {{- default (printf "%s-cleanup" (include "airflow.serviceAccountName" .)) .Values.cleanup.serviceAccount.name }}
   {{- else }}
-    {{- default "default" .Values.cleanup.serviceAccount.name }}
+    {{- tpl .Values.cleanup.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
