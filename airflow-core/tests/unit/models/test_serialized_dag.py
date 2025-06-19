@@ -504,27 +504,21 @@ class TestSerializedDagModel:
         )
         assert did_write is should_write
 
-    def test_existing_dag_version_updated_when_bundle_name_changes_and_hash_unchanged(
-        self, dag_maker, session
-    ):
-        """Test that existing dag_version is updated if bundle_name changes but DAG is unchanged."""
+    def test_new_dag_version_created_when_bundle_name_changes_and_hash_unchanged(self, dag_maker, session):
+        """Test that new dag_version is created if bundle_name changes but DAG is unchanged."""
         # Create and write initial DAG
         initial_bundle = "bundleA"
         with dag_maker("test_dag_update_bundle", bundle_name=initial_bundle) as dag:
             EmptyOperator(task_id="task1")
 
-        # Get initial DagVersion
-        dag_version = session.scalars(select(DagVersion).where(DagVersion.dag_id == dag.dag_id)).first()
-        dag_version_id = dag_version.id
-        assert dag_version.bundle_name == initial_bundle
+        # Create TIs
+        dag_maker.create_dagrun(run_id="test_run")
+
         assert session.query(DagVersion).count() == 1
 
         # Write the same DAG (no changes, so hash is the same) with a new bundle_name
         new_bundle = "bundleB"
         SDM.write_dag(dag, bundle_name=new_bundle)
 
-        # There should still be only one DagVersion, but its bundle_name should be updated
-        dag_version_after = session.scalars(select(DagVersion).where(DagVersion.dag_id == dag.dag_id)).first()
-        assert session.query(DagVersion).count() == 1
-        assert dag_version_after.id == dag_version_id
-        assert dag_version_after.bundle_name == new_bundle
+        # There should now be two versions of the DAG
+        assert session.query(DagVersion).count() == 2
