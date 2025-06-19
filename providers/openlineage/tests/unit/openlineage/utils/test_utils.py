@@ -1124,6 +1124,8 @@ class TestDagInfoAirflow3:
             "tags": "[]",
             "owner_links": {},
             "timetable": {
+                "_summary": "My Team's Baseball Games",
+                "description": "My Team's Baseball Games",
                 "event_dates": [
                     "2025-03-03T08:27:00-06:00",
                     "2025-03-17T08:27:00-05:00",
