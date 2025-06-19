@@ -308,7 +308,7 @@ export const DagsList = () => {
     <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: false, onClick: () => setShowAdvanced(true) }}
+          buttonProps={{ onClick: () => setShowAdvanced(true) }}
           defaultValue={dagDisplayNamePattern ?? ""}
           onChange={handleSearchChange}
           placeHolder={translate("dags:search.dags")}

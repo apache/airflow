@@ -102,14 +102,14 @@ export const AdvancedSearch = ({ initialValue, isOpen, onClose, onSubmit }: Adva
                   value={null}
                 />
               </Box>
-              <Box display="flex" gap={4} ml="auto">
-                <Button colorScheme="gray" onClick={handleClear} variant="outline">
-                  {translate("common:clear")}
-                </Button>
-                <Button colorScheme="gray" onClick={handleSubmit} variant="outline">
-                  {translate("common:enter")}
-                </Button>
-              </Box>
+            </Box>
+            <Box display="flex" gap={4} justifyContent="flex-end">
+              <Button colorScheme="gray" onClick={handleClear} variant="outline">
+                {translate("common:clear")}
+              </Button>
+              <Button colorScheme="gray" onClick={handleSubmit} variant="outline">
+                {translate("common:enter")}
+              </Button>
             </Box>
           </Dialog.Body>
           <Dialog.CloseTrigger>
