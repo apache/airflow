@@ -568,15 +568,15 @@ class TestSerializers:
     def test_timezone_deserialize_zoneinfo(self):
         from airflow.serialization.serializers.timezone import deserialize
 
-        zi = deserialize("backports.zoneinfo.ZoneInfo", 1, "Asia/Taipei")
+        zi = deserialize(ZoneInfo, 1, "Asia/Taipei")
         assert isinstance(zi, ZoneInfo)
         assert zi.key == "Asia/Taipei"
 
     @pytest.mark.parametrize(
         "klass, version, data, msg",
         [
-            (pendulum.tz.timezone.FixedTimezone, 1, 1.23, "is not of type int or str"),
-            (pendulum.tz.timezone.FixedTimezone, 999, "UTC", "serialized 999 .* > 1"),
+            (FixedTimezone, 1, 1.23, "is not of type int or str"),
+            (FixedTimezone, 999, "UTC", "serialized 999 .* > 1"),
         ],
     )
     def test_timezone_deserialize_errors(self, klass, version, data, msg):
