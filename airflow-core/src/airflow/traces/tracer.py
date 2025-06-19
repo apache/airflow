@@ -257,7 +257,7 @@ class _TraceMeta(type):
     def __new__(cls, name, bases, attrs):
         # Read the debug flag from the class body.
         if "check_debug_traces_flag" not in attrs:
-            raise TypeError("Class must define 'check_debug_traces_flag'.")
+            raise TypeError(f"Class '{name}' must define 'check_debug_traces_flag'.")
 
         return super().__new__(cls, name, bases, attrs)
 
@@ -291,6 +291,8 @@ class _TraceMeta(type):
             debug_traces_on = conf.getboolean("traces", "otel_debug_traces_on")
         else:
             # Set to true so that it will be ignored during the evaluation for the factory instance.
+            # If this is true, then (otel_on and debug_traces_on) will always evaluate to
+            # whatever value 'otel_on' has and therefore it will be ignored.
             debug_traces_on = True
 
         if otel_on and debug_traces_on:
