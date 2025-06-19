@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.serialization.serde import _is_pydantic_model
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
@@ -54,27 +53,30 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return data, qualname(o), __version__, True
 
 
-def deserialize(classname: str, version: int, data: object, cls: Any | None = None):
+def deserialize(cls: type, version: int, data: object):
     """
     Deserialize a dictionary into a Pydantic model instance.
 
     This function is used as a generic deserializer for all subclasses of BaseModel.
     It requires serde.py to fallback from the actual model class name to this handler.
 
-    :param classname: Fully qualified name of the actual model class
+    :param cls: The actual model class
     :param version: Serialization version (must not exceed __version__)
     :param data: Dictionary with built-in types, typically from model_dump()
     :return: An instance of the actual Pydantic model
     """
     if version > __version__:
-        raise TypeError(
-            f"Serialized version {version} of {classname} is newer than the supported version {__version__}"
-        )
-
+        raise TypeError(f"Serialized version {version} is newer than the supported version {__version__}")
+    print(cls)
     if not _is_pydantic_model(cls):
         # no deserializer available
-        raise TypeError(f"No deserializer found for {classname}")
+        raise TypeError(f"No deserializer found for {qualname(cls)}")
 
     # Perform validation-based reconstruction
     model = cast("BaseModel", cls)  # for mypy
     return model.model_validate(data)
+
+
+def _is_pydantic_model(cls: Any) -> bool:
+    """Return True if the class is a pydantic.main.BaseModel or its subclasses."""
+    return hasattr(cls, "__pydantic_fields__") and hasattr(cls, "__pydantic_validator__")
