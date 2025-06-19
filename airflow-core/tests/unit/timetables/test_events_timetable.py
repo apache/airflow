@@ -190,4 +190,33 @@ def test_serialize(unrestricted_timetable: Timetable):
             "2021-10-09T00:00:00+00:00",
         ],
         "restrict_to_events": False,
+        "_summary": "6 events",
+        "description": "6 events between 2021-09-06T00:00:00+00:00 and 2021-10-09T00:00:00+00:00",
     }
+
+
+def test_timetable_after_serialization_is_the_same():
+    description = "Example description"
+    timetable = EventsTimetable(
+        event_dates=EVENT_DATES, restrict_to_events=True, description=description, presorted=True
+    )
+    assert timetable.summary == description
+    assert timetable.description == description
+    assert timetable.event_dates == EVENT_DATES
+
+    deserialized: EventsTimetable = timetable.deserialize(timetable.serialize())
+    assert deserialized.summary == description
+    assert deserialized.description == description
+    assert deserialized.event_dates == EVENT_DATES
+
+
+def test_timetable_without_description_after_serialization_is_the_same():
+    timetable = EventsTimetable(event_dates=EVENT_DATES, presorted=True)
+    summary = f"{timetable.summary}"
+    description = f"{timetable.description}"
+    assert timetable.event_dates == EVENT_DATES
+
+    deserialized: EventsTimetable = timetable.deserialize(timetable.serialize())
+    assert deserialized.summary == summary
+    assert deserialized.description == description
+    assert deserialized.event_dates == EVENT_DATES
