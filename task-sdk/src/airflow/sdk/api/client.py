@@ -625,14 +625,6 @@ class InteractiveResponseOperations:
     def __init__(self, client: Client) -> None:
         self.client = client
 
-    def write_response(self, ti_id: uuid.UUID, content: str) -> OKResponse:
-        """Write Interactive Response via the API server."""
-        from airflow.providers.standard.api_fastapi.datamodel.interactive import AddInteractiveResponsePayload
-
-        payload = AddInteractiveResponsePayload(ti_id=ti_id, content_to_add=content)
-        self.client.post(f"/interactive/{ti_id}/response", content=payload)
-        return OKResponse(ok=True)
-
     def get_response(self, ti_id: uuid.UUID) -> InteractiveResponse:
         """Get the Interactive Response of a specific Task Instance."""
         resp = self.client.get(f"/interactive/{ti_id}/response")
