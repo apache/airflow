@@ -22,6 +22,9 @@ from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
 import attrs
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session
+
 from airflow.models.xcom import BaseXCom
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions._internal.types import ArgNotSet
@@ -36,8 +39,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
 
 __all__ = ["XComArg", "get_task_map_length"]
 xcom_backend: BaseXCom = resolve_xcom_backend()

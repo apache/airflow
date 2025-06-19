@@ -180,9 +180,11 @@ class TaskMap(TaskInstanceDependencies):
                 context=context,
                 dag_version_id=dag_version_id,
             )
-            all_expanded_tis.extend(job_runner.expand_tasks(
-                expand_input=islice(job_runner.expand_input(session=session), task_expansion_batch_size),
-                session=session)
+            all_expanded_tis.extend(
+                job_runner.expand_tasks(
+                    expand_input=islice(job_runner.expand_input(session=session), task_expansion_batch_size),
+                    session=session,
+                )
             )
             total_expanded_ti_count = len(all_expanded_tis)
 

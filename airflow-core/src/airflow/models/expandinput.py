@@ -159,9 +159,7 @@ class SchedulerListOfDictsExpandInput(ExpandInput):
     def resolve(
         self, context: Mapping[str, Any], session: Session
     ) -> Generator[dict[Any, str | Any] | dict[Any, Any], None, list[Any]]:
-        value = (
-            self.value.resolve(context, session) if isinstance(self.value, SchedulerXComArg) else self.value
-        )
+        value = self.value.resolve(context, session) if _needs_run_time_resolution(self.value) else self.value
 
         self.log.debug("resolved value: %s", value)
 

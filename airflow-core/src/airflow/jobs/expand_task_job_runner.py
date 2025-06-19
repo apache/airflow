@@ -31,7 +31,7 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils.context import Context
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import create_session, NEW_SESSION
+from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -137,7 +137,6 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         """
         Expands the task using the provided expand_input.
         """
-
         from airflow.models.taskinstance import TaskInstance
 
         max_map_index = TaskInstance.get_current_max_mapping(
@@ -184,4 +183,8 @@ class TaskExpansionJobRunner(BaseJobRunner, LoggingMixin):
         return task_instances
 
     def _execute(self, session: Session) -> int | None:
-        return len(self.expand_tasks(expand_input=self.expand_input(session=session), job_id=self.job_id, session=session))
+        return len(
+            self.expand_tasks(
+                expand_input=self.expand_input(session=session), job_id = self.job_id, session = session
+            )
+        )

@@ -359,7 +359,7 @@ def run_job(
 
 
 def run_job_async(
-    job: Job, execute_callable: Union[Callable[[], int | None],Callable[[Session], int | None]]
+    job: Job, execute_callable: Union[Callable[[], int | None], Callable[[Session], int | None]]
 ) -> int | None:
     """
     Run the job asynchronously.
@@ -384,7 +384,9 @@ def run_job_async(
 
 
 def execute_job(
-    job: Job, execute_callable: Union[Callable[[], int | None],Callable[[Session], int | None]], session: Session | None = None
+    job: Job,
+    execute_callable: Union[Callable[[], int | None], Callable[[Session], int | None]],
+    session: Session | None = None,
 ) -> int | None:
     """
     Execute the job.
