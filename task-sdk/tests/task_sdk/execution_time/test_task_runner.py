@@ -686,7 +686,8 @@ def test_task_run_with_user_impersonation(
         actual_cmd = mock_execvp.call_args.args[1]
 
         assert actual_cmd[:5] == ["sudo", "-E", "-H", "-u", "airflowuser"]
-        assert "python -c" in actual_cmd[5] + " " + actual_cmd[6]
+        assert "python" in actual_cmd[5]
+        assert actual_cmd[6] == "-c"
         assert actual_cmd[7] == "from airflow.sdk.execution_time.task_runner import main; main()"
 
 
