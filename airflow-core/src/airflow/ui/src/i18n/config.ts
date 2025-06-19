@@ -44,12 +44,21 @@ import enComponents from "./locales/en/components.json";
 import enDag from "./locales/en/dag.json";
 import enDags from "./locales/en/dags.json";
 import enDashboard from "./locales/en/dashboard.json";
+import frAdmin from "./locales/fr/admin.json";
+import frAssets from "./locales/fr/assets.json";
+import frBrowse from "./locales/fr/browse.json";
+import frCommon from "./locales/fr/common.json";
+import frComponents from "./locales/fr/components.json";
+import frDag from "./locales/fr/dag.json";
+import frDags from "./locales/fr/dags.json";
+import frDashboard from "./locales/fr/dashboard.json";
 import heAdmin from "./locales/he/admin.json";
 import heAsset from "./locales/he/assets.json";
 import heBrowse from "./locales/he/browse.json";
 import heCommon from "./locales/he/common.json";
 import heComponents from "./locales/he/components.json";
 import heDag from "./locales/he/dag.json";
+import heDags from "./locales/he/dags.json";
 import heDashboard from "./locales/he/dashboard.json";
 import koCommon from "./locales/ko/common.json";
 import koDashboard from "./locales/ko/dashboard.json";
@@ -84,6 +93,7 @@ export const supportedLanguages = [
   { code: "nl", flag: "🇳🇱", name: "Nederlands" },
   { code: "pl", flag: "🇵🇱", name: "Polski" },
   { code: "zh-TW", flag: "🇹🇼", name: "繁體中文" },
+  { code: "fr", flag: "🇫🇷", name: "Français" },
 ] as const;
 
 export const defaultLanguage = "en";
@@ -120,6 +130,16 @@ const resources = {
     dags: enDags,
     dashboard: enDashboard,
   },
+  fr: {
+    admin: frAdmin,
+    assets: frAssets,
+    browse: frBrowse,
+    common: frCommon,
+    components: frComponents,
+    dag: frDag,
+    dags: frDags,
+    dashboard: frDashboard,
+  },
   he: {
     admin: heAdmin,
     assets: heAsset,
@@ -127,6 +147,7 @@ const resources = {
     common: heCommon,
     components: heComponents,
     dag: heDag,
+    dags: heDags,
     dashboard: heDashboard,
   },
   ko: {
