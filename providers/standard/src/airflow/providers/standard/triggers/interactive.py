@@ -22,7 +22,6 @@ from typing import Any, TypedDict
 
 from asgiref.sync import sync_to_async
 
-from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.sdk.execution_time.interactive import fetch_response_content
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -71,11 +70,8 @@ class InteractiveTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the relevant files are found."""
         while True:
-            try:
-                content = await sync_to_async(fetch_response_content)(ti_id=self.ti_id)
-                if content:
-                    yield TriggerEvent({"content": content})
-                    return
-            except AirflowRuntimeError:
-                await asyncio.sleep(self.poke_interval)
+            content = await sync_to_async(fetch_response_content)(ti_id=self.ti_id)
+            if content:
+                yield TriggerEvent({"content": content})
+                return
             await asyncio.sleep(self.poke_interval)

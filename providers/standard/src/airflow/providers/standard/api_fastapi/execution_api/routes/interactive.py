@@ -59,11 +59,7 @@ def get_response(
     interactive_response = session.scalar(
         select(InteractiveResponseModel).where(InteractiveResponseModel.ti_id == ti_id_str),
     )
-    if interactive_response:
-        content = interactive_response.content
-    else:
-        content = ""
     return InteractiveResponse(
         ti_id=task_instance_id,
-        content=content,
+        content=interactive_response.content if interactive_response else None,
     )
