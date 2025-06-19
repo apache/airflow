@@ -230,12 +230,12 @@ class HttpHook(BaseHook):
             connection, extra_options
         )
 
-        session.proxies = self.merged_extra.pop("proxies", self.merged_extra.pop("proxy", {}))
-        session.stream = self.merged_extra.pop("stream", False)
-        session.verify = self.merged_extra.pop("verify", self.merged_extra.pop("verify_ssl", True))
-        session.cert = self.merged_extra.pop("cert", None)
-        session.max_redirects = self.merged_extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
-        session.trust_env = self.merged_extra.pop("trust_env", True)
+        session.proxies = self.merged_extra.get("proxies", self.merged_extra.get("proxy", {}))
+        session.stream = self.merged_extra.get("stream", False)
+        session.verify = self.merged_extra.get("verify", self.merged_extra.get("verify_ssl", True))
+        session.cert = self.merged_extra.get("cert", None)
+        session.max_redirects = self.merged_extra.get("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.trust_env = self.merged_extra.get("trust_env", True)
 
         try:
             session.headers.update(conn_extra_options)
