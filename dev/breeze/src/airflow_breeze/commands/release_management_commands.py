@@ -220,6 +220,7 @@ option_distribution_format = click.option(
 option_use_local_hatch = click.option(
     "--use-local-hatch",
     is_flag=True,
+    envvar="USE_LOCAL_HATCH",
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
 

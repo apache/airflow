@@ -57,6 +57,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
+      use-local-venv:
+        description: "Whether local venv should be used for tests (true/false)"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -89,18 +93,34 @@ jobs:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
+        if: ${{ inputs.use-local-venv != 'true' }}
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+        shell: bash
+        if: ${{ inputs.use-local-venv == 'true' }}
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        if: ${{ inputs.use-local-venv == 'true' }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
+        if: ${{ matrix.python-version == inputs.default-python-version }}
       # Conditional steps based on the distribution name
       - name: "Prepare Airflow ${{inputs.distribution-name}}: wheel"
         env:
           DISTRIBUTION_TYPE: "${{ inputs.distribution-cmd-format }}"
-        run: >
+          USE_LOCAL_HATCH: "${{ inputs.use-local-venv }}"
+        run: |
+          uv tool uninstall hatch || true
+          uv tool install hatch==1.14.1
           breeze release-management "${DISTRIBUTION_TYPE}" --distribution-format wheel
+        if: ${{ matrix.python-version == inputs.default-python-version }}
       - name: "Verify wheel packages with twine"
         run: |
           uv tool uninstall twine || true
           uv tool install twine && twine check dist/*.whl
+        if: ${{ matrix.python-version == inputs.default-python-version }}
       - name: >
           Run unit tests for Airflow ${{inputs.distribution-name}}:Python ${{ matrix.python-version }}
         env:
