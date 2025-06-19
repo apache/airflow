@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -31,6 +32,7 @@ type DeleteRunButtonProps = {
 
 const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { t: translate } = useTranslation();
 
   const { isPending, mutate: deleteDagRun } = useDeleteDagRun({
     dagId: dagRun.dag_id,
@@ -43,11 +45,11 @@ const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
   return (
     <>
       <ActionButton
-        actionName="Delete DAG Run"
+        actionName={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
         colorPalette="red"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text="Delete DAG Run"
+        text={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
         variant="solid"
         withText={withText}
       />
@@ -62,9 +64,14 @@ const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
           });
         }}
         open={open}
-        resourceName={`DAG Run ${dagRun.dag_run_id}`}
-        title="Delete DAG Run"
-        warningText="This will remove all metadata related to the DAG Run."
+        resourceName={translate("dags:runAndTaskActions.delete.dialog.resourceName", {
+          id: dagRun.dag_run_id,
+          type: translate("dagRun_one"),
+        })}
+        title={translate("dags:runAndTaskActions.delete.dialog.title", { type: translate("dagRun_one") })}
+        warningText={translate("dags:runAndTaskActions.delete.dialog.warning", {
+          type: translate("dagRun_one"),
+        })}
       />
     </>
   );

@@ -59,7 +59,7 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.29+ cluster
+-  Kubernetes 1.30+ cluster
 -  Helm 3.10+
 -  PV provisioner support in the underlying infrastructure (optionally)
 

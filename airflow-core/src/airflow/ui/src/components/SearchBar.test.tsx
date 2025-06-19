@@ -31,7 +31,7 @@ describe("Test SearchBar", () => {
 
     const input = screen.getByTestId("search-dags");
 
-    expect(screen.getByText("Advanced Search")).toBeDefined();
+    expect(screen.getByText("search.advanced")).toBeDefined();
     expect(screen.queryByTestId("clear-search")).toBeNull();
 
     fireEvent.change(input, { target: { value: "search" } });

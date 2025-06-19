@@ -100,7 +100,7 @@ class TestBigtableInstanceCreate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -120,7 +120,7 @@ class TestBigtableInstanceCreate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -178,7 +178,7 @@ class TestBigtableInstanceCreate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -210,7 +210,7 @@ class TestBigtableInstanceCreate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -243,7 +243,7 @@ class TestBigtableInstanceUpdate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -268,7 +268,7 @@ class TestBigtableInstanceUpdate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -797,7 +797,7 @@ class TestBigtableTableCreate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

@@ -21,8 +21,6 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
@@ -51,7 +49,9 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
     TaskDependencyCollectionResponse,
@@ -63,11 +63,15 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.services.public.task_instances import (
+    BulkTaskInstanceService,
+    _patch_task_instance_note,
+    _patch_task_instance_state,
+    _patch_ti_validate_request,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import Base, DagRun
-from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
@@ -728,54 +732,6 @@ def post_clear_task_instances(
     )
 
 
-def _patch_ti_validate_request(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    dag_bag: DagBagDep,
-    body: PatchTaskInstanceBody,
-    session: SessionDep,
-    map_index: int | None = -1,
-    update_mask: list[str] | None = Query(None),
-) -> tuple[DAG, list[TI], dict]:
-    dag = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
-
-    if not dag.has_task(task_id):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
-
-    query = (
-        select(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-        .join(TI.dag_run)
-        .options(joinedload(TI.rendered_task_instance_fields))
-    )
-    if map_index is not None:
-        query = query.where(TI.map_index == map_index)
-    else:
-        query = query.order_by(TI.map_index)
-
-    tis = session.scalars(query).all()
-
-    err_msg_404 = (
-        f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-    )
-    if len(tis) == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
-
-    fields_to_update = body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            PatchTaskInstanceBody.model_validate(body)
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    return dag, list(tis), body.model_dump(include=fields_to_update, by_alias=True)
-
-
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/dry_run",
     responses=create_openapi_http_exception_doc(
@@ -836,6 +792,24 @@ def patch_task_instance_dry_run(
 
 
 @task_instances_router.patch(
+    task_instances_prefix,
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def bulk_task_instances(
+    request: BulkBody[BulkTaskInstanceBody],
+    session: SessionDep,
+    dag_id: str,
+    dag_bag: DagBagDep,
+    dag_run_id: str,
+    user: GetUserDep,
+) -> BulkResponse:
+    """Bulk update, and delete task instances."""
+    return BulkTaskInstanceService(
+        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user
+    ).handle_request()
+
+
+@task_instances_router.patch(
     task_instances_prefix + "/{task_id}",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
@@ -875,46 +849,22 @@ def patch_task_instance(
 
     for key, _ in data.items():
         if key == "new_state":
-            tis = dag.set_task_instance_state(
+            _patch_task_instance_state(
                 task_id=task_id,
-                run_id=dag_run_id,
-                map_indexes=[map_index] if map_index is not None else None,
-                state=data["new_state"],
-                upstream=body.include_upstream,
-                downstream=body.include_downstream,
-                future=body.include_future,
-                past=body.include_past,
-                commit=True,
+                dag_run_id=dag_run_id,
+                dag=dag,
+                task_instance_body=body,
+                data=data,
                 session=session,
             )
-            if not tis:
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
-                )
-
-            for ti in tis:
-                try:
-                    if data["new_state"] == TaskInstanceState.SUCCESS:
-                        get_listener_manager().hook.on_task_instance_success(
-                            previous_state=None, task_instance=ti
-                        )
-                    elif data["new_state"] == TaskInstanceState.FAILED:
-                        get_listener_manager().hook.on_task_instance_failed(
-                            previous_state=None,
-                            task_instance=ti,
-                            error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                        )
-                except Exception:
-                    log.exception("error calling listener")
 
         elif key == "note":
-            for ti in tis:
-                if update_mask or body.note is not None:
-                    if ti.task_instance_note is None:
-                        ti.note = (body.note, user.get_id())
-                    else:
-                        ti.task_instance_note.content = body.note
-                        ti.task_instance_note.user_id = user.get_id()
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=tis,
+                user=user,
+                update_mask=update_mask,
+            )
 
     return TaskInstanceCollectionResponse(
         task_instances=[

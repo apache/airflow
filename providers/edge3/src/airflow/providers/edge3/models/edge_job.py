@@ -49,7 +49,7 @@ class EdgeJobModel(Base, LoggingMixin):
     state = Column(String(20))
     queue = Column(String(256))
     concurrency_slots = Column(Integer)
-    command = Column(String(1000))
+    command = Column(String(2048))
     queued_dttm = Column(UtcDateTime)
     edge_worker = Column(String(64))
     last_update = Column(UtcDateTime)

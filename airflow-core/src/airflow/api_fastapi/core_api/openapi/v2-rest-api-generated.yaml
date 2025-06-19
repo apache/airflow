@@ -2872,14 +2872,6 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
-      - name: last_dag_run_state
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - $ref: '#/components/schemas/DagRunState'
-          - type: 'null'
-          title: Last Dag Run State
       requestBody:
         required: true
         content:
@@ -5568,6 +5560,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Task Instance
+      summary: Bulk Task Instances
+      description: Bulk update, and delete task instances.
+      operationId: bulk_task_instances
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkBody_BulkTaskInstanceBody_'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list:
     post:
       tags:
@@ -7185,16 +7229,21 @@ components:
           type: string
           format: date-time
           title: Updated At
-        consuming_dags:
+        scheduled_dags:
           items:
             $ref: '#/components/schemas/DagScheduleAssetReference'
           type: array
-          title: Consuming Dags
+          title: Scheduled Dags
         producing_tasks:
           items:
             $ref: '#/components/schemas/TaskOutletAssetReference'
           type: array
           title: Producing Tasks
+        consuming_tasks:
+          items:
+            $ref: '#/components/schemas/TaskInletAssetReference'
+          type: array
+          title: Consuming Tasks
         aliases:
           items:
             $ref: '#/components/schemas/AssetAliasResponse'
@@ -7212,8 +7261,9 @@ components:
       - group
       - created_at
       - updated_at
-      - consuming_dags
+      - scheduled_dags
       - producing_tasks
+      - consuming_tasks
       - aliases
       title: AssetResponse
       description: Asset serializer for responses.
@@ -7344,14 +7394,6 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    BulkAction:
-      type: string
-      enum:
-      - create
-      - delete
-      - update
-      title: BulkAction
-      description: Bulk Action to be performed on the used model.
     BulkActionNotOnExistence:
       type: string
       enum:
@@ -7397,6 +7439,21 @@ components:
 
         This structure helps users understand which key actions succeeded and which
         failed.'
+    BulkBody_BulkTaskInstanceBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_BulkTaskInstanceBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_BulkTaskInstanceBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_BulkTaskInstanceBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[BulkTaskInstanceBody]
     BulkBody_ConnectionBody_:
       properties:
         actions:
@@ -7442,10 +7499,34 @@ components:
       required:
       - actions
       title: BulkBody[VariableBody]
+    BulkCreateAction_BulkTaskInstanceBody_:
+      properties:
+        action:
+          type: string
+          const: create
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkTaskInstanceBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[BulkTaskInstanceBody]
     BulkCreateAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7465,7 +7546,9 @@ components:
     BulkCreateAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7485,7 +7568,9 @@ components:
     BulkCreateAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: create
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7502,10 +7587,34 @@ components:
       - action
       - entities
       title: BulkCreateAction[VariableBody]
+    BulkDeleteAction_BulkTaskInstanceBody_:
+      properties:
+        action:
+          type: string
+          const: delete
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            type: string
+          type: array
+          title: Entities
+          description: A list of entity id/key to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[BulkTaskInstanceBody]
     BulkDeleteAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7525,7 +7634,9 @@ components:
     BulkDeleteAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7545,7 +7656,9 @@ components:
     BulkDeleteAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: delete
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7595,10 +7708,76 @@ components:
 
         Fields are populated in the response only if the respective action was part
         of the request, else are set None.'
+    BulkTaskInstanceBody:
+      properties:
+        new_state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+        include_upstream:
+          type: boolean
+          title: Include Upstream
+          default: false
+        include_downstream:
+          type: boolean
+          title: Include Downstream
+          default: false
+        include_future:
+          type: boolean
+          title: Include Future
+          default: false
+        include_past:
+          type: boolean
+          title: Include Past
+          default: false
+        task_id:
+          type: string
+          title: Task Id
+        map_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
+      additionalProperties: false
+      type: object
+      required:
+      - task_id
+      title: BulkTaskInstanceBody
+      description: Request body for bulk update, and delete task instances.
+    BulkUpdateAction_BulkTaskInstanceBody_:
+      properties:
+        action:
+          type: string
+          const: update
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkTaskInstanceBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[BulkTaskInstanceBody]
     BulkUpdateAction_ConnectionBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7618,7 +7797,9 @@ components:
     BulkUpdateAction_PoolBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7638,7 +7819,9 @@ components:
     BulkUpdateAction_VariableBody_:
       properties:
         action:
-          $ref: '#/components/schemas/BulkAction'
+          type: string
+          const: update
+          title: Action
           description: The action to be performed on the entities.
         entities:
           items:
@@ -7994,6 +8177,13 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        deadline:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -8161,6 +8351,7 @@ components:
       - relative_fileloc
       - fileloc
       - description
+      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -8252,6 +8443,13 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        deadline:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -8331,6 +8529,7 @@ components:
       - relative_fileloc
       - fileloc
       - description
+      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -8433,6 +8632,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
         data_interval_start:
           anyOf:
           - type: string
@@ -8495,6 +8699,7 @@ components:
       - queued_at
       - start_date
       - end_date
+      - duration
       - data_interval_start
       - data_interval_end
       - run_after
@@ -8937,6 +9142,31 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    DeadlineAlertResponse:
+      properties:
+        reference:
+          type: string
+          title: Reference
+        interval:
+          type: string
+          format: duration
+          title: Interval
+        callback:
+          type: string
+          title: Callback
+        callback_kwargs:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Callback Kwargs
+      type: object
+      required:
+      - reference
+      - interval
+      - callback
+      title: DeadlineAlertResponse
+      description: Deadline alert serializer for responses.
     DryRunBackfillCollectionResponse:
       properties:
         backfills:
@@ -9156,6 +9386,42 @@ components:
       - triggerer
       title: HealthInfoResponse
       description: Health serializer for responses.
+    IFrameViewsResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        src:
+          type: string
+          title: Src
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        url_route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url Route
+        destination:
+          anyOf:
+          - type: string
+            enum:
+            - nav
+            - dag
+            - dag_run
+            - task
+            - task_instance
+          - type: 'null'
+          title: Destination
+      additionalProperties: true
+      type: object
+      required:
+      - name
+      - src
+      title: IFrameViewsResponse
+      description: Serializer for IFrame Plugin responses.
     ImportErrorCollectionResponse:
       properties:
         import_errors:
@@ -9410,6 +9676,11 @@ components:
             $ref: '#/components/schemas/FastAPIRootMiddlewareResponse'
           type: array
           title: Fastapi Root Middlewares
+        iframe_views:
+          items:
+            $ref: '#/components/schemas/IFrameViewsResponse'
+          type: array
+          title: Iframe Views
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'
@@ -9450,6 +9721,7 @@ components:
       - flask_blueprints
       - fastapi_apps
       - fastapi_root_middlewares
+      - iframe_views
       - appbuilder_views
       - appbuilder_menu_items
       - global_operator_extra_links
@@ -9733,6 +10005,31 @@ components:
       - reason
       title: TaskDependencyResponse
       description: Task Dependency serializer for responses.
+    TaskInletAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        task_id:
+          type: string
+          title: Task Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      additionalProperties: false
+      type: object
+      required:
+      - dag_id
+      - task_id
+      - created_at
+      - updated_at
+      title: TaskInletAssetReference
+      description: Task inlet reference serializer for assets.
     TaskInstanceCollectionResponse:
       properties:
         task_instances:

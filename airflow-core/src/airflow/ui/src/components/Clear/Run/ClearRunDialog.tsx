@@ -18,6 +18,7 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -35,10 +36,19 @@ type Props = {
 };
 
 const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
-
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
+  const { t: translate } = useTranslation();
+
+  const [note, setNote] = useState<string | null>(dagRun.note);
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+  const onlyFailed = selectedOptions.includes("onlyFailed");
+
+  const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
+    dagId,
+    dagRunId,
+    requestBody: { only_failed: onlyFailed },
+  });
 
   const { isPending, mutate } = useClearDagRun({
     dagId,
@@ -46,27 +56,11 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     onSuccessConfirm: onClose,
   });
 
-  const onlyFailed = selectedOptions.includes("onlyFailed");
-
-  const [note, setNote] = useState<string | null>(dagRun.note);
-  const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({ dagId, dagRunId });
-
-  const { data } = useClearDagRunDryRun({
+  const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({
     dagId,
     dagRunId,
-    options: {
-      enabled: open,
-      refetchOnMount: "always",
-    },
-    requestBody: {
-      only_failed: onlyFailed,
-    },
+    onSuccess: onClose,
   });
-
-  const affectedTasks = data ?? {
-    task_instances: [],
-    total_entries: 0,
-  };
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -74,7 +68,10 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Clear DagRun: </strong> {dagRunId}
+              <strong>
+                {translate("dags:runAndTaskActions.clear.title", { type: translate("dagRun_one") })}:{" "}
+              </strong>{" "}
+              {dagRunId}
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -87,11 +84,17 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               defaultValues={["existingTasks"]}
               onChange={setSelectedOptions}
               options={[
-                { label: "Clear existing tasks", value: "existingTasks" },
-                { label: "Clear only failed tasks", value: "onlyFailed" },
+                {
+                  label: translate("dags:runAndTaskActions.options.existingTasks"),
+                  value: "existingTasks",
+                },
+                {
+                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
+                  value: "onlyFailed",
+                },
                 {
                   disabled: true,
-                  label: "Queue up new tasks",
+                  label: translate("dags:runAndTaskActions.options.queueNew"),
                   value: "new_tasks",
                 },
               ]}
@@ -118,7 +121,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                 }
               }}
             >
-              <CgRedo /> Confirm
+              <CgRedo /> {translate("modal.confirm")}
             </Button>
           </Flex>
         </Dialog.Body>
