@@ -95,14 +95,14 @@
     }
   },
   "nav": {
-    "admin": "Administracja",
+    "admin": "Admin",
     "assets": "Zasoby",
-    "browse": "Przeglądanie",
+    "browse": "Przegląd",
     "dags": "Dagi",
-    "docs": "Dokumentacja",
-    "home": "Strona główna",
+    "docs": "Pomoc",
+    "home": "Pulpit",
     "plugins": "Wtyczki",
-    "security": "Bezpieczeństwo"
+    "security": "Dostęp"
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
   "note": {
@@ -262,7 +262,7 @@
   },
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
-  "user": "Użytkownik",
+  "user": "Profil",
   "wrap": {
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
