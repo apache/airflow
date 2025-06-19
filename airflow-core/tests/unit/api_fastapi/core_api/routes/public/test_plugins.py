@@ -89,7 +89,7 @@ class TestGetPlugins:
             {
                 "category": "Search",
                 "dark_mode_icon": None,
-                "destination": None,
+                "destination": "nav",
                 "href": "https://www.google.com",
                 "icon": None,
                 "name": "Google",
@@ -98,7 +98,7 @@ class TestGetPlugins:
             {
                 "category": None,
                 "dark_mode_icon": None,
-                "destination": None,
+                "destination": "nav",
                 "href": "https://www.apache.org/",
                 "icon": None,
                 "label": "The Apache Software Foundation",
