@@ -17,6 +17,25 @@
  under the License.
  -->
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Internationalization (i18n) Policy](#internationalization-i18n-policy)
+  - [1. Purpose & scope](#1-purpose--scope)
+  - [2. Definitions](#2-definitions)
+  - [3. Wording/Phrasing](#3-wordingphrasing)
+  - [4. Roles & responsibilities](#4-roles--responsibilities)
+  - [5. Requirements](#5-requirements)
+  - [6. Procedures](#6-procedures)
+  - [7. Standards & guidelines](#7-standards--guidelines)
+  - [8. Tools & resources](#8-tools--resources)
+  - [9. Compliance & enforcement](#9-compliance--enforcement)
+  - [10. Exceptions](#10-exceptions)
+  - [11. Review and updates](#11-review-and-updates)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Internationalization (i18n) Policy
 
 ## 1. Purpose & scope
