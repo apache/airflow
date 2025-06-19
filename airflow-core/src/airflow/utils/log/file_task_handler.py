@@ -103,6 +103,10 @@ class LogMetadata(TypedDict):
 
     end_of_log: bool
     log_pos: NotRequired[int]
+    # the following attributes are used for Elasticsearch and OpenSearch log handlers
+    offset: NotRequired[str | int]
+    last_log_timestamp: NotRequired[str]
+    max_offset: NotRequired[str]
 
 
 class StructuredLogMessage(BaseModel):
