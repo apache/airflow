@@ -24,7 +24,7 @@
     "clear": {
       "button": "مسح {{type}}",
       "buttonTooltip": "اضغط shift+c للمسح",
-      "error": "حدث خطأ أثناء مسح {{type}}",
+      "error": "حدث خطأ أثناء المسح {{type}}",
       "title": "مسح {{type}}"
     },
     "delete": {
@@ -60,10 +60,10 @@
   },
   "search": {
      "advanced": "بحث متقدم",
-     "clear": "مسح",
-     "dags": "Dags",
+     "clear": " مسح",
+     "dags": "ابحث عن Dags",
      "hotkey": "+K",
-     "tasks": "مهام"
+     "tasks": "ابحث عن مهام"
   },
   "sort": {
     "displayName": {

@@ -87,7 +87,7 @@
     "limitedList": "+{{count}} المزيد",
     "logs": {
         "file": "ملف",
-        "location": "موقع"
+        "location": "سطر {{line}} في {{name}}"
     },
     "reparseDag": "إعادة تحليل DAG",
     "sortedAscending": "الترتيب تصاعدي",
