@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from unittest import mock
-from unittest.mock import patch
 
 import pytest
 
@@ -28,8 +27,6 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_job_name,
     lineage_job_namespace,
     lineage_parent_id,
-    lineage_root_job_name,
-    lineage_root_parent_id,
     lineage_root_run_id,
     lineage_run_id,
 )
