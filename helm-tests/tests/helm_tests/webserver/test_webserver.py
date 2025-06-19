@@ -1089,11 +1089,11 @@ class TestWebserverConfigmap:
     def test_no_webserver_config_configmap_with_configmap_name(self):
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
-                    "airflowVersion": "2.10.5",
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": "my-configmap",
-                }
+                },
             },
             show_only=["templates/configmaps/webserver-configmap.yaml"],
         )

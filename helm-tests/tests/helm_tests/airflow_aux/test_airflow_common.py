@@ -106,8 +106,8 @@ class TestAirflowCommon:
         configmap_name = "my-configmap"
         docs = render_chart(
             values={
+                "airflowVersion": "2.10.5",
                 "webserver": {
-                    "airflowVersion": "2.10.5",
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": configmap_name,
                 },
