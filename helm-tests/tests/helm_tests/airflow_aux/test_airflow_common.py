@@ -102,11 +102,12 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
-    def test_webserver_config_configmap_name_volume_mounts(self):
+    def test_webserver_config_configmap_name_volume_mounts_pre_v3(self):
         configmap_name = "my-configmap"
         docs = render_chart(
             values={
                 "webserver": {
+                    "airflowVersion": "2.10.5",
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": configmap_name,
                 },
@@ -135,6 +136,42 @@ class TestAirflowCommon:
             ]
             assert configmap_name == jmespath.search(
                 "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", doc
+            )
+
+    def test_webserver_config_configmap_name_volume_mounts(self):
+        configmap_name = "my-configmap"
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.0.0",
+                "apiServer": {
+                    "apiServerConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "apiServerConfigConfigMapName": configmap_name,
+                },
+                "workers": {"kerberosSidecar": {"enabled": True}},
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+        for doc in docs:
+            assert "api-server-config" in [
+                c["name"]
+                for r in jmespath.search(
+                    "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].volumeMounts",
+                    doc,
+                )
+                for c in r
+            ]
+            for container in jmespath.search("spec.template.spec.containers", doc):
+                assert "api-server-config" in [c["name"] for c in jmespath.search("volumeMounts", container)]
+            assert "api-server-config" in [
+                c["name"] for c in jmespath.search("spec.template.spec.volumes", doc)
+            ]
+            assert configmap_name == jmespath.search(
+                "spec.template.spec.volumes[?name=='api-server-config'].configMap.name | [0]", doc
             )
 
     def test_annotations(self):

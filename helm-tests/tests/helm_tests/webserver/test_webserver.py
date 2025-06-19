@@ -1090,6 +1090,7 @@ class TestWebserverConfigmap:
         docs = render_chart(
             values={
                 "webserver": {
+                    "airflowVersion": "2.10.5",
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": "my-configmap",
                 }
@@ -1100,7 +1101,10 @@ class TestWebserverConfigmap:
 
     def test_webserver_config_configmap(self):
         docs = render_chart(
-            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+            values={
+                "webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"},
+                "airflowVersion": "2.10.5",
+            },
             show_only=["templates/configmaps/webserver-configmap.yaml"],
         )
 
