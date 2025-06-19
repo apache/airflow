@@ -60,8 +60,8 @@ def _process_extra_options_from_connection(
     :return: (tuple)
     """
     # Copy, to prevent changing conn.extra_dejson and extra_options
-    conn_extra_options: dict = copy.deepcopy(conn.extra_dejson)
-    passed_extra_options: dict = copy.deepcopy(extra_options)
+    conn_extra_options: dict = copy.copy(conn.extra_dejson)
+    passed_extra_options: dict = copy.copy(extra_options)
 
     stream = conn_extra_options.pop("stream", None)
     cert = conn_extra_options.pop("cert", None)
